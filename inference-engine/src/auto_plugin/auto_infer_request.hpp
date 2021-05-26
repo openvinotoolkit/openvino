@@ -27,7 +27,8 @@ public:
     explicit AutoInferRequest(const InferenceEngine::InputsDataMap&             networkInputs,
                               const InferenceEngine::OutputsDataMap&            networkOutputs,
                               const InferenceEngine::SoIInferRequestInternal&   inferRequest,
-                              AutoPlugin::NetworkSharedFuture f);
+                              AutoPlugin::NetworkSharedFuture f,
+                              std::atomic<bool>& anyRequestHasHotSwapped);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
@@ -46,6 +47,7 @@ private:
 
     std::mutex _hotswapMutex;
     bool _hotswapDone = false;
+    std::atomic<bool>& _anyRequestHasHotSwapped;
     void HotSwapRequests();
     void SetBlobsToDeviceRequest();
 };

@@ -18,7 +18,7 @@ AutoExecutableNetwork::AutoExecutableNetwork(AutoPlugin::NetworkPromiseSharedPtr
     // we wait for any network to become ready (maybe this will already an actual device)
     _networkFirstReady = networkPromiseFirstReady->get_future().get();
     _networkPromiseActualNeeded = networkPromiseActualNeeded;
-    futureActualNetwork = _networkPromiseActualNeeded->get_future();
+    _futureActualNetwork = _networkPromiseActualNeeded->get_future();
 }
 
 AutoExecutableNetwork::~AutoExecutableNetwork() = default;
@@ -26,36 +26,40 @@ AutoExecutableNetwork::~AutoExecutableNetwork() = default;
 InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                                           OutputsDataMap networkOutputs) {
     SoIInferRequestInternal inferRequest = {_networkFirstReady, _networkFirstReady->CreateInferRequest()};
-    return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest, futureActualNetwork.share());
+    return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest,
+            _futureActualNetwork.share(), _anyRequestHasHotSwapped);
 }
 
 void AutoExecutableNetwork::Export(std::ostream& networkModel) {
-    wait_for_actual_device();
-    _networkActualNeeded->Export(networkModel);
+    //fixme: the Export  should work with actual device, so we have to wait!!!
+//    wait_for_actual_device();
+//    _networkActualNeeded->Export(networkModel);
 }
 
 RemoteContext::Ptr AutoExecutableNetwork::GetContext() const {
-   wait_for_actual_device();
-   return _networkActualNeeded->GetContext();
+    // fixme: the GetContext  should work with actual device, so we have to wait!!!
+//   wait_for_actual_device();
+//   return (_networkActualNeeded) ? _networkActualNeeded->GetContext() : RemoteContext::Ptr{};
+     return RemoteContext::Ptr{};
 }
 
 InferenceEngine::CNNNetwork AutoExecutableNetwork::GetExecGraphInfo() {
-    wait_for_actual_device();
-    return _networkFirstReady->GetExecGraphInfo();
+    return _anyRequestHasHotSwapped ? _networkActualNeeded->GetExecGraphInfo() : _networkFirstReady->GetExecGraphInfo();
 }
 
 Parameter AutoExecutableNetwork::GetMetric(const std::string &name) const {
-    return _networkFirstReady->GetMetric(name);
+    //fixme: check this logic
+    return _anyRequestHasHotSwapped ? _networkActualNeeded->GetMetric(name) : _networkFirstReady->GetMetric(name);
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
-    // this seems to be Not GOOD, why should we have SetConfig for the AUTO? AUTO has no config options
-    // _networkFirstReady->SetConfig(config);
+     //fixme: have to store the config and reapply when the networks swapped
+    _networkFirstReady->SetConfig(config);
 }
 
 Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
-    // fixme: also change to the FirstLoaded vs ActuallyNeeeded
-    return {};//  _networkFirstReady->GetConfig(name);
+    //fixme: carefuly select between FirstLoaded and ActuallyNeeded
+    return _networkFirstReady->GetConfig(name);
 }
 
 }  // namespace AutoPlugin

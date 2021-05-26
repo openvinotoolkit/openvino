@@ -53,7 +53,7 @@ private:
         auto metaDevices = GetDeviceList(fullConfig);
         NetworkPromiseSharedPtr promiseFirstDevice = std::make_shared<NetworkPromise>();
         NetworkPromiseSharedPtr promiseActualDevice = std::make_shared<NetworkPromise>();
-        auto LoadNetworkAsync = [=](bool bIsAccel, const std::string& device) {
+        auto LoadNetworkAsync = [this, param, promiseFirstDevice, promiseActualDevice](bool bIsAccel, const std::string& device) {
             std::cout << "!!! DEBUG: Starting Async loading to the " << device <<  " !!!" << std::endl;
             auto executableNetwork = GetCore()->LoadNetwork(param, device, {});
             try {
@@ -80,6 +80,8 @@ private:
         // loading to the CPU in parallel, if it is not already an accelrator
         if (isAccelerator)
             async_load_threads.push_back(std::thread([=] { LoadNetworkAsync(false, "CPU"); }));
+        else
+            promiseActualDevice->set_value({});
 
         // FIXME: revert the exception handling logic back to gracefully handle LoadNetwork failures
         // DeviceInformation selectedDevice;
