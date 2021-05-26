@@ -579,3 +579,21 @@ TEST(type_prop, reshape_multiply_intervals_by_interval_zero_included)
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_output_partial_shape(0), (PartialShape{Dimension(0, 24)}));
 }
+
+TEST(type_prop, reshape_to_zero_shape)
+{
+    auto param = make_shared<op::Parameter>(element::f32, Shape{0, 1});
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}), false);
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_shape(0), (Shape{0}));
+}
+
+TEST(type_prop, reshape_to_zero_shape_dynamic)
+{
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}), false);
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_shape(0), (Shape{0}));
+}

@@ -49,9 +49,8 @@ namespace reshapeop
                                 vector<Dimension>& output_shape)
     {
         if (reshape_pattern == std::vector<Dimension>{0} && !reshape_node->get_special_zero())
-        { // legacy check introduced by PR #1206
-            reshape_pattern = std::vector<Dimension>{};
-            output_shape = {};
+        {
+            output_shape = {0};
             return;
         }
         Dimension output_product(1);
