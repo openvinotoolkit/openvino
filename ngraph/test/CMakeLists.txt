@@ -239,6 +239,7 @@ set(SRC
     visitors/op/mod.cpp
     visitors/op/mvn.cpp
     visitors/op/non_max_suppression.cpp
+    visitors/op/non_zero.cpp
     visitors/op/normalize_l2.cpp
     visitors/op/one_hot.cpp
     visitors/op/pad.cpp
