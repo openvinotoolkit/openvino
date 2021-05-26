@@ -35,7 +35,7 @@ void regclass_pyngraph_Function(py::module m)
                         List of parameters.
 
                     name : str
-                        String to set as function's freindly name.
+                        String to set as function's friendly name.
                  )");
     function.def(py::init<const std::shared_ptr<ngraph::Node>&,
                           const std::vector<std::shared_ptr<ngraph::op::Parameter>>&,
@@ -55,7 +55,7 @@ void regclass_pyngraph_Function(py::module m)
                         List of parameters.
 
                     name : str
-                        String to set as function's freindly name.
+                        String to set as function's friendly name.
                  )");
     function.def("get_output_size",
                  &ngraph::Function::get_output_size,
