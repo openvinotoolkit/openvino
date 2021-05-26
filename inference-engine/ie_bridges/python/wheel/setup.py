@@ -74,12 +74,25 @@ LIB_INSTALL_CFG = {
         'install_dir': NGRAPH_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
-    'tbb_libs': {'name': 'tbb', 'prefix': 'libs.tbb', 'install_dir': TBB_LIBS_DIR},
+    'tbb_libs': {
+        'name': 'tbb',
+        'prefix': 'libs.tbb',
+        'install_dir': TBB_LIBS_DIR,
+        'rpath': LIBS_RPATH
+    },
 }
 
 PY_INSTALL_CFG = {
-    'ie_py': {'name': PYTHON_VERSION, 'prefix': 'site-packages', 'install_dir': PY_PACKAGES_DIR},
-    'ngraph_py': {'name': f'pyngraph_{PYTHON_VERSION}', 'prefix': 'site-packages', 'install_dir': PY_PACKAGES_DIR},
+    'ie_py': {
+        'name': PYTHON_VERSION,
+        'prefix': 'site-packages',
+        'install_dir': PY_PACKAGES_DIR
+    },
+    'ngraph_py': {
+        'name': f'pyngraph_{PYTHON_VERSION}',
+        'prefix': 'site-packages',
+        'install_dir': PY_PACKAGES_DIR
+     },
 }
 
 
@@ -128,10 +141,9 @@ class PrepareLibs(build_clib):
                 self.spawn(['cmake', '--install', CMAKE_BUILD_DIR, '--prefix', install_prefix, '--component', comp_data.get('name')])
             # set rpath if applicable
             if sys.platform != 'win32' and comp_data.get('rpath'):
-                file_types = ['*.so'] if sys.platform == 'linux' else ['*.dylib', '*.so']
-                for file_type in file_types:
-                    for path in Path(install_dir).glob(file_type):
-                        set_rpath(comp_data['rpath'], path)
+                file_types = ['.so'] if sys.platform == 'linux' else ['.dylib', '.so']
+                for path in filter(lambda p: any(item in file_types for item in p.suffixes), Path(install_dir).glob('*')):
+                    set_rpath(comp_data['rpath'], os.path.realpath(path))
 
     def generate_package(self, src_dirs):
         """
@@ -154,6 +166,8 @@ class PrepareLibs(build_clib):
             self.announce(f'Adding {WHEEL_LIBS_PACKAGE} package', level=3)
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ['*']})
+            packages.append(f'{WHEEL_LIBS_PACKAGE}.vpu_custom_kernels')
+            package_data.update({f'{WHEEL_LIBS_PACKAGE}.vpu_custom_kernels': ['*']})
 
 
 class CopyExt(build_ext):
@@ -173,7 +187,7 @@ class CopyExt(build_ext):
                     rpath = os.path.join('$ORIGIN', rpath, WHEEL_LIBS_INSTALL_DIR)
                 elif sys.platform == 'darwin':
                     rpath = os.path.join('@loader_path', rpath, WHEEL_LIBS_INSTALL_DIR)
-                set_rpath(rpath, src)
+                set_rpath(rpath, os.path.realpath(src))
 
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
 
@@ -214,6 +228,10 @@ def set_rpath(rpath, executable):
     print(f'Setting rpath {rpath} for {executable}')  # noqa: T001
     cmd = []
     rpath_tool = ''
+    with open(os.path.realpath(executable), 'rb') as file:
+        if file.read(1) != b'\x7f':
+            print(f'WARNING: {executable}: missed ELF header')
+            return
     if sys.platform == 'linux':
         rpath_tool = 'patchelf'
         cmd = [rpath_tool, '--set-rpath', rpath, executable]
