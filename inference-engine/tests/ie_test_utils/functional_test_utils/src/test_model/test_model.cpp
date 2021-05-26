@@ -34,7 +34,7 @@ void generateTestModel(const std::string &modelPath,
     manager.register_pass<ngraph::pass::Serialize>(
             modelPath, weightsPath,
             ngraph::pass::Serialize::Version::IR_V10);
-    manager.run_passes(ngraph::builder::subgraph::makeMultiSingleConv(
+    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
             inputDims, InferenceEngine::details::convertPrecision(netPrc)));
 }
 
