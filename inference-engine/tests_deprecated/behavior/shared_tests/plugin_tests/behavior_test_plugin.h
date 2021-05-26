@@ -97,7 +97,4 @@ protected:
 
 };
 
-class FPGAHangingTest : public BehaviorPluginTest {
-};
-
 #endif

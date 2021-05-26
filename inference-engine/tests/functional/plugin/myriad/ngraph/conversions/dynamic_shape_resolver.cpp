@@ -43,8 +43,10 @@ protected:
 
 private:
     void triggerConversionToCNNNetwork() {
+        IE_SUPPRESS_DEPRECATED_START
         cnnNetwork = InferenceEngine::CNNNetwork(
             std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNetwork));
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     static const char s_FriendlyName[];

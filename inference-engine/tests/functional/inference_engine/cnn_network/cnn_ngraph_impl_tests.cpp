@@ -122,7 +122,7 @@ TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
     auto convertedNet = InferenceEngine::CNNNetwork(std::make_shared<details::CNNNetworkImpl>(cnnNet));
     // Remove convert layer
     InferenceEngine::NetPass::ConvertPrecision(convertedNet, Precision::I64, Precision::I32);
-    ASSERT_NO_THROW(cloneNet(convertedNet));
+    ASSERT_NO_THROW(details::cloneNetwork(convertedNet));
 }
 
 TEST(CNNNGraphImplTests, TestResultWithNotEqualName) {

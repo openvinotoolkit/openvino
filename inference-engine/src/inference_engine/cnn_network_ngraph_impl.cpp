@@ -156,7 +156,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     const ICNNNetwork& iNetwork = network;
     IE_SUPPRESS_DEPRECATED_END
     const auto net = dynamic_cast<const CNNNetworkNGraphImpl*>(&iNetwork);
-    if (network.getFunction() == nullptr) {
+    if (network.getFunction() == nullptr || !net) {
         IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
