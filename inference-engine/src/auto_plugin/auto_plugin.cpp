@@ -240,7 +240,6 @@ DeviceInformation AutoInferencePlugin::SelectDevice(const std::vector<DeviceInfo
 
     // Sort GPU by name: GPU.2 > GPU.1 > GPU.0 > GPU, so we always choose the GPU[0] as best device
     std::sort(GPU.begin(), GPU.end(), [](const DeviceInformation& a, const DeviceInformation& b)->bool{return b.deviceName < a.deviceName;});
-    return GPU[0];
 
     for (auto&& item : GPU) {
         std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
