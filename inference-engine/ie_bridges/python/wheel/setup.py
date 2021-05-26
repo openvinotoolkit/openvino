@@ -227,11 +227,12 @@ def set_rpath(rpath, executable):
     print(f'Setting rpath {rpath} for {executable}')  # noqa: T001
     cmd = []
     rpath_tool = ''
-    with open(os.path.realpath(executable), 'rb') as file:
+
+    if sys.platform == 'linux':
+        with open(os.path.realpath(executable), 'rb') as file:
         if file.read(1) != b'\x7f':
             log.warn(f'WARNING: {executable}: missed ELF header')
             return
-    if sys.platform == 'linux':
         rpath_tool = 'patchelf'
         cmd = [rpath_tool, '--set-rpath', rpath, executable]
     elif sys.platform == 'darwin':
