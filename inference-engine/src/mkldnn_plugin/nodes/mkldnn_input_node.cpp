@@ -307,6 +307,28 @@ void MKLDNNInputNode::cloneBlobIfRequired() {
         return false;
     };
 
+    // WA for CVS-46304
+    auto isWA = [&, this] () {
+        auto outputs = constOp->outputs();
+        for (auto const output : outputs) {
+            auto node = output.get_node();
+            if (!node
+                || TypeFromName(node->get_type_name()) != Type::FullyConnected)
+                continue;
+            if (mayiuse(cpu_isa_t::avx512_common)) {
+                if (size % 16)
+                    return true;
+            } else if (mayiuse(cpu_isa_t::avx)) {
+                if (size % 8)
+                    return true;
+            } else if (mayiuse(cpu_isa_t::sse41)) {
+                if (size % 4)
+                    return true;
+            }
+        }
+        return false;
+    };
+
     auto blobKey = [&, this] () {
         char ptr[32];
         snprintf(ptr, sizeof ptr, "%p", constOp->get_data_ptr());
@@ -318,7 +340,7 @@ void MKLDNNInputNode::cloneBlobIfRequired() {
     if (weightCache) {
         MKLDNNMemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
         memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(ptr);
-    } else if (isBlobAligned() && !hasSubnormals()) {
+    } else if (isBlobAligned() && !hasSubnormals() && !isWA()) {
         auto ptr = new MKLDNNMemory(getEngine());
         ptr->Create(memDesc, constOp->get_data_ptr());
         memoryPtr = MKLDNNMemoryCPtr(ptr);
