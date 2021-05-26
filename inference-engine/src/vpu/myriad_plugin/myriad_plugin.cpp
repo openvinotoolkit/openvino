@@ -13,7 +13,8 @@
 #include <legacy/ie_util_internal.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
-#include <vpu/parsed_config.hpp>
+#include <vpu/private_plugin_config.hpp>
+#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/frontend/frontend.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>

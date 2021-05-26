@@ -5,8 +5,8 @@
 #include "vpu/private_plugin_config.hpp"
 #include "vpu/utils/containers.hpp"
 #include "vpu/configuration/options/tiling_cmx_limit_kb.hpp"
-#include "vpu/configuration/parse_numeric.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/utils/error.hpp"
 
 namespace vpu {
 
@@ -17,12 +17,12 @@ void TilingCMXLimitKBOption::validate(const std::string& value) {
 
     int intValue;
     try {
-        intValue = parseInt(value);
+        intValue = std::stoi(value);
     } catch (const std::exception& e) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 
-    VPU_THROW_UNLESS(!Negative(intValue),
+    VPU_THROW_UNLESS(intValue >= 0,
         R"(unexpected {} option value "{}", only not negative numbers are supported)", key(), value);
 }
 
@@ -53,12 +53,12 @@ TilingCMXLimitKBOption::value_type TilingCMXLimitKBOption::parse(const std::stri
 
     int intValue;
     try {
-        intValue = parseInt(value);
+        intValue = std::stoi(value);
     } catch (const std::exception& e) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 
-    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(!Negative(intValue),
+    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue >= 0,
         R"(unexpected {} option value "{}", only not negative numbers are supported)", key(), value);
     return intValue;
 }

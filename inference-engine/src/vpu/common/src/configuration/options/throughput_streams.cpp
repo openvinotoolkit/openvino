@@ -4,8 +4,9 @@
 
 #include "vpu/utils/containers.hpp"
 #include "vpu/configuration/options/throughput_streams.hpp"
-#include "vpu/configuration/parse_numeric.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/utils/error.hpp"
+#include <vpu/myriad_config.hpp>
 
 namespace vpu {
 
@@ -16,12 +17,12 @@ void ThroughputStreamsOption::validate(const std::string& value) {
 
     int intValue;
     try {
-        intValue = parseInt(value);
+        intValue = std::stoi(value);
     } catch (const std::exception& e) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 
-    VPU_THROW_UNLESS(!Negative(intValue),
+    VPU_THROW_UNLESS(intValue >= 0,
         R"(unexpected {} option value "{}", only not negative numbers are supported)", key(), value);
 }
 
@@ -52,12 +53,12 @@ ThroughputStreamsOption::value_type ThroughputStreamsOption::parse(const std::st
 
     int intValue;
     try {
-        intValue = parseInt(value);
+        intValue = std::stoi(value);
     } catch (const std::exception& e) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 
-    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(!Negative(intValue),
+    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue >= 0,
         R"(unexpected {} option value "{}", only not negative numbers are supported)", key(), value);
     return intValue;
 }

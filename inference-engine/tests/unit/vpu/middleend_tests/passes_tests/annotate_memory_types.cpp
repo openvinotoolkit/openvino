@@ -4,6 +4,7 @@
 
 #include "graph_transformer_tests.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "vpu/private_plugin_config.hpp"
 
 namespace vpu {
 

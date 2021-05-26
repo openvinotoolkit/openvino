@@ -4,20 +4,20 @@
 
 #include "vpu/private_plugin_config.hpp"
 #include "vpu/configuration/options/device_connect_timeout.hpp"
-#include "vpu/configuration/parse_numeric.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/utils/error.hpp"
 
 namespace vpu {
 
 void DeviceConnectTimeoutOption::validate(const std::string& value) {
     int intValue;
     try {
-        intValue = parseInt(value);
+        intValue = std::stoi(value);
     } catch (const std::exception& e) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 
-    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(!Negative(intValue),
+    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue >= 0,
         R"(unexpected {} option value "{}", only not negative numbers are supported)", key(), value);
     return;
 }
@@ -45,12 +45,12 @@ std::string DeviceConnectTimeoutOption::defaultValue() {
 DeviceConnectTimeoutOption::value_type DeviceConnectTimeoutOption::parse(const std::string& value) {
     int intValue;
     try {
-        intValue = parseInt(value);
+        intValue = std::stoi(value);
     } catch (const std::exception& e) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 
-    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(!Negative(intValue),
+    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue >= 0,
         R"(unexpected {} option value "{}", only not negative numbers are supported)", key(), value);
     return DeviceConnectTimeoutOption::value_type(intValue);
 }

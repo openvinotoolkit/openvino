@@ -32,7 +32,6 @@
 #include <xml_parse_utils.h>
 #include <legacy/ie_util_internal.hpp>
 
-#include <vpu/parsed_config.hpp>
 #include <vpu/vpu_config.hpp>
 #include <vpu/compile_env.hpp>
 #include <vpu/stage_builder.hpp>
@@ -43,6 +42,7 @@
 #include <vpu/utils/auto_scope.hpp>
 #include <vpu/utils/dot_io.hpp>
 #include <vpu/utils/file_system.hpp>
+#include <vpu/utils/error.hpp>
 #include <mvnc.h>
 
 #include <vpu/configuration/options/hw_acceleration.hpp>
@@ -96,14 +96,14 @@ void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& co
         ? config.get<ThroughputStreamsOption>().get() : DefaultAllocation::numStreams(platform, config);
     VPU_THROW_UNLESS(numExecutors >= 1 && numExecutors <= DeviceResources::numStreams(),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        ie::MYRIAD_THROUGHPUT_STREAMS, 1, DeviceResources::numStreams(), numExecutors);
+        ThroughputStreamsOption::key(), 1, DeviceResources::numStreams(), numExecutors);
 
     const auto numSlices  = config.get<NumberOfCMXSlicesOption>().hasValue()
         ? config.get<NumberOfCMXSlicesOption>().get()
         : DefaultAllocation::numSlices(platform, numExecutors);
     VPU_THROW_UNLESS(numSlices >= 1 && numSlices <= DeviceResources::numSlices(platform),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        ie::MYRIAD_NUMBER_OF_CMX_SLICES, 1, DeviceResources::numSlices(platform), numSlices);
+        NumberOfCMXSlicesOption::key(), 1, DeviceResources::numSlices(platform), numSlices);
 
     int defaultCmxLimit = DefaultAllocation::tilingCMXLimit(numSlices);
     const auto tilingCMXLimit  = config.get<TilingCMXLimitKBOption>().hasValue()
@@ -111,14 +111,14 @@ void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& co
         : defaultCmxLimit;
     VPU_THROW_UNLESS(tilingCMXLimit >= 0,
         R"(Value of configuration option ("{}") must be greater than {}, actual is "{}")",
-        ie::MYRIAD_TILING_CMX_LIMIT_KB, 0, tilingCMXLimit);
+        TilingCMXLimitKBOption::key(), 0, tilingCMXLimit);
 
     const auto numShaves = config.get<NumberOfSHAVEsOption>().hasValue()
         ? config.get<NumberOfSHAVEsOption>().get()
         : DefaultAllocation::numShaves(platform, numExecutors, numSlices);
     VPU_THROW_UNLESS(numShaves >= 1 && numShaves <= DeviceResources::numShaves(platform),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        ie::MYRIAD_NUMBER_OF_SHAVES, 1, DeviceResources::numShaves(platform), numShaves);
+        NumberOfSHAVEsOption::key(), 1, DeviceResources::numShaves(platform), numShaves);
 
     const auto numAllocatedShaves = numShaves * numExecutors;
     VPU_THROW_UNLESS(numAllocatedShaves >= 1 && numAllocatedShaves <= DeviceResources::numShaves(platform),

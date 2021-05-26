@@ -5,6 +5,7 @@
 #include "graph_transformer_tests.hpp"
 
 #include <vpu/utils/io.hpp>
+#include <vpu/private_plugin_config.hpp>
 
 #include <vpu/configuration/options/log_level.hpp>
 #include <vpu/configuration/options/copy_optimization.hpp>

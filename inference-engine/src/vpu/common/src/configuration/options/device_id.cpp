@@ -5,6 +5,7 @@
 #include "vpu/configuration/options/device_id.hpp"
 #include "vpu/utils/containers.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "ie_plugin_config.hpp"
 
 namespace vpu {
 

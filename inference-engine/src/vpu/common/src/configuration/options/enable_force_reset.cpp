@@ -6,6 +6,7 @@
 #include "vpu/configuration/options/enable_force_reset.hpp"
 #include "vpu/configuration/switch_converters.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/myriad_config.hpp"
 
 namespace vpu {
 

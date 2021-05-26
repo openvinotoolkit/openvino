@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "vpu/private_plugin_config.hpp"
 #include "vpu/configuration/options/power_config.hpp"
 #include "vpu/utils/power_config.hpp"
 #include "vpu/utils/containers.hpp"

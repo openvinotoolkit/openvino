@@ -6,8 +6,8 @@
 #include "vpu/utils/containers.hpp"
 #include "vpu/configuration/options/number_of_shaves.hpp"
 #include "vpu/configuration/options/number_of_cmx_slices.hpp"
-#include "vpu/configuration/parse_numeric.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/utils/error.hpp"
 
 namespace vpu {
 
@@ -18,12 +18,12 @@ void NumberOfSHAVEsOption::validate(const std::string& value) {
 
     int intValue;
     try {
-        intValue = parseInt(value);
+        intValue = std::stoi(value);
     } catch (const std::exception& e) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 
-    VPU_THROW_UNLESS(!Negative(intValue),
+    VPU_THROW_UNLESS(intValue >= 0,
         R"(unexpected {} option value "{}", only not negative numbers are supported)", key(), value);
 }
 
@@ -65,12 +65,12 @@ NumberOfSHAVEsOption::value_type NumberOfSHAVEsOption::parse(const std::string& 
 
     int intValue;
     try {
-        intValue = parseInt(value);
+        intValue = std::stoi(value);
     } catch (const std::exception& e) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 
-    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(!Negative(intValue),
+    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue >= 0,
         R"(unexpected {} option value "{}", only not negative numbers are supported)", key(), value);
     return intValue;
 }

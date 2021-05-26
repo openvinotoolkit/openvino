@@ -6,6 +6,7 @@
 #include "vpu/configuration/options/enable_receiving_tensor_time.hpp"
 #include "vpu/configuration/switch_converters.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/vpu_config.hpp"
 
 namespace vpu {
 

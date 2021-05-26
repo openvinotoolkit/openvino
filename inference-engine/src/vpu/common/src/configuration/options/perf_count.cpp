@@ -6,6 +6,7 @@
 #include "vpu/configuration/options/perf_count.hpp"
 #include "vpu/configuration/switch_converters.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "ie_plugin_config.hpp"
 
 namespace vpu {
 

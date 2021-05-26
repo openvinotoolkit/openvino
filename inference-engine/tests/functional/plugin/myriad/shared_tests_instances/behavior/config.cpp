@@ -244,76 +244,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
     CorrectConfigTests::getTestCaseName);
 
 const std::vector<std::map<std::string, std::string>>& getCorrectMultiConfigs() {
-    static const std::vector<std::map<std::string, std::string>> correctMultiConfigs = {{
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB}
-        },
+    static const std::vector<std::map<std::string, std::string>> correctMultiConfigs = {
         {
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, YES}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, YES}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {KEY_PERF_COUNT, YES}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {KEY_EXCLUSIVE_ASYNC_REQUESTS, YES}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {KEY_DEVICE_ID, ""}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_CUSTOM_LAYERS, ""}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {KEY_CONFIG_FILE, ""}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_AUTO}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, YES}
-        },
-
-
-        // Deprecated
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_CONFIG_KEY(LOG_LEVEL), LOG_DEBUG},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), YES}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_CONFIG_KEY(CUSTOM_LAYERS), ""}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES)}
         },
     };
     return correctMultiConfigs;
@@ -401,43 +334,65 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(VPU_CONFIG_KEY(LOG_LEVEL), LOG_DEBUG,   InferenceEngine::Parameter{LOG_DEBUG}),
         std::make_tuple(VPU_CONFIG_KEY(LOG_LEVEL), LOG_TRACE,   InferenceEngine::Parameter{LOG_TRACE}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::NO,  InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480), InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(2480)}),
+        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480),
+            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(2480)}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB, InferenceEngine::Parameter{InferenceEngine::MYRIAD_USB}),
-        std::make_tuple(InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE,  InferenceEngine::Parameter{InferenceEngine::MYRIAD_PCIE}),
+        std::make_tuple(InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_USB}),
+        std::make_tuple(InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_PCIE}),
 
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(USB), InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(USB)}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(PCIE),  InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(PCIE)}),
+        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(USB),
+            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(USB)}),
+        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(PCIE),
+            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(PCIE)}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_FULL,          InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_FULL}),
-        std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_INFER,         InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_INFER}),
-        std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE,         InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_STAGE}),
-        std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE_SHAVES,  InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_STAGE_SHAVES}),
-        std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE_NCES,    InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_STAGE_NCES}),
+        std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_FULL,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_FULL}),
+        std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_INFER,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_INFER}),
+        std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_STAGE}),
+        std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE_SHAVES,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_STAGE_SHAVES}),
+        std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE_NCES,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_STAGE_NCES}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
         std::make_tuple(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
         std::make_tuple(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_HW_BLACK_LIST, "deconv", InferenceEngine::Parameter{"deconv"}),
         std::make_tuple(InferenceEngine::MYRIAD_HW_BLACK_LIST, "conv,pool",   InferenceEngine::Parameter{"conv,pool"}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_HW_DILATION, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_HW_DILATION, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_DILATION, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_DILATION, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_HW_INJECT_STAGES, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{InferenceEngine::PluginConfigParams::YES}),
-        std::make_tuple(InferenceEngine::MYRIAD_HW_INJECT_STAGES, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{InferenceEngine::PluginConfigParams::NO}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_INJECT_STAGES, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{InferenceEngine::PluginConfigParams::YES}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_INJECT_STAGES, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{InferenceEngine::PluginConfigParams::NO}),
 
         std::make_tuple(InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "0", InferenceEngine::Parameter{"0"}),
         std::make_tuple(InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "1", InferenceEngine::Parameter{"1"}),
@@ -455,106 +410,159 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "2", InferenceEngine::Parameter{"2"}),
         std::make_tuple(InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "3", InferenceEngine::Parameter{"3"}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_WATCHDOG, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{std::chrono::milliseconds(1000)}),
-        std::make_tuple(InferenceEngine::MYRIAD_WATCHDOG, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{std::chrono::milliseconds(0)}),
+        std::make_tuple(InferenceEngine::MYRIAD_WATCHDOG, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{std::chrono::milliseconds(1000)}),
+        std::make_tuple(InferenceEngine::MYRIAD_WATCHDOG, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{std::chrono::milliseconds(0)}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
         std::make_tuple(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
         std::make_tuple(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER, InferenceEngine::Parameter{InferenceEngine::MYRIAD_PER_LAYER}),
-        std::make_tuple(InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE, InferenceEngine::Parameter{InferenceEngine::MYRIAD_PER_STAGE}),
+        std::make_tuple(InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_PER_LAYER}),
+        std::make_tuple(InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_PER_STAGE}),
 
         std::make_tuple(KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
         std::make_tuple(KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_IR_WITH_SCALES_DIRECTORY, "/.", InferenceEngine::Parameter{"/."}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor[1,2,3,4]", InferenceEngine::Parameter{std::map<std::string, std::vector<int>>{{"tensor", {4, 3, 2, 1}}}}),
+        std::make_tuple(InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor[1,2,3,4]",
+            InferenceEngine::Parameter{std::map<std::string, std::vector<int>>{{"tensor", {4, 3, 2, 1}}}}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_REPL_WITH_SCRELU, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_REPL_WITH_SCRELU, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_REPL_WITH_SCRELU, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_REPL_WITH_SCRELU, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME, "filename", InferenceEngine::Parameter{"filename"}),
 
         std::make_tuple(InferenceEngine::MYRIAD_DUMP_ALL_PASSES_DIRECTORY, "/.", InferenceEngine::Parameter{"/."}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_DUMP_ALL_PASSES, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_DUMP_ALL_PASSES, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_DUMP_ALL_PASSES, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_DUMP_ALL_PASSES, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_DISABLE_REORDER, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_DISABLE_REORDER, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_DISABLE_REORDER, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_DISABLE_REORDER, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "10", InferenceEngine::Parameter{std::chrono::seconds(10)}),
         std::make_tuple(InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "20", InferenceEngine::Parameter{std::chrono::seconds(20)}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
         std::make_tuple(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
         std::make_tuple(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_AUTO,        InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_AUTO}),
-        std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_2GB,  InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_MICRON_2GB}),
-        std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_SAMSUNG_2GB, InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_SAMSUNG_2GB}),
-        std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_HYNIX_2GB,   InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_HYNIX_2GB}),
-        std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_1GB,  InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_MICRON_1GB}),
+        std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_AUTO,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_AUTO}),
+        std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_2GB,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_MICRON_2GB}),
+        std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_SAMSUNG_2GB,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_SAMSUNG_2GB}),
+        std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_HYNIX_2GB,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_HYNIX_2GB}),
+        std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_1GB,
+            InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_MICRON_1GB}),
 
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO),    InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB),  InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB)}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB), InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB)}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB),   InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB)}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB),  InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB)}),
+        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO),
+            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}),
+        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB),
+            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB)}),
+        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB),
+            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB)}),
+        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB),
+            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB)}),
+        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB),
+            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB)}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
         std::make_tuple(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
         std::make_tuple(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_NONE_LAYERS, "deconv", InferenceEngine::Parameter{"deconv"}),
         std::make_tuple(InferenceEngine::MYRIAD_NONE_LAYERS, "conv,pool", InferenceEngine::Parameter{"conv,pool"}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
-        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, InferenceEngine::PluginConfigParams::YES,
+            InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, InferenceEngine::PluginConfigParams::NO,
+            InferenceEngine::Parameter{false}),
     };
     return customEntries;
 }

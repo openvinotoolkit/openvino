@@ -28,7 +28,6 @@
 #include <vpu/configuration/options/enable_async_dma.hpp>
 
 #include "myriad_executor.h"
-#include "myriad_config.h"
 
 #ifndef _WIN32
 # include <libgen.h>
@@ -81,7 +80,7 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
 /*
  * @brief Boot available device
  */
-ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const MyriadConfiguration& config) {
+ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
     VPU_PROFILE(bootNextDevice);
 // #-17972, #-16790
 #if defined(NO_BOOT)
@@ -228,7 +227,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
 }
 
 DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
-                                     const MyriadConfiguration& config) {
+                                     const PluginConfiguration& config) {
     VPU_PROFILE(openDevice);
     std::lock_guard<std::mutex> lock(device_mutex);
 

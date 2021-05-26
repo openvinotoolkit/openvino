@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "vpu/private_plugin_config.hpp"
 #include "vpu/utils/containers.hpp"
 #include "vpu/configuration/options/watchdog_interval.hpp"
-#include "vpu/configuration/parse_numeric.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/utils/error.hpp"
 
 #include <unordered_map>
 
@@ -30,12 +31,12 @@ void WatchdogIntervalOption::validate(const std::string& value) {
     if (converters.count(value) == 0) {
         int intValue;
         try {
-            intValue = parseInt(value);
+            intValue = std::stoi(value);
         } catch (const std::exception& e) {
             VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
         }
 
-        VPU_THROW_UNSUPPORTED_OPTION_UNLESS(!Negative(intValue),
+        VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue >= 0,
             R"(unexpected {} option value "{}", only {} and not negative numbers are supported)", key(), value, getKeys(converters));
         return;
     }
@@ -72,12 +73,12 @@ WatchdogIntervalOption::value_type WatchdogIntervalOption::parse(const std::stri
     if (converters.count(value) == 0) {
         int intValue;
         try {
-            intValue = parseInt(value);
+            intValue = std::stoi(value);
         } catch (const std::exception& e) {
             VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
         }
 
-        VPU_THROW_UNSUPPORTED_OPTION_UNLESS(!Negative(intValue),
+        VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue >= 0,
             R"(unexpected {} option value "{}", only {} and not negative numbers are supported)", key(), value, getKeys(converters));
         return WatchdogIntervalOption::value_type(intValue);
     }

@@ -3,6 +3,7 @@
 //
 
 #include "myriad_metrics.h"
+#include "vpu/private_plugin_config.hpp"
 
 #include <algorithm>
 
@@ -119,7 +120,7 @@ std::string MyriadMetrics::DeviceArchitecture(const std::map<std::string, Infere
 RangeType MyriadMetrics::RangeForAsyncInferRequests(
     const std::map<std::string, std::string>& config) const {
 
-    auto throughput_streams_str = config.find(ie::MYRIAD_THROUGHPUT_STREAMS);
+    auto throughput_streams_str = config.find(InferenceEngine::MYRIAD_THROUGHPUT_STREAMS);
     if (throughput_streams_str != config.end()) {
         try {
             int throughput_streams = std::stoi(throughput_streams_str->second);

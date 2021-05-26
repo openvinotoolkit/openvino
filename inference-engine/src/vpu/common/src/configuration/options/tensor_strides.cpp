@@ -22,7 +22,7 @@ void TensorStridesOption::validate(const std::string& value) {
     const auto inputs = InferenceEngine::details::split(configStrides, "],");
 
     for (const auto& input : inputs) {
-        const auto pair = ie::details::split(input, "[");
+        const auto pair = InferenceEngine::details::split(input, "[");
         VPU_THROW_UNSUPPORTED_OPTION_UNLESS(pair.size() == 2,
             R"(unexpected {} option value "{}", value {} does not match the pattern: tensor_name[strides])",
             key(), value, input);
@@ -64,12 +64,12 @@ TensorStridesOption::value_type TensorStridesOption::parse(const std::string& va
     for (const auto& input : inputs) {
         std::vector<int> strides;
 
-        const auto pair = ie::details::split(input, "[");
+        const auto pair = InferenceEngine::details::split(input, "[");
         VPU_THROW_UNSUPPORTED_OPTION_UNLESS(pair.size() == 2,
             R"(unexpected {} option value "{}", value {} does not match the pattern: tensor_name[strides])",
             key(), value, input);
 
-        const auto strideValues = ie::details::split(pair.at(1), ",");
+        const auto strideValues = InferenceEngine::details::split(pair.at(1), ",");
 
         for (const auto& stride : strideValues) {
             strides.insert(strides.begin(), std::stoi(stride));

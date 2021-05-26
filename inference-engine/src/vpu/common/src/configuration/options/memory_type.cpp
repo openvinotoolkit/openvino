@@ -8,6 +8,7 @@
 #include "vpu/configuration/plugin_configuration.hpp"
 
 #include <vpu/myriad_config.hpp>
+#include <vpu/myriad_plugin_config.hpp>
 
 #include <unordered_map>
 

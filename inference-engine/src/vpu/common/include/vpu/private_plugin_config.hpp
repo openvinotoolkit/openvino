@@ -59,6 +59,26 @@ DECLARE_VPU_CONFIG(MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL);
  */
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);
 
+/**
+ * @brief Default key definition for InferenceEngine::MYRIAD_NUMBER_OF_SHAVES option.
+ */
+DECLARE_VPU_CONFIG(MYRIAD_NUMBER_OF_SHAVES_AUTO);
+
+/**
+ * @brief Default key definition for InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES option.
+ */
+DECLARE_VPU_CONFIG(MYRIAD_NUMBER_OF_CMX_SLICES_AUTO);
+
+/**
+ * @brief Default key definition for InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB option.
+ */
+DECLARE_VPU_CONFIG(MYRIAD_TILING_CMX_LIMIT_KB_AUTO);
+
+/**
+ * @brief Default key definition for InferenceEngine::MYRIAD_HW_INJECT_STAGES option.
+ */
+DECLARE_VPU_CONFIG(MYRIAD_HW_INJECT_STAGES_AUTO);
+
 //
 // Debug options
 //

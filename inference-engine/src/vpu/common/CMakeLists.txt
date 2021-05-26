@@ -38,8 +38,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
     target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
             $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
-            "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include")
+            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
     if(WIN32)
         set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
@@ -54,7 +53,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
     openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
 
     target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations
-                                         PRIVATE openvino::itt)
+                                         PRIVATE mvnc openvino::itt)
 
     if(NOT STATIC_IE)
         target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_legacy)

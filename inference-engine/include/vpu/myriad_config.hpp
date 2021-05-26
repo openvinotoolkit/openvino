@@ -50,31 +50,6 @@ DECLARE_VPU_CONFIG(MYRIAD_PCIE);
 DECLARE_VPU_CONFIG(MYRIAD_USB);
 
 /**
- * @brief Default key definition for InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB option.
- */
-DECLARE_VPU_CONFIG(MYRIAD_TILING_CMX_LIMIT_KB_AUTO);
-
-/**
- * @brief Default key definition for InferenceEngine::MYRIAD_NUMBER_OF_SHAVES option.
- */
-DECLARE_VPU_CONFIG(MYRIAD_NUMBER_OF_SHAVES_AUTO);
-
-/**
- * @brief Default key definition for InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES option.
- */
-DECLARE_VPU_CONFIG(MYRIAD_NUMBER_OF_CMX_SLICES_AUTO);
-
-/**
- * @brief Default key definition for InferenceEngine::MYRIAD_HW_INJECT_STAGES option.
- */
-DECLARE_VPU_CONFIG(MYRIAD_HW_INJECT_STAGES_AUTO);
-
-/**
- * @brief Default key definition for InferenceEngine::MYRIAD_THROUGHPUT_STREAMS option.
- */
-DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS_AUTO);
-
-/**
  * @brief Optimize vpu plugin execution to maximize throughput.
  * This option should be used with integer value which is the requested number of streams.
  * The only possible values are:
@@ -83,5 +58,10 @@ DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS_AUTO);
  *     3
  */
 DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS);
+
+/**
+ * @brief Default key definition for InferenceEngine::MYRIAD_THROUGHPUT_STREAMS option.
+ */
+DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS_AUTO);
 
 }  // namespace InferenceEngine

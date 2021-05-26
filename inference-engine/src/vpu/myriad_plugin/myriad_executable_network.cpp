@@ -28,7 +28,7 @@ namespace MyriadPlugin {
 
 ExecutableNetwork::ExecutableNetwork(
         std::shared_ptr<IMvnc> mvnc,
-        const MyriadConfiguration& config,
+        const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core) :
             _config(config),
             _core(core) {
@@ -55,14 +55,15 @@ ExecutableNetwork::ExecutableNetwork(
 void ExecutableNetwork::openDevice(std::vector<DevicePtr>& devicePool) {
     _device = _executor->openDevice(devicePool, _config);
     const auto& revision = _device->revision();
-    _actualNumExecutors = _config.compileConfig().numExecutors != -1 ? _config.compileConfig().numExecutors : DefaultAllocation::numStreams(revision, _config);
+    _actualNumExecutors = _config.get<ThroughputStreamsOption>().hasValue()
+        ? _config.get<ThroughputStreamsOption>().get() : DefaultAllocation::numStreams(revision, _config);
 }
 
 ExecutableNetwork::ExecutableNetwork(
         const ie::CNNNetwork& network,
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
-        const MyriadConfiguration& config,
+        const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core) :
             ExecutableNetwork(std::move(mvnc), config, core) {
     VPU_PROFILE(ExecutableNetwork);
@@ -114,7 +115,7 @@ ExecutableNetwork::ExecutableNetwork(
     _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName, _actualNumExecutors);
 }
 
-void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const MyriadConfiguration& configuration) {
+void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const PluginConfiguration& configuration) {
     auto currentPos = strm.tellg();
     strm.seekg(0, strm.end);
     auto blobSize = strm.tellg() - currentPos;
@@ -157,7 +158,7 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
 ExecutableNetwork::ExecutableNetwork(std::istream& strm,
                                std::shared_ptr<IMvnc> mvnc,
                                std::vector<DevicePtr> &devicePool,
-                               const MyriadConfiguration& config,
+                               const PluginConfiguration& config,
                                const std::shared_ptr<ie::ICore> core) :
     ExecutableNetwork(std::move(mvnc), config, core) {
     VPU_PROFILE(ExecutableNetwork);
@@ -168,7 +169,7 @@ ExecutableNetwork::ExecutableNetwork(
         const std::string& blobFilename,
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
-        const MyriadConfiguration& config,
+        const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core) :
     ExecutableNetwork(std::move(mvnc), config, core) {
     VPU_PROFILE(ExecutableNetwork);

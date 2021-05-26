@@ -4,6 +4,8 @@
 
 #include "graph_transformer_tests.hpp"
 
+#include "vpu/private_plugin_config.hpp"
+
 using namespace vpu;
 
 class VPU_ReplaceDeconvByConvTest : public GraphTransformerTest {

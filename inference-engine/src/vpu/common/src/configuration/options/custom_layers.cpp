@@ -5,6 +5,7 @@
 #include "vpu/configuration/options/custom_layers.hpp"
 #include "vpu/utils/containers.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/vpu_config.hpp"
 
 namespace vpu {
 

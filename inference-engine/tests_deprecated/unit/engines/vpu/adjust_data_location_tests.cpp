@@ -6,6 +6,7 @@
 #include <vpu/stages/mx_stage.hpp>
 #include <vpu/middleend/hw/utility.hpp>
 #include <vpu/utils/numeric.hpp>
+#include <vpu/private_plugin_config.hpp>
 
 #include "graph_transformer_tests.hpp"
 

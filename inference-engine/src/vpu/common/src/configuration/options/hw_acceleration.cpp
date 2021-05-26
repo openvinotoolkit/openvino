@@ -6,6 +6,7 @@
 #include "vpu/configuration/options/hw_acceleration.hpp"
 #include "vpu/configuration/switch_converters.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/vpu_config.hpp"
 
 namespace vpu {
 
