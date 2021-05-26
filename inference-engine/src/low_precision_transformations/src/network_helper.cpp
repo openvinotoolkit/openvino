@@ -369,7 +369,21 @@ void NetworkHelper::cleanRunTimeInfo(const std::shared_ptr<Node>& layer) {
 }
 
 bool NetworkHelper::isScalarLike(std::shared_ptr<opset1::Constant> constant) {
-    return constant->get_all_data_elements_bitwise_identical();
+    // ticket #48857
+    // return constant->get_all_data_elements_bitwise_identical();
+
+    const auto shape = constant->output(0).get_shape();
+    if (shape.empty() || shape.size() == 1ul) {
+        return true;
+    }
+
+
+    const auto values = constant->cast_vector<float>();
+    if (values.empty()) {
+        return true;
+    }
+
+    return !std::any_of(values.begin(), values.end(), [&](float value) { return values[0] != value; });
 }
 
 bool NetworkHelper::isZero(std::shared_ptr<opset1::Constant> constant) {
