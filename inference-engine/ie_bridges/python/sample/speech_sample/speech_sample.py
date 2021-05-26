@@ -6,8 +6,8 @@ import argparse
 import logging as log
 import re
 import sys
-from io import BufferedReader
 from timeit import default_timer
+from typing import Any, IO
 
 import numpy as np
 from openvino.inference_engine import ExecutableNetwork, IECore
@@ -29,17 +29,18 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-r', '--reference', type=str,
                       help='Optional. Read reference score file and compare scores.')
     args.add_argument('-d', '--device', default='CPU', type=str,
-                      help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL, GNA_AUTO, '
-                      'GNA_HW, GNA_SW, GNA_SW_FP32, GNA_SW_EXACT or HETERO: is acceptable. '
+                      help='Optional. Specify a target device to infer on. '
+                      'CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA'
+                      ' as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. '
                       'The sample will look for a suitable plugin for device specified. Default value is CPU.')
     args.add_argument('-bs', '--batch_size', default=1, type=int, help='Optional. Batch size 1-8 (default 1).')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int,
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
-    # TODO: Find a model that applicable for this option
+    # TODO: Find a model that applicable for -we option
     args.add_argument('-we', '--export_embedded_gna_model', type=str, help=argparse.SUPPRESS)
-    # TODO: Find a model that applicable for this option
+    # TODO: Find a model that applicable for -we_gen option
     args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, help=argparse.SUPPRESS)
     args.add_argument('-iname', '--input_layers', type=str,
                       help='Optional. Layer names for input blobs. The names are separated with ",". '
@@ -64,11 +65,11 @@ def get_scale_factor(matrix: np.ndarray) -> float:
 
 def read_ark_file(file_name: str) -> dict:
     """Read utterance matrices from a .ark file"""
-    def read_key(file: BufferedReader) -> str:  # noqa: VNE002
+    def read_key(input_file: IO[Any]) -> str:
         """Read a identifier of utterance matrix"""
         key = ''
         while True:
-            char = file.read(1).decode()
+            char = input_file.read(1).decode()
             if char in ('', ' '):
                 break
             else:
@@ -76,9 +77,9 @@ def read_ark_file(file_name: str) -> dict:
 
         return key
 
-    def read_matrix(file: BufferedReader) -> np.ndarray:  # noqa: VNE002
+    def read_matrix(input_file: IO[Any]) -> np.ndarray:
         """Read a utterance matrix"""
-        header = file.read(5).decode()
+        header = input_file.read(5).decode()
         if 'FM' in header:
             num_of_bytes = 4
             dtype = 'float32'
@@ -86,47 +87,47 @@ def read_ark_file(file_name: str) -> dict:
             num_of_bytes = 8
             dtype = 'float64'
 
-        _, rows, _, cols = np.frombuffer(file.read(10), 'int8, int32, int8, int32')[0]
-        buffer = file.read(rows * cols * num_of_bytes)
+        _, rows, _, cols = np.frombuffer(input_file.read(10), 'int8, int32, int8, int32')[0]
+        buffer = input_file.read(rows * cols * num_of_bytes)
         vector = np.frombuffer(buffer, dtype)
         matrix = np.reshape(vector, (rows, cols))
 
         return matrix
 
     utterances = {}
-    with open(file_name, 'rb') as file:
+    with open(file_name, 'rb') as input_file:
         while True:
-            key = read_key(file)
+            key = read_key(input_file)
             if not key:
                 break
-            utterances[key] = read_matrix(file)
+            utterances[key] = read_matrix(input_file)
 
     return utterances
 
 
 def write_ark_file(file_name: str, utterances: dict):
     """Write utterance matrices to a .ark file"""
-    with open(file_name, 'wb') as file:
+    with open(file_name, 'wb') as output_file:
         for key, matrix in sorted(utterances.items()):
             # write a matrix key
-            file.write(key.encode())
-            file.write(' '.encode())
-            file.write('\0B'.encode())
+            output_file.write(key.encode())
+            output_file.write(' '.encode())
+            output_file.write('\0B'.encode())
 
             # write a matrix precision
             if matrix.dtype == 'float32':
-                file.write('FM '.encode())
+                output_file.write('FM '.encode())
             elif matrix.dtype == 'float64':
-                file.write('DM '.encode())
+                output_file.write('DM '.encode())
 
             # write a matrix shape
-            file.write('\04'.encode())
-            file.write(matrix.shape[0].to_bytes(4, byteorder='little', signed=False))
-            file.write('\04'.encode())
-            file.write(matrix.shape[1].to_bytes(4, byteorder='little', signed=False))
+            output_file.write('\04'.encode())
+            output_file.write(matrix.shape[0].to_bytes(4, byteorder='little', signed=False))
+            output_file.write('\04'.encode())
+            output_file.write(matrix.shape[1].to_bytes(4, byteorder='little', signed=False))
 
             # write a matrix data
-            file.write(matrix.tobytes())
+            output_file.write(matrix.tobytes())
 
 
 def infer_data(data: dict, exec_net: ExecutableNetwork, input_blobs: list, output_blobs: list) -> np.ndarray:
@@ -317,7 +318,7 @@ def main():
         exec_net.export(args.export_gna_model)
         return 0
 
-    # TODO: Find a model that applicable for this option
+    # TODO: Find a model that applicable for -we and -we_gen options
     if args.export_embedded_gna_model:
         log.info(f'Exported GNA embedded model to file {args.export_embedded_gna_model}')
         log.info(f'GNA embedded model export done for GNA generation {args.embedded_gna_configuration}')
