@@ -295,15 +295,16 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
         COMPONENT ngraph)
 endif()
 
-set(USE_PROTOBUF OFF)
-if (NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE)
-    set(USE_PROTOBUF ON)
+set(USE_STATIC_PROTOBUF OFF)
+if (NGRAPH_TF_FRONTEND_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE)
+    set(USE_STATIC_PROTOBUF ON)
 endif()
 
-if (USE_PROTOBUF)
+if (NGRAPH_ONNX_IMPORT_ENABLE OR USE_STATIC_PROTOBUF)
     message("Add PROTOBUF dependency")
     set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS OFF)  # TODO: it was ON for ONNX_IMPORT, but should be fixed
+    set(BUILD_SHARED_LIBS ON)
+    set(BUILD_STANDALONE_STATIC OFF)
 
     if (MSVC)
         # When we build dll libraries. These flags make sure protobuf build with /MD, not /MT.
@@ -335,6 +336,7 @@ if (USE_PROTOBUF)
     set(BUILD_SHARED_LIBS ${BEFORE_ONNX_BUILD_SHARED_LIBS})
     unset(BEFORE_ONNX_BUILD_SHARED_LIBS)
 endif()
+
 
 add_subdirectory(frontend)
 
