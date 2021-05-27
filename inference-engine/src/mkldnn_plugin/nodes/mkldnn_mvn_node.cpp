@@ -1403,6 +1403,16 @@ bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41)) {
         return false;
     }
+    // limit post ops to unary when shape transformed on channel
+    // 1D only fused with unary
+    int inputRank = getParentEdgeAt(0)->getDims().ndims();
+    bool unaryEltwise = one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
+                                            EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
+                                            EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
+    if ((inputRank == 1 && !unaryEltwise) ||
+        (inputRank == 2 && !unaryEltwise && acrossChannels_)) {
+        return false;
+    }
 
     return canFuseSimpleOperation(node);
 }
