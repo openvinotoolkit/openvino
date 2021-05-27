@@ -61,6 +61,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*_DW_GroupConv.*_inPRC=BF16.*_inFmts=(ndhwc|nCdhw16c).*)",
         // TODO: 56143. Enable nspc convolutions for bf16 precision
         R"(.*ConvolutionLayerCPUTest.*BF16.*_inFmts=(ndhwc|nhwc).*)",
+        // TODO: 56827. Sporadic test failures
+        R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.IS=\(1\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
 
         // incorrect reference implementation
         R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
@@ -73,7 +75,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 
-        // AUTO plugin and QueryNetwork
+        // TODO: 55656 AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
         // TODO: 54718 Accuracy mismatch
         R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
