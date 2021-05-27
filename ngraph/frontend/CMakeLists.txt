@@ -33,6 +33,7 @@ add_custom_command(
                 -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
                 -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
                 -DCMAKE_CXX_VISIBILITY_PRESET=${CMAKE_CXX_VISIBILITY_PRESET}
+                -DNGRAPH_INSTALL_LIB=${NGRAPH_INSTALL_LIB}
                  ${NGRAPH_FORWARD_CMAKE_ARGS}
         COMMAND ${CMAKE_COMMAND} --build . --target libprotobuf
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
