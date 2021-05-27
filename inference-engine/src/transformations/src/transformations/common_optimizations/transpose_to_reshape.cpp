@@ -84,8 +84,7 @@ bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
         }
         reshape_dim =
             opset3::Constant::create(element::i64, Shape{ reshape_value.size() }, reshape_value);
-    }
-    else {
+    } else {
         auto shape_of = std::make_shared<opset3::ShapeOf>(data);
         new_ops.push_back(shape_of);
         reshape_dim = std::make_shared<opset3::Gather>(
