@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ngraph/opsets/opset5.hpp>
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -596,4 +597,28 @@ TEST(type_prop, reshape_to_zero_shape_dynamic)
         param, op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_output_shape(0), (Shape{0}));
+}
+
+TEST(type_prop, reshape_with_concat_to_zero_shape)
+{
+    ngraph::Shape inputShape{1000};
+
+    const auto data = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, inputShape);
+    const auto dataShape = ngraph::opset5::Constant::create(
+        ngraph::element::i32, ngraph::Shape{inputShape.size()}, inputShape);
+    const auto resultK = ngraph::opset5::Constant::create(ngraph::element::i32, {1}, {10});
+
+    const auto concat =
+        std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{dataShape, resultK}, 0);
+
+    const auto reduceMin = std::make_shared<ngraph::opset5::ReduceMin>(
+        concat, ngraph::opset5::Constant::create(ngraph::element::i32, {1}, {0}), false);
+    const auto reshape = std::make_shared<ngraph::opset5::Reshape>(
+        reduceMin,
+        ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}),
+        false);
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(reshape->output(0))};
+    const auto function = std::make_shared<ngraph::Function>(
+        results, ngraph::ParameterVector{data}, "TopKPropagationOfK");
 }

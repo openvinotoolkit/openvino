@@ -168,8 +168,9 @@ namespace reshapeop
                     return dim.get_max_length() == 0 && dim.get_min_length() == 0;
                 });
 
-            bool backward_compatible_check =
-                (zero_dims && reshape_node->get_special_zero()) || minus_one_idx != -1;
+            bool backward_compatible_check = (zero_dims && reshape_node->get_special_zero()) ||
+                                             minus_one_idx != -1 ||
+                                             reshape_pattern == std::vector<Dimension>{0};
             bool in_out_elements_equal = shape_size(reshape_node->get_input_shape(0)) ==
                                          shape_size(output_pshape.to_shape());
 
