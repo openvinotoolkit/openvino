@@ -424,6 +424,22 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
             auto lptPassConfig = lptManager.get_pass_config();
             lptPassConfig->disable<ngraph::pass::low_precision::StridedSliceTransformation>();
+            lptPassConfig->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
+                auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node);
+                if (mulitply != nullptr) {
+                    const auto parent0 = mulitply->get_input_node_shared_ptr(0);
+                    const auto parent1 = mulitply->get_input_node_shared_ptr(1);
+                    if (!ngraph::is_type<ngraph::opset1::Constant>(parent0) && !ngraph::is_type<ngraph::opset1::Constant>(parent1)) {
+                        return true;
+                    }
+
+                    const ngraph::Shape shape = mulitply->output(0).get_shape();
+                    if ((shape.size() != 4ul) && (shape.size() != 5ul)) {
+                        return true;
+                    }
+                }
+                return false;
+            });
             lptPassConfig->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
                 return WeightableLayerTransformation::isAsymmetricOnWeights(node);
             });
