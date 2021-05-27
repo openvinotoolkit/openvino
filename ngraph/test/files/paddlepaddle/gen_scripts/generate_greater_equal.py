@@ -6,10 +6,8 @@ from save_model import saveModel
 import paddle as pdpd
 import sys
 
-data_type = 'float32'
 
-
-def greater_equal(name : str, x, y):
+def greater_equal(name : str, x, y, data_type):
     pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
@@ -17,7 +15,7 @@ def greater_equal(name : str, x, y):
         node_y = pdpd.static.data(name='input_y', shape=y.shape, dtype=data_type)
         out = pdpd.fluid.layers.greater_equal(x=node_x, y=node_y, name='greater_equal')
         # save model does not support boolean type
-        out = pdpd.cast(out, data_type)
+        out = pdpd.cast(out, 'float32')
 
         cpu = pdpd.static.cpu_places(1)
         exe = pdpd.static.Executor(cpu[0])
@@ -35,10 +33,17 @@ def greater_equal(name : str, x, y):
 
 
 def main():
-    x = np.array([0, 1, 2, 3]).astype(data_type)
-    y = np.array([1, 0, 2, 4]).astype(data_type)
 
-    greater_equal("greater_equal", x, y)
+    test_cases = [
+        "float32",
+        "int32",
+        "int64"
+    ]
+
+    for test in test_cases:
+        x = np.array([0, 1, 2, 3]).astype(test)
+        y = np.array([1, 0, 2, 4]).astype(test)
+        greater_equal("greater_equal_" + test, x, y, test)
 
 
 if __name__ == "__main__":

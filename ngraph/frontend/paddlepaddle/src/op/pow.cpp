@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "pow.hpp"
+#include <ngraph/builder/make_constant.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
@@ -16,16 +17,18 @@ namespace ngraph
                 NamedOutputs pow(const NodeContext& node)
                 {
                     auto x = node.get_ng_input("X");
+                    auto dtype = x.get_element_type();
                     Output<Node> factor_node;
                     if (node.has_ng_input("FactorTensor"))
                     {
                         factor_node = node.get_ng_input("FactorTensor");
+                        if (factor_node.get_element_type() != dtype)
+                            factor_node = std::make_shared<opset6::Convert>(factor_node, dtype);
                     }
                     else
                     {
-                        auto factor = node.get_attribute<float>("factor");
-                        factor_node =
-                            ngraph::opset6::Constant::create(ngraph::element::f32, {}, {factor});
+                        factor_node = builder::make_constant(
+                            dtype, Shape{1}, node.get_attribute<float>("factor"));
                     }
 
                     return node.default_single_output_mapping(
