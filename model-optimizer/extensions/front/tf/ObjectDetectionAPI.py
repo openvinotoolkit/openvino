@@ -1173,7 +1173,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         anchors_count = node_to_get_shape_value_of_indices(anchors_shape, [0])
         tiled_anchors = Tile(graph, {'name': 'tiled_anchors'}).create_node([variances, anchors_count])
         reshaped_tiled_anchors = create_op_with_const_inputs(graph, Reshape, {1: int64_array([1, 1, -1])},
-                                                             {'name': 'flattended_variances'}, tiled_anchors)
+                                                             {'name': 'flattened_variances'}, tiled_anchors)
 
         # now we can merge actual anchors coordinates with a tensor with variances as it is expected by the
         # DetectionOutput operation
@@ -1182,7 +1182,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
         do = DetectionOutput(graph,
                              {'background_label_id': 0,
-                              'clip_after_nms': False,
+                              'clip_after_nms': True,
                               'clip_before_nms': False,
                               'code_type': 'caffe.PriorBoxParameter.CENTER_SIZE',
                               'confidence_threshold': 0.0,
