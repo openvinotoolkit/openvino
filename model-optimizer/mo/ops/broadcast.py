@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
+
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
@@ -23,8 +25,8 @@ class Broadcast(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset3',
             'mode': 'numpy',
             'in_ports_count': 3,
@@ -33,7 +35,7 @@ class Broadcast(Op):
                 {1: 'int64',
                  2: 'int64',
                  },
-            'infer': __class__.infer,
+            'infer': self.infer,
         }, attrs)
 
     def supported_attrs(self):
@@ -51,7 +53,7 @@ class Broadcast(Op):
 
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'output:0', 'shape')
 
-        if input_value is not None and not node.has_and_set('stop_value_propagation'):
+        if input_value is not None and not node.has_and_set('stop_value_propagation') and np.all(target_shape != -1):
             if node.mode == 'numpy':
                 node.out_port(0).data.set_value(uni_directional_broadcasting(input_value, target_shape))
             elif node.mode == 'bidirectional':

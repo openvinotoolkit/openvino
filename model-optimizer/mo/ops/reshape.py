@@ -58,7 +58,7 @@ class Reshape(Op):
             elif x != -1:
                 num_of_output_elements *= x
 
-        undefined_dim = num_of_input_elements // num_of_output_elements
+        undefined_dim = num_of_input_elements // num_of_output_elements if np.all(input_shape != -1) else -1
         output_shape = []
         for index, x in enumerate(new_shape):
             if x == 0 and node.has_and_set('special_zero'):
@@ -68,7 +68,7 @@ class Reshape(Op):
             else:
                 output_shape.append(x)
 
-        assert np.prod(input_shape) == np.prod(output_shape), \
+        assert np.any(input_shape == -1) or np.prod(input_shape) == np.prod(output_shape), \
             "Number of elements in input {} and output {} of reshape node {} mismatch" \
             "".format(input_shape, output_shape, name)
 

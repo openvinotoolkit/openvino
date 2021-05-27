@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import get_shape_from_slice
+from mo.front.common.partial_infer.utils import get_shape_from_slice, int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -122,7 +122,8 @@ class Slice(Op):
         starts = node.in_port(1).data.get_value()
         ends = node.in_port(2).data.get_value()
         if starts is None or ends is None:
-            raise Error('The non-constant start/end values for Slice operation "{}" are not supported'.format(node.name))
+            node.out_port(0).data.set_shape(int64_array([-1 for _ in range(len(input_shape))]))
+            return
 
         if node.is_in_port_connected(3):
             axes = node.in_port(3).data.get_value()
@@ -144,8 +145,6 @@ class Slice(Op):
             slice_idx[axes[i]] = slice(starts[i], ends[i], steps[i])
         if input_value is None:
             output_shape = get_shape_from_slice(input_shape, slice_idx)
-            if np.any(output_shape <= 0):
-                raise Error('Output shape: {} of node "{}" contains non-positive values'.format(output_shape, node.name))
             node.out_port(0).data.set_shape(output_shape)
         else:
             node.out_port(0).data.set_value(input_value[tuple(slice_idx)])

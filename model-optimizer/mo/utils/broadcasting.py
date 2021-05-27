@@ -41,7 +41,7 @@ def uni_directional_shape_broadcasting(input_shape: np.array, target_shape: np.a
     input, target_shape = make_equal_rank(input, target_shape)
 
     for left, right in zip(input, target_shape):
-        if left != right and left != 1:
+        if left != right and left != 1 and right != -1:
             log.debug('The shape "{}" cannot be broadcasted to "{}"'.format(input_shape, target_shape))
             return None
 
@@ -58,13 +58,18 @@ def bi_directional_shape_broadcasting(input_shape_1: np.array, input_shape_2: np
     shape_1 = input_shape_1.copy()
     shape_2 = input_shape_2.copy()
     shape_1, shape_2 = make_equal_rank(shape_1, shape_2)
+    result = list()
 
     for left, right in zip(shape_1, shape_2):
-        if left != right and left != 1 and right != 1:
+        if left != right and left != 1 and right != 1 and left != -1 and right != -1:
             log.debug('The shape "{}" cannot be broadcasted to "{}"'.format(input_shape_1, input_shape_2))
             return None
+        if left != -1 and right != -1:
+            result.append(max(left, right))
+        else:
+            result.append(-1)
 
-    return np.maximum(shape_1, shape_2)
+    return int64_array(result)
 
 
 def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, axes_mapping: np.array) -> [np.array, np.array]:
