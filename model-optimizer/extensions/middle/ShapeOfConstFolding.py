@@ -22,14 +22,15 @@ class ShapeOfConstFolding(MiddleReplacementPattern):
         return dict(
             nodes=[
                 ('const', dict(op='Const')),
+                ('const_data', dict(kind='data')),
                 ('shape', dict(op='ShapeOf')),
             ],
             edges=[
-                ('const', 'shape', {})
+                ('const', 'const_data', {}),
+                ('const_data', 'shape', {})
             ])
 
     def replace_pattern(self, graph: Graph, match: [dict, SubgraphMatch]):
-        const = match['const']
         shape = match['shape']
 
         shape_name = shape.soft_get('name', shape.id)
