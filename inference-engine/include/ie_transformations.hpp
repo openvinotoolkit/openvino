@@ -53,5 +53,28 @@ namespace InferenceEngine {
  * *
  */
 INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
-INFERENCE_ENGINE_API_CPP(void) LowLatency_v2(InferenceEngine::CNNNetwork& network);
+
+
+/**
+ * @brief The transformation finds all TensorIterator layers in the network, processes all back
+ * edges that describe a connection between Result and Parameter of the TensorIterator body,
+ * and inserts ReadValue layer between Parameter and the next layers after this Parameter,
+ * and Assign layer after the layers before the Result layer.
+ * Supported platforms: CPU, GNA.
+ *
+ *    An illustrative example, not real API:
+ *
+ *    network->reshape(...) // Set sequence dimension to 1, recalculating shapes. Optional, depends on the network.
+ *    LowLatency_v2(network)   // Applying LowLatency and UnrollTensorIterator transformations.
+ *    network->infer (...)  // Calculating new values for states.
+ *    // All states are stored between inferences via Assign, ReadValue layers.
+ *    network->infer (...)  // Using stored states, calculating new values for states.
+ *
+ * @param network A network to apply LowLatency transformation
+ * @param iterations Count of iterations of TensorIterator/Loop op
+ * *
+ */
+INFERENCE_ENGINE_API_CPP(void) LowLatency_v2(InferenceEngine::CNNNetwork& network,
+                                             int64_t iterations = 1);
+
 } // namespace InferenceEngine

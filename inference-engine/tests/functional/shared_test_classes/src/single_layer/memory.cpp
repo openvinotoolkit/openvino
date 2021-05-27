@@ -182,14 +182,20 @@ namespace LayerTestsDefinitions {
 
     void MemoryTest::ApplyLowLatency() {
        if (transformation == op::MemoryTransformation::LOW_LATENCY_V2) {
-            function->validate_nodes_and_infer_types();
-            pass::Manager manager;
-            manager.register_pass<pass::LowLatency_v2>(iteration_count);
-            manager.run_passes(function);
-            LoadNetwork();
-          } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
+           function->validate_nodes_and_infer_types();
+           pass::Manager manager;
+           manager.register_pass<pass::LowLatency_v2>(iteration_count);
+           manager.run_passes(function);
+           LoadNetwork();
+       } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_PARAM_INIT) {
+           function->validate_nodes_and_infer_types();
+           pass::Manager manager;
+           manager.register_pass<pass::LowLatency_v2>(iteration_count, pass::LowLatency_v2::InitialValue::PARAMETER_SUBGRAPH);
+           manager.run_passes(function);
+           LoadNetwork();
+        } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
-            InferenceEngine::LowLatency_v2(cnnNetwork);
+            InferenceEngine::LowLatency_v2(cnnNetwork, iteration_count);
 
             CoreConfiguration(this);
             ConfigureNetwork();

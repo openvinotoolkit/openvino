@@ -28,14 +28,7 @@ void InferenceEnginePython::ApplyPOTTransformations(InferenceEnginePython::IENet
 
 void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network, int64_t num_iterations) {
     ngraph::pass::Manager manager;
-    // TODO: pass num_iterations to LowLatency
-    manager.register_pass<ngraph::pass::LowLatency>();
-    manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-
-    auto pass_config = manager.get_pass_config();
-    pass_config->set_callback<ngraph::pass::UnrollTensorIterator>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-        return node->get_rt_info().count("UNROLL_TI") == 0;
-    });
+    manager.register_pass<ngraph::pass::LowLatency_v2>(num_iterations);
     manager.run_passes(network.actual->getFunction());
 }
 

@@ -457,7 +457,8 @@ namespace ngraph
             LOW_LATENCY,
             LOW_LATENCY_REGULAR_API,
             LOW_LATENCY_V2,
-            LOW_LATENCY_V2_REGULAR_API
+            LOW_LATENCY_V2_REGULAR_API,
+            LOW_LATENCY_V2_PARAM_INIT
         };
 
         NGRAPH_API
@@ -466,16 +467,16 @@ namespace ngraph
 
     template <>
     class NGRAPH_API AttributeAdapter<op::MemoryTransformation>
-            : public EnumAttributeAdapterBase<op::MemoryTransformation>
+        : public EnumAttributeAdapterBase<op::MemoryTransformation>
     {
     public:
         AttributeAdapter(op::MemoryTransformation& value)
-                : EnumAttributeAdapterBase<op::MemoryTransformation>(value)
+            : EnumAttributeAdapterBase<op::MemoryTransformation>(value)
         {
         }
 
-        static constexpr DiscreteTypeInfo type_info{
-                "AttributeAdapter<op::MemoryTransformation>", 1};
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::MemoryTransformation>",
+                                                    1};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 } // namespace ngraph
