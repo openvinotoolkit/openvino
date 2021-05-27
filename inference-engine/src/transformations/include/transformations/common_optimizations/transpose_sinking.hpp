@@ -46,7 +46,8 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeSqueezeSinking transformation sinks Transpose through Squeeze operations
+ * @brief TransposeFuse transformation eliminates 2 consequtive Transposes if they result in no changes to input or fuses them
+ * to single Transpose if input gets changed
  */
 class ngraph::pass::TransposeFuse : public ngraph::pass::MatcherPass {
 public:

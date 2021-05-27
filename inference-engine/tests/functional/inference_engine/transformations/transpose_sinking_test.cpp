@@ -202,7 +202,6 @@ INSTANTIATE_TEST_CASE_P(TransposeSinkingSqueeze, TransposeSinking, testing::Comb
             ngraph::opset6::Squeeze::type_info)));
 
 TEST(TransformationTests, TransposeFuseEliminatesTranspose) {
-
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 640, 20, 2 });
@@ -235,7 +234,6 @@ TEST(TransformationTests, TransposeFuseEliminatesTranspose) {
 }
 
 TEST(TransformationTests, TransposeFuses) {
-
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 640, 20, 2, 2 });
