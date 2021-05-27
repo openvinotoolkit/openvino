@@ -350,18 +350,14 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         ngraph::pass::Manager lptManager;
         lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
-            auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node);
-            if (mulitply != nullptr) {
-                const auto parent0 = mulitply->get_input_node_shared_ptr(0);
-                const auto parent1 = mulitply->get_input_node_shared_ptr(1);
-                if (!ngraph::is_type<ngraph::opset1::Constant>(parent0) && !ngraph::is_type<ngraph::opset1::Constant>(parent1)) {
-                    return true;
-                }
-
-                const ngraph::Shape shape = mulitply->output(0).get_shape();
-                if ((shape.size() != 4ul) && (shape.size() != 5ul)) {
-                    return true;
-                }
+            if (auto convolution = std::dynamic_pointer_cast<const ngraph::opset1::Convolution>(node)) {
+                return !ConvolutionTransformation::isQuantizedStatic(convolution);
+            }
+            if (auto groupConvolution = std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolution>(node)) {
+                return !GroupConvolutionTransformation::isQuantizedStatic(groupConvolution);
+            }
+            if (auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+                return !MultiplyToGroupConvolutionTransformation::isQuantizedStatic(mulitply);
             }
             return false;
         });

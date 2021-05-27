@@ -32,8 +32,8 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
     this->register_matcher(m, callback);
 }
 
-bool GroupConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
-    return WeightableLayerTransformation::isQuantized(layer, true);
+bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+    return GroupConvolutionTransformation::isQuantizedStatic(layer);
 }
 
 bool GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
@@ -45,6 +45,10 @@ bool GroupConvolutionTransformation::transform(TransformationContext &context, n
 
     ConvolutionTransformation::transform(context, m);
     return true;
+}
+
+bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+    return WeightableLayerTransformation::isQuantizedStatic(layer, true);
 }
 
 } // namespace low_precision

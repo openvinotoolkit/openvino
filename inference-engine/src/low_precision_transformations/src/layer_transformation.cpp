@@ -246,7 +246,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
     return LayerTransformation::PrecisionDetails(element::undefined, hasNegative, hasZeroPoint);
 }
 
-bool LayerTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
+bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
     return true;
 }
 

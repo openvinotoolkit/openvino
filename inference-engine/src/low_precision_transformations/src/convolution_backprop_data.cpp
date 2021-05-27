@@ -74,7 +74,11 @@ ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(con
 //                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>(), make_op_label<opset1::Constant>() }));
 //}
 
-bool ConvolutionBackpropDataTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
+bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+    return ConvolutionBackpropDataTransformation::isQuantizedStatic(layer, deconvolutionSpecificChannelsRatio);
+}
+
+bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool deconvolutionSpecificChannelsRatio) noexcept {
     if (deconvolutionSpecificChannelsRatio) {
         size_t inputChannels = layer->get_input_shape(0)[1];
         size_t outputChannels = layer->get_output_shape(0)[1];
@@ -82,7 +86,7 @@ bool ConvolutionBackpropDataTransformation::isQuantized(std::shared_ptr<Node> la
             return false;
         }
     }
-    return WeightableLayerTransformation::isQuantized(layer, false);
+    return WeightableLayerTransformation::isQuantizedStatic(layer, false);
 }
 
 bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
