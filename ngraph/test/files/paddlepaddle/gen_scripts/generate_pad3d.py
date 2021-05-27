@@ -13,9 +13,11 @@ def pad3d(name : str, x, in_dtype, pad, data_format, mode, value = 0):
         node_x = pdpd.static.data(name = 'x', shape = x.shape, dtype = in_dtype)
 
         if mode == 'constant':
-            out = pdpd.nn.functional.pad(node_x, pad, mode, value, data_format)
+            pad_constant = pdpd.nn.Pad3D(padding=pad, mode=mode, value=value, data_format=data_format)
+            out = pad_constant(node_x)
         else:
-            out = pdpd.nn.functional.pad(node_x, pad, mode, value, data_format)
+            pad_other_mode = pdpd.nn.Pad3D(padding=pad, mode=mode, data_format=data_format)
+            out = pad_other_mode(node_x)
 
         cpu = pdpd.static.cpu_places(1)
         exe = pdpd.static.Executor(cpu[0])
@@ -36,7 +38,7 @@ def main():
     input_shape = (1, 2, 3, 4, 5)
     pad = [1, 2, 1, 1, 3, 4]
     mode = 'constant'
-    data_format= 'NCDHW'
+    data_format = 'NCDHW'
     value = 100
     input_data = np.random.rand(*input_shape).astype(np.float32)
     pad3d("pad3d_test1", input_data, in_dtype, pad, data_format, mode, value)
@@ -44,18 +46,25 @@ def main():
     input_shape = (2, 3, 4, 5, 6)
     pad = [1, 2, 1, 1, 1, 2]
     mode = "reflect"
-    data_format= 'NDHWC'
-    value = 100
+    data_format = 'NDHWC'
     input_data = np.random.rand(*input_shape).astype(np.float32)
     pad3d("pad3d_test2", input_data, in_dtype, pad, data_format, mode)
 
     input_shape = (2, 3, 4, 5, 6)
     pad = [1, 2, 1, 1, 1, 2]
     mode = "replicate"
-    data_format= 'NDHWC'
-    value = 100
+    data_format = 'NDHWC'
     input_data = np.random.rand(*input_shape).astype(np.float32)
     pad3d("pad3d_test3", input_data, in_dtype, pad, data_format, mode)
+
+    # padding of type int feature only supported by PaddlePaddle 'develop' version(>=2.1.0)
+#    input_shape = (1, 2, 3, 4, 5)
+#    pad_int = 1
+#    mode = 'constant'
+#    data_format= 'NCDHW'
+#    value = 100
+#    input_data = np.random.rand(*input_shape).astype(np.float32)
+#    pad3d("pad3d_test4", input_data, in_dtype, pad_int, data_format, mode, value)
 
 if __name__ == "__main__":
     main()
