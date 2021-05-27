@@ -25,6 +25,7 @@
 
 @PACKAGE_INIT@
 
+# we have to use our own version of find_dependency because of support cmake 3.7
 macro(_ie_find_dependency dep)
     set(cmake_fd_quiet_arg)
     if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
