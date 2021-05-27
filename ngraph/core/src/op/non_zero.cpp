@@ -48,12 +48,7 @@ void op::v3::NonZero::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v3_NonZero_validate_and_infer_types);
     const PartialShape& input_shape = get_input_partial_shape(0);
-    const auto input_et = get_input_element_type(0);
 
-    NODE_VALIDATION_CHECK(this,
-                          input_et.is_integral_number() || input_et.is_real(),
-                          "NonZero input data type needs to be a numeric type. Got: ",
-                          input_et);
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
@@ -154,6 +149,7 @@ namespace nonzero
 
         switch (input->get_element_type())
         {
+            NGRAPH_TYPE_CASE(evaluate_nonzero, boolean, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, i8, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, i16, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, i32, input, output);

@@ -29,7 +29,7 @@ The output tensor has shape `[rank(input), num_non_zero]`. For example, for the 
 
 **Types**
 
-* *T*: any numeric type.
+* *T*: any type.
 
 * *T_IND*: `int64` or `int32`.
 
