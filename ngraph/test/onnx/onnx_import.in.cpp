@@ -2503,45 +2503,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_float)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_select_last_index)
 {
-    try
-    {
-        auto function = onnx_import::import_onnx_model(
-            file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_select_last_index.prototxt"));
-        FAIL() << "Expected exception was not thrown";
-    }
-    catch (const ngraph::ngraph_error& e)
-    {
-        EXPECT_HAS_SUBSTRING(
-            e.what(),
-            std::string(
-                "Mode 'select_last_index=1' is not supported by current implementation of ArgMax"));
-    }
-    catch (...)
-    {
-        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
-    }
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_select_last_index.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{4, 3}, {1, 1, 1, 0.5, 3, 4, 0.5, 1, 1.1, 0, 3, 0});
+    test_case.add_expected_output<std::int64_t>(Shape{1, 3}, {0, 3, 1});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_select_last_index)
 {
-    try
-    {
-        auto function = onnx_import::import_onnx_model(
-            file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_select_last_index.prototxt"));
-        FAIL() << "Expected exception was not thrown";
-    }
-    catch (const ngraph::ngraph_error& e)
-    {
-        EXPECT_HAS_SUBSTRING(
-            e.what(),
-            std::string(
-                "Mode 'select_last_index=1' is not supported by current implementation of ArgMin"));
-        std::string what{e.what()};
-    }
-    catch (...)
-    {
-        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
-    }
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_select_last_index.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{4, 3}, {1, 1, 1, 2, 3, 4, 2, 1, 1.1, 3, 3, 8});
+    test_case.add_expected_output<std::int64_t>(Shape{4}, {2, 0, 1, 1});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k)

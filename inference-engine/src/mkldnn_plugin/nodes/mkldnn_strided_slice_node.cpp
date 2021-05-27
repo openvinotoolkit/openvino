@@ -138,10 +138,10 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
 
     if (params.parametersAreConstant) {
         auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
-            auto blob = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgesAtPort(type)[0]->getParent())->getConstBlob();
-            if (blob->getTensorDesc().getPrecision() != Precision::I32)
+            auto blob = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgesAtPort(type)[0]->getParent())->getMemoryPtr();
+            if (blob->GetDataType() != mkldnn::memory::data_type::s32)
                 THROW_ERROR << "supports only parameters input with precision I32";
-            const int *ptr = blob->cbuffer().as<const int *>() + blob->getTensorDesc().getBlockingDesc().getOffsetPadding();
+            const int *ptr = static_cast<const int*>(blob->GetPtr());
             parameter.assign(ptr, ptr + size);
 
             if (ellipsisMaskCounter == 0 && size < nDims) {

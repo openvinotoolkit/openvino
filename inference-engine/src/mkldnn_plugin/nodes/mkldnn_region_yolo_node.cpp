@@ -369,31 +369,38 @@ inline void MKLDNNRegionYoloNode::calculate_logistic(size_t start_index, int cou
 void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
     auto inputDesc = getParentEdgeAt(0)->getDesc();
     auto outputDesc = getChildEdgeAt(0)->getDesc();
-    size_t mask_size = mask.size();
 
-    size_t IW = (inputDesc.getDims().size() > 3) ? inputDesc.getDims()[3] : 1;
-    size_t IH = (inputDesc.getDims().size() > 2) ? inputDesc.getDims()[2] : 1;
-    size_t IC = (inputDesc.getDims().size() > 1) ? inputDesc.getDims()[1] : 1;
     size_t B = (inputDesc.getDims().size() > 0) ? inputDesc.getDims()[0] : 1;
+    size_t IC = (inputDesc.getDims().size() > 1) ? inputDesc.getDims()[1] : 1;
+    size_t IH = (inputDesc.getDims().size() > 2) ? inputDesc.getDims()[2] : 1;
+    size_t IW = (inputDesc.getDims().size() > 3) ? inputDesc.getDims()[3] : 1;
 
+    size_t mask_size = mask.size();
     int end_index = 0;
     int num_ = 0;
+    int output_size = 0;
     if (do_softmax) {
         // Region layer (Yolo v2)
         end_index = IW * IH;
         num_ = num;
+        output_size = B * IH * IW * IC; // different shape combinations with the same overall size;
     } else {
         // Yolo layer (Yolo v3)
         end_index = IW * IH * (classes + 1);
         num_ = mask_size;
+        output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
+
+    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->GetElementsCount())
+        IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size << " != " << getChildEdgeAt(0)->getMemoryPtr()->GetElementsCount();
+
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;
 
     const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    cpu_convert(src_data, dst_data, inputDesc.getPrecision(), outputDesc.getPrecision(), B * IC * IH * IW);
+    cpu_convert(src_data, dst_data, inputDesc.getPrecision(), outputDesc.getPrecision(), output_size);
 
     for (int b = 0; b < B; b++) {
         for (int n = 0; n < num_; n++) {
