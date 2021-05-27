@@ -2010,7 +2010,7 @@ void FuseFQIntoWeightsPass::run() {
             component.num_rows_in = weightDims[0];
 
             if (LayerInfo(weightableLayer).isConvolution()) {
-                depth = (weightDims.size() == 4) ? weightDims[3] : 1;
+                depth = (weightDims.size() == 4) ? weightDims[2] * weightDims[3] : 1;
             }
 
             intel_piecewiselinear_t* transform = reinterpret_cast<intel_piecewiselinear_t*>(&component.op.pwl);
@@ -2204,14 +2204,15 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // Connect all next layers after FQ to the layer that is before FQ
         // and propagate quantization data
         for (size_t i = 0; i < nextLayers.size(); ++i) {
-            auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
-            if (insDatas.size() != 1) {
-                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
-                    << LAYER_NAME(nextLayers[i]) << " is not correct";
-            }
-
             if (isFQFuseAllowed) {
-                nextLayers[i]->insData[insDatas.front()] = prevData;
+                auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
+                if (insDatas.empty()) {
+                    THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
+                        << LAYER_NAME(nextLayers[i]) << " is not correct";
+                }
+                for (int insDataIdx : insDatas) {
+                    nextLayers[i]->insData[insDataIdx] = prevData;
+                }
                 getInputTo(prevLayer->outData.front())[nextLayers[i]->name] = nextLayers[i];
             }
 
