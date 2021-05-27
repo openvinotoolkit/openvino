@@ -4,27 +4,27 @@
 
 **Category**: *Reduction*
 
-**Short description**: *ReduceMin* operation performs reduction with finding the minimum value, on a given input `data`, along dimensions specified by `axes` input.
+**Short description**: *ReduceMin* operation performs the reduction with finding the minimum value on a given input `data` along dimensions specified by `axes` input.
 
 **Detailed Description**
 
-*ReduceMin* operation performs reduction with finding the minimum value, on a given input `data`, along dimensions specified by `axes` input.
+*ReduceMin* operation performs the reduction with finding the minimum value on a given input `data` along dimensions specified by `axes` input.
 Each element in the output is calculated as follows:
 
     output[i0, i1, ..., iN] = min[j0, ..., jN](x[j0, ..., jN]))
 
-where indices i0, ..., iN run through all valid indices for input `data` and finding the minimum value `min[j0, ..., jN]` has `jk = ik` for those dimensions `k` that are not in the set of indices specified by `axes` input.
+where indices i0, ..., iN run through all valid indices for input `data`, and finding the minimum value `min[j0, ..., jN]` has `jk = ik` for those dimensions `k` that are not in the set of indices specified by `axes` input.
 
 Particular cases:
 
-1. If `axes` is an empty list, then *ReduceMin* corresponds to identity operation. 
-2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for entire input tensor.
+1. If `axes` is an empty list, *ReduceMin* corresponds to the identity operation. 
+2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for the entire input tensor.
 
 **Attributes**
 
 * *keep_dims*
 
-  * **Description**: If set to `true` it holds axes that are used for reduction. For each such axis, output dimension is equal to 1.
+  * **Description**: If set to `true`, it holds axes that are used for the reduction. For each such axis, the output dimension is equal to 1.
   * **Range of values**: `true` or `false`
   * **Type**: `boolean`
   * **Default value**: `false`
@@ -34,11 +34,11 @@ Particular cases:
 
 * **1**: `data` - A tensor of type *T* and arbitrary shape. **Required.**
 
-* **2**: `axes` - Axis indices of `data` input tensor, along which reduction is performed. A scalar or 1D tensor of unique elements and type *T_IND*. The range of elements is `[-r, r-1]` where `r` is the rank of `data` input tensor. **Required.**
+* **2**: `axes` - Axis indices of `data` input tensor, along which the reduction is performed. A scalar or 1D tensor of unique elements and type *T_IND*. The range of elements is `[-r, r-1]`, where `r` is the rank of `data` input tensor. **Required.**
 
 **Outputs**
 
-* **1**: The result of *ReduceMin* function applied to `data` input tensor. A tensor of type *T* and `shape[i] = shapeOf(data)[i]` for all `i` dimensions not in `axes` input tensor. For dimensions in `axes`, `shape[i] == 1` if `keep_dims == true`, otherwise the `i`-th dimension is removed from the output.
+* **1**: The result of *ReduceMin* function applied to `data` input tensor. A tensor of type *T* and `shape[i] = shapeOf(data)[i]` for all `i` dimensions not in `axes` input tensor. For dimensions in `axes`, `shape[i] == 1` if `keep_dims == true`; otherwise, the `i`-th dimension is removed from the output.
 
 **Types**
 
