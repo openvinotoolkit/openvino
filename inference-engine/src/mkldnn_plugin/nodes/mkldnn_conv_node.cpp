@@ -402,6 +402,10 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
     attr.set_post_ops(ops);
 }
 
+void MKLDNNConvolutionNode::selectOptimalPrimitiveDescriptor() {
+    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+}
+
 void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -872,21 +876,26 @@ InferenceEngine::Blob::Ptr MKLDNNConvolutionNode::createInternalBlob(InferenceEn
     if (!constNode) {
         IE_THROW() << "Cannot cast " << edgeNum << " input to Input node for " << getName() << ".";
     }
-    InferenceEngine::Blob::CPtr blb = constNode->getConstBlob();
+    auto blb = constNode->getMemoryPtr();
     if (blb == nullptr)
         IE_THROW() << "Cannot get const blob for node " << getName() << ".";
+
+    auto const elementsCount = blb->GetElementsCount();
 
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, dims, getWeightsLayoutByDims(dims, isGrouped));
 
     Blob::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
     internalBlob->allocate();
 
-    if (internalBlob->size() != blb->size()) {
+    if (internalBlob->size() != elementsCount) {
         IE_THROW() << "Created internal blob and const blob has different size for node: " << getName() << ".";
     }
 
-    cpu_convert(blb->cbuffer(), internalBlob->buffer(), blb->getTensorDesc().getPrecision(), internalBlob->getTensorDesc().getPrecision(),
-                internalBlob->size());
+    cpu_convert(blb->GetPtr(),
+                internalBlob->buffer(),
+                MKLDNNExtensionUtils::DataTypeToIEPrecision(blb->GetDataType()),
+                internalBlob->getTensorDesc().getPrecision(),
+                elementsCount);
 
     return internalBlob;
 }
