@@ -23,6 +23,7 @@
 #   ngraph_FOUND               - True if the system has the nGraph library
 #   NGRAPH_LIBRARIES           - nGraph libraries
 #   ngraph::ngraph             - nGraph core target
+#
 #   ngraph_onnx_importer_FOUND - True if the system has onnx_importer library
 #   ONNX_IMPORTER_LIBRARIES    - ONNX importer libraries
 #   ngraph::onnx_importer      - ONNX importer target
@@ -35,9 +36,12 @@ if(NOT TARGET ngraph)
     include("${CMAKE_CURRENT_LIST_DIR}/ngraphTargets.cmake")
 endif()
 
+set(ngraph_ngraph_FOUND ON)
 set(NGRAPH_LIBRARIES ngraph::ngraph)
+
 set(ngraph_onnx_importer_FOUND @NGRAPH_ONNX_IMPORT_ENABLE@)
 if(ngraph_onnx_importer_FOUND)
     set(ONNX_IMPORTER_LIBRARIES ngraph::onnx_importer)
 endif()
+
 check_required_components(ngraph)

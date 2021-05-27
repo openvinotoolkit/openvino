@@ -26,12 +26,6 @@ inline void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
     }
 }
 
-inline void fill_data_sine(float *data, size_t size, float center, float ampl, float omega) {
-    for (size_t i = 0; i < size; i++) {
-        data[i] = center + ampl * sin(static_cast<float>(i) * omega);
-    }
-}
-
 /**
  * @brief Create vector of floats with length of vec_len, with values ranging from min to max, 
  * with initial seed equal to variable seed with default of 0
@@ -43,21 +37,6 @@ inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min,
     std::uniform_real_distribution<float> dist(min, max);
     for (std::size_t i = 0; i < vec_len; i++)
         res.emplace_back(static_cast<float>(dist(gen)));
-
-    return res;
-}
-
-/**
- * @brief Create vector of floats with length of vec_len, with values ranging from min to max,
- * with initial seed equal to variable seed with default of 0
- */
-template<typename T>
-inline std::vector<T>  fill_vector(std::vector<T> &res, double min, double max, int seed = 0) {
-    std::mt19937 gen(static_cast<T>(seed));
-
-    std::uniform_real_distribution<double> dist(min, max);
-    for (std::size_t i = 0; i < res.size(); i++)
-        res[i] = static_cast<T>(dist(gen));
 
     return res;
 }
@@ -112,36 +91,12 @@ void fill_data_const(InferenceEngine::Blob::Ptr &blob, float val);
  */
 size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
 
-inline void fill_data_bbox(float *data, size_t size, int height, int width, float omega) {
-    float center_h = (height - 1.0f) / 2;
-    float center_w = (width - 1.0f) / 2;
-    for (size_t i = 0; i < size; i = i + 5) {
-        data[i] = 0.0f;
-        data[i + 1] = center_w + width * 0.6f * sin(static_cast<float>(i + 1) * omega);
-        data[i + 3] = center_w + width * 0.6f * sin(static_cast<float>(i + 3) * omega);
-        if (data[i + 3] < data[i + 1]) {
-            std::swap(data[i + 1], data[i + 3]);
-        }
-        if (data[i + 1] < 0)
-            data[i + 1] = 0;
-        if (data[i + 3] > width - 1)
-            data[i + 3] = static_cast<float>(width - 1);
-
-        data[i + 2] = center_h + height * 0.6f * sin(static_cast<float>(i + 2) * omega);
-        data[i + 4] = center_h + height * 0.6f * sin(static_cast<float>(i + 4) * omega);
-        if (data[i + 4] < data[i + 2]) {
-            std::swap(data[i + 2], data[i + 4]);
-        }
-        if (data[i + 2] < 0)
-            data[i + 2] = 0;
-        if (data[i + 4] > height - 1)
-            data[i + 4] = static_cast<float>(height - 1);
-    }
-}
-
+template<InferenceEngine::Precision::ePrecision PRC>
 inline void
-fill_data_roi(float *data, size_t size, const uint32_t range, const int height, const int width, const float omega,
+fill_data_roi(InferenceEngine::Blob::Ptr &blob, const uint32_t range, const int height, const int width, const float omega,
               const bool is_roi_max_mode, const int seed = 1) {
+    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto *data = blob->buffer().as<dataType *>();
     std::default_random_engine random(seed);
     std::uniform_int_distribution<int32_t> distribution(0, range);
 
@@ -151,31 +106,31 @@ fill_data_roi(float *data, size_t size, const uint32_t range, const int height, 
     float center_h = (max_y) / 2.0f;
     float center_w = (max_x) / 2.0f;
 
-    for (size_t i = 0; i < size; i += 5) {
-        data[i] = static_cast<float>(distribution(random));
+    for (size_t i = 0; i < blob->size(); i += 5) {
+        data[i] = static_cast<dataType>(distribution(random));
         const float x0 = (center_w + width * 0.3f * sin(static_cast<float>(i + 1) * omega));
         const float x1 = (center_w + width * 0.3f * sin(static_cast<float>(i + 3) * omega));
-        data[i + 1] = is_roi_max_mode ? std::floor(x0) : x0;
-        data[i + 3] = is_roi_max_mode ? std::floor(x1) : x1;
+        data[i + 1] = static_cast<dataType>(is_roi_max_mode ? std::floor(x0) : x0);
+        data[i + 3] = static_cast<dataType>(is_roi_max_mode ? std::floor(x1) : x1);
         if (data[i + 3] < data[i + 1]) {
             std::swap(data[i + 1], data[i + 3]);
         }
         if (data[i + 1] < 0)
             data[i + 1] = 0;
         if (data[i + 3] > max_x)
-            data[i + 3] = static_cast<float>(max_x);
+            data[i + 3] = static_cast<dataType>(max_x);
 
         const float y0 = (center_h + height * 0.3f * sin(static_cast<float>(i + 2) * omega));
         const float y1 = (center_h + height * 0.3f * sin(static_cast<float>(i + 4) * omega));
-        data[i + 2] = is_roi_max_mode ? std::floor(y0) : y0;
-        data[i + 4] = is_roi_max_mode ? std::floor(y1) : y1;
+        data[i + 2] = static_cast<dataType>(is_roi_max_mode ? std::floor(y0) : y0);
+        data[i + 4] = static_cast<dataType>(is_roi_max_mode ? std::floor(y1) : y1);
         if (data[i + 4] < data[i + 2]) {
             std::swap(data[i + 2], data[i + 4]);
         }
         if (data[i + 2] < 0)
             data[i + 2] = 0;
         if (data[i + 4] > max_y)
-            data[i + 4] = static_cast<float>(max_y);
+            data[i + 4] = static_cast<dataType>(max_y);
     }
 }
 
@@ -228,9 +183,9 @@ void inline fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t ra
  */
 template<InferenceEngine::Precision::ePrecision PRC>
 void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr &blob,
-                                        uint32_t range,
-                                        int32_t start_from = 0,
-                                        const int32_t k = 1,
+                                        uint64_t range,
+                                        int64_t start_from = 0,
+                                        const int64_t k = 1,
                                         const int32_t seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
@@ -244,7 +199,7 @@ void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr &blob,
     }
 
     std::mt19937 generator(seed);
-    std::uniform_int_distribution<int32_t> dist(k * start_from, k * (start_from + range));
+    std::uniform_int_distribution<int64_t> dist(k * start_from, k * (start_from + range));
 
     std::set<dataType> elems;
     while (elems.size() != blob->size()) {

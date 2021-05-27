@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
 #include <memory>
@@ -14,9 +13,9 @@ namespace MKLDNNPlugin {
 
 class MKLDNNRNN : public MKLDNNNode {
 public:
-    MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNRNN() override = default;
+    MKLDNNRNN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
@@ -26,18 +25,19 @@ public:
     void execute(mkldnn::stream strm) override;
 
 private:
+    void initCell(const std::shared_ptr<ngraph::Node>& op);
+    void initSeq(const std::shared_ptr<ngraph::Node>& op);
     void fillCellDesc();
     void fillSeqDesc();
     bool verifyWeightsPrecision(const InferenceEngine::Precision& layerPrec,
                                 const InferenceEngine::Precision& weightsPrec);
-    void verifyWeights();
-    void verifyBiases();
-    void convertWeightsBlobToBF16();
 
     template <typename Prec>
-    void fillWeights(const int* gate_map);
-    template <typename Prec>
+    void fillWeights(const int* gate_map, const size_t wIdx, const size_t rIdx);
+    template <InferenceEngine::Precision::ePrecision Prec>
     void fillBiases(const int* gate_map);
+
+    void copyWeightsData();
 
 private:
     InferenceEngine::Precision runtimePrecision;
@@ -80,10 +80,14 @@ private:
     MKLDNNMemoryDesc w_state_d;
     MKLDNNMemoryDesc w_bias_d;
 
-    // List of in/out reorders if required
-    std::vector<mkldnn::reorder> exec_before;
-    std::vector<mkldnn::reorder> exec_after;
+    std::vector<size_t > in_data_dims;
+    std::vector<size_t > out_data_dims;
+
+    size_t wIdx = 0;
+    size_t rIdx = 0;
+    size_t bIdx = 0;
 
     static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
-}; // class MKLDNNRNN
+};
+
 }  // namespace MKLDNNPlugin

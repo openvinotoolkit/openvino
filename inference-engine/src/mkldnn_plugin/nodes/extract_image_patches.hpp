@@ -6,6 +6,7 @@
 #include "base.hpp"
 #include <vector>
 #include <set>
+#include <cassert>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -42,10 +43,17 @@ struct jit_uni_extract_image_patches_kernel {
 
 class ExtractImagePatchesImpl : public ExtLayerBase {
 public:
-    explicit ExtractImagePatchesImpl(const CNNLayer*);
+    explicit ExtractImagePatchesImpl(const std::shared_ptr<ngraph::Node>& op);
     StatusCode execute(std::vector<Blob::Ptr>&, std::vector<Blob::Ptr>&, ResponseDesc*) noexcept override;
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
+    enum class ExtImgPatcherPadType {
+        VALID,
+        SAME_LOWER,
+        SAME_UPPER
+    };
+
     std::vector<size_t> _ksizes;
     std::vector<size_t> _strides;
     std::vector<size_t> _rates;
@@ -53,6 +61,10 @@ private:
     size_t _pad_top;
     std::shared_ptr<jit_uni_extract_image_patches_kernel> extract_image_patches_kernel;
     static const std::set<size_t> _supported_precisions_sizes;
+
+    ExtImgPatcherPadType _auto_pad;
+
+    std::string errorPrefix;
 };
 
 REG_FACTORY_FOR(ExtractImagePatchesImpl, ExtractImagePatches);

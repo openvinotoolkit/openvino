@@ -10,14 +10,15 @@
 
 class MKLDNNDescriptor {
 public:
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::batch_normalization_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::batch_normalization_forward::desc>();
-
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc> desc);
     operator std::shared_ptr<mkldnn::convolution_forward::desc>();
 
     MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc> desc,
                      std::shared_ptr<mkldnn::convolution_forward::primitive_desc> prim);
+
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::deconvolution_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::deconvolution_forward::desc>();
+
     operator std::shared_ptr<mkldnn::convolution_backward_data::desc>();
     operator std::shared_ptr<mkldnn::convolution_forward::primitive_desc>();
 

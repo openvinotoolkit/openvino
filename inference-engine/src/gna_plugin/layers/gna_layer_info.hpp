@@ -75,7 +75,8 @@ class LayerInfo {
             [this]() { return isConvolution(); },
             [this]() { return isPooling(); },
             [this]() { return isPower(); },
-            [this]() { return isCropAffined(); }
+            [this]() { return isCropAffined(); },
+            [this]() { return isGemm(); },
         };
 
         for (auto && has32BOutputs : has32BOutputsProbes) {
@@ -215,6 +216,9 @@ class LayerInfo {
     bool isFullyConnected() const noexcept {
         return isOfType("FullyConnected") || isOfType("InnerProduct");
     }
+    bool isGemm() const noexcept {
+        return isOfType("Gemm");
+    }
     bool isSplit() const noexcept {
         return isOfType("split");
     }
@@ -260,7 +264,7 @@ class LayerInfo {
                 return false;
             }
             // check dims in between
-            for (int j = permute.first + 1; j != permute.second; j++) {
+            for (int j = std::min(permute.first, permute.second) + 1; j < std::max(permute.first, permute.second); j++) {
                 if (inputsOrderTransformed[j] != 1) {
                     return false;
                 }

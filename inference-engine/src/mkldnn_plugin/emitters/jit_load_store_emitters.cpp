@@ -4,7 +4,6 @@
 
 #include "jit_emitter.hpp"
 #include "jit_load_store_emitters.hpp"
-#include "legacy/ie_layers.h"
 #include <cpu/x64/jit_generator.hpp>
 #include "utils/bfloat16.hpp"
 

@@ -22,6 +22,9 @@ import yaml
 from pathlib import Path
 from pprint import pprint
 
+TIME_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(TIME_TESTS_DIR)
+
 from test_runner.utils import filter_timetest_result
 
 
@@ -53,6 +56,22 @@ def run_cmd(args: list, log=None, verbose=True):
         output.append(outs)
     log.info('========== Completed. Exit code: %d', proc.returncode)
     return proc.returncode, ''.join(output)
+
+
+def parse_stats(stats: dict, res: dict):
+    """Parse raw statistics from nested list to flatten dict"""
+    for element in stats:
+        if isinstance(element, (int, float)):
+            for k, v in res.items():
+                if v is None:
+                    res.update({k: element})
+        else:
+            for k, v in element.items():
+                if len(v) == 1:
+                    res.update({k: v[0]})
+                else:
+                    res.update({k: None})
+                    parse_stats(v, res)
 
 
 def aggregate_stats(stats: dict):
@@ -89,14 +108,19 @@ def run_timetest(args: dict, log=None):
 
         # Read raw statistics
         with open(tmp_stats_path, "r") as file:
-            raw_data = yaml.safe_load(file)
+            raw_data = list(yaml.load_all(file, Loader=yaml.SafeLoader))
 
         os.unlink(tmp_stats_path)
-        log.debug("Raw statistics after run of executable #{}: {}".format(run_iter, raw_data))
+
+        # Parse raw data
+        flatten_data = {}
+        parse_stats(raw_data[0], flatten_data)
+
+        log.debug("Statistics after run of executable #{}: {}".format(run_iter, flatten_data))
 
         # Combine statistics from several runs
         stats = dict((step_name, stats.get(step_name, []) + [duration])
-                     for step_name, duration in raw_data.items())
+                     for step_name, duration in flatten_data.items())
 
     # Remove outliers
     filtered_stats = filter_timetest_result(stats)
@@ -167,3 +191,19 @@ if __name__ == "__main__":
         pprint(aggr_stats)
 
     sys.exit(exit_code)
+
+
+def test_timetest_parser():
+    # Example of timetest yml file
+    raw_data_example = [{'full_run': [1, {'first_inference_latency': [2, {'load_plugin': [3]}, {
+        'create_exenetwork': [4, {'read_network': [5]}, {'load_network': [6]}]}]},
+                              {'first_inference': [7, {'fill_inputs': [8]}]}]}]
+
+    # Refactoring raw data from yml
+    flatten_dict = {}
+    parse_stats(raw_data_example, flatten_dict)
+
+    expected_result = {'full_run': 1, 'first_inference_latency': 2, 'load_plugin': 3, 'create_exenetwork': 4,
+                       'read_network': 5, 'load_network': 6, 'first_inference': 7, 'fill_inputs': 8}
+
+    assert flatten_dict == expected_result, "Statistics parsing is performed incorrectly!"

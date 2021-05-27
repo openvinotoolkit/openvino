@@ -6,6 +6,7 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_utils.h"
 #include <blob_factory.hpp>
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 namespace MKLDNNPlugin {
@@ -81,7 +82,7 @@ bool MKLDNNEdge::needReorder() {
             childCanChangeMem = true;
     }
 
-    const auto& detectInPlaceChildsNum = [](const std::vector<MKLDNNEdgePtr>& edges) -> size_t {
+    const auto& detectInPlaceChildrenNum = [](const std::vector<MKLDNNEdgePtr>& edges) -> size_t {
         size_t count = 0;
         for (const auto& edge : edges) {
             auto childSPD = edge->getChild()->getSelectedPrimitiveDescriptor();
@@ -97,7 +98,7 @@ bool MKLDNNEdge::needReorder() {
     };
 
     const auto portChildEdges = getParent()->getChildEdgesAtPort(inNumber);
-    if (in_place && childCanChangeMem && portChildEdges.size() > 1 && detectInPlaceChildsNum(portChildEdges) > 1)
+    if (in_place && childCanChangeMem && portChildEdges.size() > 1 && detectInPlaceChildrenNum(portChildEdges) > 1)
         canBeInPlaceConflicts = true;
     if (!canBeInPlaceConflicts && in_place && !getParent()->getChildEdges().empty()) {
         for (auto &p_edge_peer : portChildEdges) {
@@ -114,6 +115,13 @@ bool MKLDNNEdge::needReorder() {
             canBeInPlaceConflicts = true;
     }
     return canBeInPlaceConflicts || !MKLDNNExtensionUtils::initTensorsAreEqual(getInputDesc(), getOutputDesc());
+}
+
+void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
+    if (status != Status::NeedAllocation)
+        return;
+    memoryPtr = ptr;
+    status = Status::Allocated;
 }
 
 InferenceEngine::TensorDesc MKLDNNEdge::getInputDesc() {
@@ -603,7 +611,7 @@ InferenceEngine::Blob::Ptr MKLDNNEdge::getBlob() {
     else
         desc = InferenceEngine::TensorDesc(desc.getPrecision(), dims.ToSizeVector(), desc.getBlockingDesc());
 
-    return make_blob_with_precision(desc, memoryPtr->GetData());
+    return isEmptyTensorDesc(desc) ? make_blob_with_precision(desc) : make_blob_with_precision(desc, memoryPtr->GetData());
 }
 
 void MKLDNNEdge::sharedMemFrom(const MKLDNNEdgePtr &edge) {
@@ -645,6 +653,10 @@ void MKLDNNEdge::init() {
     if (edgePtr.get() == this) {
         changeStatus(Status::NeedAllocation);
     } else {
+        if (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) {
+            changeStatus(Status::NeedAllocation);
+            return;
+        }
         sharedMemFrom(edgePtr);
     }
 

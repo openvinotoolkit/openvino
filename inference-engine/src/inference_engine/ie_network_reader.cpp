@@ -49,10 +49,10 @@ class Reader: public IReader {
 
             if (!FileUtils::fileExist(readersLibraryPath)) {
                 IE_THROW() << "Please, make sure that Inference Engine ONNX reader library "
-                    << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
-                    << getIELibraryPath();
+                           << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
+                           << getIELibraryPath();
             }
-            ptr = InferenceEngine::details::SOPointer<IReader>(readersLibraryPath);
+            ptr = {readersLibraryPath};
         });
 
         return ptr;
@@ -144,14 +144,13 @@ void assertIfIRv7LikeModel(std::istream & modelStream) {
     }
 
     IE_THROW() << "The support of IR v" << irVersion <<  " has been removed from the product. "
-        "Please, convert the original model using the Model Optimizer which comes with this "
-        "version of the OpenVINO to generate supported IR version.";
+                                                         "Please, convert the original model using the Model Optimizer which comes with this "
+                                                         "version of the OpenVINO to generate supported IR version.";
 }
 
 }  // namespace
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string& binPath, const std::vector<IExtensionPtr>& exts) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "details::ReadNetwork");
     // Register readers if it is needed
     registerReaders();
 
@@ -210,11 +209,13 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
                 binStream.seekg(0, std::ios::beg);
 
                 Blob::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, { fileSize }, C });
-                weights->allocate();
 
-                binStream.read(weights->buffer(), fileSize);
-
-                binStream.close();
+                {
+                    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "ReadNetworkWeights");
+                    weights->allocate();
+                    binStream.read(weights->buffer(), fileSize);
+                    binStream.close();
+                }
 
                 // read model with weights
                 auto network = reader->read(modelStream, weights, exts);
@@ -226,11 +227,10 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
         }
     }
     IE_THROW() << "Unknown model format! Cannot find reader for model format: " << fileExt << " and read the model: " << modelPath <<
-        ". Please check that reader library exists in your PATH.";
+               ". Please check that reader library exists in your PATH.";
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "details::ReadNetwork");
     // Register readers if it is needed
     registerReaders();
     std::istringstream modelStream(model);

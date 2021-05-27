@@ -3,6 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"

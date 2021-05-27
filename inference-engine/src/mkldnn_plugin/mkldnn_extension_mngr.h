@@ -8,7 +8,6 @@
 #include <vector>
 #include <memory>
 #include <ie_iextension.h>
-#include <legacy/ie_layers.h>
 #include "nodes/list.hpp"
 
 namespace MKLDNNPlugin {
@@ -18,8 +17,8 @@ public:
     using Ptr = std::shared_ptr<MKLDNNExtensionManager>;
     MKLDNNExtensionManager() = default;
     InferenceEngine::ILayerImpl::Ptr CreateImplementation(const std::shared_ptr<ngraph::Node>& op);
-    std::shared_ptr<InferenceEngine::ILayerImplFactory> CreateExtensionFactory(const InferenceEngine::CNNLayerPtr& Layer);
-    void AddExtension(InferenceEngine::IExtensionPtr extension);
+    std::shared_ptr<InferenceEngine::ILayerImplFactory> CreateExtensionFactory(const std::shared_ptr<ngraph::Node>& op);
+    void AddExtension(const InferenceEngine::IExtensionPtr& extension);
 
 private:
     std::vector<InferenceEngine::IExtensionPtr> _extensions;

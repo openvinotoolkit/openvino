@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
+#include "xml_net_builder.hpp"
 #include "tests_common.hpp"
 #include "precision_utils.h"
 
@@ -139,6 +139,7 @@ protected:
     }
 
     void TearDown() override {
+        PluginCache::get().reset();
     }
 
     template <Precision::ePrecision PRC>

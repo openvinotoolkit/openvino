@@ -77,6 +77,8 @@ def protobuf2nx(graph: Graph, pb):
         fw_name = node_id(node)
         id = graph.unique_id(fw_name)
         graph.add_node(id, pb=node, kind='op')
+        if hasattr(graph, 'op_names_statistic') and hasattr(node, 'op_type'):
+            graph.op_names_statistic[node.op_type] += 1
 
         # add incoming edges based on data_nodes_map
         for dst_port, inp in enumerate(node.input):
@@ -96,7 +98,7 @@ def protobuf2nx(graph: Graph, pb):
                 'out': src_port,
                 'in': dst_port,
                 'name': inp,
-                'fw_tensor_debug_info': [(src_id, src_port, inp)],
+                'fw_tensor_debug_info': [(src_id, inp)],
                 'in_attrs': ['in', 'name'],
                 'out_attrs': ['out', 'name'],
                 'data_attrs': ['fw_tensor_debug_info']
@@ -110,7 +112,7 @@ def protobuf2nx(graph: Graph, pb):
                     'out': src_port,
                     'in': 0,
                     'name': out,
-                    'fw_tensor_debug_info': [(fw_name, src_port, out)],
+                    'fw_tensor_debug_info': [(fw_name, out)],
                     'in_attrs': ['in', 'name'],
                     'out_attrs': ['out', 'name'],
                     'data_attrs': ['fw_tensor_debug_info']
