@@ -61,6 +61,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*_DW_GroupConv.*_inPRC=BF16.*_inFmts=(ndhwc|nCdhw16c).*)",
         // TODO: 56143. Enable nspc convolutions for bf16 precision
         R"(.*ConvolutionLayerCPUTest.*BF16.*_inFmts=(ndhwc|nhwc).*)",
+        // TODO: 56827. Sporadic test failures
+        R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.IS=\(1\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
 
         // incorrect reference implementation
         R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
