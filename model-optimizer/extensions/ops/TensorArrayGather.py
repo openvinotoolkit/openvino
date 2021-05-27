@@ -14,7 +14,7 @@ class TensorArrayGather(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'infer': TensorArrayGather.array_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -24,8 +24,6 @@ class TensorArrayGather(Op):
         assert len(node.in_nodes()) == 3
 
         handle = node.in_node(0)
-        indices = node.in_node(1)
-        flow_in = node.in_node(2)
 
         ta_node = Node(node.graph, str(handle.value))
 
@@ -39,11 +37,7 @@ class TensorArrayGather(Op):
         assert ta_node.has_valid('size')
         size = ta_node['size']
 
-        assert size > 0
-
         output_shape = [size] + [data_shape[i] for i in range(len(data_shape))]
-        output_value = None
 
         for _, out_node in node.graph.out_edges(node.id):
             node.graph.node[out_node]['shape'] = np.array(output_shape)
-            node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)
