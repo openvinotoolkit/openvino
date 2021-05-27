@@ -11,8 +11,11 @@ def pdpd_pow(name : str, x, y, data_type):
     pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
-        node_x = pdpd.static.data(name='x', shape=x.shape, dtype = data_type)
-        out = pdpd.fluid.layers.pow(node_x, y, name = 'pow')
+        node_x = pdpd.static.data(name='x', shape=x.shape, dtype=data_type)
+        out = pdpd.fluid.layers.pow(node_x, y, name='pow')
+        #FuzzyTest supports int32 & float32
+        if data_type == "int64":
+            out = pdpd.cast(out, "float32")
         out = pdpd.cast(out, "float32")
         cpu = pdpd.static.cpu_places(1)
         exe = pdpd.static.Executor(cpu[0])
@@ -54,15 +57,34 @@ def pdpd_pow_tensor(name : str, x, y, data_type):
 
 def main():
     test_cases = [
-        "float32",
-        "int32",
-        "int64"
+        {
+            'name': "float32",
+            'x': np.array([0, 1, 2, -10]).astype("float32"),
+            'y': np.array([1.5]).astype("float32"),
+            'dtype': "float32",
+         },
+        {
+            'name': "int32",
+            'x': np.array([0, 1, 2, -10]).astype("int32"),
+            'y': np.array([2.0]).astype("float32"),
+            'dtype': "int32"
+        },
+        {
+            'name': "int64",
+            'x': np.array([0, 1, 2]).astype("int64"),
+            'y': np.array([30.0]).astype("float32"),
+            'dtype': "int64"
+        },
+        {
+            'name': "int64_out_of_range",
+            'x': np.array([0, 1, 2]).astype("int64"),
+            'y': np.array([40]).astype("float32"),
+            'dtype': "int64"
+        }
     ]
 
     for test in test_cases:
-        x = np.array([0, 1, 2, -10]).astype(test)
-        y = np.array([2]).astype(test)
-        pdpd_pow("pow_" + test, x, y, test)
+        pdpd_pow("pow_" + test['name'], test['x'], test['y'], test['dtype'])
 
     x = np.array([0, 1, 2, -10]).astype("float32")
     y = np.array([2.0]).astype("float32")

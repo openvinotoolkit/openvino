@@ -171,9 +171,16 @@ namespace fuzzyOp {
                 throw std::runtime_error("not supported dtype out "+ dtype);
             }          
         }
-            
-        test_case.run_with_tolerance_as_fp();
-        // test_case.run();
+
+        if (std::all_of(results.begin(), results.end(), [](const std::shared_ptr<ngraph::op::v0::Result> &result) {
+            return result->get_element_type() == element::i32;
+        })) {
+            test_case.run();
+        }
+        else
+        {
+            test_case.run_with_tolerance_as_fp();
+        }
     }
 
     TEST_P(PDPDFuzzyOpTest, test_fuzzy) {
