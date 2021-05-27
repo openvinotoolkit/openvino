@@ -4381,3 +4381,45 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_3x4)
     test_case.add_expected_output<float>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
+
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_8x17)
+{
+    auto function = onnx_import::import_onnx_model(
+    file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_8x17.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{8, 17}, {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                        0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                        0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+                                                        0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
+                                                        0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
+                                                        0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+                                                        0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                        0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0});
+    test_case.run();
+}    
+                                                
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+    file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{2, 3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0, 
+                                                          0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0});
+    test_case.run();
+}   
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2x3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+    file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x2x3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{2, 2, 3, 4}, {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 3,
+                                                             0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+                                                             0, 0, 0, 8, 0, 1, 2, 0, 0, 0, 3, 0, 
+                                                             1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0});
+    test_case.run();
+}

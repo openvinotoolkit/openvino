@@ -85,7 +85,6 @@ void ngraph::onnx_import::transform::update_external_data_paths(
             auto external_data_full_path =
                 file_util::path_join(model_dir_path, santized_external_data_relative_path);
 
-
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
             file_util::convert_path_win_style(external_data_full_path);
 #endif
