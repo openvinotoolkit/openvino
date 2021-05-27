@@ -211,10 +211,17 @@ void op::v1::Reshape::validate_and_infer_types()
     const PartialShape& input_pshape = get_input_partial_shape(0);
     const PartialShape& shape_pattern_shape = get_input_partial_shape(1);
     NODE_VALIDATION_CHECK(this,
-                          shape_pattern_shape.rank().compatible(1),
-                          "Pattern shape must have rank 1, got ",
+                          shape_pattern_shape.rank().compatible(1) ||
+                              (shape_pattern_shape.rank().is_static() &&
+                               shape_pattern_shape.rank().get_length() == 0),
+                          "Pattern shape must have rank 1 or be empty, got ",
                           shape_pattern_shape.rank(),
                           ".");
+    if (shape_pattern_shape.rank().is_static() && shape_pattern_shape.rank().get_length() == 0)
+    {
+        set_output_type(0, get_input_element_type(0), shape_pattern_shape);
+        return;
+    }
     Rank output_rank =
         shape_pattern_shape.rank().is_dynamic() ? Rank::dynamic() : shape_pattern_shape[0];
     set_output_type(0, get_input_element_type(0), PartialShape::dynamic(output_rank));

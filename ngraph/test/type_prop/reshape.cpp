@@ -616,11 +616,20 @@ TEST(type_prop, reshape_to_zero)
     ASSERT_EQ(r->get_output_shape(0), (Shape{2}));
 }
 
-TEST(type_prop, reshape_to_zero_with_scalar)
+TEST(type_prop, reshape_to_scalar)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(
-        param, op::Constant::create(element::i64, {1}, std::vector<int64_t>{-1}), false);
+        param, op::Constant::create(element::i64, {}, std::vector<int64_t>{-1}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_output_shape(0), (Shape{1}));
+    ASSERT_EQ(r->get_output_shape(0), (Shape{}));
+}
+
+TEST(type_prop, reshape_to_scalar_2)
+{
+    auto param = make_shared<op::Parameter>(element::f32, Shape{});
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::i64, {}, std::vector<int64_t>{100}), false);
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_shape(0), (Shape{}));
 }

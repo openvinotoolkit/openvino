@@ -82,11 +82,11 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationConcatBased,
 class DynamicToStaticTopKPropagationConcatReshape : public DynamicToStaticTopKPropagationConcatBased {
 protected:
     std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const override {
-        return std::make_shared<ngraph::opset5::Reshape>(node, ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {-1}), false);
+        return std::make_shared<ngraph::opset5::Reshape>(node, ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}), false);
     }
 };
 
-TEST_P(DynamicToStaticTopKPropagationConcatReshape, DISABLED_KPropagation) {
+TEST_P(DynamicToStaticTopKPropagationConcatReshape, KPropagation) {
 }
 
 INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationConcatReshape, ::testing::ValuesIn(kVec));
