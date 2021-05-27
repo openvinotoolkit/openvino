@@ -115,7 +115,10 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
     in_idx = 0
     for i, s in enumerate(slices):
         if isinstance(s, slice):
-            output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
+            if input_shape[in_idx] != -1:
+                output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
+            else:
+                output_shape.append(-1)
             in_idx += 1
         elif s is np.newaxis:
             output_shape.append(1)

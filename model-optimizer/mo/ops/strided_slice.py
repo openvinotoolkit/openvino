@@ -77,7 +77,7 @@ class StridedSlice(Op):
                 slices[i] = np.newaxis
             elif node.shrink_axis_mask[i]:
                 slices[i] = int(begin[i])
-                if slices[i] < 0:  # need for ConvertGroupedStridedSlice
+                if slices[i] < 0 and int(data_shape[in_idx]) != -1:  # need for ConvertGroupedStridedSlice
                     slices[i] += int(data_shape[in_idx])
             elif node.ellipsis_mask[i]:
                 slices[i] = ...
