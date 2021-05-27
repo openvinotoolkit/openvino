@@ -71,11 +71,13 @@ Several execution modes are supported via the `-d` flag:
 
 #### Loading and Saving Models
 
-The GNA plugin supports loading and saving of the GNA-optimized model (non-IR) via the `-rg` and `-wg` flags.  Thereby, it is possible to avoid the cost of full model quantization at run time.
+The GNA plugin supports loading and saving of the GNA-optimized model (non-IR) via the `-rg` and `-wg` flags.  Thereby, it is possible to avoid the cost of full model quantization at run time. The GNA plugin also supports export of firmware-compatible embedded model images for the Intel® Speech Enabling Developer Kit and Amazon Alexa* Premium Far-Field Voice Development Kit via the `-we` flag (save only).
 
-In addition to performing inference directly from a GNA model file, this option makes it possible to:
+In addition to performing inference directly from a GNA model file, these options make it possible to:
 
 - Convert from IR format to GNA format model file (`-m`, `-wg`)
+- Convert from IR format to embedded format model file (`-m`, `-we`)
+- Convert from GNA format to embedded format model file (`-rg`, `-we`)
 
 ## Building
 
@@ -110,6 +112,7 @@ Options:
     -r "<path>"             Optional. Read reference score .ark file and compare scores.
     -rg "<path>"            Read GNA model from file using path/filename provided (required if -m is missing).
     -wg "<path>"            Optional. Write GNA model to file using path/filename provided.
+    -we "<path>"            Optional. Write GNA embedded model to file using path/filename provided.
     -nthreads "<integer>"   Optional. Number of threads to use for concurrent async inference requests on the GNA.
     -cw_l "<integer>"       Optional. Number of frames for left context windows (default is 0). Works only with context window networks.
                             If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.

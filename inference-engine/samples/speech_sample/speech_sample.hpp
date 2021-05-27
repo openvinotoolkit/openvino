@@ -144,7 +144,7 @@ DEFINE_string(rg, "", read_gna_model_message);
 /// @brief Write GNA model to file (model.bin)
 DEFINE_string(wg, "", write_gna_model_message);
 
-/// @brief Write GNA embedded model to file (model.bin) - hide option
+/// @brief Write GNA embedded model to file (model.bin)
 DEFINE_string(we, "", write_embedded_model_message);
 
 /// @brief Optional GNA embedded device generation (default GNA1 aka Sue Creek) - hide option
@@ -201,6 +201,7 @@ static void showUsage() {
     std::cout << "    -r \"<path>\"             " << reference_score_message << std::endl;
     std::cout << "    -rg \"<path>\"            " << read_gna_model_message << std::endl;
     std::cout << "    -wg \"<path>\"            " << write_gna_model_message << std::endl;
+    std::cout << "    -we \"<path>\"            " << write_embedded_model_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
     std::cout << "    -cw_l \"<integer>\"       " << context_window_message_l << std::endl;
     std::cout << "    -cw_r \"<integer>\"       " << context_window_message_r << std::endl;
