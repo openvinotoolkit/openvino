@@ -39,17 +39,17 @@ Output(i,j,k) = max(Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end
 **Inputs**:
 
 *   **1**: 3D, 4D or 5D input tensor of shape `[N,C,L]`, `[N,C,H,W]` or `[N,C,D,H,W]` and type *T*. Required.
-*   **2**: 1D tensor describing output shape for spacial dimensions. Can be `[L_out]` for 3D input, `[H_out,W_out]` for 4D input, `[D_out,H_out,W_out]` for 5D input. Required.
+*   **2**: 1D tensor describing output shape for spacial dimensions. Can be `[L_out]` for 3D input, `[H_out,W_out]` for 4D input, `[D_out,H_out,W_out]` for 5D input and of type *T*. Required.
 
 **Outputs**:
 
 *   **1**: Output of type *T* and shape `[N,C,L_out]`, `[N,C,H_out,W_out]` or `[N,C,D_out,H_out,W_out]`.
-*   **2**: Output of type *T_IND* and same shape as 1st output containing indices of elements in 1st output.
+*   **2**: Output of type *T_IND* and same shape as 1st output containing indices of elements in 1st output. The values of indices are computed as if input was flatten 1-D tensor.
 
 **Types**
 
 *   *T*: floating-point type.
-*   *T_IND*: `int32` or `int64`
+*   *T_IND*: `int32` or `int64`.
 
 **Examples**
 
