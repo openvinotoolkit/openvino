@@ -66,8 +66,8 @@ namespace ngraph
                                         static_cast<uint64_t>(paddings[3])};
                         break;
                     default:
-                        throw std::runtime_error("Unsupported pooling paddings " + paddings.size());
-                        break;
+                        throw std::runtime_error("Unsupported pooling paddings " +
+                                                 std::to_string(paddings.size()));
                     }
                 }
 
