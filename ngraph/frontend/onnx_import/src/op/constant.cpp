@@ -167,6 +167,171 @@ namespace ngraph
                     default: throw error::tensor::invalid_data_type{tensor};
                     }
                 }
+
+                template <typename T>
+                std::vector<T> get_dense_vector(const std::vector<T>& values,
+                                                const std::vector<int64_t>& indices,
+                                                const size_t size)
+                {
+                    std::vector<T> dense_values(size);
+                    for (size_t i = 0; i < values.size(); i++)
+                    {
+                        dense_values.at(indices.at(i)) = values.at(i);
+                    }
+                    return dense_values;
+                }
+
+                std::shared_ptr<default_opset::Constant>
+                    get_dense_tensor_as_constant(const std::vector<int64_t>& absolute_indices,
+                                                 const Tensor& values_tensor,
+                                                 const Shape& shape)
+                {
+                    size_t all_elements_number = 1;
+                    for (auto dim : shape)
+                        all_elements_number *= dim;
+
+                    switch (values_tensor.get_ng_type())
+                    {
+                    case element::boolean:
+                    {
+                        auto values = values_tensor.get_data<char>();
+                        auto dense_vector =
+                            get_dense_vector<char>(values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::f32:
+                    {
+                        auto values = values_tensor.get_data<float>();
+                        auto dense_vector =
+                            get_dense_vector<float>(values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::f16:
+                    {
+                        auto values = values_tensor.get_data<ngraph::float16>();
+                        auto dense_vector = get_dense_vector<ngraph::float16>(
+                            values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::f64:
+                    {
+                        auto values = values_tensor.get_data<double>();
+                        auto dense_vector =
+                            get_dense_vector<double>(values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::i8:
+                    {
+                        auto values = values_tensor.get_data<int8_t>();
+                        auto dense_vector =
+                            get_dense_vector<int8_t>(values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::i16:
+                    {
+                        auto values = values_tensor.get_data<int16_t>();
+                        auto dense_vector = get_dense_vector<int16_t>(
+                            values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::i32:
+                    {
+                        auto values = values_tensor.get_data<int32_t>();
+                        auto dense_vector = get_dense_vector<int32_t>(
+                            values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::i64:
+                    {
+                        auto values = values_tensor.get_data<int64_t>();
+                        auto dense_vector = get_dense_vector<int64_t>(
+                            values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::u8:
+                    {
+                        auto values = values_tensor.get_data<uint8_t>();
+                        auto dense_vector = get_dense_vector<uint8_t>(
+                            values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::u16:
+                    {
+                        auto values = values_tensor.get_data<uint16_t>();
+                        auto dense_vector = get_dense_vector<uint16_t>(
+                            values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::u32:
+                    {
+                        auto values = values_tensor.get_data<uint32_t>();
+                        auto dense_vector = get_dense_vector<uint32_t>(
+                            values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::u64:
+                    {
+                        auto values = values_tensor.get_data<uint64_t>();
+                        auto dense_vector = get_dense_vector<uint64_t>(
+                            values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    case element::bf16:
+                    {
+                        auto values = values_tensor.get_data<ngraph::bfloat16>();
+                        auto dense_vector = get_dense_vector<ngraph::bfloat16>(
+                            values, absolute_indices, all_elements_number);
+                        return default_opset::Constant::create(
+                            values_tensor.get_ng_type(), shape, dense_vector);
+                    }
+                    default: throw error::tensor::invalid_data_type{values_tensor};
+                    }
+                }
+
+                std::vector<int64_t> get_absolute_indices(const Tensor& indices_tensor,
+                                                          const Shape& shape,
+                                                          const size_t& nnz)
+                {
+                    auto rank = shape.size();
+                    auto indices = indices_tensor.get_data<int64_t>();
+                    auto indices_shape = indices_tensor.get_shape();
+                    std::vector<int64_t> absolute_indices{};
+                    for (size_t i = 0; i < nnz; i++)
+                    {
+                        int64_t index = 0;
+                        for (size_t j = 0; j < rank; j++)
+                        {
+                            auto dim_index_in_indices = i * rank + j;
+                            auto dim_value_in_indices = indices.at(dim_index_in_indices);
+
+                            if (j < rank - 1)
+                            {
+                                size_t elements_num_per_shape = 1;
+                                for (size_t k = j + 1; k < rank; k++)
+                                    elements_num_per_shape *= shape.at(k);
+                                index += dim_value_in_indices * elements_num_per_shape;
+                            }
+                            else
+                            {
+                                index += dim_value_in_indices;
+                            }
+                        }
+                        absolute_indices.push_back(index);
+                    }
+                    return absolute_indices;
+                }
             } // namespace
 
             namespace set_1
@@ -218,62 +383,11 @@ namespace ngraph
                         const Tensor& values_tensor = sparse_tensor.get_values();
                         const Tensor& indices_tensor = sparse_tensor.get_indices();
                         const Shape& shape = sparse_tensor.get_shape();
-                        size_t all_elements_number = 1;
-                        for (auto dim : shape)
-                            all_elements_number *= dim;
-                        std::cout << "all_elements_number " << all_elements_number << std::endl;
-                        std::vector<float> dense_values(all_elements_number);
-                        auto rank = shape.size();
                         auto nnz = values_tensor.get_shape().at(0);
-                        std::cout << "rank " << rank << std::endl;
-                        std::cout << "nnz " << nnz << std::endl;
-
-                        auto indices = indices_tensor.get_data<int64_t>();
-                        auto values = values_tensor.get_data<float>();
-                        auto indices_shape = indices_tensor.get_shape();
-                        for (auto k = indices.begin(); k != indices.end(); ++k)
-                        {
-                            std::cout << *k << ' ';
-                        }
-                        for (auto k = values.begin(); k != values.end(); ++k)
-                        {
-                            std::cout << *k << ' ';
-                        }
-                        std::cout << std::endl;
-                        for (size_t i = 0; i < nnz; i++)
-                        {
-                            int64_t index = 0;
-                            for (size_t j = 0; j < rank; j++)
-                            {
-                                auto dim_index_in_indices = i * rank + j;
-                                std::cout << "dim " << j << " " << dim_index_in_indices
-                                          << std::endl;
-                                auto dim_value_in_indices = indices.at(dim_index_in_indices);
-                                std::cout << "value in indices " << dim_value_in_indices
-                                          << std::endl;
-                                if (j < rank - 1)
-                                {
-                                    size_t element_num_for_shape = 1;
-                                    for (size_t k = j + 1; k < rank; k++)
-                                    {
-                                        element_num_for_shape *= shape.at(k);
-                                    }
-                                    std::cout << "dim value " << element_num_for_shape << std::endl;
-                                    index += dim_value_in_indices * element_num_for_shape;
-                                }
-                                else
-                                {
-                                    index += dim_value_in_indices;
-                                }
-                            }
-
-                            std::cout << "index " << index << std::endl;
-                            dense_values.at(index) = values.at(i);
-                        }
-
-                        std::cout << std::endl;
-                        return {default_opset::Constant::create(
-                            values_tensor.get_ng_type(), shape, dense_values)};
+                        std::vector<int64_t> absolute_indices =
+                            get_absolute_indices(indices_tensor, shape, nnz);
+                        return {
+                            get_dense_tensor_as_constant(absolute_indices, values_tensor, shape)};
                     }
                     return {make_constant(node.get_attribute_value<Tensor>(attributes_names[0]))};
                 }
