@@ -212,7 +212,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
     return true;
 }
 
-bool WeightableLayerTransformation::isQuantized(std::shared_ptr<Node> layer, bool reshapeIsRequired) const noexcept {
+bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool reshapeIsRequired) noexcept {
     FakeQuantizeDequantization dequantizationOnWeights;
     if (reshapeIsRequired) {
         const auto reshape = layer->get_input_node_shared_ptr(1);
@@ -230,7 +230,9 @@ bool WeightableLayerTransformation::isQuantized(std::shared_ptr<Node> layer, boo
         const std::shared_ptr<opset1::FakeQuantize> fq = as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
         return NetworkHelper::isQuantizeSupported(fq);
     } else {
-        dequantizationOnWeights = NetworkHelper::getDequantization(layer, 1);
+        // TODO: update NetworkHelper API later
+        const std::shared_ptr<ngraph::Node> op = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
+        dequantizationOnWeights = NetworkHelper::getDequantization(op, 1);
     }
 
     if (dequantizationOnWeights.empty()) {

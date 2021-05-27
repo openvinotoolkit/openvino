@@ -23,7 +23,8 @@ public:
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
-    bool isQuantized(std::shared_ptr<Node> layer) const noexcept override;
+    bool isQuantized(const std::shared_ptr<const Node>& layer) const noexcept override;
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept;
 
     void setGroupSize(const size_t groupSize);
     size_t getGroupSize() const;

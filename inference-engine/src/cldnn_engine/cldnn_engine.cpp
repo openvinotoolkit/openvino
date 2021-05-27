@@ -69,9 +69,12 @@
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
+#include <low_precision/convolution.hpp>
 #include <low_precision/convolution_backprop_data.hpp>
+#include <low_precision/group_convolution.hpp>
 #include <low_precision/low_precision.hpp>
 #include <low_precision/mat_mul.hpp>
+#include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
 
@@ -425,18 +428,17 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             auto lptPassConfig = lptManager.get_pass_config();
             lptPassConfig->disable<ngraph::pass::low_precision::StridedSliceTransformation>();
             lptPassConfig->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
-                auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node);
-                if (mulitply != nullptr) {
-                    const auto parent0 = mulitply->get_input_node_shared_ptr(0);
-                    const auto parent1 = mulitply->get_input_node_shared_ptr(1);
-                    if (!ngraph::is_type<ngraph::opset1::Constant>(parent0) && !ngraph::is_type<ngraph::opset1::Constant>(parent1)) {
-                        return true;
-                    }
-
-                    const ngraph::Shape shape = mulitply->output(0).get_shape();
-                    if ((shape.size() != 4ul) && (shape.size() != 5ul)) {
-                        return true;
-                    }
+                if (auto convolution = std::dynamic_pointer_cast<const ngraph::opset1::Convolution>(node)) {
+                    return !ConvolutionTransformation::isQuantizedStatic(convolution);
+                }
+                if (auto convolution = std::dynamic_pointer_cast<const ngraph::opset1::ConvolutionBackpropData>(node)) {
+                    return !ConvolutionBackpropDataTransformation::isQuantizedStatic(convolution, true);
+                }
+                if (auto groupConvolution = std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolution>(node)) {
+                    return !GroupConvolutionTransformation::isQuantizedStatic(groupConvolution);
+                }
+                if (auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+                    return !MultiplyToGroupConvolutionTransformation::isQuantizedStatic(mulitply);
                 }
                 return false;
             });
