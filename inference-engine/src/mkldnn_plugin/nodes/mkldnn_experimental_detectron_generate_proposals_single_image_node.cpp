@@ -329,20 +329,20 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
         }
 
         size_t anchor_dims_size = 1;
-        for (size_t i = 0; i < getParentEdgeAt(INPUT_ANCHORS)->getDims().size(); i++) {
-            anchor_dims_size *= getParentEdgeAt(INPUT_ANCHORS)->getDims()[i];
+        for (size_t i = 0; i < getParentEdgeAt(INPUT_ANCHORS)->getDims().ToSizeVector().size(); i++) {
+            anchor_dims_size *= getParentEdgeAt(INPUT_ANCHORS)->getDims().ToSizeVector()[i];
         }
 
         size_t deltas_dims_size = 1;
-        for (size_t i = 0; i < getParentEdgeAt(INPUT_DELTAS)->getDims().size(); i++) {
-            deltas_dims_size *= getParentEdgeAt(INPUT_DELTAS)->getDims()[i];
+        for (size_t i = 0; i < getParentEdgeAt(INPUT_DELTAS)->getDims().ToSizeVector().size(); i++) {
+            deltas_dims_size *= getParentEdgeAt(INPUT_DELTAS)->getDims().ToSizeVector()[i];
         }
         if (anchor_dims_size != deltas_dims_size)
             IE_THROW() << "'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!";
 
         size_t score_dims_size = 1;
-        for (size_t i = 0; i < getParentEdgeAt(INPUT_SCORES)->getDims().size(); i++) {
-            score_dims_size *= getParentEdgeAt(INPUT_SCORES)->getDims()[i];
+        for (size_t i = 0; i < getParentEdgeAt(INPUT_SCORES)->getDims().ToSizeVector().size(); i++) {
+            score_dims_size *= getParentEdgeAt(INPUT_SCORES)->getDims().ToSizeVector()[i];
         }
         if (deltas_dims_size != (4 * score_dims_size))
             IE_THROW() << "'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!";

@@ -71,9 +71,9 @@ void MKLDNNGatherTreeNode::initSupportedPrimitiveDescriptors() {
         return;
 
     addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, precision},
-                          {TensorDescCreatorTypes::ncsp, precision},
-                          {TensorDescCreatorTypes::ncsp, precision},
-                          {TensorDescCreatorTypes::ncsp, precision}},
+                            {TensorDescCreatorTypes::ncsp, precision},
+                            {TensorDescCreatorTypes::ncsp, precision},
+                            {TensorDescCreatorTypes::ncsp, precision}},
                          {{TensorDescCreatorTypes::ncsp, precision}},
                          impl_desc_type::ref_any);
 }
@@ -94,6 +94,7 @@ void MKLDNNGatherTreeNode::gatherTreeKernel() noexcept {
     const auto *max_seq_len = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr()->GetPtr());
     auto end_token = (reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr()->GetPtr()))[0];
     auto * final_idx = reinterpret_cast<DATA_T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+
     SizeVector step_idx_dims = getParentEdgeAt(GATHER_TREE_STEP_IDX)->getDims().ToSizeVector();
     SizeVector parent_idx_dims = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getDims().ToSizeVector();
     SizeVector max_seq_len_dims = getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getDims().ToSizeVector();
