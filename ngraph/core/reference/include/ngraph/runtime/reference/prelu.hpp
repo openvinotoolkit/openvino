@@ -18,14 +18,14 @@ namespace ngraph
             inline Shape broadcast_shape(const Shape& arg_shape, const Shape& slope_shape)
             {
                 auto new_shape = slope_shape;
-                if (slope_shape.size() > arg_shape.size())
+                if (1 < slope_shape.size() && slope_shape.size() < arg_shape.size())
                 {
-                    const auto found = std::search(++begin(arg_shape),
-                                                   end(arg_shape),
-                                                   begin(slope_shape),
-                                                   end(slope_shape),
-                                                   [](size_t s1, size_t s2)
-                                                   { return s1 == s2 || s1 == 1 || s2 == 1; });
+                    const auto found = std::search(
+                        ++begin(arg_shape),
+                        end(arg_shape),
+                        begin(slope_shape),
+                        end(slope_shape),
+                        [](size_t s1, size_t s2) { return s1 == s2 || s1 == 1 || s2 == 1; });
                     NGRAPH_CHECK(found != end(arg_shape), "something is wrong");
                     const auto axis_diff =
                         std::distance(std::next(found, slope_shape.size()), end(arg_shape));
