@@ -316,7 +316,6 @@ namespace ngraph
             float get_float() const { return m_attribute_proto->f(); }
             int64_t get_integer() const { return m_attribute_proto->i(); }
             const std::string& get_string() const { return m_attribute_proto->s(); }
-
             Subgraph get_subgraph(
                 const Graph& parent_graph,
                 const std::map<std::size_t, std::string>& carried_dependencies_map) const;
@@ -351,7 +350,6 @@ namespace ngraph
             }
 
             std::vector<Graph> get_graph_array(Model&) const;
-
             /* explicit */ operator ONNX_NAMESPACE::AttributeProto_AttributeType() const
             {
                 return m_attribute_proto->type();

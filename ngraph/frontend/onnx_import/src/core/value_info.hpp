@@ -6,7 +6,6 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
 #include "ngraph/op/constant.hpp"
