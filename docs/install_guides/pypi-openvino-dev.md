@@ -11,7 +11,7 @@ license terms for third party or open source software included in or with the So
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
 
-**The Developer Package Includes the Following Components Installed by Default:**
+The **developer package** includes the following components installed by default:
 
 | Component        | Console Script                                                                   | Description                                                                                                                                                                                                                                                                                                   |  
 |------------------|---------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -21,7 +21,8 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 | [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html)| `pot` |**Post-Training Optimization Tool** allows you to optimize trained models with advanced capabilities, such as quantization and low-precision optimizations, without the need to retrain or fine-tune models.                                             |
 | [Model Downloader and other Open Model Zoo tools](https://docs.openvinotoolkit.org/latest/omz_tools_downloader.html)| `omz_downloader` <br> `omz_converter` <br> `omz_quantizer` <br> `omz_info_dumper`| **Model Downloader** is a tool for getting access to the collection of high-quality and extremely fast pre-trained deep learning [public](https://docs.openvinotoolkit.org/latest/omz_models_group_public.html) and [intel](https://docs.openvinotoolkit.org/latest/omz_models_group_intel.html)-trained models. Use these free pre-trained models instead of training your own models to speed up the development and production deployment process. The principle of the tool is as follows: it downloads model files from online sources and, if necessary, patches them with Model Optimizer to make them more usable. A number of additional tools are also provided to automate the process of working with downloaded models:<br> **Model Converter** is a tool for converting the models stored in a format other than the Intermediate Representation (IR) into that format using Model Optimizer. <br> **Model Quantizer** is a tool for automatic quantization of full-precision IR models into low-precision versions using Post-Training Optimization Tool. <br> **Model Information Dumper** is a helper utility for dumping information about the models in a stable machine-readable format.|
 
-**The Runtime Package Includes the Following Components Installed by Dependency:**
+
+**Developer package** also provides the **runtime package** installed as a dependency. The runtime package includes the following components:
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -104,20 +105,25 @@ For example, to install and configure the components for working with TensorFlow
 
 ### Step 5. Verify that the Package Is Installed
 
-Run the command below (this may take a few seconds):
-```sh
-mo -h
-```
+- To verify that the **developer package** is properly installed, run the command below (this may take a few seconds):
+   ```sh
+   mo -h
+   ```
+   You will see the help message for Model Optimizer if installation finished successfully.
 
-You will see the help message for Model Optimizer if installation finished successfully.
+- To verify that Inference Engine from the **runtime package** is available, run the command below:
+   ```sh
+   python -c "from openvino.inference_engine import IECore"
+   ```
+   You will not see any error messages if installation finished successfully.
 
 ## Troubleshooting
 
-#### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
+### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
 
 On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
 
-#### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
+### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
 
 To resolve missing external dependency on Ubuntu*, execute the following command:
 ```sh
@@ -126,6 +132,6 @@ sudo apt-get install libpython3.7
 
 ## Additional Resources
 
-- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit).
-- [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org).
-- [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks).
+- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
+- [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org)
+- [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)

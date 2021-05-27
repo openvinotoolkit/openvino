@@ -15,7 +15,7 @@ The Intel® Distribution of OpenVINO™ toolkit\*:
 - Supports heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 - Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
 
-**The Runtime Package Includes the Following Components Installed by Default:**
+The **runtime package** includes the following components installed by default:
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -79,7 +79,7 @@ Run the command below: <br>
    pip install openvino
    ```
 
-### Step 5. Verify that the Package is Installed
+### Step 5. Verify that the Package Is Installed
 
 Run the command below:
 ```sh
@@ -90,11 +90,11 @@ You will not see any error messages if installation finished successfully.
 
 ## Troubleshooting
 
-#### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
+### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
 
 On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
 
-#### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
+### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
 
 To resolve missing external dependency on Ubuntu*, execute the following command:
 ```sh
@@ -103,7 +103,7 @@ sudo apt-get install libpython3.7
 
 ## Additional Resources
 
-- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit).
-- [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org).
-- [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks).
+- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
+- [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org)
+- [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
 
