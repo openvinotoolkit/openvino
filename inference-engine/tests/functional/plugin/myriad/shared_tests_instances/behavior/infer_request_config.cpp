@@ -9,6 +9,8 @@
 #include "vpu/private_plugin_config.hpp"
 #include "vpu/myriad_config.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
+
 using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {

@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
+disable_deprecated_warnings()
 
+function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
     # Common tests for HDDL MYRIAD KMB
     file(GLOB_RECURSE TEST_INCLUDE
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/*.hpp)
