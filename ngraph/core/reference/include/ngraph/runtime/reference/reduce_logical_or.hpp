@@ -18,26 +18,30 @@ namespace ngraph
         {
             static inline void reduce_logical_or(const char* arg,
                                                  char* out,
-                                                 const Shape& input_shape,
-                                                 const AxisSet& reduction_axes,
-                                                 bool keep_dims)
+                                                 const Shape& in_shape,
+                                                 const AxisSet& reduction_axes)
             {
-                CoordinateTransform output_transform(
-                    reduce(input_shape, reduction_axes, keep_dims));
+                constexpr bool dont_keep_dims_in_ouput = false;
+                const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_ouput);
+                CoordinateTransformBasic output_transform(out_shape);
 
-                for (const Coordinate& output_coord : output_transform)
-                {
-                    out[output_transform.index(output_coord)] = 0;
-                }
+                std::fill(out, out + shape_size(out_shape), 0);
 
-                CoordinateTransform input_transform(input_shape);
+                const auto in_strides = row_major_strides(in_shape);
+                const auto out_strides = row_major_strides(out_shape);
 
+                CoordinateTransformBasic input_transform(in_shape);
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes, keep_dims);
-                    out[output_transform.index(output_coord)] =
-                        out[output_transform.index(output_coord)] ||
-                        arg[input_transform.index(input_coord)];
+                    Coordinate output_coord =
+                        reduce(input_coord, reduction_axes, dont_keep_dims_in_ouput);
+
+                    size_t in_idx = std::inner_product(
+                        input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
+                    size_t out_idx = std::inner_product(
+                        output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
+
+                    out[out_idx] = out[out_idx] || arg[in_idx];
                 }
             }
         } // namespace reference

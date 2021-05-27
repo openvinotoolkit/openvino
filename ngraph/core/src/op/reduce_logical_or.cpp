@@ -3,10 +3,10 @@
 //
 
 #include "ngraph/op/reduce_logical_or.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/eval_helpers.hpp"
 #include "ngraph/runtime/reference/reduce_logical_or.hpp"
 
 using namespace ngraph;
@@ -34,33 +34,15 @@ shared_ptr<Node> op::v1::ReduceLogicalOr::clone_with_new_inputs(const OutputVect
 
 namespace
 {
-    bool evaluate_reduce_logical_or(const HostTensorPtr& data,
-                                    const HostTensorPtr& axes,
+    bool evaluate_reduce_logical_or(const HostTensorPtr& arg,
                                     const HostTensorPtr& out,
+                                    const AxisSet& axes,
                                     bool keep_dims)
     {
-        if (data->get_element_type() != element::boolean ||
-            !axes->get_element_type().is_integral_number())
-        {
-            return false;
-        }
-        try
-        {
-            const AxisSet reduction_axes = eval::extract_reduction_axes(axes, "ReduceLogicalOr");
-
-            runtime::reference::reduce_logical_or(data->get_data_ptr<char>(),
-                                                  out->get_data_ptr<char>(),
-                                                  data->get_shape(),
-                                                  reduction_axes,
-                                                  keep_dims);
-
-            return true;
-        }
-        catch (const ngraph_error& e)
-        {
-            NGRAPH_WARN << e.what();
-            return false;
-        }
+        out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
+        runtime::reference::reduce_logical_or(
+            arg->get_data_ptr<char>(), out->get_data_ptr<char>(), arg->get_shape(), axes);
+        return true;
     }
 } // namespace
 
@@ -68,8 +50,7 @@ bool op::v1::ReduceLogicalOr::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceLogicalOr_evaluate);
-    const auto& data = inputs[0];
-    const auto& axes = inputs[1];
-    const auto& out = outputs[0];
-    return evaluate_reduce_logical_or(data, axes, out, get_keep_dims());
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    return evaluate_reduce_logical_or(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }
