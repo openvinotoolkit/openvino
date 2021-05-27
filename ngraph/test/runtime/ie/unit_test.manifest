@@ -754,9 +754,9 @@ lrn_2d_across_outermost_axis
 dyn_group_convolution_backprop_filters
 
 # Layer <op_name> input port 1 is not connected to any data
-prelu
-prelu_3d_broadcast_slope
-prelu_1d_C_slope
+#prelu
+#prelu_3d_broadcast_slope
+#prelu_1d_C_slope
 convolution_simple_padding
 
 # Cannot cast ngraph node Stack to CNNLayer!

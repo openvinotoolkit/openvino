@@ -27,7 +27,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(vector<float>{0, 3, -1, 1, -1, 0});
-    EXPECT_THROW(test_case.run(), std::exception);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, prelu_shared_slope)
@@ -185,8 +185,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_broadcast_slope)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_a, {-1, -100, -1, -100}); // 2021.3 result
-    // test_case.add_expected_output<float>(shape_a, {-1, -1, -100, -100}); // 2021.3 master
+    // test_case.add_expected_output<float>(shape_a, {-1, -100, -1, -100}); // 2021.3 result
+    test_case.add_expected_output<float>(shape_a, {-1, -1, -100, -100}); // master result
     test_case.run();
 }
 
@@ -205,7 +205,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_slope)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(shape_a, {-1, 0, -3, -4, -5});
-    EXPECT_THROW(test_case.run(), std::exception);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, prelu_batch_nd_elementwise)
@@ -311,7 +311,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_C_slope)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, slope});
     test_case.add_expected_output<float>(shape_a, expected_output);
-    EXPECT_THROW(test_case.run(), std::exception);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, prelu_C_1_1_slope)
