@@ -16,7 +16,7 @@ MKLDNNReferenceNode::MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op
                                          const std::string& errorMessage) :
         MKLDNNNode(op, eng, cache), ngraphOp(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
-        IE_THROW(NotImplemented) << "Can't create MKLDNNReferenceNode (ngraph::Node::evaluate() is not implemented)";
+        IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
     }
     setType(Reference);
     setTypeStr("Reference");
@@ -72,7 +72,7 @@ void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
     }
 
     if (!ngraphOp->evaluate(outputs, inputs)) {
-        IE_THROW() << "Evaluation failed on MKLDNNReferenceNode of type: " << std::string(ngraphOp->get_type_name()) << " name: " << getName();
+        IE_THROW() << "Evaluation failed on node of type: " << std::string(ngraphOp->get_type_name()) << " name: " << getName();
     }
 }
 
