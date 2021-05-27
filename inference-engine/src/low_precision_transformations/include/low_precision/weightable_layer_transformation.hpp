@@ -18,7 +18,6 @@ public:
     WeightableLayerTransformation(const Params& params);
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool canConvolutionBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
-    bool isQuantized(std::shared_ptr<Node> layer, bool reshapeIsRequired) const noexcept;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
     // TODO: stub
@@ -27,6 +26,8 @@ public:
         const std::vector<ngraph::element::Type>& supportedPrecisionsOnActivations) {
         return true;
     }
+
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool reshapeIsRequired) noexcept;
 
 protected:
     void decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& weightableLayer, size_t outChannelsShapeIndex = 0ul) const;

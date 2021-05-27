@@ -43,11 +43,13 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
     this->register_matcher(m, callback);
 }
 
-bool ConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
-    return WeightableLayerTransformation::isQuantized(layer, false);
+bool ConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+    return ConvolutionTransformation::isQuantizedStatic(layer);
 }
 
-
+bool ConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+    return WeightableLayerTransformation::isQuantizedStatic(layer, false);
+}
 
 bool ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
