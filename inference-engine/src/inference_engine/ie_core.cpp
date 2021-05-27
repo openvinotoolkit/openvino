@@ -48,7 +48,7 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
     } else if (deviceName_.find("BATCH:") == 0) {
         deviceName_ = "BATCH";
-        config_[CONFIG_KEY(AUTO_BATCH_NUM)] = deviceName.substr(6);
+        config_[CONFIG_KEY(AUTO_BATCH)] = deviceName.substr(6);
     } else {
         DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
@@ -674,8 +674,8 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::string
             if (bDetectionOutput) {
                 deviceName = "HETERO:BATCH," + deviceNameOrig;
                 std::cout << "HETERO code path!!!!" <<std::endl;
-                //config["AUTO_BATCH_NUM"] = deviceNameOrig+"("+ std::to_string(optimalBatchSize)+ ")";
-                SetConfig({{"AUTO_BATCH_NUM", deviceNameOrig+"("+ std::to_string(optimalBatchSize)+ ")"}}
+                //config["AUTO_BATCH"] = deviceNameOrig+"("+ std::to_string(optimalBatchSize)+ ")";
+                SetConfig({{"AUTO_BATCH", deviceNameOrig+"("+ std::to_string(optimalBatchSize)+ ")"}}
                 , "BATCH");
             } else {
                 std::string deviceBatch = "BATCH:" + deviceNameOrig +"(" + std::to_string(optimalBatchSize) + ")";

@@ -139,7 +139,11 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchInfe
 
 void AutoBatchInferRequest::InferImpl() {
     auto _event = _workerInferRequest->_event;
-    _workerInferRequest->ReportArrival();
+    auto numReady = ++_workerInferRequest->_numRequestsReady;
+    if (numReady == _workerInferRequest->_batchSize) {
+        _workerInferRequest->_numRequestsReady = 0;
+        _workerInferRequest->_inferRequest.StartAsync();
+    }
     _event.get();
     if (_needPerfCounters) {
         _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();
@@ -273,7 +277,7 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
             METRIC_KEY(SUPPORTED_CONFIG_KEYS)
         });
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys = { CONFIG_KEY(AUTO_BATCH_NUM) };
+        std::vector<std::string> configKeys = { CONFIG_KEY(AUTO_BATCH) };
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else {
         THROW_IE_EXCEPTION << "Unsupported Network metric: " << name;
@@ -355,10 +359,10 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
 
 Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
         const std::map<std::string, Parameter> & options) const {
-    if (name == CONFIG_KEY(AUTO_BATCH_NUM)) {
-        auto it = _config.find(CONFIG_KEY(AUTO_BATCH_NUM));
+    if (name == CONFIG_KEY(AUTO_BATCH)) {
+        auto it = _config.find(CONFIG_KEY(AUTO_BATCH));
         if (it == _config.end()) {
-            THROW_IE_EXCEPTION << "Value for KEY_AUTO_BATCH_NUM is not set";
+            THROW_IE_EXCEPTION << "Value for KEY_AUTO_BATCH is not set";
         } else {
             return { it->second };
         }
@@ -407,9 +411,9 @@ ExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(cons
     }
 
     auto fullConfig = mergeConfigs(_config, config);
-    auto device_batch = fullConfig.find(CONFIG_KEY(AUTO_BATCH_NUM));
+    auto device_batch = fullConfig.find(CONFIG_KEY(AUTO_BATCH));
     if (device_batch == fullConfig.end()) {
-        THROW_IE_EXCEPTION << "KEY_AUTO_BATCH_NUM key is not set for BATCH device";
+        THROW_IE_EXCEPTION << "KEY_AUTO_BATCH key is not set for BATCH device";
     }
 
     auto metaDevice = ParseMetaDevice(device_batch->second, fullConfig);

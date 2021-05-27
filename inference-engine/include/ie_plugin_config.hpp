@@ -190,7 +190,7 @@ DECLARE_CONFIG_VALUE(NO);
 /**
  * @brief Auto-batching to the `#batch`.
  */
-DECLARE_CONFIG_KEY(AUTO_BATCH_NUM);
+DECLARE_CONFIG_KEY(AUTO_BATCH);
 
 /**
  * @brief Limit `#threads` that are used by Inference Engine for inference on the CPU.
