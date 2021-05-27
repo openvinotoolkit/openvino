@@ -16,10 +16,11 @@ def parse_arguments():
 
     input_folders_help = "Paths to folders with reports to merge"
     output_folders_help = "Path to folder to save report"
+    output_filename_help = "Output report filename"
 
     parser.add_argument("-i", "--input_folders", help=input_folders_help, nargs="*", required=True)
     parser.add_argument("-o", "--output_folder", help=output_folders_help, default="")
-    parser.add_argument("-f", "--output_filename", help=output_folders_help, default="report")
+    parser.add_argument("-f", "--output_filename", help=output_filename_help, default="report")
 
     return parser.parse_args()
 
@@ -28,7 +29,11 @@ def aggregate_test_results(results: ET.SubElement, xml_reports: list):
     timestamp = None
     for xml in xml_reports:
         logger.info(f" Processing: {xml}")
-        xml_root = ET.parse(xml).getroot()
+        try:
+            xml_root = ET.parse(xml).getroot()
+        except ET.ParseError:
+            logger.error(f' {xml} is corrupted and skipped')
+            continue
         xml_timestamp = xml_root.get("timestamp")
         if (timestamp is None) or (xml_timestamp < timestamp):
             timestamp = xml_timestamp

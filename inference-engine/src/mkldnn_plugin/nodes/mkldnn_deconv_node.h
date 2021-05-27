@@ -15,7 +15,6 @@ namespace MKLDNNPlugin {
 class MKLDNNDeconvolutionNode : public MKLDNNNode {
 public:
     MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNDeconvolutionNode() override = default;
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
@@ -42,10 +41,12 @@ public:
 private:
     bool withGroups = false;
     bool isDW = false;
+    bool isInt8 = false;
     size_t groupNum = 1;
     size_t outDepth;
     size_t IC;
     size_t OC;
+    std::vector<ptrdiff_t> kernel;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
@@ -58,6 +59,9 @@ private:
     void setPostOps(mkldnn::primitive_attr &attr);
 
     std::string errorPrefix;
+
+    bool canBeExecutedInInt8();
+    InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
 };
 
 }  // namespace MKLDNNPlugin

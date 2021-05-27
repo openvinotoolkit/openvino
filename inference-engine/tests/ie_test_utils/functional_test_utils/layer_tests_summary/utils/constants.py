@@ -16,10 +16,12 @@ VERIFIED_OP_REFERENCES = [
     'CTCGreedyDecoder-1',
     'CTCGreedyDecoderSeqLen-6',
     'Concat-1',
+    'Convert-1',
     'ConvertLike-1',
     'Convolution-1',
     'Constant-1',
     'DeformableConvolution-1',
+    'DeformablePSROIPooling-1',
     'DetectionOutput-1',
     'Divide-1',
     'ExperimentalDetectronDetectionOutput-6',
@@ -27,6 +29,7 @@ VERIFIED_OP_REFERENCES = [
     'ExperimentalDetectronPriorGridGenerator-6',
     'ExperimentalDetectronROIFeatureExtractor-6',
     'ExperimentalDetectronTopKROIs-6',
+    'Floor-1'
     'FloorMod-1'
     'GRUSequence-5',
     'Gather-1',
@@ -64,9 +67,11 @@ VERIFIED_OP_REFERENCES = [
     'ReduceL1-4',
     'ReduceL2-4',
     'ReduceMean-1',
+    'ReduceSum-1',
     'RegionYOLO-1',
     'Relu-1',
     'ReorgYOLO-2',
+    'Result-1'
     'Round-5',
     'ScatterNDUpdate-4',
     'ShapeOf-1',
@@ -83,5 +88,6 @@ VERIFIED_OP_REFERENCES = [
     'Tile-1',
     'TopK-1',
     'TopK-3',
-    'Transpose-1'
+    'Transpose-1',
+    'Unsqueeze-1'
 ]

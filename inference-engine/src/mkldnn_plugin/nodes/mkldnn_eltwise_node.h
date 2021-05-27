@@ -60,7 +60,6 @@ struct jit_uni_eltwise_kernel {
 class MKLDNNEltwiseNode : public MKLDNNNode {
 public:
     MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNEltwiseNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -122,8 +121,6 @@ private:
     void offset_in_calc(std::vector<size_t>& offset, std::vector<size_t>& dims_in, std::vector<size_t>& dims_out);
 
     size_t getOpInputsNum() const;
-
-    void fillScalesAndShifts(const MKLDNNNode *parentNode);
 };
 
 }  // namespace MKLDNNPlugin

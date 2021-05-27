@@ -13,7 +13,6 @@ namespace MKLDNNPlugin {
 class MKLDNNRollNode : public MKLDNNNode {
 public:
     MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNRollNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -30,7 +29,7 @@ private:
     void rollImpl();
 
     std::vector<size_t> shape;
-    const static std::vector<size_t> supportedPrecisionSizes;
+    static const std::vector<size_t> supportedPrecisionSizes;
     std::string layerErrorPrefix;
     size_t numOfDims;
 

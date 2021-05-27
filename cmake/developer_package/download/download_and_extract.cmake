@@ -175,7 +175,7 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
     #path exists, so we would like to check what was unpacked version
     set (version_file ${unpacked_path}/ie_dependency.info)
 
-    if (NOT EXISTS ${version_file} AND NOT ${ENABLE_ALTERNATIVE_TEMP})
+    if (NOT EXISTS ${version_file})
       clean_message(FATAL_ERROR "error: Dependency doesn't contain version file. Please select actions: \n"
         "if you are not sure about your FS dependency - remove it : \n"
         "\trm -rf ${unpacked_path}\n"
