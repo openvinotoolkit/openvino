@@ -62,7 +62,7 @@ class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
             num_of_outputs = len([port for port in nms.out_ports().values() if not port.disconnected()])
 
             if num_of_outputs == 1:
-                return
+                continue
 
             # prepare output #1
             crop_score_indices_name = nms_name + '/Crop_scores_'
