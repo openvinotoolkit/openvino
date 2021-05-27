@@ -8,14 +8,15 @@
 #include <string>
 #include <memory>
 #include <api/engine.hpp>
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cldnn_remote_context.h"
 
 namespace CLDNNPlugin {
 
 using CLDNNCustomLayerPtr = std::shared_ptr<class CLDNNCustomLayer>;
 
-class clDNNEngine : public InferenceEngine::InferencePluginInternal,
+class clDNNEngine : public InferenceEngine::IInferencePlugin,
                     public InferenceEngine::gpu::details::param_map_obj_getter {
     struct impl;
     std::shared_ptr<impl> _impl;
@@ -35,12 +36,12 @@ class clDNNEngine : public InferenceEngine::InferencePluginInternal,
 public:
     clDNNEngine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                       const std::map<std::string, std::string> &config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
+                                                                        const std::map<std::string, std::string> &config) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                       InferenceEngine::RemoteContext::Ptr context,
-                                                                       const std::map<std::string, std::string> &config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
+                                                                        const InferenceEngine::RemoteContext::Ptr& context,
+                                                                        const std::map<std::string, std::string> &config) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;

@@ -11,6 +11,7 @@
 
 #include <auto_plugin/auto_config.hpp>
 #include <ie_core.hpp>
+#include <ie_icore.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/ngraph.hpp>
@@ -487,7 +488,8 @@ public:
         return res;
     }
 
-    SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
+    SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+                                            const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::CNN");
         bool forceDisableCache = config.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
@@ -513,7 +515,8 @@ public:
         return res;
     }
 
-    SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath, const std::string& deviceName,
+    SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
+                                            const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);

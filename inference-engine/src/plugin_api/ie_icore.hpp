@@ -63,7 +63,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
+    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+                                                    const std::string& deviceName,
                                                     const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
@@ -78,7 +79,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath, const std::string& deviceName,
+    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
+                                                    const std::string& deviceName,
                                                     const std::map<std::string, std::string>& config) = 0;
 
     /**
@@ -89,7 +91,8 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
+                                                      const std::string& deviceName = {},
                                                       const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
