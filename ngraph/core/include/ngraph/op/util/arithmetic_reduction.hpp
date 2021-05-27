@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/util/reduction_base.hpp"
 
 namespace ngraph
 {
@@ -15,7 +16,7 @@ namespace ngraph
             /// \brief Abstract base class for arithmetic reduction operations, i.e., operations
             ///        where chosen axes of the input tensors are eliminated (reduced out) by
             ///        repeated application of a particular binary arithmetic operation.
-            class NGRAPH_API ArithmeticReduction : public Op
+            class NGRAPH_API ArithmeticReduction : public ReductionBase
             {
             protected:
                 /// \brief Constructs an arithmetic reduction operation.
@@ -26,13 +27,6 @@ namespace ngraph
                 /// \param arg Output that produces the first input tensor.
                 /// \param reduction_axes The axis positions (0-based) to be eliminated.
                 ArithmeticReduction(const Output<Node>& arg, const Output<Node>& reduction_axes);
-
-                /// \brief      Infers reduction operations output shape.
-                ///
-                /// \param[in] keep_dims    Reduction operation keeps dimensions.
-                ///
-                /// \return Partial shape of the output.
-                PartialShape infer_reduction_output_shape(const bool keep_dims);
 
             public:
                 NGRAPH_RTTI_DECLARATION;
