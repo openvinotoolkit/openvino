@@ -451,8 +451,13 @@ namespace ngraph
                 const auto range_node = std::make_shared<opset7::Range>(
                     zero_node, target_shape_rank_node, one_node, element::i64);
 
+                // workaround for GPU plugin type incompatibility
+                const auto range_node_converted = std::make_shared<opset7::Convert>(
+                    range_node, start_match_axis_node->get_element_type());
+                // end of workaround
+
                 const auto result =
-                    std::make_shared<opset7::Add>(range_node, start_match_axis_node);
+                    std::make_shared<opset7::Add>(range_node_converted, start_match_axis_node);
                 return result;
             }
 
