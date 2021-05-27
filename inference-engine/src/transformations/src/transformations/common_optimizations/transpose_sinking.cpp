@@ -204,7 +204,7 @@ ngraph::pass::TransposeFuse::TransposeFuse() {
         bool is_ordered = true;
         for (size_t i = 0; i < order1.size(); i++) {
             order2[i] = order1[order2[i]];
-            if (order2[i] != i)
+            if (order2[i] != (int64_t)i)
                 is_ordered = false;
         }
 
