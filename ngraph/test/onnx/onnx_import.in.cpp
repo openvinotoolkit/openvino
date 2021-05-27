@@ -4367,7 +4367,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2)
         file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<float>(Shape{2, 2}, {0, 5, 0, 0});
+    test_case.add_expected_output<float>(Shape{2, 2}, {0.f, 5.f, 0.f, 0.f});
     test_case.run();
 }
 
@@ -4378,10 +4378,39 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_3x4)
         file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_3x4.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<float>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.add_expected_output<float>(Shape{3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f});
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_int32_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int32_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<int32_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_int64_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int64_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<int64_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_boolean_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_boolean_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<char>(Shape{3, 4}, {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0});
+    test_case.run();
+}
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_8x17)
 {
@@ -4389,14 +4418,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_8x17)
     file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_8x17.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<float>(Shape{8, 17}, {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                                        0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-                                                        0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
-                                                        0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
-                                                        0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
-                                                        0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
-                                                        0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-                                                        0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0});
+    test_case.add_expected_output<float>(Shape{8, 17}, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
     test_case.run();
 }    
                                                 
@@ -4406,8 +4435,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x3x4)
     file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x3x4.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<float>(Shape{2, 3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0, 
-                                                          0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0});
+    test_case.add_expected_output<float>(Shape{2, 3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f, 
+                                                          0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 3.f, 0.f});
     test_case.run();
 }   
 
@@ -4417,9 +4446,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2x3x4)
     file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x2x3x4.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<float>(Shape{2, 2, 3, 4}, {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 3,
-                                                             0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-                                                             0, 0, 0, 8, 0, 1, 2, 0, 0, 0, 3, 0, 
-                                                             1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0});
+    test_case.add_expected_output<float>(Shape{2, 2, 3, 4}, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 2.f, 3.f,
+                                                             0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                             0.f, 0.f, 0.f, 8.f, 0.f, 1.f, 2.f, 0.f, 0.f, 0.f, 3.f, 0.f, 
+                                                             1.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
     test_case.run();
 }

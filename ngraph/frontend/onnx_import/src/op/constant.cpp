@@ -383,7 +383,34 @@ namespace ngraph
                         const Tensor& values_tensor = sparse_tensor.get_values();
                         const Tensor& indices_tensor = sparse_tensor.get_indices();
                         const Shape& shape = sparse_tensor.get_shape();
+                        auto rank = shape.size();
                         auto nnz = values_tensor.get_shape().at(0);
+                        if (indices_tensor.get_shape().size() == 2)
+                        {
+                            NGRAPH_CHECK(indices_tensor.get_shape().at(0) == nnz,
+                                         "The number of values and indices is not equal."
+                                         " Indices number: ",
+                                         indices_tensor.get_shape().at(0),
+                                         " Values number: ",
+                                         nnz);
+
+                            NGRAPH_CHECK(indices_tensor.get_shape().at(1) == rank,
+                                         "The indices are incorrect. The second dimension of "
+                                         "indices is not equal to the rank of output."
+                                         " Second dimension of indices: ",
+                                         indices_tensor.get_shape().at(0),
+                                         " Rank of output: ",
+                                         rank);
+                        }
+                        else
+                        {
+                            NGRAPH_CHECK(indices_tensor.get_shape().at(0) == nnz * rank,
+                                         "The number of values and indices is not equal."
+                                         " Indices number: ",
+                                         indices_tensor.get_shape().at(0) / rank,
+                                         " Values number: ",
+                                         nnz);
+                        }
                         std::vector<int64_t> absolute_indices =
                             get_absolute_indices(indices_tensor, shape, nnz);
                         return {
