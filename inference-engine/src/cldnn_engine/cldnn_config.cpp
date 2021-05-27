@@ -241,7 +241,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 enable_loop_unrolling = false;
             } else {
-                IE_THROW(NotFound) << "Unsupported KEY_CLDNN_ENABLE_LOOP_UNROLLING flag value: " << val;
+                IE_THROW(ParameterMismatch) << "Unsupported KEY_CLDNN_ENABLE_LOOP_UNROLLING flag value: " << val;
             }
         } else {
             IE_THROW(NotFound) << "Unsupported property key by plugin: " << key;

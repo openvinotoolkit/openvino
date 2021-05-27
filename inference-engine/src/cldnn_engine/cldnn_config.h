@@ -33,7 +33,7 @@ struct Config {
                device_id(""),
                kernels_cache_dir(""),
                n_threads(std::max(static_cast<unsigned int>(1), std::thread::hardware_concurrency())),
-               enable_loop_unrolling(false) {
+               enable_loop_unrolling(true) {
         adjustKeyMapValues();
     }
 

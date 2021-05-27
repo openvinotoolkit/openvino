@@ -141,54 +141,6 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
     return false;
 }
 
-static bool canTensorIteratorUseLoop(const std::shared_ptr<const ngraph::op::TensorIterator> &op) {
-    using TensorIterator = ngraph::op::TensorIterator;
-    const auto& input_descs = op->get_input_descriptions();
-    const auto& output_descs = op->get_output_descriptions();
-    const auto& inputs = op->inputs();
-    const auto& outputs = op->outputs();
-
-    for (const auto& input_desc : input_descs) {
-        const auto& input = inputs.at(input_desc->m_input_index);
-        const auto& shape = input.get_shape();
-        int64_t axis = -1;
-        if (const auto& sliceInfo =
-            std::dynamic_pointer_cast<TensorIterator::SliceInputDescription>(input_desc)) {
-            axis = sliceInfo->m_axis;
-        }
-        if (axis < 0) {
-            continue;
-        }
-        size_t batch = 1;
-        for (int64_t i = 0; i < axis; ++i) {
-            batch *= shape.at(i);
-        }
-        if (batch > 1) {
-            return false;
-        }
-    }
-    for (const auto& output_desc : output_descs) {
-        const auto& output = outputs.at(output_desc->m_output_index);
-        const auto& shape = output.get_shape();
-        int64_t axis = -1;
-        if (const auto& sliceInfo =
-            std::dynamic_pointer_cast<TensorIterator::ConcatOutputDescription>(output_desc)) {
-            axis = sliceInfo->m_axis;
-        }
-        if (axis < 0) {
-            continue;
-        }
-        size_t batch = 1;
-        for (int64_t i = 0; i < axis; ++i) {
-            batch *= shape.at(i);
-        }
-        if (batch > 1) {
-            return false;
-        }
-    }
-    return true;
-}
-
 InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                                   const CLDNNPlugin::Config& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::CloneAndTransformNetwork");

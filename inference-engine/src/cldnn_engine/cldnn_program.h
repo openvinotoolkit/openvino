@@ -164,6 +164,8 @@ private:
 
     void PrepareBuild(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs);
     void CleanupBuild();
+
+    // TODO(eunsoo): remove createTopolpgyOnly argument and add another method to create topology from ngraph function
     std::shared_ptr<cldnn::program> BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
                                                  InferenceEngine::InputsDataMap networkInputs,
                                                  InferenceEngine::OutputsDataMap networkOutputs,

@@ -119,7 +119,9 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
     std::string layerName = layer_type_name_ID(op);
     const cldnn::primitive_id trip_count_id = layerName + "_tripCount";
     const int64_t num_iterations = op->get_num_iterations();
-    assert(num_iterations >= 0);
+    if (num_iterations < 0) {
+        throw std::runtime_error("tensor iterator's num_iteration cannot be negative");
+    }
     {
         cldnn::data trip_count = CreateScalarData<cldnn::data>(p, trip_count_id, num_iterations);
         p.primitivesToIRLayersMap[trip_count_id] = { op->get_friendly_name() };

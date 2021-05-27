@@ -167,25 +167,24 @@ static void validate_mappings(loop_node const & node) {
         }
     }
 
-    const std::list<program_node*>& body_inputs = node.get_body_program()->get_inputs();
-    const std::vector<program_node*>& body_outputs = node.get_body_program()->get_outputs();
+    const auto& nodes = node.get_body_program()->get_processing_order();
 
     // check all io_primitive_maps have their corresponding interal id
     for (const auto& pm : input_primitive_maps) {
-        auto found = std::find_if(body_inputs.begin(), body_inputs.end(), [&pm](const program_node* body_input) {
+        auto found = std::find_if(nodes.begin(), nodes.end(), [&pm](const program_node* body_input) {
             return body_input->id() == pm.internal_id;
         });
-        if (found == body_inputs.end()) {
-            std::string msg = "internal id '" + pm.internal_id + "' in primitive map cannot be found body inputs";
+        if (found == nodes.end()) {
+            std::string msg = "internal id '" + pm.internal_id + "' in primitive map cannot be found loop body";
             CLDNN_ERROR_MESSAGE(node.id(), msg.c_str());
         }
     }
     for (const auto& pm : output_primitive_maps) {
-        auto found = std::find_if(body_outputs.begin(), body_outputs.end(), [&pm](const program_node* body_output) {
+        auto found = std::find_if(nodes.begin(), nodes.end(), [&pm](const program_node* body_output) {
             return body_output->id() == pm.internal_id;
         });
-        if (found == body_outputs.end()) {
-            std::string msg = "internal id '" + pm.internal_id + "' in primitive map cannot be found body outputs";
+        if (found == nodes.end()) {
+            std::string msg = "internal id '" + pm.internal_id + "' in primitive map cannot be found body body";
             CLDNN_ERROR_MESSAGE(node.id(), msg.c_str());
         }
     }
@@ -231,18 +230,18 @@ void loop_inst::preprocess_output_memory() {
 void loop_inst::preprocess_input_memory() {
     auto& engine = _network.get_engine();
     auto& iteration_mem = concatenated_input_mem_mappings;
-    const size_t inputs_memory_count = this->inputs_memory_count();
-    for (size_t memory_num = 0; memory_num < inputs_memory_count; memory_num++) {
+    for (size_t memory_num = 0; memory_num < inputs_memory_count(); memory_num++) {
         const primitive_id& input_external_id = dependencies().at(memory_num)->id();
-        if (input_external_id == node.get_trip_count_id() ||
-            input_external_id == node.get_initial_execution_id()) {
-            continue;
-        }
-        memory_impl& memory = input_memory(memory_num);
         auto input_map_ptrs = node.find_io_primitive_maps(input_external_id, true);
         if (input_map_ptrs.size() == 0) {
+            if (input_external_id == node.get_trip_count_id() ||
+                input_external_id == node.get_initial_execution_id()) {
+                continue;
+            }
             CLDNN_ERROR_MESSAGE(id(), "loop primitive_map is incomplete");
         }
+
+        memory_impl& memory = input_memory(memory_num);
         for (size_t i = 0; i < input_map_ptrs.size(); ++i) {
             const auto input_map = input_map_ptrs.at(i);
             bool is_concatenated_input = (input_map->axis >= 0);
