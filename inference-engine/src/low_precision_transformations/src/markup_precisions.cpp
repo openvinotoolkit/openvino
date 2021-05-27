@@ -77,6 +77,10 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
             continue;
         }
 
+        if (transformation_callback(node)) {
+            continue;
+        }
+
         const bool supported = is_type<opset1::Result>(node) || isSupported(node);
         if (!supported) {
             setRestriction(node, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> { {0ul, {}}});
