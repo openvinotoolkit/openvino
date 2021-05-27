@@ -41,7 +41,7 @@ std::vector<std::string> filterFilesByExtensions(const std::vector<std::string>&
 
 template <typename T>
 void fillBlobImage(Blob::Ptr& inputBlob, const std::vector<std::string>& filePaths, const size_t& batchSize, const benchmark_app::InputInfo& app_info,
-                   const size_t& requestId, const size_t& inputId, const size_t& inputSize) {
+                   const size_t& requestId, const size_t& inputId, const size_t& inputSize, double input_scale) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
         IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in "
@@ -91,7 +91,7 @@ void fillBlobImage(Blob::Ptr& inputBlob, const std::vector<std::string>& filePat
                     size_t offset = imageId * numChannels * width * height + (((app_info.layout == "NCHW") || (app_info.layout == "CHW"))
                                                                                   ? (ch * width * height + h * width + w)
                                                                                   : (h * width * numChannels + w * numChannels + ch));
-                    inputBlobData[offset] = static_cast<T>(vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch]);
+                    inputBlobData[offset] = static_cast<T>(vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch]) / static_cast<T>(input_scale);
                 }
             }
         }
@@ -190,7 +190,7 @@ void fillBlobImInfo(Blob::Ptr& inputBlob, const size_t& batchSize, std::pair<siz
 }
 
 void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSize, benchmark_app::InputsInfo& app_inputs_info,
-               std::vector<InferReqWrap::Ptr> requests) {
+               std::vector<InferReqWrap::Ptr> requests, double input_scale) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
     for (auto& item : app_inputs_info) {
         if (item.second.isImage()) {
@@ -272,15 +272,15 @@ void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSi
                 if (!imageFiles.empty()) {
                     // Fill with Images
                     if (precision == InferenceEngine::Precision::FP32) {
-                        fillBlobImage<float>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
+                        fillBlobImage<float>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, input_scale);
                     } else if (precision == InferenceEngine::Precision::FP16) {
-                        fillBlobImage<short>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
+                        fillBlobImage<short>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, input_scale);
                     } else if (precision == InferenceEngine::Precision::I32) {
-                        fillBlobImage<int32_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
+                        fillBlobImage<int32_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, input_scale);
                     } else if (precision == InferenceEngine::Precision::I64) {
-                        fillBlobImage<int64_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
+                        fillBlobImage<int64_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, input_scale);
                     } else if (precision == InferenceEngine::Precision::U8) {
-                        fillBlobImage<uint8_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
+                        fillBlobImage<uint8_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, input_scale);
                     } else {
                         IE_THROW() << "Input precision is not supported for " << item.first;
                     }
