@@ -17,7 +17,6 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #endif
-#include <iostream>
 
 namespace custom {
 namespace detail {
