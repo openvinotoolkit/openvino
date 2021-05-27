@@ -23,7 +23,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     const data_types input_data_type, const data_types output_data_type,
     cldnn::format input_format, cldnn::format output_format,
     int32_t b_in, int32_t f_in, int32_t x_in, int32_t y_in, int32_t z_in = 0, int32_t w_in = 0) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     tensor ts;
     if (input_format.dimension() == 4) {
@@ -36,11 +36,11 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
         ts = { b_in, f_in, x_in, y_in, z_in, w_in };
     }
 
-    auto input = memory::allocate(engine, { input_data_type, input_format, ts });
+    auto input = engine.allocate_memory({ input_data_type, input_format, ts });
     layout output_layout(output_data_type, output_format, ts);
 
     if (input_data_type == data_types::i8) {
-        auto input_ptr = input.pointer<unsigned char>();
+        mem_lock<uint8_t> input_ptr{input, get_test_stream()};
         unsigned char i = 1;
         for (auto it = input_ptr.begin(); it != input_ptr.end(); ++it)
         {
@@ -50,7 +50,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
             }
         }
     } else {
-        auto input_ptr = input.pointer<float>();
+        mem_lock<float> input_ptr{input, get_test_stream()};
         float i = 1.f;
         for (auto it = input_ptr.begin(); it != input_ptr.end(); ++it)
         {
@@ -60,7 +60,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     }
 
     topology topology(
-        input_layout("input", input.get_layout()),
+        input_layout("input", input->get_layout()),
         reorder("reorder", "input", output_layout));
 
     // run on reference(reorder_data) kernel
@@ -74,11 +74,11 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     std::map<cldnn::primitive_id, cldnn::network_output> outputs_ref;
 
     outputs_ref = network_ref.execute();
-    cldnn::event e1 = outputs_ref.at("reorder").get_event();
-    e1.wait();
+    cldnn::event::ptr e1 = outputs_ref.at("reorder").get_event();
+    e1->wait();
 
     auto output_ref = outputs_ref.begin()->second.get_memory();
-    auto output_ref_ptr = output_ref.pointer<unsigned char>();
+    mem_lock<uint8_t> output_ref_ptr{output_ref, get_test_stream()};
 
     // run on optimized kernel
     cldnn::build_options options;
@@ -91,11 +91,11 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     std::map<cldnn::primitive_id, cldnn::network_output> outputs;
 
     outputs = network.execute();
-    cldnn::event e2 = outputs.at("reorder").get_event();
-    e2.wait();
+    cldnn::event::ptr e2 = outputs.at("reorder").get_event();
+    e2->wait();
 
     auto output = outputs.begin()->second.get_memory();
-    auto output_ptr = output.pointer<unsigned char>();
+    mem_lock<uint8_t> output_ptr{output, get_test_stream()};
 
     // compare results
     const size_t output_size = output_ref_ptr.size();
@@ -202,17 +202,17 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_format_differen
 }
 
 TEST(reorder_gpu_optimization, bfyx_to_fsv16_without_f_remainder) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     const int32_t b_in = 1;
     const int32_t f_in = 8 * 4;
     const int32_t y_in = 4;
     const int32_t x_in = 8 * 2;
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { b_in,f_in,x_in,y_in } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { b_in,f_in,x_in,y_in } });
     layout output_layout(data_types::f32, format::b_fs_yx_fsv16, { b_in,f_in,x_in,y_in });
 
     // Set incremental input value
-    auto input_ptr = input.pointer<float>();
+    mem_lock<float> input_ptr{input, get_test_stream()};
     float i = 0.f;
     for (auto it = input_ptr.begin(); it != input_ptr.end(); ++it)
     {
@@ -220,7 +220,7 @@ TEST(reorder_gpu_optimization, bfyx_to_fsv16_without_f_remainder) {
     }
 
     topology topology(
-        input_layout("input", input.get_layout()),
+        input_layout("input", input->get_layout()),
         reorder("reorder", "input", output_layout));
 
     network network(engine, topology);
@@ -231,7 +231,7 @@ TEST(reorder_gpu_optimization, bfyx_to_fsv16_without_f_remainder) {
     EXPECT_EQ(outputs.begin()->first, "reorder");
 
     auto output = outputs.begin()->second.get_memory();
-    auto output_ptr = output.pointer<float>();
+    mem_lock<float> output_ptr{output, get_test_stream()};
 
     auto get_fsv16_index = [](int32_t /* b_size */, int32_t f_size, int32_t y_size, int32_t x_size,
         int32_t b, int32_t f, int32_t y, int32_t x) {

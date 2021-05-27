@@ -48,6 +48,11 @@ public:
                              const build_options& options,
                              bool is_internal);
 
+    static ptr allocate_network(stream::ptr stream,
+                                program_impl::ptr program,
+                                bool is_internal = false,
+                                bool is_primary_stream = false);
+
     static ptr allocate_network(engine& engine,
                                 program_impl::ptr program,
                                 bool is_internal = false,
@@ -92,6 +97,7 @@ public:
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
     stream& get_stream() const { return *_stream; }
+    stream::ptr get_stream_ptr() const { return _stream; }
     void build_exec_order();
     bool is_internal() const { return _internal; }
     bool is_primary_stream() { return _is_primary_stream; }

@@ -3189,21 +3189,21 @@ struct eltwise_same_input_test_params {
 struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_params>
 {
     template <typename T>
-    void fill_random_typed(memory& mem, int min, int max, int k) {
-        auto size = mem.get_layout().size;
+    void fill_random_typed(memory::ptr mem, int min, int max, int k) {
+        auto size = mem->get_layout().size;
         size_t b = size.batch[0];
         size_t f = size.feature[0];
         size_t x = size.spatial[0];
         size_t y = size.spatial[1];
 
         auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
-        auto ptr = mem.pointer<T>();
+        mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        auto offset = mem.get_layout().get_linear_offset(coords);
+                        auto offset = mem->get_layout().get_linear_offset(coords);
                         ptr[offset] = data[bi][fi][yi][xi];
                     }
                 }
@@ -3211,8 +3211,8 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
         }
     }
 
-    void fill_random(memory& mem) {
-        auto dt = mem.get_layout().data_type;
+    void fill_random(memory::ptr mem) {
+        auto dt = mem->get_layout().data_type;
         switch (dt) {
         case data_types::f32:
             fill_random_typed<float>(mem, -127, 127, 2);
@@ -3232,16 +3232,16 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
     }
 
     template <typename T>
-    bool compare_outputs(const memory& out_ref, const memory& input_ref) {
-        auto output_lay = out_ref.get_layout();
-        auto opt_output_lay = input_ref.get_layout();
+    bool compare_outputs(const memory::ptr out_ref, const memory::ptr input_ref) {
+        auto output_lay = out_ref->get_layout();
+        auto opt_output_lay = input_ref->get_layout();
 
         size_t b = output_lay.size.batch[0];
         size_t f = output_lay.size.feature[0];
         size_t x = output_lay.size.spatial[0];
         size_t y = output_lay.size.spatial[1];
-        auto ref_ptr = out_ref.pointer<T>();
-        auto input_ptr = input_ref.pointer<T>();
+        mem_lock<T> ref_ptr{out_ref, get_test_stream()};
+        mem_lock<T> input_ptr{input_ref, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
@@ -3264,22 +3264,22 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
     }
 
     void execute_same_input(const eltwise_same_input_test_params& params, bool check_result) {
-        auto eng = cldnn::engine();
+        auto& engine = get_test_engine();
 
         auto in_layout = layout(params.input_type, params.in_format, params.input_size);
-        auto input = memory::allocate(eng, in_layout);
+        auto input = engine.allocate_memory(in_layout);
         fill_random(input);
 
         cldnn::topology topo;
-        topo.add(input_layout("input1", input.get_layout()));
-        topo.add(input_layout("input2", input.get_layout()));
+        topo.add(input_layout("input1", input->get_layout()));
+        topo.add(input_layout("input2", input->get_layout()));
         auto prim = eltwise("eltwise", {"input1", "input2"}, eltwise_mode::sum);
         topo.add(prim);
 
         auto build_ops = build_options();
         build_ops.set_option(build_option::outputs({"eltwise"}));
 
-        auto net = network(eng, topo, build_ops);
+        auto net = network(engine, topo, build_ops);
         net.set_input_data("input1", input);
         net.set_input_data("input2", input);
 
@@ -3776,21 +3776,21 @@ struct eltwise_random_test_params {
 struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 {
     template <typename T>
-    void fill_random_typed(memory& mem, int min, int max, int k) {
-        auto size = mem.get_layout().size;
+    void fill_random_typed(memory::ptr mem, int min, int max, int k) {
+        auto size = mem->get_layout().size;
         size_t b = size.batch[0];
         size_t f = size.feature[0];
         size_t x = size.spatial[0];
         size_t y = size.spatial[1];
 
         auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
-        auto ptr = mem.pointer<T>();
+        mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        auto offset = mem.get_layout().get_linear_offset(coords);
+                        auto offset = mem->get_layout().get_linear_offset(coords);
                         ptr[offset] = data[bi][fi][yi][xi];
                     }
                 }
@@ -3798,8 +3798,8 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         }
     }
 
-    void fill_random(memory& mem) {
-        auto dt = mem.get_layout().data_type;
+    void fill_random(memory::ptr mem) {
+        auto dt = mem->get_layout().data_type;
         switch (dt) {
         case data_types::f32:
             fill_random_typed<float>(mem, -127, 127, 2);
@@ -3819,16 +3819,16 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
     }
 
     template <typename T>
-    bool compare_outputs(const memory& out_ref, const memory& out_opt) {
-        auto output_lay = out_ref.get_layout();
-        auto opt_output_lay = out_opt.get_layout();
+    bool compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
+        auto output_lay = out_ref->get_layout();
+        auto opt_output_lay = out_opt->get_layout();
 
         size_t b = output_lay.size.batch[0];
         size_t f = output_lay.size.feature[0];
         size_t x = output_lay.size.spatial[0];
         size_t y = output_lay.size.spatial[1];
-        auto ref_ptr = out_ref.pointer<T>();
-        auto opt_ptr = out_opt.pointer<T>();
+        mem_lock<T> ref_ptr{out_ref, get_test_stream()};
+        mem_lock<T> opt_ptr{out_opt, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
@@ -3851,18 +3851,18 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
     }
 
     void execute_compare(const eltwise_random_test_params& params, bool check_result) {
-        auto eng = cldnn::engine();
+        auto& engine = get_test_engine();
 
         auto in_layout1 = layout(params.input_type, params.in_format, params.first_input_size);
         auto in_layout2 = layout(params.input_type, params.in_format_second, params.second_input_size);
-        auto input1 = memory::allocate(eng, in_layout1);
-        auto input2 = memory::allocate(eng, in_layout2);
+        auto input1 = engine.allocate_memory(in_layout1);
+        auto input2 = engine.allocate_memory(in_layout2);
         fill_random(input1);
         fill_random(input2);
 
         cldnn::topology topo;
-        topo.add(input_layout("input1", input1.get_layout()));
-        topo.add(input_layout("input2", input2.get_layout()));
+        topo.add(input_layout("input1", input1->get_layout()));
+        topo.add(input_layout("input2", input2->get_layout()));
         auto prim = eltwise("eltwise", {"input1", "input2"}, params.mode);
         topo.add(prim);
 
@@ -3870,26 +3870,23 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         build_ops.set_option(build_option::outputs({"eltwise"}));
         build_ops.set_option(build_option::force_implementations({ {"eltwise", {params.in_format, "generic_eltwise_ref"}} }));
 
-        auto net = network(eng, topo, build_ops);
+        auto net = network(engine, topo, build_ops);
         net.set_input_data("input1", input1);
         net.set_input_data("input2", input2);
 
         auto result = net.execute();
         auto output = result.at("eltwise").get_memory();
 
-        // Execute optimized eltwise 'eltwise_opt'
-        auto eng_opt = cldnn::engine();
-
         cldnn::topology topo_opt;
-        topo_opt.add(input_layout("input1", input1.get_layout()));
-        topo_opt.add(input_layout("input2", input2.get_layout()));
+        topo_opt.add(input_layout("input1", input1->get_layout()));
+        topo_opt.add(input_layout("input2", input2->get_layout()));
         auto prim_opt = eltwise("eltwise_opt", {"input1", "input2"}, params.mode);
         topo_opt.add(prim_opt);
 
         auto buildops_opt = build_options();
         buildops_opt.set_option(build_option::outputs({"eltwise_opt"}));
 
-        auto net_opt = network(eng_opt, topo_opt, buildops_opt);
+        auto net_opt = network(engine, topo_opt, buildops_opt);
         net_opt.set_input_data("input1", input1);
         net_opt.set_input_data("input2", input2);
 

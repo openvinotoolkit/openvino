@@ -278,6 +278,10 @@ network_impl::~network_impl() {
     get_engine().get_memory_pool().clear_pool_for_network(net_id);
 }
 
+network_impl::ptr network_impl::allocate_network(stream::ptr stream, program_impl::ptr program, bool is_internal, bool is_primary_stream) {
+    return std::make_shared<network_impl>(program, stream, is_internal, is_primary_stream);
+}
+
 network_impl::ptr network_impl::allocate_network(engine& engine, program_impl::ptr program, bool is_internal, bool is_primary_stream) {
     auto stream = engine.create_stream();
     return std::make_shared<network_impl>(program, stream, is_internal, is_primary_stream);
