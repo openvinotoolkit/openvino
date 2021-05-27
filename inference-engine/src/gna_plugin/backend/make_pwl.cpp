@@ -282,10 +282,10 @@ void make_gna_pwl(const DnnActivation  fun,
             int16_t y_lower = y_min;
             int16_t y_upper = y_max;
             if (fun.fqParams.set) {
-                x_lower = FLOAT_TO_INT32(*fun.fqParams.input_low * 1.25 * in_scale);
-                x_upper = FLOAT_TO_INT32(*fun.fqParams.input_high * 1.25 * in_scale);
-                y_lower = FLOAT_TO_INT16(*fun.fqParams.input_low * 1.25 * out_scale);
-                y_upper = FLOAT_TO_INT16(*fun.fqParams.input_high * 1.25 * out_scale);
+                x_lower = std::max(FLOAT_TO_INT64(*fun.fqParams.input_low * 1.25 * in_scale), static_cast<int64_t>(x_lower));
+                x_upper = std::min(FLOAT_TO_INT64(*fun.fqParams.input_high * 1.25 * in_scale), static_cast<int64_t>(x_upper));
+                y_lower = std::max(FLOAT_TO_INT32(*fun.fqParams.input_low * 1.25 * out_scale), static_cast<int32_t>(y_lower));
+                y_upper = std::min(FLOAT_TO_INT32(*fun.fqParams.input_high * 1.25 * out_scale), static_cast<int32_t>(y_upper));
             } else {
                 if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
                 if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
