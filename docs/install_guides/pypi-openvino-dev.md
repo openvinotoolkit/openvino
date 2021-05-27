@@ -125,7 +125,7 @@ On Windows* some dependencies may require compilation from source when installin
 
 ### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
 
-To resolve missing external dependency on Ubuntu*, execute the following command:
+To resolve missing external dependency on Ubuntu* 18.04, execute the following command:
 ```sh
 sudo apt-get install libpython3.7
 ```
