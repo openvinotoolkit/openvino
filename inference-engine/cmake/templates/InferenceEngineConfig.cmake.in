@@ -133,7 +133,7 @@ unset(_ie_as_external_package)
 
 # restore PACKAGE_PREFIX_DIR
 set(PACKAGE_PREFIX_DIR ${IE_PACKAGE_PREFIX_DIR})
-unset({IE_PACKAGE_PREFIX_DIR)
+unset(IE_PACKAGE_PREFIX_DIR)
 
 set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_IE_INCLUDE_DIR@")
 
