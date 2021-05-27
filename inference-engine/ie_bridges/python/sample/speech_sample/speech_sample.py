@@ -346,6 +346,12 @@ def main():
 
     for key in sorted(input_data):
         start_infer_time = default_timer()
+
+        # Reset states between utterance inferences to remove a memory impact
+        for request in exec_net.requests:
+            for state in request.query_state():
+                state.reset()
+
         result = infer_data(input_data[key], exec_net, input_blobs, output_blobs)
 
         for blob_name in result.keys():
