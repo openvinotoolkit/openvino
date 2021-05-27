@@ -4,8 +4,8 @@
 - Compile an InferenceEngine::ICNNNetwork instance to a backend specific graph representation
 - Create an arbitrary number of `InferRequest` objects
 - Hold some common resources shared between different instances of `InferRequest`. For example:
-	- InferenceEngine::ExecutableNetworkInternal::_taskExecutor task executor to implement asynchronous execution
-	- InferenceEngine::ExecutableNetworkInternal::_callbackExecutor task executor to run an asynchronous inference request callback in a separate thread
+	- InferenceEngine::IExecutableNetworkInternal::_taskExecutor task executor to implement asynchronous execution
+	- InferenceEngine::IExecutableNetworkInternal::_callbackExecutor task executor to run an asynchronous inference request callback in a separate thread
 
 `ExecutableNetwork` Class
 ------------------------

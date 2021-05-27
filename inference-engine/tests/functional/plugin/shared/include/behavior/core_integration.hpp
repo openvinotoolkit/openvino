@@ -477,6 +477,20 @@ TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
 // ImportExportNetwork
 //
 
+TEST_P(IEClassImportExportTestP, smoke_ImportNetworkThrowsIfNoDeviceName) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    Core ie;
+    std::stringstream strm;
+    ExecutableNetwork executableNetwork;
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
+    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
+    if (!strm.str().empty()) {
+        IE_SUPPRESS_DEPRECATED_START
+        ASSERT_THROW(executableNetwork = ie.ImportNetwork(strm), Exception);
+        IE_SUPPRESS_DEPRECATED_END
+    }
+}
+
 TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;

@@ -21,7 +21,7 @@ To build an Inference Engine plugin with the Plugin API, see the [Inference Engi
 Plugin Class
 ------------------------
 
-Inference Engine Plugin API provides the helper InferenceEngine::InferencePluginInternal class recommended to use as a base class for a plugin.
+Inference Engine Plugin API provides the helper InferenceEngine::IInferencePlugin class recommended to use as a base class for a plugin.
 Based on that, declaration of a plugin class can look as follows:
 
 @snippet src/template_plugin.hpp plugin:header
@@ -56,8 +56,8 @@ A plugin must define a device name enabled via the `_pluginName` field of a base
 
 ### `LoadExeNetworkImpl()`
 
-**Implementation details:** The base InferenceEngine::InferencePluginInternal class provides a common implementation 
-of the public InferenceEngine::InferencePluginInternal::LoadNetwork method that calls plugin-specific `LoadExeNetworkImpl`, which is defined in a derived class.
+**Implementation details:** The base InferenceEngine::IInferencePlugin class provides a common implementation 
+of the public InferenceEngine::IInferencePlugin::LoadNetwork method that calls plugin-specific `LoadExeNetworkImpl`, which is defined in a derived class.
 
 This is the most important function of the `Plugin` class and creates an instance of compiled `ExecutableNetwork`,
 which holds a backend-dependent compiled graph in an internal representation:
