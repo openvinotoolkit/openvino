@@ -18,9 +18,9 @@ namespace ngraph
             inline Shape broadcast_shape(const Shape& arg_shape, const Shape& slope_shape)
             {
                 auto new_shape = slope_shape;
-                if (slope_shape.size() > 1)
+                if (slope_shape.size() > arg_shape.size())
                 {
-                    const auto found = std::search(begin(arg_shape),
+                    const auto found = std::search(++begin(arg_shape),
                                                    end(arg_shape),
                                                    begin(slope_shape),
                                                    end(slope_shape),
