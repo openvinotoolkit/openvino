@@ -1,21 +1,24 @@
-# Speech Recognition Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_speech_sample_README}
+# Automatic Speech Recognition Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_speech_sample_README}
 
-This sample demonstrates how to do inference of acoustic model based on Kaldi* neural networks and speech feature vectors using Synchronous Inference Request API.  
+This sample demonstrates how to do a Synchronous Inference of acoustic model based on Kaldi\* neural networks and speech feature vectors.
 
-The following Inference Engine Python API is used in the application:
+The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
+
+Automatic Speech Recognition Python sample application demonstrates how to use the following Inference Engine Python API in applications:
 
 | Feature             | API                                                                                                   | Description                                                           |
 | :------------------ | :---------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------- |
 | Import/Export Model | [IECore.import_network], [ExecutableNetwork.export]                                                   | The GNA plugin supports loading and saving of the GNA-optimized model |
-| Network Operations  | [IENetwork.batch_size], [IENetwork.add_outputs], [CDataPtr.shape], [ExecutableNetwork.input_info], [ExecutableNetwork.outputs] | Managing of network: configure input and output blobs                 |
+| Network Operations  | [IENetwork.batch_size], [CDataPtr.shape], [ExecutableNetwork.input_info], [ExecutableNetwork.outputs] | Managing of network: configure input and output blobs                 |
+| Network Operations  | [IENetwork.add_outputs] | Managing of network: Change names of output layers in the network |
 
 Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 
 | Options                    | Values                                                                                                |
 | :------------------------- | :---------------------------------------------------------------------------------------------------- |
-| Validated Models           | Acoustic model based on Kaldi* neural networks (see [Model Preparation](##Model-Preparation) section) |
+| Validated Models           | Acoustic model based on Kaldi* neural networks (see [Model Preparation](#model-preparation) section) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                              |
-| Supported devices          | See [Execution Modes](###Execution-Modes) section below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                             |
+| Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                             |
 | Other language realization | [C++](../../../../samples/speech_sample)                                                              |
 
 ## How It Works
@@ -56,9 +59,9 @@ Several execution modes are supported via the `-d` flag:
 ### Loading and Saving Models
 
 The GNA plugin supports loading and saving of the GNA-optimized model (non-IR) via the `-rg` and `-wg` flags.  
-Thereby, it is possible to avoid the cost of full model quantization at run time. The GNA plugin also supports export of firmware-compatible embedded model images for the Intel® Speech Enabling Developer Kit and Amazon Alexa* Premium Far-Field Voice Development Kit via the `-we` flag (save only).
+Thereby, it is possible to avoid the cost of full model quantization at run time.
 
-In addition to performing inference directly from a GNA model file, these options make it possible to:
+In addition to performing inference directly from a GNA model file, this option makes it possible to:
 
 - Convert from IR format to GNA format model file (`-m`, `-wg`)
 
@@ -97,11 +100,13 @@ Options:
                         Optional. Read reference score file and compare
                         scores.
   -d DEVICE, --device DEVICE
-                        Optional. Specify the target device to infer on; CPU,
-                        GPU, MYRIAD, HDDL, GNA_AUTO, GNA_HW, GNA_SW,
-                        GNA_SW_FP32, GNA_SW_EXACT or HETERO: is acceptable.
-                        The sample will look for a suitable plugin for device
-                        specified. Default value is CPU.
+                        Optional. Specify a target device to infer on. CPU,
+                        GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32,
+                        GNA_SW_EXACT and HETERO with combination of GNA as the
+                        primary device and CPU as a secondary (e.g.
+                        HETERO:GNA,CPU) are supported. The sample will look
+                        for a suitable plugin for device specified. Default
+                        value is CPU.
   -bs BATCH_SIZE, --batch_size BATCH_SIZE
                         Optional. Batch size 1-8 (default 1).
   -qb QUANTIZATION_BITS, --quantization_bits QUANTIZATION_BITS
@@ -121,21 +126,6 @@ Options:
                         Output1:port,Output2:port.
 ```
 
-> **NOTES**:
->
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
->
-> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
->
-> - The sample supports input and output in numpy file format (.npz)
->
-
-You can do inference on Intel® Processors with the GNA co-processor (or emulation library):
-
-```sh
-python speech_sample.py -d GNA_AUTO -m wsj_dnn5b.xml -i dev93_10.ark -r dev93_scores_10.ark -o result.npz
-```
-
 ## Model Preparation
 
 You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
@@ -151,6 +141,22 @@ The following pre-trained models are available:
 - rm_cnn4a_smbr
 
 All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
+
+## Speech Inference
+
+You can do inference on Intel® Processors with the GNA co-processor (or emulation library):
+
+```sh
+python speech_sample.py -d GNA_AUTO -m wsj_dnn5b.xml -i dev93_10.ark -r dev93_scores_10.ark -o result.npz
+```
+
+> **NOTES**:
+>
+> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+>
+> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+>
+> - The sample supports input and output in numpy file format (.npz)
 
 ## Sample Output
 
