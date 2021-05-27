@@ -21,8 +21,6 @@ namespace ngraph
                     // Note: PDPD Scale output data_type is the same with input
                     Output<Node> scale;
                     Output<Node> bias;
-                    scale = ngraph::opset6::Constant::create(
-                        dtype, {1}, {node.get_attribute<float>("scale")});
 
                     if (node.has_ng_input("ScaleTensor"))
                     {
