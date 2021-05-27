@@ -398,14 +398,14 @@ class TestInputAddition(unittest.TestCase):
             'old_input': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
             'inp_data' : {'kind': 'data', 'shape': shape + 1},
             'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
-            'conv_data': {'kind': 'data', 'shape': shape, 'value': None},
+            'conv_data': {'kind': 'data', 'shape': shape, 'value': None, 'data_attr': 'data_attr_value'},
             'relu_1': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder'},
         }
         edges = [
             ('old_input', 'inp_data'),
             ('inp_data', 'conv_1'),
             ('conv_1', 'conv_data'),
-            ('conv_data', 'relu_1'),
+            ('conv_data', 'relu_1', {'edge_attr': 'edge_value'}),
         ]
         graph = build_graph(nodes, edges)
         graph.stage = 'middle'
@@ -416,7 +416,7 @@ class TestInputAddition(unittest.TestCase):
                                 edges=[('old_input', 'inp_data'),
                                        ('inp_data', 'conv_1'),
                                        ('new_input', 'conv_data'),
-                                       ('conv_data', 'relu_1'),
+                                       ('conv_data', 'relu_1', {'edge_attr': 'edge_value'}),
                                        ],)
         # Check that new input is added right (with right ports !)
         (flag, resp) = compare_graphs(graph, graph_ref, last_node='relu_1')
@@ -431,6 +431,9 @@ class TestInputAddition(unittest.TestCase):
         new_input = 'conv_1/placeholder_out_port_0'
 
         self.assertTrue(graph.node[new_input]['is_input'])
+
+        self.assertTrue(Node(graph, 'relu_1').in_node(0)['data_attr'] == 'data_attr_value')
+        self.assertTrue(Node(graph, 'relu_1').in_edge(0)['edge_attr'] == 'edge_value')
 
 
 @generator
