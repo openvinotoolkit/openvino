@@ -107,40 +107,9 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         w_mul = node.copy_node({'name': mul_name, 'in_ports_count': len(node.in_ports()),
                                 'out_ports_count': len(node.out_ports()), 'can_be_fused': False})
         w_mul.in_port(const_port.idx).connect(mul_const.out_port(0))
-
-        r"""
-        In this transformation we remove Mul or Div node (node) that goes after fuse_node and
-        create new Mul node (w_mul), connect it with the corrected const value (mul_const) and
-        insert w_mul before the fuse_node. So the input data of fuse_node becomes different. 
-        For this reason we need to use set_destination from previous operation to w_mul which 
-        guaranties that data node will be reused on previous_op -> w_mul connection and its 
-        attributes won't be copied to the data node of w_mul -> fuse_node connection.   
-        
-        BEFORE                        AFTER
-
-                                 previous_op      mul_const
-                                         \     /
-            previous_op                   w_mul
-               |                            |
-             fuse_node   const          fuse_node     
-                 \     /                    |       
-                  node                   next_op      
-                   |                              
-                 next_op                      
-        """
-        weights_port.get_connection().set_destination(w_mul.in_port(tensor_port.idx))
-        w_mul.out_port(0).connect(weights_port)
-
-        # As fusing is applied to convolutions it is important to keep 'permutation' and 'input_permutation' attributes
-        # which were obtained from original model. These attributes are stored on the incoming edge to the operation
-        # node and during the reconnection they are moved to the new connection. But during reconnection in this
-        # transformation these attributes are moved to the previous node. So we need manually set them at the
-        # incoming edge to fuse_node.
-        in_edge = w_mul.in_edge(tensor_port.idx)
-        if 'permutation' in in_edge:
-            fuse_node.in_edge(weights_port.idx)['permutation'] = in_edge['permutation']
-        if 'input_permutation' in in_edge:
-            fuse_node.in_edge(weights_port.idx)['input_permutation'] = in_edge['input_permutation']
+        w_const = weights_port.get_source()
+        weights_port.get_connection().set_source(w_mul.out_port(0))
+        w_const.connect(w_mul.in_port(tensor_port.idx))
 
         # If we fuse in backward direction we should multiply biases if they exists
         if backward and len(fuse_node.in_ports()) == 3 and not fuse_node.in_port(2).disconnected() and \
