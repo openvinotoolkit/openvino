@@ -35,6 +35,8 @@ def update_body_graph(body_graph: Graph, subgraph_proto: dict,
         id = body_graph.unique_id(pb_node.name)
         map_original_name[pb_node.name] = id
         body_graph.add_node(id, pb=pb_node, kind='op')
+        if hasattr(body_graph, 'op_names_statistic') and hasattr(pb_node, 'op'):
+            body_graph.op_names_statistic[pb_node.op] += 1
 
         # add incoming edges based on data_nodes_map
         for dst_port, inp in enumerate(pb_node.input):
