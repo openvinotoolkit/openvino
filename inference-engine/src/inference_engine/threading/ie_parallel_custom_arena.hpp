@@ -114,6 +114,22 @@ public:
     }
 };
 
+struct task_scheduler_observer: public tbb::task_scheduler_observer {
+    task_scheduler_observer(custom::task_arena& arena) :
+        tbb::task_scheduler_observer(static_cast<tbb::task_arena&>(arena)),
+        my_arena(arena)
+    {}
+
+    void observe(bool state = true) {
+        if (state) {
+            my_arena.initialize();
+        }
+        tbb::task_scheduler_observer::observe(state);
+    }
+
+    custom::task_arena& my_arena;
+};
+
 namespace info {
     std::vector<numa_node_id> numa_nodes();
     std::vector<core_type_id> core_types();
