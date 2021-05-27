@@ -10,6 +10,12 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
+std::vector<ngraph::op::MemoryTransformation> transformation {
+        ngraph::op::MemoryTransformation::NONE,
+        ngraph::op::MemoryTransformation::LOW_LATENCY_V2,
+        ngraph::op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API
+};
+
 const std::vector<InferenceEngine::SizeVector> inShapes = {
         {3},
         {100, 100},
@@ -27,6 +33,7 @@ const std::vector<int64_t> iterationCount {
 
 INSTANTIATE_TEST_CASE_P(smoke_MemoryTest, MemoryTest,
         ::testing::Combine(
+                ::testing::ValuesIn(transformation),
                 ::testing::ValuesIn(iterationCount),
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),
