@@ -11,6 +11,9 @@
     #include "fft_op.hpp"
 #endif
 #include <ngraph/ngraph.hpp>
+
+#include "unpool_kernel.hpp"
+#include "unpool_op.hpp"
 #ifdef NGRAPH_ONNX_IMPORT_ENABLED
     #include <onnx_import/onnx_utils.hpp>
 #endif
@@ -48,7 +51,8 @@ Extension::~Extension() {
     #ifdef OPENCV_IMPORT_ENABLED
     ngraph::onnx_import::unregister_operator(FFTOp::type_info.name, 1, "custom_domain");
     #endif  // OPENCV_IMPORT_ENABLED
-#endif      // NGRAPH_ONNX_IMPORT_ENABLED
+    ngraph::onnx_import::unregister_operator(UnpoolOp::type_info.name, 1, "custom_domain");
+#endif  // NGRAPH_ONNX_IMPORT_ENABLED
 }
 //! [extension:dtor]
 
@@ -72,6 +76,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
 #ifdef OPENCV_IMPORT_ENABLED
     opset.insert<FFTOp>();
 #endif
+    opset.insert<UnpoolOp>();
     opsets["custom_opset"] = opset;
     return opsets;
 }
@@ -87,6 +92,9 @@ std::vector<std::string> Extension::getImplTypes(const std::shared_ptr<ngraph::N
         return {"CPU"};
     }
 #endif
+    if (std::dynamic_pointer_cast<UnpoolOp>(node)) {
+        return {"CPU"};
+    }
     return {};
 }
 //! [extension:getImplTypes]
@@ -98,10 +106,13 @@ InferenceEngine::ILayerImpl::Ptr Extension::getImplementation(const std::shared_
             return std::make_shared<OpImplementation>(node);
         }
 #ifdef OPENCV_IMPORT_ENABLED
-        if (std::dynamic_pointer_cast<FFTOp>(node) && implType == "CPU") {
+        if (std::dynamic_pointer_cast<FFTOp>(node)) {
             return std::make_shared<FFTImpl>(node);
         }
 #endif
+        if (std::dynamic_pointer_cast<UnpoolOp>(node)) {
+            return std::make_shared<UnpoolImpl>(node);
+        }
     }
     return nullptr;
 }
