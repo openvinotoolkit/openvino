@@ -867,7 +867,6 @@ class FuseMulTests(unittest.TestCase):
         self.assertTrue(mul_node['can_be_fused'] is True)
 
 
-
 # Unit tests for fuse_linear_ops
 class FuseLinOpsTests(unittest.TestCase):
     # Op->Mul(array)-+->Conv(w+b)->Add-+->Concat     Op-+->Conv1-+-->Concat
