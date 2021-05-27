@@ -78,7 +78,9 @@ bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<co
     return ConvolutionBackpropDataTransformation::isQuantizedStatic(layer, deconvolutionSpecificChannelsRatio);
 }
 
-bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool deconvolutionSpecificChannelsRatio) noexcept {
+bool ConvolutionBackpropDataTransformation::isQuantizedStatic(
+    const std::shared_ptr<const Node>& layer,
+    const bool deconvolutionSpecificChannelsRatio) noexcept {
     if (deconvolutionSpecificChannelsRatio) {
         size_t inputChannels = layer->get_input_shape(0)[1];
         size_t outputChannels = layer->get_output_shape(0)[1];
