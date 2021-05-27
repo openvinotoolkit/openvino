@@ -86,7 +86,7 @@ protected:
     }
 };
 
-TEST_P(DynamicToStaticTopKPropagationConcatReshape, KPropagation) {
+TEST_P(DynamicToStaticTopKPropagationConcatReshape, DISABLED_KPropagation) {
 }
 
 INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationConcatReshape, ::testing::ValuesIn(kVec));
