@@ -6,8 +6,8 @@ This section is a shorter version of the
 ## Precision
 Inference precision directly affects the performance. 
 
-Model Optimizer can produce an IR with different precision. For example, FP16 IR initially targets VPU and GPU devices, while, for example, for the CPU the precision is    typically up-scaled to the regular float32. 
-Notice that further device-specific inference precision settings are available, for example, [8-bit integer](Int8Inference.md) or [bfloat16](Bfloat16Inference.md), which is specific to the CPU inference, below.
+Model Optimizer can produce an IR with different precision. For example, FP16 IR initially targets VPU and GPU devices, while, for example, for the CPU the FP16 IR is    typically up-scaled to the regular float32 automatically upon loading. But notice that further device-specific inference precision settings are available, 
+for example, [8-bit integer](Int8Inference.md) or [bfloat16](Bfloat16Inference.md), which is specific to the CPU inference, below.
 Note that for [MULTI device](supported_plugins/MULTI.md) that supports automatic inference on multiple devices in parallel, you can use the FP16 IR (no need for FP32).
 You can find more information, including preferred data types for specific devices, in the
 [Supported Devices](supported_plugins/Supported_Devices.md) section.
