@@ -19,12 +19,6 @@ def log_debug_dict(nodes_per_port: dict, direction_name: str):
         log.debug('{}[{}]: shape = {}, value = {}'.format(direction_name, port, node.soft_get('shape'), value))
 
 
-def is_fully_defined_shape(shape: np.ndarray):
-    if -1 in shape:
-        return False
-    return True
-
-
 def control_flow_infer(graph: Graph, node_name: str):
     """
        Executes constant control flow. Propagates nodes executability
@@ -138,16 +132,6 @@ def partial_infer(graph: Graph, start_node: str = None):
                         not_all_output_shapes = False
                         if not out_node.has_valid('shape'):
                             log.error('Shape is not defined for output {} of "{}".'.format(out_port, node_name))
-                            not_all_output_shapes = True
-                        elif not is_fully_defined_shape(out_node.shape):
-                            log.error(
-                                ('Shape {} is not fully defined for output {} of "{}". ' +
-                                 'Use --input_shape with positive integers to override model input shapes.').format(
-                                    out_node.shape,
-                                    out_port,
-                                    node_name
-                                )
-                            )
                             not_all_output_shapes = True
 
                     if not_all_output_shapes:

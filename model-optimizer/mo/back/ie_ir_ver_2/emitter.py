@@ -114,9 +114,6 @@ def serialize_mean_image(bin_file_name: str, mean_data=[]):
 def xml_shape(shape: np.ndarray, element: Element):
     for d in shape:
         dim = SubElement(element, 'dim')
-        if d < 0:
-            raise Error('The value "{}" for shape is less 0. May be the input shape of the topology is '
-                        'wrong.'.format(d))
         if int(d) != d:
             raise Error('The value "{}" for shape is not integer.'.format(d))
         if not isinstance(d, np.int64):
