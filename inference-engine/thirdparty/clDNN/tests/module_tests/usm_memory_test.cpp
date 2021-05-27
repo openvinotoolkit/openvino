@@ -141,7 +141,7 @@ TEST_P(copy_and_read_buffer, basic) {
                 cldnn::mem_lock<float> lock(host_buf, stream);
                 std::copy(src_buffer.begin(), src_buffer.end(), lock.data());
             }
-            casted->copy_from_other(stream, *host_buf);
+            casted->copy_from(stream, *host_buf);
             break;
         }
         default:
@@ -159,7 +159,7 @@ TEST_P(copy_and_read_buffer, basic) {
         }
         case allocation_type::usm_device: {
             auto host_buf = _engine->allocate_memory(linear_layout, allocation_type::usm_host);
-            host_buf->copy_from_other(stream, *cldnn_mem_src);
+            host_buf->copy_from(stream, *cldnn_mem_src);
             {
                 cldnn::mem_lock<float> lock(host_buf, stream);
                 std::memcpy(dst_buffer.data(), lock.data(), values_bytes_count);

@@ -40,6 +40,9 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
         return _buffer;
     }
 
+    event::ptr copy_from(stream& stream, const memory& other) override;
+    event::ptr copy_from(stream& stream, const void* host_ptr) override;
+
 protected:
     cl::Buffer _buffer;
 };
@@ -57,6 +60,9 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
         assert(0 == _lock_count);
         return _buffer;
     }
+
+    event::ptr copy_from(stream& /* stream */, const memory& /* other */) override;
+    event::ptr copy_from(stream& /* stream */, const void* /* other */) override;
 
 protected:
     cl::Image2D _buffer;
@@ -100,8 +106,10 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 
     event::ptr fill(stream& stream, unsigned char pattern) override;
     event::ptr fill(stream& stream) override;
-    void copy_from_other(const stream& stream, const memory& other) override;
     shared_mem_params get_internal_params() const override;
+
+    event::ptr copy_from(stream& stream, const memory& other) override;
+    event::ptr copy_from(stream& stream, const void* host_ptr) override;
 protected:
     cl::UsmMemory _buffer;
 };

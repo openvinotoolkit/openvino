@@ -595,7 +595,7 @@ void program_impl::transfer_memory_to_device() {
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
-                device_mem->copy_from_other(get_stream(), mem);
+                device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?

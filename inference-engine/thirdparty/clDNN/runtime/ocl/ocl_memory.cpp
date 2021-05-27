@@ -72,6 +72,19 @@ shared_mem_params gpu_buffer::get_internal_params() const {
         0};
 }
 
+event::ptr gpu_buffer::copy_from(stream& /* stream */, const memory& /* other */) {
+    throw std::runtime_error("[clDNN] copy_from is not implemented for gpu_buffer");
+}
+
+event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr) {
+    auto& cl_stream = dynamic_cast<ocl_stream&>(stream);
+    auto ev = stream.create_base_event();
+    cl::Event ev_ocl = std::dynamic_pointer_cast<base_event>(ev)->get();
+    cl_stream.get_cl_queue().enqueueWriteBuffer(_buffer, false, 0, size(), host_ptr, nullptr, &ev_ocl);
+
+    return ev;
+}
+
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, false), _row_pitch(0), _slice_pitch(0) {
     cl_channel_type type = layout.data_type == data_types::f16 ? CL_HALF_FLOAT : CL_FLOAT;
@@ -189,6 +202,14 @@ shared_mem_params gpu_image2d::get_internal_params() const {
         0};
 }
 
+event::ptr gpu_image2d::copy_from(stream& /* stream */, const memory& /* other */) {
+    throw std::runtime_error("[clDNN] copy_from is not implemented for gpu_image2d");
+}
+
+event::ptr gpu_image2d::copy_from(stream& /* stream */, const void* /* host_ptr */) {
+    throw std::runtime_error("[clDNN] copy_from is not implemented for gpu_image2d");
+}
+
 gpu_media_buffer::gpu_media_buffer(ocl_engine* engine,
                                    const layout& new_layout,
                                    shared_mem_params params)
@@ -292,10 +313,15 @@ event::ptr gpu_usm::fill(stream& stream) {
     return fill(stream, 0);
 }
 
-void gpu_usm::copy_from_other(const stream& stream, const memory& other) {
+event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
     auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
     auto& casted = dynamic_cast<const gpu_usm&>(other);
     cl_stream.get_cl_queue().enqueueCopyUsm(casted.get_buffer(), get_buffer(), _bytes_count, true);
+    return stream.create_user_event(true);
+}
+
+event::ptr gpu_usm::copy_from(stream& /* stream */, const void* /* host_ptr */) {
+    throw std::runtime_error("[clDNN] copy_from is not implemented for gpu_usm");
 }
 
 shared_mem_params gpu_usm::get_internal_params() const {

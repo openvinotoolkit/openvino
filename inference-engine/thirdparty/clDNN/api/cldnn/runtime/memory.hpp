@@ -54,7 +54,8 @@ struct memory {
         return true;
     }
 
-    virtual void copy_from_other(const stream& /* stream */, const memory& /* other */) {}
+    virtual event::ptr copy_from(stream& /* stream */, const memory& /* other */) = 0;
+    virtual event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */) = 0;
 
 protected:
     engine* _engine;
@@ -83,6 +84,9 @@ struct simple_attached_memory : memory {
         0,
 #endif
         0}; };
+
+    event::ptr copy_from(stream& /* stream */, const memory& /* other */) override { return nullptr; };
+    event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */) override { return nullptr; }
 
 private:
     void* _pointer;

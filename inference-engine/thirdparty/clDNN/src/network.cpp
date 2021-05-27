@@ -683,7 +683,7 @@ void network_impl::transfer_memory_to_device(std::shared_ptr<primitive_inst> ins
         // Allocate and transfer memory
         auto& mem_pool = inst_mem.get_engine()->get_memory_pool();
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
-        device_mem->copy_from_other(get_stream(), inst_mem);
+        device_mem->copy_from(get_stream(), inst_mem);
         mem_pool.release_memory(&inst_mem, node.id(), get_id());
         instance->set_output_memory(device_mem);
     }
