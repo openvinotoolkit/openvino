@@ -60,11 +60,7 @@ namespace ngraph
                     float seed = node.get_attribute_value<float>("seed", std::random_device()());
 
                     auto shape_attr = node.get_attribute_value<std::vector<int64_t>>("shape");
-                    Shape shape;
-                    std::transform(shape_attr.begin(),
-                                   shape_attr.end(),
-                                   std::back_inserter(shape),
-                                   [](int64_t dim) -> size_t { return static_cast<size_t>(dim); });
+                    Shape shape(shape_attr.begin(), shape_attr.end());
 
                     using ONNX_NAMESPACE::TensorProto;
                     TensorProto::DataType dtype =
