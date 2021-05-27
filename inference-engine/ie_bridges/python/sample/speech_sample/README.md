@@ -11,6 +11,7 @@ Automatic Speech Recognition Python sample application demonstrates how to use t
 | Import/Export Model | [IECore.import_network], [ExecutableNetwork.export]                                                   | The GNA plugin supports loading and saving of the GNA-optimized model |
 | Network Operations  | [IENetwork.batch_size], [CDataPtr.shape], [ExecutableNetwork.input_info], [ExecutableNetwork.outputs] | Managing of network: configure input and output blobs                 |
 | Network Operations  | [IENetwork.add_outputs] | Managing of network: Change names of output layers in the network |
+| InferRequest Operations|InferRequest.query_state, VariableState.reset| Gets and resets state control interface for given executable network |
 
 Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 
