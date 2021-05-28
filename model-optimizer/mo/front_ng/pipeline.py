@@ -81,7 +81,7 @@ def moc_pipeline(argv: argparse.Namespace):
                 for i in range(oldPartShape.rank.get_length()):
                     # Assume batch size is always 1-st dimension in shape
                     # Keep other dimensions unchanged
-                    newshape.append(Dimension(argv.batch) if i is 0 else oldPartShape.get_dimension(i))
+                    newshape.append(Dimension(argv.batch) if i == 0 else oldPartShape.get_dimension(i))
                     oldshape_converted.append(oldPartShape.get_dimension(i))
 
                 validate_batch_in_shape(oldshape_converted, joinedName)

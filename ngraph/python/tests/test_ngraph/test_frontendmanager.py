@@ -17,7 +17,7 @@ fem = FrontEndManager()
 def test_load_by_framework_caps():
     frontEnds = fem.get_available_front_ends()
     assert frontEnds is not None
-    assert 'mock_py' in frontEnds
+    assert "mock_py" in frontEnds
     caps = [FrontEndCapabilities.DEFAULT,
             FrontEndCapabilities.CUT,
             FrontEndCapabilities.NAMES,
@@ -28,7 +28,7 @@ def test_load_by_framework_caps():
         stat = get_fe_stat(fe)
         assert cap == stat.load_flags
     for i in range(len(caps) - 1):
-        for j in range(i+1, len(caps)):
+        for j in range(i + 1, len(caps)):
             assert caps[i] != caps[j]
 
 
@@ -40,7 +40,7 @@ def test_load_by_unknown_framework():
     except InitializationFailure as exc:
         print(exc)
     else:
-        assert False
+        raise AssertionError("Unexpected exception.")
 
 
 def test_load_from_file():
@@ -49,7 +49,7 @@ def test_load_from_file():
     model = fe.load_from_file("abc.bin")
     assert model is not None
     stat = get_fe_stat(fe)
-    assert 'abc.bin' in stat.load_paths
+    assert "abc.bin" in stat.load_paths
 
 
 def test_convert_model():
@@ -134,7 +134,7 @@ def test_model_get_place_by_operation_and_input_port():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_and_input_port(operationName=name, inputPortIndex=i*2)
+        model.get_place_by_operation_and_input_port(operationName=name, inputPortIndex=i * 2)
         stat = get_mdl_stat(model)
         assert stat.get_place_by_operation_and_input_port == i
         assert stat.lastArgString == name
@@ -145,7 +145,7 @@ def test_model_get_place_by_operation_and_output_port():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_and_output_port(operationName=name, outputPortIndex=i*2)
+        model.get_place_by_operation_and_output_port(operationName=name, outputPortIndex=i * 2)
         stat = get_mdl_stat(model)
         assert stat.get_place_by_operation_and_output_port == i
         assert stat.lastArgString == name
@@ -365,15 +365,6 @@ def test_place_is_equal():
     assert place.is_equal(other=place2) is not None
     stat = get_place_stat(place)
     assert stat.is_equal == 1
-    assert stat.lastArgPlace == place2
-
-
-def test_place_is_equal_data():
-    model, place = init_place()
-    place2 = model.get_place_by_tensor_name("2")
-    assert place.is_equal_data(other=place2) is not None
-    stat = get_place_stat(place)
-    assert stat.is_equal_data == 1
     assert stat.lastArgPlace == place2
 
 
