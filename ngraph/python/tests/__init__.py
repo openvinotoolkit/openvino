@@ -51,8 +51,6 @@ xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
-                               "by CPU plugin")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
 xfail_issue_36487 = xfail_test(reason="Assertion error - mvn operator computation mismatch")
