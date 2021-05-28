@@ -35,7 +35,7 @@ namespace ngraph
                 const ngraph::element::Type output_type,
                 const std::vector<float>& output_rois,
                 const std::vector<float>& output_scores,
-                const Shape& output_boxes_shape,
+                const Shape& output_rois_shape,
                 const Shape& output_scores_shape);
         } // namespace reference
     }     // namespace runtime
