@@ -126,3 +126,9 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
     NGRAPH_OP_SCOPE(v1_Transpose_evaluate);
     return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);
 }
+
+bool op::v1::Transpose::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Transpose_has_evaluate);
+    return get_input_element_type(1).is_integral_number();
+}

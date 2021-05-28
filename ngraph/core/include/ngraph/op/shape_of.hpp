@@ -43,6 +43,7 @@ namespace ngraph
                 bool get_is_foldable() const { return m_is_foldable; }
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const override;
+                bool has_evaluate() const override;
                 bool evaluate_lower(const HostTensorVector& output_values) const override;
                 bool evaluate_upper(const HostTensorVector& output_values) const override;
                 bool constant_fold(OutputVector& output_values,
@@ -81,6 +82,7 @@ namespace ngraph
                 bool get_is_foldable() const { return m_is_foldable; }
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const override;
+                bool has_evaluate() const override;
                 bool evaluate_lower(const HostTensorVector& output_values) const override;
                 bool evaluate_upper(const HostTensorVector& output_values) const override;
                 bool constant_fold(OutputVector& output_values,

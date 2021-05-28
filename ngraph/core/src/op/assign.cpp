@@ -151,6 +151,12 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
     return true;
 }
 
+bool op::v6::Assign::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Assign_has_evaluate);
+    return true;
+}
+
 bool op::v6::Assign::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)
 {
     return false;

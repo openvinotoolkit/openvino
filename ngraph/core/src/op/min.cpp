@@ -72,6 +72,22 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
     return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }
 
+bool op::v1::ReduceMin::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_ReduceMin_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}
+
 bool op::v1::ReduceMin::evaluate_lower(const HostTensorVector& output_values) const
 {
     if (!input_value(1).get_tensor().has_and_set_bound())

@@ -71,3 +71,20 @@ bool op::Cos::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
     NGRAPH_OP_SCOPE(v0_Cos_evaluate);
     return cosop::evaluate_cos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
+
+bool op::Cos::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Cos_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::boolean:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}

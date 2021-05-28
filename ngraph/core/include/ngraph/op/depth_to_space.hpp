@@ -60,6 +60,7 @@ namespace ngraph
                 void validate_and_infer_types() override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             protected:
                 std::size_t m_blocksize;

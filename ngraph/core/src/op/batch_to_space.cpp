@@ -252,3 +252,11 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v1_BatchToSpace);
     return batch_to_space_evaluate(outputs, inputs);
 }
+
+bool ngraph::op::v1::BatchToSpace::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_BatchToSpace_has_evaluate);
+    return !get_input_partial_shape(0).is_dynamic() &&
+           (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5) &&
+           get_input_shape(0).size() <= shape_size(get_input_shape(1));
+}

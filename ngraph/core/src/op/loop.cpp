@@ -327,6 +327,18 @@ bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVec
     return true;
 }
 
+bool op::v5::Loop::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v5_Loop_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64: return true;
+    default: break;
+    }
+    return false;
+}
+
 void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) const
 {
     dst.set_arguments(new_args);

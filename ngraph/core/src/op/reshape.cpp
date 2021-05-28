@@ -329,6 +329,24 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
     return evaluate_reshape(outputs, inputs);
 }
 
+bool op::v1::Reshape::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Reshape_has_evaluate);
+    switch (get_input_element_type(1))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64: return true;
+    default: break;
+    }
+    return false;
+}
+
 bool op::v1::Reshape::evaluate_lower(const HostTensorVector& output_values) const
 {
     if (!input_value(1).get_tensor().has_and_set_bound())

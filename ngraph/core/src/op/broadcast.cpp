@@ -221,6 +221,13 @@ bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
     return broadcast_evaluate(outputs, inputs);
 }
 
+bool op::v3::Broadcast::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_Broadcast_has_evaluate);
+    return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
+           m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::BIDIRECTIONAL;
+}
+
 namespace
 {
     using namespace op;
@@ -312,4 +319,11 @@ bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v1_Broadcast_evaluate);
     return op::util::BroadcastBase::evaluate(outputs, inputs);
+}
+
+bool op::v1::Broadcast::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Broadcast_has_evaluate);
+    return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
+           m_mode.m_type == BroadcastType::NUMPY;
 }

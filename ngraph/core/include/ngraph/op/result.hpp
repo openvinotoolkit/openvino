@@ -36,6 +36,7 @@ namespace ngraph
                 bool needs_default_layout() const { return m_needs_default_layout; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
 

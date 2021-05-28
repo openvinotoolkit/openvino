@@ -62,3 +62,19 @@ bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVe
     NGRAPH_OP_SCOPE(v3_Atanh_evaluate);
     return atanhop::evaluate_atanh(inputs[0], outputs[0]);
 }
+
+bool op::v3::Atanh::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Atanh_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}
