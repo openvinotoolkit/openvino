@@ -6,6 +6,7 @@
 #include "binary_convolution_kernel_generic.h"
 #include <string>
 #include <core/actual_kernels/activation/activation_kernel_base.h>
+#include <core/actual_kernels/eltwise/eltwise_kernel_base.h>
 
 namespace kernel_selector {
 
@@ -125,6 +126,8 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
         std::string vec_data_type = fused_dep_codegen.GetInputTypeName(0, 2);
         std::string sc = "sc" + std::to_string(op_id);
         std::string sh = "sh" + std::to_string(op_id);
+        std::string e_add = "e_add" + std::to_string(op_id);
+        std::string e_mul = "e_mul" + std::to_string(op_id);
         switch (fused_dep.GetType()) {
             case KernelType::SCALE: {
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
@@ -215,6 +218,23 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
 
                     jit.Merge(MakeActivationJitConstants(activation, fused_dep.output_tensor.GetDType(), suffix));
                     eltwise_fused_ops += "\\\n\tres = ACTIVATION" + suffix + "((OUTPUT_TYPE)res, ACTIVATION_PARAMS" + suffix + ");";
+                }
+                break;
+            }
+            case KernelType::ELTWISE: {
+                std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
+                std::string var_name = fused_dep_codegen.GetInputVarName(0);
+                prepare_data += vec_data_type + " " + var_name + " = " + cast_type +
+                                get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
+
+                auto eltwise_p = std::dynamic_pointer_cast<eltwise_fuse_params>(fused_dep.op_params);
+
+                if (eltwise_p->mode == EltwiseMode::ADD) {
+                    eltwise_fused_ops += data_type + " " + e_add + " = (i < 16) ? " + var_name + ".s0" + " : " + var_name + ".s1;";
+                    eltwise_fused_ops += "res = res+" + e_add +";";
+                } else {
+                    eltwise_fused_ops += data_type + " " + e_mul + " = (i < 16) ? " + var_name + ".s0" + " : " + var_name + ".s1;";
+                    eltwise_fused_ops += "res = res*" + e_mul +";";
                 }
                 break;
             }
