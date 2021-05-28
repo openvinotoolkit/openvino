@@ -69,7 +69,7 @@ NGRAPH_TEST(${BACKEND_NAME}, exp_scalar)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({a});
     test_case.add_expected_output<float>(shape, {expf(13)});
-    test_case.run();
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, exp_in_place)
@@ -86,5 +86,5 @@ NGRAPH_TEST(${BACKEND_NAME}, exp_in_place)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({a});
     test_case.add_expected_output<float>(shape, {expf(expf(1)), expf(expf(3))});
-    test_case.run();
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
