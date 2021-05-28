@@ -34,7 +34,7 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
         auto axis_node = std::dynamic_pointer_cast<ngraph::opset7::Constant>(split_node->input_value(1).get_node_shared_ptr());
         if (!axis_node)
             return false;
-        auto axis_vec = axis_node->cast_vector<int32_t>();
+        auto axis_vec = axis_node->cast_vector<int64_t>();
         if (axis_vec.size() != 1)
             return false;
         auto axis_value = axis_vec[0];
@@ -47,7 +47,7 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
             auto squeeze_axes = std::dynamic_pointer_cast<ngraph::opset7::Constant>(squeeze_node->input_value(1).get_node_shared_ptr());
             if (!squeeze_axes)
                 return false;
-            auto squeeze_axes_vec = squeeze_axes->cast_vector<int32_t>();
+            auto squeeze_axes_vec = squeeze_axes->cast_vector<int64_t>();
             if (squeeze_axes_vec.size() != 1 || squeeze_axes_vec[0] != axis_value)
                 return false;
         }
@@ -59,14 +59,14 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
         if (!inp_p_shape.rank().is_static())
             return false;
         size_t rank = input.get_partial_shape().rank().get_length();
-        std::vector<int32_t> order(rank);
+        std::vector<int64_t> order(rank);
         std::iota(order.begin(), order.end(), 0);
         order.erase(order.begin() + axis_value);
         order.insert(order.begin() + concat_axis, axis_value);
 
-        auto transpose_order = ngraph::opset7::Constant::create(element::i32, {rank}, order);
+        auto transpose_order = ngraph::opset7::Constant::create(element::i64, {rank}, order);
         auto transpose = register_new_node<ngraph::opset7::Transpose>(input, transpose_order);
-        auto shape_after = ngraph::opset7::Constant::create(element::i32, { rank - 1 }, concat_node->get_output_shape(0));
+        auto shape_after = ngraph::opset7::Constant::create(element::i64, { rank - 1 }, concat_node->get_output_shape(0));
         auto reshape = std::make_shared<ngraph::opset7::Reshape>(transpose, shape_after, false);
 
         reshape->set_friendly_name(m.get_match_root()->get_friendly_name());
