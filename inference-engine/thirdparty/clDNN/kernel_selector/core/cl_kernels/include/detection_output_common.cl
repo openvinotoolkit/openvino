@@ -29,7 +29,7 @@
 
 #define SCORES_COUNT (((TOP_K != -1) && (TOP_K < NUM_OF_PRIORS))? TOP_K : NUM_OF_PRIORS)
 
-#define OUTPUT_OFFSET (((NUM_OF_IMAGES + 15) / 16) * 16)
+//#define OUTPUT_OFFSET (((NUM_OF_IMAGES + 15) / 16) * 16)
 #define SCORE_OFFSET 2
 
 #define INPUT_OFFSET (((NUM_IMAGES + 15) / 16) * 16)
