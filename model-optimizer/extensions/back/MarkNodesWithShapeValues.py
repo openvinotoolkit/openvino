@@ -86,8 +86,9 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
                 if node.value.dtype == np.float32:
                     node.out_node(0)['correct_data_type'] = True
                 elif node.value.dtype in [np.float16, np.float64]:
-                    log.debug('Const nodes {} with shape returning values have {} type'.
-                              format(node.soft_get('name', node.id), node.value.dtype))
+                    log.error("Const node '{}' returns shape values of '{}' type but it must be integer or float32. "
+                              'During Elementwise type inference will attempt to cast to float32'.
+                              format(node.soft_get('name', node.id), node.value.dtype), extra={'is_warning': True})
 
     def find_and_replace_pattern(self, graph: Graph):
         shape_accepting_nodes = self.get_nodes_with_shape_inputs(graph)
