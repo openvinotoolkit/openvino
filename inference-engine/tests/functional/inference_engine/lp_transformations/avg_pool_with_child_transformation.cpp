@@ -22,7 +22,7 @@
 using namespace testing;
 using namespace ngraph::pass;
 
-class AvgPoolWithHandledChildTransformationTestValues {
+class AvgPoolWithChildTransformationTestValues {
 public:
 public:
     class Actual {
@@ -49,16 +49,16 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
-    AvgPoolWithHandledChildTransformationTestValues> AvgPoolWithHandledChildTransformationParams;
+    AvgPoolWithChildTransformationTestValues> AvgPoolWithChildTransformationParams;
 
-class AvgPoolWithHandledChildTransformation : public LayerTransformation, public testing::WithParamInterface<AvgPoolWithHandledChildTransformationParams> {
+class AvgPoolWithChildTransformation : public LayerTransformation, public testing::WithParamInterface<AvgPoolWithChildTransformationParams> {
 public:
     void SetUp() override {
         ngraph::element::Type precision;
         ngraph::Shape shape;
         // bool addFakeQuantize;
         std::string additionalLayer;
-        AvgPoolWithHandledChildTransformationTestValues testValues;
+        AvgPoolWithChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = GetParam();
         actualFunction = ngraph::builder::subgraph::AvgPoolFunction::getOriginal(
             precision,
@@ -85,12 +85,12 @@ public:
             testValues.expected.dequantizationEnd);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<AvgPoolWithHandledChildTransformationParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<AvgPoolWithChildTransformationParams> obj) {
         ngraph::element::Type precision;
         ngraph::Shape shape;
         // bool addFakeQuantize;
         std::string additionalLayer;
-        AvgPoolWithHandledChildTransformationTestValues testValues;
+        AvgPoolWithChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = obj.param;
 
         std::ostringstream result;
@@ -100,12 +100,16 @@ public:
             testValues.actual.dequantization << "_" <<
             testValues.expected.dequantizationBefore << "_" <<
             testValues.expected.preicsionAfterOperation << "_" <<
-            testValues.expected.dequantizationAfter;
+            testValues.expected.dequantizationAfter << "_additional_operations_";
+        for (const auto& elem : testValues.additionalOperations) {
+            result << elem << "_";
+        }
+
         return result.str();
     }
 };
 
-TEST_P(AvgPoolWithHandledChildTransformation, CompareFunctions) {
+TEST_P(AvgPoolWithChildTransformation, CompareFunctions) {
     InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
@@ -122,7 +126,7 @@ const std::vector<ngraph::Shape> shapes = {
     { 1, 3, 72, 48 }
 };
 
-const std::vector<AvgPoolWithHandledChildTransformationTestValues> testValues = {
+const std::vector<AvgPoolWithChildTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {
         LayerTransformation::createParamsU8I8(),
@@ -154,14 +158,29 @@ const std::vector<AvgPoolWithHandledChildTransformationTestValues> testValues = 
             {{}, {}, {0.02f}},
             {}
         }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { "unsupported_convolution" },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.02f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::f32,
+            {{}, {}, {0.02f}},
+            {}
+        }
     }
 };
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
-    AvgPoolWithHandledChildTransformation,
+    AvgPoolWithChildTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
-    AvgPoolWithHandledChildTransformation::getTestCaseName);
+    AvgPoolWithChildTransformation::getTestCaseName);

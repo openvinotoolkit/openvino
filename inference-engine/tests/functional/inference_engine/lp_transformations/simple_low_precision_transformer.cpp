@@ -13,6 +13,7 @@
 #include <low_precision/low_precision.hpp>
 #include <low_precision/align_quantization_parameters.hpp>
 #include <low_precision/markup_per_tensor_quantization.hpp>
+#include <low_precision/markup_can_be_quantized.hpp>
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -21,6 +22,7 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions,
     const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions) {
     lowPrecisionManager = std::make_shared<ngraph::pass::Manager>();
+    lowPrecisionManager->register_pass<ngraph::pass::low_precision::MarkupCanBeQuantized>();
     lowPrecisionManager->register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionRestrictions);
     lowPrecisionManager->register_pass<ngraph::pass::low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
     lowPrecisionManager->register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
