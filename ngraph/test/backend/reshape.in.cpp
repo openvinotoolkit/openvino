@@ -336,7 +336,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_to_same_shape)
     const Shape input_shape{};
     auto param = make_shared<op::Parameter>(element::f32, input_shape);
     auto r = make_shared<op::v1::Reshape>(
-        param, op::Constant::create(element::i64, {}, std::vector<int64_t>{-1}), false);
+        param, op::Constant::create(element::i64, {}, std::vector<int64_t>{1}), false);
     auto function = make_shared<Function>(r, ParameterVector{param});
 
     auto test_case = test::TestCase<TestEngine>(function);
