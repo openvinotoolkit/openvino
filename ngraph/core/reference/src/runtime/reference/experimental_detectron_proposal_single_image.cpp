@@ -25,9 +25,58 @@ namespace ngraph
                 const float* deltas,
                 const float* scores,
                 const op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes& attrs,
+                const Shape& im_info_shape,
+                const Shape& anchors_shape,
+                const Shape& deltas_shape,
+                const Shape& scores_shape,
                 float* output_rois,
                 float* output_scores)
             {
+                const int64_t anchors_num = static_cast<int64_t>(scores_shape[0]);
+
+                // bottom shape: (num_anchors) x H x W
+                const int64_t bottom_H = static_cast<int64_t>(deltas_shape[1]);
+                const int64_t bottom_W = static_cast<int64_t>(deltas_shape[2]);
+
+                // input image height & width
+                const float img_H = im_info[0];
+                const float img_W = im_info[1];
+
+                // scale factor for height & width
+
+                // minimum box width & height
+                const float min_box_H = attrs.min_size;
+                const float min_box_W = attrs.min_size;
+
+                // number of all proposals = num_anchors * H * W
+                const int64_t num_proposals = anchors_num * bottom_H * bottom_W;
+
+                // number of top-n proposals before NMS
+                const int64_t pre_nms_topn = std::min(num_proposals, attrs.pre_nms_count);
+
+                // number of final RoIs
+                int64_t num_rois = 0;
+
+                // enumerate all proposals
+                //   num_proposals = num_anchors * H * W
+                //   (x1, y1, x2, y2, score) for each proposal
+                // NOTE: for bottom, only foreground scores are passed
+                struct ProposalBox {
+                    float x0;
+                    float y0;
+                    float x1;
+                    float y1;
+                    float score;
+                };
+                std::vector<ProposalBox> proposals_(num_proposals);
+                std::vector<float> unpacked_boxes(5 * pre_nms_topn);
+                std::vector<int64_t> is_dead(pre_nms_topn);
+
+                // Execute
+                int64_t batch_size = 1;
+                for (int64_t n = 0; n < batch_size; ++n)
+                {
+                }
             }
 
             void experimental_detectron_proposals_single_image_postprocessing(

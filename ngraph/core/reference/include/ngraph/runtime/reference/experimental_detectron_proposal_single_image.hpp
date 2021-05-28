@@ -26,6 +26,10 @@ namespace ngraph
                 const float* deltas,
                 const float* scores,
                 const op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes& attrs,
+                const Shape& im_info_shape,
+                const Shape& anchors_shape,
+                const Shape& deltas_shape,
+                const Shape& scores_shape,
                 float* output_rois,
                 float* output_scores);
 
