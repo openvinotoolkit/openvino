@@ -83,12 +83,15 @@ class StridedSlice(Op):
                 slices[i] = ...
                 in_idx += input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
             else:
-                start, stop = begin[i], end[i]
-                if not node.begin_mask[i]:  # if begin, and end are not specified take the whole range
-                    start = None
-                if not node.end_mask[i]:
-                    stop = None
-                slices[i] = slice(start, stop, strides[i])
+                if begin is not None and end is not None:
+                    start, stop = begin[i], end[i]
+                    if not node.begin_mask[i]:  # if begin, and end are not specified take the whole range
+                        start = None
+                    if not node.end_mask[i]:
+                        stop = None
+                    slices[i] = slice(start, stop, strides[i])
+                else:
+                    slices[i] = None
             in_idx += 1 if not node.new_axis_mask[i] else 0
         return slices
 
@@ -106,18 +109,21 @@ class StridedSlice(Op):
         begin = node.in_port(1).data.get_value()
         end = node.in_port(2).data.get_value()
 
-        if begin is None or end is None:
-            raise Error(
-                'StridedSlice operation for node {} supports only constant begin and end inputs'.format(node_name))
+        # if begin is None or end is None:
+        #     raise Error(
+        #         'StridedSlice operation for node {} supports only constant begin and end inputs'.format(node_name))
 
         if node.is_in_port_connected(3):
             strides = node.in_port(3).data.get_value()
-            if strides is None:
-                raise Error(
-                    'StridedSlice operation for node {} supports only constant strides input'.format(node_name))
+            # if strides is None:
+            #     raise Error(
+            #         'StridedSlice operation for node {} supports only constant strides input'.format(node_name))
         else:
-            strides = np.ones_like(begin)
-        assert len(begin) == len(end) == len(strides), \
-            'begin, end, and strides of StridedSlice node {} must be of the same length. Got insted:' \
-            'begin = {}, end = {}, strides = {}'.format(node_name, begin, end, strides)
+            if begin is not None:
+                strides = np.ones_like(begin)
+            else:
+                strides = None
+        # assert len(begin) == len(end) == len(strides), \
+        #     'begin, end, and strides of StridedSlice node {} must be of the same length. Got insted:' \
+        #     'begin = {}, end = {}, strides = {}'.format(node_name, begin, end, strides)
         return begin, end, strides

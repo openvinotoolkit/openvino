@@ -114,7 +114,10 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
 
     in_idx = 0
     for i, s in enumerate(slices):
-        if isinstance(s, slice):
+        if s is None:
+            output_shape.append(-1)
+            in_idx += 1
+        elif isinstance(s, slice):
             if input_shape[in_idx] != -1:
                 output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
             else:

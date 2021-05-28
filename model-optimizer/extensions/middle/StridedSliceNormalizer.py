@@ -116,7 +116,11 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         input_shape = node.in_port(0).data.get_shape()
         input_rank = len(input_shape)
         begin, _, _ = StridedSlice.validate_inputs_and_get_args(node)
-        slice_rank = len(begin)
+        if begin is not None:
+            slice_rank = len(begin)
+        else:
+            # TODO check that this is correct
+            slice_rank = input_rank + np.count_nonzero(node.new_axis_mask) - np.count_nonzero(node.shrink_axis_mask)
 
         StridedSlice.align_mask_with_slice_rank(node, slice_rank)  # if StridedSlice is created after partial_infer
         StridedSliceNormalizer.normalize_slices_attr(node)
@@ -240,6 +244,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
 
             if not (node.new_axis_mask[i] or node.ellipsis_mask[i]):
                 if data_shape[in_idx] != -1:
-                    res_slices[-1] = slice(*res_slices[-1].indices(data_shape[in_idx]))  # convert negative begins/ends
+                    if res_slices[-1] is not None:
+                        res_slices[-1] = slice(*res_slices[-1].indices(data_shape[in_idx]))  # convert negative begins/ends
                 in_idx += 1
         node.slices = np.array(res_slices)
