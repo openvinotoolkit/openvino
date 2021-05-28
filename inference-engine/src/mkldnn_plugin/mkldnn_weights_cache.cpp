@@ -43,8 +43,7 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::findOrCreate
     MKLDNNMemoryPtr newPtr;
 
     if (found == sharedWeights.end()
-        || !(ptr = found->second)
-        || ptr->sharedMemory.expired()) {
+        || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock()))) {
         newPtr = create();
         ptr = std::make_shared<MKLDNNMemoryInfo>(newPtr, valid);
         sharedWeights[key] = ptr;
