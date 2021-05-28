@@ -219,7 +219,7 @@ void op::v1::Reshape::validate_and_infer_types()
                           ".");
     if (shape_pattern_shape.rank().is_static() && shape_pattern_shape.rank().get_length() == 0)
     {
-        set_output_type(0, get_input_element_type(0), shape_pattern_shape);
+        set_output_type(0, get_input_element_type(0), input_pshape);
         return;
     }
     Rank output_rank =
@@ -284,17 +284,27 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs,
     // and zero value dimension
     std::vector<int64_t> out_shape_val;
 
-    switch (inputs[1]->get_element_type())
+    if (inputs[1]->get_shape().empty())
     {
-        COMPUTE_OUT_SHAPE_CASE(i8, inputs[1], out_shape_val);
-        COMPUTE_OUT_SHAPE_CASE(i16, inputs[1], out_shape_val);
-        COMPUTE_OUT_SHAPE_CASE(i32, inputs[1], out_shape_val);
-        COMPUTE_OUT_SHAPE_CASE(i64, inputs[1], out_shape_val);
-        COMPUTE_OUT_SHAPE_CASE(u8, inputs[1], out_shape_val);
-        COMPUTE_OUT_SHAPE_CASE(u16, inputs[1], out_shape_val);
-        COMPUTE_OUT_SHAPE_CASE(u32, inputs[1], out_shape_val);
-        COMPUTE_OUT_SHAPE_CASE(u64, inputs[1], out_shape_val);
-    default: throw ngraph_error("shape_pattern element type is not integral data type");
+        for (const auto& dim : inputs[0]->get_shape())
+        {
+            out_shape_val.push_back(dim);
+        }
+    }
+    else
+    {
+        switch (inputs[1]->get_element_type())
+        {
+            COMPUTE_OUT_SHAPE_CASE(i8, inputs[1], out_shape_val);
+            COMPUTE_OUT_SHAPE_CASE(i16, inputs[1], out_shape_val);
+            COMPUTE_OUT_SHAPE_CASE(i32, inputs[1], out_shape_val);
+            COMPUTE_OUT_SHAPE_CASE(i64, inputs[1], out_shape_val);
+            COMPUTE_OUT_SHAPE_CASE(u8, inputs[1], out_shape_val);
+            COMPUTE_OUT_SHAPE_CASE(u16, inputs[1], out_shape_val);
+            COMPUTE_OUT_SHAPE_CASE(u32, inputs[1], out_shape_val);
+            COMPUTE_OUT_SHAPE_CASE(u64, inputs[1], out_shape_val);
+        default: throw ngraph_error("shape_pattern element type is not integral data type");
+        }
     }
 
     std::vector<Dimension> reshape_pattern;

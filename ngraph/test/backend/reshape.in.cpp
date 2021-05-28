@@ -331,6 +331,40 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_3D_to_scalar)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_to_same_shape)
+{
+    const Shape input_shape{};
+    auto param = make_shared<op::Parameter>(element::f32, input_shape);
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::i64, {}, std::vector<int64_t>{-1}), false);
+    auto function = make_shared<Function>(r, ParameterVector{param});
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    vector<float> input_values(shape_size(input_shape), 1.f);
+    test_case.add_input<float>(input_shape, input_values);
+    test_case.add_expected_output<float>(Shape{}, vector<float>{1.f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_to_same_shape_2)
+{
+    const Shape input_shape{2, 2};
+    auto param = make_shared<op::Parameter>(element::f32, input_shape);
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::i64, {}, std::vector<int64_t>{100}), false);
+    auto function = make_shared<Function>(r, ParameterVector{param});
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    vector<float> input_values(shape_size(input_shape));
+    for (size_t i = 0; i < shape_size(input_shape); i++)
+        input_values[i] = static_cast<float>(i);
+    test_case.add_input<float>(input_shape, input_values);
+    test_case.add_expected_output<float>(Shape{2, 2}, input_values);
+
+    test_case.run();
+}
+
 #if NGRAPH_INTERPRETER_ENABLE
 
 NGRAPH_TEST(${BACKEND_NAME}, reshape_shufflenet_5d)
