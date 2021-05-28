@@ -76,25 +76,22 @@ namespace ngraph
         {
         public:
             NGRAPH_RTTI_DECLARATION;
-            enum class InitialValue
-            {
-                PARAMETER_SUBGRAPH,
-                CONST_SUBGRAPH
-            };
 
-            explicit LowLatency_v2(
-                int64_t iterations = 1,
-                LowLatency_v2::InitialValue init_value = InitialValue::CONST_SUBGRAPH)
-                : m_init_value(init_value)
-                , m_iterations(iterations)
+            using SubGraphOpName = std::string;
+            using IterationCount = int64_t;
+            using SubGraphIterations = const std::map<SubGraphOpName, IterationCount>;
+            explicit LowLatency_v2(bool use_const_initializer = true,
+                                   const SubGraphIterations& sub_graph_iterations = {})
+                : m_use_const_initializer(use_const_initializer)
+                , m_sub_graph_iterations(sub_graph_iterations)
             {
             }
 
             bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
         private:
-            InitialValue m_init_value;
-            int64_t m_iterations;
+            bool m_use_const_initializer;
+            std::map<SubGraphOpName, int64_t> m_sub_graph_iterations;
         };
     } // namespace pass
 } // namespace ngraph

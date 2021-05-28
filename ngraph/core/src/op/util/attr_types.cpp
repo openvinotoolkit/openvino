@@ -238,7 +238,8 @@ namespace ngraph
              {"low_latency_regular_api", op::MemoryTransformation::LOW_LATENCY_REGULAR_API},
              {"low_latency_v2", op::MemoryTransformation::LOW_LATENCY_V2},
              {"low_latency_v2_regular_api", op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API},
-             {"low_latency_v2_param_init", op::MemoryTransformation::LOW_LATENCY_V2_PARAM_INIT}});
+             {"low_latency_v2_param_init",
+              op::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT}});
         return enum_names;
     }
 } // namespace ngraph

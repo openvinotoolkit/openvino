@@ -458,7 +458,7 @@ namespace ngraph
             LOW_LATENCY_REGULAR_API,
             LOW_LATENCY_V2,
             LOW_LATENCY_V2_REGULAR_API,
-            LOW_LATENCY_V2_PARAM_INIT
+            LOW_LATENCY_V2_ORIGINAL_INIT
         };
 
         NGRAPH_API

@@ -18,6 +18,11 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency_v2, "LowLatency_v2", 0);
 using namespace std;
 using namespace ngraph;
 
+string generate_variable_name(const string& op_name, const string& param_name, int variable_idx)
+{
+    return op_name + "/" + param_name + "/" + "variable_" + to_string(variable_idx);
+}
+
 ngraph::pass::LowLatency::LowLatency()
 {
     auto tensor_iterator = ngraph::pattern::wrap_type<opset6::TensorIterator, opset6::Loop>();
@@ -64,11 +69,12 @@ ngraph::pass::LowLatency::LowLatency()
                 const auto& inputs_to = func->get_parameters()
                                             .at(merged_in->m_body_parameter_index)
                                             ->get_output_target_inputs(0);
-                const std::string variable_name(sub_graph_op->get_friendly_name() + "/" +
-                                                func->get_parameters()
-                                                    .at(merged_in->m_body_parameter_index)
-                                                    ->get_friendly_name() +
-                                                "/variable_" + std::to_string(variable_id));
+                const std::string variable_name(
+                    generate_variable_name(sub_graph_op->get_friendly_name(),
+                                           func->get_parameters()
+                                               .at(merged_in->m_body_parameter_index)
+                                               ->get_friendly_name(),
+                                           variable_id));
                 auto variable = std::make_shared<Variable>(
                     VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name});
                 auto read_value = std::make_shared<opset6::ReadValue>(
@@ -129,7 +135,8 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
             if (sub_graph_op->get_output_size() != 1)
                 out_name += "." + std::to_string(out->m_output_index);
 
-            // IECompatibility: insert identity (Unsqueeze + Squeeze) to store the TensorIterator output names
+            // IECompatibility: insert identity (Unsqueeze + Squeeze) to store the TensorIterator
+            // output names
             auto axis_1 = Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
             auto identity_1 = std::make_shared<Unsqueeze>(connect_to, axis_1);
             auto identity_2 = std::make_shared<Squeeze>(identity_1, axis_1);
@@ -140,6 +147,7 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
             input_to.replace_source_output(identity_2);
         }
     }
+    outer_f->add_sinks(sub_graph_op->get_function()->get_sinks());
     ngraph::copy_runtime_info(sub_graph_op, sub_graph_op->get_function()->get_ops());
     ngraph::copy_runtime_info(sub_graph_op, new_ops);
 }
@@ -154,11 +162,6 @@ Output<Node> create_init_subgraph(const shared_ptr<op::util::SubGraphOp>& sub_gr
     auto broadcast = make_shared<Broadcast>(const_zero, shape_of);
     copy_runtime_info(sub_graph_op, {const_zero, shape_of, broadcast});
     return broadcast->output(0);
-}
-
-string generate_variable_name(const string& op_name, const string& param_name, int variable_idx)
-{
-    return op_name + "/" + param_name + "/" + "variable_" + to_string(variable_idx);
 }
 
 bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
@@ -178,9 +181,14 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                 if (trip_count && num_iter > 0 &&
                     trip_count->get_output_target_inputs(0).size() == 1)
                 {
-                    auto iterations =
-                        std::make_shared<Constant>(element::i64, Shape{}, m_iterations);
-                    replace_node(trip_count, iterations);
+                    int64_t iterations = 1;
+                    auto loop_iters = m_sub_graph_iterations.find(loop->get_friendly_name());
+                    if (loop_iters != m_sub_graph_iterations.end())
+                    {
+                        iterations = loop_iters->second;
+                    }
+                    auto iter_const = std::make_shared<Constant>(element::i64, Shape{}, iterations);
+                    replace_node(trip_count, iter_const);
                     loop->validate_and_infer_types();
                 }
                 else
@@ -204,6 +212,16 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                         params.at(merged_in->m_body_parameter_index)->get_friendly_name();
                     const string& var_name = generate_variable_name(
                         sub_graph_op->get_friendly_name(), param_name, variable_id);
+
+                    if (func->get_variable_by_id(var_name) != nullptr ||
+                        f->get_variable_by_id(var_name) != nullptr)
+                    {
+                        // ReadValue/Assign with this Variable id already exist in the graph
+                        // Most likely LowLatency v1/v2 transformation has already been applied
+                        variable_id++;
+                        continue;
+                    }
+
                     VariableInfo var_info{PartialShape::dynamic(), element::dynamic, var_name};
                     auto variable = make_shared<Variable>(var_info);
 
@@ -211,7 +229,7 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                     // Layers -> [new op: ReadValue] -> Subgraph operation
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
                     Output<Node> read_value_in = input.get_source_output();
-                    if (m_init_value == InitialValue::CONST_SUBGRAPH)
+                    if (m_use_const_initializer)
                     {
                         read_value_in = create_init_subgraph(sub_graph_op, read_value_in);
                     }
@@ -253,6 +271,8 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                         }
                     }
                 }
+
+                variable_id++;
             }
 
             if (sub_graph_op->get_num_iterations() == 1)

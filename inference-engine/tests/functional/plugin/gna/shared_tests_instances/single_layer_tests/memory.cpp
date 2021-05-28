@@ -14,7 +14,7 @@ std::vector<ngraph::op::MemoryTransformation> transformation {
         ngraph::op::MemoryTransformation::NONE,
         ngraph::op::MemoryTransformation::LOW_LATENCY_V2,
         ngraph::op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API,
-        ngraph::op::MemoryTransformation::LOW_LATENCY_V2_PARAM_INIT
+        ngraph::op::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT
 };
 
 const std::vector<InferenceEngine::SizeVector> inShapes = {

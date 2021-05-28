@@ -187,10 +187,10 @@ namespace LayerTestsDefinitions {
            manager.register_pass<pass::LowLatency_v2>(iteration_count);
            manager.run_passes(function);
            LoadNetwork();
-       } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_PARAM_INIT) {
+       } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
            function->validate_nodes_and_infer_types();
            pass::Manager manager;
-           manager.register_pass<pass::LowLatency_v2>(iteration_count, pass::LowLatency_v2::InitialValue::PARAMETER_SUBGRAPH);
+           manager.register_pass<pass::LowLatency_v2>(false);
            manager.run_passes(function);
            LoadNetwork();
         } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {

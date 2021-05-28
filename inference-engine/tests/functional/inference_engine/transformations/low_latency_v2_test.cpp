@@ -37,6 +37,38 @@ Output<Node> insert_identity(const Output<Node>& in_node) {
     return std::make_shared<Squeeze>(identity_1, axis_1);
 }
 
+std::shared_ptr<ngraph::Function> createLSTMBody(const std::shared_ptr<Parameter>& Xi,
+                                                 const std::shared_ptr<Parameter>& H_t,
+                                                 const std::shared_ptr<Parameter>& C_t,
+                                                 bool is_loop = false) {
+    // Body
+    auto axis = Constant::create(element::i64, Shape{}, {0});
+    auto squeeze = std::make_shared<Squeeze>(Xi, axis);
+
+    auto w_val = std::vector<float>(512 * 16, 0);
+    auto r_val = std::vector<float>(512 * 128, 0);
+    auto b_val = std::vector<float>(512, 0);
+    auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
+    auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
+    auto B = Constant::create(element::f32, Shape{512}, b_val);
+
+    auto lstm_cell = std::make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
+    auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
+    auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
+    auto res_2 = std::make_shared<Result>(unsqueeze);
+    auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
+
+    auto func = std::make_shared<Function>(OutputVector{res_1, res_2, res_3},
+                                           ParameterVector{Xi, H_t, C_t});
+    if (is_loop) {
+        auto body_condition = std::make_shared<Constant>(
+                element::boolean, Shape{1}, true);
+        auto cond_res = std::make_shared<Result>(body_condition);
+        func->add_results({cond_res});
+    }
+    return func;
+}
+
 TEST(TransformationTests, LowLatency_v2_LSTM) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
@@ -49,33 +81,19 @@ TEST(TransformationTests, LowLatency_v2_LSTM) {
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<Squeeze>(Xi, axis);
-
-        auto w_val = std::vector<float>(512 * 16, 0);
-        auto r_val = std::vector<float>(512 * 128, 0);
-        auto b_val = std::vector<float>(512, 0);
-        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = Constant::create(element::f32, Shape{512}, b_val);
-
-        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
-        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3}, ParameterVector{Xi, H_t, C_t});
+        auto body = createLSTMBody(Xi, H_t, C_t);
+        auto results = body->get_results();
 
         auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
         tensor_iterator->set_friendly_name("LSTMTensorIterator");
 
-        tensor_iterator->set_merged_input(C_t, C_init, res_3);
+        tensor_iterator->set_merged_input(C_t, C_init, results[2]);
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
-        tensor_iterator->set_merged_input(H_t, H_init, res_1);
+        tensor_iterator->set_merged_input(H_t, H_init, results[0]);
 
-        auto out0 = tensor_iterator->get_iter_value(res_1, -1);
-        auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
+        tensor_iterator->get_iter_value(results[0], -1);
+        tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
@@ -292,33 +310,18 @@ TEST(TransformationTests, LowLatency_v2_LSTMReshape) {
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<Squeeze>(Xi, axis);
-
-        auto w_val = std::vector<float>(512 * 16, 0);
-        auto r_val = std::vector<float>(512 * 128, 0);
-        auto b_val = std::vector<float>(512, 0);
-        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = Constant::create(element::f32, Shape{512}, b_val);
-
-        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
-        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell, axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3},
-                                                       ParameterVector{Xi, H_t, C_t});
+        auto body = createLSTMBody(Xi, H_t, C_t);
+        auto results = body->get_results();
 
         auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
 
-        tensor_iterator->set_merged_input(C_t, C, res_3);
+        tensor_iterator->set_merged_input(C_t, C, results[2]);
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
-        tensor_iterator->set_merged_input(H_t, H, res_1);
+        tensor_iterator->set_merged_input(H_t, H, results[0]);
 
-        auto out0 = tensor_iterator->get_iter_value(res_1, -1);
-        auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
+        auto out0 = tensor_iterator->get_iter_value(results[0], -1);
+        auto out1 = tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
@@ -390,22 +393,9 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop) {
         auto axis = Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<Squeeze>(Xi, axis);
 
-        auto w_val = std::vector<float>(512 * 16, 0);
-        auto r_val = std::vector<float>(512 * 128, 0);
-        auto b_val = std::vector<float>(512, 0);
-        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = Constant::create(element::f32, Shape{512}, b_val);
-
-        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
-        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
-        auto body_condition = std::make_shared<Constant>(
-                element::boolean, Shape{1}, true);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3, body_condition},
-                                                       ParameterVector{Xi, H_t, C_t});
+        // Body
+        auto body = createLSTMBody(Xi, H_t, C_t, true);
+        auto results = body->get_results();
 
         auto trip_count =
                 std::make_shared<Constant>(element::i64, Shape{}, 10);
@@ -416,12 +406,12 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop) {
         loop->set_function(body);
         loop->set_friendly_name("LSTMLoop");
 
-        loop->set_merged_input(C_t, C_init, res_3);
+        loop->set_merged_input(C_t, C_init, results[2]);
         loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
-        loop->set_merged_input(H_t, H_init, res_1);
+        loop->set_merged_input(H_t, H_init, results[0]);
 
-        auto out0 = loop->get_iter_value(res_1, -1);
-        auto out1 = loop->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
+        auto out0 = loop->get_iter_value(results[0], -1);
+        auto out1 = loop->get_concatenated_slices(results[1], 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
@@ -485,33 +475,18 @@ TEST(TransformationTests, LowLatency_v2_LSTM_several_iterations) {
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<Squeeze>(Xi, axis);
-
-        auto w_val = std::vector<float>(512 * 16, 0);
-        auto r_val = std::vector<float>(512 * 128, 0);
-        auto b_val = std::vector<float>(512, 0);
-        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = Constant::create(element::f32, Shape{512}, b_val);
-
-        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
-        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell, axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3},
-                                               ParameterVector{Xi, H_t, C_t});
+        auto body = createLSTMBody(Xi, H_t, C_t);
+        auto results = body->get_results();
 
         auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
 
-        tensor_iterator->set_merged_input(C_t, C, res_3);
+        tensor_iterator->set_merged_input(C_t, C, results[2]);
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
-        tensor_iterator->set_merged_input(H_t, H, res_1);
+        tensor_iterator->set_merged_input(H_t, H, results[0]);
 
-        auto out0 = tensor_iterator->get_iter_value(res_1, -1);
-        auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
+        auto out0 = tensor_iterator->get_iter_value(results[0], -1);
+        auto out1 = tensor_iterator->get_concatenated_slices(results[1], 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
@@ -521,6 +496,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM_several_iterations) {
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::LowLatency_v2>(ITER_CNT);
+        manager.register_pass<pass::LowLatency_v2>(ITER_CNT); // should not affect the network
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -600,25 +576,8 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_Reshape) {
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<Squeeze>(Xi, axis);
-
-        auto w_val = std::vector<float>(512 * 16, 0);
-        auto r_val = std::vector<float>(512 * 128, 0);
-        auto b_val = std::vector<float>(512, 0);
-        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = Constant::create(element::f32, Shape{512}, b_val);
-
-        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
-        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
-        auto body_condition = std::make_shared<Constant>(
-                element::boolean, Shape{1}, true);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3, body_condition},
-                                               ParameterVector{Xi, H_t, C_t});
+        auto body = createLSTMBody(Xi, H_t, C_t, true);
+        auto results = body->get_results();
 
         auto trip_count =
                 std::make_shared<Constant>(element::i64, Shape{}, 10);
@@ -629,12 +588,12 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_Reshape) {
         loop->set_function(body);
         loop->set_friendly_name("LSTMLoop");
 
-        loop->set_merged_input(C_t, C_init, res_3);
+        loop->set_merged_input(C_t, C_init, results[2]);
         loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
-        loop->set_merged_input(H_t, H_init, res_1);
+        loop->set_merged_input(H_t, H_init, results[0]);
 
-        auto out0 = loop->get_iter_value(res_1, -1);
-        auto out1 = loop->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
+        auto out0 = loop->get_iter_value(results[0], -1);
+        auto out1 = loop->get_concatenated_slices(results[1], 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
@@ -704,25 +663,8 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_several_iterations) {
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<Squeeze>(Xi, axis);
-
-        auto w_val = std::vector<float>(512 * 16, 0);
-        auto r_val = std::vector<float>(512 * 128, 0);
-        auto b_val = std::vector<float>(512, 0);
-        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = Constant::create(element::f32, Shape{512}, b_val);
-
-        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
-        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
-        auto body_condition = std::make_shared<Constant>(
-                element::boolean, Shape{1}, true);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3, body_condition},
-                                               ParameterVector{Xi, H_t, C_t});
+        auto body = createLSTMBody(Xi, H_t, C_t, true);
+        auto results = body->get_results();
 
         auto trip_count =
                 std::make_shared<Constant>(element::i64, Shape{}, 10);
@@ -733,12 +675,12 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_several_iterations) {
         loop->set_function(body);
         loop->set_friendly_name("LSTMLoop");
 
-        loop->set_merged_input(C_t, C_init, res_3);
+        loop->set_merged_input(C_t, C_init, results[2]);
         loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
-        loop->set_merged_input(H_t, H_init, res_1);
+        loop->set_merged_input(H_t, H_init, results[0]);
 
-        auto out0 = loop->get_iter_value(res_1, -1);
-        auto out1 = loop->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
+        auto out0 = loop->get_iter_value(results[0], -1);
+        auto out1 = loop->get_concatenated_slices(results[1], 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
@@ -747,7 +689,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_several_iterations) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>(10);
+        manager.register_pass<pass::LowLatency_v2>(true, pass::LowLatency_v2::SubGraphIterations{{"LSTMLoop", 10}});
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -812,6 +754,97 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_several_iterations) {
         auto outer_res_2 = std::make_shared<Result>(out1);
         auto outer_res_1 = std::make_shared<Result>(out0);
         f_ref = std::make_shared<Function>(OutputVector{outer_res_1, outer_res_2}, ParameterVector{X, H, C});
+        f_ref->add_sinks({assign_C, assign_H});
+        assign_H->add_control_dependency(read_value_H);
+        assign_C->add_control_dependency(read_value_C);
+    }
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto X = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 1, 16});
+        auto H_init = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+        auto C_init = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+
+        auto Xi = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 1, 16});
+        auto H_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+        auto C_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+
+        // Body
+        auto axis = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto squeeze = std::make_shared<opset6::Squeeze>(Xi, axis);
+
+        auto w_val = std::vector<float>(512 * 16, 0);
+        auto r_val = std::vector<float>(512 * 128, 0);
+        auto b_val = std::vector<float>(512, 0);
+        auto W = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
+        auto R = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
+        auto B = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
+
+        auto lstm_cell = std::make_shared<opset6::LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
+        auto res_1 = std::make_shared<opset6::Result>(lstm_cell->output(0));
+        auto unsqueeze = std::make_shared<opset6::Unsqueeze>(lstm_cell->output(0), axis);
+        auto res_2 = std::make_shared<opset6::Result>(unsqueeze);
+        auto res_3 = std::make_shared<opset6::Result>(lstm_cell->output(1));
+        auto body = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2, res_3}, ParameterVector{Xi, H_t, C_t});
+
+        auto tensor_iterator = std::make_shared<opset6::TensorIterator>();
+        tensor_iterator->set_body(body);
+        tensor_iterator->set_friendly_name("LSTMTensorIterator");
+
+        tensor_iterator->set_merged_input(C_t, C_init, res_3);
+        tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
+        tensor_iterator->set_merged_input(H_t, H_init, res_1);
+
+        auto out0 = tensor_iterator->get_iter_value(res_1, -1);
+        auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
+
+        auto res_ti_1 = std::make_shared<opset6::Result>(tensor_iterator->output(1));
+        auto res_ti_2 = std::make_shared<opset6::Result>(tensor_iterator->output(0));
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1, res_ti_2},
+                                               ngraph::ParameterVector{X, H_init, C_init});
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::LowLatency>();
+        // LLT v2 doesn't insert Assign/ReadValue ops, they are already inserted
+        // but unrolls TI/Loop
+        manager.register_pass<ngraph::pass::LowLatency_v2>();
+
+        manager.run_passes(f);
+    }
+    {
+        auto Xi = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 1, 16});
+        auto H_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+        auto C_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+
+        const std::string variable_name_H("LSTMTensorIterator/variable0");
+        const std::string variable_name_C("LSTMTensorIterator/variable1");
+        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+        auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_H);
+        auto read_value_C = std::make_shared<opset6::ReadValue>(C_t, variable_C);
+        // Body
+        auto axis = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto squeeze = std::make_shared<opset6::Squeeze>(Xi, axis);
+
+        auto w_val = std::vector<float>(512 * 16, 0);
+        auto r_val = std::vector<float>(512 * 128, 0);
+        auto b_val = std::vector<float>(512, 0);
+        auto W = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
+        auto R = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
+        auto B = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
+
+        auto lstm_cell = std::make_shared<opset6::LSTMCell>(squeeze, read_value_H, read_value_C, W, R, B, 128);
+        auto assign_H = std::make_shared<opset6::Assign>(lstm_cell->output(0), variable_H);
+        auto assign_C = std::make_shared<opset6::Assign>(lstm_cell->output(1), variable_C);
+        auto unsqueeze = std::make_shared<opset6::Unsqueeze>(lstm_cell->output(0), axis);
+        auto res_2 = std::make_shared<opset6::Result>(insert_identity(unsqueeze));
+        auto res_1 = std::make_shared<opset6::Result>(insert_identity(lstm_cell->output(0)));
+        f_ref = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
         f_ref->add_sinks({assign_C, assign_H});
         assign_H->add_control_dependency(read_value_H);
         assign_C->add_control_dependency(read_value_C);
