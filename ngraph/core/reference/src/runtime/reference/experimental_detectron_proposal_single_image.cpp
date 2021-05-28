@@ -177,6 +177,8 @@ namespace ngraph
                 std::vector<int64_t> is_dead(pre_nms_topn);
                 std::vector<int64_t> roi_indices(post_nms_topn);
 
+                float coordinates_offset = 0.0f;
+
                 // Execute
                 int64_t batch_size = 1; // deltas_shape[0]
                 for (int64_t n = 0; n < batch_size; ++n)
