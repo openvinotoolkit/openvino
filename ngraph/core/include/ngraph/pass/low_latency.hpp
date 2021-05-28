@@ -79,7 +79,7 @@ namespace ngraph
 
             using SubGraphOpName = std::string;
             using IterationCount = int64_t;
-            using SubGraphIterations = const std::map<SubGraphOpName, IterationCount>;
+            using SubGraphIterations = std::map<SubGraphOpName, IterationCount>;
             explicit LowLatency_v2(bool use_const_initializer = true,
                                    const SubGraphIterations& sub_graph_iterations = {})
                 : m_use_const_initializer(use_const_initializer)

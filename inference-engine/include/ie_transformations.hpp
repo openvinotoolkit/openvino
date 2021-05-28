@@ -54,27 +54,37 @@ namespace InferenceEngine {
  */
 INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
 
-
 /**
- * @brief The transformation finds all TensorIterator layers in the network, processes all back
- * edges that describe a connection between Result and Parameter of the TensorIterator body,
- * and inserts ReadValue layer between Parameter and the next layers after this Parameter,
- * and Assign layer after the layers before the Result layer.
+ * @brief The transformation finds all TensorIterator/Loop layers in the network,
+ * processes all back edges that describe a connection between Result and Parameter
+ * of the TensorIterator/Loop bodies,and inserts ReadValue and Assign layers at the
+ * input and output corresponding to this back edge.
  * Supported platforms: CPU, GNA.
  *
- *    An illustrative example, not real API:
+ * The example below describes the changes made by the transformation
+ *  [] - TensorIterator body
+ *  () - new layer
+ *  BE - back-edge
  *
- *    network->reshape(...) // Set sequence dimension to 1, recalculating shapes. Optional, depends on the network.
- *    LowLatency_v2(network)   // Applying LowLatency and UnrollTensorIterator transformations.
- *    network->infer (...)  // Calculating new values for states.
- *    // All states are stored between inferences via Assign, ReadValue layers.
- *    network->infer (...)  // Using stored states, calculating new values for states.
+ *  before applying the transformation:
+ *  -> input1[BE_1 -> Parameter -> Layers ... -> Result  -> BE_1 ]output1->
  *
+ *  after applying the transformation:
+ *  ->(ReadValue)-> input1[BE_1 ->Parameter->Layers ...->Result->BE_1]output1 ->(Assign)
+ *                                                                      \
+ *                                                                       ->...
+ * After applying the transformation, the resulting network can be inferred
+ * step by step, the states will store between inferences.
  * @param network A network to apply LowLatency transformation
- * @param iterations Count of iterations of TensorIterator/Loop op
+ * @param use_const_initializer Changes the type of the initializing subgraph for ReadValue operations.
+          If "true", then the transformation inserts Constant before ReadValue operation.
+          If "false, then the transformation leaves existed initializing subgraph for ReadValue operation.
+ * @param sub_graph_iterations Changes a Constant (trip_count) that determines the number of iterations of
+ * Loop operation by a given number. Does not affect TensorIterators.
  * *
  */
 INFERENCE_ENGINE_API_CPP(void) LowLatency_v2(InferenceEngine::CNNNetwork& network,
-                                             int64_t iterations = 1);
+                                             bool use_const_initializer = true,
+                                             const std::map<std::string, int64_t>& sub_graph_iterations = {});
 
 } // namespace InferenceEngine

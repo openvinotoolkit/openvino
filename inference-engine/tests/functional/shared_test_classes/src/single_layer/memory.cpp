@@ -184,7 +184,7 @@ namespace LayerTestsDefinitions {
        if (transformation == op::MemoryTransformation::LOW_LATENCY_V2) {
            function->validate_nodes_and_infer_types();
            pass::Manager manager;
-           manager.register_pass<pass::LowLatency_v2>(iteration_count);
+           manager.register_pass<pass::LowLatency_v2>();
            manager.run_passes(function);
            LoadNetwork();
        } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {

@@ -32,12 +32,12 @@ Output<Node> create_init_subgraph(const Output<Node>& in_node) {
 }
 
 Output<Node> insert_identity(const Output<Node>& in_node) {
-    auto axis_1 = Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+    auto axis_1 = Constant::create(element::i64, Shape{1}, {1});
     auto identity_1 = std::make_shared<Unsqueeze>(in_node, axis_1);
     return std::make_shared<Squeeze>(identity_1, axis_1);
 }
 
-std::shared_ptr<ngraph::Function> createLSTMBody(const std::shared_ptr<Parameter>& Xi,
+std::shared_ptr<Function> createLSTMBody(const std::shared_ptr<Parameter>& Xi,
                                                  const std::shared_ptr<Parameter>& H_t,
                                                  const std::shared_ptr<Parameter>& C_t,
                                                  bool is_loop = false) {
@@ -495,8 +495,8 @@ TEST(TransformationTests, LowLatency_v2_LSTM_several_iterations) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>(ITER_CNT);
-        manager.register_pass<pass::LowLatency_v2>(ITER_CNT); // should not affect the network
+        manager.register_pass<pass::LowLatency_v2>();
+        manager.register_pass<pass::LowLatency_v2>(); // should not affect the network
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -608,7 +608,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_Reshape) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>(1);
+        manager.register_pass<pass::LowLatency_v2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -763,35 +763,35 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_several_iterations) {
 }
 
 TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_init = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
-        auto C_init = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
+        auto H_init = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        auto C_init = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
-        auto C_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
+        auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-        auto squeeze = std::make_shared<opset6::Squeeze>(Xi, axis);
+        auto axis = Constant::create(element::i64, Shape{}, {0});
+        auto squeeze = std::make_shared<Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
-        auto R = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
-        auto B = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
+        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell = std::make_shared<opset6::LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
-        auto res_1 = std::make_shared<opset6::Result>(lstm_cell->output(0));
-        auto unsqueeze = std::make_shared<opset6::Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<opset6::Result>(unsqueeze);
-        auto res_3 = std::make_shared<opset6::Result>(lstm_cell->output(1));
-        auto body = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2, res_3}, ParameterVector{Xi, H_t, C_t});
+        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
+        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
+        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
+        auto res_2 = std::make_shared<Result>(unsqueeze);
+        auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3}, ParameterVector{Xi, H_t, C_t});
 
-        auto tensor_iterator = std::make_shared<opset6::TensorIterator>();
+        auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
         tensor_iterator->set_friendly_name("LSTMTensorIterator");
 
@@ -802,49 +802,49 @@ TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
-        auto res_ti_1 = std::make_shared<opset6::Result>(tensor_iterator->output(1));
-        auto res_ti_2 = std::make_shared<opset6::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1, res_ti_2},
-                                               ngraph::ParameterVector{X, H_init, C_init});
+        auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
+        auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
+        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2},
+                                               ParameterVector{X, H_init, C_init});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::LowLatency>();
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::LowLatency>();
         // LLT v2 doesn't insert Assign/ReadValue ops, they are already inserted
         // but unrolls TI/Loop
-        manager.register_pass<ngraph::pass::LowLatency_v2>();
+        manager.register_pass<pass::LowLatency_v2>();
 
         manager.run_passes(f);
     }
     {
-        auto Xi = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
-        auto C_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
+        auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
+        auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
         const std::string variable_name_H("LSTMTensorIterator/variable0");
         const std::string variable_name_C("LSTMTensorIterator/variable1");
         auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
-        auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_H);
-        auto read_value_C = std::make_shared<opset6::ReadValue>(C_t, variable_C);
+        auto read_value_H = std::make_shared<ReadValue>(H_t, variable_H);
+        auto read_value_C = std::make_shared<ReadValue>(C_t, variable_C);
         // Body
-        auto axis = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-        auto squeeze = std::make_shared<opset6::Squeeze>(Xi, axis);
+        auto axis = Constant::create(element::i64, Shape{}, {0});
+        auto squeeze = std::make_shared<Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
-        auto R = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
-        auto B = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
+        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell = std::make_shared<opset6::LSTMCell>(squeeze, read_value_H, read_value_C, W, R, B, 128);
-        auto assign_H = std::make_shared<opset6::Assign>(lstm_cell->output(0), variable_H);
-        auto assign_C = std::make_shared<opset6::Assign>(lstm_cell->output(1), variable_C);
-        auto unsqueeze = std::make_shared<opset6::Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<opset6::Result>(insert_identity(unsqueeze));
-        auto res_1 = std::make_shared<opset6::Result>(insert_identity(lstm_cell->output(0)));
-        f_ref = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
+        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, read_value_H, read_value_C, W, R, B, 128);
+        auto assign_H = std::make_shared<Assign>(lstm_cell->output(0), variable_H);
+        auto assign_C = std::make_shared<Assign>(lstm_cell->output(1), variable_C);
+        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
+        auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
+        auto res_1 = std::make_shared<Result>(insert_identity(lstm_cell->output(0)));
+        f_ref = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
         f_ref->add_sinks({assign_C, assign_H});
         assign_H->add_control_dependency(read_value_H);
         assign_C->add_control_dependency(read_value_C);
