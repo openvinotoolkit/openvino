@@ -377,4 +377,3 @@ void op::v1::Reshape::calculate_output_shape(vector<Dimension>& reshape_pattern,
                               get_input_shape(0));
     }
 }
-
