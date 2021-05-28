@@ -75,15 +75,13 @@ bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceSum_evaluate);
-    auto reduction_axes = get_reduction_axes();
 
-    if (!ngraph::op::is_constant(input(1).get_node()) && inputs.size() > 1)
-    {
-        // attempt to extract the reduction axes from an input tensor
-        // when the second input to the operator is not a Constant
-        reduction_axes =
-            get_axes_from_tensor(inputs[1], get_input_partial_shape(0).rank(), get_friendly_name());
-    }
+    NGRAPH_CHECK(inputs.size() == 2,
+                 "The ReduceSum operation expects 2 input tensors. Got: ",
+                 inputs.size());
+
+    const auto reduction_axes = get_normalized_axes_from_tensor(
+        inputs[1], get_input_partial_shape(0).rank(), get_friendly_name());
 
     return reduce_sum::evaluate_sum(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
