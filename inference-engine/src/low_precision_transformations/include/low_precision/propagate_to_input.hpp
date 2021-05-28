@@ -47,6 +47,10 @@ public:
 
                     auto attribute = getAttribute<std::shared_ptr<AttributeType>>(input);
                     if (attribute != nullptr) {
+                        if ((attribute->get()->sharedValue != nullptr) && (attribute->get()->sharedValue->precisions.empty())) {
+                            return false;
+                        }
+
                         std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<AttributeType>>>> attributes = { attribute };
                         parentAttribute->merge(attributes);
                     }
