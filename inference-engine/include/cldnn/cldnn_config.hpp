@@ -116,5 +116,14 @@ DECLARE_CLDNN_CONFIG_KEY(NV12_TWO_INPUTS);
 */
 DECLARE_CLDNN_CONFIG_KEY(MAX_NUM_THREADS);
 
+/**
+* @brief Turning on this key enables to unroll recurrent layers such as TensorIterator or Loop with fixed iteration count.
+* This key is turned on by default. Turning this key on will achieve better inference performance for loops with not too many iteration counts (less than 16, as a rule of thumb).
+* Turning this key off will achieve better performance for both graph loading time and inference time with many iteration counts (greater than 16).
+* Note that turning this key on will increase the graph loading time in proportion to the iteration counts.
+* Thus, this key should be turned off if graph loading time is considered to be most important target to optimize.*/
+
+DECLARE_CLDNN_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
+
 }  // namespace CLDNNConfigParams
 }  // namespace InferenceEngine

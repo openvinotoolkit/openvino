@@ -90,6 +90,8 @@ struct data_type_to_type;
 template <>
 struct data_type_to_type<data_types::bin> { typedef uint32_t type; };
 template <>
+struct data_type_to_type<data_types::u8> { typedef uint8_t type; };
+template <>
 struct data_type_to_type<data_types::i8> { typedef int8_t type; };
 template <>
 struct data_type_to_type<data_types::i32> { typedef int32_t type; };
