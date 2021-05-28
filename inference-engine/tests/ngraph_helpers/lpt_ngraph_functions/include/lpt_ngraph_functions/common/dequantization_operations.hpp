@@ -50,7 +50,9 @@ public:
         bool operator==(const Subtract& value) const noexcept {
             return equal(value);
         }
-
+        void erase() {
+            isEmpty = true;
+        }
         Subtract& setConstantPrecision(const ngraph::element::Type& precision);
 
         std::vector<float> values;
