@@ -30,47 +30,38 @@ graph {
           int64_data: 0
           int64_data: 1
           int64_data: 3
-
           int64_data: 0
           int64_data: 0
           int64_data: 2
           int64_data: 2
-
           int64_data: 0
           int64_data: 0
           int64_data: 2
           int64_data: 3
-
           int64_data: 0
           int64_data: 1
           int64_data: 1
           int64_data: 2
-
           int64_data: 1
           int64_data: 0
           int64_data: 0
           int64_data: 3
-
           int64_data: 1
           int64_data: 0
           int64_data: 1
           int64_data: 1
-
           int64_data: 1
           int64_data: 0
           int64_data: 1
           int64_data: 2
-
           int64_data: 1
           int64_data: 0
           int64_data: 2
           int64_data: 2
-
           int64_data: 1
           int64_data: 1
           int64_data: 0
           int64_data: 0
-
           int64_data: 1
           int64_data: 1
           int64_data: 1

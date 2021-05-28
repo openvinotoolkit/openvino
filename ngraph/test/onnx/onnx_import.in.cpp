@@ -4408,7 +4408,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_boolean_3x4)
         file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_boolean_3x4.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<char>(Shape{3, 4}, {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0});
+    test_case.add_expected_output<bool>(Shape{3, 4}, {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0});
     test_case.run();
 }
 

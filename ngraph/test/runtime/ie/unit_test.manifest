@@ -61,6 +61,7 @@ onnx_model_tile
 onnx_model_tile_static
 onnx_model_logsoftmax_0D
 builder_opset1_collapse_none
+onnx_constant_sparse_tensor_boolean_3x4.prototxt
 
 # nGraph function's output number 0 was not found in the CNNNetwork built from it.
 onnx_model_split_equal_parts_2d
@@ -577,6 +578,7 @@ abc_int64
 # [NOT_IMPLEMENTED] Output format I64 is not supported yet...
 onnx_constant_integer_scalar
 onnx_constant_integer_array
+constant_sparse_tensor_int64_3x4.prototxt
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
