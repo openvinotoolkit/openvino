@@ -426,17 +426,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             auto lptPassConfig = lptManager.get_pass_config();
             lptPassConfig->disable<ngraph::pass::low_precision::StridedSliceTransformation>();
             lptPassConfig->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
-                if (auto convolution = std::dynamic_pointer_cast<const ngraph::opset1::Convolution>(node)) {
-                    return !ConvolutionTransformation::isQuantizedStatic(convolution);
-                }
-                if (auto convolution = std::dynamic_pointer_cast<const ngraph::opset1::ConvolutionBackpropData>(node)) {
-                    return !ConvolutionBackpropDataTransformation::isQuantizedStatic(convolution, true);
-                }
-                if (auto groupConvolution = std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolution>(node)) {
-                    return !GroupConvolutionTransformation::isQuantizedStatic(groupConvolution);
-                }
-                if (auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
-                    return !MultiplyToGroupConvolutionTransformation::isQuantizedStatic(mulitply);
+                if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+                    return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
                 }
                 return false;
             });
