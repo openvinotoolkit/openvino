@@ -5,16 +5,10 @@
 cmake_minimum_required(VERSION 3.13)
 
 set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type")
+set (CMAKE_CXX_STANDARD 11)
 
 project(time_tests)
 
-
-find_package(InferenceEngine)
-if (NOT InferenceEngine_FOUND)
-    set (HAVE_SYS_STAT_H 1)
-    set (HAVE_INTTYPES_H 1)
-    set (INTTYPES_FORMAT C99)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
-endif()
+set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 add_subdirectory(src)
