@@ -9,10 +9,11 @@ add_library(${TARGET_NAME} STATIC ${SRC})
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_SOURCE_DIR}/include")
 
 set (GFLAGS_IS_SUBPROJECT TRUE)
+set (BUILD_TESTING OFF)
+
 set (HAVE_SYS_STAT_H 1)
 set (HAVE_INTTYPES_H 1)
 set (INTTYPES_FORMAT C99)
-set (BUILD_TESTING OFF)
 
 if(EXISTS "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/samples/thirdparty/gflags")
     function(add_gflags)
