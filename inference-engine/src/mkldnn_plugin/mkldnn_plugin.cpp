@@ -350,12 +350,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         ngraph::pass::Manager lptManager;
         lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
-            if (auto convolution = std::dynamic_pointer_cast<const ngraph::opset1::Convolution>(node)) {
-                return !ConvolutionTransformation::isQuantizedStatic(convolution);
-            }
-            if (auto groupConvolution = std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolution>(node)) {
-                return !GroupConvolutionTransformation::isQuantizedStatic(groupConvolution);
-            }
             if (auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
                 return !MultiplyToGroupConvolutionTransformation::isQuantizedStatic(mulitply);
             }

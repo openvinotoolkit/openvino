@@ -19,11 +19,11 @@
 #include "low_precision/align_quantization_intervals.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/markup_precisions.hpp"
+#include "low_precision/markup_can_be_quantized.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
 #include "low_precision/propagate_precisions.hpp"
 #include "low_precision/align_quantization_parameters.hpp"
 
-// TODO: linker error in Windows
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -182,6 +182,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
 #ifndef VISUALIZE_TREE
         {
             ngraph::pass::Manager markupAndDecompose(passConfig);
+            markupAndDecompose.register_pass<low_precision::MarkupCanBeQuantized>();
             markupAndDecompose.register_pass<low_precision::MarkupPrecisions>(precisionRestrictions);
             markupAndDecompose.register_pass<low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
             markupAndDecompose.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>();
