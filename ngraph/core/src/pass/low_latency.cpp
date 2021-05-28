@@ -118,6 +118,7 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
 
     // before: TI [...-> Layer1 -> Result -> output] -> Layer2 -> ...
     // after:  ...-> Layer1 -> Layer2 -> ...
+    NodeVector new_ops;
     for (const auto& out : sub_graph_op->get_output_descriptions())
     {
         const auto& connect_to = results.at(out->m_body_value_index)->get_input_source_output(0);
@@ -128,16 +129,19 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
             if (sub_graph_op->get_output_size() != 1)
                 out_name += "." + std::to_string(out->m_output_index);
 
-            // insert identity (Unsqueeze + Squeeze) to store the TensorIterator output names
+            // IECompatibility: insert identity (Unsqueeze + Squeeze) to store the TensorIterator output names
             auto axis_1 = Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
             auto identity_1 = std::make_shared<Unsqueeze>(connect_to, axis_1);
             auto identity_2 = std::make_shared<Squeeze>(identity_1, axis_1);
             identity_2->set_friendly_name(out_name);
+            new_ops.push_back(identity_1);
+            new_ops.push_back(identity_2);
 
             input_to.replace_source_output(identity_2);
         }
     }
     ngraph::copy_runtime_info(sub_graph_op, sub_graph_op->get_function()->get_ops());
+    ngraph::copy_runtime_info(sub_graph_op, new_ops);
 }
 
 Output<Node> create_init_subgraph(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,

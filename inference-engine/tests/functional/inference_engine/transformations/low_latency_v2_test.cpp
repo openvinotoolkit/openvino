@@ -31,6 +31,12 @@ Output<Node> create_init_subgraph(const Output<Node>& in_node) {
     return broadcast->output(0);
 }
 
+Output<Node> insert_identity(const Output<Node>& in_node) {
+    auto axis_1 = Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+    auto identity_1 = std::make_shared<Unsqueeze>(in_node, axis_1);
+    return std::make_shared<Squeeze>(identity_1, axis_1);
+}
+
 TEST(TransformationTests, LowLatency_v2_LSTM) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
@@ -108,8 +114,8 @@ TEST(TransformationTests, LowLatency_v2_LSTM) {
         auto assign_H = std::make_shared<Assign>(lstm_cell->output(0), variable_H);
         auto assign_C = std::make_shared<Assign>(lstm_cell->output(1), variable_C);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
+        auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
+        auto res_1 = std::make_shared<Result>(insert_identity(lstm_cell->output(0)));
         f_ref = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
         f_ref->add_sinks({assign_C, assign_H});
         assign_H->add_control_dependency(read_value_H);
@@ -187,8 +193,8 @@ TEST(TransformationTests, LowLatency_v2_GRU) {
         auto assign_H = std::make_shared<Assign>(rnn_cell->output(0), variable_H);
         auto res_1 = std::make_shared<Result>(assign_H);
         auto unsqueeze = std::make_shared<Unsqueeze>(rnn_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        f_ref = std::make_shared<Function>(OutputVector{unsqueeze}, ParameterVector{Xi, H_t});
+        auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
+        f_ref = std::make_shared<Function>(ResultVector {res_2}, ParameterVector{Xi, H_t});
         f_ref->add_sinks({assign_H});
         assign_H->add_control_dependency(read_value_H);
     }
@@ -265,8 +271,8 @@ TEST(TransformationTests, LowLatency_v2_RNN) {
         auto assign_H = std::make_shared<Assign>(rnn_cell->output(0), variable_H);
         auto res_1 = std::make_shared<Result>(assign_H);
         auto unsqueeze = std::make_shared<Unsqueeze>(rnn_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        f_ref = std::make_shared<Function>(OutputVector{unsqueeze}, ParameterVector{Xi, H_t});
+        auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
+        f_ref = std::make_shared<Function>(ResultVector{res_2}, ParameterVector{Xi, H_t});
         f_ref->add_sinks({assign_H});
         assign_H->add_control_dependency(read_value_H);
     }
@@ -358,8 +364,8 @@ TEST(TransformationTests, LowLatency_v2_LSTMReshape) {
         auto assign_H = std::make_shared<Assign>(lstm_cell->output(0), variable_H);
         auto assign_C = std::make_shared<Assign>(lstm_cell->output(1), variable_C);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
+        auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
+        auto res_1 = std::make_shared<Result>(insert_identity(lstm_cell->output(0)));
         f_ref = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
         f_ref->add_sinks({assign_C, assign_H});
         assign_H->add_control_dependency(read_value_H);
@@ -455,8 +461,8 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop) {
         auto assign_H = std::make_shared<Assign>(lstm_cell->output(0), variable_H);
         auto assign_C = std::make_shared<Assign>(lstm_cell->output(1), variable_C);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
+        auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
+        auto res_1 = std::make_shared<Result>(insert_identity(lstm_cell->output(0)));
         f_ref = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
         f_ref->add_sinks({assign_C, assign_H});
         assign_H->add_control_dependency(read_value_H);
@@ -674,8 +680,8 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_Reshape) {
         auto assign_H = std::make_shared<Assign>(lstm_cell->output(0), variable_H);
         auto assign_C = std::make_shared<Assign>(lstm_cell->output(1), variable_C);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
+        auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
+        auto res_1 = std::make_shared<Result>(insert_identity(lstm_cell->output(0)));
         f_ref = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
         f_ref->add_sinks({assign_C, assign_H});
         assign_H->add_control_dependency(read_value_H);
