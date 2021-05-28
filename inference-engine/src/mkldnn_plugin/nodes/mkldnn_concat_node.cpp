@@ -103,7 +103,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     auto& dstDims = getChildEdgeAt(0)->getDims();
     std::vector<TensorDescCreatorTypes> tdCreatorTypes = {TensorDescCreatorTypes::ncsp, TensorDescCreatorTypes::nspc};
 
-    // check if blocked layouts are available
+    // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow oneDNN ref implementation
     if (dstDims.ndims() > channelAxis) {
         for (auto item : { std::make_pair(8lu, TensorDescCreatorTypes::nCsp8c), std::make_pair(16lu, TensorDescCreatorTypes::nCsp16c)}) {
             SizeVector blkDims = dstDims.ToSizeVector();
@@ -248,23 +248,26 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
     }
 
     size_t maxCount = 0;
-    auto convertTo = PartialBlkDesc::makePlain(getChildEdgeAt(0)->getDims().ToSizeVector());
+    auto outDims = getChildEdgeAt(0)->getDims().ToSizeVector();
+    auto convertTo = PartialBlkDesc::makePlain(outDims);
     for (auto &it : formatFrequency) {
         if (it.second > maxCount) {
             maxCount = it.second;
             convertTo = it.first;
         } else if (it.second == maxCount) {
-            if (isInQuantizedGraph && it.first == PartialBlkDesc::makeTailC(getChildEdgeAt(0)->getDims().ToSizeVector())) {
+            if (isInQuantizedGraph && it.first == PartialBlkDesc::makeTailC(outDims)) {
+                convertTo = it.first;
+            } else if (it.first == PartialBlkDesc::makeCBlocked(outDims, 8) || it.first == PartialBlkDesc::makeCBlocked(outDims, 16)) {
                 convertTo = it.first;
             }
         }
     }
 
-    if (convertTo.isAutoExtendedWith(getChildEdgeAt(0)->getDims().ToSizeVector()))
-        convertTo = PartialBlkDesc::makePlain(getChildEdgeAt(0)->getDims().ToSizeVector());
+    if (convertTo.isAutoExtendedWith(outDims))
+        convertTo = PartialBlkDesc::makePlain(outDims);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (convertTo.isAutoExtendedWith(getParentEdgeAt(i)->getDims().ToSizeVector()))
-            convertTo = PartialBlkDesc::makePlain(getChildEdgeAt(0)->getDims().ToSizeVector());
+            convertTo = PartialBlkDesc::makePlain(outDims);
     }
 
     for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
