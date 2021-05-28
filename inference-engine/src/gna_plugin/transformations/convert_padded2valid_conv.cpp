@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/convert_padded2valid_conv.hpp"
+#include "convert_padded2valid_conv.hpp"
 
 #include <memory>
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/builder/reshape.hpp>
-#include <ngraph/builder/split.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include "itt.hpp"
+
 
 using namespace ngraph;
 using namespace op;
@@ -268,9 +265,8 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
             biggest_padding = biggest_padding > padded_row_size ? biggest_padding : padded_row_size;
         }
 
-        auto flat_input = builder::opset1::reshape(
-            leading_transpose->input_value(0),
-            Shape{ (size_t)1, shape_size(leading_transpose->input_value(0).get_shape()) });
+        auto flat_input = std::make_shared<opset1::Reshape>(leading_transpose->input_value(0),
+            op::Constant::create(element::i64, Shape{ 2 }, { 1ull, shape_size(leading_transpose->input_value(0).get_shape()) }), false);
         // zero padding
         auto const_holding_padding = std::make_shared<opset1::Constant>(element::Type_t::f32, Shape{ 1, biggest_padding }, 0);
 
@@ -305,9 +301,9 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
             //                    |
             //                 concat
 
-            auto not_padded_row = input_height == 1 ?
-                flat_input :
-                FlatCrop(flat_input, h * input_width * input_channel_count, input_width * input_channel_count);
+            std::shared_ptr<Node> not_padded_row = flat_input;
+            if (input_height > 1)
+                not_padded_row = FlatCrop(flat_input, h * input_width * input_channel_count, input_width * input_channel_count);
             ngraph::copy_runtime_info(conv, not_padded_row);
             if (flat_left_padding || flat_right_padding) {
                 OutputVector single_row_concat_inputs;
@@ -350,10 +346,12 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         auto padded_input_plane = std::make_shared<opset1::Concat>(input_rows_to_concat, 1);
         ngraph::copy_runtime_info(conv, padded_input_plane);
 
-        auto padded_input_plane_reshaped = builder::opset1::reshape(padded_input_plane,
-            Shape{ 1, pads_begin_y + input_height + pads_end_y, pads_begin_x + input_width + pads_end_x, input_channel_count });
+        auto padded_input_plane_reshaped = std::make_shared<opset1::Reshape>(padded_input_plane,
+            op::Constant::create(element::Type_t::i64, Shape{ 4 },
+                { 1ull, pads_begin_y + input_height + pads_end_y, pads_begin_x + input_width + pads_end_x, input_channel_count }), false);
         //NHWC => NCHW
-        auto transposed2chw = builder::opset1::reorder_axes(padded_input_plane_reshaped, { 0, 3, 1, 2 });
+        auto transposed2chw = std::make_shared<op::Transpose>(padded_input_plane_reshaped,
+            op::Constant::create(element::Type_t::i64, Shape{ 4 }, { 0ull, 2ull, 3ull, 1ull })->output(0));
 
         auto conv_copy = std::make_shared<ngraph::opset1::Convolution>(
             transposed2chw->output(0),

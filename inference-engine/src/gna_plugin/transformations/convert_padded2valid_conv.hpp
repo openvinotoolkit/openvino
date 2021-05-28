@@ -10,14 +10,14 @@
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API ConvertPadded2ValidConv;
+class ConvertPadded2ValidConv;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ConvertPadded2ValidConv transformation breaks down 2d conv into set of 1d conv.
+ * @brief ConvertPadded2ValidConv transformation breaks down padded convolutions into a set of unpadded ones.
  */
 class ngraph::pass::ConvertPadded2ValidConv : public ngraph::pass::FunctionPass {
 public:

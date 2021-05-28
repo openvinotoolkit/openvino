@@ -45,7 +45,6 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include <transformations/op_conversions/conv2d_decomposition.hpp>
-#include <transformations/op_conversions/convert_padded2valid_conv.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
@@ -63,6 +62,7 @@
 #include "transformations/insert_transpose_before_matmul.hpp"
 #include "transformations/reorder_activation_and_pooling.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
+#include "transformations/convert_padded2valid_conv.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
