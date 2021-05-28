@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
+#include "ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp"
 #include <algorithm>
 #include <cassert>
 #include <utility>
-#include "ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp"
+#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
 #include "ngraph/shape.hpp"
 
 namespace
@@ -59,7 +59,7 @@ namespace ngraph
                 break;
                 case element::Type_t::f16:
                 {
-                    float16* rois_ptr = reinterpret_cast<float16*>(pboxes);
+                    float16* rois_ptr = reinterpret_cast<float16*>(prois);
                     float16* scores_ptr = reinterpret_cast<float16*>(pscores);
                     for (size_t i = 0; i < rois_num; ++i)
                     {
@@ -73,7 +73,7 @@ namespace ngraph
                 break;
                 case element::Type_t::f32:
                 {
-                    float* rois_ptr = reinterpret_cast<float*>(pboxes);
+                    float* rois_ptr = reinterpret_cast<float*>(prois);
                     float* scores_ptr = reinterpret_cast<float*>(pscores);
                     memcpy(rois_ptr,
                            output_rois.data(),
