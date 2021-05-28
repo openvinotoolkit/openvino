@@ -63,6 +63,12 @@ LIB_INSTALL_CFG = {
         'install_dir': PLUGINS_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
+    'auto_plugin': {
+        'name': 'auto',
+        'prefix': 'libs.plugins',
+        'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
+    },
     'myriad_plugin': {
         'name': 'myriad',
         'prefix': 'libs.plugins',
