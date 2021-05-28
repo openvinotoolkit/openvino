@@ -186,70 +186,7 @@ The sample application logs each step in a standard output stream.
 [ INFO ] avg rms error: 0.05860129608000006
 [ INFO ] stdev error: 0.03727694288040223
 [ INFO ]
-[ INFO ] Utterance 2 (4k0c0303)
-[ INFO ] Frames in utterance: 1471
-[ INFO ] Total time in Infer (HW and SW): 7950.45ms
-[ INFO ] max error: 0.7191710472106934
-[ INFO ] avg error: 0.047222570859711814
-[ INFO ] avg rms error: 0.061299099888637014
-[ INFO ] stdev error: 0.03908463187183161
-[ INFO ]
-[ INFO ] Utterance 3 (4k0c0304)
-[ INFO ] Frames in utterance: 845
-[ INFO ] Total time in Infer (HW and SW): 4023.39ms
-[ INFO ] max error: 0.7436461448669434
-[ INFO ] avg error: 0.04775810807647345
-[ INFO ] avg rms error: 0.06213336382943745
-[ INFO ] stdev error: 0.03974566660300375
-[ INFO ]
-[ INFO ] Utterance 4 (4k0c0305)
-[ INFO ] Frames in utterance: 855
-[ INFO ] Total time in Infer (HW and SW): 3420.64ms
-[ INFO ] max error: 0.7071599960327148
-[ INFO ] avg error: 0.044914698467230396
-[ INFO ] avg rms error: 0.058504752434499985
-[ INFO ] stdev error: 0.03748967749954517
-[ INFO ]
-[ INFO ] Utterance 5 (4k0c0306)
-[ INFO ] Frames in utterance: 699
-[ INFO ] Total time in Infer (HW and SW): 2769.76ms
-[ INFO ] max error: 0.8870468139648438
-[ INFO ] avg error: 0.04792428074365066
-[ INFO ] avg rms error: 0.06254901777693281
-[ INFO ] stdev error: 0.040195061140180025
-[ INFO ]
-[ INFO ] Utterance 6 (4k0c0307)
-[ INFO ] Frames in utterance: 790
-[ INFO ] Total time in Infer (HW and SW): 3219.15ms
-[ INFO ] max error: 0.7648272514343262
-[ INFO ] avg error: 0.04827024419632296
-[ INFO ] avg rms error: 0.0629733825700257
-[ INFO ] stdev error: 0.040442928152375
-[ INFO ]
-[ INFO ] Utterance 7 (4k0c0308)
-[ INFO ] Frames in utterance: 622
-[ INFO ] Total time in Infer (HW and SW): 2582.92ms
-[ INFO ] max error: 0.7389559745788574
-[ INFO ] avg error: 0.046554336083386876
-[ INFO ] avg rms error: 0.060494128445356
-[ INFO ] stdev error: 0.03862943655036005
-[ INFO ]
-[ INFO ] Utterance 8 (4k0c0309)
-[ INFO ] Frames in utterance: 548
-[ INFO ] Total time in Infer (HW and SW): 2272.36ms
-[ INFO ] max error: 0.6680135726928711
-[ INFO ] avg error: 0.04393408749747612
-[ INFO ] avg rms error: 0.057461442316338734
-[ INFO ] stdev error: 0.03703529814701154
-[ INFO ]
-[ INFO ] Utterance 9 (4k0c030a)
-[ INFO ] Frames in utterance: 368
-[ INFO ] Total time in Infer (HW and SW): 1457.43ms
-[ INFO ] max error: 0.6550579071044922
-[ INFO ] avg error: 0.046764278689150146
-[ INFO ] avg rms error: 0.06050449413426664
-[ INFO ] stdev error: 0.03839135383295311
-[ INFO ]
+...
 [ INFO ] Total sample time: 38033.09ms
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
