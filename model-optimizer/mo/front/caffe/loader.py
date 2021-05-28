@@ -282,6 +282,8 @@ def caffe_pb_to_nx(graph, proto, model):
 
         node_id = graph.unique_id(layer.name)
         graph.add_node(node_id, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
+        if hasattr(graph, 'op_names_statistic') and hasattr(layer, 'type'):
+            graph.op_names_statistic[layer.type] += 1
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):
@@ -319,8 +321,8 @@ def add_edge_caffe(graph: Graph, bottom: str, dst_layer: str, blob_producers: di
         'out': src_port,
         'in': dst_port,
         'name': bottom,
-        # debug anchor for a framework name, out port and tensor name
-        'fw_tensor_debug_info': [(blob_producers[bottom][2], src_port, bottom)],
+        # debug anchor for a framework name and tensor name
+        'fw_tensor_debug_info': [(blob_producers[bottom][2], bottom)],
         'in_attrs': ['in', 'name'],
         'out_attrs': ['out', 'name'],
         'data_attrs': ['fw_tensor_debug_info']

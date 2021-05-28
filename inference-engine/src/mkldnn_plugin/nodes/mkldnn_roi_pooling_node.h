@@ -4,18 +4,14 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
+#include <ie_common.h>
+
 #include <string>
 #include <memory>
 #include <vector>
 
 namespace MKLDNNPlugin {
-
-enum ROIPoolingOpType {
-    Max,
-    Bilinear
-};
 
 struct jit_roi_pooling_params {
     int mb, c;
@@ -27,12 +23,17 @@ struct jit_roi_pooling_params {
     int pooled_h;
     int pooled_w;
 
-    ROIPoolingOpType alg;
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision dst_prc;
+    int src_data_size;
+    int dst_data_size;
+
+    Algorithm alg;
 };
 
 struct jit_roi_pooling_call_args {
-    const float *src;
-    float *dst;
+    const void *src;
+    void *dst;
 
     size_t kh;
     size_t kw;
@@ -65,8 +66,7 @@ struct jit_uni_roi_pooling_kernel {
 
 class MKLDNNROIPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNROIPoolingNode() override = default;
+    MKLDNNROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -75,15 +75,24 @@ public:
     bool created() const override;
 
 private:
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+    template<typename T> void execute();
+    template<typename T> struct ROIPoolingExecute;
+
+    InferenceEngine::Precision runtimePrecision;
+
+    size_t src_data_size;
+    size_t dst_data_size;
+
     int pooled_h = 0;
     int pooled_w = 0;
     float spatial_scale = 0;
-    ROIPoolingOpType opType = Max;
 
     jit_roi_pooling_params jpp = {};
-
     std::shared_ptr<jit_uni_roi_pooling_kernel> roi_pooling_kernel = nullptr;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin
-

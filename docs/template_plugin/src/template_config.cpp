@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_plugin_config.hpp>
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <cpp_interfaces/exception2status.hpp>
-
 #include "template_config.hpp"
+
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include <ie_plugin_config.hpp>
+
 #include "template/template_config.hpp"
 
 using namespace TemplatePlugin;
 
-Configuration::Configuration() { }
+Configuration::Configuration() {}
 
-Configuration::Configuration(const ConfigMap& config, const Configuration & defaultCfg, bool throwOnUnsupported) {
+Configuration::Configuration(const ConfigMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
     // If plugin needs to use InferenceEngine::StreamsExecutor it should be able to process its configuration
     auto streamExecutorConfigKeys = _streamsExecutorConfig.SupportedKeys();
@@ -23,13 +23,12 @@ Configuration::Configuration(const ConfigMap& config, const Configuration & defa
 
         if (TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS) == key) {
             _streamsExecutorConfig.SetConfig(CONFIG_KEY(CPU_THROUGHPUT_STREAMS), value);
-        } else if (streamExecutorConfigKeys.end() !=
-            std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
+        } else if (streamExecutorConfigKeys.end() != std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             _streamsExecutorConfig.SetConfig(key, value);
         } else if (CONFIG_KEY(DEVICE_ID) == key) {
             deviceId = std::stoi(value);
             if (deviceId > 0) {
-                IE_THROW() << "Device ID " << deviceId << " is not supported";
+                IE_THROW(NotImplemented) << "Device ID " << deviceId << " is not supported";
             }
         } else if (CONFIG_KEY(PERF_COUNT) == key) {
             perfCount = (CONFIG_VALUE(YES) == value);

@@ -19,6 +19,15 @@ std::map<std::vector<size_t>, std::vector<std::vector<int>>> axesVectors = {
         {{2, 1}, {{1}, {-1}}},
 };
 
+std::map<std::vector<size_t>, std::vector<std::vector<int>>> emptyAxesVectors = {
+        {{1, 1, 1, 1}, {{}}},
+        {{1, 2, 3, 4}, {{}}},
+        {{2, 1, 3, 4}, {{}}},
+        {{1}, {{}}},
+        {{1, 2}, {{}}},
+        {{2, 1}, {{}}},
+};
+
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
@@ -33,6 +42,18 @@ INSTANTIATE_TEST_CASE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors)),
                                 ::testing::ValuesIn(opTypes),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        SqueezeUnsqueezeLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Basic_emptyAxes, SqueezeUnsqueezeLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(CommonTestUtils::combineParams(emptyAxesVectors)),
+                                ::testing::Values(ngraph::helpers::SqueezeOpType::SQUEEZE),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

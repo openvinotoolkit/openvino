@@ -13,6 +13,9 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <map>
+
+#include "ie_precision.hpp"
 
 namespace InferenceEngine {
 
@@ -149,6 +152,36 @@ DECLARE_METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS, unsigned int);
 DECLARE_METRIC_KEY(DEVICE_ARCHITECTURE, std::string);
 
 /**
+ * @brief Enum to define possible device types
+ */
+enum class DeviceType {
+    integrated = 0,
+    discrete = 1,
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics::DeviceType& deviceType) {
+    switch (deviceType) {
+        case InferenceEngine::Metrics::DeviceType::discrete: os << "discrete"; break;
+        case InferenceEngine::Metrics::DeviceType::integrated: os << "integrated"; break;
+        default: os << "unknown"; break;
+    }
+
+    return os;
+}
+/** @endcond */
+
+/**
+ * @brief Metric to get a type of device. See DeviceType enum definition for possible return values
+ */
+DECLARE_METRIC_KEY(DEVICE_TYPE, DeviceType);
+
+/**
+ * @brief Metric which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device
+ */
+DECLARE_METRIC_KEY(DEVICE_GOPS, std::map<InferenceEngine::Precision, float>);
+
+/**
  * @brief Metric which defines support of import/export functionality by plugin
  */
 DECLARE_METRIC_KEY(IMPORT_EXPORT_SUPPORT, bool);
@@ -205,11 +238,16 @@ DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
  * @brief The name for setting CPU affinity per thread option.
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
- * PluginConfigParams::YES (pinning threads to cores, best for static benchmarks),
- * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
- * this is TBB-specific knob, and the only pinning option (beyond 'NO', below) on the Windows*
  * PluginConfigParams::NO (no pinning for CPU inference threads)
- * All settings are ignored, if the OpenVINO compiled with OpenMP threading and any affinity-related OpenMP's
+ * PluginConfigParams::YES, which is default on the conventional CPUs (pinning threads to cores, best for static benchmarks),
+ *
+ * the following options are implemented only for the TBB as a threading option
+ * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
+ *      on the Windows and MacOS* this option behaves as YES
+ * PluginConfigParams::HYBRID_AWARE (let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for latency tasks)
+ *      on the hybrid CPUs this option is default
+ *
+ * Also, the settings are ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */
 DECLARE_CONFIG_KEY(CPU_BIND_THREAD);

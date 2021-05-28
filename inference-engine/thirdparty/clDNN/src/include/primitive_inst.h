@@ -86,6 +86,7 @@ public:
     uint32_t get_network_id() const;
     void set_output_memory(memory_impl& mem);
     void check_memory_to_set(const memory_impl& mem, const layout& layout) const;
+    const std::list<const cldnn::program_node *>& get_users() const { return _node.get_users(); }
 
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
     primitive_impl* get_impl() const { return _impl.get(); }

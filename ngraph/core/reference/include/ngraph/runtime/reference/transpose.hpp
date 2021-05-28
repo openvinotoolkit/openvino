@@ -7,11 +7,9 @@
 #include <cfenv>
 #include <cmath>
 #include <numeric>
-#include <stdexcept>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate_transform.hpp"
+#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph
@@ -20,41 +18,18 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T, typename U>
-            void transpose(const T* arg, T* out, Shape arg_size, const U* axes_order = nullptr)
+            void transpose(const char* data,
+                           char* out,
+                           const Shape& data_shape,
+                           size_t element_size,
+                           const int64_t* axes_order,
+                           Shape out_shape)
             {
-                std::vector<U> range_vector;
-                if (axes_order == nullptr)
-                {
-                    range_vector.resize(arg_size.size());
-                    std::iota(range_vector.begin(), range_vector.end(), 0);
-                    std::reverse(range_vector.begin(), range_vector.end());
-                    axes_order = range_vector.data();
-                }
-
-                std::vector<size_t> input_strides(arg_size.size());
-                std::vector<size_t> output_strides(arg_size.size());
-                input_strides.back() = 1;
-                output_strides.back() = 1;
-
-                for (int i = input_strides.size() - 2; i >= 0; i--)
-                {
-                    input_strides[i] = input_strides[i + 1] * arg_size[i + 1];
-                    output_strides[i] = output_strides[i + 1] * arg_size[axes_order[i + 1]];
-                }
-                for (int i = 0; i < shape_size(arg_size); ++i)
-                {
-                    size_t in_position = 0;
-                    size_t new_position = i;
-
-                    for (int j = 0; j < arg_size.size(); ++j)
-                    {
-                        in_position +=
-                            (new_position / output_strides[j]) * input_strides[axes_order[j]];
-                        new_position %= output_strides[j];
-                    }
-                    out[i] = arg[in_position];
-                }
+                // To reuse opt_kernel::reshape axes order vector has to be converted to AxisVector
+                // Negative axes are not supported, it is validated by transpose evaluate method
+                std::vector<size_t> axis_vector(axes_order, axes_order + data_shape.size());
+                runtime::opt_kernel::reshape(
+                    data, out, data_shape, axis_vector, out_shape, element_size);
             }
         } // namespace reference
     }     // namespace runtime

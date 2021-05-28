@@ -805,10 +805,16 @@ def add_input_op_input_port_without_data(graph: Graph, node_id: str, input_op, e
 
 
 def add_input_op_input_port_with_data(graph: Graph, node_id: str, input_op, edge_attrs: dict):
-    input_data_node = input_op.create_node_with_data()
-    input_node = input_data_node.in_node()
-    graph.add_edge(input_data_node.id, node_id, **edge_attrs)
-    update_ie_fields(graph.node[input_node.id])
+    assert graph.stage == 'middle', 'add_input_op_input_port_with_data() function can be used only for graph after ' \
+                                    'shape inference!'
+    input_node = input_op.create_node(edge_attrs=edge_attrs)
+    node = Node(graph, node_id)
+
+    out_port = input_node.out_port(edge_attrs['out'])
+    out_port.connect(node.in_port(edge_attrs['in']))
+    out_port.data.set_shape(input_node.soft_get('shape', None))
+    input_data_node = input_node.out_node(0)
+
     log.debug('Input: {} for node {}'.format(input_node.id, node_id))
     log.debug("Add edge from {} to {}".format(input_node.id, input_data_node.id))
     log.debug("Add edge from {} to {}".format(input_data_node.id, node_id))
@@ -831,11 +837,12 @@ def add_input_op_output_port_without_data(graph: Graph, node_id: str, input_op, 
 
 def add_input_op_output_port_with_data(graph: Graph, node_id: str, input_op, port: int):
     # we assume that after op always data node
+    assert graph.stage == 'middle', 'add_input_op_input_port_with_data() function can be used only for graph after ' \
+                                    'shape inference!'
     data_node = Node(graph, node_id).out_node(port)
     assert data_node.has_valid('kind') and data_node.kind == 'data'
-    input_op.create_node_with_data(data_nodes=data_node)
-    input_node = data_node.in_node()
-    update_ie_fields(graph.node[input_node.id])
+    input_node = input_op.create_node()
+    Node(graph, node_id).out_port(port).get_connection().set_source(input_node.out_port(0))
     log.debug('Input: {} for node {}'.format(input_node.id, node_id))
     log.debug("Add edge from {} to {}".format(input_node.id, node_id))
     return input_node.id
@@ -860,8 +867,9 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     input_op = Parameter(graph, dict(shape=shape, data_type=data_type, initial_node_name=node_id,
                                         name=get_new_placeholder_name(node_id, is_out_port, port)))
 
+    fw_name = Node(graph, node_id).soft_get('name')
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],
-                  'fw_tensor_debug_info': [(Node(graph, node_id).soft_get('name'), port)],
+                  'fw_tensor_debug_info': [(fw_name, fw_name)],
                   'data_attrs': ['fw_tensor_debug_info']}
     if not data:
         if is_out_port:

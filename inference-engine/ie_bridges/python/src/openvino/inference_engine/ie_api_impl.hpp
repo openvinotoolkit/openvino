@@ -38,6 +38,14 @@ struct ProfileInfo {
     unsigned execution_index;
 };
 
+struct CVariableState {
+    InferenceEngine::VariableState variableState;
+    void reset();
+    std::string getName();
+    InferenceEngine::Blob::Ptr getState();
+    void setState(InferenceEngine::Blob::Ptr state);
+};
+
 struct IENetwork {
     std::shared_ptr<InferenceEngine::CNNNetwork> actual;
     std::string name;
@@ -94,7 +102,7 @@ struct InferRequestWrap {
     int index;
     using cy_callback = void (*)(void*, int);
 
-    InferenceEngine::IInferRequest::Ptr request_ptr;
+    InferenceEngine::InferRequest request_ptr;
     Time::time_point start_time;
     double exec_time;
     cy_callback user_callback;
@@ -109,17 +117,21 @@ struct InferRequestWrap {
 
     void setCyCallback(cy_callback callback, void* data);
 
-    void getBlobPtr(const std::string& blob_name, InferenceEngine::Blob::Ptr& blob_ptr);
+    InferenceEngine::Blob::Ptr getBlobPtr(const std::string& blob_name);
 
     void setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr);
 
-    void setBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data, const InferenceEngine::PreProcessInfo& info);
+    void setBlob(const std::string& name,
+                 const InferenceEngine::Blob::Ptr& data,
+                 const InferenceEngine::PreProcessInfo& info);
 
     void setBatch(int size);
 
-    void getPreProcess(const std::string& blob_name, const InferenceEngine::PreProcessInfo** info);
+    const InferenceEngine::PreProcessInfo& getPreProcess(const std::string& blob_name);
 
     std::map<std::string, InferenceEnginePython::ProfileInfo> getPerformanceCounts();
+
+    std::vector<InferenceEnginePython::CVariableState> queryState();
 };
 
 struct IEExecNetwork {
@@ -182,4 +194,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 }
 
 std::string get_version();
+
+InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::string path_to_bin);
+
 };  // namespace InferenceEnginePython

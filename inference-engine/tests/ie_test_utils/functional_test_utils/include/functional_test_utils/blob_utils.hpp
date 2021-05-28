@@ -228,10 +228,10 @@ compareBlobData(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Bl
     }
 
     for (size_t i = 0; i < ref_size / sizeof(dataType); i++) {
-        auto resVal = PRC == InferenceEngine::Precision::FP16 ? InferenceEngine::PrecisionUtils::f16tof32(res_ptr[i])
-                                                              : res_ptr[i];
-        auto refVal = PRC == InferenceEngine::Precision::FP16 ? InferenceEngine::PrecisionUtils::f16tof32(ref_ptr[i])
-                                                              : ref_ptr[i];
+        auto resVal = PRC == InferenceEngine::Precision::FP16 ? InferenceEngine::PrecisionUtils::f16tof32(static_cast<InferenceEngine::ie_fp16>(res_ptr[i]))
+                                                              : static_cast<float>(res_ptr[i]);
+        auto refVal = PRC == InferenceEngine::Precision::FP16 ? InferenceEngine::PrecisionUtils::f16tof32(static_cast<InferenceEngine::ie_fp16>(ref_ptr[i]))
+                                                              : static_cast<float>(ref_ptr[i]);
         float absDiff = std::abs(resVal - refVal);
         if (absDiff > max_diff) {
             float relDiff = absDiff / std::max(res_ptr[i], ref_ptr[i]);
@@ -286,10 +286,10 @@ compareBlobs(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob:
 inline void GetComparisonThreshold(InferenceEngine::Precision prc, float &absoluteThreshold, float &relativeThreshold) {
     switch (prc) {
         case InferenceEngine::Precision::FP32:
-            absoluteThreshold = relativeThreshold = 1e-4;
+            absoluteThreshold = relativeThreshold = 1e-4f;
             break;
         case InferenceEngine::Precision::FP16:
-            absoluteThreshold = relativeThreshold = 1e-2;
+            absoluteThreshold = relativeThreshold = 1e-2f;
             break;
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::I8:
@@ -524,7 +524,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobUniqueSequence(
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
     blob->allocate();
     auto shape = td.getDims();
-    auto range = std::accumulate(begin(shape), end(shape), 1, std::multiplies<uint64_t>()) * 2;
+    auto range = std::accumulate(begin(shape), end(shape), uint64_t(1), std::multiplies<uint64_t>()) * 2;
     switch (td.getPrecision()) {
 #define CASE(X) case X: CommonTestUtils::fill_random_unique_sequence<X>(blob, range, start_from, resolution, seed); break;
         CASE(InferenceEngine::Precision::FP32)

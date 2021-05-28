@@ -30,15 +30,24 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const std::vector<float>& constValues,
     const std::string& additionalLayer) {
     std::shared_ptr<ngraph::Node> input1;
+    std::shared_ptr<ngraph::Node> parent1;
     if (constInput == 0) {
-        input1 = std::make_shared<ngraph::opset1::Constant>(
+        parent1 = std::make_shared<ngraph::opset1::Constant>(
             precision,
             inputShape,
             constValues);
     } else {
         input1 = std::make_shared<ngraph::opset1::Parameter>(
-            precision1.is_real() ? precision : precision1,
-            broadcast ? ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }) : ngraph::Shape(inputShape));
+            additionalLayer != "" ? precision : (precision1.is_real() ? precision : precision1),
+            broadcast ? ngraph::Shape({inputShape[0], inputShape[1], 1, 1}) : ngraph::Shape(inputShape));
+        if (additionalLayer != "") {
+            parent1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+                input1,
+                precision,
+                {256, Shape{}, {0}, {255}, {0}, {255}, precision1});
+        } else {
+            parent1 = input1;
+        }
     }
 
     auto dequantizationStructure1 = dequantization1;
@@ -47,7 +56,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
         dequantizationStructure1.subtract.outPrecision = precision;
     }
 
-    const auto dequantizationOp1 = dequantization1.empty() ? input1 : makeDequantization(input1, dequantizationStructure1);
+    const auto dequantizationOp1 = dequantization1.empty() ? parent1 : makeDequantization(parent1, dequantizationStructure1);
 
     std::shared_ptr<ngraph::Node> input2;
     if (constInput == 1) {
@@ -72,6 +81,21 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::Strides{ 1, 1 });
+    }
+    std::shared_ptr<Node> additional_output = nullptr;
+    if (additionalLayer == "convolution_multiconsumers") {
+        parent = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+                std::vector<element::Type>{ element::f32, element::f32 },
+                std::vector<element::Type>{ precision },
+                ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(
+                        std::make_shared<ngraph::opset1::Constant>(element::i8, Shape{ 1, 4, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
+                        element::f32).get(),
+                ngraph::Strides{ 1, 1 },
+                ngraph::CoordinateDiff{ 0, 0 },
+                ngraph::CoordinateDiff{ 0, 0 },
+                ngraph::Strides{ 1, 1 });
+        additional_output = parent;
     }
     if (additionalLayer == "group_convolution") {
         parent = std::make_shared< ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
@@ -105,7 +129,13 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     auto& rtInfo = add->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("add");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
+    std::shared_ptr<Node> output = add;
+    if (additional_output != nullptr) {
+        output = std::make_shared<opset1::Multiply>(add, additional_output);
+        output->set_friendly_name("output_multiply");
+    }
+
+    ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(output)};
     ngraph::ParameterVector parameters;
     if (constInput == -1) {
         parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1), as_type_ptr<ngraph::opset1::Parameter>(input2) };
@@ -172,20 +202,29 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const std::string& additionalLayer,
     const std::string& operationType) {
     std::shared_ptr<ngraph::Node> input1;
+    std::shared_ptr<ngraph::Node> parent1;
     if (constInputIndex == 0) {
-        input1 = std::make_shared<ngraph::opset1::Constant>(
+        parent1 = std::make_shared<ngraph::opset1::Constant>(
             dequantizationAfter.empty() ? precision : element::f32,
             inputShape,
             constValues);
     } else {
         input1 = std::make_shared<ngraph::opset1::Parameter>(
-            precision1.is_real() ? precision : precision1,
-            broadcast ? ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }) : ngraph::Shape(inputShape));
+            additionalLayer != "" ? precision : (precision1.is_real() ? precision : precision1),
+            broadcast ? ngraph::Shape({inputShape[0], inputShape[1], 1, 1}) : ngraph::Shape(inputShape));
+        if (additionalLayer != "") {
+            parent1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+                    input1,
+                    precision,
+                    {256, Shape{}, {0}, {255}, {0}, {255}, precision1});
+        } else {
+            parent1 = input1;
+        }
     }
 
     auto dequantizationStructure1 = dequantization1;
     dequantizationStructure1.multiply.outPrecision = dequantizationAfter.empty() ? precision : element::f32;
-    const auto dequantizationOp1 = is_type<ngraph::opset1::Constant>(input1) ? input1 : makeDequantization(input1, dequantizationStructure1);
+    const auto dequantizationOp1 = is_type<ngraph::opset1::Constant>(parent1) ? parent1 : makeDequantization(parent1, dequantizationStructure1);
 
     std::shared_ptr<ngraph::Node> input2;
     if (constInputIndex == 1) {
@@ -210,6 +249,21 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::Strides{ 1, 1 });
+    }
+    std::shared_ptr<Node> additional_output = nullptr;
+    if (additionalLayer == "convolution_multiconsumers") {
+        parent = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+                std::vector<element::Type>{ element::f32, element::f32 },
+                std::vector<element::Type>{ precision },
+                ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(
+                        std::make_shared<ngraph::opset1::Constant>(element::i8, Shape{ 1, 4, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
+                        element::f32).get(),
+                ngraph::Strides{ 1, 1 },
+                ngraph::CoordinateDiff{ 0, 0 },
+                ngraph::CoordinateDiff{ 0, 0 },
+                ngraph::Strides{ 1, 1 });
+        additional_output = parent;
     }
     if (additionalLayer == "group_convolution") {
         parent = std::make_shared< ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
@@ -259,8 +313,14 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const auto dequantizationOpAfter = makeDequantization(add, dequantizationStructureAfter);
 
     dequantizationOpAfter->set_friendly_name("output");
+    std::shared_ptr<Node> output = dequantizationOpAfter;
+    if (additional_output != nullptr) {
+        output = std::make_shared<opset1::Multiply>(dequantizationOpAfter, additional_output);
+        output->set_friendly_name("output_multiply");
+    }
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
+    ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(output)};
+
     ngraph::ParameterVector parameters;
     if (constInputIndex == -1) {
         parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1), as_type_ptr<ngraph::opset1::Parameter>(input2) };

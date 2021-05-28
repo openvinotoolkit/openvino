@@ -1,12 +1,11 @@
 # Extending Model Optimizer for Custom MXNet* Operations {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives}
 
-This section provides instruction on how to support a custom MXNet operation (or as it called in the MXNet documentation
-"operator" or "layer") which is not a part of the MXNet operation set. For example, if the operator is implemented using
-the following [guide](https://mxnet.apache.org/versions/1.7.0/api/faq/new_op.html).
+This section provides instruction on how to support a custom MXNet operation (in the MXNet documentation, called an *operator* or *layer*) that is not part of the MXNet operation set. Creating custom operations is described in 
+[this guide](https://mxnet.apache.org/versions/1.7.0/api/faq/new_op.html).
 
 This section describes a procedure on how to extract operator attributes in the Model Optimizer. The rest of the
-operation enabling pipeline and documentation on how to support MXNet operations from standard MXNet operation set is
-described in the main document [Customize_Model_Optimizer](Customize_Model_Optimizer.md).
+operation-enabling pipeline and documentation on how to support MXNet operations from standard MXNet operation set is
+described in the main [Customize_Model_Optimizer](Customize_Model_Optimizer.md) document.
 
 ## Writing Extractor for Custom MXNet Operation
 Custom MXNet operations have an attribute `op` (defining the type of the operation) equal to `Custom` and attribute

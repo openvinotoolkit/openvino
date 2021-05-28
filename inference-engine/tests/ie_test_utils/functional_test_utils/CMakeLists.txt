@@ -26,7 +26,8 @@ addIeTarget(
             inference_engine_transformations
             inference_engine_lp_transformations
             inference_engine
-            inference_engine_legacy
+        PRIVATE
+            ngraphFunctions
     INCLUDES
         PUBLIC
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
@@ -37,4 +38,3 @@ addIeTarget(
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
-

@@ -126,7 +126,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
     prev_layer_id = 'Parameter'
     graph.add_node(prev_layer_id, name=prev_layer_id, kind='op', op='Parameter', parameters=None)
 
-    used_layers = set()
+    # find out output layer, it can be only one due to chain structure of nnet1 model
+    output_layer = None
     while True:
         component_type = find_next_component(file_descr)
         if component_type == end_of_nnet_tag.lower()[1:-1]:
@@ -150,6 +151,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
                        kind='op',
                        layer_i=layer_i,
                        layer_o=layer_o)
+        if hasattr(graph, 'op_names_statistic'):
+            graph.op_names_statistic[component_type] += 1
 
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
@@ -158,8 +161,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0, create_edge_attrs(prev_layer_id, layer_id, prev_layer_id))
-        used_layers.add(prev_layer_id)
         prev_layer_id = layer_id
+        output_layer = layer_id
         log.debug('{} (type is {}) was loaded'.format(prev_layer_id, component_type))
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
@@ -167,8 +170,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
     # for each output Identity node is added, and tensor name for the output is kept
     # on (output, fake output) edge. After Result nodes adding transformation fake outputs
     # are deleted from graph.
-    output_layers = graph.nodes - used_layers
-    add_outputs_identity(graph, output_layers, lambda g, output, fake_output: g.create_edge(
+    assert output_layer is not None, "Output layer is not found in graph"
+    add_outputs_identity(graph, [output_layer], lambda g, output, fake_output: g.create_edge(
         Node(g, output), Node(g, fake_output), 0, 0, create_edge_attrs(output, fake_output, output)))
 
 
@@ -279,6 +282,8 @@ def load_components(file_descr, graph, component_layer_map=None):
                            parameters=get_parameters(file_descr, start_index, end_index),
                            op=component_type,
                            kind='op')
+        if hasattr(graph, 'op_names_statistic'):
+            graph.op_names_statistic[component_type] += 1
 
         all_components.append(layer_id)
         log.debug('{} (type is {}) was loaded'.format(layer_id, component_type))
@@ -337,7 +342,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         in_port = len(Node(graph, node_name).in_nodes())
 
         Node(graph, node_name).add_input_port(in_port)
-        Node(graph, in_node_id).add_output_port(out_port)
+        Node(graph, in_node_id).add_output_port(out_port, skip_if_exist=True)
 
         graph.add_edge(in_node_id, node_name, **create_edge_attrs(in_node_id, node_name, in_node_id, in_port, out_port))
     elif tokens[0] == b'output-node':
@@ -528,7 +533,7 @@ def parse_specifier(string, graph, layer_node_map):
             const_node = Const(graph, {'name': scale_const_name, 'value': float_array([scale_value])}).create_node()
 
             node = Node(graph, node_name)
-            graph.create_edge(const_node, scale_node, 0, 0, create_edge_attrs(const_node.id, scale_name.id, const_node.id))
+            graph.create_edge(const_node, scale_node, 0, 0, create_edge_attrs(const_node.id, scale_node.id, const_node.id))
             out_port = len(node.out_nodes())
             graph.create_edge(node, scale_node, out_port, 1, create_edge_attrs(node_name, scale_node.id, node_name, 1, out_port))
         else:

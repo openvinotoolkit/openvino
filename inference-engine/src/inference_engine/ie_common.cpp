@@ -17,7 +17,6 @@
 #include <exec_graph_info.hpp>
 
 #include <ngraph/opsets/opset.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 
 namespace ExecGraphInfoSerialization {
 //
@@ -54,6 +53,27 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     return actual->getOpSets();
 }
 namespace details {
+
+void Rethrow() {
+    try {
+        throw;
+    } catch (const GeneralError& e) {throw e;}
+      catch (const NotImplemented& e) {throw e;}
+      catch (const NetworkNotLoaded& e) {throw e;}
+      catch (const ParameterMismatch& e) {throw e;}
+      catch (const NotFound& e) {throw e;}
+      catch (const OutOfBounds& e) {throw e;}
+      catch (const Unexpected& e) {throw e;}
+      catch (const RequestBusy& e) {throw e;}
+      catch (const ResultNotReady& e) {throw e;}
+      catch (const NotAllocated& e) {throw e;}
+      catch (const InferNotStarted& e) {throw e;}
+      catch (const NetworkNotRead& e) {throw e;}
+      catch (const InferCancelled& e) {throw e;}
+      catch (const std::exception& e) {IE_THROW() << e.what();}
+      catch(...) {IE_THROW(Unexpected);}
+}
+
 IE_SUPPRESS_DEPRECATED_START
 
 StatusCode InferenceEngineException::getStatus() const {
@@ -125,19 +145,19 @@ TBlob<T, U>::~TBlob() {
     free();
 }
 
-template class TBlob<float>;
-template class TBlob<double>;
-template class TBlob<int8_t>;
-template class TBlob<uint8_t>;
-template class TBlob<int16_t>;
-template class TBlob<uint16_t>;
-template class TBlob<int32_t>;
-template class TBlob<uint32_t>;
-template class TBlob<long>;
-template class TBlob<long long>;
-template class TBlob<unsigned long>;
-template class TBlob<unsigned long long>;
-template class TBlob<bool>;
-template class TBlob<char>;
+template class INFERENCE_ENGINE_API_CLASS(TBlob<float>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<double>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<int8_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<uint8_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<int16_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<uint16_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<int32_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<uint32_t>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<long>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<long long>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long long>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<bool>);
+template class INFERENCE_ENGINE_API_CLASS(TBlob<char>);
 
 }  // namespace InferenceEngine

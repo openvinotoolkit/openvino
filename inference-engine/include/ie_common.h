@@ -286,6 +286,11 @@ struct QueryNetworkResult {
  */
 using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
 
+/**
+ * @brief A collection that contains string as key, and Data smart pointer as value
+ */
+using OutputsDataMap = std::map<std::string, DataPtr>;
+
 namespace details {
 struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception")
 INFERENCE_ENGINE_API_CLASS(InferenceEngineException) : public std::runtime_error {
@@ -366,6 +371,12 @@ INFERENCE_ENGINE_DECLARE_EXCEPTION(InferCancelled, INFER_CANCELLED)
 
 // TODO: Move this section out of public API
 namespace details {
+
+/**
+ * @brief Rethrow a copy of exception. UShould be used in catch blocks
+ */
+[[noreturn]] INFERENCE_ENGINE_API_CPP(void) Rethrow();
+
 /**
  * @brief Tag struct used to throw exception
  */
@@ -468,39 +479,6 @@ struct NullStream {
         default: IE_ASSERT(!"Unreachable");                                                     \
     }
 
-/**
- * @private
- */
-#define CALL_STATUS_FNC(function, ...)                                                          \
-    if (!actual) IE_THROW() << "Wrapper used was not initialized.";                     \
-    ResponseDesc resp;                                                                          \
-    auto res = actual->function(__VA_ARGS__, &resp);                                            \
-    if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                      \
-            InferenceEngine::details::ThrowNow<ExceptionType>{}                                 \
-                <<= std::stringstream{} << IE_LOCATION << resp.msg)
-
-/**
- * @private
- */
-#define CALL_STATUS_FNC_NO_ARGS(function)                                                                   \
-    if (!actual)  IE_THROW() << "Wrapper used in the CALL_STATUS_FNC_NO_ARGS was not initialized."; \
-    ResponseDesc resp;                                                                                      \
-    auto res = actual->function(&resp);                                                                     \
-    if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                                  \
-            InferenceEngine::details::ThrowNow<ExceptionType>{}                                             \
-                <<= std::stringstream{} << IE_LOCATION)
-
-/**
- * @private
- */
-#define CALL_FNC_NO_ARGS(function)         \
-    if (!actual) IE_THROW() << "Wrapper used in the CALL_FNC_NO_ARGS was not initialized."; \
-    ResponseDesc resp;                     \
-    auto result = actual->function(&resp); \
-    if (resp.msg[0] != '\0') {             \
-         IE_THROW() << resp.msg    \
-    }                                      \
-    return result;
 }  // namespace details
 }  // namespace InferenceEngine
 #if defined(_WIN32)
