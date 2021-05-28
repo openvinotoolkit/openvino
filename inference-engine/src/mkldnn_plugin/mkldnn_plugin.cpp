@@ -21,6 +21,7 @@
 #include <ie_system_conf.h>
 #include <nodes/list.hpp>
 #include <ie_ngraph_utils.hpp>
+#include "transformations/serialize.hpp"
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -369,8 +370,25 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
         });
 
+        // for GNA networks reference execution
+        bool updatePrecision = true;
+        bool hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
+                nGraphFunc,
+                {65535, 65536, 4294967295, 4294967296});
+        if (hasINT16orINT32Levels) {
+            updatePrecision = false;
+            LowPrecision::setDefaultPrecisions({
+                ngraph::element::u8,  ngraph::element::i8,
+                ngraph::element::u16, ngraph::element::i16,
+                ngraph::element::u32, ngraph::element::i32,
+            });
+
+            supportedPrecisions = std::vector<OperationPrecisionRestriction>({});
+        }
+
         ngraph::pass::Manager lptManager;
-        lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
+        lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization,
+                                                                            LayerTransformation::Params(updatePrecision));
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
                 return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
