@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API Conv2dDecomposition;
+class Conv2dDecomposition;
 
 }  // namespace pass
 }  // namespace ngraph

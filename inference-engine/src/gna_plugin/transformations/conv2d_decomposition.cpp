@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/conv2d_decomposition.hpp"
-#include "transformations/utils/utils.hpp"
-
+#include "conv2d_decomposition.hpp"
 #include <memory>
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/builder/reshape.hpp>
-#include <ngraph/builder/split.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
-#include "itt.hpp"
 
 
 using namespace ngraph;
@@ -357,7 +350,7 @@ bool DetectGraphSequence(GraphData& graph_data, const ConvData& conv_data, MaxPo
     return true;
 }
 
-bool CountPadding(const GraphData& graph_data, ConvData& conv_data, const MaxPoolData& pool_data, OutData& out_data) {
+bool PreparePadding(const GraphData& graph_data, ConvData& conv_data, const MaxPoolData& pool_data, OutData& out_data) {
     size_t output_channel_count = conv_data.filter_count;
 
     switch (conv_data.padding_type) {
@@ -437,8 +430,8 @@ void ApplyPadding(const GraphData& graph_data, const ConvData& conv_data, OutDat
         biggest_padding = biggest_padding > padded_row_size ? biggest_padding : padded_row_size;
     }
 
-    auto flat_input = builder::opset1::reshape(graph_data.leading_transpose->input_value(0),
-        Shape{ (size_t)1, shape_size(graph_data.leading_transpose->input_value(0).get_shape()) });
+    auto flat_input = std::make_shared<opset1::Reshape>(graph_data.leading_transpose->input_value(0),
+        op::Constant::create(element::i64, Shape{ 2 }, Shape{ 1ull, shape_size(graph_data.leading_transpose->input_value(0).get_shape()) }), false);
     // zero padding
     // TODO: find biggest padding in whole network
     auto const_holding_padding = std::make_shared<opset1::Constant>(element::Type_t::f32, Shape{ 1, biggest_padding }, 0);
@@ -477,8 +470,10 @@ void ApplyPadding(const GraphData& graph_data, const ConvData& conv_data, OutDat
             //                    |
             //                 concat
 
-            auto not_padded_row = conv_data.input_height == 1 ? flat_input :
-                FlatCrop(flat_input, h * conv_data.input_width * conv_data.input_channel_count, conv_data.input_width * conv_data.input_channel_count);
+            std::shared_ptr<Node> not_padded_row = flat_input;
+            if (conv_data.input_height > 1)
+                not_padded_row = FlatCrop(flat_input, h * conv_data.input_width * conv_data.input_channel_count,
+                    conv_data.input_width * conv_data.input_channel_count);
             copy_runtime_info(graph_data.conv, not_padded_row);
             if (flat_left_padding || flat_right_padding) {
                 OutputVector single_row_concat_inputs;
@@ -567,12 +562,15 @@ std::shared_ptr<Node> GetPartialResults(const GraphData& graph_data, ConvData& c
             auto dilated_chunks_concat = std::make_shared<opset1::Concat>(dilated_chunks, 0);
 
             // permute
-            auto permuted_dilated_chunks = builder::opset1::transpose(dilated_chunks_concat);
+            auto permuted_dilated_chunks = std::make_shared<op::Transpose>(dilated_chunks_concat,
+                op::Constant::create(element::Type_t::i64, Shape{ 2 }, { 1ll, 0ll })->output(0));
 
             // flatten
-            auto flatten_dilated_conv_input = builder::opset1::reshape(permuted_dilated_chunks,
-                Shape{ (size_t)1, 1, out_data.output_width, h_1_filter_channel_count * conv_data.filter_width });
-            copy_runtime_info(graph_data.conv, { flatten_dilated_conv_input, permuted_dilated_chunks, dilated_chunks_concat });
+            auto flatten_dilated_conv_input = std::make_shared<opset1::Reshape>(permuted_dilated_chunks,
+                op::Constant::create(ngraph::element::i64, Shape{ 4 },
+                    Shape{ 1ull, 1ull, out_data.output_width, h_1_filter_channel_count * conv_data.filter_width }), false);
+
+            copy_runtime_info(graph_data.conv, NodeVector{ flatten_dilated_conv_input, permuted_dilated_chunks, dilated_chunks_concat });
 
             nhwc_conv_y_input = flatten_dilated_conv_input;
         }
@@ -590,7 +588,8 @@ std::shared_ptr<Node> GetPartialResults(const GraphData& graph_data, ConvData& c
             size_t c_index = 0) {
                 // valid 1D convolution wrapped with permutes NHWC => NCHW => conv => NCHW => NHWC
                 // NHWC => NCHW
-                auto nchw_input = builder::opset1::reorder_axes(input, { 0ull, 3ull, 1ull, 2ull });
+                std::shared_ptr<Node> nchw_input = std::make_shared<op::Transpose>(input,
+                    op::Constant::create(element::Type_t::i64, Shape{ 4 }, { 0ll, 3ll, 1ll, 2ll })->output(0));
                 // conv
                 auto conv = std::make_shared<opset1::Convolution>(nchw_input, filters,
                     Strides{ 1, stride_x }, CoordinateDiff{ 0, 0 }, CoordinateDiff{ 0, 0 }, Strides{ 1, 1 }, PadType::VALID);
@@ -614,7 +613,8 @@ std::shared_ptr<Node> GetPartialResults(const GraphData& graph_data, ConvData& c
                 }
 
                 // NCHW => NHWC
-                auto nhwc_output = builder::opset1::reorder_axes(last_conv_block_op, { 0ull, 2ull, 3ull, 1ull });
+                auto nhwc_output = std::make_shared<op::Transpose>(last_conv_block_op,
+                    op::Constant::create(element::Type_t::i64, Shape{ 4 }, { 0ull, 2ull, 3ull, 1ull })->output(0));
                 copy_runtime_info(source_conv2d, { nchw_input, conv, nhwc_output });
                 return nhwc_output;
         };
@@ -622,7 +622,8 @@ std::shared_ptr<Node> GetPartialResults(const GraphData& graph_data, ConvData& c
         if (!horizontal_permute) {
             size_t padded_row_width = conv_data.pads_begin_x + conv_data.input_width + conv_data.pads_end_x;
             size_t padded_row_flat_width = shape_size(nhwc_conv_y_input.get_shape());
-            nhwc_conv_y_input = builder::opset1::reshape(nhwc_conv_y_input, { 1ull, 1ull, padded_row_width, padded_row_flat_width / padded_row_width });
+            nhwc_conv_y_input = std::make_shared<opset1::Reshape>(nhwc_conv_y_input,
+                op::Constant::create(element::Type_t::i64, Shape{ 4 }, Shape{ 1ull, 1ull, padded_row_width, padded_row_flat_width / padded_row_width }), false);
         }
 
         // valid 1D convolution wrapped with permutes NHWC => NCHW => conv => NCHW => NHWC
@@ -650,12 +651,20 @@ void ApplyTransform(const GraphData& graph_data, ConvData& conv_data, const MaxP
     auto filter_values = std::dynamic_pointer_cast<opset1::Constant>(filters.get_node_shared_ptr());
     OutputVector split_planes;
     if (out_data.conv_count > 1) {
-        auto reshape_before_permute = builder::opset1::reshape(out_data.padded_input_plane,
-            Shape{ shape_size(out_data.padded_input_plane->get_shape()) / out_data.conv_count, out_data.conv_count });
-        auto permute_before_channel_wise_split = builder::opset1::reorder_axes(reshape_before_permute, { 1ull, 0ull });
-        auto reshape_after_permute = builder::opset1::reshape(permute_before_channel_wise_split,
-            Shape{ (size_t)out_data.conv_count, out_data.padded_input_plane->get_shape()[1] / out_data.conv_count });
-        split_planes = builder::opset1::split(reshape_after_permute, out_data.conv_count, 0);
+        auto reshape_before_permute = std::make_shared<opset1::Reshape>(out_data.padded_input_plane,
+            op::Constant::create(ngraph::element::i64, Shape{ 2 },
+            { shape_size(out_data.padded_input_plane->get_shape()) / out_data.conv_count, out_data.conv_count }), false);
+
+        auto permute_before_channel_wise_split = std::make_shared<op::Transpose>(reshape_before_permute,
+            op::Constant::create(element::Type_t::i64, Shape{ 2 }, { 1ll, 0ll })->output(0));
+
+        auto reshape_after_permute = std::make_shared<opset1::Reshape>(permute_before_channel_wise_split,
+            op::Constant::create(ngraph::element::i64, Shape{ 2 }, { (size_t)out_data.conv_count,
+                out_data.padded_input_plane->get_shape()[1] / out_data.conv_count }), false);
+
+        const auto axis_node = ngraph::opset1::Constant::create(element::i64, Shape{}, { 0 });
+        const auto split = std::make_shared<ngraph::opset1::Split>(reshape_after_permute, axis_node, out_data.conv_count);
+        split_planes = split->outputs();
     } else {
         split_planes.push_back(out_data.padded_input_plane);
     }
@@ -698,11 +707,13 @@ void ApplyTransform(const GraphData& graph_data, ConvData& conv_data, const MaxP
             // it is done by interleaving dilated input planes
             auto dilated_chunks_concat = std::make_shared<opset1::Concat>(dilated_input_planes, 0);
 
-            auto permuted_dilated_chunks = builder::opset1::transpose(dilated_chunks_concat);
+            auto permuted_dilated_chunks = std::make_shared<op::Transpose>(dilated_chunks_concat,
+                op::Constant::create(element::Type_t::i64, Shape{ 2 }, { 1ll, 0ll })->output(0));
+
             // flatten
-            auto flatten_dilated_permuted_input = builder::opset1::reshape(permuted_dilated_chunks,
-                Shape{ (size_t)1, (conv_data.pads_begin_x + conv_data.input_width + conv_data.pads_end_x) *
-                conv_data.input_channel_count * out_data.output_height * conv_data.filter_height });
+            auto flatten_dilated_permuted_input = std::make_shared<opset1::Reshape>(permuted_dilated_chunks,
+                op::Constant::create(ngraph::element::i64, Shape{ 2 }, { (size_t)1, (conv_data.pads_begin_x + conv_data.input_width + conv_data.pads_end_x) *
+                conv_data.input_channel_count * out_data.output_height * conv_data.filter_height }), false);
 
             copy_runtime_info(graph_data.conv, { dilated_chunks_concat, flatten_dilated_permuted_input, permuted_dilated_chunks });
             reduced_input_plane = flatten_dilated_permuted_input;
@@ -758,8 +769,6 @@ bool pass::Conv2dDecomposition::run_on_function(std::shared_ptr<Function> f) {
         if ((graph_data.conv = DetectVerifyConvolution(node)) == nullptr)
             continue;
 
-        transformation_callback(graph_data.conv);
-
         FillConvData(graph_data.conv, conv_data);
 
         // TODO: Check if filter weights are not dynamic
@@ -773,7 +782,7 @@ bool pass::Conv2dDecomposition::run_on_function(std::shared_ptr<Function> f) {
         if (!DetectGraphSequence(graph_data, conv_data, maxpool_data))
             continue;
 
-        if (!CountPadding(graph_data, conv_data, maxpool_data, out_data))
+        if (!PreparePadding(graph_data, conv_data, maxpool_data, out_data))
             continue;
 
         // All checks applied - now we may start to do transformations
