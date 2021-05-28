@@ -407,6 +407,25 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             return false;
         };
 
+        auto bin_conv_supports_eltw_fusings = [](binary_convolution_node& conv_node) -> bool {
+            auto& eltw_node = static_cast<const eltwise_node&>(*conv_node.get_users().front());
+            auto& eltw_prim = *eltw_node.get_primitive();
+
+            if (eltw_node.get_dependencies().size() < 2)
+                return false;
+
+            auto const_layout = eltw_node.get_dependency(1).get_output_layout();
+            auto conv_layout = conv_node.get_output_layout();
+            auto per_channel_eltwise = const_layout.size.feature[0] == conv_layout.size.feature[0];
+
+            if (eltw_node.get_dependency(1).is_constant() && per_channel_eltwise &&
+                (eltw_prim.mode == eltwise_mode::sum || eltw_prim.mode == eltwise_mode::prod) &&
+                (conv_node.get_primitive()->dilation == tensor{1}))
+                return true;
+
+            return false;
+        };
+
         auto fc_supports_fusings = [](fully_connected_node& node) -> bool {
             auto in_dt = node.get_dependency(0).get_output_layout().data_type;
 
@@ -798,11 +817,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = (parents[i]->is_type<convolution>() && conv_supports_fusings(parents[i]->as<convolution>())) ||
+                                      (parents[i]->is_type<binary_convolution>() && bin_conv_supports_eltw_fusings(parents[i]->as<binary_convolution>())) ||
                                       (parents[i]->is_type<mvn>() && mvn_supports_fusings(parents[i]->as<mvn>())) ||
                                       (parents[i]->is_type<deconvolution>()) ||
                                       (parents[i]->is_type<permute>()) ||
                                       (parents[i]->is_type<resample>()) ||
                                       (parents[i]->is_type<space_to_depth>()) ||
+                                      (parents[i]->is_type<fully_connected>() && fc_supports_fusings(parents[i]->as<fully_connected>())) ||
                                       (parents[i]->is_type<gemm>() && gemm_supports_fusings(parents[i]->as<gemm>())) ||
                                       (parents[i]->is_type<batch_to_space>()) ||
                                       (parents[i]->is_type<space_to_batch>()) ||
