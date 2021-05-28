@@ -817,6 +817,55 @@ class FuseMulTests(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1', 'placeholder_1')
         self.assertTrue(flag, resp)
 
+    def test_fuse_mul_data_nodes_names(self):
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
+                             ('mul_1_w', 'mul_1'),
+                             ('mul_1', 'mul_1_data'),
+                             ('mul_1_data', 'conv_1'),
+                             ('const_conv_1_w', 'conv_1_w'),
+                             ('const_conv_1_b', 'conv_1_b'),
+                             ('conv_1_w', 'conv_1'),
+                             ('conv_1_b', 'conv_1'),
+                             ('conv_1', 'conv_1_data'),
+                             ('conv_1_data', 'op_output')
+                             ],
+                            {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
+                             'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
+                             'const_mul_1_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
+                             'mul_1_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
+                             'const_conv_1_w': {'shape': np.array([11, 11, 3, 96]),
+                                                'value': np.ones((11, 11, 3, 96))},
+                             'conv_1_w': {'shape': np.array([11, 11, 3, 96]), 'value': np.ones((11, 11, 3, 96)),
+                                          'output_channel_dim': 3, 'input_channel_dim': 2,
+                                          'dims_number': 4},
+                             'const_conv_1_b': {'shape': np.array([96]), 'value': np.zeros(96)},
+                             'conv_1_b': {'shape': np.array([96]), 'value': np.zeros(96)},
+                             'conv_1_data': {}
+                             })
+
+        _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1')], backward=False)
+
+        conv_node = Node(graph, 'conv_1')
+        conv_in_data_name = conv_node.in_node(1)['name']
+        const_node = Node(graph, 'const_conv_1_w')
+        const_out_data_name = const_node.out_node(0)['name']
+        mul_node = Node(graph, 'mul_1')
+        conv_in_data = conv_node.in_node(1)
+
+        # Check that transformation doesn't produce identical data node names,
+        # as this may lead to appearing of Const ops with identical names.
+        self.assertFalse(conv_in_data_name == const_out_data_name)
+
+        # Attributes that are required for fusing are kept on data nodes.
+        # These checks are needed to ensure that _fuse_mul doesn't remove any of these attributes.
+        self.assertTrue(conv_in_data['output_channel_dim'] == 3)
+        self.assertTrue(conv_in_data['input_channel_dim'] == 2)
+        self.assertTrue(conv_in_data['dims_number'] == 4)
+        self.assertTrue(mul_node['can_be_fused'] is True)
+
 
 # Unit tests for fuse_linear_ops
 class FuseLinOpsTests(unittest.TestCase):
