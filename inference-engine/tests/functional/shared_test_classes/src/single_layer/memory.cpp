@@ -51,9 +51,6 @@ namespace LayerTestsDefinitions {
         auto variable_value = std::make_shared<VariableValue>(hostTensor);
         variable_context->get().set_variable_value(function->get_variable_by_id("v0"), variable_value);
         eval_context["VariableContext"] = variable_context;
-        if (transformation == op::MemoryTransformation::NONE) {
-            LoadNetwork();
-        }
     }
 
 
@@ -79,6 +76,13 @@ namespace LayerTestsDefinitions {
         }
 
         try {
+            if (transformation != op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
+                LoadNetwork();
+            } else {
+                CoreConfiguration(this);
+                ConfigureNetwork();
+                executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+            }
             GenerateInputs();
             for (int64_t i = 0; i < iteration_count; ++i) {
                 Infer();
@@ -186,20 +190,14 @@ namespace LayerTestsDefinitions {
            pass::Manager manager;
            manager.register_pass<pass::LowLatency_v2>();
            manager.run_passes(function);
-           LoadNetwork();
        } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
            function->validate_nodes_and_infer_types();
            pass::Manager manager;
            manager.register_pass<pass::LowLatency_v2>(false);
            manager.run_passes(function);
-           LoadNetwork();
         } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
             InferenceEngine::LowLatency_v2(cnnNetwork, iteration_count);
-
-            CoreConfiguration(this);
-            ConfigureNetwork();
-            executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         }
     }
 
