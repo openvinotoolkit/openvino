@@ -55,8 +55,8 @@ class FuseSubtractToFakeQuantizeTransformation : public LayerTransformation,
     public testing::WithParamInterface<FuseSubtractToFakeQuantizeTransformationTestParams> {
 public:
     void SetUp() override {
-        const size_t quantizationLevel = get<0>(GetParam());
-        FuseSubtractToFakeQuantizeTransformationTestValues testValues = get<1>(GetParam());
+        const size_t quantizationLevel = std::get<0>(GetParam());
+        FuseSubtractToFakeQuantizeTransformationTestValues testValues = std::get<1>(GetParam());
         if (!testValues.actual.fakeQuantizeOnData.empty()) {
             testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
         }
@@ -100,8 +100,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationTestParams> obj) {
-        const size_t quantizationLevel = get<0>(obj.param);
-        FuseSubtractToFakeQuantizeTransformationTestValues testValues = get<1>(obj.param);
+        const size_t quantizationLevel = std::get<0>(obj.param);
+        FuseSubtractToFakeQuantizeTransformationTestValues testValues = std::get<1>(obj.param);
         if (!testValues.actual.fakeQuantizeOnData.empty()) {
             testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
         }
