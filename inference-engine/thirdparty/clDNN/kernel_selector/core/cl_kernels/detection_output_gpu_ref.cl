@@ -231,6 +231,67 @@ KERNEL (detection_output_stage_0_caffe)(
 }
 #endif /* IS_ZERO_ITER_CAFFE */
 
+#ifdef IS_ZERO_ITER_CAFFE_OPT
+KERNEL (detection_output_stage_0_caffe_opt)(
+    __global UNIT_TYPE* input_location,
+    __global UNIT_TYPE* input_confidence,
+    __global UNIT_TYPE* input_prior_box,
+    __global uchar *buffer0,
+    __global uchar *buffer1,
+    __global int *buffer3)
+{
+    const int batchId = get_global_id(0);
+    const int classId = get_global_id(1);
+    //printf("detection_output_stage_0_caffe_opt | global_id={batchId[0:%3d]classId[1:%3d][2:%zd]} local_id={[0:%zd][1:%zd][2:%zd]}\n",
+    //        batchId, classId, get_global_id(2), get_local_id(0), get_local_id(1), get_local_id(2));
+
+    const int loc_label = ((SHARE_LOCATION)? 0 : classId);
+    const int scores_size_offset = batchId * NUM_CLASSES + classId;
+
+    buffer3[scores_size_offset] = 0;
+    __global BBOXES_INFO *bboxesList = (__global BBOXES_INFO*)&buffer0[(batchId * NUM_LOC_CLASSES + loc_label) * BUFFER_STRIDE];
+    __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+
+    for (uint idx_prior = 0; idx_prior < NUM_OF_PRIORS; idx_prior++)
+    {
+        if (SHARE_LOCATION) {
+            if (classId == loc_label) {
+                UNIT_TYPE decoded_bbox[4];
+                FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, idx_prior, classId, batchId);
+                BBOXES_INFO bbox_info;
+                bbox_info.xmin = decoded_bbox[0];
+                bbox_info.ymin = decoded_bbox[1];
+                bbox_info.xmax = decoded_bbox[2];
+                bbox_info.ymax = decoded_bbox[3];
+                bboxesList[idx_prior] = bbox_info;
+            }
+        } else {
+            if (loc_label != BACKGROUND_LABEL_ID) {
+                UNIT_TYPE decoded_bbox[4];
+                FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, idx_prior, classId, batchId);
+                BBOXES_INFO bbox_info;
+                bbox_info.xmin = decoded_bbox[0];
+                bbox_info.ymin = decoded_bbox[1];
+                bbox_info.xmax = decoded_bbox[2];
+                bbox_info.ymax = decoded_bbox[3];
+                bboxesList[idx_prior] = bbox_info;
+            }
+        }
+        UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, idx_prior, classId, batchId);
+        if (score > 0) {
+            int acc_num = buffer3[scores_size_offset];
+            SCORES_INFO score_info;
+            score_info.batchId = batchId;
+            score_info.classId = classId;
+            score_info.boxId = idx_prior;
+            score_info.score = score;
+            scoresList[acc_num] = score_info;
+            buffer3[scores_size_offset] = (acc_num + 1);
+        }
+    }
+}
+#endif /* IS_ZERO_ITER_CAFFE_OPT */
+
 #ifdef IS_ZERO_ITER_MXNET
 KERNEL (detection_output_stage_0_mxnet)(
     __global UNIT_TYPE* input_location,
@@ -287,6 +348,70 @@ KERNEL (detection_output_stage_0_mxnet)(
     }
 }
 #endif /* IS_ZERO_ITER_MXNET */
+
+#ifdef IS_ZERO_ITER_MXNET_OPT
+KERNEL (detection_output_stage_0_mxnet_opt)(
+    __global UNIT_TYPE* input_location,
+    __global UNIT_TYPE* input_confidence,
+    __global UNIT_TYPE* input_prior_box,
+    __global uchar *buffer0,
+    __global uchar *buffer1,
+    volatile __global int *buffer3)
+{
+    const int batchId = get_global_id(0);
+    const int priorId = get_global_id(1);
+    //printf("detection_output_stage_0_mxnet_opt | global_id={batchId[0:%3d]priorId[1:%3d][2:%zd]} local_id={[0:%zd][1:%zd][2:%zd]}\n",
+    //        batchId, priorId, get_global_id(2), get_local_id(0), get_local_id(1), get_local_id(2));
+
+    const int scores_size_offset = batchId * NUM_OF_PRIORS + priorId;
+    __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer1[batchId * BUFFER_STRIDE];
+
+    if (priorId == 0)
+    {
+        buffer3[batchId] = 0;
+    }
+    barrier(CLK_GLOBAL_MEM_FENCE);
+
+    for (uint idx_class = 0; idx_class < NUM_LOC_CLASSES; idx_class++)
+    {
+        const int loc_label = ((SHARE_LOCATION)? 0 : idx_class);
+        __global BBOXES_INFO *bboxesList = (__global BBOXES_INFO*)&buffer0[(batchId * NUM_LOC_CLASSES + loc_label) * BUFFER_STRIDE];
+
+        if (SHARE_LOCATION) {
+            if (idx_class == loc_label) {
+                UNIT_TYPE decoded_bbox[4];
+                FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, priorId, idx_class, batchId);
+                BBOXES_INFO bbox_info;
+                bbox_info.xmin = decoded_bbox[0];
+                bbox_info.ymin = decoded_bbox[1];
+                bbox_info.xmax = decoded_bbox[2];
+                bbox_info.ymax = decoded_bbox[3];
+                bboxesList[priorId] = bbox_info;
+            }
+        } else {
+            if (loc_label != BACKGROUND_LABEL_ID) {
+                UNIT_TYPE decoded_bbox[4];
+                FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, priorId, idx_class, batchId);
+                BBOXES_INFO bbox_info;
+                bbox_info.xmin = decoded_bbox[0];
+                bbox_info.ymin = decoded_bbox[1];
+                bbox_info.xmax = decoded_bbox[2];
+                bbox_info.ymax = decoded_bbox[3];
+                bboxesList[priorId] = bbox_info;
+            }
+        }
+    }
+    int idx_max_score = FUNC_CALL(get_largest_score)(input_confidence, priorId, batchId);
+    UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, priorId, idx_max_score, batchId);
+    SCORES_INFO score_info;
+    score_info.batchId = batchId;
+    score_info.classId = idx_max_score;
+    score_info.boxId = priorId;
+    score_info.score = score;
+    scoresList[priorId] = score_info;
+    atomic_inc(&buffer3[batchId]);
+}
+#endif /* IS_ZERO_ITER_MXNET_OPT */
 
 #ifdef IS_FIRST_ITER_CAFFE
 KERNEL (detection_output_stage_1_caffe)(

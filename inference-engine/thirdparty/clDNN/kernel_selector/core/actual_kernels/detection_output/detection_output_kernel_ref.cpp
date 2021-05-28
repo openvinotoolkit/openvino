@@ -99,9 +99,21 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
     DetectionOutputKernelRef::DispatchData dispatchData;
     const auto& input = params.inputs[0];
     const auto& detectOutParams = params.detectOutParams;
+    constexpr size_t prior_box_size = 4;
+    auto loc_feature_num = params.inputs[0].Feature().v;
     auto num_classes = detectOutParams.num_classes;
+    auto num_loc_classes = (detectOutParams.share_location) ? 1 : num_classes;
+    auto num_prior_boxes = (loc_feature_num / (num_loc_classes * prior_box_size));
 
-    if (idx == 1) {
+    if (idx == 0) {
+        if (detectOutParams.decrease_label_id) {
+            dispatchData.gws = {input.Batch().v, num_prior_boxes, 1};
+            dispatchData.lws = {1, 1, 1};
+        } else {
+            dispatchData.gws = {input.Batch().v, num_classes, 1};
+            dispatchData.lws = {1, 1, 1};
+        }
+    } else if (idx == 1) {
         const size_t kSplitNum = 4;
         if (detectOutParams.decrease_label_id) {
             // dispatchData.gws = { 1, 1, 1};
@@ -126,8 +138,8 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
             dispatchData.lws = {1, 1, 1};
         }
     } else {
-        dispatchData.gws = { 1, 1, 1};
-        dispatchData.lws = { 1, 1, 1};
+        dispatchData.gws = {1, 1, 1};
+        dispatchData.lws = {1, 1, 1};
     }
     // printf("idx[%d] gws: { %zd, %zd, %zd }\n", idx, dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
     // printf("idx[%d] lws: { %zd, %zd, %zd }\n", idx, dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
@@ -196,9 +208,11 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
         cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
         if (i == 0) {
             if (detectOutParams.detectOutParams.decrease_label_id) {
-                cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_MXNET", "true"));
+                //cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_MXNET", "true"));
+                cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_MXNET_OPT", "true"));
             } else {
-                cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_CAFFE", "true"));
+                // cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_CAFFE", "true"));
+                cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_CAFFE_OPT", "true"));
             }
         } else if (i == 1) {
              if (detectOutParams.detectOutParams.decrease_label_id) {
