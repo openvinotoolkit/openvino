@@ -5,13 +5,13 @@
 **Category**: Data movement operation
 
 **Short description**: *StridedSlice* extracts a strided slice of a tensor.
- It is similar to generalized array indexing in Python\*.
+ It is similar to generalized array indexing in Python.
 
 **Attributes**
 
 *   *begin_mask*
 
-    * **Description**: *begin_mask* is a bit mask. *begin_mask[i]* equal to 1 means that the corresponding dimension of the `begin` input is ignored and the 'real' beginning of the tensor is used along corresponding dimension.
+    * **Description**: *begin_mask* is a bit mask. *begin_mask[i]* equal to `1` means that the corresponding dimension of the `begin` input is ignored and the 'real' beginning of the tensor is used along corresponding dimension.
     * **Range of values**: a list of `0`s and `1`s
     * **Type**: `int[]`
     * **Default value**: None
@@ -19,7 +19,7 @@
 
 *   *end_mask*
 
-    * **Description**: *end_mask* is a bit mask. If *end_mask[i]* is 1, the corresponding dimension of the `end` input is ignored and the real 'end' of the tensor is used along corresponding dimension.
+    * **Description**: *end_mask* is a bit mask. If *end_mask[i]* is `1`, the corresponding dimension of the `end` input is ignored and the real 'end' of the tensor is used along corresponding dimension.
     * **Range of values**: a list of `0`s and `1`s
     * **Type**: `int[]`
     * **Default value**: None
@@ -27,7 +27,7 @@
 
 *   *new_axis_mask*
 
-    * **Description**: *new_axis_mask* is a bit mask. If *new_axis_mask[i]* is 1, a length 1 dimension is inserted on the `i`-th position of input tensor.
+    * **Description**: *new_axis_mask* is a bit mask. If *new_axis_mask[i]* is `1`, a length 1 dimension is inserted on the `i`-th position of input tensor.
     * **Range of values**: a list of `0`s and `1`s
     * **Type**: `int[]`
     * **Default value**: `[0]`
@@ -35,7 +35,7 @@
 
 *   *shrink_axis_mask*
 
-    * **Description**: *shrink_axis_mask* is a bit mask. If *shrink_axis_mask[i]* is 1, the dimension on the `i`-th position is deleted.
+    * **Description**: *shrink_axis_mask* is a bit mask. If *shrink_axis_mask[i]* is `1`, the dimension on the `i`-th position is deleted.
     * **Range of values**: a list of `0`s and `1`s
     * **Type**: `int[]`
     * **Default value**: `[0]`
@@ -51,19 +51,19 @@
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor to be sliced. Required.
+*   **1**: input tensor to be sliced of type `T` and arbitrary shape. **Required.**
 
-*   **2**: `begin` input - 1D input tensor with begin indexes for input tensor slicing. Required.
-           Out-of-bounds values are silently clamped. If `begin_mask[i]` is 1, the value of `begin[i]` is ignored
-           and the range of the appropriate dimension starts from 0.
-           Negative values mean indexing starts from the end. For example, if `foo=[1,2,3]`, `begin[0]=-1` means `begin[0]=3`.
+*   **2**: `begin` - 1D tensor of type `T_IND` with begin indexes for input tensor slicing. **Required.**  
+    Out-of-bounds values are silently clamped. If `begin_mask[i]` is `1`, the value of `begin[i]` is ignored and the range of the appropriate dimension starts from `0`. Negative values mean indexing starts from the end. For example, if `foo=[1,2,3]`, `begin[0]=-1` means `begin[0]=3`.
 
-*   **3**: `end` input - 1D input tensor with end indexes for input tensor slicing. Required.
-           Out-of-bounds values will be silently clamped. If `end_mask[i]` is 1, the value of `end[i]` is ignored
-           and the full range of the appropriate dimension is used instead.
-           Negative values mean indexing starts from the end. For example, if `foo=[1,2,3]`, `end[0]=-1` means `end[0]=3`.
+*   **3**: `end` - 1D tensor of type `T_IND` with end indexes for input tensor slicing. **Required.**  
+    Out-of-bounds values will be silently clamped. If `end_mask[i]` is `1`, the value of `end[i]` is ignored and the full range of the appropriate dimension is used instead. Negative values mean indexing starts from the end. For example, if `foo=[1,2,3]`, `end[0]=-1` means `end[0]=3`.
 
-*   **4**: `stride` input - 1D input tensor with strides. Optional.
+*   **4**: `stride` - 1D tensor of type `T_IND` with strides. **Optional.**
+
+**Types**
+* *T*: any supported floating point type.
+* *T_IND*: any supported integer type.
 
 **Example**
 ```xml
