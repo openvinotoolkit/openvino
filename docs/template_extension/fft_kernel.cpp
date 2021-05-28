@@ -11,6 +11,32 @@
 
 #include "fft_op.hpp"
 
+#ifdef _WIN32
+#include <windows.h>
+#elif defined(__APPLE__) || defined(__linux__)
+#include <dlfcn.h>
+#else
+#error "Unsupported OS"
+#endif
+
+bool loadOpenCV() {
+    static bool loaded = false;
+    if (!loaded) {
+#ifdef _WIN32
+        if (!LoadLibraryA("opencv_core.dll"))
+            return false;
+#elif defined(__APPLE__)
+        if (!dlopen("libopencv_core.dylib", RTLD_LAZY | RTLD_GLOBAL))
+            return false;
+#else
+        if (!dlopen("libopencv_core.so", RTLD_LAZY | RTLD_GLOBAL))
+            return false;
+#endif
+        loaded = true;
+    }
+    return true;
+}
+
 using namespace TemplateExtension;
 
 FFTImpl::FFTImpl(const std::shared_ptr<ngraph::Node>& node) {
@@ -64,6 +90,9 @@ InferenceEngine::StatusCode FFTImpl::init(InferenceEngine::LayerConfig& config, 
         if (config.outConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32 ||
             config.inConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32) {
             IE_THROW() << "Operation supports only FP32 precisions!";
+        }
+        if (!loadOpenCV()) {
+            IE_THROW() << "Failed to load OpenCV!";
         }
     } catch (InferenceEngine::Exception& ex) {
         if (resp) {

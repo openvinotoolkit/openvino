@@ -9,12 +9,7 @@ set(TARGET_NAME "template_extension")
 
 find_package(ngraph REQUIRED OPTIONAL_COMPONENTS onnx_importer)
 find_package(InferenceEngine REQUIRED)
-# if (ENABLE_WHEEL)
-    # Exclude OpenCV library dependency
-    set(OpenCV_FOUND FALSE)
-# else()
-#     find_package(OpenCV QUIET COMPONENTS core)
-# endif()
+find_package(OpenCV QUIET COMPONENTS core)
 
 set(SRC cpu_kernel.cpp extension.cpp op.cpp)
 
@@ -28,7 +23,7 @@ add_library(${TARGET_NAME} MODULE ${SRC})
 
 if (OpenCV_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_IMPORT_ENABLED)
-    target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
+    target_include_directories(${TARGET_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
 endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
