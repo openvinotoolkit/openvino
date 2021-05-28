@@ -55,7 +55,7 @@ public:
     }
 
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
-    void PullOutputData(InferenceEngine::BlobMap &out);
+    void PullOutputData(const InferenceEngine::BlobMap &out);
 
     void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
 
@@ -77,6 +77,14 @@ public:
 
     std::map<std::string, MKLDNNNodePtr>& GetOutputNodesMap() {
         return outputNodesMap;
+    }
+
+    bool hasInputWithName(const std::string& name) const {
+        return inputNodesMap.count(name);
+    }
+
+    bool hasOutputWithName(const std::string& name) const {
+        return outputNodesMap.count(name);
     }
 
     mkldnn::engine getEngine() const {

@@ -215,16 +215,18 @@ bool IInferRequestInternal::findInputAndOutputBlobByName(const std::string& name
                                         [&](const std::pair<std::string, DataPtr>& pair) {
                                             return pair.first == name;
                                         });
-    if (foundOutputPair == std::end(_networkOutputs) && (foundInputPair == std::end(_networkInputs))) {
-        IE_THROW(NotFound) << "Failed to find input or output with name: \'" << name << "\'";
-    }
+    bool retVal;
+
     if (foundInputPair != std::end(_networkInputs)) {
         foundInput = foundInputPair->second;
-        return true;
-    } else {
+        retVal = true;
+    } else if (foundOutputPair != std::end(_networkOutputs)) {
         foundOutput = foundOutputPair->second;
-        return false;
+        retVal = false;
+    } else {
+        IE_THROW(NotFound) << "Failed to find input or output with name: \'" << name << "\'";
     }
+    return retVal;
 }
 
 void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& name, bool isInput, const SizeVector& refDims) const {
