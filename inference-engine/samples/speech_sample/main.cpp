@@ -663,13 +663,6 @@ int main(int argc, char* argv[]) {
         CNNNetwork network;
         ExecutableNetwork executableNet;
 
-        if (!FLAGS_l.empty()) {
-            // Custom CPU extension is loaded as a shared library and passed as a pointer to base extension
-            IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
-            ie.AddExtension(extension_ptr);
-            slog::info << "Custom Extension loaded: " << FLAGS_l << slog::endl;
-        }
-
         // ------------------------------ Get Available Devices ------------------------------------------------------
         auto isFeature = [&](const std::string xFeature) {
             return FLAGS_d.find(xFeature) != std::string::npos;

@@ -10,7 +10,6 @@ Automatic Speech Recognition C++ sample application demonstrates how to use the 
 |:---     |:--- |:---
 |Inference Engine Version| `InferenceEngine::GetInferenceEngineVersion` | Get Inference Engine API version
 |Available Devices|`InferenceEngine::Core::GetAvailableDevices`| Get version information of the devices for inference
-|Custom Extension Kernels|`InferenceEngine::Core::AddExtension`| Load extension library to the device plugin
 | Network Operations | `InferenceEngine::CNNNetwork::setBatchSize`, `InferenceEngine::CNNNetwork::getBatchSize` |  Managing of network, operate with its batch size.
 |Network Operations|`InferenceEngine::CNNNetwork::addOutput`| Change names of output layers in the network
 |Import Network|`InferenceEngine::ExecutableNetwork::Export`,`InferenceEngine::Core::ImportNetwork`| Creates an executable network from a previously exported network
@@ -72,8 +71,7 @@ Several execution modes are supported via the `-d` flag:
 
 #### Loading and Saving Models
 
-The GNA plugin supports loading and saving of the GNA-optimized model (non-IR) via the `-rg` and `-wg` flags.  Thereby, it is possible to avoid the cost of full model quantization at run time. The GNA plugin also
-supports export of firmware-compatible embedded model images for the Intel® Speech Enabling Developer Kit and Amazon Alexa* Premium Far-Field Voice Development Kit via the `-we` flag (save only).
+The GNA plugin supports loading and saving of the GNA-optimized model (non-IR) via the `-rg` and `-wg` flags.  Thereby, it is possible to avoid the cost of full model quantization at run time. The GNA plugin also supports export of firmware-compatible embedded model images for the Intel® Speech Enabling Developer Kit and Amazon Alexa* Premium Far-Field Voice Development Kit via the `-we` flag (save only).
 
 In addition to performing inference directly from a GNA model file, these options make it possible to:
 
@@ -104,7 +102,6 @@ Options:
     -i "<path>"             Required. Paths to .ark files. Example of usage: <file1.ark,file2.ark> or <file.ark>.
     -m "<path>"             Required. Path to an .xml file with a trained model (required if -rg is missing).
     -o "<path>"             Optional. Output file name to save ark scores.
-    -l "<absolute_path>"    Required for CPU custom layers. Absolute path to a shared library with the kernel implementations.
     -d "<device>"           Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA
      as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown below. The sample will look for a suitable plugin for device specified.
     -pc                     Optional. Enables per-layer performance report.
@@ -160,7 +157,7 @@ Once the IR is created, you can use the following command to do inference on Int
 ```
 
 Here, the floating point Kaldi-generated reference neural network scores (`dev93_scores_10.ark`) corresponding to the input feature file (`dev93_10.ark`) are assumed to be available
-for comparison. 
+for comparison.
 
 All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr). Inference Engine Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
 
