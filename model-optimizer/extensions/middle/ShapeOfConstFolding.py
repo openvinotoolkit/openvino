@@ -9,7 +9,7 @@ from mo.ops.const import Const
 
 class ShapeOfConstFolding(MiddleReplacementPattern):
     """
-    TThe transformation calculates the value of the constant
+    The transformation calculates the value of the constant
     Const() -> ShapeOf() --> Const()
     """
     enabled = True
