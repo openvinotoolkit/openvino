@@ -24,7 +24,7 @@ TEST(TransformationTests, SplitSqeezeConcatFusion) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
-        auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
+        auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
         auto split = std::make_shared<ngraph::opset7::Split>(input, split_axis, num_splits);
         ngraph::OutputVector squeeze_vec(num_splits);
 
