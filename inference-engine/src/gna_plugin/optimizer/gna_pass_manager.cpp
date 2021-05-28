@@ -1324,12 +1324,20 @@ void InsertSplitAligningFilterPass::run() {
             continue;
         }
 
+        auto outFunctionalLayers = CNNNetGetAllNextLayersSkipCertain(l, -1, [](CNNLayerPtr next_layer) {
+            return GNAPluginNS::LayerInfo(next_layer).isNonFunctional();
+        });
+        size_t padding = 0;
+        for (auto &&outFunctionalLayer : outFunctionalLayers) {
+            padding = std::max(padding, LayerInfo(outFunctionalLayer).paddingSize());
+        }
+
         size_t currentOffset = 0;
         int splitOutIndex = 0;
         for (auto &&splitOutput  : l->outData) {
             auto outputSize = product(++begin(splitOutput->getDims()), end(splitOutput->getDims()));
 
-            if (currentOffset != ALIGN64(currentOffset)) {
+            if ((currentOffset != ALIGN64(currentOffset)) || (padding != 0)) {
                 // check that this split output actually connected to further layers
                 if (getInputTo(splitOutput).empty()) {
                     gnalog() << "Output port: " << splitOutIndex << " of " << l->name << " unconnected, skipping\n";
