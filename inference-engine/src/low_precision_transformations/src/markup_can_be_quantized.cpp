@@ -37,20 +37,23 @@ bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_function(std::sha
             }
         };
 
-        if (auto convolution = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node)) {
+        if (const auto convolution = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node)) {
             if (!ConvolutionTransformation::isQuantizedStatic(convolution)) {
                 setEmptyPrecisions(convolution);
             }
+            continue;
         }
-        if (auto convolutionBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
+        if (const auto convolutionBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
             if (!ConvolutionBackpropDataTransformation::isQuantizedStatic(convolutionBackpropData)) {
                 setEmptyPrecisions(convolutionBackpropData);
             }
+            continue;
         }
-        if (auto groupConvolution = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node)) {
+        if (const auto groupConvolution = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node)) {
             if (!GroupConvolutionTransformation::isQuantizedStatic(groupConvolution)) {
                 setEmptyPrecisions(groupConvolution);
             }
+            continue;
         }
     }
     return true;

@@ -192,10 +192,10 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
 }
 
 bool MultiplyToGroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
-    return MultiplyToGroupConvolutionTransformation::isQuantizedStatic(layer);
+    return MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(layer);
 }
 
-bool MultiplyToGroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(const std::shared_ptr<const Node>& layer) noexcept {
     const auto parent0 = layer->get_input_node_shared_ptr(0);
     const auto parent1 = layer->get_input_node_shared_ptr(1);
 
