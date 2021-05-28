@@ -48,7 +48,8 @@ TEST(TransformationTests, SplitSqeezeConcatFusion) {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
         auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 1, 3, 2, 4, 5 });
         auto transpose = std::make_shared<ngraph::opset7::Transpose>(input, transpose_order);
-        auto reshape_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 5 }, std::vector<int64_t>{ 1, 2, 640, 20, 2 * (int64_t)num_splits });
+        auto reshape_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 5 },
+                                                              std::vector<int64_t>{ 1, 2, 640, 20, 2 * (int64_t)num_splits });
         auto reshape = std::make_shared<ngraph::opset7::Transpose>(transpose, reshape_shape);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshape }, ngraph::ParameterVector{ input });
