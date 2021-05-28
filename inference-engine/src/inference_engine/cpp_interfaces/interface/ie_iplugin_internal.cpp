@@ -164,7 +164,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(cons
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(std::istream& networkModel,
                                                                             const std::map<std::string, std::string>& config) {
-   IE_THROW(NotImplemented);
+    IE_THROW(NotImplemented);
 }
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(std::istream& networkModel,

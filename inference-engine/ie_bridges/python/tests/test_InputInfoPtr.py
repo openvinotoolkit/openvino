@@ -76,7 +76,8 @@ def test_incorrect_layout_setter():
 
 
 def test_preprocess_info():
-    preprocess_info = get_input_info().preprocess_info
+    input_info = get_input_info()
+    preprocess_info = input_info.preprocess_info
     assert isinstance(preprocess_info, PreProcessInfo)
     assert preprocess_info.color_format == ColorFormat.RAW
 

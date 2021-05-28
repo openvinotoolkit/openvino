@@ -49,7 +49,13 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
 }
 
 void IExecutableNetworkInternal::Export(const std::string& modelFileName) {
-    IE_THROW(NotImplemented);
+    std::ofstream modelFile(modelFileName, std::ios::out | std::ios::binary);
+
+    if (modelFile.is_open()) {
+        Export(modelFile);
+    } else {
+        IE_THROW() << "The " << modelFileName << " file can not be opened for Export";
+    }
 }
 
 void IExecutableNetworkInternal::Export(std::ostream& networkModel) {

@@ -488,6 +488,12 @@ bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
     return true;
 }
 
+bool op::v0::Constant::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Constant_has_evaluate);
+    return true;
+}
+
 bool op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const
 {
     return evaluate(outputs, {});
