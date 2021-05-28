@@ -35,7 +35,7 @@ namespace reshapeop
     {
         using T = typename element_type_traits<ET>::value_type;
         T* shape_pattern_ptr = shape_pattern->get_data_ptr<ET>();
-        size_t output_rank = shape_pattern->get_shape()[0];
+        size_t output_rank = shape_pattern->get_shape().empty() ? 0 : shape_pattern->get_shape()[0];
         for (size_t i = 0; i < output_rank; i++)
         {
             output_shape.push_back(shape_pattern_ptr[i]);
@@ -219,7 +219,7 @@ void op::v1::Reshape::validate_and_infer_types()
                           ".");
     if (shape_pattern_shape.rank().is_static() && shape_pattern_shape.rank().get_length() == 0)
     {
-        set_output_type(0, get_input_element_type(0), input_pshape);
+        set_output_type(0, get_input_element_type(0), shape_pattern_shape);
         return;
     }
     Rank output_rank =
@@ -284,27 +284,17 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs,
     // and zero value dimension
     std::vector<int64_t> out_shape_val;
 
-    if (inputs[1]->get_shape().empty())
+    switch (inputs[1]->get_element_type())
     {
-        for (const auto& dim : inputs[0]->get_shape())
-        {
-            out_shape_val.push_back(dim);
-        }
-    }
-    else
-    {
-        switch (inputs[1]->get_element_type())
-        {
-            COMPUTE_OUT_SHAPE_CASE(i8, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(i16, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(i32, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(i64, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(u8, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(u16, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(u32, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(u64, inputs[1], out_shape_val);
-        default: throw ngraph_error("shape_pattern element type is not integral data type");
-        }
+        COMPUTE_OUT_SHAPE_CASE(i8, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i16, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i32, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i64, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u8, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u16, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u32, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u64, inputs[1], out_shape_val);
+    default: throw ngraph_error("shape_pattern element type is not integral data type");
     }
 
     std::vector<Dimension> reshape_pattern;

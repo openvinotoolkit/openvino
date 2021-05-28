@@ -640,5 +640,5 @@ TEST(type_prop, reshape_to_scalar_3)
     auto r = make_shared<op::v1::Reshape>(
         param, op::Constant::create(element::i64, {}, std::vector<int64_t>{100}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_output_shape(0), (Shape{1, 2, 3}));
+    ASSERT_EQ(r->get_output_shape(0), (Shape{}));
 }
