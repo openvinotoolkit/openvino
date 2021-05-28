@@ -179,16 +179,6 @@ set(NGRAPH_INSTALL_INCLUDE "deployment_tools/ngraph/${CMAKE_INSTALL_INCLUDEDIR}"
 set(NGRAPH_INSTALL_DOC "deployment_tools/ngraph/${CMAKE_INSTALL_DOCDIR}")
 set(NGRAPH_INSTALL_BIN "deployment_tools/ngraph/${CMAKE_INSTALL_BINDIR}")
 
-if (LINUX)
-    if (DEFINED NGRAPH_RPATH)
-        set(CMAKE_BUILD_RPATH "$ORIGIN:${NGRAPH_RPATH}")
-        set(CMAKE_INSTALL_RPATH "$ORIGIN:${NGRAPH_RPATH}")
-    else()
-        set(CMAKE_BUILD_RPATH "$ORIGIN")
-        set(CMAKE_INSTALL_RPATH "$ORIGIN")
-    endif()
-endif()
-
 #-----------------------------------------------------------------------------------------------
 # Compile Flags for nGraph...
 #-----------------------------------------------------------------------------------------------
@@ -275,7 +265,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
             FILE ngraphTargets.cmake
             NAMESPACE ngraph::
             DESTINATION "deployment_tools/ngraph/cmake"
-            COMPONENT ngraph)
+            COMPONENT ngraph_dev)
     endif()
 
     configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/share/ngraphConfig.cmake.in
@@ -289,7 +279,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION "deployment_tools/ngraph/cmake"
-        COMPONENT ngraph)
+        COMPONENT ngraph_dev)
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)

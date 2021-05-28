@@ -13,7 +13,7 @@
 #include "ie_memcpy.h"
 #include <single_layer_common.hpp>
 #include <vpu/model/data_desc.hpp>
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 #include "vpu/utils/error.hpp"
 
 #include <math.h>

@@ -122,6 +122,7 @@ if(SPEECH_LIBS_AND_DEMOS)
     install(DIRECTORY ${TEMP}/deployment_tools
                       ${TEMP}/data_processing
             DESTINATION .
+            USE_SOURCE_PERMISSIONS
             COMPONENT speech_demo_files)
 endif()
 
@@ -147,7 +148,7 @@ configure_file(
 configure_file(
     "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
     "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
-    COPYONLY)
+    @ONLY)
 
 #
 # Coverage

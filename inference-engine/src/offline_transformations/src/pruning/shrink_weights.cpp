@@ -11,6 +11,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/log.hpp>
+#include <ngraph/ngraph.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ShrinkWeights, "ShrinkWeights", 0);
 
@@ -62,14 +63,22 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
                     }
                 }
 
-                const auto & prev_shape = last_output.get_shape();
+                const auto & prev_shape = last_output.get_partial_shape();
                 const auto & prev_name = last_output.get_node()->get_friendly_name();
                 last_output = std::make_shared<opset6::Gather>(last_output,
                                                                opset6::Constant::create(element::i64, Shape{dims_to_keep.size()}, dims_to_keep),
                                                                opset6::Constant::create(element::i64, Shape{}, {dim}));
-                NGRAPH_DEBUG << "Transform(" << prev_name << "): " << prev_shape << " to " << last_output.get_shape();
+                NGRAPH_DEBUG << "Transform(" << prev_name << "): " << prev_shape << " to " << last_output.get_partial_shape();
 
-                reduced_weights_count += shape_size(prev_shape) - shape_size(last_output.get_shape());
+                if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
+                    reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_shape());
+                } else {
+                    NGRAPH_DEBUG << "[ WARNING ] Can not find the number of reduced elements due to dynamic shapes.";
+                }
+            }
+            // Trying to fold sequence of Gather ops to avoid additional constant folding.
+            if (auto folded_const = ngraph::get_constant_from_source(last_output)) {
+                last_output = folded_const;
             }
             // as we insert Gather operations after Constant we need to reconnect all
             // Constant consumers to the latest Gather.

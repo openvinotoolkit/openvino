@@ -58,6 +58,19 @@ ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "precomp.hpp"
 )
 
+# CVS-55343
+
+file(GLOB_RECURSE legacy_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp" # CVS-55385
+    "${CMAKE_CURRENT_SOURCE_DIR}/lp_transformations/*.cpp" # CVS-55376
+    "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
+    "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
+    "${CMAKE_CURRENT_SOURCE_DIR}/local_test.cpp" # CVS-55386
+    )
+
+set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+
 include(CMakeParseArguments)
 
 #
@@ -154,9 +167,9 @@ function(ie_headers_compilation_with_custom_flags)
     # To avoid further TBB find_package action in next call of this function. Some version of TBB
     # has an issue with cmake config which lead to fail in case of multiple call of find_package
     # from one cmake script file.
-    set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
-    set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
-    set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
+    set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
+    set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+    set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
 
     set_target_properties(${target_name} PROPERTIES
                           CXX_STANDARD ${IE_TEST_CXX_STANDARD}

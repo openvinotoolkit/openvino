@@ -13,6 +13,7 @@ from libcpp.memory cimport unique_ptr, shared_ptr
 
 cdef class Blob:
     cdef CBlob.Ptr _ptr
+    cdef object _is_const
     cdef public object _array_data
     cdef public object _initial_shape
 
@@ -53,8 +54,10 @@ cdef class ExecutableNetwork:
 
 cdef class IECore:
     cdef C.IECore impl
-    cpdef IENetwork read_network(self, model : [str, bytes, os.PathLike], weights : [str, bytes, os.PathLike] = ?, bool init_from_buffer = ?)
-    cpdef ExecutableNetwork load_network(self, network: [IENetwork, str], str device_name, config = ?, int num_requests = ?)
+    cpdef IENetwork read_network(self, model : [str, bytes, os.PathLike],
+                                 weights : [str, bytes, os.PathLike] = ?, bool init_from_buffer = ?)
+    cpdef ExecutableNetwork load_network(self, network: [IENetwork, str],
+                                         str device_name, config = ?, int num_requests = ?)
     cpdef ExecutableNetwork import_network(self, str model_file, str device_name, config = ?, int num_requests = ?)
 
 
@@ -77,7 +80,11 @@ cdef class InputInfoCPtr:
 
 cdef class PreProcessInfo:
     cdef CPreProcessInfo* _ptr
+    cdef const CPreProcessInfo* _cptr
     cpdef object _user_data
 
 cdef class PreProcessChannel:
     cdef CPreProcessChannel.Ptr _ptr
+
+cdef class VariableState:
+    cdef C.CVariableState impl

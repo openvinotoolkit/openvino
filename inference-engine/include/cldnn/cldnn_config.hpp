@@ -14,6 +14,44 @@
 
 namespace InferenceEngine {
 
+namespace Metrics {
+
+/**
+ * @def GPU_METRIC_KEY(name)
+ * @brief shortcut for defining GPU plugin metrics
+ */
+#define GPU_METRIC_KEY(name) METRIC_KEY(GPU_##name)
+#define DECLARE_GPU_METRIC_KEY(name, ...) DECLARE_METRIC_KEY(GPU_##name, __VA_ARGS__)
+
+/**
+ * @def DECLARE_GPU_METRIC_VALUE(name)
+ * @brief shortcut for defining gpu metric values
+ */
+#define DECLARE_GPU_METRIC_VALUE(name) DECLARE_METRIC_VALUE(GPU_##name)
+
+/**
+ * @brief Metric which defines size of memory in bytes available for the device. For iGPU it returns host memory size, for dGPU - dedicated gpu memory size
+ */
+DECLARE_GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE, uint64_t);
+
+/**
+ * @brief Metric to get microarchitecture identifier in major.minor.revision format
+ */
+DECLARE_GPU_METRIC_KEY(UARCH_VERSION, std::string);
+
+/**
+ * @brief Metric to get count of execution units for current GPU
+ */
+DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
+
+/**
+ * @brief Possible return value for OPTIMIZATION_CAPABILITIES metric
+ *  - "HW_MATMUL" - Defines if device has hardware block for matrix multiplication
+ */
+DECLARE_GPU_METRIC_VALUE(HW_MATMUL);
+
+}  // namespace Metrics
+
 /**
  * @brief GPU plugin configuration
  */
@@ -77,6 +115,15 @@ DECLARE_CLDNN_CONFIG_KEY(NV12_TWO_INPUTS);
 * Default value is maximum number of threads available in the environment.
 */
 DECLARE_CLDNN_CONFIG_KEY(MAX_NUM_THREADS);
+
+/**
+* @brief Turning on this key enables to unroll recurrent layers such as TensorIterator or Loop with fixed iteration count.
+* This key is turned on by default. Turning this key on will achieve better inference performance for loops with not too many iteration counts (less than 16, as a rule of thumb).
+* Turning this key off will achieve better performance for both graph loading time and inference time with many iteration counts (greater than 16).
+* Note that turning this key on will increase the graph loading time in proportion to the iteration counts.
+* Thus, this key should be turned off if graph loading time is considered to be most important target to optimize.*/
+
+DECLARE_CLDNN_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
 
 }  // namespace CLDNNConfigParams
 }  // namespace InferenceEngine
