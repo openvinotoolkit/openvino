@@ -109,8 +109,9 @@ void op::v1::Reshape::validate_and_infer_types()
             }
             reshape_pattern.emplace_back(lower_bound[i], upper_bound[i]);
         }
-        // For scalar case reshape_patter should be empty
-        if (output_rank.is_static() && output_rank.get_length() == 0)
+        // For scalar case reshape_patter should be empty but scalar reshape pattern should be empty
+        // or equal to 1
+        if (output_rank.is_static() && output_rank.get_length() == 0 && !lower_bound.empty())
         {
             reshape_pattern.clear();
             NGRAPH_CHECK(lower_bound.size() == 1);
