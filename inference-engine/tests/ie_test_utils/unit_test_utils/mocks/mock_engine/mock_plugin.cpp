@@ -19,6 +19,9 @@ MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
 
 void MockPlugin::SetConfig(const std::map<std::string, std::string>& config) {
     this->config = config;
+    if (_target) {
+        return _target->SetConfig(config);
+    }
 }
 
 Parameter MockPlugin::GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const {
