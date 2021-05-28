@@ -233,7 +233,7 @@ const std::vector<std::vector<size_t >> kernels2D = { {3, 2} };
 const std::vector<std::vector<size_t >> strides2D = { {1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {1, 2} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = { {3, 1} };
-//TODO: dilation is currently not supported by this transform
+//TODO: dilation != 1 fails due to accuracy
 const std::vector<std::vector<size_t >> dilations2D = { {1, 1} };
 const std::vector<size_t> numOutChannels2D = { 4 };
 const std::vector<std::vector<size_t >> biases2D = { {1, 4, 1, 1} };

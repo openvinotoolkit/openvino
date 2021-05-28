@@ -371,9 +371,9 @@ bool PreparePadding(const GraphData& graph_data, ConvData& conv_data, const MaxP
         out_data.output_width = conv_data.output_shape[3];
 
         size_t pad_begin_n_end_y = out_data.output_height * conv_data.filter_stride_y +
-            conv_data.filter_height * conv_data.filter_dilation_y - conv_data.input_height - 1;
+            (conv_data.filter_height - 1) * conv_data.filter_dilation_y - conv_data.input_height;
         size_t pad_begin_n_end_x = out_data.output_width * conv_data.filter_stride_x +
-            conv_data.filter_width * conv_data.filter_dilation_x - conv_data.input_width - 1;
+            (conv_data.filter_width - 1) * conv_data.filter_dilation_x - conv_data.input_width;
         conv_data.pads_begin_y = (op::PadType::SAME_LOWER == conv_data.padding_type) ?
             (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
         conv_data.pads_end_y = (op::PadType::SAME_UPPER == conv_data.padding_type) ?
