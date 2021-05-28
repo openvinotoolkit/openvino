@@ -14,7 +14,6 @@ from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import (xfail_issue_36480)
 
 
 def test_ngraph_function_api():
@@ -252,14 +251,6 @@ def test_constant_get_data_unsigned_integer(data_type):
     node = ng.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
-
-
-@xfail_issue_36480
-def test_backend_config():
-    dummy_config = {"dummy_option": "dummy_value"}
-    # Expect no throw
-    runtime = get_runtime()
-    runtime.set_config(dummy_config)
 
 
 def test_result():
