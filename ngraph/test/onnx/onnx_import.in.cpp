@@ -4371,11 +4371,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2)
     test_case.run();
 }
 
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_3x4)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_3x4_linearized_indices)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_3x4_linearized_indices.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<float>(Shape{3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f});

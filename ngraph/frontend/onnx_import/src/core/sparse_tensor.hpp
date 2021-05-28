@@ -5,16 +5,11 @@
 #pragma once
 
 #include <onnx/onnx_pb.h>
-#include <utility>
 #include <vector>
 
-#include "ngraph/op/constant.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_common/utils.hpp"
 #include "tensor.hpp"
-#include "utils/common.hpp"
-#include "utils/tensor_external_data.hpp"
 
 namespace ngraph
 {

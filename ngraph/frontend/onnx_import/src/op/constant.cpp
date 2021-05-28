@@ -12,6 +12,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 
+
 namespace ngraph
 {
     namespace onnx_import
@@ -174,7 +175,7 @@ namespace ngraph
                                                 const size_t size)
                 {
                     std::vector<T> dense_values(size);
-                    for (size_t i = 0; i < values.size(); i++)
+                    for (size_t i = 0; i < values.size(); ++i)
                     {
                         dense_values.at(indices.at(i)) = values.at(i);
                     }
@@ -308,10 +309,10 @@ namespace ngraph
                     auto indices = indices_tensor.get_data<int64_t>();
                     auto indices_shape = indices_tensor.get_shape();
                     std::vector<int64_t> absolute_indices{};
-                    for (size_t i = 0; i < nnz; i++)
+                    for (size_t i = 0; i < nnz; ++i)
                     {
                         int64_t index = 0;
-                        for (size_t j = 0; j < rank; j++)
+                        for (size_t j = 0; j < rank; ++j)
                         {
                             auto dim_index_in_indices = i * rank + j;
                             auto dim_value_in_indices = indices.at(dim_index_in_indices);
@@ -319,7 +320,7 @@ namespace ngraph
                             if (j < rank - 1)
                             {
                                 size_t elements_num_per_shape = 1;
-                                for (size_t k = j + 1; k < rank; k++)
+                                for (size_t k = j + 1; k < rank; ++k)
                                     elements_num_per_shape *= shape.at(k);
                                 index += dim_value_in_indices * elements_num_per_shape;
                             }
@@ -384,35 +385,42 @@ namespace ngraph
                         const Tensor& indices_tensor = sparse_tensor.get_indices();
                         const Shape& shape = sparse_tensor.get_shape();
                         auto rank = shape.size();
+                        // NNZ - the number of non-zero values in the sparse-tensor
                         auto nnz = values_tensor.get_shape().at(0);
-                        if (indices_tensor.get_shape().size() == 2)
-                        {
+                        std::vector<int64_t> absolute_indices{};
+
+                        // Check if indices tensor with rank 2 has correct shape [NNZ, rank].
+                        // [i,j]-th value corresponds to the j-th index of the i-th value (in the values tensor)
+                        if(indices_tensor.get_shape().size() == 2){
                             NGRAPH_CHECK(indices_tensor.get_shape().at(0) == nnz,
-                                         "The number of values and indices is not equal."
-                                         " Indices number: ",
-                                         indices_tensor.get_shape().at(0),
-                                         " Values number: ",
-                                         nnz);
+                                    "The number of values and indices is not equal."
+                                    " Indices number: ",
+                                    indices_tensor.get_shape().at(0),
+                                    " Values number: ",
+                                    nnz);
 
                             NGRAPH_CHECK(indices_tensor.get_shape().at(1) == rank,
-                                         "The indices are incorrect. The second dimension of "
-                                         "indices is not equal to the rank of output."
-                                         " Second dimension of indices: ",
-                                         indices_tensor.get_shape().at(0),
-                                         " Rank of output: ",
-                                         rank);
+                                    "The indices are incorrect. The second dimension of indices is not equal to the rank of output."
+                                    " Second dimension of indices: ",
+                                    indices_tensor.get_shape().at(0),
+                                    " Rank of output: ",
+                                    rank);
+
+                            absolute_indices = get_absolute_indices(indices_tensor, shape, nnz);
                         }
+                        // Check if indices tensor with rank 1 has correct shape [NNZ].
+                        // i-th value is the linearized-index of the i-th value (in the values tensor)
                         else
                         {
-                            NGRAPH_CHECK(indices_tensor.get_shape().at(0) == nnz * rank,
-                                         "The number of values and indices is not equal."
-                                         " Indices number: ",
-                                         indices_tensor.get_shape().at(0) / rank,
-                                         " Values number: ",
-                                         nnz);
+                            NGRAPH_CHECK(indices_tensor.get_shape().at(0) == nnz,
+                                    "The number of values and indices is not equal."
+                                    " Indices number: ",
+                                    indices_tensor.get_shape().at(0),
+                                    " Values number: ",
+                                    nnz);
+
+                            absolute_indices = indices_tensor.get_data<int64_t>();
                         }
-                        std::vector<int64_t> absolute_indices =
-                            get_absolute_indices(indices_tensor, shape, nnz);
                         return {
                             get_dense_tensor_as_constant(absolute_indices, values_tensor, shape)};
                     }

@@ -24,7 +24,8 @@ graph {
           name: "values"
         }
         indices {
-          dims: 40
+          dims: 10
+          dims: 4
           data_type: 7
           int64_data: 0
           int64_data: 0
