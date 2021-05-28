@@ -17,14 +17,18 @@ namespace subgraph {
 
 namespace {
 
-std::shared_ptr<Node> createConvolution(const std::shared_ptr<Node>& parent, const element::Type precision, const bool weightsInInt8) {
+std::shared_ptr<Node> createConvolution(
+    const std::shared_ptr<Node>& parent,
+    const element::Type precision,
+    const bool weightsWithoutFQ,
+    const element::Type weightsprecision = element::i8) {
     const size_t outputChannels = parent->output(0).get_shape()[1] * 2;
     const size_t inputChannels = parent->output(0).get_shape()[1];
     const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
 
     std::shared_ptr<Node> weights;
-    if (weightsInInt8) {
-        weights = std::make_shared<opset1::Constant>(element::i8, shape, std::vector<int>(ngraph::shape_size(shape), 100));
+    if (weightsWithoutFQ) {
+        weights = std::make_shared<opset1::Constant>(weightsprecision, shape, std::vector<int>(ngraph::shape_size(shape), 100));
     } else {
         weights = ngraph::builder::makeFakeQuantize(
             std::make_shared<opset1::Constant>(precision, shape, std::vector<float>(ngraph::shape_size(shape), 1.f)),
@@ -90,6 +94,8 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
             lastLayer = std::make_shared<opset1::Softmax>(lastLayer);
         } else if (additionalLayer == "convolution") {
             lastLayer = createConvolution(lastLayer, precision, false);
+        } else if (additionalLayer == "unsupported_convolution") {
+            lastLayer = createConvolution(lastLayer, precision, true, element::f32);
         }
     }
 
@@ -171,6 +177,8 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
             lastLayer = std::make_shared<opset1::Softmax>(lastLayer);
         } else if (additionalLayer == "convolution") {
             lastLayer = createConvolution(lastLayer, element::f32, dequantizationAfter.empty());
+        } else if (additionalLayer == "unsupported_convolution") {
+            lastLayer = createConvolution(lastLayer, precision, true, element::f32);
         }
     }
 
