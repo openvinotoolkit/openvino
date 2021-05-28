@@ -1,13 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
-from extensions.ops.activation_ops import SoftPlus
-from mo.middle.replacement import MiddleReplacementPattern
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph, rename_nodes
-from mo.middle.pattern_match import check_value
+from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 
 
