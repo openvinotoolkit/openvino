@@ -42,7 +42,7 @@ namespace
             {
                 for (int64_t anchor = 0; anchor < anchors_num; ++anchor)
                 {
-                    float* deltas_ptr = deltas + anchor * 4 * bottom_area + h * bottom_W + w;
+                    const float* deltas_ptr = deltas + anchor * 4 * bottom_area + h * bottom_W + w;
 
                     float x0 = anchors[0];
                     float y0 = anchors[1];
@@ -99,6 +99,30 @@ namespace
             }
         }
     }
+
+    void unpack_boxes(const ProposalBox* p_proposals, float* unpacked_boxes, int64_t pre_nms_topn)
+    {
+        for (int64_t i = 0; i < pre_nms_topn; ++i)
+        {
+            unpacked_boxes[0*pre_nms_topn + i] = p_proposals[i].x0;
+            unpacked_boxes[1*pre_nms_topn + i] = p_proposals[i].y0;
+            unpacked_boxes[2*pre_nms_topn + i] = p_proposals[i].x1;
+            unpacked_boxes[3*pre_nms_topn + i] = p_proposals[i].y1;
+            unpacked_boxes[4*pre_nms_topn + i] = p_proposals[i].score;
+        };
+    }
+
+    void nms_cpu(const int64_t num_boxes,
+                 int64_t is_dead[],
+                 const float* boxes,
+                 int64_t index_out[],
+                 int64_t* const num_out,
+                 const int64_t base_index,
+                 const float nms_thresh,
+                 const int64_t max_num_out,
+                 float coordinates_offset)
+    {
+    }
 } // namespace
 
 namespace ngraph
@@ -145,13 +169,13 @@ namespace ngraph
                 // number of final RoIs
                 int64_t num_rois = 0;
 
-                // enumerate all proposals
-                //   num_proposals = num_anchors * H * W
-                //   (x1, y1, x2, y2, score) for each proposal
-                // NOTE: for bottom, only foreground scores are passed
+                float nms_thresh = attrs.nms_threshold;
+                int64_t post_nms_topn = attrs.post_nms_count;
+
                 std::vector<ProposalBox> proposals(num_proposals);
                 std::vector<float> unpacked_boxes(5 * pre_nms_topn);
                 std::vector<int64_t> is_dead(pre_nms_topn);
+                std::vector<int64_t> roi_indices(post_nms_topn);
 
                 // Execute
                 int64_t batch_size = 1; // deltas_shape[0]
@@ -170,6 +194,23 @@ namespace ngraph
                                    min_box_W,
                                    static_cast<const float>(std::log(1000.0 / 16.0)),
                                    1.0f);
+                    std::partial_sort(proposals.begin(),
+                                      proposals.begin() + pre_nms_topn,
+                                      proposals.end(),
+                                      [](const ProposalBox& struct1, const ProposalBox& struct2) {
+                                        return (struct1.score > struct2.score);
+                                      });
+
+                    unpack_boxes(proposals.data(), unpacked_boxes.data(), pre_nms_topn);
+                    nms_cpu(pre_nms_topn,
+                            is_dead.data(),
+                            unpacked_boxes.data(),
+                            roi_indices.data(),
+                            &num_rois,
+                            0,
+                            nms_thresh,
+                            post_nms_topn,
+                            coordinates_offset);
                 }
             }
 
