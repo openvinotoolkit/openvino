@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-from common.multiprocessing_utils import multiprocessing_run
+from common.utils.multiprocessing_utils import multiprocessing_run
 
 
 def shell(cmd, env=None, cwd=None):

@@ -8,8 +8,8 @@ from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer
 from mo.utils.ir_engine.ir_engine import IREngine
 
-from common.common_utils import generate_ir
-from common.parsers import mapping_parser
+from common.utils.common_utils import generate_ir
+from common.utils.parsers import mapping_parser
 
 
 class CommonLayerTest:
@@ -107,7 +107,7 @@ class CommonLayerTest:
 
     def compare_ie_results_with_framework(self, infer_res, framework_res, mapping_dict, framework_eps):
         is_ok = True
-        from common.common_utils import allclose
+        from common.utils.common_utils import allclose
         for framework_out_name in framework_res:
             if framework_out_name not in mapping_dict:
                 raise RuntimeError("Output {} not found in mapping file!".format(framework_out_name))

@@ -2,7 +2,7 @@ import os
 
 from common.layer_test_class import CommonLayerTest
 
-from common.tf_utils import summarize_graph
+from common.utils.tf_utils import summarize_graph
 
 
 def save_to_pb(tf_model, path_to_saved_tf_model):
