@@ -920,9 +920,14 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     input1->set_friendly_name("input1");
 
-    std::shared_ptr<Node> fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, inputPrecision, fqOnData1);
-    fakeQuantize1->set_friendly_name("fakeQuantize1");
-    std::shared_ptr<Node> parent1 = fakeQuantize1;
+    std::shared_ptr<Node> parent1;
+    if (fqOnData1.empty()) {
+        parent1 = input1;
+    } else {
+        std::shared_ptr<Node> fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, inputPrecision, fqOnData1);
+        fakeQuantize1->set_friendly_name("fakeQuantize1");
+        parent1 = fakeQuantize1;
+    }
     if (!convert1.empty()) {
         parent1 = std::make_shared<opset1::Convert>(parent1, convert1.outPrecision);
     }
@@ -933,9 +938,14 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     input2->set_friendly_name("input2");
 
-    std::shared_ptr<Node> fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, inputPrecision, fqOnData2);
-    fakeQuantize2->set_friendly_name("fakeQuantize2");
-    std::shared_ptr<Node> parent2 = fakeQuantize2;
+    std::shared_ptr<Node> parent2;
+    if (fqOnData2.empty()) {
+        parent2 = input2;
+    } else {
+        std::shared_ptr<Node> fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, inputPrecision, fqOnData2);
+        fakeQuantize2->set_friendly_name("fakeQuantize2");
+        parent2 = fakeQuantize2;
+    }
     if (!convert2.empty()) {
         parent2 = std::make_shared<opset1::Convert>(parent2, convert2.outPrecision);
     }
@@ -965,6 +975,132 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
         parent = avgPool;
     } else {
         parent = lastDequantization;
+    }
+    parent->set_friendly_name("output");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
+        results,
+        ngraph::ParameterVector{ input1, input2 },
+        "ConcatTransformation");
+
+    return function;
+}
+
+std::shared_ptr<ngraph::Function> ConcatFunction::get(
+    const ngraph::element::Type inputPrecision,
+    const ngraph::Shape& inputShape1,
+    const FakeQuantizeOnDataWithConstant& fqOnData1,
+    const DequantizationOperations::Convert& convert1,
+    const DequantizationOperations& dequantization1,
+    const bool addReshape1,
+    const ngraph::Shape& inputShape2,
+    const FakeQuantizeOnDataWithConstant& fqOnData2,
+    const DequantizationOperations::Convert& convert2,
+    const DequantizationOperations& dequantization2,
+    const bool addReshape2,
+    const std::vector<std::shared_ptr<Variant>>& concatAttributes,
+    const ngraph::element::Type precisionAfterOperation,
+    const DequantizationOperations& dequantizationAfter,
+    const std::int64_t& axis,
+    const bool addNotPrecisionPreservedOperation) {
+    const auto createReshape = [](const std::shared_ptr<Node>& parent) -> std::shared_ptr<Node> {
+        const auto originalShape = parent->output(0).get_shape();
+        std::vector<int> intermediateShape(originalShape.size());
+        std::fill(intermediateShape.begin(), intermediateShape.end(), 1);
+        intermediateShape[0] = ngraph::shape_size(originalShape);
+
+        const auto reshape1 = std::make_shared<opset1::Reshape>(
+            parent,
+            std::make_shared<opset1::Constant>(element::i32, Shape{ intermediateShape.size() }, intermediateShape),
+            true);
+
+        const auto maxPool = std::make_shared<opset1::MaxPool>(
+            reshape1,
+            Strides{ 1, 1 },
+            Shape{ 1, 1 },
+            Shape{ 0, 0 },
+            Shape{ 2, 2 },
+            op::RoundingType::FLOOR);
+
+        const auto reshape2 = std::make_shared<opset1::Reshape>(
+            maxPool,
+            std::make_shared<opset1::Constant>(element::i32, Shape{ originalShape.size() }, originalShape),
+            true);
+
+        return reshape2;
+    };
+
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape1);
+    input1->set_friendly_name("input1");
+
+    std::shared_ptr<Node> parent1;
+    {
+        if (fqOnData1.empty()) {
+            parent1 = input1;
+        } else {
+            std::shared_ptr<Node> fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, inputPrecision, fqOnData1);
+            fakeQuantize1->set_friendly_name("fakeQuantize1");
+            parent1 = fakeQuantize1;
+        }
+        if (!convert1.empty()) {
+            parent1 = std::make_shared<opset1::Convert>(parent1, convert1.outPrecision);
+        }
+        if (!dequantization1.empty()) {
+            parent1 = makeDequantization(parent1, dequantization1);
+        }
+        if (addReshape1) {
+            parent1 = createReshape(parent1);
+        }
+    }
+
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape2);
+    input2->set_friendly_name("input2");
+
+    std::shared_ptr<Node> parent2;
+    {
+        if (fqOnData2.empty()) {
+            parent2 = input2;
+        } else {
+            std::shared_ptr<Node> fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, inputPrecision, fqOnData2);
+            fakeQuantize2->set_friendly_name("fakeQuantize2");
+            parent2 = fakeQuantize2;
+        }
+        if (!convert2.empty()) {
+            parent2 = std::make_shared<opset1::Convert>(parent2, convert2.outPrecision);
+        }
+        if (!dequantization2.empty()) {
+            parent2 = makeDequantization(parent2, dequantization2);
+        }
+        if (addReshape2) {
+            parent2 = createReshape(parent2);
+        }
+    }
+
+    std::shared_ptr<Node> parent;
+    parent = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, axis);
+    parent->set_friendly_name("concat");
+    addAttributes({ parent }, concatAttributes);
+
+    auto& rtInfo = parent->get_rt_info();
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
+
+    parent = makeConvolution(parent, element::f32, false);
+
+    if (!dequantizationAfter.empty()) {
+        parent = makeDequantization(parent, dequantizationAfter);
+    }
+
+    if (addNotPrecisionPreservedOperation) {
+        auto avgPool = std::make_shared<opset1::AvgPool>(
+            parent,
+            Strides{1, 1},
+            Shape{1, 1},
+            Shape{1, 1},
+            Shape{2, 2},
+            true,
+            op::RoundingType::FLOOR);
+        parent = avgPool;
     }
     parent->set_friendly_name("output");
 
