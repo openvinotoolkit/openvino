@@ -15,7 +15,7 @@
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
-IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh) {
+IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh, const size_t levels) : levels(levels) {
     sharedValue = std::make_shared<IntervalsAlignmentSharedValue>(intervalLow, intervalHigh);
 }
 
@@ -119,7 +119,7 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
 
     auto& rtInfo = node->get_rt_info();
     const auto attribute = std::make_shared<::ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>>(
-        ngraph::pass::low_precision::make_shared_attribute<IntervalsAlignmentAttribute>(lowInterval, highInterval));
+        ngraph::pass::low_precision::make_shared_attribute<IntervalsAlignmentAttribute>(lowInterval, highInterval, fakeQuantize->get_levels()));
     rtInfo[ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name] = attribute;
 
     return attribute;
@@ -144,6 +144,8 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
 std::string VariantWrapper<IntervalsAlignmentAttributePtr>::get_string() {
     std::stringstream ss;
     ss << m_value->get_string();
-    ss << "low: " << m_value->sharedValue->intervalLow << ", high: " << m_value->sharedValue->intervalHigh;
+    ss << (m_value->levels == 0ul ? "" : ("levels: " + std::to_string(m_value->levels) + ", ")) <<
+        "low: " << m_value->sharedValue->intervalLow <<
+        ", high: " << m_value->sharedValue->intervalHigh;
     return ss.str();
 }

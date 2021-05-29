@@ -6,6 +6,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -78,6 +79,11 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
 
     replace_node(multiply, newFakeQuantize);
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
+
+    const auto intervalAlignment = getAttribute<IntervalsAlignmentAttributePtr>(fakeQuantize);
+    if ((intervalAlignment != nullptr) && (intervalAlignment->get()->levels != 0ul)) {
+        newFakeQuantize->set_levels(intervalAlignment->get()->levels);
+    }
 
     updateOutput(context, newFakeQuantize, multiply);
     return true;

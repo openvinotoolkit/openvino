@@ -15,48 +15,6 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-namespace {
-
-std::shared_ptr<Node> createConvolution(
-    const std::shared_ptr<Node>& parent,
-    const element::Type precision,
-    const bool weightsWithoutFQ,
-    const element::Type weightsprecision = element::i8) {
-    const size_t outputChannels = parent->output(0).get_shape()[1] * 2;
-    const size_t inputChannels = parent->output(0).get_shape()[1];
-    const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
-
-    std::shared_ptr<Node> weights;
-    if (weightsWithoutFQ) {
-        weights = std::make_shared<opset1::Constant>(weightsprecision, shape, std::vector<int>(ngraph::shape_size(shape), 100));
-    } else {
-        weights = ngraph::builder::makeFakeQuantize(
-            std::make_shared<opset1::Constant>(precision, shape, std::vector<float>(ngraph::shape_size(shape), 1.f)),
-            precision,
-            255,
-            { outputChannels, 1, 1, 1 },
-            std::vector<float>(outputChannels, -1.27f),
-            std::vector<float>(outputChannels, 1.27f),
-            std::vector<float>(outputChannels, -1.27f),
-            std::vector<float>(outputChannels, 1.27f));
-        weights->set_friendly_name("fakeQuantizeOnWeights");
-    }
-
-    const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
-        ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
-        ngraph::op::TemporaryReplaceOutputType(weights, precision).get(),
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
-
-    convolution->set_friendly_name("convolution");
-
-    return convolution;
-}
-
-} // namespace
-
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::element::Type inputPrecision,
@@ -93,9 +51,9 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
         } else if (additionalLayer == "softmax") {
             lastLayer = std::make_shared<opset1::Softmax>(lastLayer);
         } else if (additionalLayer == "convolution") {
-            lastLayer = createConvolution(lastLayer, precision, false);
+            lastLayer = makeConvolution(lastLayer, precision, false);
         } else if (additionalLayer == "unsupported_convolution") {
-            lastLayer = createConvolution(lastLayer, precision, true, element::f32);
+            lastLayer = makeConvolution(lastLayer, precision, true, element::f32);
         }
     }
 
@@ -176,9 +134,9 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
         } else if (additionalLayer == "softmax") {
             lastLayer = std::make_shared<opset1::Softmax>(lastLayer);
         } else if (additionalLayer == "convolution") {
-            lastLayer = createConvolution(lastLayer, element::f32, dequantizationAfter.empty());
+            lastLayer = makeConvolution(lastLayer, element::f32, dequantizationAfter.empty());
         } else if (additionalLayer == "unsupported_convolution") {
-            lastLayer = createConvolution(lastLayer, precision, true, element::f32);
+            lastLayer = makeConvolution(lastLayer, precision, true, element::f32);
         }
     }
 
