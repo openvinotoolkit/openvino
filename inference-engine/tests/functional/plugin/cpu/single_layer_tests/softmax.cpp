@@ -71,7 +71,6 @@ protected:
                                                                 {0, 0}, {1, 1}, ngraph::op::PadType::VALID, 6);
 
         function = makeNgraphFunction(ngPrc, params, convolutionNode, "Convolution");
-        function->add_sinks()
     }
 };
 
