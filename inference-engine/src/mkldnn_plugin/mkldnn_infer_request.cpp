@@ -372,7 +372,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                 IE_THROW() << "MKLDNN graph doesn't contain input node with name: " << name;
 
             if (data->getTensorDesc() == blobs.at(name)->getTensorDesc() &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
+                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
                 externalPtr.erase(name);
