@@ -30,7 +30,8 @@ public:
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedValueAttribute<IntervalsAlignmentSharedValue> {
 public:
     IntervalsAlignmentAttribute() = default;
-    IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh);
+    IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh, const size_t levels = 0.f);
+    size_t levels;
 };
 
 using IntervalsAlignmentAttributePtr = std::shared_ptr<IntervalsAlignmentAttribute>;

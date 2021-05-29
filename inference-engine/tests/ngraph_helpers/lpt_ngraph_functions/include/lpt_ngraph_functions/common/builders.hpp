@@ -138,6 +138,12 @@ std::shared_ptr<Variant> make_shared_attribute_ptr(Args&& ... args) {
     return attribute;
 }
 
+std::shared_ptr<Node> makeConvolution(
+    const std::shared_ptr<Node>& parent,
+    const element::Type precision,
+    const bool weightsWithoutFQ,
+    const element::Type weightsprecision = element::i8);
+
 } // namespace subgraph
 } // namespace builder
 } // namespace ngraph
