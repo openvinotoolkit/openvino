@@ -12,7 +12,6 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 
-
 namespace ngraph
 {
     namespace onnx_import
@@ -390,34 +389,38 @@ namespace ngraph
                         std::vector<int64_t> absolute_indices{};
 
                         // Check if indices tensor with rank 2 has correct shape [NNZ, rank].
-                        // [i,j]-th value corresponds to the j-th index of the i-th value (in the values tensor)
-                        if(indices_tensor.get_shape().size() == 2){
+                        // [i,j]-th value corresponds to the j-th index of the i-th value (in the
+                        // values tensor)
+                        if (indices_tensor.get_shape().size() == 2)
+                        {
                             NGRAPH_CHECK(indices_tensor.get_shape().at(0) == nnz,
-                                    "The number of values and indices is not equal."
-                                    " Indices number: ",
-                                    indices_tensor.get_shape().at(0),
-                                    " Values number: ",
-                                    nnz);
+                                         "The number of values and indices is not equal."
+                                         " Indices number: ",
+                                         indices_tensor.get_shape().at(0),
+                                         " Values number: ",
+                                         nnz);
 
                             NGRAPH_CHECK(indices_tensor.get_shape().at(1) == rank,
-                                    "The indices are incorrect. The second dimension of indices is not equal to the rank of output."
-                                    " Second dimension of indices: ",
-                                    indices_tensor.get_shape().at(0),
-                                    " Rank of output: ",
-                                    rank);
+                                         "The indices are incorrect. The second dimension of "
+                                         "indices is not equal to the rank of output."
+                                         " Second dimension of indices: ",
+                                         indices_tensor.get_shape().at(0),
+                                         " Rank of output: ",
+                                         rank);
 
                             absolute_indices = get_absolute_indices(indices_tensor, shape, nnz);
                         }
                         // Check if indices tensor with rank 1 has correct shape [NNZ].
-                        // i-th value is the linearized-index of the i-th value (in the values tensor)
+                        // i-th value is the linearized-index of the i-th value (in the values
+                        // tensor)
                         else
                         {
                             NGRAPH_CHECK(indices_tensor.get_shape().at(0) == nnz,
-                                    "The number of values and indices is not equal."
-                                    " Indices number: ",
-                                    indices_tensor.get_shape().at(0),
-                                    " Values number: ",
-                                    nnz);
+                                         "The number of values and indices is not equal."
+                                         " Indices number: ",
+                                         indices_tensor.get_shape().at(0),
+                                         " Values number: ",
+                                         nnz);
 
                             absolute_indices = indices_tensor.get_data<int64_t>();
                         }
