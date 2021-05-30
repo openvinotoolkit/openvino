@@ -412,6 +412,7 @@ static inline void changeEdgePtr(const MKLDNNPlugin::MKLDNNEdgePtr &edge, void *
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
+    // renew external pointers before infer
     InferenceEngine::BlobMap blobs;
     graph->getInputBlobs(blobs);
     for (auto it : blobs) {
