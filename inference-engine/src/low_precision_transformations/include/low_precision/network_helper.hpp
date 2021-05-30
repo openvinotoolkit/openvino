@@ -19,6 +19,7 @@
 #include "rt_info/shared_value_attribute.hpp"
 #include "rt_info/precisions_attribute.hpp"
 #include "rt_info/per_tensor_quantization_attribute.hpp"
+#include "rt_info/intervals_alignment_attribute.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "transformations/utils/utils.hpp"
@@ -303,6 +304,21 @@ public:
             sharedValue->attributes.push_back(attribute);
         }
     }
+
+    static size_t calculateLevels(
+        const float dataPrecisionMin,
+        const float dataPrecisionMax,
+        const float intervalLow,
+        const float intervalHigh,
+        const float minIntervalLow,
+        const float minIntervalHigh);
+
+    static size_t calculateLevels(
+        const size_t quantizationLevel,
+        const float intervalLow,
+        const float intervalHigh,
+        const float minIntervalLow,
+        const float minIntervalHigh);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(

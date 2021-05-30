@@ -20,17 +20,40 @@ class IntervalsAlignmentAttribute;
 
 class LP_TRANSFORMATIONS_API IntervalsAlignmentSharedValue : public SharedValue<IntervalsAlignmentAttribute> {
 public:
+    class Interval {
+    public:
+        Interval() = default;
+        Interval(const float low, const float high) : low(low), high(high) {}
+        float low;
+        float high;
+    };
+
     IntervalsAlignmentSharedValue() = default;
-    IntervalsAlignmentSharedValue(const float intervalLow, const float intervalHigh) :
-            intervalLow(intervalLow), intervalHigh(intervalHigh) {}
-    float intervalLow;
-    float intervalHigh;
+    IntervalsAlignmentSharedValue(
+        const Interval& combinedInterval,
+        const Interval& minInterval,
+        const size_t minLevels) :
+        combinedInterval(combinedInterval),
+        minInterval(minInterval),
+        minLevels(minLevels) {}
+
+    Interval combinedInterval;
+    Interval minInterval;
+    size_t minLevels;
+
+    // TODO: debug only
+    std::string minLevelsOperation;
 };
 
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedValueAttribute<IntervalsAlignmentSharedValue> {
 public:
     IntervalsAlignmentAttribute() = default;
-    IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh, const size_t levels = 0.f);
+    IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval combinedInterval, size_t levels);
+    IntervalsAlignmentAttribute(
+        const IntervalsAlignmentSharedValue::Interval combinedInterval,
+        size_t levels,
+        const IntervalsAlignmentSharedValue::Interval minInterval,
+        size_t minLevels);
     size_t levels;
 };
 

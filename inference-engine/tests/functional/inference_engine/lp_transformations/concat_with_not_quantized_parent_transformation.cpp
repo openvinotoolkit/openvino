@@ -218,7 +218,7 @@ public:
             true,
             {
                 make_shared_attribute_ptr<PrecisionPreservedAttribute>(true),
-                make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f),
+                make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul),
                 make_shared_attribute_ptr<QuantizationAlignmentAttribute>(false)
             },
             testValues.result.precisionAfterOperation,

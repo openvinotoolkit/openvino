@@ -248,9 +248,9 @@ public:
                 hasNegativeOutput(hasNegativeOutput),
                 hasZeroPoint(hasZeroPoint) {}
 
-        const element::Type precision;
-        const bool hasNegativeOutput;
-        const bool hasZeroPoint;
+        element::Type precision;
+        bool hasNegativeOutput;
+        bool hasZeroPoint;
     };
 
     LayerTransformation(const Params& params);
@@ -265,6 +265,9 @@ public:
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
+    // Get precision based on FakeQuantize operation.
+    // Undefined value is expected. In this case the accuracy has to be defined by the calling code.
+    // TODO: LPT: INT8 specific here, where is INT16/INT32?
     static PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails);
 
     // return true if operation can be quantized and false otherwise
