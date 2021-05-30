@@ -4,6 +4,7 @@
 
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 
+#include <cmath>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -15,8 +16,18 @@
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
-IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh, const size_t levels) : levels(levels) {
-    sharedValue = std::make_shared<IntervalsAlignmentSharedValue>(intervalLow, intervalHigh);
+IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
+    const IntervalsAlignmentSharedValue::Interval combinedInterval,
+    size_t levels) : levels(levels) {
+    sharedValue = std::make_shared<IntervalsAlignmentSharedValue>(combinedInterval, combinedInterval, levels);
+}
+
+IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
+    const IntervalsAlignmentSharedValue::Interval combinedInterval,
+    size_t levels,
+    const IntervalsAlignmentSharedValue::Interval minInterval,
+    size_t minLevels) : levels(levels) {
+    sharedValue = std::make_shared<IntervalsAlignmentSharedValue>(combinedInterval, minInterval, minLevels);
 }
 
 template class ngraph::VariantImpl<IntervalsAlignmentAttributePtr>;
@@ -44,13 +55,39 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<IntervalsAlignmentAttributePtr>:
             continue;
         }
 
-
-        if (resultAttribute->sharedValue->intervalLow > attribute->sharedValue->intervalLow) {
-            resultAttribute->sharedValue->intervalLow = attribute->sharedValue->intervalLow;
+        // TODO: LPT: copy/past: merge()
+        const auto& resultSharedValue = resultAttribute->sharedValue;
+        const auto& sharedValue = attribute->sharedValue;
+        if (resultAttribute->levels != attribute->levels) {
+            // TODO: LPT: not supported right now
+            resultAttribute->levels = 0ul;
+            resultSharedValue->minLevels = 0ul;
         }
 
-        if (resultAttribute->sharedValue->intervalHigh < attribute->sharedValue->intervalHigh) {
-            resultAttribute->sharedValue->intervalHigh = attribute->sharedValue->intervalHigh;
+        if (resultSharedValue->combinedInterval.low > sharedValue->combinedInterval.low) {
+            resultSharedValue->combinedInterval.low = sharedValue->combinedInterval.low;
+        }
+
+        if (resultSharedValue->combinedInterval.high < sharedValue->combinedInterval.high) {
+            resultSharedValue->combinedInterval.high = sharedValue->combinedInterval.high;
+        }
+
+        assert(!std::isinf(resultSharedValue->combinedInterval.low));
+        assert(!std::isinf(resultSharedValue->combinedInterval.high));
+
+        const auto resultSize = abs(resultSharedValue->minInterval.high - resultSharedValue->minInterval.low);
+        const auto size = abs(sharedValue->minInterval.high - sharedValue->minInterval.low);
+        if (resultSize > size) {
+            resultSharedValue->minInterval = sharedValue->minInterval;
+
+            const size_t minLevels = NetworkHelper::calculateLevels(
+                attribute->levels,
+                sharedValue->combinedInterval.low,
+                sharedValue->combinedInterval.high,
+                sharedValue->minInterval.low,
+                sharedValue->minInterval.high);
+            resultSharedValue->minLevels = minLevels;
+            resultSharedValue->minLevelsOperation = sharedValue->minLevelsOperation;
         }
     }
 
@@ -117,10 +154,23 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
         }
     }
 
+    if (std::isinf(lowInterval) || std::isinf(highInterval)) {
+        // ticket: 57172
+        return nullptr;
+    }
+
+    assert(!std::isinf(lowInterval));
+    assert(!std::isinf(highInterval));
+
     auto& rtInfo = node->get_rt_info();
+    const IntervalsAlignmentSharedValue::Interval interval{ lowInterval, highInterval };
     const auto attribute = std::make_shared<::ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>>(
-        ngraph::pass::low_precision::make_shared_attribute<IntervalsAlignmentAttribute>(lowInterval, highInterval, fakeQuantize->get_levels()));
+        ngraph::pass::low_precision::make_shared_attribute<IntervalsAlignmentAttribute>(
+            interval,
+            fakeQuantize->get_levels()));
     rtInfo[ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name] = attribute;
+
+    attribute->get()->sharedValue->minLevelsOperation = node->get_friendly_name();
 
     return attribute;
 }
@@ -131,12 +181,39 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
     for (const auto& attributeWrapper : attributes) {
         auto attribute = attributeWrapper->get();
 
-        if (resultAttribute->sharedValue->intervalLow > attribute->sharedValue->intervalLow) {
-            resultAttribute->sharedValue->intervalLow = attribute->sharedValue->intervalLow;
+        // TODO: LPT: copy/past: merge()
+        const auto& resultSharedValue = resultAttribute->sharedValue;
+        const auto& sharedValue = attribute->sharedValue;
+        if (resultAttribute->levels != attribute->levels) {
+            // TODO: LPT: not supported right now
+            resultAttribute->levels = 0ul;
+            resultSharedValue->minLevels = 0ul;
         }
 
-        if (resultAttribute->sharedValue->intervalHigh < attribute->sharedValue->intervalHigh) {
-            resultAttribute->sharedValue->intervalHigh = attribute->sharedValue->intervalHigh;
+        if (resultSharedValue->combinedInterval.low > sharedValue->combinedInterval.low) {
+            resultSharedValue->combinedInterval.low = sharedValue->combinedInterval.low;
+        }
+
+        if (resultSharedValue->combinedInterval.high < sharedValue->combinedInterval.high) {
+            resultSharedValue->combinedInterval.high = sharedValue->combinedInterval.high;
+        }
+
+        assert(!std::isinf(resultSharedValue->combinedInterval.low));
+        assert(!std::isinf(resultSharedValue->combinedInterval.high));
+
+        const auto resultSize = abs(resultSharedValue->minInterval.high - resultSharedValue->minInterval.low);
+        const auto size = abs(sharedValue->minInterval.high - sharedValue->minInterval.low);
+        if (resultSize > size) {
+            resultSharedValue->minInterval = sharedValue->minInterval;
+
+            const size_t minLevels = NetworkHelper::calculateLevels(
+                attribute->levels,
+                sharedValue->combinedInterval.low,
+                sharedValue->combinedInterval.high,
+                sharedValue->minInterval.low,
+                sharedValue->minInterval.high);
+            resultSharedValue->minLevels = minLevels;
+            resultSharedValue->minLevelsOperation = sharedValue->minLevelsOperation;
         }
     }
 }
@@ -144,8 +221,9 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
 std::string VariantWrapper<IntervalsAlignmentAttributePtr>::get_string() {
     std::stringstream ss;
     ss << m_value->get_string();
-    ss << (m_value->levels == 0ul ? "" : ("levels: " + std::to_string(m_value->levels) + ", ")) <<
-        "low: " << m_value->sharedValue->intervalLow <<
-        ", high: " << m_value->sharedValue->intervalHigh;
+    ss << "levels: " + std::to_string(m_value->levels) << ", " <<
+        "combined: { " << m_value->sharedValue->combinedInterval.low << ", " << m_value->sharedValue->combinedInterval.high << " }, " <<
+        "min: { " << m_value->sharedValue->minInterval.low << ", " << m_value->sharedValue->minInterval.high << " }, "
+        "minLevels: " << m_value->sharedValue->minLevels << ", minLevelsOperation: " << m_value->sharedValue->minLevelsOperation;
     return ss.str();
 }

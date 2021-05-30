@@ -199,14 +199,15 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         }
     }
 
-    if (intervalsAlignment != nullptr) {
-        const float maxOutputInterval = intervalsAlignment->sharedValue->intervalHigh - intervalsAlignment->sharedValue->intervalLow;
+    if ((intervalsAlignment != nullptr) && (intervalsAlignment->sharedValue->minLevels >= 2ul)) {
+        const auto& combinedInterval = intervalsAlignment->sharedValue->combinedInterval;
+        const float maxOutputInterval = combinedInterval.high - combinedInterval.low;
         // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
         const float quantizationMul = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;
         const float dequantizationMul = maxOutputInterval / (dataPrecision.max - dataPrecision.min);
 
         // FQ outputLowValue = dataPrecision.min * dequantizationMul - quantizationSub
-        const float quantizationSub = intervalsAlignment->sharedValue->intervalLow - dataPrecision.min * dequantizationMul;
+        const float quantizationSub = combinedInterval.low - dataPrecision.min * dequantizationMul;
         const float dequantizationSub = std::round(-quantizationSub * quantizationMul);
 
 
@@ -214,6 +215,15 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         const float updatedOutputHighValue = (quantizationDetails.outputHighValues[0] - quantizationSub) * quantizationMul;
 
         const size_t levels = static_cast<size_t>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
+
+        //const size_t levels = NetworkHelper::calculateLevels(
+        //    dataPrecision.min,
+        //    dataPrecision.max,
+        //    intervalsAlignment->sharedValue->intervalLow,
+        //    intervalsAlignment->sharedValue->intervalHigh,
+        //    quantizationDetails.outputLowValues[0],
+        //    quantizationDetails.outputHighValues[0]);
+
         //TODO: pass min levels as a parameter?
         if (levels < 2ul) {
             return false;

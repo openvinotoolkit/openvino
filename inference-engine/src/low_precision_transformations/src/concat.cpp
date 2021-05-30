@@ -188,20 +188,36 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    // TODO: remove
-    // added to align behavior with previos LPT
-    if (updatePrecisions) {
-        for (size_t i = 0ul; i < concat->get_input_size(); i++) {
-            FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, i);
-            if (dequantization.empty() || !dequantization.isLowPrecision()) {
-                return false;
-            }
-        }
-    }
-
     const auto axis = concat->get_axis();
     const size_t normalizedAxis = normalize_axis(concat->get_friendly_name(), axis, concat->get_output_partial_shape(0).rank());
-    return normalizedAxis == 1ul;
+
+    // TODO: LPT: to support current flow
+    if (normalizedAxis != 1ul) {
+        return false;
+    }
+
+    const bool perTensorQuantizationIsRequired = normalizedAxis != 1ul;
+
+    element::Type precision;
+    for (size_t i = 0ul; i < concat->get_input_size(); i++) {
+        const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, i);
+        if (dequantization.empty() || (updatePrecisions && !dequantization.isLowPrecision())) {
+            return false;
+        }
+
+        if (precision == element::undefined) {
+            precision = dequantization.data.get_element_type();
+        } else if (precision != dequantization.data.get_element_type()) {
+            return false;
+        }
+
+        if (perTensorQuantizationIsRequired &&
+            (((dequantization.subtractConstant != nullptr) && !NetworkHelper::isScalarLike(dequantization.subtractConstant)) ||
+            ((dequantization.multiplyConstant != nullptr) && !NetworkHelper::isScalarLike(dequantization.multiplyConstant)))) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void ConcatTransformation::fillDequantizationNodes(

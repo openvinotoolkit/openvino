@@ -55,8 +55,8 @@ public:
             for (auto& it : rt) {
                 auto reference = std::dynamic_pointer_cast<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>>(it.second);
                 assert(reference != nullptr);
-                if ((reference->get()->sharedValue->intervalLow != intervalLow) &&
-                    (reference->get()->sharedValue->intervalHigh != intervalHigh)) {
+                if ((reference->get()->sharedValue->combinedInterval.low != intervalLow) &&
+                    (reference->get()->sharedValue->combinedInterval.high != intervalHigh)) {
                     return false;
                 }
             }
@@ -68,8 +68,8 @@ public:
     static bool compare(
         const std::shared_ptr<IntervalsAlignmentAttribute>& value1,
         const std::shared_ptr<IntervalsAlignmentAttribute>& value2) {
-        if ((value1->sharedValue->intervalLow != value2->sharedValue->intervalLow) ||
-            (value1->sharedValue->intervalHigh != value2->sharedValue->intervalHigh)) {
+        if ((value1->sharedValue->combinedInterval.low != value2->sharedValue->combinedInterval.low) ||
+            (value1->sharedValue->combinedInterval.high != value2->sharedValue->combinedInterval.high)) {
             return false;
         }
         return true;

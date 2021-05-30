@@ -296,15 +296,15 @@ const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
         {
             {
                 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f}, element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 1.27f) }
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             {
                 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f}, element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 1.27f) }
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             {
                 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f}, element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 1.27f) }
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             ngraph::element::u8,
             {{}, {}, {}},
