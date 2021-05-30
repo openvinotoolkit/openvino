@@ -51,6 +51,8 @@ namespace ngraph
             const element::Type& get_ng_type() const { return m_values.get_ng_type(); }
 
             const ONNX_NAMESPACE::SparseTensorProto* m_sparse_tensor_proto;
+
+        private:
             Tensor m_values;
             Tensor m_indices;
             Shape m_shape;
