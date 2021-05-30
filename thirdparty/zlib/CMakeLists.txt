@@ -1,14 +1,9 @@
 PROJECT(zlib)
 
-
 if(NOT WIN32)
             set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-all")
             set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
 endif()
-
-
-
-
 
 if (MSVC)
   # Build with multiple processes
@@ -20,17 +15,9 @@ if (MSVC)
 
 endif (MSVC)
 
-
-
-
-
 set(BUILD_SHARED_LIBS OFF)
-
 set(TARGET_NAME "zlib")
-
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/zlib")
-
-#file(GLOB lib_srcs *.c)
 
 set(lib_srcs 
     zlib/adler32.c
@@ -62,12 +49,8 @@ set(lib_hdrs
     zlib/zutil.h
 )
 
-
-#file(GLOB lib_hdrs *.h)
 set(lib_ext_hdrs "zlib/zlib.h" "zlib/zconf.h")
-
 add_library(${TARGET_NAME} STATIC ${lib_srcs} ${lib_hdrs} ${lib_ext_hdrs})
-
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/zlib"
                                                  "${CMAKE_CURRENT_SOURCE_DIR}/zlib/..")
 
@@ -80,6 +63,5 @@ if(UNIX)
      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
   endif()
 endif()
-
 
 set_target_properties(zlib PROPERTIES FOLDER thirdparty)
