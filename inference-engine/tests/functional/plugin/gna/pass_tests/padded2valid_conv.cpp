@@ -265,7 +265,7 @@ const std::vector<std::vector<size_t >> transp_biases1D = { {1, 1, 1, 4} };
 const std::vector<std::vector<size_t >> maxpools1D = { {1, 2} };
 
 const std::vector<std::vector<size_t>> input2DNHWC = { {1, 16, 16, 32} };
-const std::vector<std::vector<size_t >> kernels2D = { {2, 2}, {4, 1}, {1, 3} };
+const std::vector<std::vector<size_t >> kernels2D = { {2, 2}, { 4, 1 }, { 1, 3 }};
 //TODO: strides other than {1, 1} fail on result comparison for 2d conv
 const std::vector<std::vector<size_t >> strides2D = { {1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {1, 2} };
