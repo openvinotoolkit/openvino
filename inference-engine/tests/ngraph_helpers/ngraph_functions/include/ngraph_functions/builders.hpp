@@ -16,6 +16,7 @@
 #include <ngraph/opsets/opset7.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
+#include "ngraph_ops/type_relaxed.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -243,6 +244,10 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::ParameterVector &para
 std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
                                           const ngraph::Output<Node> &in1,
                                           ngraph::helpers::EltwiseTypes eltwiseType);
+
+std::shared_ptr<ngraph::Node> makeEltwiseRelaxed(const ngraph::Output<Node> &in0,
+                                                 const ngraph::Output<Node> &in1,
+                                                 ngraph::helpers::EltwiseTypes eltwiseType);
 
 std::shared_ptr<ngraph::Node> makeBatchToSpace(const ngraph::Output<Node> &in,
                                                const element::Type &type,

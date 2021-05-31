@@ -5,7 +5,7 @@
 #include <memory>
 #include <ngraph/opsets/opset3.hpp>
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
-
+#include "ngraph_functions/builders.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -37,6 +37,41 @@ std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
         }
     }
 }
+std::shared_ptr<ngraph::Node> makeEltwiseRelaxed(const ngraph::Output<Node> &in0,
+                                                 const ngraph::Output<Node> &in1,
+                                                 ngraph::helpers::EltwiseTypes eltwiseType) {
+    auto inputParamsFP32 = ngraph::builder::makeParams(ngraph::element::f32, { in0.get_shape(), in1.get_shape() });
+    auto dummyFP32nodes = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParamsFP32));
 
+    std::shared_ptr<ngraph::Node> eltwiseNodeRelaxed;
+    #define makeNode(ELTWISE_TYPE, OP_NAME) \
+        case ngraph::helpers::EltwiseTypes::ELTWISE_TYPE: \
+            eltwiseNodeRelaxed = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset6::OP_NAME>>(\
+            std::vector<ngraph::element::Type>{ element::f32, element::f32 }, \
+            std::vector<ngraph::element::Type>{}, \
+            dummyFP32nodes[0], dummyFP32nodes[1]); \
+            break
+    switch (eltwiseType) {
+        makeNode(ADD, Add);
+        makeNode(SUBTRACT, Subtract);
+        makeNode(MULTIPLY, Multiply);
+        makeNode(DIVIDE, Divide);
+        makeNode(SQUARED_DIFF, SquaredDifference);
+        makeNode(POWER, Power);
+        makeNode(FLOOR_MOD, FloorMod);
+        makeNode(MOD, Mod);
+        case ngraph::helpers::EltwiseTypes::ERF:
+            eltwiseNodeRelaxed = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Erf>>(
+            std::vector<ngraph::element::Type>{ element::f32}, std::vector<ngraph::element::Type>{}, dummyFP32nodes[0]);
+            break;
+        default: {
+            throw std::runtime_error("Incorrect type of Eltwise operation");
+        }
+    }
+    #undef makeNode
+
+    auto newEltwise = eltwiseNodeRelaxed->copy_with_new_inputs({in0, in1});
+    return newEltwise;
+}
 }  // namespace builder
 }  // namespace ngraph
