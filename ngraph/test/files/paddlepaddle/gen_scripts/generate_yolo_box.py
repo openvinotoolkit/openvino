@@ -39,27 +39,41 @@ def yolo_box(name : str, x, img_size, attrs : dict):
     return outs
 
 
-def main():
+def TEST1():
     # yolo_box
     pdpd_attrs = {
+            'name': "yolo_box_default",
             'anchors': [10, 13, 16, 30, 33, 23],
             'class_num': 2,
             'conf_thresh': 0.5,
             'downsample_ratio': 32,
-            'clip_bbox': False, #There is bug in Paddle2ONN where clip_bbox is always ignored.
+            'clip_bbox': False,
             'scale_x_y': 1.0
     }
 
     pdpd_attrs_clip_box = {
+        'name': "yolo_box_clip_box",
         'anchors': [10, 13, 16, 30, 33, 23],
         'class_num': 2,
         'conf_thresh': 0.5,
         'downsample_ratio': 32,
-        'clip_bbox': True, #There is bug in Paddle2ONN where clip_bbox is always ignored.
+        'clip_bbox': True,
         'scale_x_y': 1.0
     }
 
-    N = 1
+    pdpd_attrs_scale_xy = {
+        'name': "yolo_box_scale_xy",
+        'anchors': [10, 13, 16, 30, 33, 23],
+        'class_num': 2,
+        'conf_thresh': 0.5,
+        'downsample_ratio': 32,
+        'clip_bbox': True,
+        'scale_x_y': 1.2
+    }
+
+    pdpd_attrs_list = [pdpd_attrs, pdpd_attrs_clip_box, pdpd_attrs_scale_xy]
+    
+    N = 32
     num_anchors = int(len(pdpd_attrs['anchors'])//2)
     x_shape = (N, num_anchors * (5 + pdpd_attrs['class_num']), 13, 13)
     imgsize_shape = (N, 2)
@@ -67,12 +81,34 @@ def main():
     data = np.random.random(x_shape).astype('float32')
     data_ImSize = np.random.randint(10, 20, imgsize_shape).astype('int32') 
 
-    # For any change to pdpd_attrs, do -
-    # step 1. generate paddle model
-    pred_pdpd = yolo_box('yolo_box_test1', data, data_ImSize, pdpd_attrs)
-    pred_pdpd = yolo_box('yolo_box_clip_box', data, data_ImSize, pdpd_attrs_clip_box)
+    for item in pdpd_attrs_list:
+        pred_pdpd = yolo_box(item['name'], data, data_ImSize, item)
 
 
+def TEST2():
+    # yolo_box uneven spatial width and height
+    pdpd_attrs = {
+            'name': "yolo_box_uneven_wh",
+            'anchors': [10, 13, 16, 30, 33, 23],
+            'class_num': 2,
+            'conf_thresh': 0.5,
+            'downsample_ratio': 32,
+            'clip_bbox': False,
+            'scale_x_y': 1.0
+    }
+
+    N = 16
+    SPATIAL_WIDTH = 13
+    SPATIAL_HEIGHT = 9
+    num_anchors = int(len(pdpd_attrs['anchors'])//2)
+    x_shape = (N, num_anchors * (5 + pdpd_attrs['class_num']), SPATIAL_HEIGHT, SPATIAL_WIDTH)
+    imgsize_shape = (N, 2)
+
+    data = np.random.random(x_shape).astype('float32')
+    data_ImSize = np.random.randint(10, 20, imgsize_shape).astype('int32')
+    
+    pred_pdpd = yolo_box(pdpd_attrs['name'], data, data_ImSize, pdpd_attrs)
 
 if __name__ == "__main__":
-    main()     
+    TEST1()
+    TEST2()
