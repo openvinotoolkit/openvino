@@ -366,16 +366,11 @@ std::map<std::string, InferenceEngine::CDataPtr> InferenceEnginePython::IEExecNe
     return pyOutputs;
 }
 
-<<<<<<< HEAD
-void InferenceEnginePython::InferRequestWrap::setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr) {
-=======
-std::shared_ptr<InferenceEngine::ExecutableNetwork> InferenceEnginePython::IEExecNetwork::getPluginLink(){
+std::shared_ptr<InferenceEngine::ExecutableNetwork> InferenceEnginePython::IEExecNetwork::getPluginLink() {
     return actual;
 }
 
-void InferenceEnginePython::InferRequestWrap::setBlob(const std::string& blob_name,
-                                                      const InferenceEngine::Blob::Ptr& blob_ptr) {
->>>>>>> upstream/master
+void InferenceEnginePython::InferRequestWrap::setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr) {
     request_ptr.SetBlob(blob_name.c_str(), blob_ptr);
 }
 

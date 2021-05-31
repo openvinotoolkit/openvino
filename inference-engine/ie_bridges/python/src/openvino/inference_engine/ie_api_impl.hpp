@@ -132,7 +132,6 @@ struct InferRequestWrap {
     std::vector<InferenceEnginePython::CVariableState> queryState();
 };
 
-
 struct IEExecNetwork {
     std::shared_ptr<InferenceEngine::ExecutableNetwork> actual;
     std::vector<InferRequestWrap> infer_requests;
@@ -158,7 +157,7 @@ struct IEExecNetwork {
 
     void createInferRequests(int num_requests);
 
-    //binds plugin to InputInfo and Data, so that they can be destroyed before plugin (ussue 28996)
+    // binds plugin to InputInfo and Data, so that they can be destroyed before plugin (ussue 28996)
     std::shared_ptr<InferenceEngine::ExecutableNetwork> getPluginLink();
 };
 
