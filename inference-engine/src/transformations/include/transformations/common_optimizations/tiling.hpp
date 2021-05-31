@@ -18,14 +18,12 @@ namespace pass {
 
 class TRANSFORMATIONS_API Tiling;
 class TRANSFORMATIONS_API TileConvolution;
+class TRANSFORMATIONS_API InitTileSize;
+class TRANSFORMATIONS_API TileFunction;
 
 }  // namespace pass
 }  // namespace ngraph
 
-/**
- * @ingroup ie_transformation_common_api
- * @brief SwishFusionWithSigmoid replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
- */
 class ngraph::pass::TileConvolution: public ngraph::pass::MatcherPass {
 public:
     // NGRAPH_RTTI_DECLARATION;
@@ -147,10 +145,41 @@ public:
     }
 };
 
-/**
- * @ingroup ie_transformation_common_api
- * @brief SwishFusion transformation replaces various sub-graphs with a Swish op.
- */
+class ngraph::pass::InitTileSize: public ngraph::pass::MatcherPass {
+public:
+    // NGRAPH_RTTI_DECLARATION;
+    InitTileSize() {
+        // MATCHER_SCOPE(TileConvolution);
+        auto conv = pattern::wrap_type<ngraph::opset7::Result>();
+
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+            auto result = std::dynamic_pointer_cast<opset7::Convolution>(m.get_match_root());
+
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Check");
+        register_matcher(m, callback);
+    }
+};
+
+class ngraph::pass::TileFunction: public ngraph::pass::MatcherPass {
+public:
+    // NGRAPH_RTTI_DECLARATION;
+    TileFunction() {
+        // MATCHER_SCOPE(TileConvolution);
+        auto conv = pattern::wrap_type<ngraph::opset7::Convolution>();
+
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+            auto conv = std::dynamic_pointer_cast<opset7::Convolution>(m.get_match_root());
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Check");
+        register_matcher(m, callback);
+    }
+};
+
 class ngraph::pass::Tiling: public ngraph::pass::GraphRewrite {
 public:
     // NGRAPH_RTTI_DECLARATION;
