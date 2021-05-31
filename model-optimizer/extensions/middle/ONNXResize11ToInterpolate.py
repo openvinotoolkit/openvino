@@ -35,7 +35,7 @@ def replace_resize(graph: Graph, resize: Node):
         return
 
     num_of_inputs = len([port for port in resize.in_ports().values() if not port.disconnected()])
-    assert num_of_inputs in {3, 4}, \
+    assert num_of_inputs in {2, 3, 4}, \
         "Number of inputs of ONNXResize (with name {}) should be equal to 3 or 4".format(resize_name)
 
     assert resize.soft_get('coordinate_transformation_mode') != 'tf_crop_and_resize', \
@@ -96,7 +96,7 @@ def replace_resize(graph: Graph, resize: Node):
 
     dst_dtype = np.float32  # even if data_type=FP16 use float32 for shape values
 
-    if num_of_inputs == 3:
+    if num_of_inputs in [2, 3]:
         cast_shape_to_float = Cast(graph, {'dst_type': dst_dtype}).create_node()
         mul_node = Mul(graph, {'name': resize_name + '/Mul'}).create_node()
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
