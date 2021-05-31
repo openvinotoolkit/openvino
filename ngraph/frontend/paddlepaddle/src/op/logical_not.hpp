@@ -13,7 +13,7 @@ namespace ngraph
         {
             namespace op
             {
-                NamedOutputs scale(const NodeContext& node);
+                NamedOutputs logical_not(const NodeContext& node);
             }
         } // namespace pdpd
     }     // namespace frontend

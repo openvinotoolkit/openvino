@@ -12,16 +12,20 @@
 #include "op/conv2d_transpose.hpp"
 #include "op/dropout.hpp"
 #include "op/elementwise_ops.hpp"
+#include "op/equal.hpp"
 #include "op/expand_v2.hpp"
 #include "op/fill_constant.hpp"
 #include "op/fill_constant_batch_size_like.hpp"
 #include "op/flatten_contiguous_range.hpp"
+#include "op/greater_equal.hpp"
 #include "op/interp.hpp"
 #include "op/leakyrelu.hpp"
+#include "op/logical_not.hpp"
 #include "op/matmul.hpp"
 #include "op/mul.hpp"
 #include "op/pad3d.hpp"
 #include "op/pool2d.hpp"
+#include "op/pow.hpp"
 #include "op/range.hpp"
 #include "op/relu.hpp"
 #include "op/reshape2.hpp"
@@ -51,6 +55,7 @@ namespace ngraph
                         {"batch_norm", op::batch_norm},
                         {"bilinear_interp_v2", op::bilinear_interp_v2},
                         {"bilinear_interp", op::bilinear_interp_v2},
+                        {"bmm", op::matmul},
                         {"cast", op::cast},
                         {"clip", op::clip},
                         {"concat", op::concat},
@@ -64,17 +69,21 @@ namespace ngraph
                         {"elementwise_mul", op::elementwise_mul},
                         {"elementwise_pow", op::elementwise_pow},
                         {"elementwise_sub", op::elementwise_sub},
+                        {"equal", op::equal},
                         {"expand_v2", op::expand_v2},
                         {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
                         {"fill_constant", op::fill_constant},
                         {"flatten_contiguous_range", op::flatten_contiguous_range},
+                        {"greater_equal", op::greater_equal},
                         {"leaky_relu", op::leaky_relu},
+                        {"logical_not", op::logical_not},
                         {"matmul", op::matmul},
                         {"max_pool2d_with_index", op::pool2d},
                         {"mul", op::mul},
                         {"nearest_interp_v2", op::nearest_interp_v2},
                         {"nearest_interp", op::nearest_interp_v2},
                         {"pad3d", op::pad3d},
+                        {"pow", op::pow},
                         {"pool2d", op::pool2d},
                         {"range", op::range},
                         {"relu", op::relu},
