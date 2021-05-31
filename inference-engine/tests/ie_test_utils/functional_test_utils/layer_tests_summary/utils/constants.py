@@ -55,6 +55,7 @@ VERIFIED_OP_REFERENCES = [
     'Multiply-1',
     'NonMaxSuppression-4',
     'NonMaxSuppression-5',
+    'NonZero-3',
     'PSROIPooling-1',
     'Proposal-1',
     'Proposal-4',
