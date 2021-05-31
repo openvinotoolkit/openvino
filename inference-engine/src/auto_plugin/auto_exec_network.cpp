@@ -13,21 +13,52 @@
 namespace AutoPlugin {
 using namespace InferenceEngine;
 
-AutoExecutableNetwork::AutoExecutableNetwork(AutoPlugin::NetworkPromiseSharedPtr networkPromiseFirstReady,
-                                             AutoPlugin::NetworkPromiseSharedPtr networkPromiseActualNeeded) {
+AutoExecutableNetwork::AutoExecutableNetwork(NetworkFuture cpuFuture,
+                                             NetworkFuture acceleratorFuture,
+                                             bool          enablePerfCount)
+                                             : _cpuFuture(std::move(cpuFuture))
+                                             , _acceleratorFuture(std::move(acceleratorFuture))
+                                             , _enablePerfCount(enablePerfCount) {
     // we wait for any network to become ready (maybe this will already an actual device)
-    _networkFirstReady = networkPromiseFirstReady->get_future().get();
-    _networkPromiseActualNeeded = networkPromiseActualNeeded;
-    _futureActualNetwork = _networkPromiseActualNeeded->get_future();
+    if (_cpuFuture.valid()) {
+        _networkFirstReady = _cpuFuture.get();
+    } else if (_acceleratorFuture.valid()) {
+        _networkActualNeeded = _acceleratorFuture.get();
+        _alreadyActualNetwork = true;
+    } else {
+        IE_THROW() << "No device task available";
+    }
 }
 
 AutoExecutableNetwork::~AutoExecutableNetwork() = default;
 
 InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                                           OutputsDataMap networkOutputs) {
-    SoIInferRequestInternal inferRequest = {_networkFirstReady, _networkFirstReady->CreateInferRequest()};
+    TryGetActualNetwork(_networkActualNeeded);
+
+    SoIInferRequestInternal inferRequest;
+    if (_alreadyActualNetwork) {
+        inferRequest = {_networkActualNeeded, _networkActualNeeded->CreateInferRequest()};
+    } else {
+        inferRequest = {_networkFirstReady, _networkFirstReady->CreateInferRequest()};
+    }
     return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest,
-            _futureActualNetwork.share(), _anyRequestHasHotSwapped);
+                                              shared_from_this(), _alreadyActualNetwork,
+                                              _enablePerfCount);
+}
+
+bool AutoExecutableNetwork::TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork) {
+    if (_acceleratorFuture.valid() && _acceleratorFuture.wait_for(std::chrono::nanoseconds(0)) == std::future_status::ready) {
+        soExecNetwork = _acceleratorFuture.get();
+        _alreadyActualNetwork = true;
+        _networkActualNeeded = soExecNetwork;
+        return true;
+    }
+    if (_alreadyActualNetwork) {
+        soExecNetwork = _networkActualNeeded;
+        return true;
+    }
+    return false;
 }
 
 void AutoExecutableNetwork::Export(std::ostream& networkModel) {
@@ -44,12 +75,13 @@ RemoteContext::Ptr AutoExecutableNetwork::GetContext() const {
 }
 
 InferenceEngine::CNNNetwork AutoExecutableNetwork::GetExecGraphInfo() {
-    return _anyRequestHasHotSwapped ? _networkActualNeeded->GetExecGraphInfo() : _networkFirstReady->GetExecGraphInfo();
+    // fixme: still not safe - shoujiang
+    return _alreadyActualNetwork ? _networkActualNeeded->GetExecGraphInfo() : _networkFirstReady->GetExecGraphInfo();
 }
 
 Parameter AutoExecutableNetwork::GetMetric(const std::string &name) const {
     //fixme: check this logic
-    return _anyRequestHasHotSwapped ? _networkActualNeeded->GetMetric(name) : _networkFirstReady->GetMetric(name);
+    return _alreadyActualNetwork ? _networkActualNeeded->GetMetric(name) : _networkFirstReady->GetMetric(name);
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {

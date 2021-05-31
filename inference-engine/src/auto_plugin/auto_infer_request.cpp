@@ -13,9 +13,15 @@ namespace AutoPlugin {
 AutoInferRequest::AutoInferRequest(const InputsDataMap&              networkInputs,
                                    const OutputsDataMap&             networkOutputs,
                                    const SoIInferRequestInternal&    inferRequest,
-                                   AutoPlugin::NetworkSharedFuture f, std::atomic<bool>& anyRequestHasHotSwapped)
+                                   const InferenceEngine::IExecutableNetworkInternal::Ptr autoExecutableNetwork,
+                                   bool alreadyActualNetwork,
+                                   bool enablePerfCount)
     : IInferRequestInternal(networkInputs, networkOutputs)
-    , _inferRequest(inferRequest), _sharedFutureForActualNetwork(f), _anyRequestHasHotSwapped(anyRequestHasHotSwapped) {
+    , _inferRequest(inferRequest)
+    , _autoExecutableNetwork(std::dynamic_pointer_cast<AutoPlugin::AutoExecutableNetwork>(autoExecutableNetwork))
+    , _alreadyActualNetwork(alreadyActualNetwork)
+    , _enablePerfCount(enablePerfCount) {
+    IE_ASSERT(_autoExecutableNetwork != nullptr);
     for (const auto &it : _networkInputs)
         _inputs[it.first] = _inferRequest->GetBlob(it.first);
     for (const auto &it : _networkOutputs)
@@ -68,17 +74,13 @@ void AutoInferRequest::SetCallback(Callback callback) {
 }
 
 void AutoInferRequest::HotSwapRequests() {
-    if (_sharedFutureForActualNetwork.valid() && _sharedFutureForActualNetwork.wait_for(std::chrono::nanoseconds(0)) == std::future_status::ready) {
-        std::lock_guard<std::mutex>{_hotswapMutex};
-        if (!_hotswapDone) {
-            _hotswapDone = true;
-            auto actualNetwork = _sharedFutureForActualNetwork.get();
-            if (actualNetwork) { // if this was CPU only and no accel, the network would be NULL
-                std::cout << "!!! DEBUG: HotSwapRequests !!!" << std::endl;
-                _inferRequest = {actualNetwork, actualNetwork->CreateInferRequest()};
-                _inferRequest->SetCallback(_callback);
-                _anyRequestHasHotSwapped = true;
-            }
+    if (!_alreadyActualNetwork) {
+        InferenceEngine::SoExecutableNetworkInternal tempSoExecNetwork;
+        if (_autoExecutableNetwork->TryGetActualNetwork(tempSoExecNetwork)) {
+            _alreadyActualNetwork = true;
+            std::cout << "!!! DEBUG: HotSwapRequests !!!" << std::endl;
+            _inferRequest = {tempSoExecNetwork, tempSoExecNetwork->CreateInferRequest()};
+            _inferRequest->SetCallback(_callback);
         }
     }
 }

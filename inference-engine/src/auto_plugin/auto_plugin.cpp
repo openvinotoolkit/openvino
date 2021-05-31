@@ -51,7 +51,7 @@ AutoInferencePlugin::AutoInferencePlugin() {
 
 IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::string& fileName,
                                                                      const ConfigType&  config) {
-    return LoadNetworkImpl(fileName, config);
+    return LoadNetworkImpl(fileName, {}, config);
 }
 
 IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
@@ -61,7 +61,63 @@ IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(cons
     }
 
     auto networkPrecision = GetNetworkPrecision(network);
-    return LoadNetworkImpl(network, config, networkPrecision);
+    return LoadNetworkImpl({}, network, config, networkPrecision);
+}
+
+std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(const std::string& modelPath,
+                                                                            const InferenceEngine::CNNNetwork& network,
+                                                                            const ConfigType& config,
+                                                                            const std::string& networkPrecision) {
+    if (GetCore() == nullptr) {
+        IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
+    }
+
+    if (modelPath.empty() && network.getFunction() == nullptr) {
+        IE_THROW() << "AUTO device supports just ngraph network representation";
+    }
+
+    auto fullConfig = mergeConfigs(_config, config);
+    CheckConfig(fullConfig);
+    auto metaDevices = GetDeviceList(fullConfig);
+    auto LoadNetworkAsync =
+        [=](const std::string& device)
+            -> IE::SoExecutableNetworkInternal {
+            IE::SoExecutableNetworkInternal executableNetwork;
+            std::cout << "!!! DEBUG: Starting Async loading to the " << device <<  " !!!" << std::endl;
+            std::cout << "!!! DEBUG: device full name: " << GetCore()->GetMetric(device, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>() << std::endl;
+            if (!modelPath.empty()) {
+                executableNetwork = GetCore()->LoadNetwork(modelPath, device, {});
+            } else {
+                executableNetwork = GetCore()->LoadNetwork(network, device, {});
+            }
+            std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
+            return executableNetwork;
+        };
+
+    NetworkFuture cpuFuture;
+    NetworkFuture acceleratorFuture;
+
+    // start CPU task
+    const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
+                                      [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
+    if (CPUIter != metaDevices.end()) {
+        // not use std::launch::async, so let OS decide delay or async.
+        cpuFuture = std::async(LoadNetworkAsync, *CPUIter);
+    }
+
+    // start accelerator task, like GPU
+    NetworkTaskSharedPtr acceleratorTask {};
+    const auto accelerator = SelectDevice(metaDevices, networkPrecision);
+    bool isAccelerator = accelerator.find("CPU") == std::string::npos;
+    if (isAccelerator) {
+        // not use std::launch::async, so let OS decide delay or async.
+        acceleratorFuture = std::async(LoadNetworkAsync, accelerator);
+    }
+
+    // TODO: FIXME: revert the exception handling logic back to gracefully handle LoadNetwork failures
+    bool enablePerfCount = fullConfig.find(IE::PluginConfigParams::KEY_PERF_COUNT) != fullConfig.end();
+
+    return std::make_shared<AutoExecutableNetwork>(std::move(cpuFuture), std::move(acceleratorFuture), enablePerfCount);
 }
 
 IE::QueryNetworkResult AutoInferencePlugin::QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const {
@@ -194,19 +250,6 @@ std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities(const 
         }
     }
     return {capabilities.begin(), capabilities.end()};
-}
-
-ConfigType AutoInferencePlugin::GetSupportedConfig(const ConfigType&  config,
-                                                   const std::string& deviceName) const {
-    std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-    ConfigType supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = config.find(key);
-        if (config.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-    return supportedConfig;
 }
 
 void AutoInferencePlugin::CheckConfig(const ConfigType& config) {

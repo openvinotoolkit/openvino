@@ -211,6 +211,7 @@ namespace BehaviorTestsDefinitions {
         } else {
             ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
         }
+        std::cout << "Test done.\n";
     }
 
     TEST_P(CorrectConfigAPITests, WithoutExclusiveAsyncRequests) {

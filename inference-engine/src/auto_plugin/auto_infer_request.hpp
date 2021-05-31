@@ -27,8 +27,9 @@ public:
     explicit AutoInferRequest(const InferenceEngine::InputsDataMap&             networkInputs,
                               const InferenceEngine::OutputsDataMap&            networkOutputs,
                               const InferenceEngine::SoIInferRequestInternal&   inferRequest,
-                              AutoPlugin::NetworkSharedFuture f,
-                              std::atomic<bool>& anyRequestHasHotSwapped);
+                              const InferenceEngine::IExecutableNetworkInternal::Ptr executeNetwork,
+                              bool alreadyActualNetwork,
+                              bool enablePerfCount);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
@@ -40,16 +41,15 @@ public:
     void SetCallback(Callback callback) override;
 
 private:
-    InferenceEngine::SoIInferRequestInternal _inferRequest; // from the first network
-    // actual network
-    NetworkSharedFuture _sharedFutureForActualNetwork;
-    Callback _callback; // need to save the callback for hot-swap of the requests
-
-    std::mutex _hotswapMutex;
-    bool _hotswapDone = false;
-    std::atomic<bool>& _anyRequestHasHotSwapped;
     void HotSwapRequests();
     void SetBlobsToDeviceRequest();
+
+private:
+    InferenceEngine::SoIInferRequestInternal _inferRequest;
+    AutoPlugin::AutoExecutableNetwork::Ptr _autoExecutableNetwork;
+    Callback _callback; // need to save the callback for hot-swap of the requests
+    bool _alreadyActualNetwork{ false };
+    bool _enablePerfCount { false };
 };
 
 }  // namespace AutoPlugin
