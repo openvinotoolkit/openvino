@@ -21,8 +21,9 @@ def ApplyPOTTransformations(IENetwork network, string device):
 def ApplyLowLatencyTransformation(IENetwork network, bool use_const_initializer = True, sub_graph_iterations = None):
     cdef map[string, int64_t] c_sub_graph_iterations
 
-    for k, v in sub_graph_iterations.items():
-        c_sub_graph_iterations[k.encode()] = v
+    if sub_graph_iterations:
+        for k, v in sub_graph_iterations.items():
+            c_sub_graph_iterations[k.encode()] = v
     C.ApplyLowLatencyTransformation(network.impl, use_const_initializer, c_sub_graph_iterations)
 
 
