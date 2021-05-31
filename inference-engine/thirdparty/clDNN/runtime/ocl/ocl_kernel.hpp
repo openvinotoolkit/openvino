@@ -25,6 +25,7 @@ public:
         , _kernel_id(kernel_id) { }
 
     const ocl_kernel_type& get_handle() const { return _compiled_kernel; }
+    ocl_kernel_type& get_handle() { return _compiled_kernel; }
     std::shared_ptr<kernel> clone() const override { return std::make_shared<ocl_kernel>(get_handle().clone(), _kernel_id); }
 };
 

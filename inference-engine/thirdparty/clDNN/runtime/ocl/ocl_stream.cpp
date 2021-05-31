@@ -260,6 +260,13 @@ ocl_stream::ocl_stream(const ocl_engine& engine) : stream(engine.configuration()
     queue_builder.set_profiling(config.enable_profiling);
     queue_builder.set_out_of_order((config.queue_type == queue_types::out_of_order));
 
+    sync_method = _engine.configuration().enable_profiling ? sync_methods::events :
+                  config.queue_type == queue_types::out_of_order ? sync_methods::barriers : sync_methods::none;
+
+    if (sync_method == sync_methods::none && config.queue_type == queue_types::out_of_order) {
+        throw std::runtime_error("[CLDNN] Unexpected sync method (none) is specified for out_of_order queue");
+    }
+
     bool priorty_extensions = engine.extension_supported("cl_khr_priority_hints") && engine.extension_supported("cl_khr_create_command_queue");
     queue_builder.set_priority_mode(config.priority_mode, priorty_extensions);
 
@@ -276,7 +283,7 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
 
     auto& ocl_kernel = downcast<ocl::ocl_kernel>(kernel);
 
-    auto kern = ocl_kernel.get_handle();
+    auto& kern = ocl_kernel.get_handle();
 
     try {
         set_arguments_impl(kern, args_desc.arguments, args);
@@ -292,27 +299,26 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
                                       bool is_output) {
     auto& ocl_kernel = downcast<ocl::ocl_kernel>(kernel);
 
-    auto kern = ocl_kernel.get_handle();
+    auto& kern = ocl_kernel.get_handle();
     auto global = toNDRange(args_desc.workGroups.global);
     auto local = toNDRange(args_desc.workGroups.local);
     std::vector<cl::Event> dep_events;
-    auto dep_events_ptr = &dep_events;
-    if (queue_type == queue_types::in_order) {
+    std::vector<cl::Event>* dep_events_ptr = nullptr;
+    if (sync_method == sync_methods::events) {
         for (auto& dep : deps) {
             if (auto ocl_base_ev = std::dynamic_pointer_cast<ocl_base_event>(dep)) {
                 if (ocl_base_ev->get().get() != nullptr)
                     dep_events.push_back(ocl_base_ev->get());
             }
         }
-    } else {
-        dep_events_ptr = nullptr;
-
+        dep_events_ptr = &dep_events;
+    } else if (sync_method == sync_methods::barriers) {
         sync_events(deps, is_output);
     }
 
     cl::Event ret_ev;
 
-    bool set_output_event = queue_type == queue_types::out_of_order || is_output || _engine.configuration().enable_profiling;
+    bool set_output_event = sync_method == sync_methods::events || is_output;
 
     try {
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
@@ -331,7 +337,7 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
     if (deps.empty())
         return create_user_event(true);
 
-    if (queue_type == queue_types::in_order) {
+    if (sync_method == sync_methods::events) {
         cl::Event ret_ev;
         std::vector<cl::Event> dep_events;
         for (auto& dep : deps) {
@@ -350,9 +356,11 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
         }
 
         return _events_pool->get_from_base_pool(_engine.get_cl_context(), ret_ev, ++_queue_counter);
-    } else {
+    } else if (sync_method == sync_methods::barriers) {
         sync_events(deps, is_output);
         return _events_pool->get_from_base_pool(_engine.get_cl_context(), _last_barrier_ev, _last_barrier);
+    } else {
+         return create_user_event(true);
     }
 }
 

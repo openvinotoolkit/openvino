@@ -171,8 +171,7 @@ protected:
         for (size_t k = 0; k < _kernels.size(); ++k) {
             std::vector<event::ptr> new_events;
             for (decltype(split) i = 0; i < split; i++) {
-                // is any user of the prim's users is an detecion output, set prim as a output event (event won't be
-                // nullptr)
+                // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
                 auto users = instance.node.get_users();
                 bool is_output_event = is_any_user_cpu(users) || instance.node.is_output();
 
@@ -185,7 +184,6 @@ protected:
                 }
 
                 auto ev = stream.enqueue_kernel(*_kernels[k], _kernel_data.kernels[k].params, args, tmp_events, is_output_event);
-                // auto event = _kernels[k].run(net_id, _kernel_data.kernels[k].params, tmp_events);
                 new_events.push_back(ev);
                 all_events.push_back(ev);
             }

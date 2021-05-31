@@ -22,6 +22,31 @@ namespace ocl {
 
 class events_pool;
 
+// Possible sync methods for kernels in stream
+enum class sync_methods {
+    /* Build dependency graph using events. Each kernel creates proper cl_event which is set as dependency of users
+       At this moment it requires multiple retain/release calls for cl_event after each enqueueNDRange
+       which is less performant comparing to the barriers version
+    */
+    events = 0,
+    /* Enqueue barriers between dependent kernels. For example consider the following dimond dependency graph:
+             kernel_0
+             /      \
+         kernel_1   kernel_2
+             \      /
+             kernel_3
+       In that case we do the following:
+       1. Enqueue kernel_0
+       2. Enqueue barrier (ensures kernel_0 is completed)
+       3. Enqueue kernel_1
+       4. Enqueue kernel_2 (doesn't depend on kernel_1)
+       5. Enqueue barrier (ensures kernel_1 and kernel_2 are completed)
+       6. Enqueue kernel_3
+    */
+    barriers = 1,
+    /* No explicit syncronization is needed. Applicable for in-order queue only */
+    none = 2
+};
 class ocl_stream : public stream {
 public:
     const ocl_queue_type& get_cl_queue() const { return _command_queue; }
@@ -34,7 +59,8 @@ public:
         , _queue_counter(other._queue_counter.load())
         , _last_barrier(other._last_barrier.load())
         , _events_pool(std::move(other._events_pool))
-        , _last_barrier_ev(other._last_barrier_ev) {}
+        , _last_barrier_ev(other._last_barrier_ev)
+        , sync_method(other.sync_method) {}
 
     ~ocl_stream() = default;
 
@@ -65,6 +91,8 @@ private:
     std::atomic<uint64_t> _last_barrier{0};
     std::shared_ptr<events_pool> _events_pool;
     cl::Event _last_barrier_ev;
+
+    sync_methods sync_method;
 };
 
 }  // namespace ocl
