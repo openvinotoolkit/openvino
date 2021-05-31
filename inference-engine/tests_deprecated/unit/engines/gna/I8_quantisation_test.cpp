@@ -79,7 +79,7 @@ TEST_F(I8QuantisationTest, inputPrecisionIs16Bits){
     ASSERT_EQ(inputLayer->precision, Precision::I16);
 }
 
-TEST_F(I8QuantisationTest, failIfFCDimensionIs1){
+TEST_F(I8QuantisationTest, FCDimensionIs1){
     ModelQuantizer<QuantI8> q;
 
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {440}, C });
@@ -89,7 +89,7 @@ TEST_F(I8QuantisationTest, failIfFCDimensionIs1){
     Core ie;
     auto network = ie.ReadNetwork(FCOnlyModel(), weights);
 
-    ASSERT_ANY_THROW(q.quantize(network, 1000));
+    ASSERT_NO_THROW(q.quantize(network, 1000));
 }
 
 TEST_F(I8QuantisationTest, outputAffinePrecisionIs32Bits){

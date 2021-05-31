@@ -167,3 +167,9 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
     const auto& axis = inputs[1];
     return split::evaluate_split(data, axis, outputs, m_num_splits, this);
 }
+
+bool op::v1::Split::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Split_has_evaluate);
+    return get_input_element_type(1).is_integral_number();
+}

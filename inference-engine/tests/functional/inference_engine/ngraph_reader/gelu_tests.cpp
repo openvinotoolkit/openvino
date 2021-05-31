@@ -4,29 +4,49 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-#include "common_test_utils/xml_net_builder/ir_net.hpp"
 
 TEST_F(NGraphReaderTests, ReadGeluNetwork) {
-    CommonTestUtils::IRBuilder_v10 ir_builder_v10("Network");
-
-    auto input_layer = ir_builder_v10
-            .AddLayer("in1", "Parameter", {{"shape", "1,128"},
-                                           {"element_type", "f32"}}).AddOutPort(Precision::ePrecision::FP32, {1, 128})
-            .getLayer();
-
-    auto gelu_layer = ir_builder_v10
-            .AddLayer("activation", "Gelu", {}, "opset2")
-            .AddInPort(Precision::ePrecision::FP32, {1, 128})
-            .AddOutPort(Precision::ePrecision::FP32, {1, 128})
-            .getLayer();
-
-    auto result_layer = ir_builder_v10
-            .AddLayer("output", "Result")
-            .AddInPort(Precision::ePrecision::FP32, {1, 128})
-            .getLayer();
-
-    input_layer.out(0).connect(gelu_layer.in(0));
-    gelu_layer.out(0).connect(result_layer.in(0));
+    std::string model_v10 = R"V0G0N(
+<net name="Network" version="10">
+    <layers>
+        <layer id="0" name="in1" type="Parameter" version="opset1">
+            <data shape="1,128" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="activation" type="Gelu" version="opset2">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="output" type="Result" version="opset1">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
 
     // f(x) = 0.5 * x * (1.0 + erf( x / sqrt(2.0) )
     std::string model_v7 = R"V0G0N(
@@ -131,8 +151,6 @@ TEST_F(NGraphReaderTests, ReadGeluNetwork) {
     <statistics />
 </net>
     )V0G0N";
-
-    std::string model_v10 = ir_builder_v10.serialize();
 
     compareIRs(model_v10, model_v7, 0);
 }

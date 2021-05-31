@@ -6,33 +6,33 @@
 
 // correct params
 #define BEH_MYRIAD BehTestParams("MYRIAD", \
-                                 FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str, \
-                                 FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob, \
+                                 convReluNormPoolFcModelFP16.model_xml_str, \
+                                 convReluNormPoolFcModelFP16.weights_blob, \
                                  Precision::FP32)
 #define BEH_HETERO BehTestParams("HETERO", \
-                                 FuncTestUtils::TestModel::convReluNormPoolFcModelFP32.model_xml_str, \
-                                 FuncTestUtils::TestModel::convReluNormPoolFcModelFP32.weights_blob, \
+                                 convReluNormPoolFcModelFP32.model_xml_str, \
+                                 convReluNormPoolFcModelFP32.weights_blob, \
                                  Precision::FP32)
 // for multi-device we are testing the fp16 (as it is supported by all device combos we are considering for testing
 // e.g. GPU and VPU, for CPU the network is automatically (internally) converted to fp32.
 #define BEH_MULTI(device) BehTestParams("MULTI", \
-                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str, \
-                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob, \
+                                        convReluNormPoolFcModelFP16.model_xml_str, \
+                                        convReluNormPoolFcModelFP16.weights_blob, \
                                         Precision::FP32, \
                                         {{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, #device}})
 #define BEH_MULTI_CONFIG  BehTestParams("MULTI", \
-                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str, \
-                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob, \
+                                        convReluNormPoolFcModelFP16.model_xml_str, \
+                                        convReluNormPoolFcModelFP16.weights_blob, \
                                         Precision::FP32)
 
 // all parameters are unsupported - reversed
 #define BEH_US_ALL_MYRIAD  BehTestParams("MYRIAD", \
-                                         FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.model_xml_str, \
-                                         FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.weights_blob, \
+                                         convReluNormPoolFcModelQ78.model_xml_str, \
+                                         convReluNormPoolFcModelQ78.weights_blob, \
                                          Precision::Q78)
 #define BEH_US_ALL_MULTI(device) BehTestParams("MULTI", \
-                                               FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.model_xml_str, \
-                                               FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.weights_blob, \
+                                               convReluNormPoolFcModelQ78.model_xml_str, \
+                                               convReluNormPoolFcModelQ78.weights_blob, \
                                                Precision::Q78, \
                                                {{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, #device}})
 const BehTestParams supportedValues[] = {
