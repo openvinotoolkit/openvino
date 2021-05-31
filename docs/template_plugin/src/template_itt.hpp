@@ -14,7 +14,7 @@
 namespace TemplatePlugin {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(TemplatePlugin);
+OV_ITT_DOMAIN(TemplatePlugin);
 }
-}
-}
+}  // namespace itt
+}  // namespace TemplatePlugin

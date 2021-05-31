@@ -278,7 +278,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
             FILE ngraphTargets.cmake
             NAMESPACE ngraph::
             DESTINATION "deployment_tools/ngraph/cmake"
-            COMPONENT ngraph)
+            COMPONENT ngraph_dev)
     endif()
 
     configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/share/ngraphConfig.cmake.in
@@ -292,7 +292,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION "deployment_tools/ngraph/cmake"
-        COMPONENT ngraph)
+        COMPONENT ngraph_dev)
 endif()
 
 set(USE_PROTOBUF OFF)

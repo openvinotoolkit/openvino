@@ -66,6 +66,7 @@ namespace ngraph
                 virtual bool visit_attributes(AttributeVisitor& visitor) override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 PriorBoxAttrs m_attrs;
