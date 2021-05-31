@@ -112,7 +112,7 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     file_stream << "shape: " << size.to_string() << " ";
     file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
 
-    mem_lock<T> lock(mem, stream);
+    mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
     auto x_pitch = get_x_pitch(mem->get_layout());
     std::stringstream buffer;
@@ -148,7 +148,7 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream)
     file_stream << size.spatial[0] << " ";
     file_stream << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
 
-    mem_lock<uint32_t> lock(mem, stream);
+    mem_lock<uint32_t, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
 
     for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
