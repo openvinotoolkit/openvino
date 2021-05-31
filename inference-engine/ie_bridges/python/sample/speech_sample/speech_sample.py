@@ -24,8 +24,8 @@ def parse_args() -> argparse.Namespace:
                        help='Path to an .xml file with a trained model (required if -rg is missing).')
     model.add_argument('-rg', '--import_gna_model', type=str,
                        help='Read GNA model from file using path/filename provided (required if -m is missing).')
-    args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an utterance file.')
-    args.add_argument('-o', '--output', type=str, help='Optional. Output file name to save inference results.')
+    args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an input file (.ark or .npz).')
+    args.add_argument('-o', '--output', type=str, help='Optional. Output file name to save inference results (.ark or .npz).')
     args.add_argument('-r', '--reference', type=str,
                       help='Optional. Read reference score file and compare scores.')
     args.add_argument('-d', '--device', default='CPU', type=str,
@@ -38,9 +38,7 @@ def parse_args() -> argparse.Namespace:
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
-    # TODO: Find a model that applicable for -we option
     args.add_argument('-we', '--export_embedded_gna_model', type=str, help=argparse.SUPPRESS)
-    # TODO: Find a model that applicable for -we_gen option
     args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, help=argparse.SUPPRESS)
     args.add_argument('-iname', '--input_layers', type=str,
                       help='Optional. Layer names for input blobs. The names are separated with ",". '
@@ -181,10 +179,10 @@ def compare_with_reference(result: np.ndarray, reference: np.ndarray):
     avg_rms_error = np.sqrt(sum_square_error / error_matrix.size)
     stdev_error = np.sqrt(sum_square_error / error_matrix.size - avg_error * avg_error)
 
-    log.info(f'max error: {max_error}')
-    log.info(f'avg error: {avg_error}')
-    log.info(f'avg rms error: {avg_rms_error}')
-    log.info(f'stdev error: {stdev_error}')
+    log.info(f'max error: {max_error:.7f}')
+    log.info(f'avg error: {avg_error:.7f}')
+    log.info(f'avg rms error: {avg_rms_error:.7f}')
+    log.info(f'stdev error: {stdev_error:.7f}')
 
 
 def read_utterance_file(file_name: str) -> dict:
@@ -221,10 +219,10 @@ def main():
     log.info('Creating Inference Engine')
     ie = IECore()
 
-# ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
+# ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation---------------
     if args.model:
         log.info(f'Reading the network: {args.model}')
-        # (.xml and .bin files) or (.onnx file)
+        # .xml and .bin files
         net = ie.read_network(model=args.model)
 
 # ---------------------------Step 3. Configure input & output----------------------------------------------------------
@@ -276,7 +274,7 @@ def main():
             utterances = read_utterance_file(args.input.split(',')[0])
             key = sorted(utterances)[0]
             scale_factor = get_scale_factor(utterances[key])
-            log.info(f'Using scale factor of {scale_factor} calculated from first utterance.')
+            log.info(f'Using scale factor of {scale_factor:.7f} calculated from first utterance.')
 
             plugin_config['GNA_SCALE_FACTOR'] = str(scale_factor)
 
@@ -321,7 +319,6 @@ def main():
         exec_net.export(args.export_gna_model)
         return 0
 
-    # TODO: Find a model that applicable for -we and -we_gen options
     if args.export_embedded_gna_model:
         log.info(f'Exported GNA embedded model to file {args.export_embedded_gna_model}')
         log.info(f'GNA embedded model export done for GNA generation {args.embedded_gna_configuration}')

@@ -18,7 +18,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Options                    | Values                                                                                                |
 | :------------------------- | :---------------------------------------------------------------------------------------------------- |
 | Validated Models           | Acoustic model based on Kaldi* neural networks (see [Model Preparation](#model-preparation) section) |
-| Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                              |
+| Model Format               | Inference Engine Intermediate Representation (.xml + .bin)                              |
 | Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                             |
 | Other language realization | [C++](../../../../samples/speech_sample)                                                              |
 
@@ -94,9 +94,9 @@ optional arguments:
 Options:
   -h, --help            Show this help message and exit.
   -i INPUT, --input INPUT
-                        Required. Path to an utterance file.
+                        Required. Path to an input file (.ark or .npz).
   -o OUTPUT, --output OUTPUT
-                        Optional. Output file name to save inference results.
+                        Optional. Output file name to save inference results (.ark or .npz).
   -r REFERENCE, --reference REFERENCE
                         Optional. Read reference score file and compare
                         scores.
@@ -155,8 +155,6 @@ python speech_sample.py -d GNA_AUTO -m wsj_dnn5b.xml -i dev93_10.ark -r dev93_sc
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
->
 > - The sample supports input and output in numpy file format (.npz)
 
 ## Sample Output
@@ -167,24 +165,24 @@ The sample application logs each step in a standard output stream.
 [ INFO ] Creating Inference Engine
 [ INFO ] Reading the network: wsj_dnn5b.xml
 [ INFO ] Configuring input and output blobs
-[ INFO ] Using scale factor of 2175.4322417974627 calculated from first utterance.
+[ INFO ] Using scale factor of 2175.4322417 calculated from first utterance.
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
 [ INFO ] Utterance 0 (4k0c0301)
 [ INFO ] Frames in utterance: 1294
 [ INFO ] Total time in Infer (HW and SW): 5305.47ms
-[ INFO ] max error: 0.7051839828491211
-[ INFO ] avg error: 0.044838781794944625
-[ INFO ] avg rms error: 0.05823873597800535        
-[ INFO ] stdev error: 0.03716495682038603
+[ INFO ] max error: 0.7051839
+[ INFO ] avg error: 0.0448387
+[ INFO ] avg rms error: 0.0582387        
+[ INFO ] stdev error: 0.0371649
 [ INFO ]
 [ INFO ] Utterance 1 (4k0c0302)
 [ INFO ] Frames in utterance: 1005
 [ INFO ] Total time in Infer (HW and SW): 5031.53ms
-[ INFO ] max error: 0.7575974464416504
-[ INFO ] avg error: 0.04521660570793721
-[ INFO ] avg rms error: 0.05860129608000006
-[ INFO ] stdev error: 0.03727694288040223
+[ INFO ] max error: 0.7575974
+[ INFO ] avg error: 0.0452166
+[ INFO ] avg rms error: 0.0586013
+[ INFO ] stdev error: 0.0372769
 [ INFO ]
 ...
 [ INFO ] Total sample time: 38033.09ms
