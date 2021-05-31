@@ -224,7 +224,6 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 
         if (_inputs.find(name) == _inputs.end()) {
             InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
-
             tuneInputDesc(name, desc);
 
             _inputs[name] = make_blob_with_precision(desc);
@@ -257,8 +256,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         if (_outputs.find(name) == _outputs.end()) {
             if (!data) {
                 InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
-
-                tuneOutputDesc(name, desc);
+                tuneOutputDesc(desc);
 
                 data = make_blob_with_precision(desc);
                 data->allocate();
@@ -360,7 +358,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                 IE_THROW() << "MKLDNN graph doesn't contain input node with name: " << name;
 
             if (data->getTensorDesc() == blobs.at(name)->getTensorDesc() &&
-                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
+                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
                 externalPtr.erase(name);
@@ -419,7 +417,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
         auto name = it.first;
         InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
         tuneInputDesc(name, desc);
-        if (blobs[name]->getTensorDesc() == desc &&
+        if (externalPtr.count(name) &&
+            blobs[name]->getTensorDesc() == desc &&
             graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() &&
             !graph->getProperty().batchLimit) {
             externalPtr[name] = _inputs[name]->buffer();
@@ -430,8 +429,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
     for (auto it : blobs) {
         auto name = it.first;
         InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
-        tuneOutputDesc(name, desc);
-        if (blobs[name]->getTensorDesc() == desc && !graph->getProperty().batchLimit) {
+        tuneOutputDesc(desc);
+        if (externalPtr.count(name) && blobs[name]->getTensorDesc() == desc && !graph->getProperty().batchLimit) {
             externalPtr[name] = _outputs[name]->buffer();
         }
     }
@@ -544,7 +543,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::tuneInputDesc(const std::string name, Inf
     }
 }
 
-void MKLDNNPlugin::MKLDNNInferRequest::tuneOutputDesc(const std::string name, InferenceEngine::TensorDesc &desc) {
+void MKLDNNPlugin::MKLDNNInferRequest::tuneOutputDesc(InferenceEngine::TensorDesc &desc) {
     desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
     // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
     // in situation if we push output blobs as inputs for next network (in Hetero plugin)

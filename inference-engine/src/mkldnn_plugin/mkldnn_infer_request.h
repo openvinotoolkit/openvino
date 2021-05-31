@@ -54,23 +54,8 @@ private:
 
     void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 
-    /**
-     * @brief Tunes given input desc according to current _networkInputs state
-     * @param name
-     * name of input layer in network
-     * @param desc
-     * descriptor of input blob
-     */
     void tuneInputDesc(const std::string name, InferenceEngine::TensorDesc &desc);
-
-    /**
-     * @brief Tunes given output desc according to current _networkOutputs state
-     * @param name
-     * name of output layer in network
-     * @param desc
-     * descriptor of output blob
-     */
-    void tuneOutputDesc(const std::string name, InferenceEngine::TensorDesc &desc);
+    void tuneOutputDesc(InferenceEngine::TensorDesc &desc);
 
     void changeDefaultPtr();
     std::shared_ptr<MKLDNNExecNetwork>  execNetwork;
