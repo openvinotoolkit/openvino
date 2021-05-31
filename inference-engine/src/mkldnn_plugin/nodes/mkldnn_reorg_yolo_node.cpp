@@ -55,7 +55,7 @@ void MKLDNNReorgYoloNode::initSupportedPrimitiveDescriptors() {
 
 void MKLDNNReorgYoloNode::execute(mkldnn::stream strm) {
     const auto *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     int IW = (getParentEdgeAt(0)->getDesc().getDims().size() > 3) ? getParentEdgeAt(0)->getDims()[3] : 1;
     int IH = (getParentEdgeAt(0)->getDesc().getDims().size() > 2) ? getParentEdgeAt(0)->getDims()[2] : 1;

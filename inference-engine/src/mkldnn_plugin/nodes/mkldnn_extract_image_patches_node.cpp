@@ -312,7 +312,7 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
     if (op->get_output_shape(0).size() != 4)
         IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << op->get_output_shape(0).size();
 
-    precision = details::convertPrecision(op->get_input_element_type(0));
+    precision = getOriginalInputPrecisionAtPort(0);
     if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
         IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
 
@@ -418,7 +418,7 @@ void MKLDNNExtractImagePatchesNode::initSupportedPrimitiveDescriptors() {
 
 void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
     const char *src_data = reinterpret_cast<const char *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    char *dst_data = reinterpret_cast<char *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    char *dst_data = reinterpret_cast<char *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     const size_t dtype_size = getParentEdgeAt(0)->getDesc().getPrecision().size();
 
     const auto& inDims = getParentEdgeAt(0)->getDims().ToSizeVector();
@@ -426,7 +426,7 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
     const size_t IH = inDims[2];
     const size_t IW = inDims[3];
 
-    const auto& outDims = getChildEdgeAt(0)->getDims().ToSizeVector();
+    const auto& outDims = getChildEdgesAtPort(0)[0]->getDims().ToSizeVector();
     const size_t OB = outDims[0];
     const size_t OH = outDims[2];
     const size_t OW = outDims[3];
@@ -437,7 +437,7 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
     const size_t PT = _pad_top, PL = _pad_left;
 
     const std::vector<size_t> istrides = getParentEdgeAt(0)->getDesc().getBlockingDesc().getStrides();
-    const std::vector<size_t> ostrides = getChildEdgeAt(0)->getDesc().getBlockingDesc().getStrides();
+    const std::vector<size_t> ostrides = getChildEdgesAtPort(0)[0]->getDesc().getBlockingDesc().getStrides();
     const std::vector<size_t> ostrides_partial = {ostrides[0], KW * IC * ostrides[1], IC * ostrides[1], ostrides[1]};
 
     if (extract_image_patches_kernel) {

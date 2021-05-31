@@ -51,13 +51,13 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
     exclusive = cumsum->is_exclusive();
     reverse = cumsum->is_reverse();
 
-    dataPrecision = details::convertPrecision(cumsum->get_input_element_type(CUM_SUM_DATA));
+    dataPrecision = getOriginalInputPrecisionAtPort(CUM_SUM_DATA);
     if (dataPrecision != Precision::I8 && dataPrecision != Precision::U8 && dataPrecision != Precision::I16 && dataPrecision != Precision::I32 &&
         dataPrecision != Precision::FP32 && dataPrecision != Precision::I64 && dataPrecision != Precision::U64 && dataPrecision != Precision::BF16)
         IE_THROW() << "CumSum layer with name '" << layerName << "' has unsupported 'data' input precision: " << dataPrecision.name();
 
     if (cumsum->get_input_size() == numOfInputs) {
-        const auto& axisTensorPrec = details::convertPrecision(cumsum->get_input_element_type(AXIS));
+        const auto& axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
         if (axisTensorPrec != Precision::I32 && axisTensorPrec != Precision::I64)
             IE_THROW() << "CumSum layer with name '" << layerName << "' has unsupported 'axis' input precision: " << axisTensorPrec.name();
 
@@ -69,17 +69,17 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW() << "CumSum layer with name '" << layerName << "' has different 'data' input and output dimensions";
 
     shape = dataShape;
-
-    size_t sizeVector = op->get_input_size();
-    inDataConf.reserve(sizeVector);
-    inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, dataPrecision);
-    for (int i = 1; i < sizeVector; ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
 }
 
 void MKLDNNCumSumNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    std::vector<DataConfigurator> inDataConf;
+    inDataConf.reserve(getOriginalInputsNumber());
+    inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, dataPrecision);
+    for (int i = 1; i < getOriginalInputsNumber(); ++i)
+        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
                          {{TensorDescCreatorTypes::ncsp, dataPrecision}},
@@ -87,37 +87,37 @@ void MKLDNNCumSumNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNCumSumNode::execute(mkldnn::stream strm) {
-    if (getParentEdges().size() == numOfInputs)
+    if (inDims.size() == numOfInputs)
         axis = getAxis(getParentEdgeAt(AXIS)->getBlob(), getParentEdgeAt(CUM_SUM_DATA)->getBlob());
 
     dataPrecision = getParentEdgeAt(CUM_SUM_DATA)->getDesc().getPrecision();
     switch (dataPrecision) {
         case Precision::I8   : {
-            exec<int8_t>(getParentEdgeAt(CUM_SUM_DATA)->getBlob(), getChildEdgeAt(0)->getBlob());
+            exec<int8_t>();
             break;
         }
         case Precision::U8   : {
-            exec<uint8_t>(getParentEdgeAt(CUM_SUM_DATA)->getBlob(), getChildEdgeAt(0)->getBlob());
+            exec<uint8_t>();
             break;
         }
         case Precision::I16  : {
-            exec<int16_t>(getParentEdgeAt(CUM_SUM_DATA)->getBlob(), getChildEdgeAt(0)->getBlob());
+            exec<int16_t>();
             break;
         }
         case Precision::I32  : {
-            exec<int32_t>(getParentEdgeAt(CUM_SUM_DATA)->getBlob(), getChildEdgeAt(0)->getBlob());
+            exec<int32_t>();
             break;
         }
         case Precision::FP32 : {
-            exec<float>(getParentEdgeAt(CUM_SUM_DATA)->getBlob(), getChildEdgeAt(0)->getBlob());
+            exec<float>();
             break;
         }
         case Precision::I64  : {
-            exec<int64_t>(getParentEdgeAt(CUM_SUM_DATA)->getBlob(), getChildEdgeAt(0)->getBlob());
+            exec<int64_t>();
             break;
         }
         case Precision::U64  : {
-            exec<uint64_t>(getParentEdgeAt(CUM_SUM_DATA)->getBlob(), getChildEdgeAt(0)->getBlob());
+            exec<uint64_t>();
             break;
         }
         default : {
@@ -129,10 +129,10 @@ void MKLDNNCumSumNode::execute(mkldnn::stream strm) {
 
 
 template <typename dataType>
-void MKLDNNCumSumNode::exec(const Blob::CPtr& _input, const Blob::Ptr& _output) {
-    const auto *input = _input->cbuffer().as<const dataType *>() + _input->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    auto *output = _output->buffer().as<dataType *>() + _output->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    const std::vector<size_t> strides = _input->getTensorDesc().getBlockingDesc().getStrides();
+void MKLDNNCumSumNode::exec() {
+    const auto *input = reinterpret_cast<const dataType *>(getParentEdgeAt(CUM_SUM_DATA)->getMemoryPtr()->GetPtr());
+    auto *output = reinterpret_cast<dataType *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const std::vector<size_t> strides = getParentEdgeAt(CUM_SUM_DATA)->getDesc().getBlockingDesc().getStrides();
 
     if (reverse) {
         if (exclusive) {

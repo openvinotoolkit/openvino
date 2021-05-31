@@ -29,7 +29,6 @@ private:
     const size_t DECODED_CLASSES_LENGTH_INDEX = 1lu;
     bool mergeRepeated;
 
-    std::vector<DataConfigurator> inDataConf;
     std::string errorPrefix;
 };
 

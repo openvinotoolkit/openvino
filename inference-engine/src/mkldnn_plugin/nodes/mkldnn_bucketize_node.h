@@ -23,7 +23,7 @@ public:
 
 private:
     template <typename T, typename T_BOUNDARIES, typename T_IND>
-    void bucketize(InferenceEngine::Blob::Ptr input, InferenceEngine::Blob::Ptr boundaries, InferenceEngine::Blob::Ptr output);
+    void bucketize();
 
     const size_t INPUT_TENSOR_PORT = 0;
     const size_t INPUT_BINS_PORT = 1;

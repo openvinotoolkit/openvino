@@ -43,11 +43,11 @@ MKLDNNCTCGreedyDecoderNode::MKLDNNCTCGreedyDecoderNode(const std::shared_ptr<ngr
         op->get_input_shape(DATA_INDEX)[1] != op->get_input_shape(SEQUENCE_LENGTH_INDEX)[1])
         IE_THROW() << errPrefix << "has invalid input shapes.";
 
-    Precision inDataPrecision = details::convertPrecision(op->get_input_element_type(DATA_INDEX));
+    Precision inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (inDataPrecision != Precision::FP32 && inDataPrecision != Precision::BF16)
         IE_THROW() << errPrefix << "has unsupported 'data' input precision: " << inDataPrecision;
 
-    Precision seqLenPrecision = details::convertPrecision(op->get_input_element_type(SEQUENCE_LENGTH_INDEX));
+    Precision seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
     if (seqLenPrecision != Precision::FP32 && seqLenPrecision != Precision::BF16)
         IE_THROW() << errPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
@@ -66,9 +66,9 @@ void MKLDNNCTCGreedyDecoderNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNCTCGreedyDecoderNode::execute(mkldnn::stream strm) {
-    const float* probabilities = reinterpret_cast<const float  *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
-    const float* sequenceMask = reinterpret_cast<const float  *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
-    float* outputSequences = reinterpret_cast<float  *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
+    const float* sequenceMask = reinterpret_cast<const float *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
+    float* outputSequences = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     const size_t T = getParentEdgeAt(DATA_INDEX)->getDims()[0];
     const size_t B = getParentEdgeAt(DATA_INDEX)->getDims()[1];

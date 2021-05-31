@@ -26,7 +26,6 @@ private:
     bool preprocessCollapseRepeated;
     bool unique;
 
-    std::vector<DataConfigurator> inDataConf;
     std::string errorPrefix;
 };
 

@@ -73,7 +73,7 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream s
     const float step_h = stride_h_ ? stride_h_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getDims()[2]) / layer_height;
 
     const auto *bottom_data_0 = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *top_data_0 = reinterpret_cast<float *>(getChildEdgeAt(OUTPUT_ROIS)->getMemoryPtr()->GetPtr());
+    auto *top_data_0 = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
 
     for (int h = 0; h < layer_height; ++h) {
         for (int w = 0; w < layer_width; ++w) {

@@ -52,7 +52,7 @@ MKLDNNGatherTreeNode::MKLDNNGatherTreeNode(const std::shared_ptr<ngraph::Node>& 
     if (op->get_output_size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of output edges.";
 
-    precision = details::convertPrecision(op->get_input_element_type(GATHER_TREE_STEP_IDX));
+    precision = getOriginalInputPrecisionAtPort(GATHER_TREE_STEP_IDX);
     if (!MKLDNNPlugin::one_of(precision, Precision::FP32, Precision::I32))
         precision = Precision::FP32;
 
@@ -93,12 +93,12 @@ void MKLDNNGatherTreeNode::gatherTreeKernel() noexcept {
                                    - getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getDesc().getBlockingDesc().getOffsetPadding();
     const auto *max_seq_len = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr()->GetPtr());
     auto end_token = (reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr()->GetPtr()))[0];
-    auto * final_idx = reinterpret_cast<DATA_T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto * final_idx = reinterpret_cast<DATA_T *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     SizeVector step_idx_dims = getParentEdgeAt(GATHER_TREE_STEP_IDX)->getDims().ToSizeVector();
     SizeVector parent_idx_dims = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getDims().ToSizeVector();
     SizeVector max_seq_len_dims = getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getDims().ToSizeVector();
-    SizeVector final_idx_dims = getChildEdgeAt(0)->getDims().ToSizeVector();
+    SizeVector final_idx_dims = getChildEdgesAtPort(0)[0]->getDims().ToSizeVector();
     int32_t max_time = step_idx_dims[0];
     const size_t batch_size = step_idx_dims[1];
     const size_t beam_width = step_idx_dims[2];

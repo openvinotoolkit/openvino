@@ -28,7 +28,7 @@ bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<ngrap
         }
         if (!details::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CENTER_SIZE") &&
             !details::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CORNER")) {
-            errorMessage = "Unsupported code_type attribute.";
+            errorMessage = "Unsupported code_type attribute: " + doOp->get_attrs().code_type;
             return false;
         }
     } catch (...) {
@@ -101,16 +101,16 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
 
     const auto &confSize = op->get_input_shape(idx_confidence);
     _reordered_conf.resize(std::accumulate(confSize.begin(), confSize.end(), 1, std::multiplies<size_t>()));
-
-    size_t sizeVector = op->get_input_size();
-    inDataConf.reserve(sizeVector);
-    for (int i = 0; i < sizeVector; ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
 }
 
 void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    std::vector<DataConfigurator> inDataConf;
+    inDataConf.reserve(getOriginalInputsNumber());
+    for (int i = 0; i < getOriginalInputsNumber(); ++i)
+        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
@@ -118,14 +118,14 @@ void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
-    float *dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    float *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     const float *loc_data    = reinterpret_cast<const float *>(getParentEdgeAt(idx_location)->getMemoryPtr()->GetPtr());
     const float *conf_data   = reinterpret_cast<const float *>(getParentEdgeAt(idx_confidence)->getMemoryPtr()->GetPtr());
     const float *prior_data  = reinterpret_cast<const float *>(getParentEdgeAt(idx_priors)->getMemoryPtr()->GetPtr());
-    const float *arm_conf_data = getParentEdges().size() > 3 ?
+    const float *arm_conf_data = inDims.size() > 3 ?
             reinterpret_cast<const float *>(getParentEdgeAt(idx_arm_confidence)->getMemoryPtr()->GetPtr()) : nullptr;
-    const float *arm_loc_data = getParentEdges().size() > 4 ?
+    const float *arm_loc_data = inDims.size() > 4 ?
             reinterpret_cast<const float *>(getParentEdgeAt(idx_arm_location)->getMemoryPtr()->GetPtr()) : nullptr;
 
     const int N = getParentEdgeAt(idx_confidence)->getDims()[0];
@@ -277,8 +277,8 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
         }
     }
 
-    const int num_results = getChildEdgeAt(0)->getDims()[2];
-    const int DETECTION_SIZE = getChildEdgeAt(0)->getDims()[3];
+    const int num_results = getChildEdgesAtPort(0)[0]->getDims()[2];
+    const int DETECTION_SIZE = getChildEdgesAtPort(0)[0]->getDims()[3];
     if (DETECTION_SIZE != 7) {
         IE_THROW() << NOT_IMPLEMENTED;
     }
@@ -291,7 +291,7 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     else
         dst_data_size = N * _num_classes * _num_priors * DETECTION_SIZE * sizeof(float);
 
-    if (dst_data_size > getChildEdgeAt(0)->getBlob()->byteSize()) {
+    if (dst_data_size > getChildEdgesAtPort(0)[0]->getBlob()->byteSize()) {
         IE_THROW() << OUT_OF_BOUNDS;
     }
     memset(dst_data, 0, dst_data_size);

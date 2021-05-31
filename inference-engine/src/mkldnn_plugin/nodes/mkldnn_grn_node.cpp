@@ -53,7 +53,7 @@ void MKLDNNGRNNode::initSupportedPrimitiveDescriptors() {
 
 void MKLDNNGRNNode::execute(mkldnn::stream strm) {
     const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     SizeVector dims = getParentEdgeAt(0)->getDims().ToSizeVector();
 

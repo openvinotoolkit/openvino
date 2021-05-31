@@ -81,11 +81,10 @@ bool MKLDNNProposalNode::isSupportedOperation(const std::shared_ptr<ngraph::Node
             return false;
         }
         auto proposalOp = std::dynamic_pointer_cast<const ngraph::op::v0::Proposal>(op);
-        // [NM] TODO: Enable after fix Issue: 53750
-        // if (proposalOp->get_attrs().framework != "tensorflow" && !proposalOp->get_attrs().framework.empty()) {
-        //     errorMessage = "Unsupported framework attribute: " + proposalOp->get_attrs().framework;
-        //     return false;
-        // }
+        if (proposalOp->get_attrs().framework != "tensorflow" && !proposalOp->get_attrs().framework.empty()) {
+            errorMessage = "Unsupported framework attribute: " + proposalOp->get_attrs().framework;
+            return false;
+        }
     } catch (...) {
         return false;
     }
@@ -162,10 +161,10 @@ void MKLDNNProposalNode::execute(mkldnn::stream strm) {
         const float* probabilitiesData = reinterpret_cast<const float *>(getParentEdgeAt(PROBABILITIES_IN_IDX)->getMemoryPtr()->GetPtr());
         const float* anchorsData = reinterpret_cast<const float *>(getParentEdgeAt(ANCHORS_IN_IDX)->getMemoryPtr()->GetPtr());
         const float* imgInfoData = reinterpret_cast<const float *>(getParentEdgeAt(IMG_INFO_IN_IDX)->getMemoryPtr()->GetPtr());
-        float* outRoiData = reinterpret_cast <float *>(getChildEdgeAt(ROI_OUT_IDX)->getMemoryPtr()->GetPtr());
+        float* outRoiData = reinterpret_cast <float *>(getChildEdgesAtPort(ROI_OUT_IDX)[0]->getMemoryPtr()->GetPtr());
         float* outProbData = nullptr;
         if (store_prob)
-            outProbData = reinterpret_cast <float *>(getChildEdgeAt(PROBABILITIES_OUT_IDX)->getMemoryPtr()->GetPtr());
+            outProbData = reinterpret_cast <float *>(getChildEdgesAtPort(PROBABILITIES_OUT_IDX)[0]->getMemoryPtr()->GetPtr());
 
         auto inProbDims = getParentEdgeAt(0)->getDims().ToSizeVector();
         const size_t imgInfoSize = getParentEdgeAt(2)->getDims()[0];

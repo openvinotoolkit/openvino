@@ -40,17 +40,17 @@ MKLDNNCTCLossNode::MKLDNNCTCLossNode(const std::shared_ptr<ngraph::Node>& op, co
     ctcMergeRepeated = ctcLossOp->get_ctc_merge_repeated();
     preprocessCollapseRepeated = ctcLossOp->get_preprocess_collapse_repeated();
     unique = ctcLossOp->get_unique();
-
-    size_t sizeVector = op->get_input_size();
-    inDataConf.reserve(sizeVector);
-    inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
-    for (int i = 1; i < sizeVector; ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
 }
 
 void MKLDNNCTCLossNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    std::vector<DataConfigurator> inDataConf;
+    inDataConf.reserve(getOriginalInputsNumber());
+    inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+    for (int i = 1; i < getOriginalInputsNumber(); ++i)
+        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
@@ -64,14 +64,14 @@ void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
     const int* logitsLength = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     const int* labels = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
     const int* labelsLength = reinterpret_cast<const int *>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr());
-    float* dstData = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     const size_t batchNum = getParentEdgeAt(0)->getDims()[0];
     const size_t maxTime = getParentEdgeAt(0)->getDims()[1];
     const size_t classesNum = getParentEdgeAt(0)->getDims()[2];
 
     int blankIndex = classesNum - 1;
-    if (getParentEdges().size() > 4) {
+    if (inDims.size() > 4) {
         blankIndex = reinterpret_cast<const int *>(getParentEdgeAt(4)->getMemoryPtr()->GetPtr())[0];
     }
 

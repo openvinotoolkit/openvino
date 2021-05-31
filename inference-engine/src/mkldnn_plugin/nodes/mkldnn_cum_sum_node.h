@@ -23,7 +23,7 @@ public:
 
 private:
     template <typename dataType>
-    void exec(const InferenceEngine::Blob::CPtr& _input, const InferenceEngine::Blob::Ptr& _output);
+    void exec();
 
     template <bool reverse, bool exclusive, typename dataType>
     void cumSum(const dataType *input, dataType *output, const std::vector<size_t> &strides);
@@ -45,7 +45,6 @@ private:
     std::string layerName;
 
     InferenceEngine::Precision dataPrecision;
-    std::vector<DataConfigurator> inDataConf;
     std::string errorPrefix;
 };
 

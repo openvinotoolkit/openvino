@@ -40,7 +40,6 @@ private:
     bool class_agnostic_box_regression_;
     std::vector<float> deltas_weights_;
 
-    std::vector<DataConfigurator> inDataConf;
     std::string errorPrefix;
 };
 

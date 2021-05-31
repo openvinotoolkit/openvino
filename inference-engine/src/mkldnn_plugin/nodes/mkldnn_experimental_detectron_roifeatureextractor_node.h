@@ -35,7 +35,6 @@ private:
     int sampling_ratio_ = 0;
     bool aligned_ = false;
 
-    std::vector<DataConfigurator> inDataConf;
     std::string errorPrefix;
 };
 

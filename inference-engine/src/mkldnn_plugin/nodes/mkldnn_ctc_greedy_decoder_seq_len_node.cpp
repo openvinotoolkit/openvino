@@ -42,27 +42,27 @@ MKLDNNCTCGreedyDecoderSeqLenNode::MKLDNNCTCGreedyDecoderSeqLenNode(const std::sh
     if (op->get_input_shape(DATA_INDEX)[0] != op->get_input_shape(SEQUENCE_LENGTH_INDEX)[0])
         IE_THROW() << errPrefix << "has invalid input shapes.";
 
-    Precision inDataPrecision = details::convertPrecision(op->get_input_element_type(DATA_INDEX));
+    Precision inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (inDataPrecision != Precision::FP32 && inDataPrecision != Precision::BF16)
         IE_THROW() << errPrefix << "has unsupported 'data' input precision: " << inDataPrecision;
 
-    Precision seqLenPrecision = details::convertPrecision(op->get_input_element_type(SEQUENCE_LENGTH_INDEX));
+    Precision seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
     if (seqLenPrecision != Precision::I32 && seqLenPrecision != Precision::I64)
         IE_THROW() << errPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
     auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
     mergeRepeated = greedyDecOp->get_merge_repeated();
-
-    size_t sizeVector = op->get_input_size();
-    inDataConf.reserve(sizeVector);
-    inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
-    for (int i = 1; i < sizeVector; ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
 }
 
 void MKLDNNCTCGreedyDecoderSeqLenNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    std::vector<DataConfigurator> inDataConf;
+    inDataConf.reserve(getOriginalInputsNumber());
+    inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+    for (int i = 1; i < getOriginalInputsNumber(); ++i)
+        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
                          {{TensorDescCreatorTypes::ncsp, Precision::I32},
@@ -71,10 +71,10 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
-    const float* probabilities = reinterpret_cast<const float  *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
-    const int* sequenceLengths = reinterpret_cast<const int  *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
-    int* decodedClasses =  reinterpret_cast<int  *>(getChildEdgeAt(DECODED_CLASSES_INDEX)->getMemoryPtr()->GetPtr());
-    int* decodedClassesLength = reinterpret_cast<int  *>(getChildEdgeAt(DECODED_CLASSES_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
+    const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
+    const int* sequenceLengths = reinterpret_cast<const int *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
+    int* decodedClasses =  reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemoryPtr()->GetPtr());
+    int* decodedClassesLength = reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_LENGTH_INDEX)[0]->getMemoryPtr()->GetPtr());
 
     const size_t B = getParentEdgeAt(DATA_INDEX)->getDims()[0];;
     const size_t T = getParentEdgeAt(DATA_INDEX)->getDims()[1];;
@@ -82,7 +82,7 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
     const size_t TC = T * C;
 
     int blankIndex = C - 1;
-    if (getParentEdges().size() > BLANK_INDEX)
+    if (inDims.size() > BLANK_INDEX)
         blankIndex = (reinterpret_cast<const int  *>(getParentEdgeAt(BLANK_INDEX)->getMemoryPtr()->GetPtr()))[0];
 
     size_t workAmount = 0;
@@ -91,7 +91,7 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
             std::string errorMsg = errorPrefix
                                    + ". Sequence length " + std::to_string(sequenceLengths[b])
                                    + " cannot be greater than according decoded classes dimension size "
-                                   + std::to_string(getChildEdgeAt(DECODED_CLASSES_INDEX)->getDims()[1]);
+                                   + std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getDims()[1]);
             IE_THROW() << errorMsg;
         }
         workAmount += sequenceLengths[b];

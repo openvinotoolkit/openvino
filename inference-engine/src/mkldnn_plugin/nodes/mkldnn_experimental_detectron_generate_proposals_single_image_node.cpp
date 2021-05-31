@@ -324,7 +324,7 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::initSupportedP
 
 void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
     try {
-        if (getParentEdges().size() != 4 || getChildEdges().size() != 2) {
+        if (inDims.size() != 4 || outDims.size() < 2) {
             IE_THROW() << "Incorrect number of input or output edges!";
         }
 
@@ -353,8 +353,8 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
         const float *p_anchors_item = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ANCHORS)->getMemoryPtr()->GetPtr());
         const float *p_img_info_cpu = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->GetPtr());
 
-        float *p_roi_item       = reinterpret_cast<float *>(getChildEdgeAt(OUTPUT_ROIS)->getMemoryPtr()->GetPtr());
-        float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgeAt(OUTPUT_SCORES)->getMemoryPtr()->GetPtr());
+        float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
+        float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
 
         const int anchors_num = getParentEdgeAt(INPUT_SCORES)->getDims()[0];
 

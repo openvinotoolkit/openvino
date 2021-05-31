@@ -80,7 +80,6 @@ private:
     std::vector<float> _bbox_sizes;
     std::vector<int> _num_priors_actual;
 
-    std::vector<DataConfigurator> inDataConf;
     std::string errorPrefix;
 };
 

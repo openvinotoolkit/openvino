@@ -335,16 +335,16 @@ MKLDNNExperimentalDetectronROIFeatureExtractorNode::MKLDNNExperimentalDetectronR
     aligned_ = attr.aligned;
     pooled_height_ = output_dim_;
     pooled_width_ = output_dim_;
-
-    const size_t sizeVector = op->get_input_size();
-    inDataConf.reserve(sizeVector);
-    for (int i = 0; i < sizeVector; ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
 }
 
 void MKLDNNExperimentalDetectronROIFeatureExtractorNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    std::vector<DataConfigurator> inDataConf;
+    inDataConf.reserve(getOriginalInputsNumber());
+    for (int i = 0; i < getOriginalInputsNumber(); ++i)
+        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
                          {{TensorDescCreatorTypes::ncsp, Precision::FP32},
@@ -353,16 +353,16 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::initSupportedPrimitiveD
 }
 
 void MKLDNNExperimentalDetectronROIFeatureExtractorNode::execute(mkldnn::stream strm) {
-    const int levels_num = getParentEdges().size() - INPUT_FEATURES_START;
+    const int levels_num = inDims.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getDims()[1];
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
     auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
-    auto *output_rois_features = reinterpret_cast<float *>(getChildEdgeAt(OUTPUT_ROI_FEATURES)->getMemoryPtr()->GetPtr());
+    auto *output_rois_features = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROI_FEATURES)[0]->getMemoryPtr()->GetPtr());
     float *output_rois = nullptr;
-    if (OUTPUT_ROIS < static_cast<int>(getChildEdges().size())) {
-        output_rois = reinterpret_cast<float *>(getChildEdgeAt(OUTPUT_ROIS)->getMemoryPtr()->GetPtr());
+    if (OUTPUT_ROIS < outDims.size()) {
+        output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
     }
 
     std::vector<int> level_ids(num_rois, 0);

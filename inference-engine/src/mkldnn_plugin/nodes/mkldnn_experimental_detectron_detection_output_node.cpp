@@ -247,16 +247,16 @@ MKLDNNExperimentalDetectronDetectionOutputNode::MKLDNNExperimentalDetectronDetec
     max_detections_per_image_ = attributes.max_detections_per_image;
     class_agnostic_box_regression_ = attributes.class_agnostic_box_regression;
     deltas_weights_ = attributes.deltas_weights;
-
-    size_t sizeVector = op->get_input_size();
-    inDataConf.reserve(sizeVector);
-    for (int i = 0; i < sizeVector; ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
 }
 
 void MKLDNNExperimentalDetectronDetectionOutputNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    std::vector<DataConfigurator> inDataConf;
+    inDataConf.reserve(getOriginalInputsNumber());
+    for (int i = 0; i < getOriginalInputsNumber(); ++i)
+        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
                          {{TensorDescCreatorTypes::ncsp, Precision::FP32},
@@ -275,9 +275,9 @@ void MKLDNNExperimentalDetectronDetectionOutputNode::execute(mkldnn::stream strm
     const auto* scores = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->GetPtr());
     const auto* im_info = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->GetPtr());
 
-    auto* output_boxes = reinterpret_cast<float *>(getChildEdgeAt(OUTPUT_BOXES)->getMemoryPtr()->GetPtr());
-    auto* output_scores = reinterpret_cast<float *>(getChildEdgeAt(OUTPUT_SCORES)->getMemoryPtr()->GetPtr());
-    auto* output_classes = reinterpret_cast<int32_t *>(getChildEdgeAt(OUTPUT_CLASSES)->getMemoryPtr()->GetPtr());
+    auto* output_boxes = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_BOXES)[0]->getMemoryPtr()->GetPtr());
+    auto* output_scores = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
+    auto* output_classes = reinterpret_cast<int32_t *>(getChildEdgesAtPort(OUTPUT_CLASSES)[0]->getMemoryPtr()->GetPtr());
 
     const float img_H = im_info[0];
     const float img_W = im_info[1];

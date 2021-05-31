@@ -28,8 +28,6 @@ private:
     static const size_t RANGE_LIMIT = 1;
     static const size_t RANGE_DELTA = 2;
 
-    std::vector<DataConfigurator> inDataConf;
-    std::vector<DataConfigurator> outDataConf;
     std::string errorPrefix;
 };
 

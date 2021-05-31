@@ -63,7 +63,7 @@ void MKLDNNExperimentalDetectronTopKROIsNode::execute(mkldnn::stream strm) {
 
     auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
     auto *input_probs = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_PROBS)->getMemoryPtr()->GetPtr());
-    auto *output_rois = reinterpret_cast<float *>(getChildEdgeAt(OUTPUT_ROIS)->getMemoryPtr()->GetPtr());
+    auto *output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
 
     std::vector<size_t> idx(input_rois_num);
     iota(idx.begin(), idx.end(), 0);

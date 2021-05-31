@@ -59,34 +59,37 @@ MKLDNNRangeNode::MKLDNNRangeNode(const std::shared_ptr<ngraph::Node>& op, const 
     SizeVector dst_dims = op->get_output_shape(0);
     if (dst_dims.size() > 1)
         IE_THROW() << errorPrefix << " has unsupported rank for output: " << dst_dims.size();
-
-    if (!(details::convertPrecision(op->get_input_element_type(RANGE_START)) == Precision::I32 &&
-          details::convertPrecision(op->get_input_element_type(RANGE_LIMIT)) == Precision::I32 &&
-          details::convertPrecision(op->get_input_element_type(RANGE_DELTA)) == Precision::I32 &&
-          details::convertPrecision(op->get_output_element_type(0)) == Precision::I32) &&
-        !(details::convertPrecision(op->get_input_element_type(RANGE_START)) == Precision::FP32 &&
-          details::convertPrecision(op->get_input_element_type(RANGE_LIMIT)) == Precision::FP32 &&
-          details::convertPrecision(op->get_input_element_type(RANGE_DELTA)) == Precision::FP32 &&
-          details::convertPrecision(op->get_output_element_type(0)) == Precision::FP32)) {
-        inDataConf.reserve(op->get_input_size());
-        for (int i = 0; i < op->get_input_size(); ++i)
-            inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
-        outDataConf.reserve(1);
-        outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
-    } else {
-        inDataConf.reserve(op->get_input_size());
-        for (int i = 0; i < op->get_input_size(); ++i)
-            inDataConf.emplace_back(TensorDescCreatorTypes::ncsp);
-        outDataConf.reserve(1);
-        outDataConf.emplace_back(TensorDescCreatorTypes::ncsp);
-    }
 }
 
 void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
+    std::vector<DataConfigurator> inDataConf;
+    std::vector<DataConfigurator> outDataConf;
+
+    if (!(getOriginalInputPrecisionAtPort(RANGE_START) == Precision::I32 &&
+            getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::I32 &&
+            getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::I32 &&
+            getOriginalOutputPrecisionAtPort(0)     == Precision::I32) &&
+        !(getOriginalInputPrecisionAtPort(RANGE_START) == Precision::FP32 &&
+          getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::FP32 &&
+          getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::FP32 &&
+          getOriginalOutputPrecisionAtPort(0) == Precision::FP32)) {
+        inDataConf.reserve(getOriginalInputsNumber());
+        for (int i = 0; i < getOriginalInputsNumber(); ++i)
+            inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+        outDataConf.reserve(1);
+        outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+        addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
+    } else {
+        inDataConf.reserve(getOriginalInputsNumber());
+        for (int i = 0; i < getOriginalInputsNumber(); ++i)
+            inDataConf.emplace_back(TensorDescCreatorTypes::ncsp);
+        outDataConf.reserve(1);
+        outDataConf.emplace_back(TensorDescCreatorTypes::ncsp);
+        addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
+    }
 }
 
 void MKLDNNRangeNode::execute(mkldnn::stream strm) {
@@ -109,8 +112,8 @@ void MKLDNNRangeNode::execute(mkldnn::stream strm) {
 
 template <typename data_t>
 InferenceEngine::StatusCode MKLDNNRangeNode::rangeKernel() noexcept {
-    size_t dst_size = (getChildEdgeAt(0)->getDims())[0];
-    data_t* dst_data = reinterpret_cast<data_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    size_t dst_size = (getChildEdgesAtPort(0)[0]->getDims())[0];
+    data_t* dst_data = reinterpret_cast<data_t *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     data_t start = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_START)->getMemoryPtr()->GetPtr())[0];
     data_t limit = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_LIMIT)->getMemoryPtr()->GetPtr())[0];
     data_t delta = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_DELTA)->getMemoryPtr()->GetPtr())[0];

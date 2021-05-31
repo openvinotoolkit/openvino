@@ -14,9 +14,9 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-class MKLDNNNonMaxSuppressionIEInternalNode : public MKLDNNNode {
+class MKLDNNNonMaxSuppressionNode : public MKLDNNNode {
 public:
-    MKLDNNNonMaxSuppressionIEInternalNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNNonMaxSuppressionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -86,7 +86,7 @@ private:
     std::vector<std::vector<size_t>> numFiltBox;
     const std::string inType = "input", outType = "output";
 
-    void checkPrecision(const ngraph::element::Type &ngPrec, const std::vector<Precision> precList, const std::string name, const std::string type);
+    void checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type);
     void check1DInput(const std::shared_ptr<ngraph::Node>& op, const std::vector<Precision> precList, const std::string name, const size_t port);
     void checkOutput(const std::shared_ptr<ngraph::Node>& op, const std::vector<Precision> precList, const std::string name, const size_t port);
 };

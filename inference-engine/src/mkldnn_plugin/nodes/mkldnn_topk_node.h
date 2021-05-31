@@ -98,7 +98,6 @@ private:
 
     int dim, before_num;
 
-    std::vector<DataConfigurator> outDataConf;
     std::string errorPrefix;
 
 #if defined(HAVE_AVX512F)

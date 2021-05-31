@@ -78,17 +78,17 @@ MKLDNNTopKNode::MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op, const mk
     }
     dim = static_cast<int>(src_dims[axis]);
     before_num = count(src_dims, 0, axis);
-
-    size_t sizeVector = op->get_output_size();
-    outDataConf.reserve(sizeVector);
-    outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
-    for (int i = 1; i < sizeVector; ++i)
-        outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
 }
 
 void MKLDNNTopKNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    std::vector<DataConfigurator> outDataConf;
+    outDataConf.reserve(getOriginalOutputsNumber());
+    outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+    for (int i = 1; i < getOriginalOutputsNumber(); ++i)
+        outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
 
     addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
                           {TensorDescCreatorTypes::ncsp, Precision::I32}},
@@ -102,24 +102,24 @@ void MKLDNNTopKNode::execute(mkldnn::stream strm) {
     float* dst_data = nullptr;
     int* dst_idx = nullptr;
 
-    if (getChildEdges().size() == 1) {
-        if (getChildEdgeAt(0)->getDesc().getPrecision() == Precision::FP32) {
-            dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    if (outDims.size() == 1) {
+        if (getOriginalOutputPrecisionAtPort(0) == Precision::FP32) {
+            dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
         } else {
-            dst_idx = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+            dst_idx = reinterpret_cast<int *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
         }
-        SizeVector dstDims = getChildEdgeAt(0)->getDims().ToSizeVector();
+        SizeVector dstDims = getChildEdgesAtPort(0)[0]->getDims().ToSizeVector();
 
         if (dstDims[axis] != static_cast<size_t>(src_k)) {
             std::string errorMsg = "Output tensor dimension mismatch";
             IE_THROW() << errorMsg;
         }
-    } else if (getChildEdges().size() == 2) {
-        dst_data = reinterpret_cast<float *>(getChildEdgeAt(TOPK_VALUE)->getMemoryPtr()->GetPtr());
-        SizeVector dst_data_dims = getChildEdgeAt(TOPK_VALUE)->getDims().ToSizeVector();
+    } else if (outDims.size() == 2) {
+        dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(TOPK_VALUE)[0]->getMemoryPtr()->GetPtr());
+        SizeVector dst_data_dims = getChildEdgesAtPort(TOPK_VALUE)[0]->getDims().ToSizeVector();
 
-        dst_idx = reinterpret_cast<int *>(getChildEdgeAt(TOPK_INDEX)->getMemoryPtr()->GetPtr());
-        SizeVector dst_idx_dims = getChildEdgeAt(TOPK_INDEX)->getDims().ToSizeVector();
+        dst_idx = reinterpret_cast<int *>(getChildEdgesAtPort(TOPK_INDEX)[0]->getMemoryPtr()->GetPtr());
+        SizeVector dst_idx_dims = getChildEdgesAtPort(TOPK_INDEX)[0]->getDims().ToSizeVector();
 
         if (dst_idx_dims[axis] != static_cast<size_t>(src_k) || dst_data_dims[axis] != static_cast<size_t>(src_k)) {
             std::string errorMsg = "Output tensors dimension mismatch";
