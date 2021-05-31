@@ -5,36 +5,38 @@
 //! [fft_kernel:implementation]
 #include "fft_kernel.hpp"
 
+#include <details/ie_so_loader.h>
 #include <ie_layouts.h>
-
-#include <opencv2/opencv.hpp>
+#include <opencv2/core/core_c.h>
 
 #include "fft_op.hpp"
 
-#ifdef _WIN32
-#include <windows.h>
-#elif defined(__APPLE__) || defined(__linux__)
-#include <dlfcn.h>
-#else
-#error "Unsupported OS"
-#endif
+InferenceEngine::details::SharedObjectLoader so;
+using cvCreateMatHeaderF = CvMat*(int, int, int);
+using cvCreateMatF = CvMat*(int, int, int);
+using cvSetDataF = void(CvArr*, void*, int);
+using cvReleaseMatF = void(CvMat**);
+using cvMergeF = void(const CvArr*, const CvArr*, const CvArr*, const CvArr*, CvArr*);
+using cvSplitF = void(const CvArr*, CvArr*, CvArr*, CvArr*, CvArr*);
+using cvDftF = void(const CvArr*, CvArr*, int, int);
 
 bool loadOpenCV() {
     static bool loaded = false;
     if (!loaded) {
-#ifdef _WIN32
-        if (!LoadLibraryA("opencv_core.dll"))
-            return false;
-#elif defined(__APPLE__)
-        if (!dlopen("libopencv_core.dylib", RTLD_LAZY | RTLD_GLOBAL))
-            return false;
-#else
-        if (!dlopen("libopencv_core.so", RTLD_LAZY | RTLD_GLOBAL))
-            return false;
-#endif
         loaded = true;
+        try {
+#ifdef _WIN32
+            so = InferenceEngine::details::SharedObjectLoader("opencv_core.dll");
+#elif defined(__APPLE__)
+            so = InferenceEngine::details::SharedObjectLoader("libopencv_core.dylib");
+#else
+            so = InferenceEngine::details::SharedObjectLoader("libopencv_core.so");
+#endif
+        } catch (InferenceEngine::Exception&) {
+            return false;
+        }
     }
-    return true;
+    return loaded;
 }
 
 using namespace TemplateExtension;
@@ -104,36 +106,46 @@ InferenceEngine::StatusCode FFTImpl::init(InferenceEngine::LayerConfig& config, 
     return InferenceEngine::OK;
 }
 
-static cv::Mat infEngineBlobToMat(const InferenceEngine::Blob::Ptr& blob) {
-    // NOTE: Inference Engine sizes are reversed.
-    std::vector<size_t> dims = blob->getTensorDesc().getDims();
-    std::vector<int> size(dims.begin(), dims.end());
-    auto precision = blob->getTensorDesc().getPrecision();
-    CV_Assert(precision == InferenceEngine::Precision::FP32);
-    return cv::Mat(size, CV_32F, (void*)blob->buffer());
-}
-
 InferenceEngine::StatusCode FFTImpl::execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
                                              InferenceEngine::ResponseDesc* resp) noexcept {
-    cv::Mat inp = infEngineBlobToMat(inputs[0]);
-    cv::Mat out = infEngineBlobToMat(outputs[0]);
+    static auto cvSetData = reinterpret_cast<cvSetDataF*>(so.get_symbol("cvSetData"));
+    static auto cvCreateMatHeader = reinterpret_cast<cvCreateMatHeaderF*>(so.get_symbol("cvCreateMatHeader"));
+    static auto cvCreateMat = reinterpret_cast<cvCreateMatF*>(so.get_symbol("cvCreateMat"));
+    static auto cvMerge = reinterpret_cast<cvMergeF*>(so.get_symbol("cvMerge"));
+    static auto cvSplit = reinterpret_cast<cvSplitF*>(so.get_symbol("cvSplit"));
+    static auto cvDFT = reinterpret_cast<cvDftF*>(so.get_symbol("cvDFT"));
+    static auto cvReleaseMat = reinterpret_cast<cvReleaseMatF*>(so.get_symbol("cvReleaseMat"));
 
-    const int n = inp.size[0];
-    const int h = inp.size[2];
-    const int w = inp.size[3];
-    cv::Mat complex(h, w, CV_32FC2), interleavedOut(h, w, CV_32FC2);
-    for (int i = 0; i < n; ++i) {
-        std::vector<cv::Mat> components = {cv::Mat(h, w, CV_32F, inp.ptr<float>(i, 0)), cv::Mat(h, w, CV_32F, inp.ptr<float>(i, 1))};
-        cv::merge(components, complex);
+    float* inpData = inputs[0]->buffer();
+    float* outData = outputs[0]->buffer();
+
+    std::vector<size_t> dims = inputs[0]->getTensorDesc().getDims();
+    const size_t n = dims[0];
+    const size_t h = dims[2];
+    const size_t w = dims[3];
+    const size_t planeSize = h * w * 2;
+    CvMat* real = cvCreateMatHeader(h, w, CV_32FC1);
+    CvMat* imag = cvCreateMatHeader(h, w, CV_32FC1);
+    CvMat* complex = cvCreateMat(h, w, CV_32FC2);
+    CvMat* interleavedOut = cvCreateMat(h, w, CV_32FC2);
+    for (size_t i = 0; i < n; ++i) {
+        cvSetData(real, reinterpret_cast<void*>(inpData + i * planeSize), w * sizeof(float));
+        cvSetData(imag, reinterpret_cast<void*>(inpData + i * planeSize + h * w), w * sizeof(float));
+        cvMerge(real, imag, nullptr, nullptr, complex);
 
         if (!inverse)
-            cv::dft(complex, interleavedOut);
+            cvDFT(complex, interleavedOut, CV_DXT_FORWARD, 0);
         else
-            cv::idft(complex, interleavedOut, cv::DFT_SCALE);
+            cvDFT(complex, interleavedOut, CV_DXT_INVERSE | CV_DXT_SCALE, 0);
 
-        components = {cv::Mat(h, w, CV_32F, out.ptr<float>(i, 0)), cv::Mat(h, w, CV_32F, out.ptr<float>(i, 1))};
-        cv::split(interleavedOut, components);
+        cvSetData(real, reinterpret_cast<void*>(outData + i * planeSize), w * sizeof(float));
+        cvSetData(imag, reinterpret_cast<void*>(outData + i * planeSize + h * w), w * sizeof(float));
+        cvSplit(interleavedOut, real, imag, nullptr, nullptr);
     }
+    cvReleaseMat(&real);
+    cvReleaseMat(&imag);
+    cvReleaseMat(&complex);
+    cvReleaseMat(&interleavedOut);
     return InferenceEngine::OK;
 }
 //! [fft_kernel:implementation]
