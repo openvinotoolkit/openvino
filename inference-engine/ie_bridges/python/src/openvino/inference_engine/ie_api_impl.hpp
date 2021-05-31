@@ -121,9 +121,7 @@ struct InferRequestWrap {
 
     void setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr);
 
-    void setBlob(const std::string& name,
-                 const InferenceEngine::Blob::Ptr& data,
-                 const InferenceEngine::PreProcessInfo& info);
+    void setBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data, const InferenceEngine::PreProcessInfo& info);
 
     void setBatch(int size);
 
@@ -133,7 +131,6 @@ struct InferRequestWrap {
 
     std::vector<InferenceEnginePython::CVariableState> queryState();
 };
-
 
 struct IEExecNetwork {
     std::shared_ptr<InferenceEngine::ExecutableNetwork> actual;
@@ -160,7 +157,7 @@ struct IEExecNetwork {
 
     void createInferRequests(int num_requests);
 
-    //binds plugin to InputInfo and Data, so that they can be destroyed before plugin (ussue 28996)
+    // binds plugin to InputInfo and Data, so that they can be destroyed before plugin (ussue 28996)
     std::shared_ptr<InferenceEngine::ExecutableNetwork> getPluginLink();
 };
 
