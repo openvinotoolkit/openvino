@@ -28,11 +28,10 @@ class ShapeOfConstFolding(MiddleReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: [dict, SubgraphMatch]):
         shape = match['shape']
-
-        shape_name = shape.soft_get('name', shape.id)
-
-        shape_value = shape.in_port(0).data.get_value()
-        shape_const_node = Const(graph, {'name': shape_name + '/ExecutionConstValue',
-                                         'value': shape_value}).create_node()
-        shape.out_port(0).get_connection().set_source(shape_const_node.out_port(0))
-        rename_nodes([(shape, shape_name + '/TBD'), (shape_const_node, shape_name)])
+        if shape.has_valid('value'):
+            shape_name = shape.soft_get('name', shape.id)
+            shape_value = shape.value
+            shape_const_node = Const(graph, {'name': shape_name + '/ExecutionConstValue',
+                                             'value': shape_value}).create_node()
+            shape.out_port(0).get_connection().set_source(shape_const_node.out_port(0))
+            rename_nodes([(shape, shape_name + '/TBD'), (shape_const_node, shape_name)])
