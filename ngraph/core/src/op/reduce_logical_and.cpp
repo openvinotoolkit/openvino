@@ -73,3 +73,10 @@ bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
     const auto& out = outputs[0];
     return evaluate_reduce_logical_and(data, axes, out, get_keep_dims());
 }
+
+bool op::v1::ReduceLogicalAnd::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_ReduceLogicalAnd_has_evaluate);
+    return get_input_element_type(0) == element::boolean &&
+           get_input_element_type(1).is_integral_number();
+}

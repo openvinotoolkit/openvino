@@ -167,7 +167,7 @@ public:
                 std::cout << std::left << std::setw(static_cast<int>(_probabilityStr.length())) << std::fixed << result;
 
                 if (!_labels.empty()) {
-                    std::cout << " " + _labels[_results[id]];
+                    std::cout << " " + _labels[_results.at(id)];
                 }
                 std::cout << std::endl;
             }
