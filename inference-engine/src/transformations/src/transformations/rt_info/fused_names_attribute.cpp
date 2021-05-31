@@ -67,6 +67,8 @@ std::string getFusedNames(const std::shared_ptr<ngraph::Node> &node) {
 }
 
 std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> &node) {
+    if (!node) return {};
+
     const auto &rtInfo = node->get_rt_info();
     using FusedNamesWrapper = VariantWrapper<FusedNames>;
 

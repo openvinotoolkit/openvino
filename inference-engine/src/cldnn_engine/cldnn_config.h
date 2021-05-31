@@ -32,7 +32,8 @@ struct Config {
                sources_dumps_dir(""),
                device_id(""),
                kernels_cache_dir(""),
-               n_threads(std::max(static_cast<unsigned int>(1), std::thread::hardware_concurrency())) {
+               n_threads(std::max(static_cast<unsigned int>(1), std::thread::hardware_concurrency())),
+               enable_loop_unrolling(true) {
         adjustKeyMapValues();
     }
 
@@ -58,6 +59,7 @@ struct Config {
     std::string device_id;
     std::string kernels_cache_dir;
     size_t n_threads;
+    bool enable_loop_unrolling;
 
     std::map<std::string, std::string> key_config_map;
 };
