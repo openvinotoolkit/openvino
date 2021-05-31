@@ -2,53 +2,15 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import argparse
 import logging as log
 import re
 import sys
 from timeit import default_timer
-from typing import Any, IO
 
 import numpy as np
+from arg_parser import parse_args
+from file_options import read_utterance_file, write_utterance_file
 from openvino.inference_engine import ExecutableNetwork, IECore
-
-
-def parse_args() -> argparse.Namespace:
-    """Parse and return command line arguments"""
-    parser = argparse.ArgumentParser(add_help=False)
-    args = parser.add_argument_group('Options')
-    model = parser.add_mutually_exclusive_group(required=True)
-
-    args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
-    model.add_argument('-m', '--model', type=str,
-                       help='Path to an .xml file with a trained model (required if -rg is missing).')
-    model.add_argument('-rg', '--import_gna_model', type=str,
-                       help='Read GNA model from file using path/filename provided (required if -m is missing).')
-    args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an input file (.ark or .npz).')
-    args.add_argument('-o', '--output', type=str,
-                      help='Optional. Output file name to save inference results (.ark or .npz).')
-    args.add_argument('-r', '--reference', type=str,
-                      help='Optional. Read reference score file and compare scores.')
-    args.add_argument('-d', '--device', default='CPU', type=str,
-                      help='Optional. Specify a target device to infer on. '
-                      'CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA'
-                      ' as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. '
-                      'The sample will look for a suitable plugin for device specified. Default value is CPU.')
-    args.add_argument('-bs', '--batch_size', default=1, type=int, help='Optional. Batch size 1-8 (default 1).')
-    args.add_argument('-qb', '--quantization_bits', default=16, type=int,
-                      help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
-    args.add_argument('-wg', '--export_gna_model', type=str,
-                      help='Optional. Write GNA model to file using path/filename provided.')
-    args.add_argument('-we', '--export_embedded_gna_model', type=str, help=argparse.SUPPRESS)
-    args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, help=argparse.SUPPRESS)
-    args.add_argument('-iname', '--input_layers', type=str,
-                      help='Optional. Layer names for input blobs. The names are separated with ",". '
-                      'Allows to change the order of input layers for -i flag. Example: Input1,Input2')
-    args.add_argument('-oname', '--output_layers', type=str,
-                      help='Optional. Layer names for output blobs. The names are separated with ",". '
-                      'Allows to change the order of output layers for -o flag. Example: Output1:port,Output2:port.')
-
-    return parser.parse_args()
 
 
 def get_scale_factor(matrix: np.ndarray) -> float:
@@ -60,76 +22,6 @@ def get_scale_factor(matrix: np.ndarray) -> float:
         return 1.0
     else:
         return target_max / max_val
-
-
-def read_ark_file(file_name: str) -> dict:
-    """Read utterance matrices from a .ark file"""
-    def read_key(input_file: IO[Any]) -> str:
-        """Read a identifier of utterance matrix"""
-        key = ''
-        while True:
-            char = input_file.read(1).decode()
-            if char in ('', ' '):
-                break
-            else:
-                key += char
-
-        return key
-
-    def read_matrix(input_file: IO[Any]) -> np.ndarray:
-        """Read a utterance matrix"""
-        header = input_file.read(5).decode()
-        if 'FM' in header:
-            num_of_bytes = 4
-            dtype = 'float32'
-        elif 'DM' in header:
-            num_of_bytes = 8
-            dtype = 'float64'
-        else:
-            log.error(f'The utterance header "{header}" does not contain information about a type of elements.')
-            sys.exit(-7)
-
-        _, rows, _, cols = np.frombuffer(input_file.read(10), 'int8, int32, int8, int32')[0]
-        buffer = input_file.read(rows * cols * num_of_bytes)
-        vector = np.frombuffer(buffer, dtype)
-        matrix = np.reshape(vector, (rows, cols))
-
-        return matrix
-
-    utterances = {}
-    with open(file_name, 'rb') as input_file:
-        while True:
-            key = read_key(input_file)
-            if not key:
-                break
-            utterances[key] = read_matrix(input_file)
-
-    return utterances
-
-
-def write_ark_file(file_name: str, utterances: dict):
-    """Write utterance matrices to a .ark file"""
-    with open(file_name, 'wb') as output_file:
-        for key, matrix in sorted(utterances.items()):
-            # write a matrix key
-            output_file.write(key.encode())
-            output_file.write(' '.encode())
-            output_file.write('\0B'.encode())
-
-            # write a matrix precision
-            if matrix.dtype == 'float32':
-                output_file.write('FM '.encode())
-            elif matrix.dtype == 'float64':
-                output_file.write('DM '.encode())
-
-            # write a matrix shape
-            output_file.write('\04'.encode())
-            output_file.write(matrix.shape[0].to_bytes(4, byteorder='little', signed=False))
-            output_file.write('\04'.encode())
-            output_file.write(matrix.shape[1].to_bytes(4, byteorder='little', signed=False))
-
-            # write a matrix data
-            output_file.write(matrix.tobytes())
 
 
 def infer_data(data: dict, exec_net: ExecutableNetwork, input_blobs: list, output_blobs: list) -> np.ndarray:
@@ -182,32 +74,6 @@ def compare_with_reference(result: np.ndarray, reference: np.ndarray):
     log.info(f'avg error: {avg_error:.7f}')
     log.info(f'avg rms error: {avg_rms_error:.7f}')
     log.info(f'stdev error: {stdev_error:.7f}')
-
-
-def read_utterance_file(file_name: str) -> dict:
-    """Read utterance matrices from a file"""
-    file_extension = file_name.split('.')[-1]
-
-    if file_extension == 'ark':
-        return read_ark_file(file_name)
-    elif file_extension == 'npz':
-        return dict(np.load(file_name))
-    else:
-        log.error(f'The file {file_name} cannot be read. The sample supports only .ark and .npz files.')
-        sys.exit(-1)
-
-
-def write_utterance_file(file_name: str, utterances: dict):
-    """Write utterance matrices to a file"""
-    file_extension = file_name.split('.')[-1]
-
-    if file_extension == 'ark':
-        write_ark_file(file_name, utterances)
-    elif file_extension == 'npz':
-        np.savez(file_name, **utterances)
-    else:
-        log.error(f'The file {file_name} cannot be written. The sample supports only .ark and .npz files.')
-        sys.exit(-2)
 
 
 def main():
