@@ -30,7 +30,7 @@ The `threshold` is internally defined parameter, which can be calculated with th
 
 For example: 
 If *T* is `fp32`, `threshold` range is `13.8 ~ 88.7`, in practice, `threshold` is set to be `20`.
-If *T* is `fp16`, in practice `threshold` is also set to be `20`.  
+If *T* is `fp16`, in practice `threshold` is also set to be `20`，which is also ok as the data is operated in `fp32` and then convert to `fp16`.
 
 **Attributes**: *SoftPlus* operation has no attributes.
 
