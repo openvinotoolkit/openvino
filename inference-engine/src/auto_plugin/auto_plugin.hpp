@@ -10,8 +10,10 @@
 #include <unordered_set>
 #include <type_traits>
 
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <threading/ie_executor_manager.hpp>
+
 #include "auto_exec_network.hpp"
 
 namespace AutoPlugin {
@@ -22,9 +24,6 @@ class AutoInferencePlugin : public IE::IInferencePlugin {
 public:
     AutoInferencePlugin();
     ~AutoInferencePlugin() {
-        // will discuss cancelable LoadNEtwork in the Arch Forum, but now have to wait
-        for (auto& t : async_load_threads)
-            t.join();
     }
     IE::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const IE::CNNNetwork& network, const ConfigType& config) override;
     IE::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& fileName, const ConfigType& config) override;
@@ -39,7 +38,6 @@ private:
     DeviceName SelectDevice(const std::vector<DeviceName>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
     ConfigType GetSupportedConfig(const ConfigType& config, const DeviceName & deviceName) const;
     static ConfigType mergeConfigs(ConfigType config, const ConfigType& local);
-    std::vector<std::thread> async_load_threads;
     template <typename T>
     std::shared_ptr<AutoExecutableNetwork> LoadNetworkImpl(const T &param, const ConfigType &config, const std::string &networkPrecision = METRIC_VALUE(FP32)) {
         if (GetCore() == nullptr) {
@@ -47,37 +45,42 @@ private:
         }
         auto fullConfig = mergeConfigs(_config, config);
         auto metaDevices = GetDeviceList(fullConfig);
-        NetworkPromiseSharedPtr promiseFirstDevice = std::make_shared<NetworkPromise>();
-        NetworkPromiseSharedPtr promiseActualDevice = std::make_shared<NetworkPromise>();
-        auto LoadNetworkAsync = [this, param, promiseFirstDevice, promiseActualDevice](bool bIsAccel, const std::string& device) {
+        auto LoadNetworkAsync =
+            [this, &param](bool bIsAccel, const std::string& device)
+            -> IE::SoExecutableNetworkInternal {
             std::cout << "!!! DEBUG: Starting Async loading to the " << device <<  " !!!" << std::endl;
             auto executableNetwork = GetCore()->LoadNetwork(param, device, {});
-            try {
-                promiseFirstDevice->set_value(executableNetwork);
-                std::cout << "!!! DEBUG: " << device <<  " was loaded first !!!" << std::endl;
-            }
-            catch (const std::future_error &e) {
-//                if (e.code() == std::future_errc::promise_already_satisfied) {
-//                    std::cout << "!!! DEBUG: " << (bIsAccel? "Accelerator" : "CPU") <<
-//                        " was already loaded to the promiseFirstDevice !!!" << std::endl;
-//                }
-            }
-            if (bIsAccel) {
-                promiseActualDevice->set_value(executableNetwork);
-                std::cout << "!!! DEBUG: Accelerator" << device <<  " was loaded !!!" << std::endl;
-            }
+            std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
+            return executableNetwork;
         };
 
+        auto executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+            IE::IStreamsExecutor::Config{"AutoPluginAsyncLoad",
+                                     static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
+                                     1 /*single thread per stream*/,
+                                     IE::IStreamsExecutor::ThreadBindingType::NONE});
+
+        std::string CPU {"CPU"};
+        auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
+            [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
+        if (CPUIter != metaDevices.end()) {
+            CPU = *CPUIter;
+        }
+        auto cpuTask =
+            std::make_shared<std::packaged_task<IE::SoExecutableNetworkInternal()>>(
+                [=]{return LoadNetworkAsync(false, CPU);});
+        // start CPU task anyway
+        executor->run([=](){(*cpuTask)();});
+
         const auto accelerator = SelectDevice(metaDevices, networkPrecision);
-        // start loading of the netwrok to the accel
-        bool isAccelerator = accelerator != "CPU";
-        // FIXME: change to the default task-executor as in MULTI (but add an async Run() to that)
-        async_load_threads.push_back(std::thread([=] {LoadNetworkAsync(isAccelerator, accelerator);}));
-        // loading to the CPU in parallel, if it is not already an accelrator
-        if (isAccelerator)
-            async_load_threads.push_back(std::thread([=] { LoadNetworkAsync(false, "CPU"); }));
-        else
-            promiseActualDevice->set_value({});
+        NetworkTaskSharedPtr acceleratorTask {};
+        bool isAccelerator = accelerator.find("CPU") != std::string::npos;
+        if (isAccelerator) {
+            acceleratorTask =
+                std::make_shared<std::packaged_task<IE::SoExecutableNetworkInternal()>>(
+                    [=]{return LoadNetworkAsync(isAccelerator, accelerator);});
+            executor->run([=](){(*acceleratorTask)();});
+        }
 
         // FIXME: revert the exception handling logic back to gracefully handle LoadNetwork failures
         // DeviceInformation selectedDevice;
@@ -102,7 +105,7 @@ private:
 //            IE_THROW() << "Failed to load network by AUTO plugin";
 //        }
         // AutoExecutableNetwork constructor blocks until any network is ready
-        auto impl = std::make_shared<AutoExecutableNetwork>(promiseFirstDevice, promiseActualDevice);
+        auto impl = std::make_shared<AutoExecutableNetwork>(executor, cpuTask, acceleratorTask);
 
 //        if (std::is_same<std::string, T>::value) {
 //            SetExeNetworkInfo(impl, executableNetwork->GetInputsInfo(),

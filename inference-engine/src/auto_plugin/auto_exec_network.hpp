@@ -19,17 +19,16 @@ namespace AutoPlugin {
 
 using DeviceName = std::string;
 
-typedef std::promise<InferenceEngine::SoExecutableNetworkInternal> NetworkPromise;
-typedef std::future<InferenceEngine::SoExecutableNetworkInternal> NetworkFuture;
 typedef std::shared_future<InferenceEngine::SoExecutableNetworkInternal> NetworkSharedFuture;
-typedef std::shared_ptr<NetworkPromise> NetworkPromiseSharedPtr;
+typedef std::shared_ptr<std::packaged_task<InferenceEngine::SoExecutableNetworkInternal()>> NetworkTaskSharedPtr;
 
 class AutoExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
-    explicit AutoExecutableNetwork(AutoPlugin::NetworkPromiseSharedPtr networkFirstReady,
-                                   AutoPlugin::NetworkPromiseSharedPtr networkActualNeeded);
+    explicit AutoExecutableNetwork(InferenceEngine::IStreamsExecutor::Ptr executor,
+                                   NetworkTaskSharedPtr cpuTask,
+                                   NetworkTaskSharedPtr acceleratorTask);
 
     void Export(std::ostream& networkModel) override;
     InferenceEngine::RemoteContext::Ptr GetContext() const override;
@@ -43,17 +42,11 @@ public:
     ~AutoExecutableNetwork();
 
 private:
+    InferenceEngine::IStreamsExecutor::Ptr _executor;
     InferenceEngine::SoExecutableNetworkInternal _networkFirstReady;
-
     InferenceEngine::SoExecutableNetworkInternal _networkActualNeeded;
-    AutoPlugin::NetworkPromiseSharedPtr _networkPromiseActualNeeded;
-    AutoPlugin::NetworkFuture _futureActualNetwork; // for requests
+    AutoPlugin::NetworkSharedFuture _sharedFutureActualNetwork; // for requests
     std::atomic<bool> _anyRequestHasHotSwapped = {false};
-    void wait_for_actual_device() const {
-        //        _networkActualNeeded = _futureActualNetwork.share().get();
-        // todo : catch the st std::future_error / std::future_errc::promise_already_satisfied
-        // todo: make the two members above volatile to keep this method const
-    }
 };
 
 }  // namespace AutoPlugin

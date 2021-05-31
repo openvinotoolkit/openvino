@@ -61,7 +61,7 @@ void AutoInferRequest::SetCallback(Callback callback) {
 
 void AutoInferRequest::HotSwapRequests() {
     if (_sharedFutureForActualNetwork.valid() && _sharedFutureForActualNetwork.wait_for(std::chrono::nanoseconds(0)) == std::future_status::ready) {
-        std::lock_guard<std::mutex>{_hotswapMutex};
+        std::lock_guard<std::mutex> lockGuard(_hotswapMutex);
         if (!_hotswapDone) {
             _hotswapDone = true;
             auto actualNetwork = _sharedFutureForActualNetwork.get();

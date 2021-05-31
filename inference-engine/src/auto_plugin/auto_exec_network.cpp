@@ -15,21 +15,31 @@
 namespace AutoPlugin {
 using namespace InferenceEngine;
 
-AutoExecutableNetwork::AutoExecutableNetwork(AutoPlugin::NetworkPromiseSharedPtr networkPromiseFirstReady,
-                                             AutoPlugin::NetworkPromiseSharedPtr networkPromiseActualNeeded) {
+AutoExecutableNetwork::AutoExecutableNetwork(IStreamsExecutor::Ptr executor,
+                                             NetworkTaskSharedPtr cpuTask,
+                                             NetworkTaskSharedPtr acceleratorTask)
+: _executor(executor) {
     // we wait for any network to become ready (maybe this will already an actual device)
-    _networkFirstReady = networkPromiseFirstReady->get_future().get();
-    _networkPromiseActualNeeded = networkPromiseActualNeeded;
-    _futureActualNetwork = _networkPromiseActualNeeded->get_future();
+    _networkFirstReady = cpuTask->get_future().get();
+    if (acceleratorTask)
+        _sharedFutureActualNetwork = acceleratorTask->get_future().share();
 }
 
-AutoExecutableNetwork::~AutoExecutableNetwork() = default;
+AutoExecutableNetwork::~AutoExecutableNetwork() {
+    try {
+        if (_sharedFutureActualNetwork.valid()) {
+           _sharedFutureActualNetwork.get();
+        }
+    } catch (...) {
+    }
+}
 
 InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                                           OutputsDataMap networkOutputs) {
+    // fixme: may need consider swap too. - shoujiang
     SoIInferRequestInternal inferRequest = {_networkFirstReady, _networkFirstReady->CreateInferRequest()};
     return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest,
-            _futureActualNetwork.share(), _anyRequestHasHotSwapped);
+        _sharedFutureActualNetwork, _anyRequestHasHotSwapped);
 }
 
 void AutoExecutableNetwork::Export(std::ostream& networkModel) {
@@ -46,6 +56,7 @@ RemoteContext::Ptr AutoExecutableNetwork::GetContext() const {
 }
 
 InferenceEngine::CNNNetwork AutoExecutableNetwork::GetExecGraphInfo() {
+    // fixme: still not safe - shoujiang
     return _anyRequestHasHotSwapped ? _networkActualNeeded->GetExecGraphInfo() : _networkFirstReady->GetExecGraphInfo();
 }
 
