@@ -7,6 +7,12 @@ from mo.graph.graph import Graph, rename_node
 
 
 class NamesUniquenessCheck(BackReplacementPattern):
+    """
+    If there are several layers with the same name in the original model and they are saved in the IR, IE will fail with
+    the invalid IR error. IE checks the uniqueness of the names and, if it is not true, throws an exception. The way how
+    to fix it on the MO side is to rename this nodes. Since we prefer to save framework names for the output nodes,
+    nodes with op=Result will not be renamed.
+    """
     enabled = True
 
     def run_after(self):
@@ -33,5 +39,5 @@ class NamesUniquenessCheck(BackReplacementPattern):
                     # preparing a new unique name for the node
                     while new_node_name in names_dict.keys():
                         new_node_name += '_{}'.format(idx)
-                    if node.op is not "Result":
+                    if node.soft_get('op') is not "Result":
                         rename_node(node, new_node_name)
