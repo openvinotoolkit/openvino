@@ -42,7 +42,6 @@ bool ngraph::pass::AddPreprocessing::run_on_function(std::shared_ptr<ngraph::Fun
                     NGRAPH_CHECK(meanImage->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32,
                                  "Only InferenceEngine::Precision::FP32 precision is supported for PreProcessChannel::meanData");
                 } else {
-                    NGRAPH_CHECK(pInfo[c]->meanData != nullptr, "pInfo[c]->meanData is nullptr");
                     NGRAPH_CHECK(meanImage->getTensorDesc() == pInfo[c]->meanData->getTensorDesc(), "TensorDesc for PreProcessChannel::meanData must be equal");
                 }
             }
