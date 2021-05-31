@@ -48,6 +48,9 @@ void op::v3::NonZero::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v3_NonZero_validate_and_infer_types);
 
+    NODE_VALIDATION_CHECK(this,
+                          m_output_type == element::i64 || m_output_type == element::i32,
+                          "Output type must be i32 or i64");
     // For scalar non-zero value case, onnx test case expects output shape {1, 1}
     const PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().compatible(0))
