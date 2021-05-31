@@ -149,26 +149,25 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
 
 void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const {
     if (idx == 0) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+    } else if (idx == 1) {
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+    } else if (idx == 2) {
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
-    } else if (idx == 1) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
-    } else if (idx == 2) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
     } else if (idx == 3) {
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
         kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
     }
 }
 
@@ -188,17 +187,15 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
 
     constexpr size_t buffer_bytes = 16; // bboxes[xmin, ymin, xmax, ymax], scores[batchId, classId, boxId, score]
     size_t buffer_stride = num_prior_boxes * buffer_bytes;
-    size_t buffer1_size = num_of_images * num_loc_classes * buffer_stride;
+    size_t buffer1_size = num_of_images * num_classes * buffer_stride;
     size_t buffer2_size = num_of_images * num_classes * buffer_stride;
-    size_t buffer3_size = num_of_images * num_classes * buffer_stride;
-    size_t buffer4_size = num_of_images * num_classes * 4;
+    size_t buffer3_size = num_of_images * num_classes * 4;
     // printf("GetKernelsData | buffer_stride = [%zd], buffer1_size = [%zd], buffer2/3_size = [%zd], buffer4_size = [%zd]\n",
     //        buffer_stride, buffer1_size, buffer2_size, buffer4_size);
 
     kd.internalBufferSizes.push_back(buffer1_size);
     kd.internalBufferSizes.push_back(buffer2_size);
     kd.internalBufferSizes.push_back(buffer3_size);
-    kd.internalBufferSizes.push_back(buffer4_size);
     kd.internalBufferDataType = Datatype::F32;
 
     for (size_t i = 0; i < kKernelsNum; i++) {
