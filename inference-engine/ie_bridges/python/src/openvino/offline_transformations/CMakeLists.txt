@@ -54,7 +54,6 @@ add_custom_command(TARGET ${TARGET_NAME}
 
 install(TARGETS ${INSTALLED_TARGETS}
         RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}
-        ARCHIVE DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}
         LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION})
 
 install(PROGRAMS __init__.py
