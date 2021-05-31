@@ -86,6 +86,9 @@ def read_ark_file(file_name: str) -> dict:
         elif 'DM' in header:
             num_of_bytes = 8
             dtype = 'float64'
+        else:
+            log.error(f'The utterance header "{header}" does not contain information about a type of elements.')
+            sys.exit(-7)
 
         _, rows, _, cols = np.frombuffer(input_file.read(10), 'int8, int32, int8, int32')[0]
         buffer = input_file.read(rows * cols * num_of_bytes)
