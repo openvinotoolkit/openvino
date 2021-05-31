@@ -1122,17 +1122,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        bool isSutableMVN = (node->getType() == MVN);
-
-        if (isSutableMVN) {
-            auto mvnNode = std::dynamic_pointer_cast<MKLDNNMVNNode>(node);
-            if (mvnNode == nullptr)
-                IE_THROW() << "CPU node with name '" << node->getName() << "' is not a MVN node.";
-
-            return mvnNode->getChildEdges().size() == 1 && !mvnNode->getAcrossChannels() && mvnNode->getNormalizeVariance();
-        } else {
-            return false;
-        }
+        return (node->getType() == MVN) && (node->getChildEdges().size() == 1);
     };
 
     auto parent = graphNodes.begin();
