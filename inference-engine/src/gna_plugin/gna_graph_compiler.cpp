@@ -606,7 +606,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
 
     cnn2dValidator.ValidateCnn2D(layer->name,
         in_height, in_width, in_channels,
-        convolution._kernel_y, convolution._kernel_x, filter_n, inputPrec);
+        convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x, inputPrec);
 
     float weight_scale_factor = 1.0f;
     float output_scale_factor = 1.0f;

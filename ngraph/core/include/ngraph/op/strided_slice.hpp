@@ -93,6 +93,7 @@ namespace ngraph
                 size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const override;
+                bool has_evaluate() const override;
                 bool evaluate_lower(const HostTensorVector& outputs) const override;
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
 

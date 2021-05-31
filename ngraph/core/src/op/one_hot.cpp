@@ -175,3 +175,15 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                  "Incompatible axis and depth values.");
     return one_hot::evaluate_onehot(output_values, input_values, axis);
 }
+
+bool op::v1::OneHot::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_OneHot_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64: return true;
+    default: break;
+    }
+    return false;
+}

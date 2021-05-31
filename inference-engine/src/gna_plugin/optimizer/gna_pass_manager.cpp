@@ -1609,46 +1609,53 @@ void SubstituteScaleShiftBroadCastPass::run() {
 }
 
 void BroadcastConstPass::run() {
-    for (auto& constLayer : *pLayers) {
+    for (auto constLayer : *pLayers) {
         if (!LayerInfo(constLayer).isConst()) {
             continue;
         }
-        auto isNonFunctional = [](CNNLayerPtr l) {
-            return LayerInfo(l).isNonFunctional();
+
+        auto isNonFunctional = [](CNNLayerPtr layer) {
+            return LayerInfo(layer).isNonFunctional();
         };
-        if (!CNNNetHasNextLayerSkipCertain(constLayer, 0, 0, isNonFunctional)) {
+
+        auto nextLayer = CNNNetCheckNextLayerSkipCertain(constLayer, 0, 0, true, isNonFunctional).first;
+        if (!nextLayer || !LayerInfo(nextLayer).isEltwise() && !LayerInfo(nextLayer).isFakeQuantize()) {
             continue;
         }
 
-        auto nextLayer = CNNNetGetNextLayerSkipCertain(constLayer, 0, 0, isNonFunctional).first;
+        auto prevLayer = nextLayer;
+        if (LayerInfo(nextLayer).isFakeQuantize()) {
+            if (CNNNetPrevLayer(nextLayer, 0) != constLayer) {
+                continue;
+            }
 
-        if (!LayerInfo(nextLayer).isEltwise()) {
-            continue;
+            nextLayer = CNNNetCheckNextLayerSkipCertain(nextLayer, 0, 0, true, isNonFunctional).first;
+            if (!nextLayer || !LayerInfo(nextLayer).isEltwise()) {
+                continue;
+            }
         }
 
         auto constDims = constLayer->outData.front()->getTensorDesc().getDims();
         auto constDimsSize = product(constDims.begin(), constDims.end());
         auto eltwiseDims = nextLayer->outData.front()->getTensorDesc().getDims();
         auto eltwiseDimsSize = product(eltwiseDims.begin(), eltwiseDims.end());
-
-        if (constDimsSize == eltwiseDimsSize) {
+        if (constDimsSize == eltwiseDimsSize || eltwiseDimsSize % constDimsSize) {
             continue;
         }
 
-        if (eltwiseDimsSize % constDimsSize) {
-            continue;
-        }
-
-        if (constLayer->blobs.find("custom") == constLayer->blobs.end()) {
+        auto blobsIter = constLayer->blobs.find("custom");
+        if (blobsIter == constLayer->blobs.end()) {
             THROW_GNA_LAYER_EXCEPTION(constLayer) << "Const layer " << constLayer->name << " is missing 'custom' parameter";
         }
 
-        auto currentConstBlob = constLayer->blobs.find("custom")->second;
-
-        constLayer->blobs.find("custom")->second = tileBlob(currentConstBlob, eltwiseDimsSize);
-
+        auto currentConstBlob = blobsIter->second;
+        blobsIter->second = tileBlob(currentConstBlob, eltwiseDimsSize);
         constLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
         constLayer->outData.front()->setLayout(nextLayer->outData.front()->getLayout());
+        if (prevLayer != nextLayer) {
+            prevLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
+            prevLayer->outData.front()->setLayout(nextLayer->outData.front()->getLayout());
+        }
         gnalog() << "Const layer '" << constLayer->name << "' was changed to match output of '" << nextLayer->name << "'\n";
     }
 }
@@ -1680,13 +1687,8 @@ void InsertIdentityToLSTMCellPass::run() {
                 for (auto& input : input_to) {
                     auto& next_layer = input.second;
                     activationInputTo[input.first] = next_layer;
-                    for (int i = next_layer->insData.size() -1; i>= 0; i--) {
-                        auto ins = next_layer->insData[i].lock();
-                        if (ins == output) {
-                            next_layer->insData.erase(next_layer->insData.begin() + i);
-                        }
-                    }
-                    next_layer->insData.push_back(dataPtr);
+                    std::replace_if(std::begin(next_layer->insData), std::end(next_layer->insData),
+                        [output](DataWeakPtr data) { return data.lock() == output; }, dataPtr);
                 }
                 input_to.clear();
                 input_to[activationName] = activationLayerWithQuant;
@@ -1763,7 +1765,9 @@ void UnrollTIPass::run() {
 
 void RemoveConstPass::run() {
     auto network = getPassManager()->getNetwork();
+    IE_SUPPRESS_DEPRECATED_START
     auto & icnnnet = static_cast<ICNNNetwork &>(network);
+    IE_SUPPRESS_DEPRECATED_END
     auto* implNetwork = dynamic_cast<details::CNNNetworkImpl*>(&icnnnet);
     if (!implNetwork) {
         THROW_GNA_EXCEPTION << "Remove const layers pass can only work on cnnnetworkimpl type";
@@ -2142,7 +2146,10 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
                 outputRange.first.front() << "," << outputRange.second.front() << ")";
         }
 
-        float fqLevels = fqLayer.getLevels();
+        auto fqLevels = fqLayer.getLevels();
+        if (fqLevels == 0) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << "Zero levels";
+        }
 
         // Before FQ layer is removed, the previous layer has to be updated with its quantization data
         auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
