@@ -15,7 +15,10 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::Pruning, "Pruning", 0);
 
 bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
     Manager manager(get_pass_config());
+
+    manager.register_pass<InitMasks>();
     manager.register_pass<PropagateMasks>();
+
 
 #ifdef NGRAPH_DEBUG_ENABLE
     // VisualizeTree modifier helps to print Masks and mark nodes with masks
