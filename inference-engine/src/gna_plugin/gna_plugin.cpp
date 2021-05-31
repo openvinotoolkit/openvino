@@ -705,7 +705,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
+    IE_SUPPRESS_DEPRECATED_END
 
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
@@ -763,7 +765,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
-        passes->registerPass<InsertCopyLayerPass>();
+        passes->registerPass<BroadcastConstPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
 #if GNA_LIB_VER == 2
@@ -771,7 +773,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #endif
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<FuseMultipleIdentitiesPass>();
-        passes->registerPass<BroadcastConstPass>();
         passIdx = passes->run(passIdx);
     };
 
@@ -1493,7 +1494,7 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
     return inputBlob;
 }
 
-std::vector<InferenceEngine::VariableStateInternal::Ptr>  GNAPlugin::QueryState() {
+std::vector<InferenceEngine::IVariableStateInternal::Ptr>  GNAPlugin::QueryState() {
     if (memoryStates.size() != graphCompiler.memory_connection.size()) {
         memoryStates.clear();
         for (auto& connection : graphCompiler.memory_connection) {
@@ -1657,7 +1658,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAPlugin::Ge
     }
 }
 
-void GNAPlugin::AddExtension(InferenceEngine::IExtensionPtr extension) {}
+void GNAPlugin::AddExtension(const InferenceEngine::IExtensionPtr& extension) {}
 
 void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config_map) {
     config.UpdateFromMap(config_map);

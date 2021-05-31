@@ -34,20 +34,33 @@ public:
     }
 
 private:
+    template<typename T> void optimizedExecute(const int MB, const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
+
     InferenceEngine::SizeVector order;
     InferenceEngine::Precision prec;
+    bool isOptimized = false;
 
-    typedef std::function<void(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> transposeImpl;
-    typedef std::function<bool(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> isApplicable;
-    struct TransposeImpl {
-        TransposeImpl(transposeImpl f0, isApplicable f1): execute(std::move(f0)), isValidParams(std::move(f1)) {}
-
-        transposeImpl execute;
-        isApplicable isValidParams;
+    const std::vector<std::vector<size_t>> optimizedOrders = {
+            std::vector<size_t>{0, 3, 1, 2},
+            std::vector<size_t>{0, 4, 1, 2, 3},
+            std::vector<size_t>{0, 5, 1, 2, 3, 4},
     };
 
-    static const std::multimap<InferenceEngine::SizeVector, TransposeImpl> OptimizedCases;
     std::unique_ptr<PermuteKernel> permuteKernel;
+
+    struct TransposeContext {
+        MKLDNNTransposeNode* nodePtr;
+        MKLDNNMemoryPtr srcMemPtr;
+        MKLDNNMemoryPtr dstMemPtr;
+        int MB;
+    };
+
+    template<typename T>
+    struct TransposeOptimizedEmitter {
+        void operator()(TransposeContext& ctx) {
+            ctx.nodePtr->optimizedExecute<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
+        }
+    };
 };
 
 }  // namespace MKLDNNPlugin

@@ -14,6 +14,8 @@ CNNNetwork::CNNNetwork() :
     network(), actual() {
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 CNNNetwork::CNNNetwork(std::shared_ptr<ICNNNetwork> network)
     : network(network) {
     actual = network.get();
@@ -68,7 +70,6 @@ size_t CNNNetwork::getBatchSize() const {
     if (actual == nullptr) IE_THROW() << "CNNNetwork was not initialized.";
     return actual->getBatchSize();
 }
-
 
 CNNNetwork::operator ICNNNetwork::Ptr() {
     return network;

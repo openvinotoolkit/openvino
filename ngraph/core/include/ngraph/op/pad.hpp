@@ -74,6 +74,7 @@ namespace ngraph
                 void set_pad_mode(PadMode pad_mode) { m_pad_mode = pad_mode; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 PadMode m_pad_mode;

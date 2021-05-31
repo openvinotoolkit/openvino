@@ -26,13 +26,6 @@ namespace ngraph
             {
                 OutputVector argmax(const Node& node)
                 {
-                    const auto select_last_index =
-                        node.get_attribute_value<std::int64_t>("select_last_index", 0);
-                    CHECK_VALID_NODE(node,
-                                     select_last_index == 0,
-                                     "Mode 'select_last_index=1' is not supported by current "
-                                     "implementation of ArgMax");
-
                     const utils::ArgMinMaxFactory arg_factory(node);
                     return {arg_factory.make_arg_max()};
                 }
