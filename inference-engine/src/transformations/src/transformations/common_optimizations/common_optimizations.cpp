@@ -96,7 +96,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
     transpose_sinking->add_matcher<ngraph::pass::TransposeSinking>();
-    //transpose_sinking->add_matcher<ngraph::pass::SplitSqueezeConcatFusion>(); // must run after TransposeSinking
+    transpose_sinking->add_matcher<ngraph::pass::SplitSqueezeConcatFusion>(); // must run after TransposeSinking
 
     auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
     eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
