@@ -62,22 +62,14 @@ public:
     }
 
     // Specializing for LogStreamEndLine to support slog::endl
-    LogStream& operator<<(const LogStreamEndLine& /*arg*/) {
-        _new_line = true;
-
-        (*_log_stream) << std::endl;
-        return *this;
-    }
+    LogStream& operator<<(const LogStreamEndLine&);
 
     // Specializing for LogStreamBoolAlpha to support slog::boolalpha
-    LogStream& operator<<(const LogStreamBoolAlpha& /*arg*/) {
-        (*_log_stream) << std::boolalpha;
-        return *this;
-    }
+    LogStream& operator<<(const LogStreamBoolAlpha&);
 };
 
-static LogStream info("INFO", std::cout);
-static LogStream warn("WARNING", std::cout);
-static LogStream err("ERROR", std::cerr);
+extern LogStream info;
+extern LogStream warn;
+extern LogStream err;
 
 }  // namespace slog
