@@ -703,12 +703,6 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     setPostOps(attr, true);
 
     Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
-    if (getParentEdgeAt(0)->getDims().ndims() < 3 || getParentEdgeAt(0)->getDims().ndims() > 5
-            || acrossChannels_ || !normalizeVariance_) {
-        if (!isFloatCompatible(inputPrecision)) {
-            inputPrecision = Precision::FP32;
-        }
-    }
     Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!mayiuse(avx512_core)) {
         if (outputPrecision == Precision::BF16)
@@ -1407,6 +1401,16 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
 
 bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41)) {
+        return false;
+    }
+    // limit post ops to unary when shape transformed on channel
+    // 1D only fused with unary
+    int inputRank = getParentEdgeAt(0)->getDims().ndims();
+    bool unaryEltwise = one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
+                                            EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
+                                            EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
+    if ((inputRank == 1 && !unaryEltwise) ||
+        (inputRank == 2 && !unaryEltwise && acrossChannels_)) {
         return false;
     }
 

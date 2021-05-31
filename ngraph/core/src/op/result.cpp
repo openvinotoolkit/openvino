@@ -58,6 +58,12 @@ bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     return true;
 }
 
+bool op::Result::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Result_has_evaluate);
+    return true;
+}
+
 bool op::Result::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)
 {
     return false;
