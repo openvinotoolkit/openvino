@@ -908,21 +908,21 @@ class TransformChecker(unittest.TestCase):
         self.assertEqual(parse_transform("LowLatency"), [("LowLatency", {})])
 
     def test_single_pass_with_args(self):
-        self.assertEqual(parse_transform("LowLatency[num_iterations=2]"),
-                         [("LowLatency", {"num_iterations": 2})])
+        self.assertEqual(parse_transform("LowLatency[use_const_initializer=True]"),
+                         [("LowLatency", {"use_const_initializer": True})])
 
     def test_single_pass_with_multiple_args(self):
-        self.assertEqual(parse_transform("LowLatency[num_iterations=2;dummy_attr=3.14]"),
-                         [("LowLatency", {"num_iterations": 2, "dummy_attr": 3.14})])
+        self.assertEqual(parse_transform("LowLatency[use_const_initializer=True;dummy_attr=3.14]"),
+                         [("LowLatency", {"use_const_initializer": True, "dummy_attr": 3.14})])
 
     def test_multiple_passes_with_args(self):
-        self.assertEqual(parse_transform("LowLatency[num_iterations=2],DummyPass[type=ReLU]"),
-                         [("LowLatency", {"num_iterations": 2}),
+        self.assertEqual(parse_transform("LowLatency[use_const_initializer=True],DummyPass[type=ReLU]"),
+                         [("LowLatency", {"use_const_initializer": True}),
                           ("DummyPass", {"type": "ReLU"})])
 
     def test_multiple_passes_with_args2(self):
-        self.assertEqual(parse_transform("LowLatency[num_iterations=2,3,4.15],DummyPass1,DummyPass2[types=ReLU,PReLU;values=1,2,3]"),
-                         [("LowLatency",  {"num_iterations": [2,3,4.15]}),
+        self.assertEqual(parse_transform("LowLatency[use_const_initializer=True,False],DummyPass1,DummyPass2[types=ReLU,PReLU;values=1,2,3]"),
+                         [("LowLatency",  {"use_const_initializer": [True, False]}),
                           ("DummyPass1",  {}),
                           ("DummyPass2",  {"types": ["ReLU", "PReLU"], "values": [1,2,3]})])
 

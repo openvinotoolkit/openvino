@@ -8,6 +8,7 @@ import os
 import re
 from collections import OrderedDict
 from itertools import zip_longest
+from distutils.util import strtobool
 
 import numpy as np
 
@@ -1151,6 +1152,14 @@ def isfloat(value):
         return False
 
 
+def isbool(value):
+    try:
+        strtobool(value)
+        return True
+    except ValueError:
+        return False
+
+
 def convert_string_to_real_type(value: str):
     values = value.split(',')
     for i in range(len(values)):
@@ -1159,6 +1168,8 @@ def convert_string_to_real_type(value: str):
             values[i] = int(value)
         elif isfloat(value):
             values[i] = float(value)
+        elif isbool(value):
+            values[i] = strtobool(value)
 
     return values[0] if len(values) == 1 else values
 

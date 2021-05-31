@@ -173,6 +173,16 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
     {
         if (const auto& sub_graph_op = dynamic_pointer_cast<op::util::SubGraphOp>(op))
         {
+            int64_t iterations = 1;
+            auto subgraph_iters = m_sub_graph_iterations.find(sub_graph_op->get_friendly_name());
+            if (subgraph_iters != m_sub_graph_iterations.end())
+            {
+                iterations = subgraph_iters->second;
+                if (iterations <= 0)
+                {
+                    continue;
+                }
+            }
             if (const auto& loop = dynamic_pointer_cast<Loop>(sub_graph_op))
             {
                 const auto& trip_count =
@@ -181,12 +191,6 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                 if (trip_count && num_iter > 0 &&
                     trip_count->get_output_target_inputs(0).size() == 1)
                 {
-                    int64_t iterations = 1;
-                    auto loop_iters = m_sub_graph_iterations.find(loop->get_friendly_name());
-                    if (loop_iters != m_sub_graph_iterations.end())
-                    {
-                        iterations = loop_iters->second;
-                    }
                     auto iter_const = std::make_shared<Constant>(element::i64, Shape{}, iterations);
                     replace_node(trip_count, iter_const);
                     loop->validate_and_infer_types();
