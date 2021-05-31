@@ -448,7 +448,9 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
         LoadNetwork();
     } else if (transformation == op::MemoryTransformation::LOW_LATENCY_REGULAR_API) {
         cnnNetwork = InferenceEngine::CNNNetwork{function};
+        IE_SUPPRESS_DEPRECATED_START
         InferenceEngine::LowLatency(cnnNetwork);
+        IE_SUPPRESS_DEPRECATED_END
 
         bool ti_found = helpers::is_tensor_iterator_exist(cnnNetwork.getFunction());
         EXPECT_EQ(ti_found, true);

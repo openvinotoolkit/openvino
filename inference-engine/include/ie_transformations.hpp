@@ -52,7 +52,10 @@ namespace InferenceEngine {
  * @param network A network to apply LowLatency transformation
  * *
  */
+
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::LowLatency2 instead")
 INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
+
 
 /**
  * @brief The transformation finds all TensorIterator/Loop layers in the network,
