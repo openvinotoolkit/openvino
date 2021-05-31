@@ -478,11 +478,11 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                 if (zeroPointsConstant == nullptr)
                     IE_THROW() << "Cannot cast to Input node";
 
-                auto zeroPointsBlob = dynamic_cast<const TBlob<uint8_t>*>(zeroPointsConstant->getConstBlob().get());
+                auto zeroPointsBlob = zeroPointsConstant->getMemoryPtr();
                 if (zeroPointsBlob == nullptr)
                     IE_THROW() << "Cannot cast to TBlob internal zero points blob";
 
-                auto zeroPointsData = zeroPointsBlob->cbuffer().as<uint8_t*>();
+                auto zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->GetPtr());
                 if (zeroPointsData == nullptr)
                     IE_THROW() << "zeroPointsBlob has not allocated buffer";
 
@@ -515,18 +515,19 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
         if (!weightsConstant || !weightsConstant->isConstant())
             return;
 
-        auto weightsBlob = dynamic_cast<const TBlob<int8_t>*>(weightsConstant->getConstBlob().get());
+        auto weightsBlob = weightsConstant->getMemoryPtr();
         if (weightsBlob == nullptr)
             IE_THROW() << "Cannot cast to TBlob internal weights blob";
 
-        auto weightsPtr = weightsBlob->cbuffer().as<int8_t*>();
+        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->GetPtr());
         if (weightsPtr == nullptr)
             IE_THROW() << "weightsBlob has not allocated buffer";
 
         ptrdiff_t G = convNode->getGroupNum();
-        ptrdiff_t OC = weightsConstant->outDims[0][0] / G;
-        ptrdiff_t IC = weightsConstant->outDims[0][1];
-        ptrdiff_t KD = weightsConstant->outDims[0].ndims() == 5 ? weightsConstant->outDims[0][2] : 1;
+        const int groupOffset = convNode->getAlgorithm() == ConvolutionGrouped ? 1 : 0;
+        ptrdiff_t OC = weightsConstant->outDims[0][0 + groupOffset];
+        ptrdiff_t IC = weightsConstant->outDims[0][1 + groupOffset];
+        ptrdiff_t KD = weightsConstant->outDims[0].ndims() == (5 + groupOffset) ? weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 3] : 1;
         ptrdiff_t KH = weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 2];
         ptrdiff_t KW = weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 1];
 
@@ -1121,17 +1122,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        bool isSutableMVN = (node->getType() == MVN);
-
-        if (isSutableMVN) {
-            auto mvnNode = std::dynamic_pointer_cast<MKLDNNMVNNode>(node);
-            if (mvnNode == nullptr)
-                IE_THROW() << "CPU node with name '" << node->getName() << "' is not a MVN node.";
-
-            return mvnNode->getChildEdges().size() == 1 && !mvnNode->getAcrossChannels() && mvnNode->getNormalizeVariance();
-        } else {
-            return false;
-        }
+        return (node->getType() == MVN) && (node->getChildEdges().size() == 1);
     };
 
     auto parent = graphNodes.begin();

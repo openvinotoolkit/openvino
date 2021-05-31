@@ -5,7 +5,7 @@
 #include <utility>
 #include <algorithm>
 #include <string>
-#include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
+#include "xml_net_builder.hpp"
 
 namespace CommonTestUtils {
 

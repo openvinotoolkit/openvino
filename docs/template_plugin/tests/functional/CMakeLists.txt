@@ -14,7 +14,7 @@ addIeTargetTest(
             IE::funcSharedTests
         INCLUDES
             "${IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR}/include"
-        ADD_CLANG_FORMAT
+        ADD_CPPLINT
         LABELS
             TEMPLATE
 )

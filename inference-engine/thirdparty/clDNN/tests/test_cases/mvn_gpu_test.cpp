@@ -22,7 +22,7 @@ using namespace cldnn;
 class mvn_gpu_test : public ::testing::TestWithParam<cldnn::format> {};
 
 template <typename T>
-void mvn_compute_mean_accross_channels(cldnn::memory& output, bool normalize_variance) {
+void mvn_compute_mean_across_channels(cldnn::memory& output, bool normalize_variance) {
     auto output_size = output.get_layout().size;
 
     uint32_t batch_size = output_size.batch[0];
@@ -108,7 +108,7 @@ void mvn_compute_mean_within_channels(cldnn::memory& output, bool normalize_vari
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx) {
-    // mvn accross channels fp32 test with normalize_variance set to false
+    // mvn across channels fp32 test with normalize_variance set to false
     using namespace cldnn;
     using namespace tests;
 
@@ -131,11 +131,11 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx) {
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels<float>(output, false);
+    mvn_compute_mean_across_channels<float>(output, false);
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx) {
-    // mvn accross channels fp32 test with normalize_variance set to false
+    // mvn across channels fp32 test with normalize_variance set to false
     using namespace cldnn;
     using namespace tests;
 
@@ -158,11 +158,11 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx) {
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels<float>(output, false);
+    mvn_compute_mean_across_channels<float>(output, false);
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_outside_sqrt_fp16) {
-    // mvn accross channels fp16 test with normalize_variance set to false
+    // mvn across channels fp16 test with normalize_variance set to false
     using namespace cldnn;
     using namespace tests;
 
@@ -185,11 +185,11 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_outside_sqrt_fp16) {
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels<FLOAT16>(output, false);
+    mvn_compute_mean_across_channels<FLOAT16>(output, false);
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_fp16) {
-    // mvn accross channels fp16 test with normalize_variance set to false
+    // mvn across channels fp16 test with normalize_variance set to false
     using namespace cldnn;
     using namespace tests;
 
@@ -212,11 +212,11 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_fp16) {
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels<FLOAT16>(output, false);
+    mvn_compute_mean_across_channels<FLOAT16>(output, false);
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_normalize_variance) {
-    // mvn accross channels fp32 test with normalize_variance set to true
+    // mvn across channels fp32 test with normalize_variance set to true
     using namespace cldnn;
     using namespace tests;
 
@@ -239,11 +239,11 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_normalize_variance
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels<float>(output, true);
+    mvn_compute_mean_across_channels<float>(output, true);
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance) {
-    // mvn accross channels fp32 test with normalize_variance set to true
+    // mvn across channels fp32 test with normalize_variance set to true
     using namespace cldnn;
     using namespace tests;
 
@@ -266,11 +266,11 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance)
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels<float>(output, true);
+    mvn_compute_mean_across_channels<float>(output, true);
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_normalize_variance_fp16) {
-    // mvn accross channels fp16 test with normalize_variance set to true
+    // mvn across channels fp16 test with normalize_variance set to true
     using namespace cldnn;
     using namespace tests;
 
@@ -293,11 +293,11 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_normalize_variance
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels<FLOAT16>(output, true);
+    mvn_compute_mean_across_channels<FLOAT16>(output, true);
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance_fp16) {
-    // mvn accross channels fp16 test with normalize_variance set to true
+    // mvn across channels fp16 test with normalize_variance set to true
     using namespace cldnn;
     using namespace tests;
 
@@ -320,7 +320,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance_
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels<FLOAT16>(output, true);
+    mvn_compute_mean_across_channels<FLOAT16>(output, true);
 }
 
 TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx) {
@@ -586,13 +586,13 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
     void check_result(memory& output, bool across_channels, bool normalize_variance) {
         if (output.get_layout().data_type == data_types::f32) {
             if (across_channels) {
-                mvn_compute_mean_accross_channels<float>(output, normalize_variance);
+                mvn_compute_mean_across_channels<float>(output, normalize_variance);
             } else {
                 mvn_compute_mean_within_channels<float>(output, normalize_variance);
             }
         } else if (output.get_layout().data_type == data_types::f16) {
             if (across_channels) {
-                mvn_compute_mean_accross_channels<FLOAT16>(output, normalize_variance);
+                mvn_compute_mean_across_channels<FLOAT16>(output, normalize_variance);
             } else {
                 mvn_compute_mean_within_channels<FLOAT16>(output, normalize_variance);
             }
