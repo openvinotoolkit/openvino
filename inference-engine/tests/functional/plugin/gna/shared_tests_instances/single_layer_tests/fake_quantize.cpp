@@ -50,7 +50,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
             {8}
             };
 const std::vector<std::vector<size_t>> constShapes = {{1}};
-const std::vector<size_t> levels = {16, 255, 256};
+const std::vector<size_t> levels = {16, 255, 256, UINT32_MAX};
 
 const std::vector<std::vector<float>> fqArgs = {{}};
 const std::vector<std::vector<float>> inputParams = {{-10, 10, 0.1}, {}};
@@ -80,7 +80,7 @@ std::vector<std::vector<float>> getInputOutputShapes(const std::vector<float> in
 const auto fqParams = ::testing::Combine(
     ::testing::ValuesIn(levels),
     ::testing::ValuesIn(constShapes),
-    ::testing::ValuesIn(getInputOutputShapes(fqInputMin, fqInputMax, fqOutputMin, fqOutputMax, fqArgs)),
+    ::testing::ValuesIn(fqArgs),
     ::testing::ValuesIn(inputParams)
 );
 

@@ -2146,7 +2146,10 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
                 outputRange.first.front() << "," << outputRange.second.front() << ")";
         }
 
-        float fqLevels = fqLayer.getLevels();
+        auto fqLevels = fqLayer.getLevels();
+        if (fqLevels == 0) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << "Zero levels";
+        }
 
         // Before FQ layer is removed, the previous layer has to be updated with its quantization data
         auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
