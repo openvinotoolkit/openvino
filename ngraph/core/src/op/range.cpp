@@ -76,12 +76,18 @@ void op::v4::Range::validate_and_infer_types()
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
 
-    NODE_VALIDATION_CHECK(
-        this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(
-        this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(
-        this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(0).compatible(Shape{}) ||
+                              get_input_partial_shape(0).compatible(Shape{1}),
+                          "'start' input is not a scalar");
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(1).compatible(Shape{}) ||
+                              get_input_partial_shape(1).compatible(Shape{1}),
+                          "'stop' input is not a scalar");
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(2).compatible(Shape{}) ||
+                              get_input_partial_shape(2).compatible(Shape{1}),
+                          "'step' input is not a scalar");
 
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_integral_number() ||

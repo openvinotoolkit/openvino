@@ -531,6 +531,21 @@ TEST(type_prop, range_v4_all_const_shape_inference)
     ASSERT_TRUE(pshape_out.same_scheme(PartialShape{Dimension{num_elems}}));
 }
 
+TEST(type_prop, range_v4_all_const_unit_shape)
+{
+    int num_elems = 100;
+    int step_val = 5;
+    int start_val = 0;
+    int stop_val = num_elems * step_val + start_val;
+    element::Type_t et = element::i32;
+    auto start = make_shared<op::Constant>(et, Shape{1}, std::vector<int>{start_val});
+    auto stop = make_shared<op::Constant>(et, Shape{1}, std::vector<int>{stop_val});
+    auto step = make_shared<op::Constant>(et, Shape{1}, std::vector<int>{step_val});
+    auto range = make_shared<op::v4::Range>(start, stop, step, et);
+    auto pshape_out = range->get_output_shape(0);
+    ASSERT_TRUE(pshape_out == Shape{static_cast<size_t>(num_elems)});
+}
+
 TEST(type_prop, range_v4_some_const_shape_inference)
 {
     int step_val = 5;
@@ -642,7 +657,7 @@ TEST(type_prop, range_v4_invalid_inputs_non_scalar)
     // start input not a scalar
     try
     {
-        auto start = make_shared<op::Parameter>(element::f32, Shape{1});
+        auto start = make_shared<op::Parameter>(element::f32, Shape{2});
         auto stop = make_shared<op::Parameter>(element::f32, Shape{});
         auto step = make_shared<op::Parameter>(element::f32, Shape{});
         auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
@@ -661,7 +676,7 @@ TEST(type_prop, range_v4_invalid_inputs_non_scalar)
     try
     {
         auto start = make_shared<op::Parameter>(element::f32, Shape{});
-        auto stop = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+        auto stop = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
         auto step = make_shared<op::Parameter>(element::f32, Shape{});
         auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
         FAIL() << "Exception expected";
