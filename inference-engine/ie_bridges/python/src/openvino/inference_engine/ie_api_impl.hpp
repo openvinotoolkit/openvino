@@ -121,9 +121,7 @@ struct InferRequestWrap {
 
     void setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr);
 
-    void setBlob(const std::string& name,
-                 const InferenceEngine::Blob::Ptr& data,
-                 const InferenceEngine::PreProcessInfo& info);
+    void setBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data, const InferenceEngine::PreProcessInfo& info);
 
     void setBatch(int size);
 
