@@ -175,6 +175,7 @@ TEST(TransformationTests, PropagateMasksDynamicConvolution) {
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
 
     pass::Manager m;
+    m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
     m.run_passes(f);
 
@@ -209,6 +210,7 @@ TEST(TransformationTests, PropagateMasksDynamicGroupConvolution) {
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
 
     pass::Manager m;
+    m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
     m.run_passes(f);
 }
