@@ -19,8 +19,8 @@ std::vector<InferenceEngine::SizeVector> inputDims = {
     {1, 1000}, {223, 217, 21}, {3, 4, 5, 1}, {3, 4, 1, 5, 1}};
 
 std::vector<InferenceEngine::Precision> inputPrecisions = {
-    InferenceEngine::Precision::U8, InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::I32,
+    InferenceEngine::Precision::BOOL, InferenceEngine::Precision::U8,
+    InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32,
 };
 
 ConfigMap config;
