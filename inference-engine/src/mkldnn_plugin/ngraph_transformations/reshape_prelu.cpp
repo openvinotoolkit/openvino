@@ -17,7 +17,12 @@ MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu>(m.get_match_root());
-        if (!prelu || ngraph::shape_size(prelu->get_input_shape(1)) == 1 || prelu->get_input_shape(1).size() != 1) {
+        if (!prelu) {
+            return false;
+        }
+        auto slope_const = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(
+                        prelu->input_value(1).get_node_shared_ptr());
+        if (!slope_const || ngraph::shape_size(prelu->get_input_shape(1)) == 1 || prelu->get_input_shape(1).size() != 1) {
             return false;
         }
         ngraph::Shape new_shape(prelu->input_value(0).get_shape().size(), 1);
