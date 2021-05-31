@@ -22,7 +22,7 @@ std::string MultipleLSTMCellTest::getTestCaseName(const testing::TestParamInfo<m
     size_t inputSize;
     size_t hiddenSize;
     std::map<std::string, std::string> config;
-    op::MemoryTransformation transformation;
+    ngraph::helpers::MemoryTransformation transformation;
     std::tie(transformation, targetDevice, netPrecision, inputSize, hiddenSize, config) = obj.param;
     std::ostringstream result;
 
@@ -425,7 +425,7 @@ void MultipleLSTMCellTest::InitMemory() {
 void MultipleLSTMCellTest::ApplyLowLatency() {
     // Calculate values after LowLatency transformation
     CreatePureTensorIteratorModel();
-    if (transformation == op::MemoryTransformation::LOW_LATENCY) {
+    if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY) {
         function->validate_nodes_and_infer_types();
         // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
         pass::Manager manager;
@@ -436,7 +436,7 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
         bool ti_found = helpers::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, true);
         LoadNetwork();
-    } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2) {
+    } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
         function->validate_nodes_and_infer_types();
         // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
 
@@ -446,7 +446,7 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
         bool ti_found = helpers::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
         LoadNetwork();
-    } else if (transformation == op::MemoryTransformation::LOW_LATENCY_REGULAR_API) {
+    } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_REGULAR_API) {
         cnnNetwork = InferenceEngine::CNNNetwork{function};
         IE_SUPPRESS_DEPRECATED_START
         InferenceEngine::LowLatency(cnnNetwork);
@@ -457,7 +457,7 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
 
         ConfigureNetwork();
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
-    } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
+    } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
         cnnNetwork = InferenceEngine::CNNNetwork{function};
         InferenceEngine::LowLatency2(cnnNetwork);
 
@@ -471,7 +471,7 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
 
 void MultipleLSTMCellTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (transformation != op::MemoryTransformation::NONE) {
+    if (transformation != ngraph::helpers::MemoryTransformation::NONE) {
         ApplyLowLatency();
     } else {
         LoadNetwork();
@@ -482,7 +482,7 @@ void MultipleLSTMCellTest::Run() {
     Infer();
 
     // Calculate ref values
-    if (transformation == op::MemoryTransformation::NONE) {
+    if (transformation == ngraph::helpers::MemoryTransformation::NONE) {
         switchToNgraphFriendlyModel();
     } else {
         CreatePureTensorIteratorModel();

@@ -12,8 +12,10 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency2, "LowLatency2", 0);
+
+NGRAPH_SUPPRESS_DEPRECATED_START
+NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
 
 using namespace std;
 using namespace ngraph;
@@ -102,6 +104,7 @@ ngraph::pass::LowLatency::LowLatency()
     auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "LowLatency");
     register_matcher(m, callback);
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
                            const shared_ptr<Function>& outer_f)

@@ -10,11 +10,11 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-std::vector<ngraph::op::MemoryTransformation> transformation {
-        ngraph::op::MemoryTransformation::NONE,
-        ngraph::op::MemoryTransformation::LOW_LATENCY_V2,
-        ngraph::op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API,
-        ngraph::op::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT,
+std::vector<ngraph::helpers::MemoryTransformation> transformation {
+        ngraph::helpers::MemoryTransformation::NONE,
+        ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
+        ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API,
+        ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT,
 };
 
 const std::vector<InferenceEngine::SizeVector> inShapes = {

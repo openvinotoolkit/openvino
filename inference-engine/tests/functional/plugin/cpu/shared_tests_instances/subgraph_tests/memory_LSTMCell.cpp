@@ -6,12 +6,12 @@
 #include "common_test_utils/test_constants.hpp"
 
 namespace SubgraphTestsDefinitions {
-    std::vector<ngraph::op::MemoryTransformation> transformation {
-            ngraph::op::MemoryTransformation::NONE,
-            ngraph::op::MemoryTransformation::LOW_LATENCY,
-            ngraph::op::MemoryTransformation::LOW_LATENCY_REGULAR_API,
-            ngraph::op::MemoryTransformation::LOW_LATENCY_V2,
-            ngraph::op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API
+    std::vector<ngraph::helpers::MemoryTransformation> transformation {
+            ngraph::helpers::MemoryTransformation::NONE,
+            ngraph::helpers::MemoryTransformation::LOW_LATENCY,
+            ngraph::helpers::MemoryTransformation::LOW_LATENCY_REGULAR_API,
+            ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
+            ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API
     };
 
     std::vector<size_t> input_sizes = {

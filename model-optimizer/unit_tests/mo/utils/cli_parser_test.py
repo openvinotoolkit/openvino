@@ -905,75 +905,75 @@ class TransformChecker(unittest.TestCase):
         self.assertEqual(parse_transform(""), [])
 
     def test_single_pass(self):
-        self.assertEqual(parse_transform("LowLatency"), [("LowLatency", {})])
+        self.assertEqual(parse_transform("LowLatency2"), [("LowLatency2", {})])
 
     def test_single_pass_with_args(self):
-        self.assertEqual(parse_transform("LowLatency[use_const_initializer=True]"),
-                         [("LowLatency", {"use_const_initializer": True})])
+        self.assertEqual(parse_transform("LowLatency2[use_const_initializer=True]"),
+                         [("LowLatency2", {"use_const_initializer": True})])
 
     def test_single_pass_with_args2(self):
-        self.assertEqual(parse_transform("LowLatency[sub_graph_iterations={'TI_name':2,'TI_name_2':-1}]"),
-                         [("LowLatency", {"sub_graph_iterations": {"TI_name": 2, "TI_name_2": -1}})])
+        self.assertEqual(parse_transform("LowLatency2[sub_graph_iterations={'TI_name':2,'TI_name_2':-1}]"),
+                         [("LowLatency2", {"sub_graph_iterations": {"TI_name": 2, "TI_name_2": -1}})])
 
     def test_single_pass_with_multiple_args(self):
-        self.assertEqual(parse_transform("LowLatency[use_const_initializer=True;dummy_attr=3.14]"),
-                         [("LowLatency", {"use_const_initializer": True, "dummy_attr": 3.14})])
+        self.assertEqual(parse_transform("LowLatency2[use_const_initializer=True;dummy_attr=3.14]"),
+                         [("LowLatency2", {"use_const_initializer": True, "dummy_attr": 3.14})])
 
     def test_single_pass_with_multiple_args2(self):
-        self.assertEqual(parse_transform("LowLatency[use_const_initializer=False;"
+        self.assertEqual(parse_transform("LowLatency2[use_const_initializer=False;"
                                          "sub_graph_iterations={'TI_name':2,'TI_name_2':-1}]"),
-                         [("LowLatency", {"use_const_initializer": False,
+                         [("LowLatency2", {"use_const_initializer": False,
                                           "sub_graph_iterations": {"TI_name": 2, "TI_name_2": -1}})])
 
     def test_multiple_passes_with_args(self):
-        self.assertEqual(parse_transform("LowLatency[use_const_initializer=True],DummyPass[type=ReLU]"),
-                         [("LowLatency", {"use_const_initializer": True}),
+        self.assertEqual(parse_transform("LowLatency2[use_const_initializer=True],DummyPass[type=ReLU]"),
+                         [("LowLatency2", {"use_const_initializer": True}),
                           ("DummyPass", {"type": "ReLU"})])
 
     def test_multiple_passes_with_args2(self):
-        self.assertEqual(parse_transform("LowLatency[use_const_initializer=True,False],DummyPass1,"
+        self.assertEqual(parse_transform("LowLatency2[use_const_initializer=True,False],DummyPass1,"
                                          "DummyPass2[types=ReLU,PReLU;values=1,2,3]"),
-                         [("LowLatency",  {"use_const_initializer": [True, False]}),
+                         [("LowLatency2",  {"use_const_initializer": [True, False]}),
                           ("DummyPass1",  {}),
                           ("DummyPass2",  {"types": ["ReLU", "PReLU"], "values": [1,2,3]})])
 
     def test_multiple_passes_no_args(self):
-        self.assertEqual(parse_transform("DummyPass,LowLatency2"),
-                         [("DummyPass", {}), ("LowLatency2", {})])
+        self.assertEqual(parse_transform("DummyPass,LowLatency22"),
+                         [("DummyPass", {}), ("LowLatency22", {})])
 
     def test_single_pass_neg(self):
-        self.assertRaises(Error, parse_transform, "LowLatency!")
+        self.assertRaises(Error, parse_transform, "LowLatency2!")
 
     def test_multiple_passes_neg(self):
-        self.assertRaises(Error, parse_transform, "LowLatency;DummyPass")
+        self.assertRaises(Error, parse_transform, "LowLatency2;DummyPass")
 
     def test_single_pass_with_args_neg1(self):
-        self.assertRaises(Error, parse_transform, "LowLatency[=2]")
+        self.assertRaises(Error, parse_transform, "LowLatency2[=2]")
 
     def test_single_pass_with_args_neg2(self):
-        self.assertRaises(Error, parse_transform, "LowLatency[key=]")
+        self.assertRaises(Error, parse_transform, "LowLatency2[key=]")
 
     def test_single_pass_with_args_neg3(self):
-        self.assertRaises(Error, parse_transform, "LowLatency[]")
+        self.assertRaises(Error, parse_transform, "LowLatency2[]")
 
     def test_single_pass_with_args_neg4(self):
-        self.assertRaises(Error, parse_transform, "LowLatency[key=value;]")
+        self.assertRaises(Error, parse_transform, "LowLatency2[key=value;]")
 
     def test_single_pass_with_args_neg5(self):
-        self.assertRaises(Error, parse_transform, "LowLatency[value]")
+        self.assertRaises(Error, parse_transform, "LowLatency2[value]")
 
     def test_single_pass_with_args_neg6(self):
-        self.assertRaises(Error, parse_transform, "LowLatency[key=value")
+        self.assertRaises(Error, parse_transform, "LowLatency2[key=value")
 
     @patch("mo.back.offline_transformations.get_available_transformations")
     def test_check_low_latency_is_available(self, available_transformations):
-        available_transformations.return_value = {"LowLatency": None}
+        available_transformations.return_value = {"LowLatency2": None}
         try:
-            check_available_transforms([("LowLatency" ,"")], True)
+            check_available_transforms([("LowLatency2", "")], True)
         except Error as e:
             self.assertTrue(False, "Exception \"{}\" is unexpected".format(e))
 
     @patch("mo.back.offline_transformations.get_available_transformations")
     def test_check_dummy_pass_is_available(self, available_transformations):
-        available_transformations.return_value = {"LowLatency": None}
+        available_transformations.return_value = {"LowLatency2": None}
         self.assertRaises(Error, check_available_transforms, [("DummyPass", "")], True)

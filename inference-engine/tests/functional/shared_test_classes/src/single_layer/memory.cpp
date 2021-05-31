@@ -22,7 +22,7 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         InferenceEngine::SizeVector inputShape;
         std::string targetDevice;
-        ngraph::op::MemoryTransformation transformation;
+        ngraph::helpers::MemoryTransformation transformation;
         std::tie(transformation, iteration_count, inputShape, netPrecision, targetDevice) = obj.param;
 
         std::ostringstream result;
@@ -39,7 +39,7 @@ namespace LayerTestsDefinitions {
         std::tie(transformation, iteration_count, inputShape, netPrecision, targetDevice) = this->GetParam();
         ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        if (transformation == op::MemoryTransformation::NONE) {
+        if (transformation == ngraph::helpers::MemoryTransformation::NONE) {
             CreateCommonFunc();
         } else {
             CreateTIFunc();
@@ -76,7 +76,7 @@ namespace LayerTestsDefinitions {
         }
 
         try {
-            if (transformation != op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
+            if (transformation != ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
                 LoadNetwork();
             } else {
                 CoreConfiguration(this);
@@ -185,17 +185,17 @@ namespace LayerTestsDefinitions {
     }
 
     void MemoryTest::ApplyLowLatency() {
-       if (transformation == op::MemoryTransformation::LOW_LATENCY_V2) {
+       if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
            function->validate_nodes_and_infer_types();
            pass::Manager manager;
            manager.register_pass<pass::LowLatency2>();
            manager.run_passes(function);
-       } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
+       } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
            function->validate_nodes_and_infer_types();
            pass::Manager manager;
            manager.register_pass<pass::LowLatency2>(false);
            manager.run_passes(function);
-        } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
+        } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
             InferenceEngine::LowLatency2(cnnNetwork, iteration_count);
         }

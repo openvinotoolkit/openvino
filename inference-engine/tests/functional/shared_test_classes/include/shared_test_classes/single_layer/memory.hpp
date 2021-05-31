@@ -14,7 +14,7 @@
 namespace LayerTestsDefinitions {
 
 using MemoryTestParams = std::tuple<
-        ngraph::op::MemoryTransformation,   // Apply Memory transformation
+        ngraph::helpers::MemoryTransformation,   // Apply Memory transformation
         int64_t,                            // iterationCount
         InferenceEngine::SizeVector,        // inputShape
         InferenceEngine::Precision,         // netPrecision
@@ -35,7 +35,7 @@ private:
 
     InferenceEngine::Precision netPrecision;
     ngraph::EvaluationContext eval_context;
-    ngraph::op::MemoryTransformation transformation;
+    ngraph::helpers::MemoryTransformation transformation;
 
     int64_t iteration_count;
     ngraph::element::Type ngPrc;

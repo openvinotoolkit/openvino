@@ -445,38 +445,4 @@ namespace ngraph
             "AttributeAdapter<op::RecurrentSequenceDirection>", 1};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-
-    namespace op
-    {
-        ///
-        /// \brief      This class defines possible recurrent sequence directions.
-        ///
-        enum class MemoryTransformation
-        {
-            NONE,
-            LOW_LATENCY,
-            LOW_LATENCY_REGULAR_API,
-            LOW_LATENCY_V2,
-            LOW_LATENCY_V2_REGULAR_API,
-            LOW_LATENCY_V2_ORIGINAL_INIT
-        };
-
-        NGRAPH_API
-        std::ostream& operator<<(std::ostream& s, const MemoryTransformation& direction);
-    } // namespace op
-
-    template <>
-    class NGRAPH_API AttributeAdapter<op::MemoryTransformation>
-        : public EnumAttributeAdapterBase<op::MemoryTransformation>
-    {
-    public:
-        AttributeAdapter(op::MemoryTransformation& value)
-            : EnumAttributeAdapterBase<op::MemoryTransformation>(value)
-        {
-        }
-
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::MemoryTransformation>",
-                                                    1};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    };
 } // namespace ngraph
