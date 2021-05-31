@@ -41,4 +41,8 @@ void topology::release() {
     _impl->release();
 }
 
+const std::shared_ptr<primitive>& topology::at(const primitive_id& id) const {
+    return _impl->at(id);
+}
+
 }  // namespace cldnn
