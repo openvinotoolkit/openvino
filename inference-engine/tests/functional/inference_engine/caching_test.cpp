@@ -111,6 +111,7 @@ public:
                                                         const std::map<std::string, std::string>& config));
 
     MOCK_CONST_METHOD2(GetMetric, Parameter(const std::string& name, const std::map<std::string, Parameter>& options));
+    MOCK_METHOD1(SetConfig, void(const std::map<std::string, std::string>& options));
     MOCK_METHOD1(GetDefaultContext, RemoteContext::Ptr(const ParamMap& params));
 };
 
@@ -362,6 +363,11 @@ private:
             return res;
         }));
 
+        EXPECT_CALL(plugin, SetConfig(_)).Times(AnyNumber()).WillRepeatedly(
+                Invoke([](const std::map<std::string, std::string>) {
+                    throw InferenceEngine::NotImplemented("Not implemented");
+                }));
+
         EXPECT_CALL(*net, GetInputsInfo()).Times(AnyNumber())
                 .WillRepeatedly(Return(ConstInputsDataMap{}));
         EXPECT_CALL(*net, GetOutputsInfo()).Times(AnyNumber())
@@ -562,6 +568,93 @@ TEST_P(CachingTest, TestNoCacheMetricSupported) {
         EXPECT_CALL(*net, ExportImpl(_)).Times(0);
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+    }
+}
+
+TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
+            .Times(AnyNumber()).WillRepeatedly(
+                    Return(std::vector<std::string>{METRIC_KEY(SUPPORTED_CONFIG_KEYS)}));
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
+            .Times(AtLeast(1)).WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
+    EXPECT_CALL(*mockPlugin, SetConfig(_)).Times(AtLeast(1)).WillRepeatedly(
+            Invoke([](const std::map<std::string, std::string>& config) {
+                ASSERT_GT(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+            }));
+
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+        ASSERT_NO_THROW(
+                testLoad([&](Core &ie) {
+                    ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+                    m_testFunction(ie);
+                }));
+    }
+}
+
+TEST_P(CachingTest, TestCacheEnabled_noConfig) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
+            .Times(AnyNumber()).WillRepeatedly(
+            Return(std::vector<std::string>{METRIC_KEY(SUPPORTED_CONFIG_KEYS)}));
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
+            .Times(AtLeast(1)).WillRepeatedly(Return(std::vector<std::string>{}));
+    EXPECT_CALL(*mockPlugin, SetConfig(_)).Times(AnyNumber()).WillRepeatedly(
+            Invoke([](const std::map<std::string, std::string>& config) {
+                ASSERT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+            }));
+
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+    }
+}
+
+
+TEST_P(CachingTest, TestNoCacheMetric_configThrow) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
+            .Times(AnyNumber()).WillRepeatedly(
+            Return(std::vector<std::string>{METRIC_KEY(SUPPORTED_CONFIG_KEYS)}));
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
+            .Times(AtLeast(1)).WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
+    EXPECT_CALL(*mockPlugin, SetConfig(_)).Times(AtLeast(1)).WillRepeatedly(
+            Invoke([](const std::map<std::string, std::string>& config) {
+                ASSERT_GT(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+                throw InferenceEngine::GeneralError("Error occurred");
+            }));
+
+    ASSERT_ANY_THROW(
+            testLoad([&](Core &ie) {
+                ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+                m_testFunction(ie);
+            }));
+}
+
+TEST_P(CachingTest, TestNoCacheEnabled_cacheDirConfig) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
+            .Times(AnyNumber()).WillRepeatedly(
+            Return(std::vector<std::string>{METRIC_KEY(SUPPORTED_CONFIG_KEYS)}));
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
+            .Times(AtLeast(1)).WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
+    EXPECT_CALL(*mockPlugin, SetConfig(_)).Times(AnyNumber()).WillRepeatedly(
+            Invoke([](const std::map<std::string, std::string>& config) {
+                ASSERT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+            }));
+
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        testLoad([&](Core &ie) {
             m_testFunction(ie);
         });
     }
