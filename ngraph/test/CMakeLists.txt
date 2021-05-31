@@ -350,11 +350,14 @@ set(MULTI_TEST_SRC
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
     backend/dyn_reshape.in.cpp
+    backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/elu.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
+    backend/experimental_detectron_detection_output.in.cpp
+    backend/experimental_detectron_prior_grid.in.cpp
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp

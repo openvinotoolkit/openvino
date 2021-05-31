@@ -235,6 +235,14 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                                    << "\nSpecify the number of threads use for build as an integer."
                                    << "\nOut of range value will be set as a default value, maximum concurrent threads.";
             }
+        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_ENABLE_LOOP_UNROLLING) == 0) {
+            if (val.compare(PluginConfigParams::YES) == 0) {
+                enable_loop_unrolling = true;
+            } else if (val.compare(PluginConfigParams::NO) == 0) {
+                enable_loop_unrolling = false;
+            } else {
+                IE_THROW(ParameterMismatch) << "Unsupported KEY_CLDNN_ENABLE_LOOP_UNROLLING flag value: " << val;
+            }
         } else {
             IE_THROW(NotFound) << "Unsupported property key by plugin: " << key;
         }
@@ -321,5 +329,10 @@ void Config::adjustKeyMapValues() {
     key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;
     key_config_map[PluginConfigParams::KEY_CONFIG_FILE] = "";
     key_config_map[CLDNNConfigParams::KEY_CLDNN_MAX_NUM_THREADS] = std::to_string(n_threads);
+
+    if (enable_loop_unrolling)
+        key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_LOOP_UNROLLING] = PluginConfigParams::YES;
+    else
+        key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_LOOP_UNROLLING] = PluginConfigParams::NO;
 }
 }  // namespace CLDNNPlugin

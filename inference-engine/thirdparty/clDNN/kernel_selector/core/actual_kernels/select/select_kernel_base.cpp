@@ -59,15 +59,21 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
         // f32, f32, u8
         // f16, f16, i8
         // f16, f16, u8
+        // i32, i32, i8
+        // i32, i32, u8
+        // i16, i16, i8
+        // i16, i16, u8
         } else {
             absType = "abs";
         }
 
         // f32, f32, x
-        if (params.inputs[1].GetDType() == Datatype::F32) {
+        // i32, i32, x
+        if (params.inputs[1].GetDType() == Datatype::F32 || params.inputs[1].GetDType() == Datatype::INT32) {
             destType = "int";
         // f16, f16, x
-        } else if (params.inputs[1].GetDType() == Datatype::F16) {
+        // i16, i16, x
+        } else if (params.inputs[1].GetDType() == Datatype::F16 || params.inputs[1].GetDType() == Datatype::INT16) {
             destType = "short";
         // i8, i8, f32
         // i8, i8, f16

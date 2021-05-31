@@ -180,6 +180,51 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
     return convert::evaluate_convert(input_values[0], output_values[0]);
 }
 
+bool op::v0::Convert::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Convert_has_evaluate);
+
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::u1:
+    case ngraph::element::u4:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::i4:
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::boolean: break;
+    default: return false;
+    }
+    switch (get_output_element_type(0))
+    {
+    case ngraph::element::i4:
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u1:
+    case ngraph::element::u4:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::boolean: break;
+    default: return false;
+    }
+    return true;
+}
+
 bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) const
 {
     return convert::evaluate_bound(this, output_values, false);
