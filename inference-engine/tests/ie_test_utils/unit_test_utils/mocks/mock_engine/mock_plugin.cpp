@@ -17,10 +17,10 @@ MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
     _target = target;
 }
 
-void MockPlugin::SetConfig(const std::map<std::string, std::string>& config) {
-    this->config = config;
+void MockPlugin::SetConfig(const std::map<std::string, std::string>& _config) {
+    this->config = _config;
     if (_target) {
-        return _target->SetConfig(config);
+        _target->SetConfig(config);
     }
 }
 

@@ -248,10 +248,15 @@ class Core::Impl : public ICore {
     }
 
     bool DeviceSupportsConfigKey(const InferencePlugin& plugin, const std::string& key) const {
-        std::vector<std::string> supportedMetricKeys = plugin.GetMetric(METRIC_KEY(SUPPORTED_METRICS), {});
+        bool supported = false;
+        std::vector<std::string> supportedMetricKeys;
+        try {
+            // If plugin doesn't support 'SUPPORTED_METRICS' - treat it as config is not supported as well
+            supportedMetricKeys =
+                    plugin.GetMetric(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
+        } catch(...) {}
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
                             METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        bool supported = false;
         if (it != supportedMetricKeys.end()) {
             std::vector<std::string> configKeys = plugin.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
             supported = std::find(configKeys.begin(), configKeys.end(), key) != configKeys.end();
