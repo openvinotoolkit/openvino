@@ -32,7 +32,7 @@
 
 **Types**
 
-* *T*: any numeric type.
+* *T*: any type.
 
 * *T_OUT*: Depending on *output_type* attribute can be `int64` or `int32`.
 

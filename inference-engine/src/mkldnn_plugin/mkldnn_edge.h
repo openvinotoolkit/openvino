@@ -46,6 +46,7 @@ public:
     void init();
     void allocate(const void* mem_ptr = nullptr);
     void externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache);
+    void reuse(MKLDNNMemoryPtr ptr);
     void validate();
     void drop();
 
@@ -65,6 +66,8 @@ public:
 
     int getInputNum();
     int getOutputNum();
+
+    void setChildPort(const size_t port) { child_port = port; }
 
     void sharedMemFrom(const MKLDNNEdgePtr& edge);
     MKLDNNEdgePtr getSharedEdge() const;
