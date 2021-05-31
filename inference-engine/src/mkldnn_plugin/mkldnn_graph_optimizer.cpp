@@ -653,7 +653,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
         bool isSupportedParams = conv->getGroupNum() == 1 &&
                 is1x1Convolution(conv) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
                 everyone_is(1, strides[strides.size() - 1], strides[strides.size() - 2]) &&
-                everyone_is(Precision::FP32, conv->getOriginalInputPrecisionAtPort(0), conv->getOriginalOutputPrecisionAtPort(0)) &&
+                !conv->canBeExecutedInInt8() &&
                 node->getChildEdgeAt(0)->getDims().ndims() == 4;
         if (!isSupportedParams) return false;
 
