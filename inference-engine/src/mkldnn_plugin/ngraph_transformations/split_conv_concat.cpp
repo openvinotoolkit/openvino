@@ -18,8 +18,8 @@ bool isSplitConvConcatPattern(const std::shared_ptr<ngraph::Node> node) {
         return false;
     }
     const auto concatAxis = ngraph::normalize_axis(concat.get(), concat->get_axis(), concat->get_output_shape(0).size());
-    const auto concatIntputsNum = concat->get_input_size();
-    if (concatAxis != 1 || concatIntputsNum < 2) {
+    const auto concatInputsNum = concat->get_input_size();
+    if (concatAxis != 1 || concatInputsNum < 2) {
         return false;
     }
 
@@ -47,7 +47,7 @@ bool isSplitConvConcatPattern(const std::shared_ptr<ngraph::Node> node) {
         return false;
     }
 
-    for (size_t i = 1; i < concatIntputsNum; i++) {
+    for (size_t i = 1; i < concatInputsNum; i++) {
         const auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(concat->get_input_node_shared_ptr(i));
         if (!conv || !std::dynamic_pointer_cast<ngraph::opset1::Constant>(conv->get_input_node_shared_ptr(1)) || conv->get_output_size() != 1) {
             return false;
