@@ -11,8 +11,10 @@ using namespace LayerTestsDefinitions;
 
 const std::vector<InferenceEngine::Precision> inputPrecision = {
     InferenceEngine::Precision::U8,
+    InferenceEngine::Precision::FP16,
+    InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::I16,
-    InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::I32
 };
 
 const std::vector<std::vector<std::vector<size_t>>> noneShapes = {

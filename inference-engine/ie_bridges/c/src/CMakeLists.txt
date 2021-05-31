@@ -29,13 +29,10 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 export(TARGETS ${TARGET_NAME} NAMESPACE IE::
        APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 
-# WA for CI issue
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
-       APPEND FILE "${CMAKE_BINARY_DIR}/share/InferenceEngineTargets.cmake")
-
 # install
 
 ie_cpack_add_component(core_c DEPENDS core)
+ie_cpack_add_component(core_c_dev DEPENDS core_c)
 
 install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core_c
@@ -44,4 +41,4 @@ install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/
         DESTINATION ${IE_CPACK_IE_DIR}/include
-        COMPONENT core_c)
+        COMPONENT core_c_dev)
