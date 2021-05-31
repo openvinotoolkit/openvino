@@ -71,7 +71,6 @@ function(build_ngraph)
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE OFF)
     endif()
     ngraph_set(NGRAPH_INTERPRETER_ENABLE ON)
-    ngraph_set(NGRAPH_TF_FRONTEND_ENABLE OFF)
     if(NOT (ANDROID OR WIN32 OR ARM OR AARCH64) )
         ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE ON) #TODO: make it OFF by default
     else()

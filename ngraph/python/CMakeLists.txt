@@ -82,10 +82,7 @@ file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../frontend/frontend_manager/include")
-if (NGRAPH_TF_FRONTEND_ENABLE)
-    target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::tensorflow_frontend)
-endif()
+target_include_directories(_${PROJECT_NAME} PRIVATE "${FRONTEND_INCLUDE_PATH}")
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::onnx_importer)

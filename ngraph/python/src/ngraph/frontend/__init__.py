@@ -6,6 +6,8 @@ Package: ngraph
 Low level wrappers for the FrontEnd c++ api.
 """
 
+# flake8: noqa
+
 # main classes
 from _pyngraph import FrontEndManager
 from _pyngraph import FrontEnd
