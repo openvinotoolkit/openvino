@@ -4,6 +4,7 @@
 
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include <iostream>
 
 using namespace LayerTestsUtils;
 
@@ -110,6 +111,8 @@ std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
         auto f = std::stoi(child.attribute("failed").value());
         auto s = std::stoi(child.attribute("skipped").value());
         auto c = std::stoi(child.attribute("crashed").value());
+//        std::cout << p <<  ' ' << f <<  ' ' << s <<  ' ' << c << std::endl;
+//        std::cin >> p;
         PassRate obj(p, f, s, c);
         oldOpsStat.insert({entry, obj});
     }
@@ -143,7 +146,12 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
             auto loop_body = loop->get_function();
             updateOPsStats(loop_body, status);
         } else {
+            auto x = op->get_type_info();
+//            auto y = opsStats;
+//            if (opsStats.find(x) != opsStats.end()) {
+            auto y = opsStats.find(x);
             updateOPsStats(op->get_type_info(), status);
+//            }
         }
     }
 }
