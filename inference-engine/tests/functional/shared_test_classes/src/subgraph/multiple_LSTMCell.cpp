@@ -429,7 +429,9 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
         function->validate_nodes_and_infer_types();
         // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
         pass::Manager manager;
-        manager.register_pass<pass::LowLatency>(); // LowLatency enables UnrollTI
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END // LowLatency enables UnrollTI
         manager.run_passes(function);
         bool ti_found = helpers::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, true);

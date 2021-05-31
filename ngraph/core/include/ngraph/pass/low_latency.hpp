@@ -43,7 +43,8 @@ namespace ngraph
          * by step, the states will store between inferences.
          */
 
-        class NGRAPH_API LowLatency : public ngraph::pass::MatcherPass
+        class NGRAPH_DEPRECATED("Use LowLatency2 instead.") NGRAPH_API LowLatency
+            : public ngraph::pass::MatcherPass
         {
         public:
             NGRAPH_RTTI_DECLARATION;

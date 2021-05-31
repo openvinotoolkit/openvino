@@ -809,7 +809,9 @@ TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         // LLT v2 doesn't insert Assign/ReadValue ops, they are already inserted
         // but unrolls TI/Loop
         manager.register_pass<pass::LowLatency2>();
