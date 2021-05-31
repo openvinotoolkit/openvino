@@ -2,22 +2,33 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from ngraph.frontend import FrontEndManager, FrontEndCapabilities, InitializationFailure
+import pytest
+
 from ngraph import PartialShape
+from ngraph.frontend import FrontEndCapabilities, FrontEndManager, InitializationFailure
 from ngraph.utils.types import get_element_type
 
-from pybind_mock_frontend import get_fe_stat, get_mdl_stat, get_place_stat
+mock_available = True
+try:
+    from pybind_mock_frontend import get_fe_stat, get_mdl_stat, get_place_stat
+except Exception:
+    print("No mock frontend available")
+    mock_available = False
 
 # FrontEndManager shall be initialized and destroyed after all tests finished
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
 
+mock_needed = pytest.mark.skipif(not mock_available,
+                                 reason="mock fe is not available")
+
 
 # ---------- FrontEnd tests ---------------
+@mock_needed
 def test_load_by_framework_caps():
     frontEnds = fem.get_available_front_ends()
     assert frontEnds is not None
-    assert 'mock_py' in frontEnds
+    assert "mock_py" in frontEnds
     caps = [FrontEndCapabilities.DEFAULT,
             FrontEndCapabilities.CUT,
             FrontEndCapabilities.NAMES,
@@ -28,7 +39,7 @@ def test_load_by_framework_caps():
         stat = get_fe_stat(fe)
         assert cap == stat.load_flags
     for i in range(len(caps) - 1):
-        for j in range(i+1, len(caps)):
+        for j in range(i + 1, len(caps)):
             assert caps[i] != caps[j]
 
 
@@ -40,18 +51,20 @@ def test_load_by_unknown_framework():
     except InitializationFailure as exc:
         print(exc)
     else:
-        assert False
+        raise AssertionError("Unexpected exception.")
 
 
+@mock_needed
 def test_load_from_file():
     fe = fem.load_by_framework(framework="mock_py")
     assert fe is not None
     model = fe.load_from_file("abc.bin")
     assert model is not None
     stat = get_fe_stat(fe)
-    assert 'abc.bin' in stat.load_paths
+    assert "abc.bin" in stat.load_paths
 
 
+@mock_needed
 def test_convert_model():
     fe = fem.load_by_framework(framework="mock_py")
     assert fe is not None
@@ -62,6 +75,7 @@ def test_convert_model():
     assert stat.convert_model == 1
 
 
+@mock_needed
 def test_convert_partially():
     fe = fem.load_by_framework(framework="mock_py")
     assert fe is not None
@@ -74,6 +88,7 @@ def test_convert_partially():
     assert stat.convert == 1
 
 
+@mock_needed
 def test_decode_and_normalize():
     fe = fem.load_by_framework(framework="mock_py")
     assert fe is not None
@@ -88,12 +103,14 @@ def test_decode_and_normalize():
 
 
 # --------InputModel tests-----------------
+@mock_needed
 def init_model():
     fe = fem.load_by_framework(framework="mock_py")
     model = fe.load_from_file(path="")
     return model
 
 
+@mock_needed
 def test_model_get_inputs():
     model = init_model()
     for i in range(1, 10):
@@ -102,6 +119,7 @@ def test_model_get_inputs():
         assert stat.get_inputs == i
 
 
+@mock_needed
 def test_model_get_outputs():
     model = init_model()
     for i in range(1, 10):
@@ -110,6 +128,7 @@ def test_model_get_outputs():
         assert stat.get_outputs == i
 
 
+@mock_needed
 def test_model_get_place_by_tensor_name():
     model = init_model()
     for i in range(1, 10):
@@ -120,6 +139,7 @@ def test_model_get_place_by_tensor_name():
         assert stat.lastArgString == name
 
 
+@mock_needed
 def test_model_get_place_by_operation_name():
     model = init_model()
     for i in range(1, 10):
@@ -130,28 +150,31 @@ def test_model_get_place_by_operation_name():
         assert stat.lastArgString == name
 
 
+@mock_needed
 def test_model_get_place_by_operation_and_input_port():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_and_input_port(operationName=name, inputPortIndex=i*2)
+        model.get_place_by_operation_and_input_port(operationName=name, inputPortIndex=i * 2)
         stat = get_mdl_stat(model)
         assert stat.get_place_by_operation_and_input_port == i
         assert stat.lastArgString == name
         assert stat.lastArgInt == i * 2
 
 
+@mock_needed
 def test_model_get_place_by_operation_and_output_port():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_and_output_port(operationName=name, outputPortIndex=i*2)
+        model.get_place_by_operation_and_output_port(operationName=name, outputPortIndex=i * 2)
         stat = get_mdl_stat(model)
         assert stat.get_place_by_operation_and_output_port == i
         assert stat.lastArgString == name
         assert stat.lastArgInt == i * 2
 
 
+@mock_needed
 def test_model_set_name_for_tensor():
     model = init_model()
     place = model.get_place_by_tensor_name(tensorName="")
@@ -162,6 +185,7 @@ def test_model_set_name_for_tensor():
     assert stat.lastArgPlace == place
 
 
+@mock_needed
 def test_model_add_name_for_tensor():
     model = init_model()
     place = model.get_place_by_tensor_name(tensorName="")
@@ -172,6 +196,7 @@ def test_model_add_name_for_tensor():
     assert stat.lastArgPlace == place
 
 
+@mock_needed
 def test_model_set_name_for_operation():
     model = init_model()
     place = model.get_place_by_operation_name(operationName="")
@@ -182,6 +207,7 @@ def test_model_set_name_for_operation():
     assert stat.lastArgPlace == place
 
 
+@mock_needed
 def test_model_free_name_for_tensor():
     model = init_model()
     model.free_name_for_tensor(name="2222")
@@ -190,6 +216,7 @@ def test_model_free_name_for_tensor():
     assert stat.lastArgString == "2222"
 
 
+@mock_needed
 def test_model_free_name_for_operation():
     model = init_model()
     model.free_name_for_operation(name="3333")
@@ -198,6 +225,7 @@ def test_model_free_name_for_operation():
     assert stat.lastArgString == "3333"
 
 
+@mock_needed
 def test_model_set_name_for_dimension():
     model = init_model()
     place = model.get_place_by_operation_name(operationName="")
@@ -209,6 +237,7 @@ def test_model_set_name_for_dimension():
     assert stat.lastArgPlace == place
 
 
+@mock_needed
 def test_model_cut_and_add_new_input():
     model = init_model()
     place = model.get_place_by_operation_name("")
@@ -224,6 +253,7 @@ def test_model_cut_and_add_new_input():
     assert stat.lastArgPlace == place
 
 
+@mock_needed
 def test_model_cut_and_add_new_output():
     model = init_model()
     place = model.get_place_by_operation_name("")
@@ -239,6 +269,7 @@ def test_model_cut_and_add_new_output():
     assert stat.lastArgPlace == place
 
 
+@mock_needed
 def test_model_add_output():
     model = init_model()
     place = model.get_place_by_operation_name("")
@@ -249,6 +280,7 @@ def test_model_add_output():
     assert stat.lastArgPlace == place
 
 
+@mock_needed
 def test_model_remove_output():
     model = init_model()
     place = model.get_place_by_operation_name("")
@@ -258,6 +290,7 @@ def test_model_remove_output():
     assert stat.lastArgPlace == place
 
 
+@mock_needed
 def test_model_set_partial_shape():
     model = init_model()
     place = model.get_place_by_tensor_name(tensorName="")
@@ -269,6 +302,7 @@ def test_model_set_partial_shape():
     assert stat.lastArgPartialShape == test_shape
 
 
+@mock_needed
 def test_model_get_partial_shape():
     model = init_model()
     place = model.get_place_by_tensor_name(tensorName="")
@@ -279,6 +313,7 @@ def test_model_get_partial_shape():
     assert stat.lastArgPlace == place
 
 
+@mock_needed
 def test_model_override_all_inputs():
     model = init_model()
     place1 = model.get_place_by_tensor_name(tensorName="p1")
@@ -291,6 +326,7 @@ def test_model_override_all_inputs():
     assert stat.lastArgInputPlaces[1] == place2
 
 
+@mock_needed
 def test_model_override_all_outputs():
     model = init_model()
     place1 = model.get_place_by_tensor_name(tensorName="p1")
@@ -303,6 +339,7 @@ def test_model_override_all_outputs():
     assert stat.lastArgOutputPlaces[1] == place2
 
 
+@mock_needed
 def test_model_extract_subgraph():
     model = init_model()
     place1 = model.get_place_by_tensor_name(tensorName="p1")
@@ -320,6 +357,7 @@ def test_model_extract_subgraph():
     assert stat.lastArgOutputPlaces[1] == place4
 
 
+@mock_needed
 def test_model_set_element_type():
     model = init_model()
     place = model.get_place_by_tensor_name(tensorName="")
@@ -331,6 +369,7 @@ def test_model_set_element_type():
 
 
 # ----------- Place test ------------
+@mock_needed
 def init_place():
     fe = fem.load_by_framework(framework="mock_py")
     model = fe.load_from_file(path="")
@@ -338,6 +377,7 @@ def init_place():
     return model, place
 
 
+@mock_needed
 def test_place_is_input():
     _, place = init_place()
     assert place.is_input() is not None
@@ -345,6 +385,7 @@ def test_place_is_input():
     assert stat.is_input == 1
 
 
+@mock_needed
 def test_place_is_output():
     _, place = init_place()
     assert place.is_output() is not None
@@ -352,6 +393,7 @@ def test_place_is_output():
     assert stat.is_output == 1
 
 
+@mock_needed
 def test_place_get_names():
     _, place = init_place()
     assert place.get_names() is not None
@@ -359,6 +401,7 @@ def test_place_get_names():
     assert stat.get_names == 1
 
 
+@mock_needed
 def test_place_is_equal():
     model, place = init_place()
     place2 = model.get_place_by_tensor_name("2")
@@ -368,6 +411,7 @@ def test_place_is_equal():
     assert stat.lastArgPlace == place2
 
 
+@mock_needed
 def test_place_is_equal_data():
     model, place = init_place()
     place2 = model.get_place_by_tensor_name("2")
@@ -377,15 +421,7 @@ def test_place_is_equal_data():
     assert stat.lastArgPlace == place2
 
 
-def test_place_is_equal_data():
-    model, place = init_place()
-    place2 = model.get_place_by_tensor_name("2")
-    assert place.is_equal_data(other=place2) is not None
-    stat = get_place_stat(place)
-    assert stat.is_equal_data == 1
-    assert stat.lastArgPlace == place2
-
-
+@mock_needed
 def test_place_get_consuming_operations():
     _, place = init_place()
     assert place.get_consuming_operations(outputPortIndex=22) is not None
@@ -398,6 +434,7 @@ def test_place_get_consuming_operations():
     assert stat.lastArgInt == -1
 
 
+@mock_needed
 def test_place_get_target_tensor():
     _, place = init_place()
     assert place.get_target_tensor(outputPortIndex=22) is not None
@@ -410,6 +447,7 @@ def test_place_get_target_tensor():
     assert stat.lastArgInt == -1
 
 
+@mock_needed
 def test_place_get_producing_operation():
     _, place = init_place()
     assert place.get_producing_operation(inputPortIndex=22) is not None
@@ -422,6 +460,7 @@ def test_place_get_producing_operation():
     assert stat.lastArgInt == -1
 
 
+@mock_needed
 def test_place_get_producing_port():
     _, place = init_place()
     assert place.get_producing_port() is not None
@@ -429,6 +468,7 @@ def test_place_get_producing_port():
     assert stat.get_producing_port == 1
 
 
+@mock_needed
 def test_place_get_input_port():
     _, place = init_place()
     assert place.get_input_port() is not None
@@ -441,6 +481,7 @@ def test_place_get_input_port():
     assert stat.lastArgInt == 22
 
 
+@mock_needed
 def test_place_get_input_port2():
     _, place = init_place()
     assert place.get_input_port(inputName="abc") is not None
@@ -455,6 +496,7 @@ def test_place_get_input_port2():
     assert stat.lastArgString == "abcd"
 
 
+@mock_needed
 def test_place_get_output_port():
     _, place = init_place()
     assert place.get_output_port() is not None
@@ -467,6 +509,7 @@ def test_place_get_output_port():
     assert stat.lastArgInt == 22
 
 
+@mock_needed
 def test_place_get_output_port2():
     _, place = init_place()
     assert place.get_output_port(outputName="abc") is not None
@@ -481,6 +524,7 @@ def test_place_get_output_port2():
     assert stat.lastArgString == "abcd"
 
 
+@mock_needed
 def test_place_get_consuming_ports():
     _, place = init_place()
     assert place.get_consuming_ports() is not None
@@ -488,6 +532,7 @@ def test_place_get_consuming_ports():
     assert stat.get_consuming_ports == 1
 
 
+@mock_needed
 def test_place_get_source_tensor():
     _, place = init_place()
     assert place.get_source_tensor() is not None

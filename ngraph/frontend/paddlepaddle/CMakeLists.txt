@@ -29,11 +29,12 @@ include_directories(${Protobuf_INCLUDE_DIRS} ${paddlepaddle_ngraph_frontend_INCL
 add_library(paddlepaddle_ngraph_frontend SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 add_library(ngraph::paddlepaddle_ngraph_frontend ALIAS paddlepaddle_ngraph_frontend)
 
-# TODO: fix relative include directory by moving
+add_dependencies(paddlepaddle_ngraph_frontend libprotobuf_static)
+
 target_include_directories(paddlepaddle_ngraph_frontend
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src
-            ${CMAKE_CURRENT_SOURCE_DIR}/../frontend_manager/include
+            ${FRONTEND_INCLUDE_PATH}
             ${CMAKE_CURRENT_BINARY_DIR})
 
 if(COMMAND ie_add_vs_version_file)
@@ -41,7 +42,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
 endif()
 
-target_link_libraries(paddlepaddle_ngraph_frontend PRIVATE ${Protobuf_LIBRARIES} PUBLIC ngraph  PRIVATE ngraph::builder)
+target_link_libraries(paddlepaddle_ngraph_frontend PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT} PUBLIC ngraph  PRIVATE ngraph::builder)
 target_link_libraries(paddlepaddle_ngraph_frontend PRIVATE frontend_manager)
 
 add_clang_format_target(paddlepaddle_ngraph_frontend_clang FOR_TARGETS paddlepaddle_ngraph_frontend
