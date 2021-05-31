@@ -40,6 +40,17 @@ namespace ngraph
                     out[out_idx] = out[out_idx] && arg[in_idx];
                 }
             }
+
+            // DEPRECATED, can't be removed currently due to arm-plugin dependency
+            static inline void reduce_logical_and(const char* arg,
+                                                  char* out,
+                                                  const Shape& in_shape,
+                                                  const AxisSet& reduction_axes,
+                                                  bool)
+            {
+                reduce_logical_and(arg, out, in_shape, reduction_axes);
+            }
+
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
