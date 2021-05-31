@@ -25,7 +25,8 @@ def parse_args() -> argparse.Namespace:
     model.add_argument('-rg', '--import_gna_model', type=str,
                        help='Read GNA model from file using path/filename provided (required if -m is missing).')
     args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an input file (.ark or .npz).')
-    args.add_argument('-o', '--output', type=str, help='Optional. Output file name to save inference results (.ark or .npz).')
+    args.add_argument('-o', '--output', type=str,
+                      help='Optional. Output file name to save inference results (.ark or .npz).')
     args.add_argument('-r', '--reference', type=str,
                       help='Optional. Read reference score file and compare scores.')
     args.add_argument('-d', '--device', default='CPU', type=str,
@@ -148,22 +149,20 @@ def infer_data(data: dict, exec_net: ExecutableNetwork, input_blobs: list, outpu
         vector_shape = next(iter(vectors.values())).shape
 
         if vector_shape[0] < batch_size:
-            for i in range(vector_shape[0]):
-                input_data = {key: value[i] for key, value in vectors.items()}
-                vector_results = exec_net.infer(input_data)
+            temp = {blob_name: np.zeros((batch_size, vector_shape[1])) for blob_name in input_blobs}
 
-                for blob_name in output_blobs:
-                    result[blob_name][slice_begin] = vector_results[blob_name][0]
+            for blob_name in input_blobs:
+                temp[blob_name][:vector_shape[0]] = vectors[blob_name]
 
-                slice_begin += 1
-        else:
-            vector_results = exec_net.infer(vectors)
+            vectors = temp
 
-            for blob_name in output_blobs:
-                result[blob_name][slice_begin:slice_end] = vector_results[blob_name]
+        vector_results = exec_net.infer(vectors)
 
-            slice_begin += batch_size
-            slice_end += batch_size
+        for blob_name in output_blobs:
+            result[blob_name][slice_begin:slice_end] = vector_results[blob_name][:vector_shape[0]]
+
+        slice_begin += batch_size
+        slice_end += batch_size
 
         if slice_begin >= matrix_shape[0]:
             return result
