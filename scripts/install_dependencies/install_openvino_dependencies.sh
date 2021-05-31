@@ -100,7 +100,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
-    pkgs_dev=(cmake g++ gcc libc6-dev make curl)
+    pkgs_dev=(cmake g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
     pkgs_pot=()
@@ -143,7 +143,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
 
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
-    pkgs_dev=(cmake g++ gcc libc6-dev make curl)
+    pkgs_dev=(cmake g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
     pkgs_pot=(libblas-dev liblapack-dev gfortran)
@@ -193,7 +193,7 @@ elif [ "$os" == "rhel8" ] ; then
 
     pkgs_opencv_req=(gtk3)
     pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl sudo)
     pkgs_myriad=()
     pkgs_installer=()
     pkgs_pot=()
@@ -212,7 +212,7 @@ elif [ "$os" == "centos7" ] ; then
 
     pkgs_opencv_req=(gtk2)
     pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl sudo)
     pkgs_myriad=(libusbx)
     pkgs_installer=()
     pkgs_pot=()

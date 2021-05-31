@@ -53,6 +53,7 @@ namespace ngraph
                 size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             protected:
                 bool m_pythondiv{true};

@@ -282,6 +282,8 @@ def caffe_pb_to_nx(graph, proto, model):
 
         node_id = graph.unique_id(layer.name)
         graph.add_node(node_id, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
+        if hasattr(graph, 'op_names_statistic') and hasattr(layer, 'type'):
+            graph.op_names_statistic[layer.type] += 1
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):
