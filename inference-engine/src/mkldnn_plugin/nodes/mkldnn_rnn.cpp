@@ -406,6 +406,9 @@ void MKLDNNRNN::fillSeqDesc() {
 
     if (nativeOrder)
         in_candidate.push_back(MKLDNNMemoryDesc{inDims[RNNInOutKind::Layer], dataType, memory::format_tag::tnc});
+    else if (N == 1)
+        // WA to avoid reorder before sequence for some models
+        in_candidate.push_back(MKLDNNMemoryDesc{{N, T, DC}, dataType, memory::format_tag::tnc});
     else
         in_candidate.push_back(MKLDNNMemoryDesc{{N, T, DC}, dataType, memory::format_tag::ntc});
 
@@ -421,9 +424,11 @@ void MKLDNNRNN::fillSeqDesc() {
 
     if (nativeOrder) {
         out_candidate.push_back(out_data_d[RNNInOutKind::Layer]);
+    } else if (N == 1) {
+        // WA to avoid reorder after sequence for some models
+        out_candidate.push_back(MKLDNNMemoryDesc{{N, T, SC}, dataType, memory::format_tag::tnc});
     } else {
-        // TODO reorder ntc -> ndtc does not work, thus use tnc(plain) + transformation reshape-transpose-reshape for now.
-        out_candidate.push_back(MKLDNNMemoryDesc{{T, N, SC}, dataType, memory::format_tag::tnc});
+        out_candidate.push_back(MKLDNNMemoryDesc{{N, T, SC}, dataType, memory::format_tag::ntc});
     }
 
     out_candidate.push_back(MKLDNNMemoryDesc{{N, D, SC}, dataType, memory::format_tag::ntc});
