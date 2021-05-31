@@ -4,7 +4,7 @@
 
 #include "template_function_transformation.hpp"
 
-#include <ngraph/pass/itt.hpp>
+#include <openvino/cc/ngraph/itt.hpp>
 
 using namespace ngraph;
 

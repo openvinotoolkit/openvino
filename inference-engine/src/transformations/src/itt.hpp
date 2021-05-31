@@ -11,7 +11,7 @@
 
 #include <openvino/cc/selective_build.h>
 #include <openvino/itt.hpp>
-#include <ngraph/pass/itt.hpp>
+#include <openvino/cc/ngraph/itt.hpp>
 
 namespace ngraph {
 namespace pass {

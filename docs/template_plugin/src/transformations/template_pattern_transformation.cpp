@@ -5,10 +5,10 @@
 #include "transformations/template_pattern_transformation.hpp"
 
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/pass/itt.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/cc/ngraph/itt.hpp>
 
 #include "transformations/template_function_transformation.hpp"
 
