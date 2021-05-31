@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/preprocessing/mean_image_or_value.hpp"
+
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
-#include "transformations/preprocessing/mean_image_or_value.hpp"
 
 using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddMeanSubtract, "AddMeanSubtract", 0);
 
-ngraph::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap & inputInfoMap) {
+ngraph::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap& inputInfoMap) {
     // RUN_ON_FUNCTION_SCOPE(AddMeanSubtract);
     auto label = ngraph::pattern::wrap_type<ngraph::opset3::Parameter>();
 
-    ngraph::matcher_pass_callback callback = [=] (pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto param = std::dynamic_pointer_cast<ngraph::opset3::Parameter>(m.get_match_root());
         if (!param) {
             return false;
@@ -28,8 +28,7 @@ ngraph::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap & inputInfoMap) {
         }
 
         auto mean_const = it->second;
-        NGRAPH_CHECK(mean_const->get_element_type() == ngraph::element::f32,
-            "Mean for ", param->get_friendly_name(), " must have f32 type");
+        NGRAPH_CHECK(mean_const->get_element_type() == ngraph::element::f32, "Mean for ", param->get_friendly_name(), " must have f32 type");
 
         auto copy_param = param->clone_with_new_inputs({});
         auto sub = std::make_shared<ngraph::opset3::Subtract>(copy_param, mean_const);
