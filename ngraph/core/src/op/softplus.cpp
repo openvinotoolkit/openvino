@@ -33,7 +33,7 @@ void op::v4::SoftPlus::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           input_et.is_real(),
                           "Input element type must be float. Got: ",
-                          input_et);    
+                          input_et);
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
