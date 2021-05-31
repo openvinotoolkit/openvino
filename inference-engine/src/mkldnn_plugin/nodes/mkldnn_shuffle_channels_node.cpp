@@ -94,11 +94,15 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::nspc, precision}},
-                         {{TensorDescCreatorTypes::nspc, precision}},
+    // use ncsp as default for non-quantized networks and nspc for quantized
+    auto firstCreatorType = isInQuantizedGraph ? TensorDescCreatorTypes::nspc : TensorDescCreatorTypes::ncsp;
+    auto secondCreatorType = isInQuantizedGraph ? TensorDescCreatorTypes::ncsp : TensorDescCreatorTypes::nspc;
+
+    addSupportedPrimDesc({{firstCreatorType, precision}},
+                         {{firstCreatorType, precision}},
                          impl_type, supportDynamicBatch_);
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, precision}},
-                         {{TensorDescCreatorTypes::ncsp, precision}},
+    addSupportedPrimDesc({{secondCreatorType, precision}},
+                         {{secondCreatorType, precision}},
                          impl_type, supportDynamicBatch_);
     // canUseBlocked
     if (axis_ != 1) {
