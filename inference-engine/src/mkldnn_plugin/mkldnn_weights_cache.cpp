@@ -43,8 +43,7 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::findOrCreate
     MKLDNNMemoryPtr newPtr;
 
     if (found == sharedWeights.end()
-        || !(ptr = found->second)
-        || ptr->sharedMemory.expired()) {
+        || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock()))) {
         newPtr = create();
         ptr = std::make_shared<MKLDNNMemoryInfo>(newPtr, valid);
         sharedWeights[key] = ptr;
@@ -60,15 +59,15 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::get(const st
     auto found = sharedWeights.find(key);
 
     MKLDNNMemoryInfo::Ptr ptr;
+    MKLDNNMemoryPtr newPtr;
 
     if (found == sharedWeights.end()
-        || !(ptr = found->second)
-        || ptr->sharedMemory.expired())
+        || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock())))
         IE_THROW() << "Unknown shared memory with key " << key;
 
     return std::make_shared<MKLDNNSharedMemory>(ptr->valid
                                                 ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
-                                                : std::unique_lock<std::mutex>(ptr->guard), ptr);
+                                                : std::unique_lock<std::mutex>(ptr->guard), ptr, newPtr);
 }
 
 NumaNodesWeights::NumaNodesWeights() {

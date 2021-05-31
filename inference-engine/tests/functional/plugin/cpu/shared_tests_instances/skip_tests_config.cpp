@@ -52,9 +52,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BinaryConvolutionLayerTest.*)",
         R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
         R"(.*ClampLayerTest.*netPrc=U64.*)",
-        // TODO: 42538. Unexpected application crash
-        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)",
-        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetworkAccuracy.*AUTO.*)",
         // TODO: 53618. BF16 gemm ncsp convolution crash
         R"(.*_GroupConv.*_inPRC=BF16.*_inFmts=nc.*_primitive=jit_gemm.*)",
         // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
