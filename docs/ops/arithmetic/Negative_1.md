@@ -2,9 +2,16 @@
 
 **Versioned name**: *Negative-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Negative* performs element-wise negative operation with given tensor.
+
+**Detailed description**: For each element from the input tensor calculates corresponding
+element in the output tensor with the following formula:
+
+\f[
+a_{i} = -a_{i}
+\f]
 
 **Attributes**:
 
@@ -12,21 +19,15 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise negative operation. A tensor of type T.
+* **1**: The result of element-wise negative operation. A tensor of type *T*.
 
 **Types**
 
 * *T*: any numeric type.
-
-*Negative* does the following with the input tensor *a*:
-
-\f[
-a_{i} = -a_{i}
-\f]
 
 **Examples**
 
