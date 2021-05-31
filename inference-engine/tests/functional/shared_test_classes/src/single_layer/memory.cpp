@@ -188,16 +188,16 @@ namespace LayerTestsDefinitions {
        if (transformation == op::MemoryTransformation::LOW_LATENCY_V2) {
            function->validate_nodes_and_infer_types();
            pass::Manager manager;
-           manager.register_pass<pass::LowLatency_v2>();
+           manager.register_pass<pass::LowLatency2>();
            manager.run_passes(function);
        } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
            function->validate_nodes_and_infer_types();
            pass::Manager manager;
-           manager.register_pass<pass::LowLatency_v2>(false);
+           manager.register_pass<pass::LowLatency2>(false);
            manager.run_passes(function);
         } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
-            InferenceEngine::LowLatency_v2(cnnNetwork, iteration_count);
+            InferenceEngine::LowLatency2(cnnNetwork, iteration_count);
         }
     }
 

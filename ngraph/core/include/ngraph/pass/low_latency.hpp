@@ -72,7 +72,7 @@ namespace ngraph
          * After applying the transformation, the resulting network can be inferred
          * step by step, the states will store between inferences.
          */
-        class NGRAPH_API LowLatency_v2 : public ngraph::pass::FunctionPass
+        class NGRAPH_API LowLatency2 : public ngraph::pass::FunctionPass
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -80,8 +80,8 @@ namespace ngraph
             using SubGraphOpName = std::string;
             using IterationCount = int64_t;
             using SubGraphIterations = std::map<SubGraphOpName, IterationCount>;
-            explicit LowLatency_v2(bool use_const_initializer = true,
-                                   const SubGraphIterations& sub_graph_iterations = {})
+            explicit LowLatency2(bool use_const_initializer = true,
+                                 const SubGraphIterations& sub_graph_iterations = {})
                 : m_use_const_initializer(use_const_initializer)
                 , m_sub_graph_iterations(sub_graph_iterations)
             {

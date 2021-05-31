@@ -29,7 +29,7 @@ void InferenceEnginePython::ApplyPOTTransformations(InferenceEnginePython::IENet
 void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network, bool use_const_initializer,
                                                           const std::map<std::string, int64_t>& sub_graph_iterations) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::LowLatency_v2>(use_const_initializer, sub_graph_iterations);
+    manager.register_pass<ngraph::pass::LowLatency2>(use_const_initializer, sub_graph_iterations);
     manager.run_passes(network.actual->getFunction());
 }
 

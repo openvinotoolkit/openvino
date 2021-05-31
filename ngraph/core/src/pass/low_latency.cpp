@@ -13,7 +13,7 @@
 #include <ngraph/variant.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency_v2, "LowLatency_v2", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency2, "LowLatency2", 0);
 
 using namespace std;
 using namespace ngraph;
@@ -164,7 +164,7 @@ Output<Node> create_init_subgraph(const shared_ptr<op::util::SubGraphOp>& sub_gr
     return broadcast->output(0);
 }
 
-bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
+bool pass::LowLatency2::run_on_function(shared_ptr<Function> f)
 {
     using namespace opset7;
 

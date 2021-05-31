@@ -69,7 +69,7 @@ std::shared_ptr<Function> createLSTMBody(const std::shared_ptr<Parameter>& Xi,
     return func;
 }
 
-TEST(TransformationTests, LowLatency_v2_LSTM) {
+TEST(TransformationTests, LowLatency2_LSTM) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
@@ -102,7 +102,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>();
+        manager.register_pass<pass::LowLatency2>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -143,7 +143,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, LowLatency_v2_GRU) {
+TEST(TransformationTests, LowLatency2_GRU) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
@@ -183,7 +183,7 @@ TEST(TransformationTests, LowLatency_v2_GRU) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>();
+        manager.register_pass<pass::LowLatency2>();
 
         manager.run_passes(f);
 
@@ -220,7 +220,7 @@ TEST(TransformationTests, LowLatency_v2_GRU) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, LowLatency_v2_RNN) {
+TEST(TransformationTests, LowLatency2_RNN) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
@@ -261,7 +261,7 @@ TEST(TransformationTests, LowLatency_v2_RNN) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>();
+        manager.register_pass<pass::LowLatency2>();
 
         manager.run_passes(f);
 
@@ -298,7 +298,7 @@ TEST(TransformationTests, LowLatency_v2_RNN) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, LowLatency_v2_LSTMReshape) {
+TEST(TransformationTests, LowLatency2_LSTMReshape) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<Parameter>(element::f32, Shape{2, 1, 16});
@@ -336,7 +336,7 @@ TEST(TransformationTests, LowLatency_v2_LSTMReshape) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>();
+        manager.register_pass<pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -378,7 +378,7 @@ TEST(TransformationTests, LowLatency_v2_LSTMReshape) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, LowLatency_v2_LSTM_Loop) {
+TEST(TransformationTests, LowLatency2_LSTM_Loop) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
@@ -420,7 +420,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>();
+        manager.register_pass<pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -462,7 +462,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, LowLatency_v2_LSTM_several_iterations) {
+TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
     constexpr int ITER_CNT = 5;
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
@@ -495,8 +495,8 @@ TEST(TransformationTests, LowLatency_v2_LSTM_several_iterations) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>();
-        manager.register_pass<pass::LowLatency_v2>(); // should not affect the network
+        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<pass::LowLatency2>(); // should not affect the network
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -564,7 +564,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM_several_iterations) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, LowLatency_v2_LSTM_Loop_Reshape) {
+TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<Parameter>(element::f32, Shape{10, 1, 16});
@@ -608,7 +608,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_Reshape) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>();
+        manager.register_pass<pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -651,7 +651,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_Reshape) {
 }
 
 
-TEST(TransformationTests, LowLatency_v2_LSTM_Loop_several_iterations) {
+TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<Parameter>(element::f32, Shape{10, 1, 16});
@@ -689,7 +689,7 @@ TEST(TransformationTests, LowLatency_v2_LSTM_Loop_several_iterations) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency_v2>(true, pass::LowLatency_v2::SubGraphIterations{{"LSTMLoop", 10}});
+        manager.register_pass<pass::LowLatency2>(true, pass::LowLatency2::SubGraphIterations{{"LSTMLoop", 10}});
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -812,7 +812,7 @@ TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
         manager.register_pass<pass::LowLatency>();
         // LLT v2 doesn't insert Assign/ReadValue ops, they are already inserted
         // but unrolls TI/Loop
-        manager.register_pass<pass::LowLatency_v2>();
+        manager.register_pass<pass::LowLatency2>();
 
         manager.run_passes(f);
     }

@@ -311,7 +311,7 @@ namespace SubgraphTestsDefinitions {
             // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
 
             pass::Manager manager;
-            manager.register_pass<pass::LowLatency_v2>();
+            manager.register_pass<pass::LowLatency2>();
             manager.run_passes(function);
             bool ti_found = helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
@@ -327,7 +327,7 @@ namespace SubgraphTestsDefinitions {
             executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         } else if (transformation == op::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
-            InferenceEngine::LowLatency_v2(cnnNetwork);
+            InferenceEngine::LowLatency2(cnnNetwork);
 
             bool ti_found = helpers::is_tensor_iterator_exist(cnnNetwork.getFunction());
             EXPECT_EQ(ti_found, false);
