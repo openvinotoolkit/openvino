@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Negative::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Negative, "Negative", 0, util::UnaryElementwiseArithmetic);
 
 op::Negative::Negative(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
