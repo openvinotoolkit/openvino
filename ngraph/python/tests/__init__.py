@@ -50,8 +50,6 @@ xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
 xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
-                               "by CPU plugin")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
 xfail_issue_36487 = xfail_test(reason="Assertion error - mvn operator computation mismatch")
@@ -109,12 +107,12 @@ xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
 xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
                                       "FakeQuantize_xxx has non const input on 1 port")
 xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint data type is used")
-xfail_issue_46765 = xfail_test(reason="select_last_index attribute is not supported by ArgMin and ArgMax")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
 xfail_issue_51993 = xfail_test(reason="PRelu supports only 1D tensor for 'slope' input broadcasted"
                                       "by channel")
+xfail_issue_55760 = xfail_test(reason="RuntimeError: Reversed axis have axes above the source space shape")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"

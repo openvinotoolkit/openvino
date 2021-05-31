@@ -86,23 +86,26 @@ namespace ngraph
 
                 const auto mask_size = mask.size();
 
-                std::copy(input, input + shape_size(input_shape), output);
-
                 int num_regions = 0;
                 int end_index = 0;
+                int output_size = 0;
 
                 if (do_softmax)
                 {
                     // Region layer (Yolo v2)
                     num_regions = regions;
                     end_index = width * height;
+                    output_size = shape_size(input_shape);
                 }
                 else
                 {
                     // Yolo layer (Yolo v3)
                     num_regions = mask_size;
                     end_index = width * height * (classes + 1);
+                    output_size = width * height * num_regions * (classes + coords + 1);
                 }
+
+                std::copy(input, input + output_size, output);
 
                 const int inputs_size = width * height * num_regions * (classes + coords + 1);
 

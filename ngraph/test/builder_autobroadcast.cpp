@@ -378,8 +378,8 @@ TEST(autobroadcast, axes_mapping_from_bcast_axes_identical)
 
 TEST(autobroadcast, axes_mapping_start_match_axis)
 {
-    const Shape output_shape{2, 3, 4, 5};
-    const Shape input_shape{3, 4};
+    const PartialShape output_shape{2, 3, 4, 5};
+    const PartialShape input_shape{3, 4};
     const std::size_t start_match_axis{1};
 
     auto axes_mapping =
@@ -392,8 +392,8 @@ TEST(autobroadcast, axes_mapping_start_match_axis)
 
 TEST(autobroadcast, axes_mapping_start_match_axis_scalar)
 {
-    const Shape output_shape{2, 3, 4, 5};
-    const Shape input_shape{};
+    const PartialShape output_shape{2, 3, 4, 5};
+    const PartialShape input_shape{};
     const std::size_t start_match_axis{4};
 
     auto axes_mapping =
@@ -406,14 +406,14 @@ TEST(autobroadcast, axes_mapping_start_match_axis_scalar)
 
 TEST(autobroadcast, axes_mapping_start_match_axis_identical)
 {
-    const Shape output_shape{2, 3, 4, 5};
-    const Shape input_shape{2, 3, 4, 5};
+    const PartialShape output_shape{2, 3, 4, 5};
+    const PartialShape input_shape{2, 3, 4, 5};
     const std::size_t start_match_axis{0};
 
     auto axes_mapping =
         builder::opset1::get_axes_mapping_output(output_shape, input_shape, start_match_axis);
     EXPECT_TRUE(op::is_constant(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
-    EXPECT_EQ(axes_mapping_shape.size(), output_shape.size());
+    EXPECT_EQ(axes_mapping_shape.size(), output_shape.rank().get_length());
     EXPECT_EQ(axes_mapping_shape, (Shape{0, 1, 2, 3}));
 }
