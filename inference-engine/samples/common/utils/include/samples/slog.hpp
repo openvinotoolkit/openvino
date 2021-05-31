@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <ostream>
 #include <string>
 
 namespace slog {
@@ -42,9 +43,7 @@ public:
      * @brief A constructor. Creates an LogStream object
      * @param prefix The prefix to print
      */
-    LogStream(const std::string& prefix, std::ostream& log_stream): _prefix(prefix), _new_line(true) {
-        _log_stream = &log_stream;
-    }
+    LogStream(const std::string& prefix, std::ostream& log_stream);
 
     /**
      * @brief A stream output operator to be used within the logger
