@@ -222,6 +222,7 @@ void FuseTransposeAndReorderTest2::CreateGraph() {
     transpose2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
 
     auto concat = ngraph::builder::makeConcat({transpose1, transpose2}, 1);
+    concat->get_rt_info() = makeCPUInfo({memFmt1, memFmt1}, {memFmt1}, {});
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "Transpose_Transpose_Concat");
