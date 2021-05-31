@@ -56,7 +56,7 @@ struct base_event_pool : event_pool_impl<base_event> {
 struct user_event_pool : event_pool_impl<user_event> {
     event::ptr get(const cl::Context& ctx, bool set = false) {
         auto ret = get_from_pool(ctx);
-        dynamic_cast<type*>(ret.get())->attach_event(set);
+        downcast<type>(ret.get())->attach_event(set);
         return ret;
     }
     void reset() { reset_events(); }
@@ -65,7 +65,7 @@ struct user_event_pool : event_pool_impl<user_event> {
 struct group_event_pool : event_pool_impl<base_events> {
     event::ptr get(const cl::Context& ctx, const std::vector<event::ptr>& deps) {
         auto ret_ev = get_from_pool(ctx);
-        dynamic_cast<type*>(ret_ev.get())->attach_events(deps);
+        downcast<type>(ret_ev.get())->attach_events(deps);
         return ret_ev;
     }
     void reset() { reset_events(); }

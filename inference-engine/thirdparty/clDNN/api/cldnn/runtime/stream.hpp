@@ -19,7 +19,6 @@ public:
     explicit stream(queue_types queue_type) : queue_type(queue_type) {}
     virtual ~stream() = default;
 
-    virtual void sync_events(std::vector<event::ptr> const& deps, bool is_output_event = false) = 0;
     virtual void flush() const = 0;
     virtual void finish() const = 0;
 

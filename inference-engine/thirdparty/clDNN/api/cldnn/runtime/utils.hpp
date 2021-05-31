@@ -120,6 +120,24 @@ std::unique_ptr<T> make_unique(Args&& ... args) {
     return std::unique_ptr<T>( new T(std::forward<Args>(args)...) );
 }
 
+template <typename derived_type, typename base_type, typename std::enable_if<std::is_base_of<base_type, derived_type>::value, int>::type = 0>
+inline derived_type* downcast(base_type* base) {
+    if (auto casted = dynamic_cast<derived_type*>(base))
+        return casted;
+
+    throw std::runtime_error("Unable to cast pointer from base to derived type");
+}
+
+template <typename derived_type, typename base_type, typename std::enable_if<std::is_base_of<base_type, derived_type>::value, int>::type = 0>
+inline derived_type& downcast(base_type& base) {
+    try {
+        return dynamic_cast<derived_type&>(base);
+    } catch (std::bad_cast& ex) {
+        throw std::runtime_error("Unable to cast reference from base to derived type");
+    }
+    throw std::runtime_error("downcast failed with unhadnled exception");
+}
+
 /// @}
 /// @endcond
 /// @}

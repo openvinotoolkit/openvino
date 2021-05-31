@@ -274,7 +274,7 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
     static std::mutex m;
     std::lock_guard<std::mutex> guard(m);
 
-    auto& ocl_kernel = dynamic_cast<ocl::ocl_kernel&>(kernel);
+    auto& ocl_kernel = downcast<ocl::ocl_kernel>(kernel);
 
     auto kern = ocl_kernel.get_handle();
 
@@ -289,8 +289,8 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
                                       const kernel_arguments_desc& args_desc,
                                       const kernel_arguments_data& /* args */,
                                       std::vector<event::ptr> const& deps,
-                                      bool is_output_event) {
-    auto& ocl_kernel = dynamic_cast<ocl::ocl_kernel&>(kernel);
+                                      bool is_output) {
+    auto& ocl_kernel = downcast<ocl::ocl_kernel>(kernel);
 
     auto kern = ocl_kernel.get_handle();
     auto global = toNDRange(args_desc.workGroups.global);
@@ -307,12 +307,12 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     } else {
         dep_events_ptr = nullptr;
 
-        sync_events(deps, is_output_event);
+        sync_events(deps, is_output);
     }
 
     cl::Event ret_ev;
 
-    bool set_output_event = queue_type == queue_types::out_of_order || is_output_event || _engine.configuration().enable_profiling;
+    bool set_output_event = queue_type == queue_types::out_of_order || is_output || _engine.configuration().enable_profiling;
 
     try {
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
@@ -327,7 +327,7 @@ void ocl_stream::enqueue_barrier() {
     _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
 }
 
-event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output_event) {
+event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
     if (deps.empty())
         return create_user_event(true);
 
@@ -351,7 +351,7 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
 
         return _events_pool->get_from_base_pool(_engine.get_cl_context(), ret_ev, ++_queue_counter);
     } else {
-        sync_events(deps, is_output_event);
+        sync_events(deps, is_output);
         return _events_pool->get_from_base_pool(_engine.get_cl_context(), _last_barrier_ev, _last_barrier);
     }
 }
@@ -393,24 +393,7 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     }
 }
 
-void ocl_stream::release_pending_memory() {
-    // /*
-    // TODO: Temp. solution, untill proper API calls from OpenCL are released.
-    // */
-    // void* ptr = nullptr;
-    // ptr = _mm_malloc(4096, 4096);
-    // get_cl_queue().finish();
-    // try {
-    //     cl::Buffer flusher(context()->context(), CL_MEM_USE_HOST_PTR, (size_t)4096, ptr);
-    //     flusher = (cl_mem) nullptr;  // clear buffer
-    // } catch (...) {
-    //     _mm_free(ptr);
-    //     throw;
-    // }
-    // _mm_free(ptr);
-}
-
-void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output_event) {
+void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output) {
     bool needs_barrier = false;
     for (auto& dep : deps) {
         auto* ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get());
@@ -421,7 +404,7 @@ void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output
 
     if (needs_barrier) {
         try {
-            if (is_output_event)
+            if (is_output)
                 _command_queue.enqueueBarrierWithWaitList(nullptr, &_last_barrier_ev);
             else
                 _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);

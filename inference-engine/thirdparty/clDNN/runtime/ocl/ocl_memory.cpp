@@ -3,6 +3,7 @@
 //
 
 #include "cldnn/runtime/error_handler.hpp"
+#include "cldnn/runtime/utils.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_engine.hpp"
 #include "ocl_stream.hpp"
@@ -25,7 +26,7 @@ gpu_buffer::gpu_buffer(ocl_engine* engine,
     , _buffer(buffer) {}
 
 void* gpu_buffer::lock(const stream& stream) {
-    auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
+    auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         _mapped_ptr = cl_stream.get_cl_queue().enqueueMapBuffer(_buffer, CL_TRUE, CL_MAP_WRITE, 0, size());
@@ -35,7 +36,7 @@ void* gpu_buffer::lock(const stream& stream) {
 }
 
 void gpu_buffer::unlock(const stream& stream) {
-    auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
+    auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
@@ -49,7 +50,7 @@ event::ptr gpu_buffer::fill(stream& stream) {
 }
 
 event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern) {
-    auto& cl_stream = dynamic_cast<ocl_stream&>(stream);
+    auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
     cl::Event ev_ocl = std::dynamic_pointer_cast<base_event>(ev)->get();
     cl_stream.get_cl_queue().enqueueFillBuffer<unsigned char>(_buffer, pattern, 0, size(), nullptr, &ev_ocl);
@@ -61,7 +62,7 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern) {
 }
 
 shared_mem_params gpu_buffer::get_internal_params() const {
-    auto cl_engine = dynamic_cast<const ocl_engine*>(_engine);
+    auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_buffer, static_cast<shared_handle>(cl_engine->get_cl_context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
 #ifdef _WIN32
@@ -77,7 +78,7 @@ event::ptr gpu_buffer::copy_from(stream& /* stream */, const memory& /* other */
 }
 
 event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr) {
-    auto& cl_stream = dynamic_cast<ocl_stream&>(stream);
+    auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
     cl::Event ev_ocl = std::dynamic_pointer_cast<base_event>(ev)->get();
     cl_stream.get_cl_queue().enqueueWriteBuffer(_buffer, false, 0, size(), host_ptr, nullptr, &ev_ocl);
@@ -150,9 +151,9 @@ event::ptr gpu_image2d::fill(stream& stream) {
 }
 
 event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern) {
-    auto& cl_stream = dynamic_cast<ocl_stream&>(stream);
+    auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
-    cl::Event ev_ocl = dynamic_cast<base_event*>(ev.get())->get();
+    cl::Event ev_ocl = downcast<base_event>(ev.get())->get();
     cl_uint4 pattern_uint4 = {pattern, pattern, pattern, pattern};
     cl_stream.get_cl_queue().enqueueFillImage(_buffer, pattern_uint4, {0, 0, 0}, {_width, _height, 1}, 0, &ev_ocl);
 
@@ -163,7 +164,7 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern) {
 }
 
 void* gpu_image2d::lock(const stream& stream) {
-    auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
+    auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         _mapped_ptr = cl_stream.get_cl_queue()
@@ -180,7 +181,7 @@ void* gpu_image2d::lock(const stream& stream) {
 }
 
 void gpu_image2d::unlock(const stream& stream) {
-    auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
+    auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
@@ -191,7 +192,7 @@ void gpu_image2d::unlock(const stream& stream) {
 
 
 shared_mem_params gpu_image2d::get_internal_params() const {
-    auto cl_engine = dynamic_cast<const ocl_engine*>(_engine);
+    auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_image, static_cast<shared_handle>(cl_engine->get_cl_context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
 #ifdef _WIN32
@@ -219,7 +220,7 @@ gpu_media_buffer::gpu_media_buffer(ocl_engine* engine,
     plane(params.plane) { }
 
 shared_mem_params gpu_media_buffer::get_internal_params() const {
-    auto cl_engine = dynamic_cast<const ocl_engine*>(_engine);
+    auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_vasurface, static_cast<shared_handle>(cl_engine->get_cl_context().get()), device,
             static_cast<shared_handle>(_buffer.get()), surface, plane };
 }
@@ -234,7 +235,7 @@ gpu_dx_buffer::gpu_dx_buffer(ocl_engine* engine,
     resource(params.mem) { }
 
 shared_mem_params gpu_dx_buffer::get_internal_params() const {
-    auto cl_engine = dynamic_cast<const ocl_engine*>(_engine);
+    auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_dxbuffer, static_cast<shared_handle>(cl_engine->get_cl_context().get()), device,
             static_cast<shared_handle>(_buffer.get()), resource, 0 };
 }
@@ -289,9 +290,9 @@ void gpu_usm::unlock(const stream& /* stream */) {
 }
 
 event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
-    auto& cl_stream = dynamic_cast<ocl_stream&>(stream);
+    auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
-    cl::Event ev_ocl = dynamic_cast<base_event*>(ev.get())->get();
+    cl::Event ev_ocl = downcast<base_event>(ev.get())->get();
     // enqueueFillUsm call will never finish. Driver bug? Uncomment when fixed. Some older drivers doesn't support enqueueFillUsm call at all.
     // cl_stream.get_cl_queue().enqueueFillUsm<unsigned char>(_buffer, pattern, _bytes_count, nullptr, &ev_ocl)
     // Workarounded with enqeue_memcopy. ToDo: Remove below code. Uncomment above.
@@ -305,7 +306,7 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
 
 event::ptr gpu_usm::fill(stream& stream) {
     // event::ptr ev{ new base_event(_context), false };
-    // cl::Event ev_ocl = dynamic_cast<base_event*>(ev.get())->get();
+    // cl::Event ev_ocl = downcast<base_event>(ev.get())->get();
     // cl::usm::enqueue_set_mem(cl_stream.get_cl_queue(), _buffer.get(), 0, _bytes_count, nullptr, &ev_ocl);
     // ev->wait();
 
@@ -314,8 +315,8 @@ event::ptr gpu_usm::fill(stream& stream) {
 }
 
 event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
-    auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
-    auto& casted = dynamic_cast<const gpu_usm&>(other);
+    auto& cl_stream = downcast<const ocl_stream>(stream);
+    auto& casted = downcast<const gpu_usm>(other);
     cl_stream.get_cl_queue().enqueueCopyUsm(casted.get_buffer(), get_buffer(), _bytes_count, true);
     return stream.create_user_event(true);
 }
@@ -325,7 +326,7 @@ event::ptr gpu_usm::copy_from(stream& /* stream */, const void* /* host_ptr */) 
 }
 
 shared_mem_params gpu_usm::get_internal_params() const {
-    auto cl_engine = dynamic_cast<const ocl_engine*>(_engine);
+    auto cl_engine = downcast<const ocl_engine>(_engine);
     return {
         shared_mem_type::shared_mem_empty,  // shared_mem_type
         static_cast<shared_handle>(cl_engine->get_cl_context().get()),  // context handle
@@ -359,7 +360,7 @@ ocl_surfaces_lock::ocl_surfaces_lock(std::vector<memory::ptr> mem, const stream&
     , _lock(nullptr) {
     cl_int err = CL_SUCCESS;
 
-    auto& cl_stream = dynamic_cast<const ocl_stream&>(stream);
+    auto& cl_stream = downcast<const ocl_stream>(stream);
     auto queue = cl_stream.get_cl_queue();
     _lock.reset(new cl::SharedSurfLock(queue.get(), _handles, &err));
     // TODO: err code for some reason is 32766

@@ -38,8 +38,6 @@ public:
 
     ~ocl_stream() = default;
 
-    void sync_events(std::vector<event::ptr> const& deps, bool is_output_event = false) override;
-    void release_pending_memory();
     void flush() const override;
     void finish() const override;
 
@@ -48,8 +46,8 @@ public:
                               const kernel_arguments_desc& args_desc,
                               const kernel_arguments_data& args,
                               std::vector<event::ptr> const& deps,
-                              bool is_output_event = false) override;
-    event::ptr enqueue_marker(std::vector<event::ptr> const& deps, bool is_output_event) override;
+                              bool is_output = false) override;
+    event::ptr enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) override;
     event::ptr group_events(std::vector<event::ptr> const& deps) override;
     void wait_for_events(const std::vector<event::ptr>& events) override;
     void enqueue_barrier() override;
@@ -59,6 +57,8 @@ public:
     void release_events_pool() override;
 
 private:
+    void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
+
     const ocl_engine& _engine;
     ocl_queue_type _command_queue;
     std::atomic<uint64_t> _queue_counter{0};

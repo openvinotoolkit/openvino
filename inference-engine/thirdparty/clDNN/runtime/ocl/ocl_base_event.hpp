@@ -6,6 +6,7 @@
 
 #include "ocl_common.hpp"
 #include "cldnn/runtime/event.hpp"
+#include "cldnn/runtime/utils.hpp"
 
 #include <vector>
 #include <memory>
