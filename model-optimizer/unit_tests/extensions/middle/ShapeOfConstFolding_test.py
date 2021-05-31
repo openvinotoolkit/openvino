@@ -11,11 +11,12 @@ from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 from mo.front.common.partial_infer.eltwise import eltwise_infer
 
+const_value = np.random.rand(1, 3, 30, 30)
 nodes_attributes = {'input': {'shape': int64_array([1, 3, 30, 30]), 'type': 'Parameter', 'kind': 'op',
                               'op': 'Parameter'},
                     'input_data': {'value': None, 'shape': int64_array([1, 3, 30, 30]), 'kind': 'data'},
-                    'const': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': np.random.rand(1, 3, 30, 30)},
-                    'const_data': {'kind': 'data'},
+                    'const': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': const_value},
+                    'const_data': {'kind': 'data', 'value': const_value},
                     'shapeof_input': {'kind': 'op', 'op': 'ShapeOf', 'value': int64_array([1, 3, 30, 30])},
                     'shapeof_input_data': {'value': None, 'shape': None, 'kind': 'data',
                                            'value': int64_array([1, 3, 30, 30])},
@@ -53,6 +54,8 @@ class ShapeOfConstFoldingTests(unittest.TestCase):
                                 'input_data': {'shape': int64_array([1, 3, 30, 30])},
                                 'shapeof_input': {'value': int64_array([1, 3, 30, 30])},
                                 'shapeof_input_data': {'value': int64_array([1, 3, 30, 30])},
+                                'const': {'value': const_value},
+                                'const_data': {'value': const_value},
                                 'shapeof_const': {'value': int64_array([1, 3, 30, 30])},
                                 'shapeof_const_data': {'value': int64_array([1, 3, 30, 30])},
                                 'mul_data': {'value': int64_array([1, 9, 900, 900])},
