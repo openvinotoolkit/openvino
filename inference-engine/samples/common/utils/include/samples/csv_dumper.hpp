@@ -18,7 +18,7 @@
  */
 class CsvDumper {
     std::ofstream file;
-    std::string filename;
+    std::string filename = "";
     bool canDump = true;
     char delimiter = ';';
 
