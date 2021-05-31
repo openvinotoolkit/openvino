@@ -63,6 +63,8 @@ public:
         auto detect_out_optional_params =
             get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
 
+        detect_out_params.inputs.push_back(convert_data_tensor(arg.confidence().get_output_layout()));
+        detect_out_params.inputs.push_back(convert_data_tensor(arg.prior_box().get_output_layout()));
         setDetectOutSpecificParams(detect_out_params.detectOutParams, arg);
 
         auto& kernel_selector = kernel_selector::detection_output_kernel_selector::Instance();

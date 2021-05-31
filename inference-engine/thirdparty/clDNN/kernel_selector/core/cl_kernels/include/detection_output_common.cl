@@ -11,6 +11,7 @@
 
 #define HIDDEN_CLASS ((BACKGROUND_LABEL_ID == 0 && SHARE_LOCATION)?  1 : 0)
 #define NUM_OF_IMAGES INPUT0_BATCH_NUM
+#define PRIOR_BATCH_SIZE INPUT2_BATCH_NUM
 #define NUM_LOC_CLASSES ((SHARE_LOCATION)? 1 : NUM_CLASSES)
 #define NUM_CLASSES_OUT ((HIDDEN_CLASS == 1)? NUM_CLASSES - 1 : NUM_CLASSES)
 #define NUM_OF_PRIORS (INPUT0_LENGTH / (NUM_OF_IMAGES * NUM_LOC_CLASSES * PRIOR_BOX_SIZE))
@@ -47,7 +48,7 @@
 
 void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_location, __global UNIT_TYPE* input_prior_box, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
-    const uint prior_box_offset = idx_image * NUM_OF_PRIOR_COMPONENTS * (VARIANCE_ENCODED_IN_TARGET ? 1 : 2);
+    const uint prior_box_offset = ((PRIOR_BATCH_SIZE == 1)? 0 : idx_image) * NUM_OF_PRIOR_COMPONENTS * (VARIANCE_ENCODED_IN_TARGET ? 1 : 2);
     const uint prior_offset = prior_box_offset + idx_prior * PRIOR_INFO_SIZE + PRIOR_COORD_OFFSET;
     const uint variance_offset = prior_box_offset + NUM_OF_PRIOR_COMPONENTS + (idx_prior * PRIOR_BOX_SIZE);
     uint location_offset =
@@ -160,10 +161,10 @@ void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_l
     }
     if (CLIP_BEFORE_NMS)
     {
-        decoded_bbox[0] = max(0.0f, min(1.0f, decoded_bbox[0]));
-        decoded_bbox[1] = max(0.0f, min(1.0f, decoded_bbox[1]));
-        decoded_bbox[2] = max(0.0f, min(1.0f, decoded_bbox[2]));
-        decoded_bbox[3] = max(0.0f, min(1.0f, decoded_bbox[3]));
+        decoded_bbox[0] = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), decoded_bbox[0]));
+        decoded_bbox[1] = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), decoded_bbox[1]));
+        decoded_bbox[2] = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), decoded_bbox[2]));
+        decoded_bbox[3] = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), decoded_bbox[3]));
     }
 }
 
@@ -174,6 +175,6 @@ UNIT_TYPE FUNC(get_score)(__global UNIT_TYPE* input_confidence, const uint idx_p
             CONF_XY_SIZE_PRODUCT +
             CONF_PADDING;
 
-    return (input_confidence[confidence_offset] > CONFIDENCE_THRESHOLD)? input_confidence[confidence_offset] : 0;
+    return (input_confidence[confidence_offset] > CONFIDENCE_THRESHOLD)? input_confidence[confidence_offset] : -1;
 }
 

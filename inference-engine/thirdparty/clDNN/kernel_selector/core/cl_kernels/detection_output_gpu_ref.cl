@@ -199,7 +199,7 @@ KERNEL (detection_output_stage_0_caffe)(
             for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
             {
                 UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, idx_prior, idx_class, idx_image);
-                if (score > 0) {
+                if (score >= 0) {
                     int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
                     int acc_num = buffer3[scores_size_offset];
                     int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS + acc_num;
@@ -278,7 +278,7 @@ KERNEL (detection_output_stage_0_caffe_opt)(
             }
         }
         UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, idx_prior, classId, batchId);
-        if (score > 0) {
+        if (score >= 0) {
             int acc_num = buffer3[scores_size_offset];
             SCORES_INFO score_info;
             score_info.batchId = batchId;
@@ -331,7 +331,7 @@ KERNEL (detection_output_stage_0_mxnet)(
             }
             int idx_max_score = FUNC_CALL(get_largest_score)(input_confidence, idx_prior, idx_image);
             UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, idx_prior, idx_max_score, idx_image);
-            if (score > 0) {
+            if (score >= 0) {
                 int acc_num = buffer3[idx_image];
                 int scores_offset = (idx_image * NUM_OF_PRIORS) + acc_num;
                 SCORES_INFO score_info;
@@ -947,9 +947,9 @@ KERNEL (detection_output_stage_final_caffe)(
             {
                 SCORES_INFO score_info;
                 score_info = selectedScoresList[scores_offset + idx_score];
-                output[count * OUTPUT_ROW_SIZE] = score_info.batchId;
-                output[count * OUTPUT_ROW_SIZE + 1] = ((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
-                output[count * OUTPUT_ROW_SIZE + 2] = score_info.score;
+                output[count * OUTPUT_ROW_SIZE] = TO_UNIT_TYPE(score_info.batchId);
+                output[count * OUTPUT_ROW_SIZE + 1] = TO_UNIT_TYPE((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
+                output[count * OUTPUT_ROW_SIZE + 2] = TO_UNIT_TYPE(score_info.score);
                 BBOXES_INFO bbox_info;
                 bbox_info = bboxesList[bboxes_offset + score_info.boxId];
                 float xmin = bbox_info.xmin;
@@ -963,20 +963,27 @@ KERNEL (detection_output_stage_final_caffe)(
                     xmax = max(0.0f, min(1.0f, xmax));
                     ymax = max(0.0f, min(1.0f, ymax));
                 }
-                output[count * OUTPUT_ROW_SIZE + 3] = xmin;
-                output[count * OUTPUT_ROW_SIZE + 4] = ymin;
-                output[count * OUTPUT_ROW_SIZE + 5] = xmax;
-                output[count * OUTPUT_ROW_SIZE + 6] = ymax;
+                output[count * OUTPUT_ROW_SIZE + 3] = TO_UNIT_TYPE(xmin);
+                output[count * OUTPUT_ROW_SIZE + 4] = TO_UNIT_TYPE(ymin);
+                output[count * OUTPUT_ROW_SIZE + 5] = TO_UNIT_TYPE(xmax);
+                output[count * OUTPUT_ROW_SIZE + 6] = TO_UNIT_TYPE(ymax);
                 //printf("[%d, %d, %f, %f, %f, %f, %f] -> [%d]\n", score_info.batchId, score_info.classId, score_info.score, xmin, ymin, xmax, ymax, score_info.boxId);
                 ++count;
             }
         }
     }
 
-    if (count < NUM_OF_IMAGES * KEEP_TOP_K)
+    while (count < NUM_OF_IMAGES * KEEP_TOP_K)
     {
-        output[count * OUTPUT_ROW_SIZE] = -1.f;
-        //printf("[-1.0, , , , , , ]\n");
+        output[count * OUTPUT_ROW_SIZE] = -1.0;
+        output[count * OUTPUT_ROW_SIZE + 1] = 0.0;
+        output[count * OUTPUT_ROW_SIZE + 2] = 0.0;
+        output[count * OUTPUT_ROW_SIZE + 3] = 0.0;
+        output[count * OUTPUT_ROW_SIZE + 4] = 0.0;
+        output[count * OUTPUT_ROW_SIZE + 5] = 0.0;
+        output[count * OUTPUT_ROW_SIZE + 6] = 0.0;
+        //printf("[-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]\n");
+        ++count;
     }
     //printf("===============================================\n");
 }
@@ -1048,9 +1055,9 @@ KERNEL (detection_output_stage_final_mxnet)(
             {
                 SCORES_INFO score_info;
                 score_info = scoresList[scores_offset + idx_score];
-                output[count * OUTPUT_ROW_SIZE] = score_info.batchId;
-                output[count * OUTPUT_ROW_SIZE + 1] = ((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
-                output[count * OUTPUT_ROW_SIZE + 2] = score_info.score;
+                output[count * OUTPUT_ROW_SIZE] = TO_UNIT_TYPE(score_info.batchId);
+                output[count * OUTPUT_ROW_SIZE + 1] = TO_UNIT_TYPE((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
+                output[count * OUTPUT_ROW_SIZE + 2] = TO_UNIT_TYPE(score_info.score);
                 BBOXES_INFO bbox_info;
                 bbox_info = bboxesList[bboxes_offset + score_info.boxId];
                 float xmin = bbox_info.xmin;
@@ -1064,10 +1071,10 @@ KERNEL (detection_output_stage_final_mxnet)(
                     xmax = max(0.0f, min(1.0f, xmax));
                     ymax = max(0.0f, min(1.0f, ymax));
                 }
-                output[count * OUTPUT_ROW_SIZE + 3] = xmin;
-                output[count * OUTPUT_ROW_SIZE + 4] = ymin;
-                output[count * OUTPUT_ROW_SIZE + 5] = xmax;
-                output[count * OUTPUT_ROW_SIZE + 6] = ymax;
+                output[count * OUTPUT_ROW_SIZE + 3] = TO_UNIT_TYPE(xmin);
+                output[count * OUTPUT_ROW_SIZE + 4] = TO_UNIT_TYPE(ymin);
+                output[count * OUTPUT_ROW_SIZE + 5] = TO_UNIT_TYPE(xmax);
+                output[count * OUTPUT_ROW_SIZE + 6] = TO_UNIT_TYPE(ymax);
                 //printf("[%d, %d, %f, %f, %f, %f, %f] -> [%d]\n", score_info.batchId, ((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId), score_info.score, xmin, ymin, xmax, ymax, score_info.boxId);
                 ++count;
             }
@@ -1076,7 +1083,7 @@ KERNEL (detection_output_stage_final_mxnet)(
 
     if (count < NUM_OF_IMAGES * KEEP_TOP_K)
     {
-        output[count * OUTPUT_ROW_SIZE] = -1.f;
+        output[count * OUTPUT_ROW_SIZE] = -1.0;
         //printf("[-1.0, , , , , , ]\n");
     }
     //printf("===============================================\n");
