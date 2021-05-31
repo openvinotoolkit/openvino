@@ -79,6 +79,8 @@ struct topology {
 
     void change_input_layout(primitive_id id, const layout& new_layout);
 
+    const std::shared_ptr<primitive>& at(const primitive_id& id) const;
+
 private:
     friend struct engine;
     friend struct network;

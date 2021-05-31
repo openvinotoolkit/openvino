@@ -98,3 +98,17 @@ bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
 }
+
+bool op::v1::Softmax::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Softmax_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64: return true;
+    default: break;
+    }
+    return false;
+}

@@ -8,6 +8,7 @@
 #include <ie_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 
+#include "ie_icore.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
