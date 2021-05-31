@@ -24,7 +24,9 @@ namespace {
             {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
     };
 
-    const std::vector<std::map<std::string, std::string>> Autoconfigs = {{}};
+    const std::vector<std::map<std::string, std::string>> Autoconfigs = {
+            {{ AUTO_CONFIG_KEY(DEVICE_LIST) , CommonTestUtils::DEVICE_CPU}}
+    };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
                             ::testing::Combine(

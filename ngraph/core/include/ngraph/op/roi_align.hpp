@@ -66,6 +66,7 @@ namespace ngraph
                 PoolingMode get_mode() const { return m_mode; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 PoolingMode mode_from_string(const std::string& mode) const;

@@ -173,6 +173,7 @@ set(SRC
     type_prop/reduce_l2.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
+    type_prop/result.cpp
     type_prop/reverse.cpp
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
@@ -223,6 +224,7 @@ set(SRC
     visitors/op/elu.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
+    visitors/op/floor.cpp
     visitors/op/gather.cpp
     visitors/op/gelu.cpp
     visitors/op/grn.cpp
@@ -255,6 +257,7 @@ set(SRC
     visitors/op/region_yolo.cpp
     visitors/op/reorg_yolo.cpp
     visitors/op/reshape.cpp
+    visitors/op/result.cpp
     visitors/op/reverse.cpp
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
@@ -347,11 +350,14 @@ set(MULTI_TEST_SRC
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
     backend/dyn_reshape.in.cpp
+    backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/elu.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
+    backend/experimental_detectron_detection_output.in.cpp
+    backend/experimental_detectron_prior_grid.in.cpp
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
@@ -404,6 +410,7 @@ set(MULTI_TEST_SRC
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
+    backend/result.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/roi_pooling.in.cpp
