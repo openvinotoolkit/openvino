@@ -57,7 +57,8 @@ class NonMaxSuppression(Op):
         opset = node.get_opset()
         max_num_of_inputs = 6 if opset == 'opset5' else 5
         input_msg_fmt = 'NonMaxSuppression node {} from {} must have from 2 to {} inputs'
-        inputs_msg = input_msg_fmt.format(node.soft_get('name', node.id), opset, max_num_of_inputs)
+        node_name = node.soft_get('name', node.id)
+        inputs_msg = input_msg_fmt.format(node_name, opset, max_num_of_inputs)
         assert 2 <= num_of_inputs <= max_num_of_inputs, inputs_msg
 
         boxes_shape = node.in_port(0).data.get_shape()
@@ -80,7 +81,8 @@ class NonMaxSuppression(Op):
 
         num_classes = scores_shape[1]
         num_input_boxes = boxes_shape[1]
-        assert scores_shape[2] == num_input_boxes, 'Number of boxes mismatch'
+        assert scores_shape[2] == num_input_boxes or scores_shape[2] == -1 or num_input_boxes == -1,\
+            'Number of boxes mismatch for operation {}'.format(node_name)
 
         if node.get_opset() in ['opset4', 'opset5']:
             max_number_of_boxes = min(num_input_boxes, max_output_boxes_per_class) * boxes_shape[0] * num_classes

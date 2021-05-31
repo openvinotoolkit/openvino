@@ -5,6 +5,7 @@ import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
@@ -72,10 +73,12 @@ class Range(Op):
         limit = node.in_port(1).data.get_value()
         delta = node.in_port(2).data.get_value()
 
-        assert start is not None and limit is not None and delta is not None, \
-            'Range operation {} with dynamic inputs is not supported'.format(name)
+        for input in (start, limit, delta):
+            if input is not None:
+                if not node.has_valid('output_type'):
+                    node['output_type'] = input.dtype
 
-        if not node.has_valid('output_type'):
-            node['output_type'] = start.dtype
-
-        node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node['output_type']))
+        if start is None or limit is None or delta is None:
+            node.out_port(0).data.set_shape(int64_array([-1]))
+        else:
+            node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node['output_type']))
