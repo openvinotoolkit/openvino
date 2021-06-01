@@ -18,6 +18,7 @@ public:
     bool transform(TransformationContext &context, ngraph::pattern::Matcher &m) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    static bool is3DTensorOnActivations(const std::shared_ptr<const Node>& node);
 };
 
 }  // namespace low_precision
