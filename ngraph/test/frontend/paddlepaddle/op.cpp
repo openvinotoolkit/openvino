@@ -150,6 +150,7 @@ namespace fuzzyOp {
         }
         
         const auto results = function->get_results();
+        bool use_float_test = false;
         for (size_t i = 0; i < results.size(); i++) {
             // read expected output npy file
             std::string datafile = modelfolder+"/output"+std::to_string(i)+".npy";
@@ -159,6 +160,7 @@ namespace fuzzyOp {
                 std::vector<float> expected_results;
                 load_from_npy(datafile, expected_results);
                 test_case.add_expected_output(expected_results);
+                use_float_test = true;
             } else if (dtype == "<i4") {
                 std::vector<int32_t> expected_results;
                 load_from_npy(datafile, expected_results);
@@ -172,14 +174,12 @@ namespace fuzzyOp {
             }          
         }
 
-        if (std::all_of(results.begin(), results.end(), [](const std::shared_ptr<ngraph::op::v0::Result> &result) {
-            return result->get_element_type() == element::i32;
-        })) {
-            test_case.run();
+        if (use_float_test) {
+            test_case.run_with_tolerance_as_fp();
         }
         else
         {
-            test_case.run_with_tolerance_as_fp();
+            test_case.run();
         }
     }
 

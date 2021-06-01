@@ -1,22 +1,38 @@
-import paddle
-from paddle import fluid
+#
+# relu paddle model generator
+#
 import numpy as np
-import os
+from save_model import saveModel
 import sys
 
-paddle.enable_static()
 
-inp_blob = np.random.randn(1, 3, 4, 4).astype(np.float32)
+def relu(name: str, x):
+    import paddle as pdpd
+    pdpd.enable_static()
 
-x = fluid.data(name='xxx', shape=[1, 3, 4, 4], dtype='float32')
+    node_x = pdpd.static.data(name='x', shape=x.shape, dtype='float32')
+    out = pdpd.nn.functional.relu(node_x)
 
-relu = fluid.layers.relu(x)
+    cpu = pdpd.static.cpu_places(1)
+    exe = pdpd.static.Executor(cpu[0])
+    # startup program will call initializer to initialize the parameters.
+    exe.run(pdpd.static.default_startup_program())
 
-exe = fluid.Executor(fluid.CPUPlace())
-exe.run(fluid.default_startup_program())
-inp_dict = {'xxx': inp_blob}
-var = [relu]
-res_pdpd = exe.run(fluid.default_main_program(), fetch_list=var, feed=inp_dict)
+    outs = exe.run(
+        feed={'x': x},
+        fetch_list=[out])
 
-fluid.io.save_inference_model(os.path.join(sys.argv[1], "relu"), list(inp_dict.keys()), var, exe,
-                              model_filename="relu.pdmodel", params_filename="relu.pdiparams")
+    saveModel(name, exe, feedkeys=['x'], fetchlist=[out],
+              inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+
+    return outs[0]
+
+
+def main():
+    data = np.array([-2, 0, 1]).astype('float32')
+
+    relu("relu", data)
+
+
+if __name__ == "__main__":
+    main()

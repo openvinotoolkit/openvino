@@ -3,7 +3,6 @@
 //
 
 #pragma once
-
 #include "node_context.hpp"
 
 namespace ngraph
@@ -14,7 +13,7 @@ namespace ngraph
         {
             namespace op
             {
-                NamedOutputs fill_constant(const NodeContext& node);
+                NamedOutputs sigmoid(const NodeContext& node);
             }
         } // namespace pdpd
     }     // namespace frontend

@@ -17,7 +17,6 @@ namespace ngraph
                 {
                     auto shape = node.get_attribute<std::vector<int64_t>>("shape");
                     auto dtype = node.get_attribute<ngraph::element::Type>("dtype");
-                    // TODO to Support Tensor/Tuple Input add more tests for other data types #55262
                     Output<Node> value_node;
                     Output<Node> shape_node;
                     if (node.has_ng_input("ValueTensor"))
