@@ -73,3 +73,18 @@ bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v4_ReduceL1_evaluate);
     return reduce_l1::evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }
+
+bool op::v4::ReduceL1::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v4_ReduceL1_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}

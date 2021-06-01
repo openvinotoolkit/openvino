@@ -13,6 +13,7 @@
 #include <ie_algorithm.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ie_icore.hpp>
 
 #include <auto_plugin/auto_config.hpp>
 #include "auto_plugin.hpp"
@@ -54,8 +55,8 @@ IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::
     return LoadNetworkImpl(fileName, config);
 }
 
-IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
-                                                                           const ConfigType&     config) {
+IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
+                                                                            const ConfigType&     config) {
     if (network.getFunction() == nullptr) {
         IE_THROW() << "AUTO device supports just ngraph network representation";
     }
