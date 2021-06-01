@@ -49,9 +49,8 @@ void CNNFilter32(intel_dnn_component_t *component) {
 void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t number_type, const bool sumPoolingOverRide) {
     const uint32_t num_inputs = component->op.maxpool.inCHW[0] * component->op.maxpool.inCHW[1] * component->op.maxpool.inCHW[2];
     const uint32_t in_c = component->op.maxpool.inCHW[0];
-    // TODO: issue 50379 find out why looks like CNN1D pooling uses stride == window only
     const uint32_t num_pool_size = component->op.maxpool.poolingWindowXY[0];
-    const uint32_t num_pool_step = component->op.maxpool.poolingWindowXY[0];
+    const uint32_t num_pool_step = component->op.maxpool.poolingStrideXY[0];
     const uint32_t num_rows_in = num_inputs / in_c;
 
     if (number_type == kDnnInt) {
