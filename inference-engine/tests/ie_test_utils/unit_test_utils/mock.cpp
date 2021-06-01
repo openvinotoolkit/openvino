@@ -12,7 +12,6 @@
 #include "unit_test_utils/mocks/cpp_interfaces/mock_task_executor.hpp"
 
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_default.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_thread_safe_default.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 

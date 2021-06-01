@@ -50,6 +50,7 @@ namespace ngraph
                 virtual size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             protected:
                 Mode mode_from_string(const std::string& mode) const;
