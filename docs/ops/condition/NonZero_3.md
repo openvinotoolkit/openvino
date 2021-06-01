@@ -9,15 +9,14 @@
 **Detailed description**: *NonZero* returns the indices of the non-zero elements of the input tensor (in row-major order - by dimension).
 * The output tensor has shape `[rank(input), num_non_zero]`.
 * For example, for the tensor `[[1, 0], [1, 1]]` the output will be `[[0, 1, 1], [0, 0, 1]]`.
-* Each output column represents a single non-zero element and for that column, value in row `i` represents this element's index in input's `i`'th dimension.
-* In given example the columns would be: `[0,0]`,`[1,0]`,`[1,1]`.
+* The output is a collection of tuples, each tuple has `rank(input)` elements and contains indices for a single non-zero element.
+* The `i`'th element of each output dimension is a part of `i`'th tuple.
+* In given example the tuples would be: `[0, 0]`, `[1, 0]`, `[1, 1]`.
 
 **Attributes**
 * *output_type*
   * **Description**: the output tensor type
-  * **Range of values**:
-    * `i64`
-    * `i32`
+  * **Range of values**: `i64` or `i32`
   * **Type**: string
   * **Default value**: "i64"
   * **Required**: *No*
