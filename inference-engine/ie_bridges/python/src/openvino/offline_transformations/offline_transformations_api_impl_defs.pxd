@@ -3,8 +3,6 @@
 
 from libcpp cimport bool
 from libcpp.string cimport string
-from libcpp.map cimport map
-from libc.stdint cimport int64_t
 
 from ..inference_engine.ie_api_impl_defs cimport IENetwork
 

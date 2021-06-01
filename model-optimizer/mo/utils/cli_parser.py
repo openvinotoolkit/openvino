@@ -260,8 +260,6 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'where [args] is key=value pairs separated by semicolon. ' +
                                    'Examples: "--transform LowLatency2" or ' +
                                    '          "--transform LowLatency2[use_const_initializer=False]" ' +
-                                   '          "--transform LowLatency2[sub_graph_iterations={\"Loop_name\":2]},'
-                                   '            use_const_initializer=False]" ' +
                                    'Available transformations: "LowLatency2"',
                               default="")
     common_group.add_argument('--disable_fusing',
@@ -1162,18 +1160,7 @@ def isbool(value):
         return False
 
 
-def isdict(value):
-    try:
-        return isinstance(eval(value), dict)
-    except:
-        return False
-
-
 def convert_string_to_real_type(value: str):
-    if isdict(value):
-        value = eval(value)
-        return value
-
     values = value.split(',')
     for i in range(len(values)):
         value = values[i]
