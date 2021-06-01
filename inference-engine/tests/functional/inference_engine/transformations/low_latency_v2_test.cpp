@@ -398,7 +398,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         auto results = body->get_results();
 
         auto trip_count =
-                std::make_shared<Constant>(element::i64, Shape{}, 10);
+                std::make_shared<Constant>(element::i64, Shape{}, 1);
         auto exec_condition =
                 std::make_shared<Constant>(element::boolean, Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
@@ -496,7 +496,6 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::LowLatency2>();
-        manager.register_pass<pass::LowLatency2>(); // should not affect the network
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -579,8 +578,9 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         auto body = createLSTMBody(Xi, H_t, C_t, true);
         auto results = body->get_results();
 
-        auto trip_count =
-                std::make_shared<Constant>(element::i64, Shape{}, 10);
+        auto shape_of = std::make_shared<ShapeOf>(X);
+        const auto trip_count = std::make_shared<Gather>(shape_of, Constant::create(ngraph::element::i64, {1}, {0}),
+                                                         Constant::create(ngraph::element::i64, {1}, {0}));
         auto exec_condition =
                 std::make_shared<Constant>(element::boolean, Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
@@ -689,7 +689,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>(true, pass::LowLatency2::SubGraphIterations{{"LSTMLoop", 10}});
+        manager.register_pass<pass::LowLatency2>(true);
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -807,6 +807,14 @@ TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2},
                                                ParameterVector{X, H_init, C_init});
 
+        auto f_2 = ngraph::clone_function(*f);
+        pass::Manager manager_2;
+        manager_2.register_pass<pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        manager_2.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
+        EXPECT_NO_THROW(manager_2.run_passes(f_2));
+
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
@@ -816,41 +824,6 @@ TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
         // but unrolls TI/Loop
         manager.register_pass<pass::LowLatency2>();
 
-        manager.run_passes(f);
+        EXPECT_THROW(manager.run_passes(f), CheckFailure);
     }
-    {
-        auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
-        auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
-
-        const std::string variable_name_H("LSTMTensorIterator/variable0");
-        const std::string variable_name_C("LSTMTensorIterator/variable1");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
-        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
-        auto read_value_H = std::make_shared<ReadValue>(H_t, variable_H);
-        auto read_value_C = std::make_shared<ReadValue>(C_t, variable_C);
-        // Body
-        auto axis = Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<Squeeze>(Xi, axis);
-
-        auto w_val = std::vector<float>(512 * 16, 0);
-        auto r_val = std::vector<float>(512 * 128, 0);
-        auto b_val = std::vector<float>(512, 0);
-        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = Constant::create(element::f32, Shape{512}, b_val);
-
-        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, read_value_H, read_value_C, W, R, B, 128);
-        auto assign_H = std::make_shared<Assign>(lstm_cell->output(0), variable_H);
-        auto assign_C = std::make_shared<Assign>(lstm_cell->output(1), variable_C);
-        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(insert_identity(unsqueeze));
-        auto res_1 = std::make_shared<Result>(insert_identity(lstm_cell->output(0)));
-        f_ref = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
-        f_ref->add_sinks({assign_C, assign_H});
-        assign_H->add_control_dependency(read_value_H);
-        assign_C->add_control_dependency(read_value_C);
-    }
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

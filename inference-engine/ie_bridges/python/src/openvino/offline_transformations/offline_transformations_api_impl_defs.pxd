@@ -13,8 +13,7 @@ cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEngi
 
     cdef void ApplyPOTTransformations(IENetwork network, string device)
 
-    cdef void ApplyLowLatencyTransformation(IENetwork network, bool use_const_initializer,
-                                            const map[string, int64_t] &sub_graph_iterations)
+    cdef void ApplyLowLatencyTransformation(IENetwork network, bool use_const_initializer)
 
     cdef void ApplyPruningTransformation(IENetwork network)
 

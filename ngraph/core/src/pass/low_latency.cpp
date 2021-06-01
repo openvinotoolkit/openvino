@@ -176,35 +176,6 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f)
     {
         if (const auto& sub_graph_op = dynamic_pointer_cast<op::util::SubGraphOp>(op))
         {
-            int64_t iterations = 1;
-            auto subgraph_iters = m_sub_graph_iterations.find(sub_graph_op->get_friendly_name());
-            if (subgraph_iters != m_sub_graph_iterations.end())
-            {
-                iterations = subgraph_iters->second;
-                if (iterations <= 0)
-                {
-                    continue;
-                }
-            }
-            if (const auto& loop = dynamic_pointer_cast<Loop>(sub_graph_op))
-            {
-                const auto& trip_count =
-                    dynamic_pointer_cast<Constant>(loop->get_input_node_shared_ptr(0));
-                const auto& num_iter = loop->get_num_iterations();
-                if (trip_count && num_iter > 0 &&
-                    trip_count->get_output_target_inputs(0).size() == 1)
-                {
-                    auto iter_const = std::make_shared<Constant>(element::i64, Shape{}, iterations);
-                    replace_node(trip_count, iter_const);
-                    loop->validate_and_infer_types();
-                }
-                else
-                {
-                    // this loop is not supported
-                    continue;
-                }
-            }
-
             int64_t variable_id = 0;
             const auto& func = sub_graph_op->get_function();
             const auto& params = func->get_parameters();
@@ -220,13 +191,17 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f)
                     const string& var_name = generate_variable_name(
                         sub_graph_op->get_friendly_name(), param_name, variable_id);
 
-                    if (func->get_variable_by_id(var_name) != nullptr ||
-                        f->get_variable_by_id(var_name) != nullptr)
-                    {
-                        // ReadValue/Assign with this Variable id already exist in the graph
-                        // Most likely LowLatency v1/v2 transformation has already been applied
-                        variable_id++;
-                        continue;
+                    const auto& input = sub_graph_op->input(merged_in->m_input_index);
+                    NGRAPH_CHECK(std::dynamic_pointer_cast<op::ReadValueBase>(input.get_source_output().get_node_shared_ptr()) == nullptr,
+                            "LowLatency2 transformation cannot be applied because the ReadValue node is already an input to the TensorIterator.",
+                            "LowLatency2 transformation may have already been applied, please do not call it more then once.");
+
+                    const auto& param = sub_graph_op->get_function()->get_parameters().at(merged_in->m_body_parameter_index);
+                    for (const auto& in_to : param->output(0).get_target_inputs()) {
+                        NGRAPH_CHECK(dynamic_cast<op::ReadValueBase*>(in_to.get_node()) == nullptr,
+                                     "LowLatency2 transformation cannot be applied because the ReadValue node is already inside the TensorIterator.",
+                                     "LowLatency transformation may have been applied, please do not call LowLatency2 after LowLatency.");
+
                     }
 
                     VariableInfo var_info{PartialShape::dynamic(), element::dynamic, var_name};
@@ -234,7 +209,6 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f)
 
                     // insert ReadValue
                     // Layers -> [new op: ReadValue] -> Subgraph operation
-                    const auto& input = sub_graph_op->input(merged_in->m_input_index);
                     Output<Node> read_value_in = input.get_source_output();
                     if (m_use_const_initializer)
                     {
