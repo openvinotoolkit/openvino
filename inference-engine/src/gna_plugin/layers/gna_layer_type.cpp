@@ -60,6 +60,22 @@ bool GNAPluginNS::AreLayersSupported(InferenceEngine::CNNNetwork& network, std::
                                                                 ", and batch size(" + std::to_string(batch_size) + ") != 1 not supported";
                                                    check_result =  false;
                                                }
+                                               if (LayerInfo(layer).isFullyConnected()) {
+                                                   size_t output_batch_size = LayerInfo(layer).getBatchSize();
+                                                   if (output_batch_size > 8) {
+                                                        errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
+                                                                     ", and batch size(" + std::to_string(output_batch_size) + ") not supported";
+                                                        check_result =  false;
+                                                   }
+                                               }
+                                               if (LayerInfo(layer).isSplit()) {
+                                                   auto splitLayer = dynamic_cast<InferenceEngine::SplitLayer*>(layer.get());
+                                                   if (splitLayer && splitLayer->_axis == 0) {
+                                                        errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
+                                                                     ", and axis(0) not supported";
+                                                        check_result =  false;
+                                                   }
+                                               }
                                            }, false);
     IE_SUPPRESS_DEPRECATED_END
     return check_result;

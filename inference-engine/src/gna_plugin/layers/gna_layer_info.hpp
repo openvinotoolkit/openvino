@@ -90,6 +90,27 @@ class LayerInfo {
         static InferenceEngine::details::caseless_set<std::string> layersWithConstrains = {"memory", "convolution"};
         return layersWithConstrains.find(name) != layersWithConstrains.end();
     }
+    size_t getBatchSize() const {
+        if (!layer || !layer->outData[0]) {
+            THROW_GNA_EXCEPTION << "layer or output data is null";
+        }
+        auto& dims = layer->outData[0]->getDims();
+        auto layout = layer->outData[0]->getLayout();
+        switch (dims.size()) {
+        case 2:
+            if (layout == InferenceEngine::Layout::NC) {
+                return dims[0];
+            } else if (layout == InferenceEngine::Layout::CN) {
+                return dims[1];
+            } else {
+                THROW_GNA_EXCEPTION << "batch size is not define";
+            }
+        case 4:
+            return dims[0];
+        default:
+            THROW_GNA_EXCEPTION << "batch size is not define";
+        }
+    }
     bool isActivation() const noexcept {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> activations =
