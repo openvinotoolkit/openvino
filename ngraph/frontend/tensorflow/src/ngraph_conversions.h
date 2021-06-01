@@ -30,10 +30,10 @@ namespace ngraph_bridge {
     // Converts a TensorFlow DataType to an nGraph element::Type. Returns
 // errors::Unimplemented if the element type is not supported by nGraph
 // Core. Otherwise returns Status::OK().
-    Status TFDataTypeToNGraphElementType(DataType tf_dt,
+    void TFDataTypeToNGraphElementType(DataType tf_dt,
                                          ngraph::element::Type* ng_et);
 
-    Status TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape,
+    void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape,
                                       ngraph::PartialShape* ng_shape);
 
 template <size_t a, size_t b, size_t c, size_t d>

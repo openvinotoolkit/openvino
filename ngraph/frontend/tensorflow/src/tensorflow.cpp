@@ -31,10 +31,12 @@ using namespace google;
 
 using namespace ngraph::frontend;
 
+using ::tensorflow::GraphDef;
+
 InputModelTensorflow::InputModelTensorflow (const std::string& _path) : path(_path)
 {
     std::ifstream pb_stream(path, std::ios::binary);
-    graph_def = std::make_shared<tensorflow::GraphDef>();
+    graph_def = std::make_shared<GraphDef>();
     std::cout << "[ INFO ] Model Parsed: " << graph_def->ParseFromIstream(&pb_stream) << std::endl;
     std::cout << "[ INFO ] Loaded model contains " << graph_def->node_size() << " nodes." << std::endl;
 }
@@ -56,20 +58,27 @@ void InputModelTensorflow::setPartialShape (Place::Ptr place, const ngraph::Part
 
 std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert (InputModel::Ptr model) const
 {
-    auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTensorflow>(model);
-    std::cerr << "[ INFO ] FrontEndTensorflow::convert invoked\n";
+    try {
+        auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTensorflow>(model);
+        std::cout << "[ INFO ] FrontEndTensorflow::convert invoked\n";
 
-    std::shared_ptr<ngraph::Function> f;
-    std::cerr << "[ STATUS ] TranslateGraph return: " << tensorflow::ngraph_bridge::Builder::TranslateGraph(
-            model_tf->partialShapes, {}, model_tf->graph_def.get(), "here_should_be_a_graph_name", f) << "\n";
-    std::cerr << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
-    std::cerr << "[ STATUS ] Running Transpose Sinking transformation\n";
+        std::shared_ptr<ngraph::Function> f;
+        ::tensorflow::ngraph_bridge::Builder::TranslateGraph(
+                model_tf->partialShapes, {}, model_tf->graph_def.get(), "here_should_be_a_graph_name", f);
+        std::cout << "[ STATUS ] TranslateGraph was called successfuly.\n";
+        std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
+        std::cout << "[ STATUS ] Running Transpose Sinking transformation\n";
 
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::TransposeSinking>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.run_passes(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::TransposeSinking>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.run_passes(f);
 
-    std::cerr << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
-    return f;
+        std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
+        return f;
+    } catch (::tensorflow::Status status)
+    {
+        std::cerr << "[ ERROR ] Exception happens during TF model conversion: " << status << "\n";
+        throw;
+    }
 }

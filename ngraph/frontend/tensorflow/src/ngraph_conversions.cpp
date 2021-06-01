@@ -46,7 +46,7 @@ void NCHWtoNHWC(const std::string& op_name, bool is_nhwc,
 }
 
 
-    Status TFDataTypeToNGraphElementType(DataType tf_dt,
+    void TFDataTypeToNGraphElementType(DataType tf_dt,
                                          ngraph::element::Type* ng_et) {
         switch (tf_dt) {
             case DataType::DT_FLOAT:
@@ -95,20 +95,18 @@ void NCHWtoNHWC(const std::string& op_name, bool is_nhwc,
                 *ng_et = ngraph::element::f16;
                 break;
             default:
-                return errors::Unimplemented("Unsupported TensorFlow data type: " +
+                throw errors::Unimplemented("Unsupported TensorFlow data type: " +
                                              DataType_Name(tf_dt));
         }
-        return Status::OK();
     }
 
-    Status TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape,
+    void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape,
                                       ngraph::PartialShape* ng_shape) {
         std::vector<ngraph::Dimension> dims;
         for (int i = 0; i < tf_shape.dim_size(); i++) {
             dims.push_back(tf_shape.dim(i).size());
         }
         *ng_shape = ngraph::PartialShape(dims);
-        return Status::OK();
     }
 
 }  // namespace ngraph_bridge
