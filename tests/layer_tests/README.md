@@ -1,9 +1,5 @@
 ## How to setup
 
-* Install requirements:
-
-> pip3 install -r requirements.txt
-
 * Set up environment variables for layer tests:
 
 > export MO_ROOT=PATH_TO_MO
