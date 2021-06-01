@@ -5,7 +5,7 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 Intel® Distribution of OpenVINO™ Toolkit provides the following packages available for installation through the PyPI repository:
 
 * Runtime package with the Inference Engine inside: [https://pypi.org/project/openvino/](https://pypi.org/project/openvino/).
-* Developers package that includes the runtime package as a dependency, Model Optimizer, Accuracy Checker and Post-Training Optimization Tool: [https://pypi.org/project/openvino-dev](https://pypi.org/project/openvino-dev).
+* Developer package that includes the runtime package as a dependency, Model Optimizer and other developer tools: [https://pypi.org/project/openvino-dev](https://pypi.org/project/openvino-dev).
 
 ## Additional Resources
 
