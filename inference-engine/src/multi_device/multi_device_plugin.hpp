@@ -9,18 +9,18 @@
 #include <vector>
 #include <string>
 
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "multi_device_exec_network.hpp"
 
 namespace MultiDevicePlugin {
 
-class MultiDeviceInferencePlugin : public InferenceEngine::InferencePluginInternal {
+class MultiDeviceInferencePlugin : public InferenceEngine::IInferencePlugin {
 public:
     MultiDeviceInferencePlugin();
     ~MultiDeviceInferencePlugin() = default;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
                                                                        const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
@@ -41,13 +41,9 @@ protected:
                                                           const MultiDevicePlugin::DeviceName & deviceName) const;
 
 private:
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const std::string& modelPath,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const std::string& modelPath,
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config);
-
-    void SetExeNetworkInfo(InferenceEngine::ExecutableNetworkInternal::Ptr exeNetwork,
-                           const InferenceEngine::ConstInputsDataMap& inputs,
-                           const InferenceEngine::ConstOutputsDataMap& outputs);
 };
 
 }  // namespace MultiDevicePlugin
