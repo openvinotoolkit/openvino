@@ -4,7 +4,6 @@
 
 #include "ie_api_impl.hpp"
 
-#include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
 #include "ie_plugin_config.hpp"
 

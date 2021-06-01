@@ -1,7 +1,7 @@
 #define CL_HPP_MINIMUM_OPENCL_VERSION 120
 #define CL_HPP_TARGET_OPENCL_VERSION 120
 
-#include <inference_engine.hpp>
+#include <ie_core.hpp>
 #include <CL/cl2.hpp>
 #include <gpu/gpu_context_api_ocl.hpp>
 

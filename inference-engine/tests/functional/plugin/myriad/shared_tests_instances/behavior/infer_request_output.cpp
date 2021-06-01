@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
-
 #include "behavior/infer_request_output.hpp"
 
 using namespace BehaviorTestsDefinitions;

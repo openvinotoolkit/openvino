@@ -1,4 +1,4 @@
-#include <inference_engine.hpp>
+#include <ie_core.hpp>
 
 int main() {
 std::string deviceName = "Device name";

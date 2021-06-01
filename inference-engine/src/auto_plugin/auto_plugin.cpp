@@ -15,7 +15,6 @@
 #include <transformations/utils/utils.hpp>
 #include <ie_icore.hpp>
 
-#include <auto_plugin/auto_config.hpp>
 #include "auto_plugin.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
@@ -144,7 +143,7 @@ std::vector<AutoPlugin::DeviceInformation> AutoInferencePlugin::GetDeviceChoice(
     std::vector<DeviceInformation> metaDevices;
     std::vector<std::string> availableDevices;
 
-    auto deviceListConfig = config.find(IE::AutoConfigParams::KEY_AUTO_DEVICE_LIST);
+    auto deviceListConfig = config.find(IE::KEY_AUTO_DEVICE_LIST);
     if (deviceListConfig == config.end()) {
         availableDevices = GetCore()->GetAvailableDevices();
     } else {

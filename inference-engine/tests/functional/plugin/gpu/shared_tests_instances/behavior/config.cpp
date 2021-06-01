@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "auto_plugin/auto_config.hpp"
-#include "multi-device/multi_device_config.hpp"
-
 #include "behavior/config.hpp"
+#include "cldnn/cldnn_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -37,15 +35,15 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> autoinconfigs = {
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "ON"}},
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, "unknown_file"}},
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_DUMP_KERNELS, "ON"}},
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_TUNING_MODE, "TUNING_UNKNOWN_MODE"}},
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}}
     };
 
@@ -80,11 +78,11 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> autoconf = {
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU}}
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU}}
     };
 
     const std::vector<std::map<std::string, std::string>> auto_cpu_gpu_conf = {
-        {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigAPITests,

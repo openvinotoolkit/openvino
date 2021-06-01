@@ -16,7 +16,6 @@
 #include <ie_plugin_config.hpp>
 #include <vpu/vpu_plugin_config.hpp>
 #include <gna/gna_config.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <ie_core.hpp>
 #include "ie_common.h"
 #include "common_test_utils/common_utils.hpp"

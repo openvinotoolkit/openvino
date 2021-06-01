@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "auto_plugin/auto_config.hpp"
-#include "multi-device/multi_device_config.hpp"
-
 #include "behavior/test_plugin.hpp"
+#include "cldnn/cldnn_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -30,7 +28,7 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> auto_cpu_gpu_conf = {
-        {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
     };
 
     const std::vector<std::map<std::string, std::string>> configsInput = {
@@ -45,14 +43,14 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> AutoConfigsInputOutput = {
-        {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_GPU}},
-        {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_GPU},
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_GPU}},
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_GPU},
             {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
     };
 
     const std::vector<std::map<std::string, std::string>> AutoCGConfigsInputOutput = {
-        {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST, std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}},
-        {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST, std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU},
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST, std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}},
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST, std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU},
             {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
     };
 

@@ -1,4 +1,4 @@
-#include <inference_engine.hpp>
+#include <ie_core.hpp>
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset3.hpp"
 

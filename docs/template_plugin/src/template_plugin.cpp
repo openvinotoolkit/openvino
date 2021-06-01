@@ -7,7 +7,6 @@
 #include <ie_plugin_config.hpp>
 #include <ie_algorithm.hpp>
 
-#include <hetero/hetero_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 
 #include <ngraph/op/util/op_types.hpp>

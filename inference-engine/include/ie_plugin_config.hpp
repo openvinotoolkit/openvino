@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header for advanced hardware related properties for IE plugins
+ * @brief A header for advanced hardware related properties for Inference Engine plugins
  *        To use in SetConfig, LoadNetwork, ImportNetwork methods of plugins
  *
  * @file ie_plugin_config.hpp
@@ -269,18 +269,6 @@ DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_AUTO);
 DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS);
 
 /**
- * @brief Optimize GPU plugin execution to maximize throughput.
- *
- * It is passed to Core::SetConfig(), this option should be used with values:
- * - KEY_GPU_THROUGHPUT_AUTO creates bare minimum of streams that might improve performance in some cases,
- *   this option allows to enable throttle hint for opencl queue thus reduce CPU load without significant performance
- * drop
- * - a positive integer value creates the requested number of streams
- */
-DECLARE_CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-DECLARE_CONFIG_KEY(GPU_THROUGHPUT_STREAMS);
-
-/**
  * @brief The name for setting performance counters option.
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
@@ -303,18 +291,10 @@ DECLARE_CONFIG_KEY(PERF_COUNT);
  */
 DECLARE_CONFIG_KEY(DYN_BATCH_LIMIT);
 
-DECLARE_CONFIG_KEY(DYN_BATCH_ENABLED);
-
-DECLARE_CONFIG_KEY(DUMP_QUANTIZED_GRAPH_AS_DOT);
-DECLARE_CONFIG_KEY(DUMP_QUANTIZED_GRAPH_AS_IR);
-
 /**
- * @brief The key controls threading inside Inference Engine.
- *
- * It is passed to Core::SetConfig(), this option should be used with values:
- * PluginConfigParams::YES or PluginConfigParams::NO
+ * @brief The key checks whether dynamic batch is enabled.
  */
-DECLARE_CONFIG_KEY(SINGLE_THREAD);
+DECLARE_CONFIG_KEY(DYN_BATCH_ENABLED);
 
 /**
  * @brief This key directs the plugin to load a configuration file.
@@ -322,38 +302,6 @@ DECLARE_CONFIG_KEY(SINGLE_THREAD);
  * The value should be a file name with the plugin specific configuration
  */
 DECLARE_CONFIG_KEY(CONFIG_FILE);
-
-/**
- * @brief This key enables dumping of the kernels used by the plugin for custom layers.
- *
- * This option should be used with values: PluginConfigParams::YES or PluginConfigParams::NO (default)
- */
-DECLARE_CONFIG_KEY(DUMP_KERNELS);
-
-/**
- * @brief This key controls performance tuning done or used by the plugin.
- *
- * This option should be used with values:
- * PluginConfigParams::TUNING_DISABLED (default)
- * PluginConfigParams::TUNING_USE_EXISTING - use existing data from tuning file
- * PluginConfigParams::TUNING_CREATE - create tuning data for parameters not present in tuning file
- * PluginConfigParams::TUNING_UPDATE - perform non-tuning updates like removal of invalid/deprecated data
- * PluginConfigParams::TUNING_RETUNE - create tuning data for all parameters, even if already present
- *
- * For values TUNING_CREATE and TUNING_RETUNE the file will be created if it does not exist.
- */
-DECLARE_CONFIG_KEY(TUNING_MODE);
-
-DECLARE_CONFIG_VALUE(TUNING_CREATE);
-DECLARE_CONFIG_VALUE(TUNING_USE_EXISTING);
-DECLARE_CONFIG_VALUE(TUNING_DISABLED);
-DECLARE_CONFIG_VALUE(TUNING_UPDATE);
-DECLARE_CONFIG_VALUE(TUNING_RETUNE);
-
-/**
- * @brief This key defines the tuning data filename to be created/used
- */
-DECLARE_CONFIG_KEY(TUNING_FILE);
 
 /**
  * @brief the key for setting desirable log level.
@@ -391,12 +339,14 @@ DECLARE_CONFIG_KEY(DEVICE_ID);
 DECLARE_CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS);
 
 /**
+ * @deprecated Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo::serialize method
  * @brief This key enables dumping of the internal primitive graph.
  *
  * Should be passed into LoadNetwork method to enable dumping of internal graph of primitives and
  * corresponding configuration information. Value is a name of output dot file without extension.
  * Files `<dot_file_name>_init.dot` and `<dot_file_name>_perf.dot` will be produced.
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo::serialize method")
 DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 
 
@@ -432,4 +382,25 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
 }  // namespace PluginConfigParams
+
+/**
+ * @def AUTO_CONFIG_KEY(name)
+ * @brief A macro which provides an AUTO-mangled name for configuration key with name `name`
+ */
+#define AUTO_CONFIG_KEY(name) InferenceEngine::_CONFIG_KEY(AUTO_##name)
+
+#define DECLARE_AUTO_CONFIG_KEY(name) DECLARE_CONFIG_KEY(AUTO_##name)
+
+/**
+ * @brief Limit device list config option, with comma-separated devices listed
+ */
+DECLARE_AUTO_CONFIG_KEY(DEVICE_LIST);
+
 }  // namespace InferenceEngine
+
+#include "hetero/hetero_plugin_config.hpp"
+#include "multi-device/multi_device_config.hpp"
+
+// remove in 2022.1 major release
+#include "cldnn/cldnn_config.hpp"
+#include "gna/gna_config.hpp"
