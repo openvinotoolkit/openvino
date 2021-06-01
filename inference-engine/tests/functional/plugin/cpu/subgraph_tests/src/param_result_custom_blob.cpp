@@ -24,19 +24,17 @@ class ParameterResultCustomBlobTest : public ParameterResultSubgraphTest {
             auto inputsInfo = cnnNetwork.getInputsInfo().begin()->second;
             std::string inputName = cnnNetwork.getInputsInfo().begin()->first;
 
-            float* customInpData = new float[elementsCount];
+            std::vector<float> customInpData(elementsCount);
             auto inpBlobData = inputBlob->buffer().as<const float *>();
-            std::copy(inpBlobData, inpBlobData + elementsCount, customInpData);
+            std::copy(inpBlobData, inpBlobData + elementsCount, customInpData.begin());
 
             auto& tensorDesc = inputsInfo->getTensorDesc();
-            auto customBlob = make_shared_blob<float>(tensorDesc, customInpData, elementsCount * sizeof(float));
+            auto customBlob = make_shared_blob<float>(tensorDesc, customInpData.data(), elementsCount);
             inferRequest.SetBlob(inputName, customBlob);
 
             inferRequest.Infer();
 
             ParameterResultSubgraphTest::Validate();
-
-            delete[] customInpData;
         }
     }
     void Validate() override {
