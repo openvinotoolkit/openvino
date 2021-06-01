@@ -1714,9 +1714,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                             const auto fltStride = fltStrideShape->Dimensions[0];
                             const auto outFromConv = outputFromConv(inVecCnt, nFltSize, fltStride);
                             //  FLAT input matrix, pooled outputs per filter
-                            // TODO: Issue 50386 check why (outFromConv - 1) an not (outFromConv - poolingWindow)
-                            outputTensor.Shape.Dimensions[1] =
-                                (outFromConv - 1) / poolStride->Dimensions[0] + 1;
+                            outputTensor.Shape.Dimensions[1] = outputFromPooling(outFromConv, poolWindow->Dimensions[0], poolStride->Dimensions[0]);
                         } else { // kDnnConvolutional2dOp
                             // Override GNA operation output pointer with the one from pooling component
                             outputTensor.Data = comp.ptr_outputs;
