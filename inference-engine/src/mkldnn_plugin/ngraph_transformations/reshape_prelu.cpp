@@ -17,16 +17,19 @@ MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu>(m.get_match_root());
-        if (!prelu) {
+        const auto prelu_shape = prelu->input_value(0).get_shape();
+        const auto slope_shape = prelu->input_value(1).get_shape();
+        if (!prelu || ngraph::shape_size(slope_shape) == 1 || slope_shape.size() != 1) {
             return false;
         }
-        auto slope_const = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(
-                        prelu->input_value(1).get_node_shared_ptr());
-        if (!slope_const || ngraph::shape_size(prelu->get_input_shape(1)) == 1 || prelu->get_input_shape(1).size() != 1) {
+        ngraph::Shape new_shape(prelu_shape.size(), 1);
+        const auto slope_dim = slope_shape[0];
+        const auto channel_dim_idx = prelu_shape.size() > 1 ? 1 : 0;
+        if (slope_dim != prelu_shape[channel_dim_idx]) {
             return false;
         }
-        ngraph::Shape new_shape(prelu->input_value(0).get_shape().size(), 1);
-        new_shape[new_shape.size() > 1 ? 1 : 0] = prelu->input_value(1).get_shape()[0];
+        new_shape[channel_dim_idx] = slope_dim;
+
         auto slope = ngraph::op::util::reshapeTo(prelu->input_value(1), new_shape);
         auto new_prelu = std::make_shared<ngraph::opset1::PRelu>(prelu->input(0).get_source_output(), slope);
         new_prelu->set_friendly_name(prelu->get_friendly_name());
