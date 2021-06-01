@@ -12,8 +12,6 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-IE_SUPPRESS_DEPRECATED_START
-
 class SharedObjectLoaderTests: public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {

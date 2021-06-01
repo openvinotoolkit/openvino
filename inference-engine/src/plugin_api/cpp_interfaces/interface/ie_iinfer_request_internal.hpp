@@ -208,7 +208,6 @@ protected:
      * @param foundOutput A pointer to output DataPtr if found.
      * @return `True` - if loaded network has input with provided name,
      *         `false` - if loaded network has output with provided name
-     * @throws [parameter_mismatch] exception if input and output has the same name
      * @throws [not_found] exception if there is no input and output layers with given name
      */
     bool findInputAndOutputBlobByName(const std::string& name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const;
