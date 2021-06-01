@@ -77,4 +77,18 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessConversionTest,
                                 ::testing::ValuesIn(configs)),
                         PreprocessConversionTest::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::ValuesIn(netLayouts),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::ValuesIn(configs)),
+                        PreprocessDynamicallyInSetBlobTest::getTestCaseName);
+
 }  // namespace

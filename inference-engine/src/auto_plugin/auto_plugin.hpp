@@ -8,8 +8,9 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
+#include <type_traits>
 
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "auto_exec_network.hpp"
 
@@ -17,11 +18,11 @@ namespace AutoPlugin {
 namespace IE = InferenceEngine;
 using ConfigType = std::map<std::string, std::string>;
 
-class AutoInferencePlugin : public IE::InferencePluginInternal {
+class AutoInferencePlugin : public IE::IInferencePlugin {
 public:
     AutoInferencePlugin();
     ~AutoInferencePlugin() = default;
-    IE::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const IE::CNNNetwork& network, const ConfigType& config) override;
+    IE::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const IE::CNNNetwork& network, const ConfigType& config) override;
     IE::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& fileName, const ConfigType& config) override;
     IE::QueryNetworkResult QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const override;
     IE::Parameter GetMetric(const std::string& name, const std::map<std::string, IE::Parameter>& options) const override;
@@ -62,7 +63,14 @@ private:
         if (!executableNetwork) {
             IE_THROW() << "Failed to load network by AUTO plugin";
         }
-        return std::make_shared<AutoExecutableNetwork>(executableNetwork);
+        auto impl = std::make_shared<AutoExecutableNetwork>(executableNetwork);
+
+        if (std::is_same<std::string, T>::value) {
+            SetExeNetworkInfo(impl, executableNetwork->GetInputsInfo(),
+                                    executableNetwork->GetOutputsInfo());
+        }
+
+        return impl;
     }
 };
 

@@ -21,10 +21,10 @@ AutoExecutableNetwork::AutoExecutableNetwork(const SoExecutableNetworkInternal& 
 
 AutoExecutableNetwork::~AutoExecutableNetwork() = default;
 
-IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
-                                                                         OutputsDataMap networkOutputs) {
-    SoIInferRequestInternal inferRequest = { _network, _network->CreateInferRequest() };
-    return std::make_shared<AutoInferRequest>(networkInputs, networkOutputs, inferRequest);
+InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
+                                                                                          OutputsDataMap networkOutputs) {
+    SoIInferRequestInternal inferRequest = {_network, _network->CreateInferRequest()};
+    return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest);
 }
 
 void AutoExecutableNetwork::Export(std::ostream& networkModel) {
