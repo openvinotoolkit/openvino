@@ -125,3 +125,41 @@ class TestONNXResize11Op(unittest.TestCase):
 
         self.assertTrue(np.array_equal(graph.node['onnx_resize11_data']['shape'], int64_array(output_shape)),
                         msg.format(scales, output_shape, graph.node['onnx_resize11_data']['shape']))
+
+    @generate(*[([1, 260, 100, 150], [1, 260, 200, 350], [1, 260, 200, 350], [1.0, 1.0, 1.0, 1.0]),
+                ([1, 260, 100, 150], [1, 260, 200, 350], [1, 1, 200, 350], [1.0, 1.0, 1.0, 1.0]),
+                ([5, 14, 300, 40], [5, 14, 140, 280], [1, 1, 140, 280], [1.0, 1.0, 1.0, 1.0]),
+                ([5, 14, 300, 40], [5, 14, 140, 280], [5, 14, 140, 280], [1.0, 1.0, 1.0, 1.0]),
+                ([1, 3, 260, 100, 150], [1, 3, 780, 200, 350], [1, 3, 780, 200, 350], [1.0, 1.0, 1.0, 1.0, 1.0]),
+                ([1, 3, 450, 100, 150], [1, 3, 260, 200, 350], [1, 3, 260, 200, 350], [1.0, 1.0, 1.0, 1.0, 1.0]),
+                ([5, 14, 1000, 300, 40], [5, 14, 500, 140, 280], [1, 1, 500, 140, 280], [1.0, 1.0, 1.0, 1.0, 1.0]),
+                ([5, 14, 1000, 300, 40], [5, 14, 500, 140, 280], [5, 14, 500, 140, 280], [1.0, 1.0, 1.0, 1.0, 1.0])])
+    def test_onnx_resize11_without_roi_input(self, input_shape, output_shape, sizes, scales):
+        np_scales = np.array(scales)
+        np_sizes = int64_array(sizes)
+        graph = build_graph(nodes_attrs=graph_node_attrs_sizes,
+                            edges=[('input', 'input_data'),
+                                   #('roi', 'roi_data'),
+                                   ('sizes', 'sizes_data'),
+                                   ('scales', 'scales_data'),
+                                   ('input_data', 'onnx_resize11', {'in': 0}),
+                                   #('roi_data', 'onnx_resize11', {'in': 1}),
+                                   ('scales_data', 'onnx_resize11', {'in': 2}),
+                                   ('sizes_data', 'onnx_resize11', {'in': 3}),
+                                   ('onnx_resize11', 'onnx_resize11_data'),
+                                   ('onnx_resize11_data', 'op_output'),
+                                ],
+                            update_attributes={
+                                'input_data': {'shape': int64_array(input_shape)},
+                                'scales': {'shape': int64_array(np_scales.shape), 'value': np_scales},
+                                'scales_data': {'shape': int64_array(np_scales.shape), 'value': np_scales},
+                                'sizes': {'shape': int64_array(np_sizes.shape), 'value': np_sizes},
+                                'sizes_data': {'shape': int64_array(np_sizes.shape), 'value': np_sizes},
+                            })
+        node = Node(graph, 'onnx_resize11')
+        ONNXResize11Op.onnx_resize_infer(node)
+
+        msg = "ONNXResize11 infer failed for case: sizes={}, scales={}, expected_shape={}, actual_shape={}"
+
+        self.assertTrue(np.array_equal(graph.node['onnx_resize11_data']['shape'], int64_array(output_shape)),
+                        msg.format(sizes, scales, output_shape, graph.node['onnx_resize11_data']['shape']))

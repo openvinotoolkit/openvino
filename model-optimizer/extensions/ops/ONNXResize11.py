@@ -35,14 +35,19 @@ class ONNXResize11Op(Op):
         if input_shape is None:
             return
 
-        num_of_in_nodes = len(node.in_nodes())
-        assert num_of_in_nodes in {2, 3, 4}, \
+        # Calculating counts of inputs by latest index id
+        num_of_in_nodes = len([port for port in node.in_ports().values() if not port.disconnected()])
+        if not node.has_port('in', 1) or node.in_port(1).disconnected():
+            # If unused roi is disconnected
+            num_of_in_nodes += 1
+
+        assert num_of_in_nodes in {3, 4}, \
             "Node {} with op {} number of inputs must be equal to 3 or 4.".format(node.name, node.op)
 
         assert node.coordinate_transformation_mode != 'tf_crop_and_resize', \
             'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(node.op, node.name)
 
-        if num_of_in_nodes in [2, 3]:
+        if num_of_in_nodes == 3:
             # i.e. input 'sizes' is not given
             input2_value = node.in_port(2).data.get_value()
             assert input2_value is not None, \
