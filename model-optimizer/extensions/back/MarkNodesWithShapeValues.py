@@ -63,7 +63,7 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
         return shape_accepting_nodes
 
     @staticmethod
-    def get_sources_for_nodes(nodes_with_shape_inputs: List[Node], condition: Callable) -> List[Node]:
+    def get_sources_for_nodes(nodes_with_shape_inputs: List[Node], filter_condition: Callable) -> List[Node]:
         shape_accepting_ops = MarkNodesWithShapeValues.get_shape_accepting_ops()
         sources = []
         for node in nodes_with_shape_inputs:
@@ -72,7 +72,7 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
                     continue
 
                 source_node = node.in_port(port_idx).get_source().node
-                if not condition(source_node):
+                if not filter_condition(source_node):
                     continue
 
                 sources.append(source_node)

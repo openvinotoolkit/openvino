@@ -769,12 +769,14 @@ class Graph(nx.MultiDiGraph):
                                                                                            list(
                                                                                                node.out_ports().keys())))
 
-    def dump_graph_for_graphviz(self, node_attrs: list = ['kind', 'op', 'shape', 'correct_data_layout', 'nchw_layout',
-                                                          'internal_layer_id'],
+    def dump_graph_for_graphviz(self, additional_attrs: list = None,
                                 edge_attrs: list = ['in', 'out'], nodes_to_dump: list = None,
                                 save_to_svg=False, highlight_nodes: list = None):
 
         from extensions.ops.tensor_iterator import _get_internal_output_node_id, _get_internal_input_node_id
+        node_attrs = ['kind', 'op', 'shape', 'correct_data_layout', 'nchw_layout', 'internal_layer_id']
+        if additional_attrs:
+            node_attrs.extend(additional_attrs)
 
         fill_color = {'op': 'lightblue', 'data': 'whitesmoke', 'highlight': 'firebrick'}
         fill_color_by_type = {'Const': 'lightpink', 'Parameter': 'yellowgreen', 'TensorIterator': 'lemonchiffon'}

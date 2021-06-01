@@ -333,7 +333,7 @@ class Port:
         else:
             self.get_connection().add_destination(port)
 
-    def _get_data_type(self):
+    def _get_data_type(self) -> np.dtype:
         """
         Internal method which does not raise with error if the data type is not known.
         Check value of the data node to determine input port data type as well as the respective value in the
@@ -382,7 +382,7 @@ class Port:
             # I64 precision for shapes but not all IE plugins support I64, so we should trust data type infer functions
             return source_port_data_type if source_port_data_type is not None else value_data_type
 
-    def get_data_type(self):
+    def get_data_type(self) -> np.dtype:
         data_type = self._get_data_type()
         if data_type is None:
             raise Error('The data type for {} port {} of node {} is not defined'.format(self.type, self.idx,

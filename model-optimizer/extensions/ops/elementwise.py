@@ -5,6 +5,7 @@ import logging as log
 
 import numpy as np
 
+from extensions.ops.Cast import Cast
 from mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.infer import copy_type_infer
@@ -35,6 +36,36 @@ def override_data_type_of_constant(node: Node):
             node.soft_get('name', node_to_convert.id), src_type, dst_type),
             extra={'is_warning': True})
         convert_const_node_value_type(node_to_convert, dst_type)
+
+
+def override_input_types_of_pow(pow_node: Node):
+    # according to ONNX specification Pow op can have different input types
+    # https://github.com/onnx/onnx/blob/master/docs/Operators.md#Pow (Examples/types)
+
+    base_type = pow_node.in_port(0).get_data_type()
+    exponent_type = pow_node.in_port(1).get_data_type()
+    if type(base_type) != np.dtype:
+        base_type = np.dtype(base_type)
+    if type(exponent_type) != np.dtype:
+        exponent_type = np.dtype(exponent_type)
+
+    prefix = pow_node.soft_get('name', pow_node.id) + '/Cast_{}_to_{}_type'
+    if base_type != exponent_type:
+        if base_type.itemsize >= exponent_type.itemsize:
+            cast_to_base_type = Cast(pow_node.graph, {'name': prefix.format('exponent', 'base'),
+                                                      'dst_type': base_type}).create_node()
+            pow_node.in_port(1).get_connection().insert_node(cast_to_base_type)
+            Cast.type_infer(cast_to_base_type)
+        else:
+            cast_to_pow_type = Cast(pow_node.graph, {'name': prefix.format('base', 'exponent_type'),
+                                                     'dst_type': exponent_type}).create_node()
+            pow_node.in_port(0).get_connection().insert_node(cast_to_pow_type)
+            Cast.type_infer(cast_to_pow_type)
+
+            cast_out_to_base_type = Cast(pow_node.graph, {'name': prefix.format('output', 'base'),
+                                                      'dst_type': base_type}).create_node()
+            pow_node.out_port(0).get_connection().insert_node(cast_out_to_base_type)
+            Cast.type_infer(cast_out_to_base_type)
 
 
 class Elementwise(Op):
@@ -134,6 +165,11 @@ class Pow(Elementwise):
         if np.any(b < 0) and np.issubdtype(a.dtype, np.signedinteger):
             return np.array(a.astype(np.float32) ** b, dtype=np.float32)
         return a ** b
+
+    @staticmethod
+    def type_infer(node):
+        override_input_types_of_pow(node)
+        node.out_port(0).set_data_type(node.in_port(0).get_data_type())
 
 
 class LogicalElementwise(Elementwise):
