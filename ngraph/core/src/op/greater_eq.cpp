@@ -75,6 +75,23 @@ bool op::v1::GreaterEqual::evaluate(const HostTensorVector& outputs,
     return greater_equalop::evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
+bool op::v1::GreaterEqual::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_GreaterEqual_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::boolean:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}
+
 bool op::v1::GreaterEqual::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_GreaterEqual_visit_attributes);
