@@ -129,6 +129,7 @@ class CustomInstall(install):
         self.run_command('build_clib')
         install.run(self)
 
+
 class PrepareLibs(build_clib):
     """Prepare prebuilt libraries"""
 
