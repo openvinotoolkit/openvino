@@ -5,12 +5,10 @@ endif(COMMAND cmake_policy)
 
 project(CNPY)
 
-set(BUILD_SHARED_LIBS OFF)  
 set(TARGET_NAME "cnpy")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 add_library(cnpy STATIC  "cnpy.cpp")
 
-if(NOT WIN32)
+if(NOT ${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-all")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
     target_compile_options(${TARGET_NAME} PUBLIC -Wno-unused-variable)

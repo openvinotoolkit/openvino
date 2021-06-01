@@ -31,8 +31,7 @@ void ArkFile::GetFileInfo(const char* fileName, uint32_t numArrayToFindSize, uin
         }
         in_file.close();
     } else {
-        fprintf(stderr, "Failed to open %s for reading in GetKaldiArkInfo()!\n", fileName);
-        exit(-1);
+        throw std::runtime_error(std::string("Failed to open %s for reading in GetFileInfo()!\n") + fileName);
     }
 
     if (ptrNumArrays != NULL)
@@ -76,8 +75,7 @@ void ArkFile::LoadFile(const char* fileName, uint32_t arrayIndex, std::string& p
         }
         in_file.close();
     } else {
-        fprintf(stderr, "Failed to open %s for reading in GetKaldiArkInfo()!\n", fileName);
-        exit(-1);
+        throw std::runtime_error(std::string("Failed to open %s for reading in LoadFile()!\n") + fileName);
     }
 
     *ptrNumBytesPerElement = sizeof(float);
@@ -100,7 +98,7 @@ void ArkFile::SaveFile(const char* fileName, bool shouldAppend, std::string name
         out_file.write(reinterpret_cast<char*>(ptrMemory), numRows * numColumns * sizeof(float));
         out_file.close();
     } else {
-        throw std::runtime_error(std::string("Failed to open %s for writing in SaveKaldiArkArray()!\n") + fileName);
+        throw std::runtime_error(std::string("Failed to open %s for writing in SaveFile()!\n") + fileName);
     }
 }
 
