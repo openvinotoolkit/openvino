@@ -33,100 +33,64 @@ namespace ngraph
             {proto::VarType_Type::VarType_Type_INT8, ngraph::element::i8},
             {proto::VarType_Type::VarType_Type_BF16, ngraph::element::bf16}};
 
-        ngraph::element::Type DecoderPDPDProto::get_dtype(const std::string& name,
-                                                          ngraph::element::Type def) const
-        {
-            auto dtype = (paddle::framework::proto::VarType_Type)get_int(name);
-            return TYPE_MAP[dtype];
-        }
-
-        std::vector<int32_t> DecoderPDPDProto::get_ints(const std::string& name,
-                                                        const std::vector<int32_t>& def) const
+        std::shared_ptr<Variant>
+            DecoderPDPDProto::get_attribute(const std::string& name,
+                                            const VariantTypeInfo& type_info) const
         {
             auto attrs = decode_attribute_helper(name);
             if (attrs.empty())
             {
-                return def;
+                return nullptr;
             }
-            return std::vector<int32_t>(attrs[0].ints().begin(), attrs[0].ints().end());
-        }
 
-        int DecoderPDPDProto::get_int(const std::string& name, int def) const
-        {
-            auto attrs = decode_attribute_helper(name);
-            if (attrs.empty())
+            if (type_info == VariantWrapper<std::string>::type_info)
             {
-                return def;
+                return std::make_shared<VariantWrapper<std::string>>(attrs[0].s());
             }
-            return attrs[0].i();
-        }
-
-        std::vector<float> DecoderPDPDProto::get_floats(const std::string& name,
-                                                        const std::vector<float>& def) const
-        {
-            auto attrs = decode_attribute_helper(name);
-            if (attrs.empty())
+            else if (type_info == VariantWrapper<int64_t>::type_info)
             {
-                return def;
+                return std::make_shared<VariantWrapper<int64_t>>(attrs[0].l());
             }
-
-            return std::vector<float>(attrs[0].floats().begin(), attrs[0].floats().end());
-        }
-
-        float DecoderPDPDProto::get_float(const std::string& name, float def) const
-        {
-            auto attrs = decode_attribute_helper(name);
-            if (attrs.empty())
+            else if (type_info == VariantWrapper<std::vector<int64_t>>::type_info)
             {
-                return def;
+                auto longs = std::vector<int64_t>(attrs[0].longs().begin(), attrs[0].longs().end());
+                return std::make_shared<VariantWrapper<std::vector<int64_t>>>(longs);
             }
-            return attrs[0].f();
-        }
-
-        std::string DecoderPDPDProto::get_str(const std::string& name, const std::string& def) const
-        {
-            auto attrs = decode_attribute_helper(name);
-            if (attrs.empty())
+            else if (type_info == VariantWrapper<int32_t>::type_info)
             {
-                return def;
+                return std::make_shared<VariantWrapper<int32_t>>(attrs[0].i());
             }
-            return attrs[0].s();
-        }
-
-        bool DecoderPDPDProto::get_bool(const std::string& name, bool def) const
-        {
-            auto attrs = decode_attribute_helper(name);
-            if (attrs.empty())
+            else if (type_info == VariantWrapper<std::vector<int32_t>>::type_info)
             {
-                return def;
+                auto ints = std::vector<int32_t>(attrs[0].ints().begin(), attrs[0].ints().end());
+                return std::make_shared<VariantWrapper<std::vector<int32_t>>>(ints);
             }
-            return attrs[0].b();
-        }
-
-        std::vector<int64_t> DecoderPDPDProto::get_longs(const std::string& name,
-                                                         const std::vector<int64_t>& def) const
-        {
-            auto attrs = decode_attribute_helper(name);
-            if (attrs.empty())
+            else if (type_info == VariantWrapper<float>::type_info)
             {
-                return def;
+                return std::make_shared<VariantWrapper<float>>(attrs[0].f());
             }
-
-            return std::vector<int64_t>(attrs[0].longs().begin(), attrs[0].longs().end());
-        }
-
-        int64_t DecoderPDPDProto::get_long(const std::string& name, const int64_t& def) const
-        {
-            auto attrs = decode_attribute_helper(name);
-            if (attrs.empty())
+            else if (type_info == VariantWrapper<std::vector<float>>::type_info)
             {
-                return def;
+                auto floats =
+                    std::vector<float>(attrs[0].floats().begin(), attrs[0].floats().end());
+                return std::make_shared<VariantWrapper<std::vector<float>>>(floats);
+            }
+            else if (type_info == VariantWrapper<ngraph::element::Type>::type_info)
+            {
+                auto data_type = (paddle::framework::proto::VarType_Type)attrs[0].i();
+                return std::make_shared<VariantWrapper<ngraph::element::Type>>(TYPE_MAP[data_type]);
+            }
+            else if (type_info == VariantWrapper<bool>::type_info)
+            {
+                return std::make_shared<VariantWrapper<bool>>(attrs[0].b());
             }
 
-            return attrs[0].l();
+            // Type is not supported by decoder
+            std::cerr << "Type is not supported: " << type_info.name << std::endl;
+            return nullptr;
         }
 
-        std::vector<std::string> DecoderPDPDProto::get_output_names() const
+        std::vector<pdpd::OutPortName> DecoderPDPDProto::get_output_names() const
         {
             std::vector<std::string> output_names;
             for (const auto& output : op_place->getDesc()->outputs())
@@ -135,6 +99,23 @@ namespace ngraph
             }
             return output_names;
         }
+
+        ngraph::element::Type
+            DecoderPDPDProto::get_out_port_type(const std::string& port_name) const
+        {
+            std::vector<ngraph::element::Type> output_types;
+            for (const auto& out_port : op_place->getOutputPorts().at(port_name))
+            {
+                output_types.push_back(out_port->getTargetTensorPDPD()->getElementType());
+            }
+            FRONT_END_GENERAL_CHECK(output_types.size() > 0, "Port has no tensors connected.");
+            FRONT_END_GENERAL_CHECK(
+                std::equal(output_types.begin() + 1, output_types.end(), output_types.begin()),
+                "Port has tensors with different types connected.");
+            return output_types[0];
+        }
+
+        std::string DecoderPDPDProto::get_op_type() const { return op_place->getDesc()->type(); }
 
         std::vector<proto::OpDesc_Attr>
             DecoderPDPDProto::decode_attribute_helper(const std::string& name) const
@@ -155,17 +136,5 @@ namespace ngraph
                                     " Expected number: 0 or 1");
             return attrs;
         }
-
-        std::vector<ngraph::element::Type>
-            DecoderPDPDProto::get_out_port_types(const std::string& port_name) const
-        {
-            std::vector<ngraph::element::Type> output_types;
-            for (const auto& out_port : op_place->getOutputPorts().at(port_name))
-            {
-                output_types.push_back(out_port->getTargetTensorPDPD()->getElementType());
-            }
-            return output_types;
-        }
-
     } // namespace frontend
 } // namespace ngraph

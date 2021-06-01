@@ -21,24 +21,31 @@ namespace ngraph
                                          ngraph::Shape& pad_end,
                                          ngraph::op::PadType& auto_pad)
                 {
-                    //
-                    auto pad_algo = node.get_attribute<std::string>("padding_algorithm");
-                    if (pad_algo == "SAME")
+                    if (node.has_attribute<std::string>("padding_algorithm"))
                     {
-                        auto_pad = ngraph::op::PadType::SAME_UPPER;
-                    }
-                    else if (pad_algo == "VALID")
-                    {
-                        auto_pad = ngraph::op::PadType::VALID;
-                    }
-                    else if ((pad_algo == "EXPLICIT") || pad_algo.empty())
-                    { // adaptive_maxpool with no such attr.
-                        auto_pad = ngraph::op::PadType::EXPLICIT;
+                        auto pad_algo = node.get_attribute<std::string>("padding_algorithm");
+                        if (pad_algo == "SAME")
+                        {
+                            auto_pad = ngraph::op::PadType::SAME_UPPER;
+                        }
+                        else if (pad_algo == "VALID")
+                        {
+                            auto_pad = ngraph::op::PadType::VALID;
+                        }
+                        else if (pad_algo == "EXPLICIT")
+                        {
+                            auto_pad = ngraph::op::PadType::EXPLICIT;
+                        }
+                        else
+                        {
+                            throw std::runtime_error("Unsupported pooling padding_algorithm " +
+                                                     pad_algo);
+                        }
                     }
                     else
                     {
-                        throw std::runtime_error("Unsupported pooling padding_algorithm " +
-                                                 pad_algo);
+                        // adaptive_maxpool with no such attr.
+                        auto_pad = ngraph::op::PadType::EXPLICIT;
                     }
 
                     /*If pool padding size is a tuple or list, it could be in three forms:
@@ -49,7 +56,9 @@ namespace ngraph
                     [[0,0], [pad_height_top, pad_height_bottom], [pad_width_left, pad_width_right],
                     [0,0]]. Otherwise, the pool padding size will be a square of an int.*/
                     auto paddings = node.get_attribute<std::vector<int32_t>>("paddings");
-                    auto data_format = node.get_attribute<std::string>("data_format");
+
+                    // Default is empty for 'adaptive max pooling'
+                    auto data_format = node.get_attribute<std::string>("data_format", {});
 
                     // TODO: need to support NHWC input #55483
                     switch (paddings.size())
@@ -75,12 +84,12 @@ namespace ngraph
                 {
                     auto data = node.get_ng_input("X");
 
-                    auto pooling_type = node.get_attribute<std::string>("pooling_type");
+                    auto pooling_type = node.get_attribute<std::string>("pooling_type", {});
                     auto global_pooling = node.get_attribute<bool>("global_pooling");
                     auto adaptive = node.get_attribute<bool>("adaptive");
                     auto kernel_shape = node.get_attribute<std::vector<int32_t>>("ksize");
 
-                    auto rounding_type = node.get_attribute<bool>("ceil_mode")
+                    auto rounding_type = node.get_attribute<bool>("ceil_mode", false)
                                              ? ngraph::op::RoundingType::CEIL
                                              : ngraph::op::RoundingType::FLOOR;
 

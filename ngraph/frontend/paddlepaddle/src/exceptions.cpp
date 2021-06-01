@@ -15,7 +15,7 @@ namespace ngraph
                 OpValidationFailurePDPD::get_error_msg_prefix_pdpd(const pdpd::NodeContext& node)
             {
                 std::stringstream ss;
-                ss << "While validating node '" << node.op_type() << '\'';
+                ss << "While validating node '" << node.get_op_type() << '\'';
                 return ss.str();
             }
         } // namespace pdpd
