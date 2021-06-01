@@ -138,6 +138,8 @@ private:
      */
     static GNAPluginNS::HeaderLatest::ModelHeader ReadHeader(std::istream &is);
 
+    GNAPluginNS::HeaderLatest::RuntimeEndPoint ReadEndPoint(std::istream &is);
+
     /**
      * @brief Import model from FS into preallocated buffer,
      * buffers for pLayers, and pStructs are allocated here and required manual deallocation using mm_free
