@@ -1,4 +1,5 @@
-# Convert ONNX* DLRM to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM}
+[DEPRECATED] Convert ONNX* DLRM to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM}
+===============================
 
 > **NOTE**: These instructions are currently deprecated. Since OpenVINO™ 2020.4 version, no specific steps are needed to convert ONNX\* DLRM models. For general instructions on converting ONNX models, please refer to [Converting a ONNX* Model](../Convert_Model_From_ONNX.md) topic.
 
