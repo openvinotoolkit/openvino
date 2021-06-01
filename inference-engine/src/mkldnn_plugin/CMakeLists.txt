@@ -109,7 +109,7 @@ if(GEMM STREQUAL "MKL")
     install(DIRECTORY "${MKL}/include"
             DESTINATION ${IE_CPACK_IE_DIR}/external/mkltiny_lnx
             COMPONENT cpu)
-    install(FILES "${MKLLIB}"
+    install(DIRECTORY "${MKLLIB}"
             DESTINATION ${IE_CPACK_IE_DIR}/external/mkltiny_lnx/lib
             COMPONENT cpu)
     install(FILES "${MKL}/version.info"
