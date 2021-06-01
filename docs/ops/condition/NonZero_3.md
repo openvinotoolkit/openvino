@@ -14,7 +14,9 @@
 * In given example the tuples would be: `[0, 0]`, `[1, 0]`, `[1, 1]`.
 
 **Attributes**
+
 * *output_type*
+
   * **Description**: the output tensor type
   * **Range of values**: `i64` or `i32`
   * **Type**: string
