@@ -21,7 +21,6 @@ namespace domains {
 }   // namespace pass
 }   // namespace ngraph
 
-OV_CC_DOMAINS(ngraph_pass);
 OV_CC_DOMAINS(internal_op);
 
 /*
