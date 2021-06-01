@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v4::Mish::type_info;
+NGRAPH_RTTI_DEFINITION(op::v4::Mish, "Mish", 4);
 
 op::v4::Mish::Mish(const Output<Node>& arg)
     : Op({arg})
