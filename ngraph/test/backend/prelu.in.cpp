@@ -13,7 +13,6 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_1_param)
 {
     Shape shape_a{6};
@@ -33,7 +32,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_1_param)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_1_const)
 {
     Shape shape_a{6};
@@ -53,8 +51,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_1_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
-// 2021.3 Reference impl logic error
 NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_param)
 {
     Shape shape_a{6};
@@ -74,7 +70,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_param)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_6_const)
 {
     Shape shape_a{6};
@@ -94,7 +89,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_6_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_2_W_param)
 {
     Shape shape_a{3, 2};
@@ -114,7 +108,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_2_W_param)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_2_W_const)
 {
     Shape shape_a{3, 2};
@@ -134,7 +127,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_2_W_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_6_W_param)
 {
     Shape shape_a{2, 6};
@@ -156,7 +148,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_6_W_param)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_6_W_const)
 {
     Shape shape_a{2, 6};
@@ -178,7 +169,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_6_W_const)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_C_2_param)
 {
     Shape shape_a{3, 2};
@@ -198,7 +188,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_C_2_param)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_C_2_const)
 {
     Shape shape_a{3, 2};
@@ -218,7 +207,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_C_2_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_equal_dims_slope_param)
 {
     Shape shape_a{2, 2, 2};
@@ -227,7 +215,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_equal_dims_slope_param)
     std::vector<float> a{-0.5, -2, -3, -4, 5, 6, -7, 8};
     std::vector<float> slope{-0.5, -2};
     // std::vector<float> out{0.25, 4, 1.5, 8, 5, 6, 3.5, 8}; // numpy broadcast
-    std::vector<float> out{0.25, 1, 6, 8, 5, 6, 14, 8}; // per channel with 2021.4
+    std::vector<float> out{0.25, 1, 6, 8, 5, 6, 14, 8};
 
     const auto A = make_shared<op::Parameter>(element::f32, shape_a);
     const auto SLOPE = make_shared<op::Parameter>(element::f32, shape_slope);
@@ -239,7 +227,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_equal_dims_slope_param)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_equal_dims_slope_const)
 {
     Shape shape_a{2, 2, 2};
@@ -259,7 +246,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_equal_dims_slope_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope_param)
 {
     Shape shape_a{3, 2};
@@ -279,7 +265,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope_param)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope_const)
 {
     Shape shape_a{3, 2};
@@ -299,7 +284,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_same_shape_param)
 {
     Shape shape_a{2, 6};
@@ -321,7 +305,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_same_shape_param)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_same_shape_const)
 {
     Shape shape_a{2, 6};
@@ -343,7 +326,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_2d_same_shape_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_C_1_W_slope_param)
 {
     Shape shape_a{2, 2, 2, 2};
@@ -363,7 +345,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_C_1_W_slope_param)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_C_1_W_slope_const)
 {
     Shape shape_a{2, 2, 2, 2};
@@ -383,7 +364,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_C_1_W_slope_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_slope_1_C_1_W_param)
 {
     Shape shape_a{2, 2, 2, 2};
@@ -403,7 +383,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_slope_1_C_1_W_param)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_slope_1_C_1_W_const)
 {
     Shape shape_a{2, 2, 2, 2};
@@ -423,7 +402,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_slope_1_C_1_W_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_W_param)
 {
     Shape shape_a{2, 2, 6};
@@ -451,7 +429,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_W_param)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_W_const)
 {
     Shape shape_a{2, 2, 6};
@@ -478,7 +455,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_W_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_same_shape_param)
 {
     Shape shape_a{2, 3, 2};
@@ -501,7 +477,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_same_shape_param)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_same_shape_const)
 {
     Shape shape_a{2, 3, 2};
@@ -524,7 +499,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_same_shape_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_C_W_slope_param)
 {
     Shape shape_a{2, 1, 2};
@@ -545,7 +519,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_C_W_slope_param)
 }
 
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_C_W_slope_const)
 {
     Shape shape_a{2, 1, 2};
@@ -565,7 +538,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_C_W_slope_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3 with numpy broadcast
 NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_W_slope_param)
 {
     Shape shape_a{1, 2, 1, 2};
@@ -574,7 +546,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_W_slope_param)
     std::vector<float> a{-10, -10, -10, -10};
     std::vector<float> slope{0.1, 10};
     // std::vector<float> out{-1, -100, -1, -100}; // numpy broadcast
-    std::vector<float> out{-1, -1, -100, -100}; // per channel with 2021.4
+    std::vector<float> out{-1, -1, -100, -100}; // per channel
 
     const auto A = make_shared<op::Parameter>(element::f32, shape_a);
     const auto SLOPE = make_shared<op::Parameter>(element::f32, shape_slope);
@@ -586,8 +558,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_W_slope_param)
     test_case.run();
 }
 
-
-// Supported by CPU 2021.3 per channel
 NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_W_slope_const)
 {
     Shape shape_a{1, 2, 1, 2};
@@ -607,7 +577,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_W_slope_const)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_slope_param)
 {
     Shape shape_a{1, 5, 1, 1};
@@ -627,7 +596,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_slope_param)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_slope_const)
 {
     Shape shape_a{1, 5, 1, 1};
@@ -647,7 +615,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_slope_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_batch_nd_elementwise_param)
 {
     Shape shape_a{2, 3, 4, 5};
@@ -691,7 +658,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_batch_nd_elementwise_param)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_batch_nd_elementwise_const)
 {
     Shape shape_a{2, 3, 4, 5};
@@ -735,7 +701,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_batch_nd_elementwise_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_W_slope_param)
 {
     Shape shape_a{2, 3, 4, 5};
@@ -775,7 +740,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_W_slope_param)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_W_slope_const)
 {
     Shape shape_a{2, 3, 4, 5};
@@ -794,7 +758,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_W_slope_const)
 
     std::vector<float> slope{0, 1, 2, 3, 4};
 
-    // On 2021.3 output filled with 0
     std::vector<float> out{-0., -1., -2., -3., -4., -0., -1., -2., -3., -4., -0., -1., -2.,
        -3., -4., -0., -1., -2., -3., -4., -0., -1., -2., -3., -4., -0.,
        -1., -2., -3., -4., -0., -1., -2., -3., -4., -0., -1., -2., -3.,
@@ -816,7 +779,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_W_slope_const)
     test_case.run();
 }
 
-// Not supported by CPU 2021.3 (invalid input/output dims from mkldnn plugin)
 NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_C_slope_param)
 {
     Shape shape_a{2, 3, 4, 5};
@@ -856,7 +818,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_C_slope_param)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_C_slope_const)
 {
     Shape shape_a{2, 3, 4, 5};
@@ -896,7 +857,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_1d_C_slope_const)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_C_1_1_slope_param)
 {
     Shape shape_a{2, 3, 4, 5};
@@ -936,7 +896,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_C_1_1_slope_param)
     test_case.run();
 }
 
-// Supported by CPU 2021.3
 NGRAPH_TEST(${BACKEND_NAME}, prelu_C_1_1_slope_const)
 {
     Shape shape_a{2, 3, 4, 5};
