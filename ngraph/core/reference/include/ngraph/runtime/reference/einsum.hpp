@@ -14,8 +14,9 @@ namespace ngraph
     {
         namespace reference
         {
-            void einsum(const HostTensorVector& outputs, const HostTensorVector& inputs,
-                        const std::string &equation,
+            void einsum(const HostTensorVector& outputs,
+                        const HostTensorVector& inputs,
+                        const std::string& equation,
                         const element::Type& input_type);
         } // namespace reference
 

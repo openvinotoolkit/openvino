@@ -44,6 +44,26 @@ namespace
         return true;
     }
 
+    bool is_dimension_reduced(const std::vector<std::string>& input_subscripts,
+                              const std::string& output_subscript,
+                              const std::string label_to_check,
+                              const std::vector<size_t>& excluded_indices)
+    {
+        for (size_t input_ind = 0; input_ind < input_subscripts.size(); ++input_ind)
+        {
+            const auto& input_subscript = input_subscripts[input_ind];
+            // the subscript is checked only if its index is not in excluded indices list
+            bool check_subscript =
+                (std::find(excluded_indices.begin(), excluded_indices.end(), input_ind) ==
+                 excluded_indices.end());
+            if (check_subscript && input_subscript.find(label_to_check) != std::string::npos)
+            {
+                return false;
+            }
+        }
+        return output_subscript.find(label_to_check) == std::string::npos;
+    }
+
     std::string generate_grouping_subscript(const std::string& input_subscript,
                                             const std::vector<int64_t>& common_labels_inds,
                                             const std::vector<int64_t>& separate_labels_inds,
@@ -86,6 +106,57 @@ namespace
         return required_subscript;
     }
 
+    std::unordered_map<std::string, std::vector<size_t>>
+        compute_label_dim_map(const Rank& input_rank, const std::string& input_subscript)
+    {
+        const std::string ellipsis = "...";
+        auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
+        size_t input_rank_length = labels.size();
+        if (input_rank.is_dynamic() &&
+            std::find(labels.begin(), labels.end(), ellipsis) != labels.end())
+        {
+            NGRAPH_CHECK(false,
+                         "Input rank cannot be dynamic in case of ellipsis in input subscript");
+        }
+        else if (input_rank.is_static())
+        {
+            input_rank_length = input_rank.get_length();
+        }
+        std::unordered_map<std::string, std::vector<size_t>> resulted_map;
+        NGRAPH_CHECK(input_rank_length >= labels.size());
+        size_t num_broadcasted_dims = input_rank_length - labels.size() + 1;
+        NGRAPH_CHECK(num_broadcasted_dims >= 0);
+
+        size_t current_dim = 0;
+        for (const auto& label : labels)
+        {
+            if (label == ellipsis)
+            {
+                std::vector<size_t> label_dims;
+                for (size_t ind = 0; ind < num_broadcasted_dims; ++ind)
+                {
+                    label_dims.push_back(current_dim + ind);
+                }
+                resulted_map[label] = label_dims;
+                current_dim += num_broadcasted_dims;
+            }
+            else if (resulted_map.find(label) != resulted_map.end())
+            {
+                resulted_map[label].push_back(current_dim);
+                ++current_dim;
+            }
+            else
+            {
+                std::vector<size_t> label_dims;
+                label_dims.push_back(current_dim);
+                resulted_map[label] = label_dims;
+                ++current_dim;
+            }
+        }
+
+        return resulted_map;
+    }
+
     Shape compute_sub_shape(const Shape& input_shape,
                             size_t begin,
                             size_t end,
@@ -111,74 +182,57 @@ namespace
         return sub_shape;
     }
 
-    template <typename T>
-    HostTensorPtr reshape_input_for_matmul(const HostTensorPtr& input,
-                                           const Shape& common_sub_shape,
-                                           const Shape& separate_sub_shape,
-                                           const Shape& reduced_sub_shape_prod,
-                                           bool is_separate_first)
+    void compute_ranges(const Rank& input_rank,
+                        const std::string& input_subscript,
+                        const std::vector<std::string>& common_labels,
+                        const std::vector<std::string>& sep_labels,
+                        const std::vector<std::string>& reduced_labels,
+                        size_t& common_begin,
+                        size_t& common_end,
+                        size_t& sep_begin,
+                        size_t& sep_end,
+                        size_t& reduced_begin,
+                        size_t& reduced_end,
+                        bool is_separated_first)
     {
-        Shape new_shape;
-        new_shape.insert(new_shape.end(), common_sub_shape.begin(), common_sub_shape.end());
-
-        // compute a product of a sub-shape for separate labels
-        Shape separate_sub_shape_prod = separate_sub_shape;
-        if (common_sub_shape.size() > 0 && separate_sub_shape_prod.size() == 0)
+        auto label_to_dim_map = compute_label_dim_map(input_rank, input_subscript);
+        const std::string ellipsis = "...";
+        size_t common_rank = common_labels.size();
+        if (std::find(common_labels.begin(), common_labels.end(), ellipsis) != common_labels.end())
         {
-            // in this case new dimension corresponding to separate labels must be added
-            // since MatMul operation is not possible to do without separate dimensions if the
-            // common dimension presents
-            separate_sub_shape_prod.push_back(1);
+            NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+            common_rank += label_to_dim_map[ellipsis].size() - 1;
         }
-        else if (separate_sub_shape_prod.size() > 0)
+        size_t sep_rank = sep_labels.size();
+        if (std::find(sep_labels.begin(), sep_labels.end(), ellipsis) != sep_labels.end())
         {
-            // in this case compute a product of separate dimension sizes since they must be
-            // presented with just one dimension for MatMul
-            size_t prod = 1;
-            for (auto dim : separate_sub_shape_prod)
-            {
-                prod *= dim;
-            }
-            separate_sub_shape_prod.clear();
-            separate_sub_shape_prod.push_back(prod);
+            NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+            sep_rank += label_to_dim_map[ellipsis].size() - 1;
+        }
+        size_t reduced_rank = reduced_labels.size();
+        if (std::find(reduced_labels.begin(), reduced_labels.end(), ellipsis) !=
+            reduced_labels.end())
+        {
+            NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+            reduced_rank += label_to_dim_map[ellipsis].size() - 1;
         }
 
-        // form a new shape for input so that collapsed dimensions corresponding
-        // to the common, separate and reduced dimensions are placed in the correct order
-        if (is_separate_first)
+        common_begin = 0;
+        common_end = common_begin + common_rank;
+        if (is_separated_first)
         {
-            new_shape.insert(
-                new_shape.end(), separate_sub_shape_prod.begin(), separate_sub_shape_prod.end());
-            new_shape.insert(
-                new_shape.end(), reduced_sub_shape_prod.begin(), reduced_sub_shape_prod.end());
+            sep_begin = common_end;
+            sep_end = sep_begin + sep_rank;
+            reduced_begin = sep_end;
+            reduced_end = reduced_begin + reduced_rank;
         }
         else
         {
-            new_shape.insert(
-                new_shape.end(), reduced_sub_shape_prod.begin(), reduced_sub_shape_prod.end());
-            new_shape.insert(
-                new_shape.end(), separate_sub_shape_prod.begin(), separate_sub_shape_prod.end());
+            reduced_begin = common_end;
+            reduced_end = reduced_begin + reduced_rank;
+            sep_begin = reduced_end;
+            sep_end = sep_begin + sep_rank;
         }
-
-        // when new shape is equal to the current one,
-        // there is no need in reshape
-        if (new_shape == input->get_shape())
-        {
-            return input;
-        }
-
-        const auto element_type = input->get_element_type();
-        const auto input_shape = input->get_shape();
-        HostTensorPtr output = std::shared_ptr<HostTensor>(new HostTensor(element_type, new_shape));
-        const AxisVector order = get_default_order(input_shape);
-
-        ngraph::runtime::reference::reshape(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
-                                            reinterpret_cast<char*>(output->get_data_ptr<T>()),
-                                            input_shape,
-                                            order,
-                                            new_shape,
-                                            element_type.size());
-        return output;
     }
 
     Shape compute_matmul_output_shape(const Shape& common_sub_shape,
@@ -271,7 +325,8 @@ namespace
         std::sort(unsqueeze_axes.begin(), unsqueeze_axes.end());
         for (auto unsqueeze_axis : unsqueeze_axes)
         {
-            NGRAPH_CHECK(unsqueeze_axis >= 0 && unsqueeze_axis <= output_shape.size());
+            NGRAPH_CHECK(unsqueeze_axis >= 0);
+            NGRAPH_CHECK(static_cast<size_t>(unsqueeze_axis) <= output_shape.size());
             output_shape.insert(output_shape.begin() + unsqueeze_axis, 1);
         }
 
@@ -288,6 +343,139 @@ namespace
                                             element_type.size());
 
         return output;
+    }
+
+    template <typename T>
+    void reduce_input(HostTensorVector& inputs,
+                      std::vector<std::string>& input_subscripts,
+                      const std::string& output_subscript,
+                      size_t input_ind)
+    {
+        // perform sanity check for arguments
+        auto num_inputs = inputs.size();
+        NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+        NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
+
+        const auto& input_ptr = inputs[input_ind];
+        const auto& input_subscript = input_subscripts[input_ind];
+        const auto input_shape = input_ptr->get_shape();
+
+        // compute output shape and axes to reduce
+        ngraph::Shape output_shape;
+        ngraph::AxisSet reduced_axes;
+        auto labels = ngraph::opset7::Einsum::extract_labels(input_subscripts[input_ind]);
+        auto label_dim_map =
+            compute_label_dim_map(input_ptr->get_partial_shape().rank(), input_subscript);
+        std::string new_input_subscript = "";
+        for (const auto& label : labels)
+        {
+            // check if the current label is met in the other input subscripts
+            // or the output subscript
+            bool is_dim_reduced =
+                is_dimension_reduced(input_subscripts, output_subscript, label, {input_ind});
+
+            NGRAPH_CHECK(label_dim_map.find(label) != label_dim_map.end());
+            auto label_dims = label_dim_map[label];
+
+            // if label is not met, dimension corresponding to the label is to reduce
+            if (is_dim_reduced)
+            {
+                reduced_axes.insert(label_dims.begin(), label_dims.end());
+            }
+            else
+            {
+                for (auto label_dim : label_dims)
+                {
+                    output_shape.push_back(input_shape[label_dim]);
+                }
+                new_input_subscript += label;
+            }
+        }
+
+        if (reduced_axes.size() == 0)
+        {
+            // there is no axis to reduce
+            return;
+        }
+
+        HostTensorPtr output_ptr = std::shared_ptr<HostTensor>(
+            new HostTensor(input_ptr->get_element_type(), output_shape));
+
+        ngraph::runtime::reference::sum<T>(input_ptr->get_data_ptr<T>(),
+                                           output_ptr->get_data_ptr<T>(),
+                                           input_shape,
+                                           reduced_axes,
+                                           false);
+
+        // update a vector of inputs and input subscripts
+        inputs[input_ind] = output_ptr;
+        input_subscripts[input_ind] = new_input_subscript;
+    }
+
+    template <typename T>
+    void transpose_input(HostTensorVector& inputs,
+                         std::vector<std::string>& input_subscripts,
+                         const std::string& required_subscript,
+                         size_t input_ind)
+    {
+        // perform sanity check for arguments
+        auto num_inputs = inputs.size();
+        NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+        NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
+
+        // generate permutation vector by searching for bijection between input_subscripts
+        // and required_subscript
+        std::vector<int64_t> permutation;
+        const auto& input_ptr = inputs[input_ind];
+        const auto& input_subscript = input_subscripts[input_ind];
+
+        // transpose is not needed since the input subscript is not going to be changed
+        if (required_subscript == input_subscript)
+        {
+            return;
+        }
+
+        // find permutation that establishes bijection between the input subscript
+        // and the required one
+        auto label_dim_map =
+            compute_label_dim_map(input_ptr->get_partial_shape().rank(), input_subscript);
+        auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
+        auto required_labels = ngraph::opset7::Einsum::extract_labels(required_subscript);
+        NGRAPH_CHECK(labels.size() == required_labels.size());
+        for (const auto& required_label : required_labels)
+        {
+            NGRAPH_CHECK(label_dim_map.find(required_label) != label_dim_map.end());
+            auto label_dims = label_dim_map[required_label];
+            permutation.insert(permutation.end(), label_dims.begin(), label_dims.end());
+        }
+
+        const auto input_shape = input_ptr->get_shape();
+        const auto element_type = input_ptr->get_element_type();
+
+        Shape output_shape(input_shape.size());
+        std::transform(
+            permutation.begin(), permutation.end(), output_shape.begin(), [&](const int64_t& v) {
+                NGRAPH_CHECK(v >= 0, "Negative values for transpose axes order are not supported.");
+                NGRAPH_CHECK(v < int64_t(input_shape.size()),
+                             "Transpose axis ",
+                             v,
+                             " is out of shape range.");
+                return input_shape[v];
+            });
+        HostTensorPtr output_ptr =
+            std::shared_ptr<HostTensor>(new HostTensor(element_type, output_shape));
+
+        ngraph::runtime::reference::transpose(
+            reinterpret_cast<const char*>(input_ptr->get_data_ptr<T>()),
+            reinterpret_cast<char*>(output_ptr->get_data_ptr<T>()),
+            input_shape,
+            element_type.size(),
+            permutation.data(),
+            output_shape);
+
+        // update a vector of inputs and input subscripts
+        inputs[input_ind] = output_ptr;
+        input_subscripts[input_ind] = required_subscript;
     }
 
     template <typename T>
@@ -338,109 +526,6 @@ namespace
         input = output;
     }
 
-    std::unordered_map<std::string, std::vector<size_t>>
-        compute_label_dim_map(const Rank& input_rank, const std::string& input_subscript)
-    {
-        const std::string ellipsis = "...";
-        auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
-        int64_t input_rank_length = labels.size();
-        if (input_rank.is_dynamic() &&
-            std::find(labels.begin(), labels.end(), ellipsis) != labels.end())
-        {
-            NGRAPH_CHECK(false,
-                         "Input rank cannot be dynamic in case of ellipsis in input subscript");
-        }
-        else if (input_rank.is_static())
-        {
-            input_rank_length = input_rank.get_length();
-        }
-        std::unordered_map<std::string, std::vector<size_t>> resulted_map;
-        int64_t num_broadcasted_dims = input_rank_length - labels.size() + 1;
-        NGRAPH_CHECK(num_broadcasted_dims >= 0);
-
-        size_t current_dim = 0;
-        for (const auto& label : labels)
-        {
-            if (label == ellipsis)
-            {
-                std::vector<size_t> label_dims;
-                for (size_t ind = 0; ind < num_broadcasted_dims; ++ind)
-                {
-                    label_dims.push_back(current_dim + ind);
-                }
-                resulted_map[label] = label_dims;
-                current_dim += num_broadcasted_dims;
-            }
-            else if (resulted_map.find(label) != resulted_map.end())
-            {
-                resulted_map[label].push_back(current_dim);
-                ++current_dim;
-            }
-            else
-            {
-                std::vector<size_t> label_dims;
-                label_dims.push_back(current_dim);
-                resulted_map[label] = label_dims;
-                ++current_dim;            
-            }
-        }
-
-        return resulted_map;
-    }
-
-    void compute_ranges(const Rank& input_rank,
-                        const std::string& input_subscript,
-                        const std::vector<std::string>& common_labels,
-                        const std::vector<std::string>& sep_labels,
-                        const std::vector<std::string>& reduced_labels,
-                        size_t& common_begin,
-                        size_t& common_end,
-                        size_t& sep_begin,
-                        size_t& sep_end,
-                        size_t& reduced_begin,
-                        size_t& reduced_end,
-                        bool is_separated_first)
-    {
-        auto label_to_dim_map = compute_label_dim_map(input_rank, input_subscript);
-        const std::string ellipsis = "...";
-        size_t common_rank = common_labels.size();
-        if (std::find(common_labels.begin(), common_labels.end(), ellipsis) != common_labels.end())
-        {
-            NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
-            common_rank += label_to_dim_map[ellipsis].size() - 1;
-        }
-        size_t sep_rank = sep_labels.size();
-        if (std::find(sep_labels.begin(), sep_labels.end(), ellipsis) != sep_labels.end())
-        {
-            NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
-            sep_rank += label_to_dim_map[ellipsis].size() - 1;
-        }
-        size_t reduced_rank = reduced_labels.size();
-        if (std::find(reduced_labels.begin(), reduced_labels.end(), ellipsis) !=
-            reduced_labels.end())
-        {
-            NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
-            reduced_rank += label_to_dim_map[ellipsis].size() - 1;
-        }
-
-        common_begin = 0;
-        common_end = common_begin + common_rank;
-        if (is_separated_first)
-        {
-            sep_begin = common_end;
-            sep_end = sep_begin + sep_rank;
-            reduced_begin = sep_end;
-            reduced_end = reduced_begin + reduced_rank;
-        }
-        else
-        {
-            reduced_begin = common_end;
-            reduced_end = reduced_begin + reduced_rank;
-            sep_begin = reduced_end;
-            sep_end = sep_begin + sep_rank;
-        }
-    }
-
     template <typename T>
     HostTensorPtr build_identity(const HostTensorPtr& input_ptr,
                                  const std::vector<size_t>& repeated_label_dims)
@@ -468,7 +553,8 @@ namespace
         // n is occurence number for the considered label and k in [0; p).
         // Note that k*p^(n-1) + ... + k*p + k = k * (p^n-1)/(p-1) = k * alpha
         size_t p = repeated_label_dim_size;
-        if (p == 1) {
+        if (p == 1)
+        {
             identity_data_ptr[0] = static_cast<T>(1);
             return identity;
         }
@@ -476,7 +562,8 @@ namespace
         size_t n = repeated_label_dims.size();
         size_t alpha = (static_cast<size_t>(std::pow(p, n)) - 1) / (p - 1);
         size_t offset = 0;
-        for (size_t k = 0; k < p; ++k) {
+        for (size_t k = 0; k < p; ++k)
+        {
             identity_data_ptr[offset] = static_cast<T>(1);
             offset += alpha;
         }
@@ -484,12 +571,11 @@ namespace
         return identity;
     }
 
-
     template <typename T>
-    HostTensorPtr build_multi_identity(
-        const HostTensorPtr& input_ptr,
-        const std::vector<std::string>& repeated_labels,
-        std::unordered_map<std::string, std::vector<size_t>>& label_dim_map)
+    HostTensorPtr
+        build_multi_identity(const HostTensorPtr& input_ptr,
+                             const std::vector<std::string>& repeated_labels,
+                             std::unordered_map<std::string, std::vector<size_t>>& label_dim_map)
     {
         Shape input_shape = input_ptr->get_shape();
 
@@ -507,8 +593,8 @@ namespace
             HostTensorPtr identity = build_identity<T>(input_ptr, repeated_label_dims);
 
             PartialShape output_shape = multi_identity->get_partial_shape();
-            PartialShape::broadcast_merge_into(output_shape, identity->get_partial_shape(),
-                                               ngraph::op::AutoBroadcastSpec::NUMPY);
+            PartialShape::broadcast_merge_into(
+                output_shape, identity->get_partial_shape(), ngraph::op::AutoBroadcastSpec::NUMPY);
             HostTensorPtr mul_output = std::shared_ptr<HostTensor>(
                 new HostTensor(identity->get_element_type(), output_shape.get_shape()));
             ngraph::runtime::reference::multiply<T>(multi_identity->get_data_ptr<T>(),
@@ -539,7 +625,8 @@ namespace
         std::string resultant_subscript = "";
         const std::string ellipsis = "...";
         auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
-        auto label_dim_map = compute_label_dim_map(input_ptr->get_partial_shape().rank(), input_subscript);
+        auto label_dim_map =
+            compute_label_dim_map(input_ptr->get_partial_shape().rank(), input_subscript);
         std::vector<std::string> repeated_labels;
         Shape result_shape;
         AxisSet reduced_axes;
@@ -550,9 +637,11 @@ namespace
                 NGRAPH_CHECK(label_dim_map.find(label) != label_dim_map.end());
                 auto dims = label_dim_map[label];
                 NGRAPH_CHECK(dims.size() > 0);
-                if (label != ellipsis && dims.size() > 1) {
+                if (label != ellipsis && dims.size() > 1)
+                {
                     // repeated label is found
-                    for (size_t dim_ind = 1; dim_ind < dims.size(); ++dim_ind) {
+                    for (size_t dim_ind = 1; dim_ind < dims.size(); ++dim_ind)
+                    {
                         reduced_axes.insert(dims[dim_ind]);
                     }
                     // save only the first dimension corresponding to the repeated label
@@ -562,7 +651,8 @@ namespace
                     repeated_labels.push_back(label);
                 }
                 resultant_subscript += label;
-                for (auto dim : dims) {
+                for (auto dim : dims)
+                {
                     NGRAPH_CHECK(dim < input_shape.size());
                     result_shape.push_back(input_shape[dim]);
                 }
@@ -573,7 +663,8 @@ namespace
             return;
         }
 
-        HostTensorPtr multi_identity = build_multi_identity<T>(input_ptr, repeated_labels, label_dim_map);
+        HostTensorPtr multi_identity =
+            build_multi_identity<T>(input_ptr, repeated_labels, label_dim_map);
 
         HostTensorPtr mul_output = std::shared_ptr<HostTensor>(
             new HostTensor(input_ptr->get_element_type(), input_ptr->get_shape()));
@@ -593,6 +684,76 @@ namespace
                                            false);
         inputs[input_ind] = result;
         input_subscripts[input_ind] = resultant_subscript;
+    }
+
+    template <typename T>
+    HostTensorPtr reshape_input_for_matmul(const HostTensorPtr& input,
+                                           const Shape& common_sub_shape,
+                                           const Shape& separate_sub_shape,
+                                           const Shape& reduced_sub_shape_prod,
+                                           bool is_separate_first)
+    {
+        Shape new_shape;
+        new_shape.insert(new_shape.end(), common_sub_shape.begin(), common_sub_shape.end());
+
+        // compute a product of a sub-shape for separate labels
+        Shape separate_sub_shape_prod = separate_sub_shape;
+        if (common_sub_shape.size() > 0 && separate_sub_shape_prod.size() == 0)
+        {
+            // in this case new dimension corresponding to separate labels must be added
+            // since MatMul operation is not possible to do without separate dimensions if the
+            // common dimension presents
+            separate_sub_shape_prod.push_back(1);
+        }
+        else if (separate_sub_shape_prod.size() > 0)
+        {
+            // in this case compute a product of separate dimension sizes since they must be
+            // presented with just one dimension for MatMul
+            size_t prod = 1;
+            for (auto dim : separate_sub_shape_prod)
+            {
+                prod *= dim;
+            }
+            separate_sub_shape_prod.clear();
+            separate_sub_shape_prod.push_back(prod);
+        }
+
+        // form a new shape for input so that collapsed dimensions corresponding
+        // to the common, separate and reduced dimensions are placed in the correct order
+        if (is_separate_first)
+        {
+            new_shape.insert(
+                new_shape.end(), separate_sub_shape_prod.begin(), separate_sub_shape_prod.end());
+            new_shape.insert(
+                new_shape.end(), reduced_sub_shape_prod.begin(), reduced_sub_shape_prod.end());
+        }
+        else
+        {
+            new_shape.insert(
+                new_shape.end(), reduced_sub_shape_prod.begin(), reduced_sub_shape_prod.end());
+            new_shape.insert(
+                new_shape.end(), separate_sub_shape_prod.begin(), separate_sub_shape_prod.end());
+        }
+
+        // when new shape is equal to the current one,
+        // there is no need in reshape
+        if (new_shape == input->get_shape())
+        {
+            return input;
+        }
+
+        const auto element_type = input->get_element_type();
+        const auto input_shape = input->get_shape();
+        HostTensorPtr output = std::shared_ptr<HostTensor>(new HostTensor(element_type, new_shape));
+        const AxisVector order = get_default_order(input_shape);
+
+        ngraph::runtime::reference::reshape(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
+                                            reinterpret_cast<char*>(output->get_data_ptr<T>()),
+                                            input_shape,
+                                            order,
+                                            new_shape,
+                                            element_type.size());
+        return output;
     }
 
     template <typename T>
@@ -714,9 +875,9 @@ namespace
             {
                 NGRAPH_CHECK(label_to_dim_map2.find(sep_label2) != label_to_dim_map2.end());
                 auto label_dims = label_to_dim_map2[sep_label2];
-                for (auto label_dim : label_dims)
+                for (size_t dim_ind = 0; dim_ind < label_dims.size(); ++dim_ind)
                 {
-                    unsqueeze_axis1.push_back(unsqueeze_dim++);
+                    unsqueeze_axis1.push_back(unsqueeze_dim + static_cast<int64_t>(dim_ind));
                 }
             }
             for (const auto& sep_label1 : separate_labels1)
@@ -895,159 +1056,6 @@ namespace
 
         update_operands(
             inputs, input_subscripts, input_ind1, input_ind2, contract_output, resultant_subscript);
-    }
-
-    bool is_dimension_reduced(const std::vector<std::string>& input_subscripts,
-                              const std::string& output_subscript,
-                              const std::string label_to_check,
-                              const std::vector<size_t>& excluded_indices)
-    {
-        for (size_t input_ind = 0; input_ind < input_subscripts.size(); ++input_ind)
-        {
-            const auto& input_subscript = input_subscripts[input_ind];
-            // the subscript is checked only if its index is not in excluded indices list
-            bool check_subscript =
-                (std::find(excluded_indices.begin(), excluded_indices.end(), input_ind) ==
-                 excluded_indices.end());
-            if (check_subscript && input_subscript.find(label_to_check) != std::string::npos)
-            {
-                return false;
-            }
-        }
-        return output_subscript.find(label_to_check) == std::string::npos;
-    }
-
-    template <typename T>
-    void reduce_input(HostTensorVector& inputs,
-                      std::vector<std::string>& input_subscripts,
-                      const std::string& output_subscript,
-                      size_t input_ind)
-    {
-        // perform sanity check for arguments
-        auto num_inputs = inputs.size();
-        NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-        NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
-
-        const auto& input_ptr = inputs[input_ind];
-        const auto& input_subscript = input_subscripts[input_ind];
-        const auto input_shape = input_ptr->get_shape();
-
-        // compute output shape and axes to reduce
-        ngraph::Shape output_shape;
-        ngraph::AxisSet reduced_axes;
-        auto labels = ngraph::opset7::Einsum::extract_labels(input_subscripts[input_ind]);
-        auto label_dim_map =
-            compute_label_dim_map(input_ptr->get_partial_shape().rank(), input_subscript);
-        std::string new_input_subscript = "";
-        for (const auto& label : labels)
-        {
-            // check if the current label is met in the other input subscripts
-            // or the output subscript
-            bool is_dim_reduced =
-                is_dimension_reduced(input_subscripts, output_subscript, label, {input_ind});
-
-            NGRAPH_CHECK(label_dim_map.find(label) != label_dim_map.end());
-            auto label_dims = label_dim_map[label];
-
-            // if label is not met, dimension corresponding to the label is to reduce
-            if (is_dim_reduced)
-            {
-                reduced_axes.insert(label_dims.begin(), label_dims.end());
-            }
-            else
-            {
-                for (auto label_dim : label_dims)
-                {
-                    output_shape.push_back(input_shape[label_dim]);
-                }
-                new_input_subscript += label;
-            }
-        }
-
-        if (reduced_axes.size() == 0)
-        {
-            // there is no axis to reduce
-            return;
-        }
-
-        HostTensorPtr output_ptr = std::shared_ptr<HostTensor>(
-            new HostTensor(input_ptr->get_element_type(), output_shape));
-
-        ngraph::runtime::reference::sum<T>(input_ptr->get_data_ptr<T>(),
-                                           output_ptr->get_data_ptr<T>(),
-                                           input_shape,
-                                           reduced_axes,
-                                           false);
-
-        // update a vector of inputs and input subscripts
-        inputs[input_ind] = output_ptr;
-        input_subscripts[input_ind] = new_input_subscript;
-    }
-
-    template <typename T>
-    void transpose_input(HostTensorVector& inputs,
-                         std::vector<std::string>& input_subscripts,
-                         const std::string& required_subscript,
-                         size_t input_ind)
-    {
-        // perform sanity check for arguments
-        auto num_inputs = inputs.size();
-        NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-        NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
-
-        // generate permutation vector by searching for bijection between input_subscripts
-        // and required_subscript
-        std::vector<int64_t> permutation;
-        const auto& input_ptr = inputs[input_ind];
-        const auto& input_subscript = input_subscripts[input_ind];
-
-        // transpose is not needed since the input subscript is not going to be changed
-        if (required_subscript == input_subscript)
-        {
-            return;
-        }
-
-        // find permutation that establishes bijection between the input subscript
-        // and the required one
-        auto label_dim_map =
-            compute_label_dim_map(input_ptr->get_partial_shape().rank(), input_subscript);
-        auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
-        auto required_labels = ngraph::opset7::Einsum::extract_labels(required_subscript);
-        NGRAPH_CHECK(labels.size() == required_labels.size());
-        for (const auto& required_label : required_labels)
-        {
-            NGRAPH_CHECK(label_dim_map.find(required_label) != label_dim_map.end());
-            auto label_dims = label_dim_map[required_label];
-            permutation.insert(permutation.end(), label_dims.begin(), label_dims.end());
-        }
-
-        const auto input_shape = input_ptr->get_shape();
-        const auto element_type = input_ptr->get_element_type();
-
-        Shape output_shape(input_shape.size());
-        std::transform(
-            permutation.begin(), permutation.end(), output_shape.begin(), [&](const int64_t& v) {
-                NGRAPH_CHECK(v >= 0, "Negative values for transpose axes order are not supported.");
-                NGRAPH_CHECK(v < int64_t(input_shape.size()),
-                             "Transpose axis ",
-                             v,
-                             " is out of shape range.");
-                return input_shape[v];
-            });
-        HostTensorPtr output_ptr =
-            std::shared_ptr<HostTensor>(new HostTensor(element_type, output_shape));
-
-        ngraph::runtime::reference::transpose(
-            reinterpret_cast<const char*>(input_ptr->get_data_ptr<T>()),
-            reinterpret_cast<char*>(output_ptr->get_data_ptr<T>()),
-            input_shape,
-            element_type.size(),
-            permutation.data(),
-            output_shape);
-
-        // update a vector of inputs and input subscripts
-        inputs[input_ind] = output_ptr;
-        input_subscripts[input_ind] = required_subscript;
     }
 
     template <typename T>
