@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+@PACKAGE_INIT@
+
 # TODO: remove after changing [private plugins]
-set(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_MAIN_SOURCE_DIR@") # KMB
-set(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@") # HDDL
+set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_MAIN_SOURCE_DIR@") # KMB
+set_and_check(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@") # HDDL
 
 # Variables to export in plugin's projects
 
@@ -22,7 +24,7 @@ endforeach()
 message("")
 
 # for samples in 3rd party projects
-set(gflags_DIR "@gflags_BINARY_DIR@")
+set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
 
 # Targets
 
@@ -44,7 +46,7 @@ set(InferenceEngine_LIBRARIES IE::inference_engine)
 # Inference Engine Developer Scripts package
 
 find_package(IEDevScripts REQUIRED
-             PATHS "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package"
+             PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 

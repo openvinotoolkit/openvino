@@ -281,8 +281,6 @@ install(EXPORT InferenceEngineTargets
         DESTINATION ${IE_CPACK_IE_DIR}/share
         COMPONENT core_dev)
 
-include(CMakePackageConfigHelpers)
-
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}")
 set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")

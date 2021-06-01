@@ -140,15 +140,14 @@ endif()
 
 ie_developer_export()
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
-    @ONLY)
+configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
+                              "${CMAKE_BINARY_DIR}/share/InferenceEngineDeveloperPackageConfig.cmake"
+                              INSTALL_DESTINATION share # not used
+                              PATH_VARS "OpenVINO_MAIN_SOURCE_DIR;IE_MAIN_SOURCE_DIR;gflags_BINARY_DIR")
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
-    @ONLY)
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+               "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
+               @ONLY)
 
 #
 # Coverage
