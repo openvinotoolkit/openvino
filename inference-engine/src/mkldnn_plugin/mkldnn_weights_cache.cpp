@@ -25,11 +25,11 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::operator MKLDNNMemoryPtr() const {
 }
 
 bool MKLDNNWeightsSharing::MKLDNNSharedMemory::isValid() const {
-    return memory->valid;
+    return memory->valid.load(std::memory_order_acquire);
 }
 
 void MKLDNNWeightsSharing::MKLDNNSharedMemory::valid(bool b) {
-    memory->valid = b;
+    memory->valid.store(b, std::memory_order_release);
 }
 
 MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::findOrCreate(
@@ -49,7 +49,7 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::findOrCreate
         sharedWeights[key] = ptr;
     }
 
-    return std::make_shared<MKLDNNSharedMemory>(ptr->valid
+    return std::make_shared<MKLDNNSharedMemory>(ptr->valid.load(std::memory_order_relaxed)
                                                 ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
                                                 : std::unique_lock<std::mutex>(ptr->guard), ptr, newPtr);
 }
@@ -65,7 +65,7 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::get(const st
         || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock())))
         IE_THROW() << "Unknown shared memory with key " << key;
 
-    return std::make_shared<MKLDNNSharedMemory>(ptr->valid
+    return std::make_shared<MKLDNNSharedMemory>(ptr->valid.load(std::memory_order_relaxed)
                                                 ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
                                                 : std::unique_lock<std::mutex>(ptr->guard), ptr, newPtr);
 }
