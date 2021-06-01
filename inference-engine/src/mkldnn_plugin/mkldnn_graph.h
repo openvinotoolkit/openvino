@@ -219,7 +219,11 @@ protected:
 
 private:
     void EnforceBF16();
-    void printGraphInfo() const;
+#ifdef CPU_DEBUG_CAPS
+    void serialize() const;
+    void serializeToXML(const std::string& path) const;
+    void serializeToCout() const;
+#endif
 };
 
 }  // namespace MKLDNNPlugin

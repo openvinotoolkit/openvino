@@ -78,7 +78,10 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 
     Replicate(net, extMgr);
     InitGraph();
+
     status = Ready;
+
+    ENABLE_CPU_DEBUG_CAP(serialize());
 }
 
 template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
@@ -343,10 +346,6 @@ void MKLDNNGraph::InitGraph() {
     for (auto &graphNode : graphNodes) {
         graphNode->cleanup();
     }
-#endif
-
-#if !defined(NDEBUG) && defined(PRINT_GRAPH_INFO)
-    printGraphInfo();
 #endif
     ExecuteConstantNodesOnly();
 }
@@ -809,7 +808,7 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     mkldnn::stream stream(eng);
 
-    ENABLE_CPU_DEBUG_CAP(NodeDumper nd(infer_count));
+    ENABLE_CPU_DEBUG_CAP(NodeDumper nd(config.debugCaps, infer_count));
 
     for (int i = 0; i < graphNodes.size(); i++) {
         if (request != nullptr) {
@@ -1218,7 +1217,27 @@ InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 
-void MKLDNNGraph::printGraphInfo() const {
+#ifdef CPU_DEBUG_CAPS
+void MKLDNNGraph::serialize() const {
+    const std::string& path = config.debugCaps.graphDumpPath;
+
+    if (path.empty())
+        return;
+
+    if (path == "cout")
+        serializeToCout();
+    else
+        serializeToXML(path);
+}
+
+void MKLDNNGraph::serializeToXML(const std::string& path) const {
+    if (path.empty())
+        return;
+
+    dump().serialize(path);
+}
+
+void MKLDNNGraph::serializeToCout() const {
     for (auto &graphNode : graphNodes) {
         std::cout << "name: " << graphNode->getName() << " [ ";
         if (graphNode->parentEdges.size() > 0) {
@@ -1235,3 +1254,4 @@ void MKLDNNGraph::printGraphInfo() const {
         std::cout << " ]"  << std::endl;
     }
 }
+#endif
