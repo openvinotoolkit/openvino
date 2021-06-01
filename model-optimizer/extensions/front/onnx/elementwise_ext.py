@@ -4,7 +4,7 @@
 import numpy as np
 
 from extensions.ops.elementwise import Add, Sub, Mul, Div, Pow, Less, Equal, Greater, LogicalAnd, LogicalOr, LogicalXor, \
-    Round, GreaterEqual, LessEqual, Negative
+    Round, GreaterEqual, LessEqual
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.graph.graph import Node
@@ -174,7 +174,7 @@ class LessOrEqualExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        GreaterEqual.update_node_stat(node)
+        LessEqual.update_node_stat(node)
         return cls.enabled
 
 
@@ -215,14 +215,4 @@ class RoundFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node: Node):
         Round.update_node_stat(node, {'mode': 'half_to_even'})
-        return cls.enabled
-
-
-class NegExtractor(FrontExtractorOp):
-    op = 'Neg'
-    enabled = True
-
-    @classmethod
-    def extract(cls, node):
-        Negative.update_node_stat(node)
         return cls.enabled
