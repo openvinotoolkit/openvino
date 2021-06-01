@@ -90,7 +90,7 @@ protected:
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         if (postOpMgrPtr)
-            isBias = postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)";
+            isBias = (postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)" && selectedType != "jit_avx512_winograd");
 
         convSpecificParams convParams;
         std::vector<size_t> inputShape;
@@ -722,4 +722,52 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_Jit_Planar_3D_FP32, ConvolutionLayerCPUTest,
 /* ============= */
 
 } // namespace
+
+
+/* ============= Winograd ============= */
+namespace winograd {
+
+const std::vector<fusingSpecificParams> fusingParamsSet{
+        emptyFusingSpec,
+        fusingRelu,
+        fusingSum,
+        fusingAddPerChannel // bias
+};
+
+const SizeVector numOutChannels = { 32 };
+
+const std::vector<SizeVector> kernels2d = { {3, 3} };
+const std::vector<SizeVector> strides2d = { {1, 1} };
+const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0} };
+const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
+const std::vector<SizeVector> dilations2d = { {1, 1} };
+
+const auto convParams_2D = ::testing::Combine(
+    ::testing::ValuesIn(kernels2d),
+    ::testing::ValuesIn(strides2d),
+    ::testing::ValuesIn(padBegins2d),
+    ::testing::ValuesIn(padEnds2d),
+    ::testing::ValuesIn(dilations2d),
+    ::testing::ValuesIn(numOutChannels),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            convParams_2D,
+            ::testing::Values(Precision::FP32),
+            ::testing::Values(Precision::FP32),
+            ::testing::Values(Precision::UNSPECIFIED),
+            ::testing::Values(Layout::ANY),
+            ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<size_t >({ 1, 16, 10, 10 })),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(filterCPUInfoForDevice(std::vector<CPUSpecificParams>{conv_winograd})),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    ConvolutionLayerCPUTest::getTestCaseName);
+
+} // namespace winograd
+
 } // namespace CPULayerTestsDefinitions
