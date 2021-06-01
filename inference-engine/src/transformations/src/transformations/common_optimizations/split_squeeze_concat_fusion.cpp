@@ -21,7 +21,7 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
     auto concat = ngraph::pattern::wrap_type<ngraph::opset7::Concat>();
 
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
-        auto& pattern_to_output = m.get_pattern_value_map();
+        const auto& pattern_to_output = m.get_pattern_value_map();
         auto concat_node = std::dynamic_pointer_cast<ngraph::opset7::Concat>(pattern_to_output.at(concat).get_node_shared_ptr());
         if (!concat_node)
             return false;

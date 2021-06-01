@@ -179,7 +179,7 @@ ngraph::pass::TransposeFuse::TransposeFuse() {
     MATCHER_SCOPE(TransposeFuse);
     auto single_consumer = pattern::consumers_count(1);
 
-    auto transpose_1 = pattern::wrap_type<opset6::Transpose>({ pattern::any_input(), pattern::wrap_type<opset6::Constant>() }, single_consumer);
+    auto transpose_1 = pattern::wrap_type<opset6::Transpose>({ pattern::any_input(), pattern::wrap_type<opset6::Constant>() }, pattern::consumers_count(1));
     auto transpose_2 = pattern::wrap_type<opset6::Transpose>({ transpose_1, pattern::wrap_type<opset6::Constant>() });
 
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
