@@ -78,9 +78,6 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
 
-            using SubGraphOpName = std::string;
-            using IterationCount = int64_t;
-            using SubGraphIterations = std::map<SubGraphOpName, IterationCount>;
             explicit LowLatency2(bool use_const_initializer = true)
                 : m_use_const_initializer(use_const_initializer)
             {

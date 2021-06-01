@@ -82,7 +82,6 @@ INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
  * @param use_const_initializer Changes the type of the initializing subgraph for ReadValue operations.
           If "true", then the transformation inserts Constant before ReadValue operation.
           If "false, then the transformation leaves existed initializing subgraph for ReadValue operation.
- * @param sub_graph_iterations Changes a Constant (trip_count) that determines the number of iterations of
  * Loop operation by a given number. Does not affect TensorIterators.
  * *
  */
