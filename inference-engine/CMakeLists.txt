@@ -143,7 +143,8 @@ ie_developer_export()
 configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineDeveloperPackageConfig.cmake"
                               INSTALL_DESTINATION share # not used
-                              PATH_VARS "OpenVINO_MAIN_SOURCE_DIR;IE_MAIN_SOURCE_DIR;gflags_BINARY_DIR")
+                              PATH_VARS "OpenVINO_MAIN_SOURCE_DIR;IE_MAIN_SOURCE_DIR;gflags_BINARY_DIR"
+                              NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
 configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
                "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
