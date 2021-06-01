@@ -12,22 +12,24 @@ Modification of DeformableConvolution using modulating scalars is also supported
 
 Output is calculated using the following formula: 
 
-  \[
+  \f[
+
   y(p) = \sum_{k = 1}^{K}w_{k}x(p + p_{k} + {\Delta}p_{k}) * {\Delta}m_{k}
-  \]
+  
+  \f]
 Where 
 * K is a number of sampling locations, e.g. for kernel 3x3 and dilation = 1, K = 9
 
-* \(x(p)\) and \(y(p)\) denote the features at location p from the input feature maps x and output feature maps y
+* \f$x(p)\f$ and \f$y(p)\f$ denote the features at location p from the input feature maps x and output feature maps y
 
-* \(w_{k}\) is the weight for k-th location.
+* \f$w_{k}\f$ is the weight for k-th location.
 
-* \(p_{k}\) is pre-specified offset for the k-th location, e.g. K = 9 and
-\(p_{k} \in \{(-1, -1),(-1, 0), . . . ,(1, 1)\}\)
+* \f$p_{k}\f$ is pre-specified offset for the k-th location, e.g. K = 9 and
+\f$p_{k} \in \{(-1, -1),(-1, 0), . . . ,(1, 1)\}\f$
 
-* \({\Delta}p_{k}\) is the learnable offset for the k-th location.
+* \f${\Delta}p_{k}\f$ is the learnable offset for the k-th location.
 
-* \({\Delta}m_{k}\) is the modulation scalar from 0 to 1 for the k-th location.
+* \f${\Delta}m_{k}\f$ is the modulation scalar from 0 to 1 for the k-th location.
 
 **Attributes**:
 
