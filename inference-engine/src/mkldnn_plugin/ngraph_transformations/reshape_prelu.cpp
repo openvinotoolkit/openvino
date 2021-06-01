@@ -17,11 +17,11 @@ MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu>(m.get_match_root());
-        const auto prelu_shape = prelu->input_value(0).get_shape();
-        const auto slope_shape = prelu->input_value(1).get_shape();
-        if (!prelu || ngraph::shape_size(slope_shape) == 1 || slope_shape.size() != 1) {
+        if (!prelu || ngraph::shape_size(prelu->get_input_shape(1)) == 1 || prelu->get_input_shape(1).size() != 1) {
             return false;
         }
+        const auto prelu_shape = prelu->input_value(0).get_shape();
+        const auto slope_shape = prelu->input_value(1).get_shape();
         ngraph::Shape new_shape(prelu_shape.size(), 1);
         const auto slope_dim = slope_shape[0];
         const auto channel_dim_idx = prelu_shape.size() > 1 ? 1 : 0;

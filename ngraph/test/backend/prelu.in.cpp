@@ -212,10 +212,11 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_equal_dims_slope_param)
     Shape shape_a{2, 2, 2};
     Shape shape_slope{2};
 
-    std::vector<float> a{-0.5, -2, -3, -4, 5, 6, -7, 8};
+    std::vector<float> a{-0.5, -2, -3, -4, -5, -6, -7, -8};
     std::vector<float> slope{-0.5, -2};
-    // std::vector<float> out{0.25, 4, 1.5, 8, 5, 6, 3.5, 8}; // numpy broadcast
-    std::vector<float> out{0.25, 1, 6, 8, 5, 6, 14, 8};
+    // std::vector<float> out{0.25, 4, 1.5, 8, 2.5, 12, 3.5, 16}; // broadcast (1, 1, 2)
+    std::vector<float> out{0.25, 1, 6, 8, 2.5, 3, 14, 16}; // broadcast (1, 2, 1)
+    // std::vector<float> out{0.25, 1, 1.5, 2, 10, 12, 14, 16}; // broadcast (2, 1, 1)
 
     const auto A = make_shared<op::Parameter>(element::f32, shape_a);
     const auto SLOPE = make_shared<op::Parameter>(element::f32, shape_slope);
@@ -232,9 +233,11 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_equal_dims_slope_const)
     Shape shape_a{2, 2, 2};
     Shape shape_slope{2};
 
-    std::vector<float> a{-0.5, -2, -3, -4, 5, 6, -7, 8};
+    std::vector<float> a{-0.5, -2, -3, -4, -5, -6, -7, -8};
     std::vector<float> slope{-0.5, -2};
-    std::vector<float> out{0.25, 1, 6, 8, 5, 6, 14, 8}; // per channel
+    // std::vector<float> out{0.25, 4, 1.5, 8, 2.5, 12, 3.5, 16}; // broadcast (1, 1, 2)
+    std::vector<float> out{0.25, 1, 6, 8, 2.5, 3, 14, 16}; // broadcast (1, 2, 1)
+    // std::vector<float> out{0.25, 1, 1.5, 2, 10, 12, 14, 16}; // broadcast (2, 1, 1)
 
     const auto A = make_shared<op::Parameter>(element::f32, shape_a);
     const auto SLOPE = make_shared<op::Constant>(element::f32, shape_slope, slope);
@@ -506,7 +509,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_C_W_slope_param)
 
     std::vector<float> a{-10, -10, -10, -10};
     std::vector<float> slope{0.1, 10};
-    std::vector<float> out{-1, -100, -1, -100};  // numpy broadcast
+    std::vector<float> out{-1, -100, -1, -100}; // broadcast (1, 2, 1)
+    // std::vector<float> out{-1, -1, -100, -100}; // broadcast (2, 1, 1)
 
     const auto A = make_shared<op::Parameter>(element::f32, shape_a);
     const auto SLOPE = make_shared<op::Parameter>(element::f32, shape_slope);
@@ -526,7 +530,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_3d_broadcast_C_W_slope_const)
 
     std::vector<float> a{-10, -10, -10, -10};
     std::vector<float> slope{0.1, 10};
-    std::vector<float> out{-1, -100, -1, -100}; // numpy broadcast
+    std::vector<float> out{-1, -100, -1, -100}; // broadcast (1, 2, 1)
+    // std::vector<float> out{-1, -1, -100, -100}; // broadcast (2, 1, 1)
 
     const auto A = make_shared<op::Parameter>(element::f32, shape_a);
     const auto SLOPE = make_shared<op::Constant>(element::f32, shape_slope, slope);
@@ -545,8 +550,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_W_slope_param)
 
     std::vector<float> a{-10, -10, -10, -10};
     std::vector<float> slope{0.1, 10};
-    // std::vector<float> out{-1, -100, -1, -100}; // numpy broadcast
-    std::vector<float> out{-1, -1, -100, -100}; // per channel
+    // std::vector<float> out{-1, -100, -1, -100}; // broadcast (1, 1, 1, 2)
+    std::vector<float> out{-1, -1, -100, -100}; // broadcast (1, 2, 1, 1)
 
     const auto A = make_shared<op::Parameter>(element::f32, shape_a);
     const auto SLOPE = make_shared<op::Parameter>(element::f32, shape_slope);
@@ -565,7 +570,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_4d_broadcast_C_W_slope_const)
 
     std::vector<float> a{-10, -10, -10, -10};
     std::vector<float> slope{0.1, 10};
-    std::vector<float> out{-1, -1, -100, -100}; // per channel
+    // std::vector<float> out{-1, -100, -1, -100}; // broadcast (1, 1, 1, 2)
+    std::vector<float> out{-1, -1, -100, -100}; // broadcast (1, 2, 1, 1)
 
     const auto A = make_shared<op::Parameter>(element::f32, shape_a);
     const auto SLOPE = make_shared<op::Constant>(element::f32, shape_slope, slope);
