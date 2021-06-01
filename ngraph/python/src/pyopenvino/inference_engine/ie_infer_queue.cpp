@@ -40,6 +40,15 @@ public:
 
     ~InferQueue() { _requests.clear(); }
 
+    bool _is_ready()
+    {
+        py::gil_scoped_release release;
+        std::unique_lock<std::mutex> lock(_mutex);
+        _cv.wait(lock, [this] { return !(_idle_handles.empty()); });
+
+        return !(_idle_handles.empty());
+    }
+
     py::dict _getIdleRequestInfo()
     {
         py::gil_scoped_release release;
@@ -192,6 +201,8 @@ void regclass_InferQueue(py::module m)
             self._requests[handle]._request.StartAsync();
         }
     }, py::arg("inputs"), py::arg("userdata"));
+
+    cls.def("is_ready", [](InferQueue& self) { return self._is_ready(); });
 
     cls.def("wait_all", [](InferQueue& self) { return self.waitAll(); });
 
