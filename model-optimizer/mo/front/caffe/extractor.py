@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.common.register_custom_ops import extension_op_extractor
 from mo.front.extractor import CaffePythonFrontExtractorOp
@@ -66,9 +65,6 @@ def caffe_extractor(node: Node, lowered_keys_map: dict) -> (bool, dict):
         raise Error('Found custom layer "{}". Model Optimizer does not support this layer. '.format(node.id) +
                     'Please, implement extension. ' +
                     refer_to_faq_msg(45))
-
-    if 'infer' not in result or not result['infer']:
-        result.update(native_caffe_node_extractor(node))
 
     phase_attr = check_phase(node)
     result.update(phase_attr)
