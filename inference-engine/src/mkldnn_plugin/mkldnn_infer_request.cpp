@@ -243,15 +243,17 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         data = _inputs[name];
         checkBlob(data, name, true);
         // check if preprocess required, but still wasn't set
-        auto preProcess = std::find_if(std::begin(_networkInputs), std::end(_networkInputs),
+        auto preProcessedInput = std::find_if(std::begin(_networkInputs), std::end(_networkInputs),
             [&](const std::pair<std::string, InferenceEngine::InputInfo::Ptr>& pair)
-            {return pair.first == name;})->second->getPreProcess();
-        if ((preProcess.getColorFormat() != InferenceEngine::ColorFormat::RAW ||
-            preProcess.getResizeAlgorithm() != InferenceEngine::ResizeAlgorithm::NO_RESIZE) &&
-                _inputs.find(name) != _inputs.end()) {
-            _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
-            _preProcData[name]->isApplicable(data, _inputs[name]);
-            _preProcData[name]->setRoiBlob(data);
+            {return pair.first == name;});
+        if (preProcessedInput!= std::end(_networkInputs)) {
+            auto preProcess = preProcessedInput->second->getPreProcess();
+            if (preProcess.getColorFormat() != InferenceEngine::ColorFormat::RAW ||
+                 preProcess.getResizeAlgorithm() != InferenceEngine::ResizeAlgorithm::NO_RESIZE) {
+                _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
+                _preProcData[name]->isApplicable(data, _inputs[name]);
+                _preProcData[name]->setRoiBlob(data);
+            }
         }
     }
 
