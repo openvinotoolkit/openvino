@@ -1020,8 +1020,9 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
     for (auto& fusedNode : fusedWith) {
         if (fusedNode->getType() == Eltwise) {
-            for (int i = 1; i < fusedNode->getOriginalInputsNumber(); i++) {
-                inputPrecisions.push_back(fusedNode->getOriginalInputPrecisionAtPort(i));
+            for (int i = 0; i < fusedNode->getOriginalInputsNumber(); i++) {
+                if (fusedNode->getFusingPort() != i)
+                    inputPrecisions.push_back(fusedNode->getOriginalInputPrecisionAtPort(i));
             }
         }
     }
