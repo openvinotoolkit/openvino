@@ -12,7 +12,6 @@ def get_available_transformations():
         from openvino.offline_transformations import ApplyLowLatencyTransformation  # pylint: disable=import-error,no-name-in-module
         return {
             'LowLatency2': ApplyLowLatencyTransformation,
-            'LowLatency': ApplyLowLatencyTransformation,
         }
     except Exception as e:
         return {}

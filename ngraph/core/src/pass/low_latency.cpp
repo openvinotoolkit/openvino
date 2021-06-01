@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include <ngraph/log.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -192,22 +193,30 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f)
                         sub_graph_op->get_friendly_name(), param_name, variable_id);
 
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
-                    NGRAPH_CHECK(std::dynamic_pointer_cast<op::ReadValueBase>(
-                                     input.get_source_output().get_node_shared_ptr()) == nullptr,
-                                 "LowLatency2 transformation cannot be applied because the "
-                                 "ReadValue node is already an input to the TensorIterator.",
-                                 "LowLatency2 transformation may have already been applied, please "
-                                 "do not call it more then once.");
+                    if (std::dynamic_pointer_cast<op::ReadValueBase>(
+                            input.get_source_output().get_node_shared_ptr()) != nullptr)
+                    {
+                        NGRAPH_DEBUG
+                            << "LowLatency2 transformation cannot be applied because the "
+                            << "ReadValue node is already an input to the TensorIterator."
+                            << "LowLatency2 transformation may have already been applied, please "
+                            << "do not call it more then once.";
+                        return false;
+                    }
 
                     const auto& param = sub_graph_op->get_function()->get_parameters().at(
                         merged_in->m_body_parameter_index);
                     for (const auto& in_to : param->output(0).get_target_inputs())
                     {
-                        NGRAPH_CHECK(dynamic_cast<op::ReadValueBase*>(in_to.get_node()) == nullptr,
-                                     "LowLatency2 transformation cannot be applied because the "
-                                     "ReadValue node is already inside the TensorIterator.",
-                                     "LowLatency transformation may have been applied, please do "
-                                     "not call LowLatency2 after LowLatency.");
+                        if (dynamic_cast<op::ReadValueBase*>(in_to.get_node()) != nullptr)
+                        {
+                            NGRAPH_DEBUG
+                                << "LowLatency2 transformation cannot be applied because the "
+                                << "ReadValue node is already inside the TensorIterator. "
+                                << "LowLatency transformation may have been applied, please do "
+                                << "not call LowLatency2 after LowLatency.";
+                            return false;
+                        }
                     }
 
                     VariableInfo var_info{PartialShape::dynamic(), element::dynamic, var_name};
