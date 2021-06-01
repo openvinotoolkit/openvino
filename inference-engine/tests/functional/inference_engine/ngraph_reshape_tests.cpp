@@ -30,8 +30,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 
-IE_SUPPRESS_DEPRECATED_START
-
 using namespace testing;
 using namespace InferenceEngine;
 using namespace CommonTestUtils;
