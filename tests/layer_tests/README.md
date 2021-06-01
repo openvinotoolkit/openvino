@@ -1,25 +1,30 @@
-## How to setup
+# Layer tests
+
+This folder layer tests framework code and test files.
+
+## Getting Started
+
+#### Pre-requisites
+
+* OpenVINO should be configured as usual.
+
+#### Setup
 
 * Set up environment variables for layer tests:
+    ```bash
+    export MO_ROOT=PATH_TO_MO
+    ```
+    ```bash
+    export PYTHONPATH="path_to_openvino"/tests/layer_tests/:$PYTHONPATH
+    ```
+* If you need compare scoring results:
+    * Set up additional environment variable:
+        ```bash
+            >export IE_APP_PATH="path_to_IE"
+        ```
+    * Add IE dependencies in LD_LIBRARY_PATH.
 
-> export MO_ROOT=PATH_TO_MO
-
-> export PYTHONPATH="path_to_openvino"/tests/layer_tests/:$PYTHONPATH
-
-* To compare scoring results need:
-    
-    * Set up additional environment variables:
-    
-        >export IE_APP_PATH="path_to_IE"
-    
-        >export IE_CUSTOM_LAYER="path_to_IE"
-    
-    * Add IE dependencies in LD_LIBRARY_PATH 
-    
-    * To use timelimit tool add path to the tool in PATH
-    
-    * To use python_api add path to python_api in PYTHONPATH 
-
-* Run layer tests:
-
-> py.test
+## Run tests
+```bash
+py.test
+```

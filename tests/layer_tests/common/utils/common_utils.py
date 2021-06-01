@@ -10,10 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 def generate_ir(coverage=False, **kwargs):
-    if os.environ.get("MO_RUN_MODE") and os.environ.get("MO_RUN_MODE").lower() != "cmd":
-        raise EnvironmentError("Unexpected value of MO_RUN_MODE variable. We support only 'cmd' testing of MO")
-    print("Model Optimizer will be run via command line<br>\n")
-
     # Get default mo args
     mo = os.path.join(os.environ.get("MO_ROOT"), "mo.py")
     if coverage:
