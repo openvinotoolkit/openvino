@@ -24,11 +24,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
         R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
         // TODO: Issue: 43793
-        R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
-        R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
         R"(.*PreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
         R"(.*PreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
         // TODO: Issue: 34348

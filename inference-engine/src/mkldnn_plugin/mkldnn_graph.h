@@ -7,7 +7,7 @@
 #include "cpp/ie_cnn_network.h"
 #include "config.h"
 #include "mkldnn_memory.h"
-#include "mean_image.h"
+#include "normalize_preprocess.h"
 #include "mkldnn_node.h"
 #include "mkldnn_edge.h"
 #include <map>
@@ -51,7 +51,7 @@ public:
                      MKLDNNWeightsSharing::Ptr &w_cache);
 
     bool hasMeanImageFor(const std::string& name) {
-        return _meanImages.find(name) != _meanImages.end();
+        return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
     }
 
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
@@ -176,7 +176,7 @@ protected:
         outputNodesMap.clear();
         graphNodes.clear();
         graphEdges.clear();
-        _meanImages.clear();
+        _normalizePreprocMap.clear();
     }
     Status status { NotReady };
     Config config;
@@ -194,7 +194,7 @@ protected:
     std::vector<MKLDNNNodePtr> graphNodes;
     std::vector<MKLDNNEdgePtr> graphEdges;
 
-    std::map<std::string, MeanImage> _meanImages;
+    std::map<std::string, NormalizePreprocess> _normalizePreprocMap;
     std::string _name;
 
     bool isQuantizedFlag = false;

@@ -323,10 +323,9 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessSetBlob) {
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
         for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]+5, outData[i]);
+            ASSERT_EQ(inData[i] + 5, outData[i]);
     }
 }
-
 
 TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -390,7 +389,6 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
             }
     }
 }
-
 
 TEST_P(PreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -515,11 +513,10 @@ TEST_P(PreprocessTest, SetScalePreProcessGetBlob) {
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
         for (size_t i = 0; i < inBlob->size(); i++) {
-            ASSERT_EQ(inData[i]*2, outData[i]);
+            ASSERT_EQ(inData[i] / 2, outData[i]);
         }
     }
 }
-
 
 TEST_P(PreprocessTest, SetScalePreProcessSetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -581,7 +578,7 @@ TEST_P(PreprocessTest, SetScalePreProcessSetBlob) {
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
         for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]*2, outData[i]);
+            ASSERT_EQ(inData[i] / 2, outData[i]);
     }
 }
 

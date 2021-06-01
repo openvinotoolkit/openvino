@@ -13,16 +13,16 @@
 
 namespace MKLDNNPlugin {
 
-class MeanImage {
+class NormalizePreprocess {
 public:
-    MeanImage();
+    NormalizePreprocess();
 
 public:
     void Load(const MKLDNNDims& inputDims, InferenceEngine::InputInfo::Ptr inputInfo);
-    void Subtract(const MKLDNNDims &inputDims, float *input, InferenceEngine::Layout layout);
+    void NormalizeImage(const MKLDNNDims &inputDims, float *input, InferenceEngine::Layout layout);
 
     template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-    void Subtract(const MKLDNNDims &inputDims, T *input, InferenceEngine::Layout layout) {
+    void NormalizeImage(const MKLDNNDims &inputDims, T *input, InferenceEngine::Layout layout) {
         IE_ASSERT(input != nullptr);
 
         if (inputDims.ndims() != 4) {
@@ -46,9 +46,14 @@ public:
                 if (buf > (std::numeric_limits<T>::max)()) buf = (std::numeric_limits<T>::max)();
                 input[srcSize * mb + i] = buf;
             });
-        } else if (!meanValues.empty()) {
+        } else if (!meanValues.empty() && !stdScales.empty()) {
             int C = inputDims[1];
             srcSize /= inputDims[1];
+
+            for (int c = 0; c < C; c++) {
+                if (stdScales[c] != 1)
+                    IE_THROW() << "Preprocessing error: fractional normalization is not supported for integer data. ";
+            }
 
             if (layout == InferenceEngine::NCHW) {
                 InferenceEngine::parallel_for3d(MB, C, srcSize, [&](int mb, int c, int i) {
@@ -69,11 +74,15 @@ public:
                     }
                 });
             }
+        } else {
+            IE_THROW() << "Preprocessing error: meanValues and stdScales arrays are inconsistent.";
         }
     }
 
 private:
     std::vector<float> meanValues;
+
+    std::vector<float> stdScales;
 
     InferenceEngine::TBlob<float>::Ptr meanBuffer;
 };
