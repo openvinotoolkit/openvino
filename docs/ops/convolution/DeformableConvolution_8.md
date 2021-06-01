@@ -1,13 +1,33 @@
-## ModulatedDeformableConvolution<a name="ModulatedDeformableConvolution"></a> {#openvino_docs_ops_convolution_DeformableConvolution_8}
+## DeformableConvolution<a name="DeformableConvolution"></a> {#openvino_docs_ops_convolution_DeformableConvolution_8}
 
-**Versioned name**: *ModulatedDeformableConvolution-8*
+**Versioned name**: *DeformableConvolution-8*
 
 **Category**: Convolution
 
-**Short description**: Computes 2D modulated deformable convolution of input and kernel tensors.
+**Short description**: Computes 2D deformable convolution of input and kernel tensors.
 
-**Detailed description**: *Modulated Deformable Convolution* is similar to regular *Convolution* but its receptive field is deformed because of additional spatial offsets used during input sampling. More thorough explanation can be found in [Deformable Convolutions Demystified](https://towardsdatascience.com/deformable-convolutions-demystified-2a77498699e8) and [Deformable Convolutional Networks](https://arxiv.org/abs/1703.06211),
-[Deformable ConvNets v2: More Deformable, Better Results](https://arxiv.org/pdf/1811.11168.pdf).
+**Detailed description**: *Deformable Convolution* is similar to regular *Convolution* but its receptive field is deformed because of additional spatial offsets used during input sampling. More thorough explanation can be found in [Deformable Convolutions Demystified](https://towardsdatascience.com/deformable-convolutions-demystified-2a77498699e8), [Deformable Convolutional Networks](https://arxiv.org/abs/1703.06211).
+
+Modification of DeformableConvolution using modulating scalars is also supported. Please refer to [Deformable ConvNets v2: More Deformable, Better Results](https://arxiv.org/pdf/1811.11168.pdf).
+
+Output is calculated using the following formula: 
+
+  \[
+  y(p) = \sum_{k = 1}^{K}w_{k}x(p + p_{k} + {\Delta}p_{k}) * {\Delta}m_{k}
+  \]
+Where 
+* K is a number of sampling locations, e.g. for kernel 3x3 and dilation = 1, K = 9
+
+* \(x(p)\) and \(y(p)\) denote the features at location p from the input feature maps x and output feature maps y
+
+* \(w_{k}\) is the weight for k-th location.
+
+* \(p_{k}\) is pre-specified offset for the k-th location, e.g. K = 9 and
+\(p_{k} \in \{(-1, -1),(-1, 0), . . . ,(1, 1)\}\)
+
+* \({\Delta}p_{k}\) is the learnable offset for the k-th location.
+
+* \({\Delta}m_{k}\) is the modulation scalar from 0 to 1 for the k-th location.
 
 **Attributes**:
 
@@ -74,12 +94,12 @@
   * **Default value**: `1`
   * **Required**: *no*
 
-* *bilinear_interpolation_mode*
+* *bilinear_interpolation_padding*
 
-  * **Description**: *bilinear_interpolation_mode* is possible options for performing bilinear interpolation.
-  * **Range of values**: `strict_boundaries`, `fuzzy_boundaries` 
-  * **Type**: `string`
-  * **Default value**: `fuzzy_boundaries`
+  * **Description**: *bilinear_interpolation_padding* is the number of pixels outside of the feature map boundary to apply bilinear interpolation.
+  * **Range of values**: [0, 1]
+  * **Type**: `int`
+  * **Default value**: `0`
   * **Required**: *no*
   
 **Inputs**:
@@ -88,9 +108,9 @@
 
 *   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X \* 2, spatial axes Y and X). Required.
 
-*   **3**: ModulationScalars tensor of type *T2* and rank 4, the values are within [0, 1]. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). Required. (or Optional??)
+*   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). Required.
 
-*   **4**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). Required.
+*   **4**: ModulationScalars tensor of type *T2* and rank 4, the values are within [0, 1]. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). If the input is not provided, the values are assumed to be equal to 1. Optional.
 
 
 **Outputs**:
@@ -104,7 +124,7 @@
  
 **Example**
 
-2D ModulatedDeformableConvolution (deformable_group=1)
+2D DeformableConvolution (deformable_group=1)
 ```xml
 <layer type="DeformableConvolution" ...>
     <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="1,1" auto_pad="explicit"  group="1" deformable_group="1"/>
@@ -122,16 +142,16 @@
             <dim>220</dim>
         </port>
         <port id="2">
-            <dim>1</dim>
-            <dim>50</dim>
-            <dim>220</dim>
-            <dim>220</dim>
-        </port>
-        <port id="3">
             <dim>64</dim>
             <dim>4</dim>
             <dim>5</dim>
             <dim>5</dim>
+        </port>
+        <port id="3">
+            <dim>1</dim>
+            <dim>25</dim>
+            <dim>220</dim>
+            <dim>220</dim>
         </port>
     </input>
     <output>

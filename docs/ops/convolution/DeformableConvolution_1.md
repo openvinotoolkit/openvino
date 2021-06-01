@@ -8,6 +8,24 @@
 
 **Detailed description**: *Deformable Convolution* is similar to regular *Convolution* but its receptive field is deformed because of additional spatial offsets used during input sampling. More thorough explanation can be found in [Deformable Convolutions Demystified](https://towardsdatascience.com/deformable-convolutions-demystified-2a77498699e8) and [Deformable Convolutional Networks](https://arxiv.org/abs/1703.06211).
 
+Output is calculated using the following formula: 
+
+  \[
+  y(p) = \sum_{k = 1}^{K}w_{k}x(p + p_{k} + {\Delta}p_{k})
+  \]
+
+Where 
+* K is a number of sampling locations, e.g. for kernel 3x3 and dilation = 1, K = 9
+
+* \(x(p)\) and \(y(p)\) denote the features at location p from the input feature maps x and output feature maps y
+
+* \(w_{k}\) is the weight for k-th location.
+
+* \(p_{k}\) is pre-specified offset for the k-th location, e.g. K = 9 and
+\(p_{k} \in \{(-1, -1),(-1, 0), . . . ,(1, 1)\}\)
+
+* \({\Delta}p_{k}\) is the learnable offset for the k-th location.
+
 **Attributes**:
 
 * *strides*
