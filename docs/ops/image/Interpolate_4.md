@@ -91,11 +91,11 @@
 
 *   **1**: `data` - tensor of type `T` with data for interpolation. **Required.**
 
-*   **2**: `sizes` - 1D tensor of type `T_I` describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. **Required.**
+*   **2**: `sizes` - 1D tensor of type `T_SIZE` describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. **Required.**
 
-*   **3**: `scales` - 1D tensor of type `T_F` describing scales for spatial axes. Number and order of elements match the number and order of indices in `axes` input. **Required.**
+*   **3**: `scales` - 1D tensor of type `T_SCALES` describing scales for spatial axes. Number and order of elements match the number and order of indices in `axes` input. **Required.**
 
-*   **4**: `axes` - 1D tensor of type `T_I` specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `sizes`. **Optional** with default value `[0,...,rank(data) - 1]`.
+*   **4**: `axes` - 1D tensor of type `T_AXES` specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `sizes`. **Optional** with default value `[0,...,rank(data) - 1]`.
 
 **Outputs**
 
@@ -103,8 +103,10 @@
 
 **Types**
 * *T*: any supported numeric type.
-* *T_I*: any supported integer type.
-* *T_F*: any supported floating point type.
+* *T_SIZE*: any supported integer type.
+* *T_SCALES*: any supported floating point type.
+* *T_AXES*: any supported integer type.
+
 
 **Detailed description**
 Calculations are performed according to the following rules.
