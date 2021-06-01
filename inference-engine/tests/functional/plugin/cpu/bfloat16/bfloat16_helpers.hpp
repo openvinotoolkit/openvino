@@ -199,7 +199,6 @@ public:
             options[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] = InferenceEngine::PluginConfigParams::NO;
         }
         options[InferenceEngine::PluginConfigParams::KEY_PERF_COUNT] = InferenceEngine::PluginConfigParams::YES;
-        options[InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT] = "egraph_test";
 
         auto exec_net1 = ie.LoadNetwork(cnnNet, targetDevice, options);
         auto req1 = exec_net1.CreateInferRequest();

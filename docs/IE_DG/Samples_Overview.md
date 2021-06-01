@@ -9,7 +9,9 @@ After installation of Intel® Distribution of OpenVINO™ toolkit, С, C++ and P
 
 Inference Engine sample applications include the following:
 
-- **[Automatic Speech Recognition C++ Sample](../../inference-engine/samples/speech_sample/README.md)** – Acoustic model inference based on Kaldi neural networks and speech feature vectors.
+- **Speech Sample** - Acoustic model inference based on Kaldi neural networks and speech feature vectors.
+   - [Automatic Speech Recognition C++ Sample](../../inference-engine/samples/speech_sample/README.md)
+   - [Automatic Speech Recognition Python Sample](../../inference-engine/ie_bridges/python/sample/speech_sample/README.md)
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
    - [Benchmark C++ Tool](../../inference-engine/samples/benchmark_app/README.md)
    - [Benchmark Python Tool](../../inference-engine/tools/benchmark_tool/README.md)

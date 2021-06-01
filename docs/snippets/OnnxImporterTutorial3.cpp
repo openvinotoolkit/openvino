@@ -1,4 +1,4 @@
-#include <inference_engine.hpp>
+#include <ie_core.hpp>
 #include <ngraph/ngraph.hpp>
 #include "onnx_import/onnx.hpp"
 #include <iostream>
