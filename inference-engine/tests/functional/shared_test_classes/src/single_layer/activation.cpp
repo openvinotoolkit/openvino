@@ -178,7 +178,11 @@ InferenceEngine::Blob::Ptr ActivationParamLayerTest::GenerateInput(const Inferen
         std::vector<float> param_data(elemnts_count);
         std::iota(param_data.begin(), param_data.end(), 2);
         blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
-    } else if (name == "leakySlope" || name == "alpha") {
+    } else if (name == "leakySlope") {
+        const auto elemnts_count = ngraph::shape_size(function->get_parameters()[1]->get_shape());
+        std::vector<float> param_data(elemnts_count, constantsValue[0]);
+        blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
+    } else if (name == "alpha") {
          blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &constantsValue[0], 1);
     } else if (name == "beta" || name == "lambda") {
         blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &constantsValue[1], 1);
