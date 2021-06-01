@@ -45,7 +45,7 @@ void ActivationLayerTest::SetUp() {
     if (activationType == ngraph::helpers::ActivationTypes::PReLu && constantsValue.empty()) {
         const auto elemnts_count = ngraph::shape_size(shapes.second);
         constantsValue.resize(elemnts_count);
-        std::iota(constantsValue.begin(), constantsValue.end(), 2);
+        std::iota(constantsValue.begin(), constantsValue.end(), -10);
     }
 
     auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
@@ -178,7 +178,11 @@ InferenceEngine::Blob::Ptr ActivationParamLayerTest::GenerateInput(const Inferen
         std::vector<float> param_data(elemnts_count);
         std::iota(param_data.begin(), param_data.end(), 2);
         blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
-    } else if (name == "leakySlope" || name == "alpha") {
+    } else if (name == "leakySlope") {
+        const auto elemnts_count = ngraph::shape_size(function->get_parameters()[1]->get_shape());
+        std::vector<float> param_data(elemnts_count, constantsValue[0]);
+        blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
+    } else if (name == "alpha") {
          blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &constantsValue[0], 1);
     } else if (name == "beta" || name == "lambda") {
         blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &constantsValue[1], 1);
@@ -187,7 +191,6 @@ InferenceEngine::Blob::Ptr ActivationParamLayerTest::GenerateInput(const Inferen
     }
     return blobPtr;
 }
-
 
 void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constantsValue) {
     switch (activationType) {
@@ -223,17 +226,6 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
             IE_THROW() << "Unsupported activation type for Params test type";
     }
 }
-
-// void ActivationParamLayerTest::Infer() {
-//     inferRequest = executableNetwork.CreateInferRequest();
-
-//     auto blobInput = inferRequest.GetBlob("Input");
-//     blobInput = FuncTestUtils::createAndFillBlobFloat(blobInput->getTensorDesc());
-
-//     // generateActivationBlob(constantsValue);
-
-//     inferRequest.Infer();
-// }
 
 void ActivationParamLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
