@@ -858,6 +858,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         swap(h_dim_in, w_dim_in);
         swap(h_dim_out, w_dim_out);
         swap(pooling._kernel[X_AXIS], pooling._kernel[Y_AXIS]);
+        swap(pooling._stride[X_AXIS], pooling._stride[Y_AXIS]);
     }
 
     void* ptr_inputs = nullptr;

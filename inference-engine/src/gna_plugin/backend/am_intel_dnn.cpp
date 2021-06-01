@@ -1684,9 +1684,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         Gna2Shape* poolStride{};
 
                         if (gnaOperation->Operands[InOpIdx]->Shape.NumberOfDimensions == 2) { // kDnnConvolutional1dOp
-                            // TODO: issue 50379 find out why looks like CNN1D pooling uses stride == window only
                             poolWindow = create_shape1D_parameter(comp.op.maxpool.poolingWindowXY[0]);
-                            poolStride = create_shape1D_parameter(comp.op.maxpool.poolingWindowXY[0]);
+                            poolStride = create_shape1D_parameter(comp.op.maxpool.poolingStrideXY[0]);
                         } else {
                             poolWindow = create_shape2D_parameter(comp.op.maxpool.poolingWindowXY[1], comp.op.maxpool.poolingWindowXY[0]);
                             poolStride = create_shape2D_parameter(comp.op.maxpool.poolingStrideXY[1], comp.op.maxpool.poolingStrideXY[0]);
@@ -1750,9 +1749,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         THROW_GNA_EXCEPTION << "Encountered activation component before pooling component at." << i;
                     } else {
                         pConvolutionalLayer->poolType = INTEL_MAX_POOLING;
-                        // TODO: issue 50379 find out why looks like CNN1D pooling uses stride == window only
                         pConvolutionalLayer->nPoolSize = component[i].op.maxpool.poolingWindowXY[0];
-                        pConvolutionalLayer->nPoolStride = component[i].op.maxpool.poolingWindowXY[0];
+                        pConvolutionalLayer->nPoolStride = component[i].op.maxpool.poolingStrideXY[0];
 
                         // number of output columns correction - based on GNA-library expectations
                         auto nFltSize = pConvolutionalLayer->nFilterCoefficients;
