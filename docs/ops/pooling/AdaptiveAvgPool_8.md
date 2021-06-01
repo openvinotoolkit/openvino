@@ -26,24 +26,14 @@ The output is calculated following this formula:
 Output(i,j,k) = \frac{Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end}]}{(d_{end}-d_{start})*(h_{end}-h_{start})*(w_{end}-w_{start})}
 \f]
 
-**Attributes**:
-
-* *output_type*
-
-  * **Description**: the output tensor type
-  * **Range of values**: "i64" or "i32"
-  * **Type**: string
-  * **Default value**: "i64"
-  * **Required**: *No*
-
 **Inputs**:
 
-*   **1**: 3D, 4D or 5D input tensor of shape `[N,C,W]`, `[N,C,H,W]` or `[N,C,D,H,W]` and type *T*. Required.
-*   **2**: 1D tensor describing output shape for spacial dimensions. Can be `[L_out]` for 3D input, `[H_out,W_out]` for 4D input, `[D_out,H_out,W_out]` for 5D input and of type *T_IND*. Required.
+*   **1**: 3D, 4D or 5D input tensor of shape `[N,C,L]`, `[N,C,H,W]` or `[N,C,D,H,W]` and type *T*. Required.
+*   **2**: 1D tensor describing output shape for spatial dimensions. Can be `[L_out]` for 3D input, `[H_out,W_out]` for 4D input, `[D_out,H_out,W_out]` for 5D input and of type *T_IND*. Required.
 
 **Outputs**:
 
-*   **1**: Output of type *T* and shape `[N,C,W_out]`, `[N,C,H_out,W_out]` or `[N,C,D_out,H_out,W_out]`.
+*   **1**: Output of type *T* and shape `[N,C,L_out]`, `[N,C,H_out,W_out]` or `[N,C,D_out,H_out,W_out]`.
 
 **Types**
 
