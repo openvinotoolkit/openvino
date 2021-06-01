@@ -498,8 +498,6 @@ KERNEL (detection_output_stage_2_caffe)(
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[0];
     __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[0];
 
-    __local uint indices[NUM_OF_PRIORS];
-
     for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++)
     {
         for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
@@ -526,7 +524,7 @@ KERNEL (detection_output_stage_2_caffe)(
                 //printf("detection_output_stage_2 | ==== idx_score[%d]/idx=[%d], selectedBoxNum=[%d]\n", idx_score, idx, selectedBoxNum);
                 for (uint idx_indice = 0; idx_indice < selectedBoxNum; idx_indice++)
                 {
-                    int kept_idx = indices[idx_indice];
+                    int kept_idx = selectedScoresList[scores_offset + idx_indice].boxId;
                     UNIT_TYPE decoded_bbox1[4];
                     FUNC_CALL(get_decoded_bbox)(decoded_bbox1, input_location, input_prior_box, idx, loc_label, idx_image);
                     UNIT_TYPE decoded_bbox2[4];
@@ -549,7 +547,6 @@ KERNEL (detection_output_stage_2_caffe)(
                     score_info.score = scoresList[scores_offset + idx_score].score;
                     selectedScoresList[scores_offset + selectedBoxNum] = score_info;
                     //printf("detection_output_stage_2 | ==== keep!!! idx=[%d]\n", idx);
-                    indices[selectedBoxNum] = idx;
                     ++selectedBoxNum;
                 }
             }
@@ -577,7 +574,6 @@ KERNEL (detection_output_stage_2_caffe_opt)(
     __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
 
     const int scoresInfoNum = buffer2[scoresInfoIdx];
-    __local uint indices[NUM_OF_PRIORS];
 
     //printf("detection_output_stage_2_caffe_opt | global_id={batchId[0:%3d]classId[1:%3d][2:%zd]} local_id={[0:%zd][1:%zd][2:%zd]} scoresInfoNum=[%d]\n",
     //        batchId, classId, get_global_id(2), get_local_id(0), get_local_id(1), get_local_id(2), scoresInfoNum);
@@ -589,7 +585,7 @@ KERNEL (detection_output_stage_2_caffe_opt)(
         int idx = scoresList[idx_score].boxId;
         for (uint idx_indice = 0; idx_indice < selectedBoxNum; idx_indice++)
         {
-            int kept_idx = indices[idx_indice];
+            int kept_idx = selectedScoresList[idx_indice].boxId;
             UNIT_TYPE decoded_bbox1[4];
             FUNC_CALL(get_decoded_bbox)(decoded_bbox1, input_location, input_prior_box, idx, loc_label, batchId);
             UNIT_TYPE decoded_bbox2[4];
@@ -610,7 +606,6 @@ KERNEL (detection_output_stage_2_caffe_opt)(
             score_info.boxId = scoresList[idx_score].boxId;
             score_info.score = scoresList[idx_score].score;
             selectedScoresList[selectedBoxNum] = score_info;
-            indices[selectedBoxNum] = idx;
             ++selectedBoxNum;
         }
     }
