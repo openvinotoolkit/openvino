@@ -7,6 +7,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     add_subdirectory(onnx_import)
 endif()
 
-if (NGRAPH_ONNX_EDITOR_ENABLE)
+if (NGRAPH_ONNX_IMPORT_ENABLE)
     add_subdirectory(onnx_editor)
 endif()
