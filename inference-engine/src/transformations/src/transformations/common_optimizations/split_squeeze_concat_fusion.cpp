@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,8 +39,12 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
             return false;
         auto axis_value = axis_vec[0];
         ngraph::NodeVector nodes_to_delete{ split_node, concat_node };
-        for (auto& inp : concat_node->inputs()) {
-            auto squeeze_node = std::dynamic_pointer_cast<ngraph::opset7::Squeeze>(inp.get_source_output().get_node_shared_ptr());
+        auto concat_inputs = concat_node->inputs();
+        auto split_outputs = split_node->outputs();
+        if (concat_inputs.size() != split_outputs.size())
+            return false;
+        for (size_t i = 0; i < concat_inputs.size(); i++) {
+            auto squeeze_node = std::dynamic_pointer_cast<ngraph::opset7::Squeeze>(concat_inputs[i].get_source_output().get_node_shared_ptr());
             if (!squeeze_node)
                 return false;
             nodes_to_delete.push_back(squeeze_node);
@@ -49,6 +53,10 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
                 return false;
             auto squeeze_axes_vec = squeeze_axes->cast_vector<int64_t>();
             if (squeeze_axes_vec.size() != 1 || squeeze_axes_vec[0] != axis_value)
+                return false;
+            auto split_i_output = split_outputs[i].get_target_inputs();
+            if (split_i_output.size() != 1 ||
+                split_i_output.begin()->get_node()->get_instance_id() != squeeze_node->get_instance_id())
                 return false;
         }
 

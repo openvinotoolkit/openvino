@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <numeric>
@@ -177,23 +178,19 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
 
 ngraph::pass::TransposeFuse::TransposeFuse() {
     MATCHER_SCOPE(TransposeFuse);
-    auto single_consumer = pattern::consumers_count(1);
 
-    auto transpose_1 = pattern::wrap_type<opset6::Transpose>({ pattern::any_input(), pattern::wrap_type<opset6::Constant>() }, pattern::consumers_count(1));
-    auto transpose_2 = pattern::wrap_type<opset6::Transpose>({ transpose_1, pattern::wrap_type<opset6::Constant>() });
+    auto transpose_1 = pattern::wrap_type<opset7::Transpose>({ pattern::any_input(), pattern::wrap_type<opset7::Constant>() }, pattern::consumers_count(1));
+    auto transpose_2 = pattern::wrap_type<opset7::Transpose>({ transpose_1, pattern::wrap_type<opset7::Constant>() });
 
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto transpose1 = pattern_to_output.at(transpose_1).get_node_shared_ptr();
         auto transpose2 = pattern_to_output.at(transpose_2).get_node_shared_ptr();
-        if (!transpose1 || !transpose2)
-            return false;
-
         auto input = transpose1->input_value(0);
 
-        auto transpose1_order = std::dynamic_pointer_cast<ngraph::opset6::Constant>(transpose1->get_input_node_shared_ptr(1));
-        auto transpose2_order = std::dynamic_pointer_cast<ngraph::opset6::Constant>(transpose2->get_input_node_shared_ptr(1));
+        auto transpose1_order = std::dynamic_pointer_cast<ngraph::opset7::Constant>(transpose1->get_input_node_shared_ptr(1));
+        auto transpose2_order = std::dynamic_pointer_cast<ngraph::opset7::Constant>(transpose2->get_input_node_shared_ptr(1));
         if (!transpose1_order || !transpose2_order)
             return false;
 
@@ -212,8 +209,8 @@ ngraph::pass::TransposeFuse::TransposeFuse() {
         if (is_ordered) {
             return ngraph::replace_output_update_name(transpose2->output(0), input);
         } else {
-            auto new_order = ngraph::opset6::Constant::create(element::i64, {order2.size()}, order2);
-            auto new_transpose = register_new_node<ngraph::opset6::Transpose>(input, new_order);
+            auto new_order = ngraph::opset7::Constant::create(element::i64, {order2.size()}, order2);
+            auto new_transpose = register_new_node<ngraph::opset7::Transpose>(input, new_order);
 
             ngraph::copy_runtime_info({ transpose1, transpose2 }, new_transpose);
             ngraph::replace_node(transpose2, new_transpose);
