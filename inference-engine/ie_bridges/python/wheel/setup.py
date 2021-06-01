@@ -8,7 +8,7 @@ import errno
 import subprocess  # nosec
 import typing
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, rmtree
 from distutils.command.install import install
 from distutils.command.build import build
 from distutils.errors import DistutilsSetupError
@@ -30,6 +30,7 @@ PLUGINS_LIBS_DIR = config('PLUGINS_LIBS_DIR', '')
 NGRAPH_LIBS_DIR = config('NGRAPH_LIBS_DIR', '')
 TBB_LIBS_DIR = config('TBB_LIBS_DIR', '')
 PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', '')
+SITE_PACKAGES_DIR = 'site-packages'
 LIBS_RPATH = '$ORIGIN' if sys.platform == 'linux' else '@loader_path'
 
 LIB_INSTALL_CFG = {
@@ -128,14 +129,26 @@ class CustomInstall(install):
         self.run_command('build_clib')
         install.run(self)
 
-
 class PrepareLibs(build_clib):
     """Prepare prebuilt libraries"""
 
     def run(self):
+        self.clean({'build_dir': {'prefix': 'build'},
+                    'dist_dir': {'prefix': 'dist'}})
+        self.clean(LIB_INSTALL_CFG)
+        self.clean(PY_INSTALL_CFG)
+
         self.configure(LIB_INSTALL_CFG)
         self.configure(PY_INSTALL_CFG)
         self.generate_package(get_dir_list(LIB_INSTALL_CFG))
+
+    def clean(self, install_cfg):
+        """Clean up staging directories"""
+        for comp, comp_data in install_cfg.items():
+            install_prefix = comp_data.get('prefix')
+            self.announce(f'Cleaning {comp}: {install_prefix}', level=3)
+            if os.path.exists(install_prefix):
+                rmtree(install_prefix)
 
     def configure(self, install_cfg):
         """Collect prebuilt libraries. Install them to the temp directories, set rpath."""
@@ -329,6 +342,9 @@ if not any(pl in sys.platform for pl in platforms):
 package_license = config('WHEEL_LICENSE', '')
 if os.path.exists(package_license):
     copyfile(package_license, 'LICENSE')
+
+if os.path.exists(SITE_PACKAGES_DIR):
+    rmtree(SITE_PACKAGES_DIR)
 
 packages = find_namespace_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
 package_data: typing.Dict[str, list] = {}
