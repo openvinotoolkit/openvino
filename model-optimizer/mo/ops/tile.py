@@ -3,7 +3,8 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, dynamic_dimension, \
+    is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
@@ -45,14 +46,10 @@ class Tile(Op):
         elif shape.size > tile_array.size:
             tile_array = np.insert(tile_array, 0, [1] * (shape.size - tile_array.size))
 
-        if node.in_port(0).data.get_value() is not None and np.all(shape != -1) and np.all(tile_array != -1):
+        if node.in_port(0).data.get_value() is not None and is_fully_defined(shape) and is_fully_defined(tile_array):
             node.out_port(0).data.set_value(np.tile(node.in_port(0).data.get_value().reshape(shape), tile_array))
         else:
-            output_shape = shape * tile_array
-            for i in range(len(output_shape)):
-                if output_shape[i] < 0:
-                    output_shape[i] = -1
-            node.out_port(0).data.set_shape(output_shape)
+            node.out_port(0).data.set_shape(shape * tile_array)
 
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
 

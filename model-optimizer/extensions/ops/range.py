@@ -1,11 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging as log
-
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
@@ -78,7 +76,8 @@ class Range(Op):
                 if not node.has_valid('output_type'):
                     node['output_type'] = input.dtype
 
-        if start is None or limit is None or delta is None:
-            node.out_port(0).data.set_shape(int64_array([-1]))
+        if start is None or limit is None or delta is None or not is_fully_defined(start) or \
+                not is_fully_defined(limit) or not is_fully_defined(delta):
+            node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value]))
         else:
             node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node['output_type']))

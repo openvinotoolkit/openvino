@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array
 
 
 def make_equal_rank(shape_1: np.array, shape_2: np.array):
@@ -41,7 +42,7 @@ def uni_directional_shape_broadcasting(input_shape: np.array, target_shape: np.a
     input, target_shape = make_equal_rank(input, target_shape)
 
     for left, right in zip(input, target_shape):
-        if left != right and left != 1 and right != -1:
+        if left != right and left != 1 and right is not dynamic_dimension:
             log.debug('The shape "{}" cannot be broadcasted to "{}"'.format(input_shape, target_shape))
             return None
 
@@ -61,15 +62,16 @@ def bi_directional_shape_broadcasting(input_shape_1: np.array, input_shape_2: np
     result = list()
 
     for left, right in zip(shape_1, shape_2):
-        if left != right and left != 1 and right != 1 and left != -1 and right != -1:
+        if left != right and left != 1 and right != 1 and left is not dynamic_dimension and \
+                right is not dynamic_dimension:
             log.debug('The shape "{}" cannot be broadcasted to "{}"'.format(input_shape_1, input_shape_2))
             return None
-        if left != -1 and right != -1:
+        if left is not dynamic_dimension and right is not dynamic_dimension:
             result.append(max(left, right))
         else:
-            result.append(-1)
+            result.append(dynamic_dimension)
 
-    return int64_array(result)
+    return shape_array(result)
 
 
 def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, axes_mapping: np.array) -> [np.array, np.array]:
@@ -99,7 +101,7 @@ def uni_directional_broadcasting(input_value: np.array, target_shape: np.array):
     :param target_shape: target shape
     :return: broadcasted value
     """
-    assert uni_directional_shape_broadcasting(int64_array(input_value.shape), target_shape) is not None, \
+    assert uni_directional_shape_broadcasting(shape_array(input_value.shape), target_shape) is not None, \
         'The tensor of shape "{}" cannot be uni-directionally broadcasted to shape "{}"'.format(input_value.shape,
                                                                                                 target_shape)
     return np.broadcast_to(input_value, target_shape)
@@ -112,7 +114,7 @@ def bi_directional_broadcasting(input_value: np.array, second_shape: np.array):
     :param second_shape: second tensor shape
     :return: broadcasted value
     """
-    assert bi_directional_shape_broadcasting(int64_array(input_value.shape), second_shape) is not None, \
+    assert bi_directional_shape_broadcasting(shape_array(input_value.shape), second_shape) is not None, \
         'The tensor of shape "{}" cannot be bi-directionally broadcasted to shape "{}"'.format(input_value.shape,
                                                                                                second_shape)
     return np.array(input_value * np.ones(second_shape), dtype=input_value.dtype)

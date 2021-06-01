@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import get_shape_from_slice, int64_array
+from mo.front.common.partial_infer.utils import get_shape_from_slice, int64_array, shape_array, dynamic_dimension_value
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -122,7 +122,7 @@ class Slice(Op):
         starts = node.in_port(1).data.get_value()
         ends = node.in_port(2).data.get_value()
         if starts is None or ends is None:
-            node.out_port(0).data.set_shape(int64_array([-1 for _ in range(len(input_shape))]))
+            node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value] * len(input_shape)))
             return
 
         if node.is_in_port_connected(3):

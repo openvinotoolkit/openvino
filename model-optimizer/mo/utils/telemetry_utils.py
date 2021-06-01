@@ -4,8 +4,7 @@
 import argparse
 from collections import Counter
 
-import numpy as np
-
+from mo.front.common.partial_infer.utils import is_fully_defined
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils.cli_parser import get_params_with_paths_list
@@ -53,8 +52,8 @@ def send_shapes_info(framework: str, graph: Graph):
         shape_str = ""
         is_partially_defined = "0"
         for shape in shapes:
-            shape_str += np.array2string(shape) + ","
-            if not all(shape > 0):
+            shape_str += ",".join(map(str, shape))
+            if not is_fully_defined(shape):
                 is_partially_defined = "1"
         message_str = "{fw:" + framework + ",shape:\"" + shape_str[:-1] + "\"}"
         t.send_event('mo', 'input_shapes', message_str)

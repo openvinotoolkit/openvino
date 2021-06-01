@@ -1,8 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension, shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.utils import symm_match_shapes
@@ -32,12 +31,12 @@ class TensorArrayGather(Op):
         else:
             ta_node['element_shape'] = node.element_shape
         data_shape = ta_node['element_shape']
-        assert -1 not in data_shape or data_shape.size == 2 and data_shape[0] == -1 and data_shape[1] != -1
-
+        assert is_fully_defined(data_shape) or (data_shape.size == 2 and data_shape[0] is dynamic_dimension and
+                                                data_shape[1] is not dynamic_dimension)
         assert ta_node.has_valid('size')
         size = ta_node['size']
 
         output_shape = [size] + [data_shape[i] for i in range(len(data_shape))]
 
         for _, out_node in node.graph.out_edges(node.id):
-            node.graph.node[out_node]['shape'] = np.array(output_shape)
+            node.graph.node[out_node]['shape'] = shape_array(output_shape)

@@ -198,9 +198,9 @@ class Op(object):
                 for out_node in new_op_node.out_nodes().values():
                     out_node['nchw_layout'] = new_op_node.nchw_layout
             assert all(old_value is None for old_value in old_data_value) or all(
-                [np.array_equal(old_data_value[id], data_node.value) for id, data_node in enumerate(data_nodes)])
+                [np.ma.allequal(old_data_value[id], data_node.value) for id, data_node in enumerate(data_nodes)])
             assert all(old_shape is None for old_shape in old_data_shape) or all(
-                [np.array_equal(old_data_shape[id], data_node.shape) for id, data_node in enumerate(data_nodes)]), \
+                [np.ma.allequal(old_data_shape[id], data_node.shape) for id, data_node in enumerate(data_nodes)]), \
                 "After re-inference of {} node, old and new shapes do not match. Old shapes: {}, new shapes: {}." \
                 "".format(new_op_node.soft_get('name'), [old_data_shape[id] for id in range(len(data_nodes))],
                           [data_node.shape for data_node in data_nodes])

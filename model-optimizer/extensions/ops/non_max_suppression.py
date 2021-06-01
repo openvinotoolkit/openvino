@@ -81,7 +81,7 @@ class NonMaxSuppression(Op):
 
         num_classes = scores_shape[1]
         num_input_boxes = boxes_shape[1]
-        assert scores_shape[2] == num_input_boxes or scores_shape[2] == -1 or num_input_boxes == -1,\
+        assert scores_shape[2] == num_input_boxes or scores_shape[2] is None or num_input_boxes is None,\
             'Number of boxes mismatch for operation {}'.format(node_name)
 
         if node.get_opset() in ['opset4', 'opset5']:
@@ -93,7 +93,7 @@ class NonMaxSuppression(Op):
         if opset == 'opset5':
             num_of_outputs = len([port for port in node.out_ports().values() if not port.disconnected()])
             if num_of_outputs >= 2 and node.has_port('out', 1):
-                node.out_port(1).data.set_shape(int64_array([-1, 3]))
+                node.out_port(1).data.set_shape(int64_array([None, 3]))
             if num_of_outputs >= 3 and node.has_port('out', 2):
                 node.out_port(2).data.set_shape(int64_array(1))
 

@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import get_shape_from_slice
+from mo.front.common.partial_infer.utils import get_shape_from_slice, dynamic_dimension
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -77,7 +77,7 @@ class StridedSlice(Op):
                 slices[i] = np.newaxis
             elif node.shrink_axis_mask[i]:
                 slices[i] = int(begin[i])
-                if slices[i] < 0 and int(data_shape[in_idx]) != -1:  # need for ConvertGroupedStridedSlice
+                if slices[i] < 0 and data_shape[in_idx] is not dynamic_dimension:  # need for ConvertGroupedStridedSlice
                     slices[i] += int(data_shape[in_idx])
             elif node.ellipsis_mask[i]:
                 slices[i] = ...

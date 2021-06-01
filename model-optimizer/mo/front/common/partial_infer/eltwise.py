@@ -3,7 +3,8 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension, dynamic_dimension_value
+from mo.utils.error import Error
 
 
 def eltwise_infer(node, op=None, **kwargs):
@@ -41,20 +42,20 @@ def eltwise_infer(node, op=None, **kwargs):
             if values[id] is not None:
                 values[id] = np.reshape(values[id], new_shape)
 
-    extended_shapes = int64_array([np.concatenate((np.ones(max_dims - len(s), dtype=np.int64), s)) for s in shapes])
-    # ugly but clear solution
+    extended_shapes = shape_array([np.concatenate((np.ones(max_dims - len(s), dtype=np.int64), s)) for s in shapes])
     output_shape = extended_shapes[0]
     for si in range(1, len(extended_shapes)):
         for ei in range(max_dims):
-            mind = min(output_shape[ei], extended_shapes[si][ei])
-            maxd = max(output_shape[ei], extended_shapes[si][ei])
-            if mind == -1:
-                output_shape[ei] = -1
-            elif mind == 1:
-                output_shape[ei] = maxd
-            elif mind != maxd:
-                output_shape[ei] = -1
-    node.out_node().shape = output_shape
+            if output_shape[ei] is not dynamic_dimension and extended_shapes[si][ei] is not dynamic_dimension:
+                mind = min(output_shape[ei], extended_shapes[si][ei])
+                maxd = max(output_shape[ei], extended_shapes[si][ei])
+                if mind == 1:
+                    output_shape[ei] = maxd
+                elif mind != maxd:
+                    raise Error('Input shapes mismatch')
+            else:
+                output_shape[ei] = dynamic_dimension_value
+    node.out_port(0).data.set_shape(output_shape)
 
     if node.has_and_set('stop_value_propagation'):
         return
@@ -63,11 +64,11 @@ def eltwise_infer(node, op=None, **kwargs):
         return
 
     if len(values) <= 2:
-        node.out_node().value = op(*values, **kwargs)
+        node.out_port(0).data.set_value(op(*values, **kwargs))
     else:
-        node.out_node().value = values[0]
+        node.out_port(0).data.set_value(values[0])
         for i in range(len(values) - 1):
-            node.out_node().value = op(node.out_node().value, values[i + 1])
+            node.out_port(0).data.set_value(op(node.out_node().value, values[i + 1]))
 
 
 def bias_add_infer(node, op):

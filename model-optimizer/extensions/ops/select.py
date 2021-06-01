@@ -30,7 +30,7 @@ class Select(Op):
     @staticmethod
     def infer(node: Node):
         assert len([port for port in node.in_ports().values() if not port.disconnected()]) == 3, \
-            "Select operation must have 3 inputs: \'condition\', \'then\' and \'else\' tensors"
+            "Select operation must have 3 inputs: 'condition', 'then' and 'else' tensors"
 
         condition_value = node.in_port(0).data.get_value()
         resulting_tensors = [node.in_port(1).data.get_value(), node.in_port(2).data.get_value()]

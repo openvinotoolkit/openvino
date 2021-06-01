@@ -6,6 +6,32 @@ from typing import Iterable, List, Union
 
 import numpy as np
 
+dynamic_dimension = np.ma.masked
+dynamic_dimension_value = -1000000007
+
+
+def shape_array(value):
+    # if the input already have masked values then we need to explicitly convert to dynamic_dimension_value and create
+    # masked array from scratch, because otherwise method masked_equal will convert masked elements to "nan" value
+    if not isinstance(value, np.ma.masked_array):
+        new_value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
+        return np.ma.masked_equal(new_value, dynamic_dimension_value)
+    return np.ma.masked_equal(value, dynamic_dimension_value)
+
+
+def is_fully_defined(value):
+    if isinstance(value, np.ma.masked_array):
+        return not np.ma.is_masked(value)
+    elif isinstance(value, np.ndarray):
+        if value.ndim == 0:
+            return value is not dynamic_dimension
+        return np.all([item is not dynamic_dimension for item in value])
+    elif isinstance(value, list):
+        return True
+    elif value is dynamic_dimension:
+        return False
+    return True
+
 
 def int64_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
     return np.array(value, dtype=np.int64)
@@ -99,14 +125,14 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
 
     in_idx = 0
     for i, s in enumerate(slices):
-        if s is None:
-            output_shape.append(-1)
+        if s is dynamic_dimension:
+            output_shape.append(dynamic_dimension_value)
             in_idx += 1
         elif isinstance(s, slice):
-            if input_shape[in_idx] != -1:
+            if input_shape[in_idx] is not dynamic_dimension:
                 output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
             else:
-                output_shape.append(-1)
+                output_shape.append(dynamic_dimension_value)
             in_idx += 1
         elif s is np.newaxis:
             output_shape.append(1)
@@ -121,4 +147,4 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
                             'Allowed types are: Ellipsis, slice, int, and None. Instead got: '. format(type(s)))
     for i in range(in_idx, len(input_shape)):
         output_shape.append(input_shape[i])
-    return int64_array(output_shape)
+    return shape_array(output_shape)
