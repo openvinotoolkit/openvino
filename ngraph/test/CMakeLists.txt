@@ -156,6 +156,7 @@ set(SRC
     type_prop/minimum.cpp
     type_prop/mish.cpp
     type_prop/mod.cpp
+    type_prop/multiclass_nms.cpp
     type_prop/mvn.cpp
     type_prop/non_max_suppression.cpp
     type_prop/non_zero.cpp
@@ -237,6 +238,7 @@ set(SRC
     visitors/op/matmul.cpp
     visitors/op/max_pool.cpp
     visitors/op/mod.cpp
+    visitors/op/multiclass_nms.cpp
     visitors/op/mvn.cpp
     visitors/op/non_max_suppression.cpp
     visitors/op/normalize_l2.cpp
@@ -383,6 +385,7 @@ set(MULTI_TEST_SRC
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
     backend/mod.in.cpp
+    backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp

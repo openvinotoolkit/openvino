@@ -91,6 +91,7 @@
 #include "ngraph/op/mish.hpp"
 #include "ngraph/op/mod.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "ngraph/op/multiclass_nms.hpp"
 #include "ngraph/op/mvn.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/op/non_max_suppression.hpp"
