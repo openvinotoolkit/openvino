@@ -65,7 +65,7 @@ output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
 
 * **1**: `data` - tensor of type `T` and arbitrary shape. **Required.**
 
-* **2**: `axes` - 1D tensor of type `T_IND` which specifies indices of dimensions in `data` that define normalization slices. **Required.**
+* **2**: `axes` - 1D tensor of type `T_IND` which specifies indices of dimensions in `data` which define normalization slices. **Required.**
 
 **Outputs**
 
