@@ -1725,3 +1725,38 @@ bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, 
         return t != nullptr;
     });
 }
+
+bool ngraph::dims_are_equal(const PartialShape& shape_1,
+                            const Dimension::value_type& ind_1,
+                            const PartialShape& shape_2,
+                            const Dimension::value_type& ind_2)
+{
+    if (shape_1.rank().is_dynamic() || shape_2.rank().is_dynamic())
+        return true;
+    if (shape_1.rank().get_length() <= ind_1 || shape_2.rank().get_length() <= ind_2)
+        return false;
+    const Dimension &dim_1 = shape_1[ind_1], dim_2 = shape_2[ind_2];
+    Dimension result;
+    return Dimension::merge(result, dim_1, dim_2);
+}
+
+bool ngraph::dims_are_equal(const PartialShape& shape_1,
+                            const Dimension::value_type& ind_1,
+                            const Dimension& value)
+{
+    if (shape_1.rank().is_dynamic())
+        return true;
+    if (shape_1.rank().get_length() <= ind_1)
+        return false;
+    const Dimension& dim_1 = shape_1[ind_1];
+    Dimension result;
+    return Dimension::merge(result, dim_1, value);
+}
+
+bool ngraph::rank_is_dynamic_or_equal_to(const PartialShape& shape,
+                                         const Dimension::value_type& rank)
+{
+    if (shape.rank().is_dynamic())
+        return true;
+    return shape.rank().get_length() == rank;
+}

@@ -230,10 +230,33 @@ namespace ngraph
                            std::uint64_t tensor_rank,
                            std::int64_t axis_range_min,
                            std::int64_t axis_range_max);
+    /// \brief Checks if shape_1[ind_1] and shape_2[ind_2] could be extracted (rank may be dynamic
+    /// or less than indices) then checks if extracted values are equal (intersection is not empty
+    /// for dynamic dimensions)
+    /// \return true if both checks pass otherwise false
+    NGRAPH_API
+    bool dims_are_equal(const PartialShape& shape_1,
+                        const Dimension::value_type& ind_1,
+                        const PartialShape& shape_2,
+                        const Dimension::value_type& ind_2);
+
+    /// \brief Checks if shape[ind] could be extracted (rank may be dynamic or less than ind_1)
+    /// then checks if extracted value is equal to provided dimension (intersection is not empty for
+    /// dynamic dimensions)
+    /// \return true if both checks pass otherwise false
+    NGRAPH_API
+    bool dims_are_equal(const PartialShape& shape,
+                        const Dimension::value_type& ind,
+                        const Dimension& value);
+
+    /// \brief Checks if rank of the shape is dynamic or is equal to provided rank
+    /// \return true if both checks pass otherwise false
+    NGRAPH_API
+    bool rank_is_dynamic_or_equal_to(const PartialShape& shape, const Dimension::value_type& rank);
 
     /// \brief Try to compute the maximum value of value
-    /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
-    /// if not.
+    /// \return (true, max_value) if can be determined, or (false,
+    /// numeric_limits<uint64_t>::max()) if not.
     NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 
     /// \brief Evaluates outputs, treating values in value_map as already computed. value_map is
