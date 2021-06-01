@@ -41,6 +41,13 @@ void ActivationLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
     params[0]->set_friendly_name("Input");
+
+    if (activationType == ngraph::helpers::ActivationTypes::PReLu && constantsValue.empty()) {
+        const auto elemnts_count = ngraph::shape_size(shapes.second);
+        constantsValue.resize(elemnts_count);
+        std::iota(constantsValue.begin(), constantsValue.end(), 2);
+    }
+
     auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
 
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
@@ -163,17 +170,38 @@ ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph:
     }
 }
 
+InferenceEngine::Blob::Ptr ActivationParamLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    InferenceEngine::Blob::Ptr blobPtr;
+    const std::string& name = info.name();
+    if (name == "negativeSlope") {
+        const auto elemnts_count = ngraph::shape_size(function->get_parameters()[1]->get_shape());
+        std::vector<float> param_data(elemnts_count);
+        std::iota(param_data.begin(), param_data.end(), 2);
+        blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
+    } else if (name == "leakySlope" || name == "alpha") {
+         blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &constantsValue[0], 1);
+    } else if (name == "beta" || name == "lambda") {
+        blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &constantsValue[1], 1);
+    } else {
+        blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 20, -10, 1);
+    }
+    return blobPtr;
+}
+
+
 void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constantsValue) {
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::PReLu: {
             auto blobNegativeSlope = inferRequest.GetBlob("negativeSlope");
             float negativeSlope = constantsValue[0];
             blobNegativeSlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobNegativeSlope->getTensorDesc(), &negativeSlope, 1);
+            break;
         }
         case ngraph::helpers::ActivationTypes::LeakyRelu: {
             auto blobLeakySlope = inferRequest.GetBlob("leakySlope");
             float leakySlope = constantsValue[0];
             blobLeakySlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobLeakySlope->getTensorDesc(), &leakySlope, 1);
+            break;
         }
         case ngraph::helpers::ActivationTypes::HardSigmoid: {
             auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
@@ -181,6 +209,7 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
             float alpha = constantsValue[0], beta = constantsValue[1];
             blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
             blobHardSigmoidBeta = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidBeta->getTensorDesc(), &beta, 1);
+            break;
         }
         case ngraph::helpers::ActivationTypes::Selu: {
             auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
@@ -188,22 +217,23 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
             float alpha = constantsValue[0], lambda = constantsValue[1];
             blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
             blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
+            break;
         }
         default:
             IE_THROW() << "Unsupported activation type for Params test type";
     }
 }
 
-void ActivationParamLayerTest::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
+// void ActivationParamLayerTest::Infer() {
+//     inferRequest = executableNetwork.CreateInferRequest();
 
-    auto blobInput = inferRequest.GetBlob("Input");
-    blobInput = FuncTestUtils::createAndFillBlobFloat(blobInput->getTensorDesc());
+//     auto blobInput = inferRequest.GetBlob("Input");
+//     blobInput = FuncTestUtils::createAndFillBlobFloat(blobInput->getTensorDesc());
 
-    generateActivationBlob(constantsValue);
+//     // generateActivationBlob(constantsValue);
 
-    inferRequest.Infer();
-}
+//     inferRequest.Infer();
+// }
 
 void ActivationParamLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
@@ -221,7 +251,8 @@ void ActivationParamLayerTest::SetUp() {
     params.insert(params.end(), activationParams.begin(), activationParams.end());
 
     auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
-    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(activation)};
+    function = std::make_shared<ngraph::Function>(results, params);
 }
 
 void ActivationDynamicLayerTest::Run() {

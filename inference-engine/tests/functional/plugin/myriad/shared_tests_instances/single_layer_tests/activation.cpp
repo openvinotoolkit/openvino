@@ -47,7 +47,34 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)
 );
 
-
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
+    {PReLu, {{}}}
+};
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
+        {{1, 50}, {{1}, {50}}},
+        {{1, 128}, {{1}, {128}}},
+
+        // Broadcast check
+        {{3, 2}, {{1}, {2}, {3}, {3, 2}}},
+        {{3, 2, 5}, {{1}, {5}, {2, 5}, {3, 2}, {3, 2, 5}}},
+        {{3, 2, 5, 7}, {{1}, {7}, {2}, {5, 7}, {3, 2}, {2, 5, 7}, {3, 2, 5}, {3, 2, 5, 7}}},
+};
+
+const auto basicPreluCases = ::testing::Combine(
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic_Prelu_Const, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic_Prelu_Param, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace
