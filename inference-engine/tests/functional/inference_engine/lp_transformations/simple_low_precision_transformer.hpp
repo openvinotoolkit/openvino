@@ -29,6 +29,11 @@ public:
         lowPrecisionManager->register_pass<T>();
     }
 
+    template <class T>
+    void set_callback(const std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>& callback) {
+        lowPrecisionManager->get_pass_config()->set_callback<T>(callback);
+    }
+
     void transform(std::shared_ptr<ngraph::Function>& function);
 
 private:

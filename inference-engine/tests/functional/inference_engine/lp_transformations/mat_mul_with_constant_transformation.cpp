@@ -111,6 +111,12 @@ public:
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
+        if (testValues.params.support3DTensorOnActivations == false) {
+            transformer.set_callback<ngraph::pass::low_precision::MatMulTransformation>(
+                [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+                    return ngraph::pass::low_precision::MatMulTransformation::is3DTensorOnActivations(node);
+                });
+        }
         transformer.transform(actualFunction);
 
         referenceFunction = (testValues.expected.fqOnWeights.empty() && testValues.expected.dequantizationOnWeights.empty()) ?

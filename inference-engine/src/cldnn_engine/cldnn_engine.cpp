@@ -418,7 +418,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
                 OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
                 OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0}),
-                OperationPerTensorQuantizationRestriction::create<ngraph::opset1::GroupConvolution>({0})
             });
 
             ngraph::pass::Manager lptManager;
@@ -431,14 +430,17 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                 }
                 return false;
             });
-            lptPassConfig->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
+            lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
                 return WeightableLayerTransformation::isAsymmetricOnWeights(node);
+            });
+            lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
+                return MatMulTransformation::is3DTensorOnActivations(node);
             });
 
             auto params = LayerTransformation::Params();
             params.setDeconvolutionSpecificChannelsRatio(true);
 
-            lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization, params);
+            lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lptManager.run_passes(nGraphFunc);
         }
 

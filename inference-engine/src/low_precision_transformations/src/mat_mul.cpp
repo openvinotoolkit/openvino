@@ -46,10 +46,6 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     }
 
     matMul = as_type_ptr<opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
-    if (!support3DTensorOnActivations && (matMul->input(0).get_shape().size() == 3ul)) {
-        return false;
-    }
-
     const auto dequantization1 = NetworkHelper::getDequantization(matMul, 0);
     auto dequantization2 = NetworkHelper::getDequantization(matMul, 1);
 
@@ -176,6 +172,10 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
 bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
     return false;
+}
+
+bool MatMulTransformation::is3DTensorOnActivations(const std::shared_ptr<const Node>& node) {
+    return node->get_input_shape(0).size() == 3ul;
 }
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
