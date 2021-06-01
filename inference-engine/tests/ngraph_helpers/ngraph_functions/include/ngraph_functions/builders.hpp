@@ -125,6 +125,7 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const op::PadType &autoPad,
                                                           size_t numOutChannels,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
                                                           const std::vector<float> &filterWeights = {},
                                                           const std::vector<float> &biasesWeights = {});
 
@@ -137,6 +138,7 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const std::vector<size_t> &dilations,
                                                           const op::PadType &autoPad,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
                                                           const std::vector<float> &biasesWeights = {});
 
 std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
@@ -150,6 +152,7 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const op::PadType &autoPad,
                                                           size_t numOutChannels,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
                                                           const std::vector<float> &filterWeights = {},
                                                           const std::vector<float> &biasesWeights = {});
 

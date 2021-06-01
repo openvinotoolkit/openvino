@@ -20,6 +20,7 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in
                                                   const op::PadType &autoPad,
                                                   size_t numOutChannels,
                                                   bool addBiases,
+                                                  const std::vector<ptrdiff_t> &outputPadding,
                                                   const std::vector<float> &filterWeights,
                                                   const std::vector<float> &biasesWeights) {
     bool randomFilterWeights = filterWeights.empty();
@@ -28,7 +29,7 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
-    return makeConvolutionBackpropData(in, filterWeightsNode, type, strides, padsBegin, padsEnd, dilations, autoPad, addBiases, biasesWeights);
+    return makeConvolutionBackpropData(in, filterWeightsNode, type, strides, padsBegin, padsEnd, dilations, autoPad, addBiases, outputPadding, biasesWeights);
 }
 
 std::shared_ptr<Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
@@ -40,8 +41,13 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in
                                                   const std::vector<size_t> &dilations,
                                                   const op::PadType &autoPad,
                                                   bool addBiases,
+                                                  const std::vector<ptrdiff_t> &outputPadding,
                                                   const std::vector<float> &biasesWeights) {
     auto deconv = std::make_shared<opset1::ConvolutionBackpropData>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
+
+    if (!outputPadding.empty()) {
+        deconv = std::make_shared<opset1::ConvolutionBackpropData>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad, outputPadding);
+    }
 
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
@@ -64,6 +70,7 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in
                                                   const op::PadType &autoPad,
                                                   size_t numOutChannels,
                                                   bool addBiases,
+                                                  const std::vector<ptrdiff_t> &outputPadding,
                                                   const std::vector<float> &filterWeights,
                                                   const std::vector<float> &biasesWeights) {
     bool randomFilterWeights = filterWeights.empty();
@@ -73,6 +80,11 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
     auto deconv = std::make_shared<opset1::ConvolutionBackpropData>(in, filterWeightsNode, outputShape, strides, padsBegin, padsEnd, dilations, autoPad);
+
+    if (!outputPadding.empty()) {
+        deconv = std::make_shared<opset1::ConvolutionBackpropData>(in, filterWeightsNode, outputShape, strides, padsBegin,
+                                                                   padsEnd, dilations, autoPad, outputPadding);
+    }
 
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();

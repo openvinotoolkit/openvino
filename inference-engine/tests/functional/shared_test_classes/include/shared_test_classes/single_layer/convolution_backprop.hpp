@@ -23,7 +23,7 @@ typedef std::tuple<
         InferenceEngine::SizeVector,    // Dilation
         size_t,                         // Num out channels
         ngraph::op::PadType,            // Padding type
-        InferenceEngine::SizeVector     // Output padding
+        std::vector<ptrdiff_t>          // Output padding
 > convBackpropSpecificParams;
 typedef std::tuple<
         convBackpropSpecificParams,

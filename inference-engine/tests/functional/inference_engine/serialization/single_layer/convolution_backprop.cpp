@@ -27,7 +27,7 @@ const std::vector<std::vector<size_t>> strides = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 0}};
 const std::vector<std::vector<size_t>> dilations = {{1, 1}};
-const std::vector<std::vector<size_t>> outPadding = {{}, {1, 1}};
+const std::vector<std::vector<ptrdiff_t>> outPadding = {{}, {1, 1}};
 const std::vector<size_t> numOutChannels = {8, 16};
 const std::vector<ngraph::op::PadType> pad_types = {
     ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID,

@@ -75,8 +75,8 @@ protected:
         }
 
         ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation, outPadding;
-        std::vector<ptrdiff_t> padBegin, padEnd;
+        InferenceEngine::SizeVector kernel, stride, dilation;
+        std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -85,7 +85,7 @@ protected:
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
         auto deconvolutionNode = ngraph::builder::makeConvolutionBackpropData(paramOuts.front(), ngPrc, kernel, stride, padBegin,
-                padEnd, dilation, padType, convOutChannels);
+                padEnd, dilation, padType, convOutChannels, false, outPadding);
 
         if (!outputShape.empty()) {
             auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
@@ -128,7 +128,7 @@ const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1} };
-const std::vector<SizeVector> outPadding2d = { {0, 0}, {1, 1} };
+const std::vector<std::vector<ptrdiff_t>> outPadding2d = { {0, 0}, {1, 1} };
 
 /* ============= Deconvolution params (3D) ============= */
 const std::vector<SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
@@ -136,7 +136,7 @@ const std::vector<SizeVector> strides3d = { {1, 1, 1}, {2, 2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = { {0, 0, 0} };
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
 const std::vector<SizeVector> dilations3d = { {1, 1, 1} };
-const std::vector<SizeVector> outPadding3d = { {0, 0, 0}, {1, 1, 1} };
+const std::vector<std::vector<ptrdiff_t>> outPadding3d = { {0, 0, 0}, {1, 1, 1} };
 /* ============= */
 
 /* INSTANCES */

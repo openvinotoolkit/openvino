@@ -16,8 +16,8 @@ std::string ConvolutionBackpropLayerTest::getTestCaseName(testing::TestParamInfo
     std::string targetDevice;
     std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, outputShapes, targetDevice) = obj.param;
     ngraph::op::PadType padType;
-    InferenceEngine::SizeVector kernel, stride, dilation, outPadding;
-    std::vector<ptrdiff_t> padBegin, padEnd;
+    InferenceEngine::SizeVector kernel, stride, dilation;
+    std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convBackpropDataParams;
 
@@ -48,8 +48,8 @@ void ConvolutionBackpropLayerTest::SetUp() {
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(convBackpropDataParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, outputShape, targetDevice) = this->GetParam();
     ngraph::op::PadType padType;
-    InferenceEngine::SizeVector kernel, stride, dilation, outPadding;
-    std::vector<ptrdiff_t> padBegin, padEnd;
+    InferenceEngine::SizeVector kernel, stride, dilation;
+    std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convBackpropDataParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -58,7 +58,7 @@ void ConvolutionBackpropLayerTest::SetUp() {
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
             ngraph::builder::makeConvolutionBackpropData(paramOuts[0], ngPrc, kernel, stride, padBegin,
-                                                        padEnd, dilation, padType, convOutChannels));
+                                                        padEnd, dilation, padType, convOutChannels, false, outPadding));
     if (!outputShape.empty()) {
         auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
         convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
