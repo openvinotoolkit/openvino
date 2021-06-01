@@ -18,7 +18,6 @@ extensions/back/ConvolutionNormalizer.py
 extensions/back/CorrectName.py
 extensions/back/CropToStridedSlice.py
 extensions/back/CutMemory.py
-extensions/back/disable_unsupported_ND_operations.py
 extensions/back/EnableConstantStridedSlice.py
 extensions/back/FakeOutputResolver.py
 extensions/back/ForceStrictPrecision.py

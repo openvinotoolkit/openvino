@@ -8,7 +8,7 @@ import logging as log
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import shape_array, is_fully_defined
 from mo.ops.op import PermuteAttrs
 
 
@@ -37,14 +37,14 @@ def concat_infer(node):
     mask[axis] = True  # pylint: disable=unsupported-assignment-operation
     not_mask = np.logical_not(mask)  # pylint: disable=assignment-from-no-return
     for s in shapes[1:]:
-        s = int64_array(s)
-        if np.all(shape[not_mask] == s[not_mask]):  # TODO handle -1 in a special way
+        s = shape_array(s)
+        if np.ma.allequal(shape[not_mask], s[not_mask]):
             shape[mask] += s[mask]
         else:
             log.error('Concat input shapes do not match')
             return
 
-    node.out_node(0).shape = shape
+    node.out_port(0).data.set_shape(shape)
     if len(shape) != 4:
         # exclude it from NHWC to NCHW conversion
         if 'axis' in node.dim_attrs:
@@ -56,8 +56,14 @@ def concat_infer(node):
     if any(v is None for v in values):
         return
 
-    node.out_node(0).value = np.concatenate(values, axis=node.axis).astype(values[0].dtype, copy=False)
-    node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)
+    # if one of the input values are dynamic then we need to properly keep data type of the input
+    if any(not is_fully_defined(v) for v in values):
+        # TODO FIXME need to correctly determine data type of output. We need to analyze data type of all non-dynamic
+        # inputs and take type from it.
+        node.out_port(0).data.set_value(np.ma.concatenate(values, axis=node.axis))
+    else:  # there is a serious performance benefit to use concatenation as it is implemented below
+        node.out_node(0).value = np.concatenate(values, axis=node.axis).astype(values[0].dtype, copy=False)
+        node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)
 
 
 def tf_pack_infer(node):

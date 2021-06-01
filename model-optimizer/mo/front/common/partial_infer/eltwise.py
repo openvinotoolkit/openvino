@@ -34,15 +34,15 @@ def eltwise_infer(node, op=None, **kwargs):
 
             # Extend shape with 1's
             for cnt in range(axis + len(shape), max_dims):
-                new_shape = np.append(new_shape, 1)
+                new_shape = np.ma.append(new_shape, 1)
 
             shapes[id] = new_shape
 
             # Reshape value to correctly calculate output shape
             if values[id] is not None:
-                values[id] = np.reshape(values[id], new_shape)
+                values[id] = np.ma.reshape(values[id], new_shape)
 
-    extended_shapes = shape_array([np.concatenate((np.ones(max_dims - len(s), dtype=np.int64), s)) for s in shapes])
+    extended_shapes = [np.ma.concatenate((np.ma.ones(max_dims - len(s)), s)) for s in shapes]
     output_shape = extended_shapes[0]
     for si in range(1, len(extended_shapes)):
         for ei in range(max_dims):

@@ -33,7 +33,7 @@ class MatMulConstTransposesExtraction(BackReplacementPattern):
         )
 
     @staticmethod
-    def insert_transpose(node, in_port_idx):
+    def insert_transpose(node: Node, in_port_idx: int):
         graph = node.graph
         name = node.soft_get('name', node.id)
 

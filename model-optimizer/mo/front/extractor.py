@@ -868,7 +868,7 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     if data_type is None:
         data_type = np.float32
     input_op = Parameter(graph, dict(shape=shape, data_type=data_type, initial_node_name=node_id,
-                                        name=get_new_placeholder_name(node_id, is_out_port, port)))
+                                     name=get_new_placeholder_name(node_id, is_out_port, port)))
 
     fw_name = Node(graph, node_id).soft_get('name')
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],

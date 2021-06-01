@@ -3,10 +3,11 @@
 
 import hashlib
 
-from defusedxml import defuse_stdlib
 import defusedxml.ElementTree as ET
+from defusedxml import defuse_stdlib
 from defusedxml.minidom import parseString
 
+from mo.front.common.partial_infer.utils import unmask_shape
 from mo.graph.graph import *
 from mo.middle.passes.convert_data_type import np_data_type_to_precision
 from mo.utils.unsupported_ops import UnsupportedOps
@@ -112,7 +113,7 @@ def serialize_mean_image(bin_file_name: str, mean_data=[]):
 
 
 def xml_shape(shape: np.ndarray, element: Element):
-    for d in shape:
+    for d in unmask_shape(shape):
         dim = SubElement(element, 'dim')
         if int(d) != d:
             raise Error('The value "{}" for shape is not integer.'.format(d))
