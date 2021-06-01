@@ -11,6 +11,7 @@ from pathlib import Path
 from shutil import copyfile, rmtree
 from distutils.command.install import install
 from distutils.command.build import build
+from distutils.command.clean import clean
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
 from distutils import log
@@ -30,7 +31,6 @@ PLUGINS_LIBS_DIR = config('PLUGINS_LIBS_DIR', '')
 NGRAPH_LIBS_DIR = config('NGRAPH_LIBS_DIR', '')
 TBB_LIBS_DIR = config('TBB_LIBS_DIR', '')
 PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', '')
-SITE_PACKAGES_DIR = 'site-packages'
 LIBS_RPATH = '$ORIGIN' if sys.platform == 'linux' else '@loader_path'
 
 LIB_INSTALL_CFG = {
@@ -134,22 +134,9 @@ class PrepareLibs(build_clib):
     """Prepare prebuilt libraries"""
 
     def run(self):
-        self.clean({'build_dir': {'prefix': 'build'},
-                    'dist_dir': {'prefix': 'dist'}})
-        self.clean(LIB_INSTALL_CFG)
-        self.clean(PY_INSTALL_CFG)
-
         self.configure(LIB_INSTALL_CFG)
         self.configure(PY_INSTALL_CFG)
         self.generate_package(get_dir_list(LIB_INSTALL_CFG))
-
-    def clean(self, install_cfg):
-        """Clean up staging directories"""
-        for comp, comp_data in install_cfg.items():
-            install_prefix = comp_data.get('prefix')
-            self.announce(f'Cleaning {comp}: {install_prefix}', level=3)
-            if os.path.exists(install_prefix):
-                rmtree(install_prefix)
 
     def configure(self, install_cfg):
         """Collect prebuilt libraries. Install them to the temp directories, set rpath."""
@@ -209,6 +196,24 @@ class CopyExt(build_ext):
                 set_rpath(rpath, os.path.realpath(src))
 
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
+
+
+class CustomClean(clean):
+    """Clean up staging directories"""
+
+    def clean(self, install_cfg):
+        for comp, comp_data in install_cfg.items():
+            install_prefix = comp_data.get('prefix')
+            self.announce(f'Cleaning {comp}: {install_prefix}', level=3)
+            if os.path.exists(install_prefix):
+                rmtree(install_prefix)
+
+    def run(self):
+        self.clean({'build_dir': {'prefix': 'build'},
+                    'dist_dir': {'prefix': 'dist'}})
+        self.clean(LIB_INSTALL_CFG)
+        self.clean(PY_INSTALL_CFG)
+        clean.run(self)
 
 
 def is_tool(name):
@@ -344,8 +349,6 @@ package_license = config('WHEEL_LICENSE', '')
 if os.path.exists(package_license):
     copyfile(package_license, 'LICENSE')
 
-if os.path.exists(SITE_PACKAGES_DIR):
-    rmtree(SITE_PACKAGES_DIR)
 
 packages = find_namespace_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
 package_data: typing.Dict[str, list] = {}
@@ -367,6 +370,7 @@ setup(
         'install': CustomInstall,
         'build_clib': PrepareLibs,
         'build_ext': CopyExt,
+        'clean': CustomClean,
     },
     ext_modules=find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)),
     packages=packages,

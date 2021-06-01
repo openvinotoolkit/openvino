@@ -53,7 +53,7 @@ endif()
 
 add_custom_command(TARGET ie_wheel
     POST_BUILD
-    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} bdist_wheel
+    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
         --dist-dir ${OUTPUT_ROOT}/wheels
         --build=${WHEEL_BUILD}
         --plat-name=${WHEEL_PLATFORM}
