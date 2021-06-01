@@ -29,22 +29,22 @@ namespace ngraph
                     Shape channel_slope_shape(arg_shape.size(), 1);
                     channel_slope_shape[arg_shape.size() > 1 ? 1 : 0] = slope_shape[0];
                     autobroadcast_binop(arg,
-                        slope,
-                        out,
-                        arg_shape,
-                        channel_slope_shape,
-                        ngraph::op::AutoBroadcastType::NUMPY,
-                        [](T x, T y) -> T { return x < T(0) ? T(x * y) : x; });
+                                        slope,
+                                        out,
+                                        arg_shape,
+                                        channel_slope_shape,
+                                        ngraph::op::AutoBroadcastType::NUMPY,
+                                        [](T x, T y) -> T { return x < T(0) ? T(x * y) : x; });
                 }
                 else
                 {
                     autobroadcast_binop(arg,
-                        slope,
-                        out,
-                        arg_shape,
-                        slope_shape,
-                        ngraph::op::AutoBroadcastType::NUMPY,
-                        [](T x, T y) -> T { return x < T(0) ? T(x * y) : x; });
+                                        slope,
+                                        out,
+                                        arg_shape,
+                                        slope_shape,
+                                        ngraph::op::AutoBroadcastType::NUMPY,
+                                        [](T x, T y) -> T { return x < T(0) ? T(x * y) : x; });
                 }
 
                 // int cnt = 0;
@@ -52,7 +52,8 @@ namespace ngraph
                 // for (size_t i = 0; i < shape_size(arg_shape); ++i)
                 // {
                 //     out[i] =
-                //         arg[i] < T(0) ? T(arg[i] * slope[cnt++ % shape_size(slope_shape)]) : arg[i];
+                //         arg[i] < T(0) ? T(arg[i] * slope[cnt++ % shape_size(slope_shape)]) :
+                //         arg[i];
                 // }
             }
         } // namespace reference
