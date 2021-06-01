@@ -29,6 +29,7 @@ jobs:
     MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
+    BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
@@ -117,11 +118,20 @@ jobs:
     displayName: 'Build Lin'
 
   - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List files'
+    displayName: 'List bin files'
 
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
+
+  - script: ls -alR $(INSTALL_DIR)
+    displayName: 'List install files'
+
+  - script: |
+      rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
+      $(INSTALL_DIR)/deployment_tools/inference_engine/samples/cpp/build_samples.sh
+    workingDirectory: $(BUILD_SAMPLES_DIR)
+    displayName: 'Build samples'
 
   - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
