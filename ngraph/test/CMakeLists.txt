@@ -424,6 +424,7 @@ set(MULTI_TEST_SRC
     backend/sin.in.cpp
     backend/sinh.in.cpp
     backend/softmax.in.cpp
+    backend/softplus.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/squared_difference.in.cpp
