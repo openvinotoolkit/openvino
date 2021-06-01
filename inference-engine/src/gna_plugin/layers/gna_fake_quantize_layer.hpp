@@ -63,7 +63,7 @@ class GNAFakeQuantizeLayer {
         return getInputLayerAt(fqLayer, 0);
     }
 
-    int32_t getLevels() {
+    size_t getLevels() {
         return fqLayer->GetParamAsSizeT("levels");
     }
 

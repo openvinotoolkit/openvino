@@ -56,6 +56,7 @@
 #include "to_string_utils.h"
 #include "gpu/memory_gpu.h"
 #include "cldnn_itt.h"
+#include "loop_inst.h"
 
 #include "gpu/ocl_toolkit.h"
 
@@ -482,6 +483,9 @@ void program_impl::post_optimize_graph(bool is_internal) {
 
     if (options.get<build_option_type::optimize_data>()->enabled())
         apply_opt_pass<remove_redundant_reorders>(lo, false, true, true);  // pass to remove output reorders while all others graph optimizations were done
+
+    // update loop input/output primitive mappings
+    apply_opt_pass<update_loop_primitive_map>();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
@@ -883,8 +887,21 @@ bool program_impl::extract_and_remove(program_node& node) {
     }
 
     auto& input = node.get_dependency(0);
-    node.dependencies.clear();
+
+    // update primitive_map of loop primitive,
+    // if extracted node is input of loop
+    for (const auto user : node.users) {
+        if (user->is_type<loop>()) {
+            loop_node& loop = *user;
+            loop.update_primitive_map(node.id(), input.id());
+        }
+        if (node.dependencies.front()->is_type<loop>()) {
+            loop_node& loop = *node.dependencies.front();
+            loop.update_primitive_map(node.id(), user->id());
+        }
+    }
     input.users.remove(&node);
+    node.dependencies.clear();
 
     if (!node.is_endpoint())
         replace_all_usages(node, input);

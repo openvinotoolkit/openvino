@@ -95,6 +95,8 @@ attach_crop_gpu::attach_crop_gpu() {
     implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), val_fw);
     implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), val_fw);
 
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw);
     implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16), val_fw);
     implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16), val_fw);
 
