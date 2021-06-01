@@ -199,7 +199,9 @@ pipeline {
     agent none
     environment {
         http_proxy="http://proxy-ir.intel.com:911"
+        HTTP_PROXY="http://proxy-ir.intel.com:911"
         https_proxy="http://proxy-ir.intel.com:911"
+        HTTPS_PROXY="http://proxy-ir.intel.com:911"
     }
     options {
         skipDefaultCheckout true
