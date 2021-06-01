@@ -70,6 +70,13 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         _callbackExecutor = _taskExecutor;
     }
 
+    // Workaround for initializing friendly names for all the OPs
+    // Otherwise they are initialized concurrently without thread safety.
+    // TODO: Can be removed after 57069 is done.
+    for (const auto& op : _network.getFunction()->get_ops()) {
+        op->get_friendly_name();
+    }
+
     int streams = std::max(1, _cfg.streamExecutorConfig._streams);
     std::vector<Task> tasks; tasks.resize(streams);
     _graphs.resize(streams);
