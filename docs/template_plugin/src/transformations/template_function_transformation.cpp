@@ -4,6 +4,8 @@
 
 #include "template_function_transformation.hpp"
 
+#include <openvino/cc/ngraph/itt.hpp>
+
 using namespace ngraph;
 
 // ! [function_pass:template_transformation_cpp]
@@ -11,6 +13,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MyFunctionTransformation, "MyFunctionTransformation", 0);
 
 bool pass::MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(MyFunctionTransformation);
     // Example transformation code
     NodeVector nodes;
 
