@@ -39,6 +39,7 @@ public:
     CacheGuardEntry(CacheGuard& cacheGuard, const std::string& hash,
                     std::shared_ptr<std::mutex> m, std::atomic_int& refCount);
     CacheGuardEntry(const CacheGuardEntry&) = delete;
+    CacheGuardEntry& operator=(const CacheGuardEntry&) = delete;
 
     /**
      * @brief Destructor, will perform the following cleanup
@@ -112,8 +113,10 @@ private:
         Item() = default;
         Item(const Item& other): m_mutexPtr(other.m_mutexPtr),
                                  m_itemRefCounter(other.m_itemRefCounter.load()) {}
+        Item& operator=(const Item& other) = delete;
         Item(Item&& other): m_mutexPtr(std::move(other.m_mutexPtr)),
                             m_itemRefCounter(other.m_itemRefCounter.load()) {}
+        Item& operator=(Item&& other) = delete;
     };
     std::mutex m_tableMutex;
     std::unordered_map<std::string, Item> m_table;
