@@ -130,7 +130,20 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 }
 
 bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    return (!NetworkHelper::getDequantization(layer).empty()) && LayerTransformation::canBeTransformed(context, layer);
+    if (!LayerTransformation::canBeTransformed(context, layer) || NetworkHelper::getDequantization(layer).empty()) {
+        return false;
+    }
+
+    const auto consumers = NetworkHelper::consumers(layer);
+    const auto concat = as_type_ptr<opset1::Concat>(consumers[0]);
+
+    // WA to avoid propagation of dequantization if after Split all consumers are the same unsupported Concat
+    if (concat && concat->get_axis() != 1ul) {
+        const size_t id = consumers[0]->get_instance_id();
+        return std::any_of(consumers.begin(), consumers.end(), [&](const std::shared_ptr<Node>& node) { return node->get_instance_id() != id; });
+    }
+
+    return true;
 }
 
 } // namespace low_precision
