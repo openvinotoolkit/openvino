@@ -824,6 +824,6 @@ TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
         // but unrolls TI/Loop
         manager.register_pass<pass::LowLatency2>();
 
-        EXPECT_THROW(manager.run_passes(f), CheckFailure);
+        EXPECT_NO_THROW(manager.run_passes(f));
     }
 }
