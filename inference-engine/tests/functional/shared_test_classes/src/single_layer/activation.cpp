@@ -169,11 +169,17 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
             auto blobNegativeSlope = inferRequest.GetBlob("negativeSlope");
             float negativeSlope = constantsValue[0];
             blobNegativeSlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobNegativeSlope->getTensorDesc(), &negativeSlope, 1);
+            inferRequest.SetBlob("negativeSlope", blobNegativeSlope);
+            inputs.push_back(blobNegativeSlope);
+            break;
         }
         case ngraph::helpers::ActivationTypes::LeakyRelu: {
             auto blobLeakySlope = inferRequest.GetBlob("leakySlope");
             float leakySlope = constantsValue[0];
             blobLeakySlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobLeakySlope->getTensorDesc(), &leakySlope, 1);
+            inferRequest.SetBlob("leakySlope", blobLeakySlope);
+            inputs.push_back(blobLeakySlope);
+            break;
         }
         case ngraph::helpers::ActivationTypes::HardSigmoid: {
             auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
@@ -181,6 +187,11 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
             float alpha = constantsValue[0], beta = constantsValue[1];
             blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
             blobHardSigmoidBeta = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidBeta->getTensorDesc(), &beta, 1);
+            inferRequest.SetBlob("alpha", blobHardSigmoidAlpha);
+            inferRequest.SetBlob("beta", blobHardSigmoidBeta);
+            inputs.push_back(blobHardSigmoidAlpha);
+            inputs.push_back(blobHardSigmoidBeta);
+            break;
         }
         case ngraph::helpers::ActivationTypes::Selu: {
             auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
@@ -188,6 +199,11 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
             float alpha = constantsValue[0], lambda = constantsValue[1];
             blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
             blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
+            inferRequest.SetBlob("alpha", blobHardSigmoidAlpha);
+            inferRequest.SetBlob("lambda", blobHardSigmoidLambda);
+            inputs.push_back(blobHardSigmoidAlpha);
+            inputs.push_back(blobHardSigmoidLambda);
+            break;
         }
         default:
             IE_THROW() << "Unsupported activation type for Params test type";
@@ -199,8 +215,16 @@ void ActivationParamLayerTest::Infer() {
 
     auto blobInput = inferRequest.GetBlob("Input");
     blobInput = FuncTestUtils::createAndFillBlobFloat(blobInput->getTensorDesc());
+    inferRequest.SetBlob("Input", blobInput);
+    inputs.push_back(blobInput);
 
     generateActivationBlob(constantsValue);
+
+    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
+        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
+        auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
+        inferRequest.SetBatch(batchSize);
+    }
 
     inferRequest.Infer();
 }
