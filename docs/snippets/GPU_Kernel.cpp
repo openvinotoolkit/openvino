@@ -1,4 +1,5 @@
-#include <inference_engine.hpp>
+#include <ie_core.hpp>
+#include "cldnn/cldnn_config.hpp"
 
 int main() {
 using namespace InferenceEngine;

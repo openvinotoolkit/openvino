@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mean_image.h"
+#include "normalize_preprocess.h"
 #include "ie_parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MeanImage::MeanImage() : meanBuffer(nullptr) {
+NormalizePreprocess::NormalizePreprocess() : meanBuffer(nullptr) {
 }
 
-void MeanImage::Load(const MKLDNNDims& inputDims, InputInfo::Ptr inputInfo) {
+void NormalizePreprocess::Load(const MKLDNNDims& inputDims, InputInfo::Ptr inputInfo) {
     PreProcessInfo &pp = inputInfo->getPreProcess();
     size_t inChannels = pp.getNumberOfChannels();
     if (inChannels == 0) {
@@ -26,11 +26,16 @@ void MeanImage::Load(const MKLDNNDims& inputDims, InputInfo::Ptr inputInfo) {
 
     switch (pp.getMeanVariant()) {
         case MEAN_VALUE: {
-            // mean image common value per channel (1x1xC)
+            // mean and standard deviation image common value per channel (1x1xC)
             meanValues.resize(inChannels);
+            stdScales.resize(inChannels);
 
             for (unsigned channel = 0; channel < inChannels; channel++) {
+                if (pp[channel]->stdScale == 0) {
+                    IE_THROW() << "Preprocessing error: stdScale cannot be equal zero";
+                }
                 meanValues[channel] = pp[channel]->meanValue;
+                stdScales[channel] = pp[channel]->stdScale;
             }
         }
         break;
@@ -71,7 +76,7 @@ void MeanImage::Load(const MKLDNNDims& inputDims, InputInfo::Ptr inputInfo) {
     }
 }
 
-void MeanImage::Subtract(const MKLDNNDims &inputDims, float *input, InferenceEngine::Layout layout) {
+void NormalizePreprocess::NormalizeImage(const MKLDNNDims &inputDims, float *input, InferenceEngine::Layout layout) {
     IE_ASSERT(input != nullptr);
 
     if (inputDims.ndims() != 4) {
@@ -91,19 +96,24 @@ void MeanImage::Subtract(const MKLDNNDims &inputDims, float *input, InferenceEng
         parallel_for2d(MB, srcSize, [&](int mb, int i) {
             input[srcSize * mb + i] -= meanBufferValues[i];
         });
-    } else if (!meanValues.empty()) {
+    } else if (!meanValues.empty() && !stdScales.empty()) {
         int C = inputDims[1];
         srcSize /= inputDims[1];
 
         if (layout == NCHW) {
             parallel_for3d(MB, C, srcSize, [&](int mb, int c, int i) {
                 input[mb * C * srcSize + c * srcSize + i] -= meanValues[c];
+                input[mb * C * srcSize + c * srcSize + i] /= stdScales[c];
             });
         } else if (layout == NHWC) {
             parallel_for2d(MB, srcSize, [&](int mb, int i) {
-                for (int c = 0; c < C; c++)
+                for (int c = 0; c < C; c++) {
                     input[mb * srcSize * C + i * C + c] -= meanValues[c];
+                    input[mb * srcSize * C + i * C + c] /= stdScales[c];
+                }
             });
         }
+    } else {
+        IE_THROW() << "Preprocessing error: meanValues and stdScales arrays are inconsistent.";
     }
 }
