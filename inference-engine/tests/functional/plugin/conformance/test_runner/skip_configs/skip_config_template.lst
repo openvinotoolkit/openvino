@@ -1,6 +1,7 @@
 # OMZ
 # hang
 .*AvgPool_1199829.*
+.*MVN_53537.*
 
 # DLB
 # Hang
