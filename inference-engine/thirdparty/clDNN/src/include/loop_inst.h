@@ -225,8 +225,11 @@ public:
         }
 
         // setup internal output
+        if (output_primitive_maps.empty()) {
+            CLDNN_ERROR_MESSAGE(this->id(), "output primitive map should have at least 1 mapping");
+        }
         std::set<primitive_id> output_names;
-        output_names.insert(output_primitive_maps.begin()->internal_id);
+        output_names.insert(output_primitive_maps.front().internal_id);
         const auto& back_edges_list = this->get_primitive()->back_edges;
 
         // add current_iteration_id in body network, condition_id if exist

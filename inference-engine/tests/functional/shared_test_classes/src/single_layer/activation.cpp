@@ -192,41 +192,6 @@ InferenceEngine::Blob::Ptr ActivationParamLayerTest::GenerateInput(const Inferen
     return blobPtr;
 }
 
-void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constantsValue) {
-    switch (activationType) {
-        case ngraph::helpers::ActivationTypes::PReLu: {
-            auto blobNegativeSlope = inferRequest.GetBlob("negativeSlope");
-            float negativeSlope = constantsValue[0];
-            blobNegativeSlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobNegativeSlope->getTensorDesc(), &negativeSlope, 1);
-            break;
-        }
-        case ngraph::helpers::ActivationTypes::LeakyRelu: {
-            auto blobLeakySlope = inferRequest.GetBlob("leakySlope");
-            float leakySlope = constantsValue[0];
-            blobLeakySlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobLeakySlope->getTensorDesc(), &leakySlope, 1);
-            break;
-        }
-        case ngraph::helpers::ActivationTypes::HardSigmoid: {
-            auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
-            auto blobHardSigmoidBeta = inferRequest.GetBlob("beta");
-            float alpha = constantsValue[0], beta = constantsValue[1];
-            blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
-            blobHardSigmoidBeta = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidBeta->getTensorDesc(), &beta, 1);
-            break;
-        }
-        case ngraph::helpers::ActivationTypes::Selu: {
-            auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
-            auto blobHardSigmoidLambda = inferRequest.GetBlob("lambda");
-            float alpha = constantsValue[0], lambda = constantsValue[1];
-            blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
-            blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
-            break;
-        }
-        default:
-            IE_THROW() << "Unsupported activation type for Params test type";
-    }
-}
-
 void ActivationParamLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
