@@ -7,4 +7,4 @@ from mo.utils.cli_parser import get_tf_cli_parser
 
 if __name__ == "__main__":
     from mo.main import main
-    sys.exit(main(get_tf_cli_parser(), 'tf'))
+    sys.exit(main(get_tf_cli_parser(), None, 'tf'))

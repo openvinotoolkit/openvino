@@ -933,6 +933,11 @@ mo/front/tf/partial_infer/__init__.py
 mo/front/tf/partial_infer/tf.py
 mo/front/tf/register_custom_ops.py
 mo/front/tf/replacement.py
+mo/front_ng/__init__.py
+mo/front_ng/extractor.py
+mo/front_ng/frontendmanager_wrapper.py
+mo/front_ng/pipeline.py
+mo/front_ng/serialize.py
 mo/graph/__init__.py
 mo/graph/connection.py
 mo/graph/graph.py
@@ -943,6 +948,7 @@ mo/main_caffe.py
 mo/main_kaldi.py
 mo/main_mxnet.py
 mo/main_onnx.py
+mo/main_pdpd.py
 mo/main_tf.py
 mo/middle/__init__.py
 mo/middle/passes/__init__.py

@@ -14,5 +14,5 @@ class TestMainErrors(unittest.TestCase):
     @patch('mo.main.driver', side_effect=FrameworkError('FW ERROR MESSAGE'))
     def test_FrameworkError(self, mock_argparse, mock_driver):
         with self.assertLogs() as logger:
-            main(argparse.ArgumentParser(), 'framework_string')
+            main(argparse.ArgumentParser(), None, 'framework_string')
             self.assertEqual(logger.output, ['ERROR:root:FW ERROR MESSAGE'])

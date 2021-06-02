@@ -18,7 +18,6 @@ from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 
-
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
         super().__init__(nargs=nargs, **kw)
@@ -87,12 +86,12 @@ class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExiste
 
 def readable_file(path: str):
     """
-    Check that specified path is a readable file.
+    Check that specified path is a readable file or directory.
     :param path: path to check
-    :return: path if the file is readable
+    :return: path if the file/directory is readable
     """
-    if not os.path.isfile(path):
-        raise Error('The "{}" is not existing file'.format(path))
+    if not os.path.isfile(path) and not os.path.exists(path):
+        raise Error('The "{}" is not existing file or directory'.format(path))
     elif not os.access(path, os.R_OK):
         raise Error('The "{}" is not readable'.format(path))
     else:
@@ -621,12 +620,10 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    onnx_group = parser.add_argument_group('ONNX*-specific parameters')
-
     return parser
 
 
-def get_all_cli_parser():
+def get_all_cli_parser(frontEndManager=None):
     """
     Specifies cli arguments for Model Optimizer
 
@@ -636,10 +633,13 @@ def get_all_cli_parser():
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
+    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] +
+                          (frontEndManager.get_available_front_ends() if frontEndManager else [])))
+
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
                         type=str,
-                        choices=['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
+                        choices=frameworks)
 
     get_common_cli_parser(parser=parser)
 
