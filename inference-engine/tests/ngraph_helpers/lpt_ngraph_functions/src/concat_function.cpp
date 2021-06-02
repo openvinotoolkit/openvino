@@ -23,44 +23,6 @@ namespace subgraph {
 
 using namespace ngraph::pass;
 
-namespace {
-
-std::shared_ptr<Node> createConvolution(const std::shared_ptr<Node>& parent, const element::Type precision, const bool weightsInInt8) {
-    const size_t outputChannels = parent->output(0).get_shape()[1] * 2;
-    const size_t inputChannels = parent->output(0).get_shape()[1];
-    const auto shape = Shape{outputChannels, inputChannels, 1, 1};
-
-    std::shared_ptr<Node> weights;
-    if (weightsInInt8) {
-        weights = std::make_shared<opset1::Constant>(element::i8, shape, std::vector<int>(ngraph::shape_size(shape), 100));
-    } else {
-        weights = ngraph::builder::makeFakeQuantize(
-            std::make_shared<opset1::Constant>(precision, shape, std::vector<float>(ngraph::shape_size(shape), 1.f)),
-            precision,
-            255,
-            {outputChannels, 1, 1, 1},
-            std::vector<float>(outputChannels, -1.27f),
-            std::vector<float>(outputChannels, 1.27f),
-            std::vector<float>(outputChannels, -1.27f),
-            std::vector<float>(outputChannels, 1.27f));
-        weights->set_friendly_name("fakeQuantizeOnWeights");
-    }
-
-    const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
-        ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
-        ngraph::op::TemporaryReplaceOutputType(weights, precision).get(),
-        ngraph::Strides{1, 1},
-        ngraph::CoordinateDiff{0, 0},
-        ngraph::CoordinateDiff{0, 0},
-        ngraph::Strides{1, 1});
-
-    convolution->set_friendly_name("convolution");
-
-    return convolution;
-}
-
-} // namespace
-
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
@@ -614,7 +576,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithStridedSlice(
         padType);
     maxPool->set_friendly_name("MaxPool");
 
-    const std::shared_ptr<Node> convolution = createConvolution(maxPool, precision, false);
+    const std::shared_ptr<Node> convolution = makeConvolution(maxPool, precision, false);
 
     const auto result2 = std::make_shared<ngraph::opset1::Result>(convolution);
     result2->set_friendly_name("Result_2");
@@ -912,11 +874,6 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
     const DequantizationOperations& dequantizationAfter,
     const std::int64_t& axis,
     const bool addNotPrecisionPreservedOperation) {
-    //const auto quantizationAlignmentAttribute = std::make_shared<::ngraph::VariantWrapper<QuantizationAlignmentAttribute>>(QuantizationAlignmentAttribute(
-    //    fqOnData1.outputLowValues[0],
-    //    fqOnData1.outputHighValues[0],
-    //    element::u8));
-
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     input1->set_friendly_name("input1");
 
@@ -962,7 +919,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
 
     const auto lastDequantization = makeDequantization(concat, dequantizationAfter);
 
-    std::shared_ptr<ngraph::Node> parent;
+    std::shared_ptr<ngraph::Node> parent = lastDequantization;
     if (addNotPrecisionPreservedOperation) {
         auto avgPool = std::make_shared<opset1::AvgPool>(
             lastDequantization,
@@ -973,9 +930,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
             true,
             op::RoundingType::FLOOR);
         parent = avgPool;
-    } else {
-        parent = lastDequantization;
     }
+
     parent->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
@@ -1697,7 +1653,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithStridedSlice(
 
     const auto dequantizationAfter2 = makeDequantization(maxPool, deqAfter2);
 
-    const std::shared_ptr<Node> convolution = createConvolution(dequantizationAfter2, inputPrecision, false);
+    const std::shared_ptr<Node> convolution = makeConvolution(dequantizationAfter2, inputPrecision, false);
 
     const auto result2 = std::make_shared<ngraph::opset1::Result>(convolution);
     result2->set_friendly_name("Result_2");
