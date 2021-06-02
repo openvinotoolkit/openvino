@@ -31,7 +31,7 @@ public:
 
 private:
     std::vector<AutoPlugin::DeviceInformation> GetDeviceChoice(const ConfigType&  config) const;
-    std::vector<std::string> GetOptimizationCapabilities() const;
+    std::vector<std::string> GetOptimizationCapabilities(const std::map<std::string, IE::Parameter>& options) const;
     DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
     ConfigType GetSupportedConfig(const ConfigType& config, const AutoPlugin::DeviceName & deviceName) const;
     static ConfigType mergeConfigs(ConfigType config, const ConfigType& local);
