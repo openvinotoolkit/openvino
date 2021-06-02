@@ -193,18 +193,18 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
     if (idx == 0) {
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
 
         if (params.has_score_threshold)
             kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
     } else if (idx == 1) {
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
     } else if (idx == 2) {
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 0 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
 
         if (params.has_num_select_per_class)
             kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexNumSelectPerClass() });
@@ -217,7 +217,7 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
     } else if (idx == 3) {
         kernel.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
 
         if (params.has_second_output)
             kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSecondOutput() });
@@ -236,7 +236,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
     const non_max_suppression_params& orgParams = static_cast<const non_max_suppression_params&>(params);
 
     // Assign internel buffer
-    constexpr size_t intermidiate_bytes = 20;
+    constexpr size_t intermidiate_bytes = 12;   // struct size of SortedBoxInfo/BoxInfo in non_max_suppression_gpu_ref.cl
     auto batch_num = orgParams.inputs[1].Batch().v;
     auto class_num = orgParams.inputs[1].Feature().v;
     auto boxes_num = orgParams.inputs[0].Feature().v;
@@ -244,7 +244,6 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
     size_t buffer_size = batch_num * class_num * buffer_stride;
     size_t sel_num_buffer_size = batch_num * class_num * 4;
 
-    kd.internalBufferSizes.push_back(buffer_size);
     kd.internalBufferSizes.push_back(buffer_size);
     kd.internalBufferSizes.push_back(buffer_size);
     kd.internalBufferSizes.push_back(sel_num_buffer_size);

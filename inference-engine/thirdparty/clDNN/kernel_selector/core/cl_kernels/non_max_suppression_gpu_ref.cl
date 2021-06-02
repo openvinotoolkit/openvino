@@ -30,15 +30,15 @@
 #define NUM_CLASSES     INPUT1_FEATURE_NUM
 
 typedef struct {
-    int boxId;
+    ushort boxId;
     int suppress_begin_index;
     INPUT1_TYPE score;
 } FUNC(SortedBoxInfo);
 
 typedef struct {
-    int batchId;
-    int classId;
-    int boxId;
+    short batchId;
+    ushort classId;
+    ushort boxId;
     INPUT1_TYPE score;
 } FUNC(BoxInfo);
 
@@ -46,8 +46,8 @@ typedef struct {
 #define BOX_INFO FUNC(BoxInfo)
 
 inline float FUNC(intersectionOverUnion)(const __global INPUT0_TYPE *boxes,
-    const int batchA, const int boxIdA,
-    const int batchB, const int boxIdB)
+    const short batchA, const ushort boxIdA,
+    const short batchB, const ushort boxIdB)
 {
     const float4 pA = convert_float4(vload4(0, &boxes[INPUT0_GET_INDEX(batchA, boxIdA, 0, 0)]));
     const float4 pB = convert_float4(vload4(0, &boxes[INPUT0_GET_INDEX(batchB, boxIdB, 0, 0)]));
@@ -113,7 +113,7 @@ inline void FUNC(swap_sbox_info)(__global SBOX_INFO* a, __global SBOX_INFO* b)
 inline int FUNC(partition)(__global SBOX_INFO* arr, int l, int h)
 {
     const INPUT1_TYPE pivotScore = arr[h].score;
-    const int pivotBoxId = arr[h].boxId;
+    const ushort pivotBoxId = arr[h].boxId;
     int i = (l - 1);
     for (int j = l; j <= h - 1; j++) {
         if ((arr[j].score < pivotScore) || (arr[j].score == pivotScore && arr[j].boxId > pivotBoxId)) {
@@ -188,10 +188,10 @@ inline void FUNC(quickSortIterative)(__global SBOX_INFO* arr, int l, int h)
     }
 }
 
-inline int FUNC(initBoxList)(__global SBOX_INFO *outBoxes, int boxNum, const __global INPUT1_TYPE *scores, float score_threshold, int batchId, int classId)
+inline int FUNC(initBoxList)(__global SBOX_INFO *outBoxes, int boxNum, const __global INPUT1_TYPE *scores, float score_threshold, short batchId, ushort classId)
 {
     int count = 0;
-    for (int i = 0; i < boxNum; ++i) {
+    for (ushort i = 0; i < boxNum; ++i) {
         const INPUT1_TYPE score = scores[INPUT1_GET_INDEX(batchId, classId, i, 0)];
         if (convert_float(score) < score_threshold) continue;
 
@@ -274,9 +274,9 @@ KERNEL (non_max_suppression_ref_stage_0)(
     #endif
     )
 {
-    const int batchId = get_global_id(0);
-    const int classId = get_global_id(1);
-    const int box_gid = get_global_id(2);
+    const short batchId = get_global_id(0);
+    const ushort classId = get_global_id(1);
+    const ushort box_gid = get_global_id(2);
 
     const int start_bid = box_gid * NUM_SCORE_PER_ITEM;
     const int end_bid = min(start_bid + NUM_SCORE_PER_ITEM, NUM_BOXES);
@@ -434,8 +434,8 @@ KERNEL (non_max_suppression_ref_stage_2)(
     #endif
     )
 {
-    const int batchId = get_global_id(0);
-    const int classId = get_global_id(1);
+    const short batchId = get_global_id(0);
+    const ushort classId = get_global_id(1);
 
     float scale = 0.0f;
     if (SOFT_NMS_SIGMA_VAL > 0.0f) {
@@ -514,8 +514,8 @@ KERNEL (non_max_suppression_ref_stage_final)(
 {
     int outputIdx = 0;
     __global BOX_INFO *sortedBoxList = (__global BOX_INFO*)&buffer2[0];
-    for (int batchId = 0; batchId < NUM_BATCHES; batchId++) {
-        for (int classId = 0; classId < NUM_CLASSES; classId++) {
+    for (short batchId = 0; batchId < NUM_BATCHES; batchId++) {
+        for (ushort classId = 0; classId < NUM_CLASSES; classId++) {
             __global BOX_INFO *selectedBoxList = (__global BOX_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
             for (int i = 0; i < NUM_BOXES; i++) {
                 if (selectedBoxList[i].batchId > -1) {
@@ -531,6 +531,7 @@ KERNEL (non_max_suppression_ref_stage_final)(
 #if SORT_RESULT_DESCENDING == 1
     FUNC_CALL(sortOutputBoxList)(sortedBoxList, outputIdx);
 #endif
+
     unroll_for (int i = 0; i < outputIdx; i++) {
         const int offset = 3 * i;
         output[offset + 0] = sortedBoxList[i].batchId;
