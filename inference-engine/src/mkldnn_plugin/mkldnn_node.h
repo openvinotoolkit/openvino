@@ -190,8 +190,8 @@ static std::string NameFromType(Type type) {
             return "ExperimentalDetectronGenerateProposalsSingleImage";
         case ExtractImagePatches:
             return "ExtractImagePatches";
-        case NonMaxSuppressionIEInternal:
-            return "NonMaxSuppressionIEInternal";
+        case NonMaxSuppression:
+            return "NonMaxSuppression";
         default:
             return "Unknown";
     }

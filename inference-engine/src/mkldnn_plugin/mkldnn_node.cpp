@@ -223,7 +223,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ExperimentalDetectronPriorGridGenerator", ExperimentalDetectronPriorGridGenerator},
         { "ExperimentalDetectronGenerateProposalsSingleImage", ExperimentalDetectronGenerateProposalsSingleImage},
         { "ExtractImagePatches", ExtractImagePatches},
-        { "NonMaxSuppressionIEInternal", NonMaxSuppressionIEInternal}
+        { "NonMaxSuppressionIEInternal", NonMaxSuppression}
 };
 
 Type TypeFromName(const std::string type) {

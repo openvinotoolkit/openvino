@@ -324,7 +324,7 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::initSupportedP
 
 void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
     try {
-        if (inDims.size() != 4 || outDims.size() < 2) {
+        if (inDims.size() != 4 || outDims.size() != 2) {
             IE_THROW() << "Incorrect number of input or output edges!";
         }
 

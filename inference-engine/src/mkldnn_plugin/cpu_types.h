@@ -85,7 +85,7 @@ enum Type {
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
     ExtractImagePatches,
-    NonMaxSuppressionIEInternal
+    NonMaxSuppression
 };
 
 enum Algorithm {

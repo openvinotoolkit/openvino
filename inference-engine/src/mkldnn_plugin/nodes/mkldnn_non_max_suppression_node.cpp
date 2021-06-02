@@ -13,7 +13,6 @@
 #include "ie_parallel.hpp"
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include "utils/general_utils.h"
-#include <ie_ngraph_utils.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -222,7 +221,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
 }
 
 bool MKLDNNNonMaxSuppressionNode::created() const {
-    return getType() == NonMaxSuppressionIEInternal;
+    return getType() == NonMaxSuppression;
 }
 
 float MKLDNNNonMaxSuppressionNode::intersectionOverUnion(const float *boxesI, const float *boxesJ) {
@@ -393,4 +392,4 @@ void MKLDNNNonMaxSuppressionNode::checkOutput(const std::shared_ptr<ngraph::Node
 }
 
 
-REG_MKLDNN_PRIM_FOR(MKLDNNNonMaxSuppressionNode, NonMaxSuppressionIEInternal)
+REG_MKLDNN_PRIM_FOR(MKLDNNNonMaxSuppressionNode, NonMaxSuppression)
