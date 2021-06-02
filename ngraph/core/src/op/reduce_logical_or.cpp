@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/reduce_logical_or.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -46,14 +47,12 @@ namespace
         }
         try
         {
-            const AxisSet reduction_axes = eval::extract_reduction_axes(axes, "ReduceLogicalOr");
-
+            const AxisSet reduction_axes =
+                eval::extract_reduction_axes(data, axes, "ReduceLogicalOr");
             runtime::reference::reduce_logical_or(data->get_data_ptr<char>(),
                                                   out->get_data_ptr<char>(),
                                                   data->get_shape(),
-                                                  reduction_axes,
-                                                  keep_dims);
-
+                                                  reduction_axes);
             return true;
         }
         catch (const ngraph_error& e)
@@ -68,6 +67,8 @@ bool op::v1::ReduceLogicalOr::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceLogicalOr_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     const auto& data = inputs[0];
     const auto& axes = inputs[1];
     const auto& out = outputs[0];

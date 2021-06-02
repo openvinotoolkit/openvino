@@ -10,6 +10,8 @@ namespace ngraph
 {
     namespace eval
     {
-        AxisSet extract_reduction_axes(const HostTensorPtr& axes, const char* op_name);
+        AxisSet extract_reduction_axes(const HostTensorPtr& data,
+                                       const HostTensorPtr& axes,
+                                       const char* op_name);
     }
 } // namespace ngraph
