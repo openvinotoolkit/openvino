@@ -13,10 +13,10 @@ dynamic_dimension_value = -1000000007
 def shape_array(value, dtype=np.int64):
     # if the input already have masked values then we need to explicitly convert to dynamic_dimension_value and create
     # masked array from scratch, because otherwise method masked_equal will convert masked elements to "nan" value
-    if not isinstance(value, np.ma.masked_array):
-        new_value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
-        return np.ma.masked_equal(new_value, dynamic_dimension_value).astype(dtype=dtype)
-    return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)
+#    if not isinstance(value, np.ma.masked_array):
+    new_value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
+    return np.ma.masked_equal(new_value, dynamic_dimension_value).astype(dtype=dtype)
+#    return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)
 
 
 def unmask_shape(value):
@@ -127,12 +127,15 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
     Is introduced to prevent potentially large memory consumption.
     """
     output_shape = []
-    num_new_axes = np.count_nonzero(list(map(lambda x: x is np.newaxis, slices)))
+    num_new_axes = np.count_nonzero(list(map(lambda x: x is not None and x is np.newaxis, slices)))
     num_ellipsis_inserts = len(input_shape) - len(slices) + num_new_axes + 1
 
     in_idx = 0
     for i, s in enumerate(slices):
-        if s is dynamic_dimension:
+        if s is None:
+            output_shape.append(dynamic_dimension_value)
+            in_idx += 1
+        elif s is dynamic_dimension:
             output_shape.append(dynamic_dimension_value)
             in_idx += 1
         elif isinstance(s, slice):
@@ -150,8 +153,7 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
                 output_shape.append(input_shape[in_idx])
                 in_idx += 1
         else:
-            raise Exception('Element type of a slice List is unacceptable. '
-                            'Allowed types are: Ellipsis, slice, int, and None. Instead got: '. format(type(s)))
+            raise Exception('Element type of a slice list is unacceptable: "{}"'.format(type(s)))
     for i in range(in_idx, len(input_shape)):
         output_shape.append(input_shape[i])
     return shape_array(output_shape)

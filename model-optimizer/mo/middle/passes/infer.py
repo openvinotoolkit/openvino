@@ -7,6 +7,7 @@ import networkx as nx
 import numpy as np
 
 # TODO remove it
+from mo.front.common.partial_infer.utils import dynamic_dimension
 from mo.graph.graph import Node, Graph
 from mo.graph.graph import dict_includes
 from mo.utils.error import Error
@@ -190,7 +191,8 @@ def override_batch(graph: Graph, batch: int):
     if batch is not None:
         for node_id, data in graph.nodes(data=True):
             if 'op' in data and data['op'] == 'Parameter' and not data.get('fixed_batch', False):
-                if len(data['shape']) == 0 or data['shape'][0] not in (-1, 0, 1):
+                if len(data['shape']) == 0 or (data['shape'][0] is not dynamic_dimension and
+                                               data['shape'][0] not in (-1, 0, 1)):
                     raise Error(('The input layer {} has a shape {} defined in the model. \n\n' +
                                  'When you use -b (--batch) option, Model Optimizer applies its value to the first ' +
                                  'element of the shape if it is equal to -1, 0 or 1. Otherwise, this is the ambiguous ' +

@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 
@@ -19,7 +19,7 @@ class SpaceToBatch(Op):
             'in_ports_count': 3,
             'out_ports_count': 1,
             'version': 'opset2',
-            'infer': __class__.infer,
+            'infer': self.infer,
         }, attrs)
 
     @staticmethod
@@ -42,8 +42,12 @@ class SpaceToBatch(Op):
 
         pads = pads_begin + input_shape + pads_end
 
-        node.out_node().shape = int64_array([input_shape[0] * np.prod(block_size),
-                                             *[int(x) for x in (pads[1:] / block_size[1:])]])
+        if is_fully_defined(block_size):
+            block_elements_count = np.prod(block_size)
+        else:
+            block_elements_count = dynamic_dimension
+        node.out_port(0).data.set_shape([input_shape[0] * block_elements_count,
+                                         *[int(x) for x in (pads[1:] / block_size[1:])]])
 
         # block_shape, pads_begin, pads_end should be permuted during the NHWC->NCHW layout change
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
@@ -63,7 +67,7 @@ class BatchToSpace(Op):
             'in_ports_count': 3,
             'out_ports_count': 1,
             'version': 'opset2',
-            'infer': __class__.infer
+            'infer': self.infer
         }, attrs)
 
     @staticmethod
@@ -84,9 +88,13 @@ class BatchToSpace(Op):
         pads = block_size * input_shape
 
         sizes = pads[1:] - crops_begin[1:] - crops_end[1:]
-        batch = int(input_shape[0] / (np.prod(block_size)))
+        if is_fully_defined(block_size):
+            block_elements_count = np.prod(block_size)
+        else:
+            block_elements_count = dynamic_dimension
+        batch = input_shape[0] // block_elements_count
 
-        node.out_node().shape = int64_array([batch, *sizes])
+        node.out_port(0).data.set_shape([batch, *sizes])
 
         # block_shape, crops_begin, crops_end values should be permuted during the NHWC->NCHW layout change
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')

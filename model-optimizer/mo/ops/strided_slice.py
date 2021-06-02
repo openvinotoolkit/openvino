@@ -8,7 +8,6 @@ import numpy as np
 from mo.front.common.partial_infer.utils import get_shape_from_slice, dynamic_dimension
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-from mo.utils.error import Error
 from mo.utils.utils import array_to_str
 
 
@@ -18,12 +17,12 @@ class StridedSlice(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
+            'type': self.op,
             'op': 'StridedSlice',
             'version': 'opset1',
             'in_ports_count': 4,
             'out_ports_count': 1,
-            'infer': __class__.infer
+            'infer': self.infer
         }, attrs)
         for mask_name in StridedSlice.get_mask_names():
             assert mask_name in attrs, 'Attribute {} of the StridedSlice node is not given.'.format(mask_name)
@@ -83,7 +82,7 @@ class StridedSlice(Op):
                 slices[i] = ...
                 in_idx += input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
             else:
-                if begin is not None and end is not None:
+                if begin is not None and end is not None and strides is not None:
                     start, stop = begin[i], end[i]
                     if not node.begin_mask[i]:  # if begin, and end are not specified take the whole range
                         start = None
@@ -105,25 +104,14 @@ class StridedSlice(Op):
 
     @staticmethod
     def validate_inputs_and_get_args(node: Node) -> (np.ndarray, np.ndarray, np.ndarray):
-        node_name = node.soft_get('name', node.id)
         begin = node.in_port(1).data.get_value()
         end = node.in_port(2).data.get_value()
 
-        # if begin is None or end is None:
-        #     raise Error(
-        #         'StridedSlice operation for node {} supports only constant begin and end inputs'.format(node_name))
-
         if node.is_in_port_connected(3):
             strides = node.in_port(3).data.get_value()
-            # if strides is None:
-            #     raise Error(
-            #         'StridedSlice operation for node {} supports only constant strides input'.format(node_name))
         else:
             if begin is not None:
                 strides = np.ones_like(begin)
             else:
                 strides = None
-        # assert len(begin) == len(end) == len(strides), \
-        #     'begin, end, and strides of StridedSlice node {} must be of the same length. Got insted:' \
-        #     'begin = {}, end = {}, strides = {}'.format(node_name, begin, end, strides)
         return begin, end, strides

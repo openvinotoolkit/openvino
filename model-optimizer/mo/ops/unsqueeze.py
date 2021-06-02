@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array, is_fully_defined
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -54,8 +54,10 @@ class Unsqueeze(Op):
         output_shape = int64_array(input_shape.copy())
         for dim in unsqueeze_dims:
             output_shape = np.insert(output_shape, dim, 1)
+        # convert int64_array to shape array again
+        output_shape = shape_array(int64_array(output_shape))
 
-        if input_value is not None:
+        if input_value is not None and is_fully_defined(output_shape):
             node.out_port(0).data.set_value(input_value.reshape(output_shape))
         else:
             node.out_port(0).data.set_shape(int64_array(output_shape))
