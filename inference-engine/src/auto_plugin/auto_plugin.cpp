@@ -13,8 +13,8 @@
 #include <ie_algorithm.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ie_icore.hpp>
 
-#include <auto_plugin/auto_config.hpp>
 #include "auto_plugin.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
@@ -54,8 +54,8 @@ IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::
     return LoadNetworkImpl(fileName, config);
 }
 
-IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
-                                                                           const ConfigType&     config) {
+IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
+                                                                            const ConfigType&     config) {
     if (network.getFunction() == nullptr) {
         IE_THROW() << "AUTO device supports just ngraph network representation";
     }
@@ -143,7 +143,7 @@ std::vector<AutoPlugin::DeviceInformation> AutoInferencePlugin::GetDeviceChoice(
     std::vector<DeviceInformation> metaDevices;
     std::vector<std::string> availableDevices;
 
-    auto deviceListConfig = config.find(IE::AutoConfigParams::KEY_AUTO_DEVICE_LIST);
+    auto deviceListConfig = config.find(IE::KEY_AUTO_DEVICE_LIST);
     if (deviceListConfig == config.end()) {
         availableDevices = GetCore()->GetAvailableDevices();
     } else {

@@ -350,11 +350,14 @@ set(MULTI_TEST_SRC
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
     backend/dyn_reshape.in.cpp
+    backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/elu.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
+    backend/experimental_detectron_detection_output.in.cpp
+    backend/experimental_detectron_prior_grid.in.cpp
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
@@ -480,6 +483,13 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
+# SOURCE FOR FRONTEND TESTING
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
+set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+
+file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
+set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+
 add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
@@ -551,3 +561,10 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
+
+############ FRONTEND ############
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
+target_link_libraries(unit-test PRIVATE frontend_manager)
+
+add_subdirectory(frontend)
+### END FRONTEND ###

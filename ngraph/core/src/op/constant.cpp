@@ -62,8 +62,6 @@ op::Constant::Constant(const element::Type& type,
                           shape_size(m_shape),
                           ".");
 
-    constructor_validate_and_infer_types();
-
     using Type_t = element::Type_t;
 
     if (values.size() == 1 && shape_size(m_shape) != 1)
@@ -138,7 +136,6 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const void
 {
     size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
     std::memcpy(get_data_ptr_nc(), data, size);
-    constructor_validate_and_infer_types();
     m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
 }
 
@@ -485,6 +482,12 @@ bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v0_Constant_evaluate);
     auto output = outputs[0];
     output->write(get_data_ptr(), output->get_size_in_bytes());
+    return true;
+}
+
+bool op::v0::Constant::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Constant_has_evaluate);
     return true;
 }
 

@@ -78,6 +78,18 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
             CoordinateDiff{ 0, 0 },
             Strides{ 1, 1 });
     }
+    if (transformationName == "AsymmetricConvolutionTransformation") {
+        const auto dequantizationOnData = makeDequantization(parent, { {element::f32}, { 128.f }, { 0.1f } });
+        const auto weights = opset1::Constant::create(element::i8, Shape{ 3, 3, 1, 1 }, { 2 });
+        const auto dequantizationOnWeights = makeDequantization(weights, { {element::f32}, {}, {0.3f} });
+        return std::make_shared<opset1::Convolution>(
+            dequantizationOnData,
+            dequantizationOnWeights,
+            Strides{ 1, 1 },
+            CoordinateDiff{ 0, 0 },
+            CoordinateDiff{ 0, 0 },
+            Strides{ 1, 1 });
+    }
     if (transformationName == "DepthToSpaceTransformation") {
         const auto dequantization = makeDequantization(parent, { {element::f32}, {}, { 0.1f } });
         return std::make_shared<opset1::DepthToSpace>(dequantization, opset1::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 3);
