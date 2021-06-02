@@ -18,6 +18,7 @@ namespace ngraph {
 class TRANSFORMATIONS_API TileElement {
 public:
     int64_t h_begin, h_end, w_begin, w_end;
+    std::function<void(std::shared_ptr<Node>)> modifier = nullptr;
 
     TileElement() = default;
 
@@ -27,6 +28,10 @@ public:
         h_end = slice[1];
         w_begin = slice[2];
         w_end = slice[3];
+    }
+
+    size_t size() const {
+        return (h_end - h_begin + 1) * (w_end - w_begin + 1);
     }
 };
 
@@ -52,8 +57,9 @@ public:
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 };
 
-TRANSFORMATIONS_API Tiles getTiles(const Input<Node> & input);
+TRANSFORMATIONS_API Tiles get_tiles(const Input<Node> & input);
 
-TRANSFORMATIONS_API bool hasTiles(const Input<Node> & input);
+TRANSFORMATIONS_API bool has_tiles(const Input<Node> & input);
 
+TRANSFORMATIONS_API void set_tiles(Input<Node> input, const Tiles & tiles);
 }  // namespace ngraph

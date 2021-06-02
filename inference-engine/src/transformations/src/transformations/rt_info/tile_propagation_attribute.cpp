@@ -13,7 +13,7 @@ template class ngraph::VariantImpl<Tiles>;
 
 constexpr VariantTypeInfo VariantWrapper<Tiles>::type_info;
 
-Tiles getTiles(const Input<Node> & input) {
+Tiles get_tiles(const Input<Node> & input) {
     const auto &rtInfo = input.get_rt_info();
     using TilesWraper = VariantWrapper<Tiles>;
 
@@ -25,7 +25,14 @@ Tiles getTiles(const Input<Node> & input) {
     return as_type_ptr<TilesWraper>(attr)->get();
 }
 
-bool hasTiles(const Input<Node> & input) {
+void set_tiles(Input<Node> input, const Tiles & tiles) {
+    auto &rtInfo = input.get_rt_info();
+    using TilesWraper = VariantWrapper<Tiles>;
+
+    rtInfo[TilesWraper::type_info.name] = std::make_shared<TilesWraper>(tiles);
+}
+
+bool has_tiles(const Input<Node> & input) {
     const auto &rtInfo = input.get_rt_info();
     using TilesWraper = VariantWrapper<Tiles>;
 

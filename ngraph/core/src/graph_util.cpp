@@ -312,6 +312,13 @@ std::vector<std::shared_ptr<ngraph::Node>>
                 new_output.get_rt_info() = output_rt_info;
             }
 
+            for (auto input : node->inputs())
+            {
+                const auto& input_rt_info = input.get_rt_info();
+                auto new_input = cloned_node->input(input.get_index());
+                new_input.get_rt_info() = input_rt_info;
+            }
+
             for (auto tag : node->get_provenance_tags())
             {
                 cloned_node->add_provenance_tag(tag);

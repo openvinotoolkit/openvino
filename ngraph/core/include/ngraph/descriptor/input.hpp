@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 
 #include "ngraph/descriptor/tensor.hpp"
@@ -11,6 +12,7 @@
 namespace ngraph
 {
     class Node;
+    class Variant;
 
     namespace descriptor
     {
@@ -47,6 +49,11 @@ namespace ngraph
             bool has_output() const { return m_output != nullptr; }
             /// \return the tensor of the connected output
             const Tensor& get_tensor() const;
+
+            using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+
+            RTMap& get_rt_info() { return m_rt_info; }
+            const RTMap& get_rt_info() const { return m_rt_info; }
 
             /// \return the tensor of the connected output
             Tensor& get_tensor();
@@ -98,6 +105,7 @@ namespace ngraph
             Node* m_node;   // The node we are an input for
             size_t m_index; // Index into all input tensors
             Output* m_output;
+            RTMap m_rt_info;
 
         private:
             bool m_is_relevant_to_shape;

@@ -74,6 +74,8 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
+#include <transformations/serialize.hpp>
+#include <transformations/common_optimizations/tiling.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
@@ -134,6 +136,12 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
     manager.register_pass<ngraph::pass::BinarizeWeights>();
     manager.register_pass<ngraph::pass::ConvToBinaryConv>();
+
+    manager.register_pass<ngraph::pass::Serialize>("/tmp/out_before.xml", "/tmp/out_before.bin");
+    manager.register_pass<ngraph::pass::VisualizeTree>("/tmp/out_before.svg");
+    manager.register_pass<ngraph::pass::Tiling>();
+    manager.register_pass<ngraph::pass::Serialize>("/tmp/out_after.xml", "/tmp/out_after.bin");
+    manager.register_pass<ngraph::pass::VisualizeTree>("/tmp/out_after.svg");
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
