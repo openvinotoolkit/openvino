@@ -22,10 +22,19 @@ const std::vector<std::map<std::string, std::string>> configs = {
     }
 };
 
+const std::vector<std::pair<size_t, size_t>> size_params = {
+    {49, 118},
+    {300, 38},
+};
+
+const std::vector<bool> decompose = { false, true };
+
 INSTANTIATE_TEST_CASE_P(smoke_BasicLSTM, Basic_LSTM_S,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                            ::testing::ValuesIn(configs)),
+                            ::testing::ValuesIn(configs),
+                            ::testing::ValuesIn(size_params),
+                            ::testing::ValuesIn(decompose)),
                         Basic_LSTM_S::getTestCaseName);
 }  // namespace

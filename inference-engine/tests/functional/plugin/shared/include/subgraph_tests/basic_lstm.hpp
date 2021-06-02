@@ -17,11 +17,11 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
                                                   InferenceEngine::SizeVector({1, hidden_size}),
                                                   InferenceEngine::Layout::NC);
     // Reshape
-    auto params = ngraph::builder::makeParams(function->get_parameters().at(0)->get_element_type(), { {1, 49} });
+    auto params = ngraph::builder::makeParams(function->get_parameters().at(0)->get_element_type(), { {1, third_dim} });
     function->replace_parameter(0, params[0]);
 
     // todo: it is better to modify the model -> use ShapeOf() and Gather()
-    std::vector<uint64_t> outFormShapes1 = { 1, 1, 49 };
+    std::vector<uint64_t> outFormShapes1 = { 1, 1, third_dim };
     auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{3}, outFormShapes1);
     auto param_target_inputs = function->get_parameters().at(0)->output(0).get_target_inputs();
 
@@ -30,6 +30,9 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
         target.replace_source_output(pattern1);
     }
     function->validate_nodes_and_infer_types();
+
+    // Generate inputs
+    GenerateInputs();
 
     // Calculate References for the network before transformation passes
     auto referenceOutputs = CalculateRefs();
@@ -56,7 +59,6 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
         }
     }
     IE_SUPPRESS_DEPRECATED_END
-    GenerateInputs();
     // Run and compare
     Infer();
     const auto& actualOutputs = GetOutputs();
