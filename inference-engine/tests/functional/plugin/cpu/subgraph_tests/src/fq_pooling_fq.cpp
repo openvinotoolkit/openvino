@@ -111,11 +111,17 @@ TEST_P(FQPoolingFQSubgraphTest, CompareWithRefs) {
     CheckFQCount(1);
 }
 
-const auto avx512 = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
-const auto avx2 = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
-const auto sse42 = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
+const auto avx512_4D = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
+const auto avx512_5D = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx512"}, "jit_avx512"};
 
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing = {sse42, avx2, avx512};
+const auto avx2_4D = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
+const auto avx2_5D = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2"}, "jit_avx2"};
+
+const auto sse42_4D = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
+const auto sse42_5D = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_sse42"}, "jit_sse42"};
+
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_4D, avx2_4D, avx512_4D};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D = {sse42_5D, avx2_5D, avx512_5D};
 
 const std::vector<std::vector<size_t>> inputShapes4D = {
         std::vector<size_t>{1, 1, 64, 64},
@@ -134,7 +140,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FQPoolingFQ_4D, FQPoolingFQSubgraphTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes4D),
                                 ::testing::ValuesIn(params4D),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_4D))),
                         FQPoolingFQSubgraphTest::getTestCaseName);
 
  const std::vector<std::vector<size_t>> inputShapes5D = {
@@ -155,7 +161,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FQPoolingFQ_5D, FQPoolingFQSubgraphTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes5D),
                                 ::testing::ValuesIn(params5D),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_5D))),
                         FQPoolingFQSubgraphTest::getTestCaseName);
 
 }  // namespace SubgraphTestsDefinitions
