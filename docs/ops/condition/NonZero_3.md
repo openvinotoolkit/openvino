@@ -4,7 +4,7 @@
 
 **Category**: Condition operation
 
-**Short description**: *NonZero* returns the indices of the non-zero elements of the input tensor. 
+**Short description**: *NonZero* returns the indices of the non-zero elements of the input tensor.
 
 **Detailed description**: *NonZero* returns the indices of the non-zero elements of the input tensor (in row-major order - by dimension).
 * The output tensor has shape `[rank(input), num_non_zero]`.
