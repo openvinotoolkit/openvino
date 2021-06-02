@@ -115,6 +115,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
 const std::map<std::string, std::string> cpuBF16PluginConfig = { { PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES } };
 const std::vector<SizeVector> emptyOutputShape = { {} };
+const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = { {} };
 
 /* ============= Deconvolution params (planar layout) ============= */
 const SizeVector numOutChannels_Planar = { 6 };
@@ -128,7 +129,6 @@ const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1} };
-const std::vector<std::vector<ptrdiff_t>> outPadding2d = { {0, 0}, {1, 1} };
 
 /* ============= Deconvolution params (3D) ============= */
 const std::vector<SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
@@ -136,7 +136,6 @@ const std::vector<SizeVector> strides3d = { {1, 1, 1}, {2, 2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = { {0, 0, 0} };
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
 const std::vector<SizeVector> dilations3d = { {1, 1, 1} };
-const std::vector<std::vector<ptrdiff_t>> outPadding3d = { {0, 0, 0}, {1, 1, 1} };
 /* ============= */
 
 /* INSTANCES */
@@ -149,7 +148,7 @@ const auto convParams_ExplicitPadding_Planar_2D = ::testing::Combine(
     ::testing::ValuesIn(dilations2d),
     ::testing::ValuesIn(numOutChannels_Planar),
     ::testing::Values(ngraph::op::PadType::EXPLICIT),
-    ::testing::ValuesIn(outPadding2d)
+    ::testing::ValuesIn(emptyOutputPadding)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
@@ -195,7 +194,7 @@ const auto convParams_ExplicitPadding_Planar_3D = ::testing::Combine(
     ::testing::ValuesIn(dilations3d),
     ::testing::ValuesIn(numOutChannels_Planar),
     ::testing::Values(ngraph::op::PadType::EXPLICIT),
-    ::testing::ValuesIn(outPadding3d)
+    ::testing::ValuesIn(emptyOutputPadding)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
@@ -241,7 +240,7 @@ const auto convParams_ExplicitPadding_Blocked_2D = ::testing::Combine(
     ::testing::ValuesIn(dilations2d),
     ::testing::ValuesIn(numOutChannels_Blocked),
     ::testing::Values(ngraph::op::PadType::EXPLICIT),
-    ::testing::ValuesIn(outPadding2d)
+    ::testing::ValuesIn(emptyOutputPadding)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
@@ -287,7 +286,7 @@ const auto convParams_ExplicitPadding_Blocked_3D = ::testing::Combine(
     ::testing::ValuesIn(dilations3d),
     ::testing::ValuesIn(numOutChannels_Blocked),
     ::testing::Values(ngraph::op::PadType::EXPLICIT),
-    ::testing::ValuesIn(outPadding3d)
+    ::testing::ValuesIn(emptyOutputPadding)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
@@ -334,7 +333,7 @@ const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(
         ::testing::Values(SizeVector({1, 1})),
         ::testing::ValuesIn(numOutChannels_Blocked),
         ::testing::Values(ngraph::op::PadType::EXPLICIT),
-        ::testing::ValuesIn(outPadding2d)
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
