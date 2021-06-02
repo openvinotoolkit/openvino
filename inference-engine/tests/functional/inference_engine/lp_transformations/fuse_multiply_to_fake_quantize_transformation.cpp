@@ -39,7 +39,7 @@ public:
     };
 
     ngraph::Shape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };

@@ -54,11 +54,7 @@ InferenceEngine::Precision LayerTransformation::getDeviceInternalPrecision(const
 }
 
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParams() {
-    return ngraph::pass::low_precision::LayerTransformation::Params(
-        true,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        true);
+    return ngraph::pass::low_precision::LayerTransformation::Params();
 }
 
 }  // namespace LayerTestsUtils

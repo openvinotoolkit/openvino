@@ -24,13 +24,17 @@ std::string AddTransformation::getTestCaseName(testing::TestParamInfo< AddTransf
     AddTestValues param;
     std::tie(netPrecision, inputShapes, targetDevice, param) = obj.param;
 
-    if (!param.precisionOnActivations.empty()) {
-        params.precisionsOnActivations = param.precisionOnActivations;
-    }
-
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
         (param.broadcast ? "_broadcast" : "");
+    for (const auto& elem : param.precisionOnActivations) {
+        result << "_" << elem << "_";
+    }
+    result << "expected_precisions_";
+    for (const auto& elem : param.expectedPrecisions) {
+        result << "_" << elem << "_";
+    }
+
     if (!param.fakeQuantize1.empty()) {
         result << "_on_branch1_" <<
             param.fakeQuantize1.inputLowValues[0] << "_" <<

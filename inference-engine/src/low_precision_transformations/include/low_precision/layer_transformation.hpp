@@ -159,97 +159,26 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 // Base class for all LP transformations, holds some common data structures
 class LP_TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
 public:
-    enum QuantizedTensorAlignment {
-        None,
-        UpdateLevel
-    };
-
-    // TODO: LPT: not implemented: clean up ngraph::pass::low_precision::LayerTransformation::Params,
-    // use LayerTestsUtils::LayerTransformation::Params type instead:
-    //   - quantizedTensorAlignmentOnActivations
-    //   - quantizedTensorAlignmentOnWeights
-    //   - supportAsymmetricQuantization
-    //   - precisionsOnActivations
-    //   - precisionsOnWeights
     class Params {
     public:
         Params(
-                const bool updatePrecisions = true,
-                const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations = QuantizedTensorAlignment::UpdateLevel,
-                const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
-                bool supportAsymmetricQuantization = true,
-                std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
-                std::vector<element::Type> precisionsOnWeights = { element::i8 },
-                element::Type deqPrecision = element::f32,
-                bool support3DTensorOnActivations = true,
-                bool deconvolutionSpecificChannelsRatio = false) :
-                updatePrecisions(updatePrecisions),
-                quantizedTensorAlignmentOnActivations(quantizedTensorAlignmentOnActivations),
-                quantizedTensorAlignmentOnWeights(quantizedTensorAlignmentOnWeights),
-                supportAsymmetricQuantization(supportAsymmetricQuantization),
-                precisionsOnActivations(precisionsOnActivations),
-                precisionsOnWeights(precisionsOnWeights),
-                deqPrecision(deqPrecision),
-                support3DTensorOnActivations(support3DTensorOnActivations),
-                deconvolutionSpecificChannelsRatio(deconvolutionSpecificChannelsRatio) {
-            if (precisionsOnActivations.size() == 0ul) {
-                THROW_TRANSFORMATION_EXCEPTION << "precisions on activations are not specisifed";
-            }
-
-            if (precisionsOnWeights.size() == 0ul) {
-                THROW_TRANSFORMATION_EXCEPTION << "precisions on weights are not specisifed";
-            }
-        }
+            const bool updatePrecisions = true,
+            element::Type deqPrecision = element::f32) :
+            updatePrecisions(updatePrecisions),
+            deqPrecision(deqPrecision) {}
 
         Params& setUpdatePrecisions(const bool updatePrecisions) {
             this->updatePrecisions = updatePrecisions;
             return *this;
         }
 
-        Params& setQuantizedTensorAlignmentOnActivations(const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations) {
-            this->quantizedTensorAlignmentOnActivations = quantizedTensorAlignmentOnActivations;
-            return *this;
-        }
-
-        Params& setQuantizedTensorAlignmentOnWeights(const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights) {
-            this->quantizedTensorAlignmentOnWeights = quantizedTensorAlignmentOnWeights;
-            return *this;
-        }
-
-        Params& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization) {
-            this->supportAsymmetricQuantization = supportAsymmetricQuantization;
-            return *this;
-        }
-
-        Params& setPrecisionsOnActivations(const std::vector<element::Type>& precisionsOnActivations) {
-            this->precisionsOnActivations = precisionsOnActivations;
-            return *this;
-        }
-
-        Params& setPrecisionsOnWeights(const std::vector<element::Type>& precisionsOnWeights) {
-            this->precisionsOnWeights = precisionsOnWeights;
-            return *this;
-        }
-
-        Params& setSupport3DTensorOnActivations(const bool support3DTensorOnActivations) {
-            this->support3DTensorOnActivations = support3DTensorOnActivations;
-            return *this;
-        }
-
-        Params& setDeconvolutionSpecificChannelsRatio(const bool deconvolutionSpecificChannelsRatio) {
-            this->deconvolutionSpecificChannelsRatio = deconvolutionSpecificChannelsRatio;
+        Params& setDeqPrecision(const element::Type& deqPrecision) {
+            this->deqPrecision = deqPrecision;
             return *this;
         }
 
         bool updatePrecisions;
-        QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
-        QuantizedTensorAlignment quantizedTensorAlignmentOnWeights;
-        bool supportAsymmetricQuantization;
-        std::vector<element::Type> precisionsOnActivations;
-        std::vector<element::Type> precisionsOnWeights;
         element::Type deqPrecision;
-        bool support3DTensorOnActivations;
-        bool deconvolutionSpecificChannelsRatio;
     };
 
     class PrecisionDetails {
@@ -282,6 +211,8 @@ public:
     // TODO: LPT: INT8 specific here, where is INT16/INT32?
     static PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails);
 
+    static bool isAsymmetricQuantization(const std::shared_ptr<const Node>& node);
+
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
     // note: dequantization operations on activations are absent during method execution
@@ -307,12 +238,7 @@ protected:
 #endif
 
     bool updatePrecisions;
-    QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
-    QuantizedTensorAlignment quantizedTensorAlignmentOnWeights;
-    bool supportAsymmetricQuantization;
     element::Type deqPrecision;
-    bool support3DTensorOnActivations;
-    bool deconvolutionSpecificChannelsRatio;
 
     static const char originalLayerPostfix[];
     TransformationContext* context;
@@ -352,38 +278,6 @@ protected:
         addPattern(pass, context, p_node);
     }
 };
-
-inline std::ostream &operator << (std::ostream &os, const LayerTransformation::QuantizedTensorAlignment& value) {
-    switch (value) {
-        case LayerTransformation::QuantizedTensorAlignment::None: {
-            os << "None";
-            break;
-        }
-        case LayerTransformation::QuantizedTensorAlignment::UpdateLevel: {
-            os << "UpdateLevel";
-            break;
-        }
-        default: {
-            os << static_cast<int>(value);
-            break;
-        }
-    }
-    return os;
-}
-
-inline std::ostream &operator << (std::ostream &os, const std::vector<element::Type>& values) {
-    os << "{";
-    for (size_t i = 0; i < values.size(); ++i) {
-        const element::Type& value = values[i];
-        if (i > 0) {
-            os << value;
-        } else {
-            os << ", " << value;
-        }
-    }
-    os << "}";
-    return os;
-}
 
 typedef std::shared_ptr<LayerTransformation> LayerTransformationPtr;
 

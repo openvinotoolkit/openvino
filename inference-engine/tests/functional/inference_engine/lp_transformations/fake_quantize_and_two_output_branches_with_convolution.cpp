@@ -48,7 +48,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter2;
     };
 
-    low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ActualValues actual;
     ExpectedValues expected;
 };
@@ -82,7 +82,7 @@ public:
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getReference(
             precision,
             shape,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.expected.fqOnData,
             testValues.expected.precisionBeforeOp,
             testValues.expected.dequantizationBefore,

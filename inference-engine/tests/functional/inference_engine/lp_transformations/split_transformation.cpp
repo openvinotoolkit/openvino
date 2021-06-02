@@ -39,7 +39,7 @@ public:
     ngraph::Shape inputShape;
     std::int64_t splitedAxis;
     size_t numSplits;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
     bool addUnsupportedConcat;

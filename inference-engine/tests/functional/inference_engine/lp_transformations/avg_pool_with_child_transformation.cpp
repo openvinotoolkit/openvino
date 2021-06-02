@@ -40,7 +40,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationEnd;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     std::vector<std::string> additionalOperations;
     Actual actual;
     Expected expected;

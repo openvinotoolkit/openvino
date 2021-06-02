@@ -82,7 +82,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatWithNeighborsWith
 
 class ConcatWithNeighborsWithConvolutionTestValues {
 public:
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool multiChannels;
     ConcatWithNeighborsWithConvolutionActualValues actual;
     ConcatWithNeighborsWithConvolutionResultValues result;

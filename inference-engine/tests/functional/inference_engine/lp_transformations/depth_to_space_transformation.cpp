@@ -41,7 +41,7 @@ public:
     ngraph::Shape inputShape;
     DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
@@ -59,8 +59,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::DepthToSpaceTransformation, ngraph::opset1::DepthToSpace>(
-            low_precision::LayerTransformation::Params(testValues.params));
+        transform.add<low_precision::DepthToSpaceTransformation, ngraph::opset1::DepthToSpace>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = DepthToSpaceFunction::getReference(

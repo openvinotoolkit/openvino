@@ -52,7 +52,7 @@ public:
 
     ngraph::Shape inputShape;
     std::vector<float> axes;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };

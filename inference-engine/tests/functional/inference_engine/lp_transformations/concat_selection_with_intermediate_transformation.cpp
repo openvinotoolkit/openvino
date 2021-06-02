@@ -57,7 +57,7 @@ inline std::ostream& operator<<(std::ostream& out, const ResultValues& values) {
 class TestValues {
 public:
     ngraph::Shape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool transparentIntermediate;
     ActualValues actual;
     ResultValues result;
