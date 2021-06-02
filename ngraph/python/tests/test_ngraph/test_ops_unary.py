@@ -8,7 +8,6 @@ import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_44970
 
 
 @pytest.mark.parametrize(
@@ -100,14 +99,13 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_44970
 def test_softmax():
-    axis = 0
+    axis = 1
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
 
     result = run_op_node([input_tensor], ng.softmax, axis)
 
-    expected = [[0.00426978, 0.01160646, 0.03154963], [0.08576079, 0.23312202, 0.6336913]]
+    expected = [[0.09003056, 0.24472842, 0.6652409], [0.09003056, 0.24472842, 0.6652409]]
 
     assert np.allclose(result, expected)
 

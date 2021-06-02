@@ -7,7 +7,6 @@ import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 
 from tests.test_onnx.utils import run_model
-from tests import xfail_issue_44970
 
 
 def import_and_compute(op_type, input_data_left, input_data_right, opset=7, **node_attributes):
@@ -26,7 +25,6 @@ def import_and_compute(op_type, input_data_left, input_data_right, opset=7, **no
     return run_model(model, inputs)[0]
 
 
-@xfail_issue_44970
 def test_add_opset4():
     assert np.array_equal(import_and_compute("Add", 1, 2, opset=4), np.array(3, dtype=np.float32))
 
@@ -99,7 +97,6 @@ def test_add_opset7(left_shape, right_shape):
     assert np.array_equal(import_and_compute("Add", left_input, right_input), left_input + right_input)
 
 
-@xfail_issue_44970
 def test_sub():
     assert np.array_equal(import_and_compute("Sub", 20, 1), np.array(19, dtype=np.float32))
 
@@ -108,12 +105,11 @@ def test_sub():
     assert np.array_equal(import_and_compute("Sub", [20, 19], [1, 2]), np.array([19, 17], dtype=np.float32))
 
     assert np.array_equal(
-        import_and_compute("Sub", [[1, 2, 3], [4, 5, 6]], [7, 8, 9], broadcast=1),
+        import_and_compute("Sub", [[1, 2, 3], [4, 5, 6]], [7, 8, 9], opset=6, broadcast=1),
         np.array([[-6, -6, -6], [-3, -3, -3]], dtype=np.float32),
     )
 
 
-@xfail_issue_44970
 def test_mul():
     assert np.array_equal(import_and_compute("Mul", 2, 3), np.array(6, dtype=np.float32))
 
@@ -122,12 +118,11 @@ def test_mul():
     assert np.array_equal(import_and_compute("Mul", [2, 3], [4, 5]), np.array([8, 15], dtype=np.float32))
 
     assert np.array_equal(
-        import_and_compute("Mul", [[1, 2, 3], [4, 5, 6]], [7, 8, 9], broadcast=1),
+        import_and_compute("Mul", [[1, 2, 3], [4, 5, 6]], [7, 8, 9], opset=6, broadcast=1),
         np.array([[7, 16, 27], [28, 40, 54]], dtype=np.float32),
     )
 
 
-@xfail_issue_44970
 def test_div():
     assert np.array_equal(import_and_compute("Div", 6, 3), np.array(2, dtype=np.float32))
 
@@ -136,6 +131,6 @@ def test_div():
     assert np.array_equal(import_and_compute("Div", [6, 8], [3, 2]), np.array([2, 4], dtype=np.float32))
 
     assert np.array_equal(
-        import_and_compute("Div", [[10, 20, 30], [40, 50, 60]], [2, 5, 6], broadcast=1),
+        import_and_compute("Div", [[10, 20, 30], [40, 50, 60]], [2, 5, 6], opset=6, broadcast=1),
         np.array([[5, 4, 5], [20, 10, 10]], dtype=np.float32),
     )
