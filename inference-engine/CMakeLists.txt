@@ -137,17 +137,24 @@ if(NGRAPH_INTERPRETER_ENABLE)
     openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
 endif()
 
-ie_developer_export()
+function(ie_generate_dev_package_config)
+    # dummy check that OpenCV is here
+    find_package(OpenCV QUIET)
 
-configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
-                              "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
-                              INSTALL_DESTINATION share # not used
-                              PATH_VARS "OpenVINO_MAIN_SOURCE_DIR;IE_MAIN_SOURCE_DIR;gflags_BINARY_DIR"
-                              NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+    ie_developer_export()
 
-configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-               "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
-               @ONLY)
+    configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
+                                "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
+                                INSTALL_DESTINATION share # not used
+                                PATH_VARS "OpenVINO_MAIN_SOURCE_DIR;IE_MAIN_SOURCE_DIR;gflags_BINARY_DIR"
+                                NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+
+    configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+                "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
+                @ONLY)
+endfunction()
+
+ie_generate_dev_package_config()
 
 #
 # Coverage
