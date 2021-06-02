@@ -14,7 +14,7 @@ from mo.ops.reshape import Reshape
 from mo.ops.strided_slice import StridedSlice
 
 
-def group_convolution_kernel_reshape(node: Node, group: int, ir_version: str):
+def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
 
     weights_shape = node.in_port(1).data.get_shape()
     assert weights_shape is not None
@@ -72,7 +72,7 @@ class V7ConvolutionWithGroupsResolver(BackReplacementPattern):
                 if group == 1 and node.soft_get('op') is not 'DepthwiseConv2dNative':
                     continue
                 else:
-                    group_convolution_kernel_reshape(node, group, ir_version='V7')
+                    resolve_convolution_with_group(node, group, ir_version='V7')
 
 
 class V10ConvolutionWithGroupsResolver(BackReplacementPattern):
@@ -89,7 +89,7 @@ class V10ConvolutionWithGroupsResolver(BackReplacementPattern):
                 if group == 1 and node.soft_get('op') is not 'DepthwiseConv2dNative':
                     continue
                 else:
-                    group_convolution_kernel_reshape(node, group, ir_version='V10')
+                    resolve_convolution_with_group(node, group, ir_version='V10')
 
 
 class ConvolutionWithGroupsResolver(BackReplacementPattern):
