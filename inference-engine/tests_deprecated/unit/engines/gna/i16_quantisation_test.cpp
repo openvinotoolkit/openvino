@@ -160,34 +160,34 @@ TEST_F(I16QuantisationTest, OnlyAffineWithNanScaleFactorFails) {
         .propagate_forward().throws();
 }
 
-TEST_F(I16QuantisationTest, DISABLED_OnlyAffineWithInfScaleFactorFails) {
+TEST_F(I16QuantisationTest, OnlyAffineWithInfScaleFactorFails) {
     gna()
         .onInferModel(Fc2DOutputModel())
         .withInfScaleFactor()
         .propagate_forward().throws();
 }
 
-TEST_F(I16QuantisationTest, DISABLED_AffineToMemoryWillResultInActivationInsertion) {
+TEST_F(I16QuantisationTest, AffineToMemoryWillResultInActivationInsertion) {
     assert_that()
         .onInferModel(affineToMemoryModel())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().pwl_inserted_into_nnet();
 }
 
-TEST_F(I16QuantisationTest, DISABLED_EltwiseToMemoryWithNoOutputActivationInsertion) {
+TEST_F(I16QuantisationTest, EltwiseToMemoryWithNoOutputActivationInsertion) {
     assert_that().inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
     .onInferModel(eltwiseToMemoryModelNoOutput(), [](CNNNetwork & net){
             net.addOutput("Eltwise_8");
         }).gna().propagate_forward().called_with().pwl_inserted_into_nnet();
 }
 
-TEST_F(I16QuantisationTest, DISABLED_EltwiseToMemory_ActivationInsertion) {
+TEST_F(I16QuantisationTest, EltwiseToMemory_ActivationInsertion) {
     assert_that().onInferModel(eltwiseToMemoryModel()).withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet();
 }
 
 
-TEST_F(I16QuantisationTest, DISABLED_SplitFollowedByActivation_DummyDiagonalAffineInsertion) {
+TEST_F(I16QuantisationTest, SplitFollowedByActivation_DummyDiagonalAffineInsertion) {
     assert_that().onInferModel(activationAfterSplitModel())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
