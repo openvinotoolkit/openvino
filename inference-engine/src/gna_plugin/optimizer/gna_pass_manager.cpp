@@ -2299,7 +2299,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                 }
             }
             // Find a convolution in next layers to rotate weights columns
-            if (!l->outData.empty() && !getInputTo(l->outData[0]).empty() && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
+            if (!l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
                 std::vector<TranspositionInfo> transpositionInfo;
                 auto nextLayer = getInputTo(l->outData[0]).begin()->second;
                 transpositionInfo = FindTranspositionInfoFromNextLayers(nextLayer);
@@ -2340,7 +2340,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
             }
             // Find a convolution in previous or next layers
             auto transpositionInfo = FindTranspositionInfoFromPrevLayers(firstInput);
-            if (!FoundPartToTranspose(transpositionInfo)) {
+            if (!FoundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
                 transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
             }
             if (FoundPartToTranspose(transpositionInfo)) {
