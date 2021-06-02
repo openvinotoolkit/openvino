@@ -6,6 +6,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_ie_internal.hpp"
 #include "cldnn_itt.h"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -177,9 +178,16 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
                                                       bool createTopologyOnly) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::BuildProgram");
     cldnn::build_options options;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+
     if (!m_config.graph_dumps_dir.empty()) {
         options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
     }
+
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+        options.set_option(cldnn::build_option::graph_dumps_dir(debug_config->dump_graphs));
+    }
+
     options.set_option(cldnn::build_option::optimize_data(true));
     options.set_option(cldnn::build_option::tuning_config(m_config.tuningConfig));
 

@@ -13,6 +13,7 @@
 #include "cldnn/runtime/engine.hpp"
 #include "cldnn/runtime/event.hpp"
 #include "cldnn/runtime/stream.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include "network_impl.h"
 #include "program_impl.h"
@@ -464,6 +465,9 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::Execute");
     // Wait for previous execution completion
     reset_execution(false);
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 1)
+        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
 
     std::vector<memory::ptr> in_out_mem;
     for (auto& inst : _inputs) {
@@ -498,6 +502,9 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
         }
 #endif
 #endif
+        GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            GPU_DEBUG_COUT << "Execute " << inst->id() << std::endl;
+        }
 
         // If a node has mutable input or it's an output, then the input/output buffers might be changed
         // So we need to set arguments on each execution.
