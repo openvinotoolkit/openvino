@@ -8,10 +8,38 @@ from extensions.back.ReverseInputChannels import ApplyReverseChannels
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.ops.strided_slice import StridedSlice
+
+
+def group_convolution_kernel_reshape(node: Node, group: int, ir_version: str):
+
+    weights_shape = node.in_port(1).data.get_shape()
+    assert weights_shape is not None
+    assert weights_shape[0] % group == 0
+
+    new_shape = None
+
+    if ir_version == 'V7':
+        if weights_shape[0] == node.output:
+            # weights are already is in [G*O I X Y] format
+            return
+        new_shape = int64_array([node.output, -1, *weights_shape[2:]])
+
+    if ir_version == 'V10':
+        I = node.in_port(0).data.get_shape()[1]
+        new_shape = int64_array([group, node.output / group, I / group, *weights_shape[2:]])
+        assert np.prod(weights_shape) == np.prod(new_shape), \
+            'Initial weights shape {}, grouped weights shape {}'.format(weights_shape, new_shape)
+        del node['group']
+        node['type'] = 'GroupConvolution'
+
+    reshape = create_op_node_with_second_input(node.graph, Reshape, int64_array(new_shape),
+                                               {'override_output_shape': True})
+
+    node.in_port(1).get_connection().insert_node(reshape)
 
 
 class ConvolutionNormalizer(BackReplacementPattern):
@@ -37,33 +65,14 @@ class V7ConvolutionWithGroupsResolver(BackReplacementPattern):
     """
     enabled = False
 
-    @staticmethod
-    def pattern():
-        return dict(
-            nodes=[
-                ('node', dict(type='Convolution', group=lambda g: g is not None and g != 1))
-            ],
-            edges=[]
-        )
-
-    def replace_pattern(self, graph: Graph, match: dict):
-        node = match['node']
-
-        group = node.group
-        assert group > 1
-
-        weights_shape = node.in_port(1).data.get_shape()
-        assert weights_shape is not None
-        assert weights_shape[0] % group == 0
-
-        if weights_shape[0] == node.output:
-            # weights are already is in [G*O I X Y] format
-            return
-
-        new_shape = int64_array([node.output, -1, *weights_shape[2:]])
-        reshape = create_op_node_with_second_input(graph, Reshape, int64_array(new_shape),
-                                                   {'override_output_shape': True})
-        node.in_port(1).get_connection().insert_node(reshape)
+    def find_and_replace_pattern(self, graph: Graph):
+        for node in graph.get_op_nodes(type='Convolution'):
+            group = node.soft_get('group', None)
+            if group is not None:
+                if group == 1 and node.soft_get('op') is not 'DepthwiseConv2dNative':
+                    continue
+                else:
+                    group_convolution_kernel_reshape(node, group, ir_version='V7')
 
 
 class V10ConvolutionWithGroupsResolver(BackReplacementPattern):
@@ -73,38 +82,14 @@ class V10ConvolutionWithGroupsResolver(BackReplacementPattern):
     """
     enabled = False
 
-    @staticmethod
-    def pattern():
-        return dict(
-            nodes=[
-                ('node', dict(type='Convolution', group=lambda g: g is not None and g != 1))
-            ],
-            edges=[]
-        )
-
-    def replace_pattern(self, graph: Graph, match: dict):
-        node = match['node']
-
-        group = node.group
-        assert group > 1
-
-        weights_shape = node.in_port(1).data.get_shape()
-        assert weights_shape is not None
-        assert weights_shape[0] % group == 0
-        I = node.in_port(0).data.get_shape()[1]
-
-        new_shape = int64_array([group, node.output / group, I / group, *weights_shape[2:]])
-
-        assert np.prod(weights_shape) == np.prod(new_shape), \
-            'Initial weights shape {}, grouped weights shape {}'.format(weights_shape, new_shape)
-
-        del node['group']
-        node['type'] = 'GroupConvolution'
-
-        reshape = create_op_node_with_second_input(graph, Reshape, int64_array(new_shape),
-                                                   {'override_output_shape': True})
-
-        node.in_port(1).get_connection().insert_node(reshape)
+    def find_and_replace_pattern(self, graph: Graph):
+        for node in graph.get_op_nodes(type='Convolution'):
+            group = node.soft_get('group', None)
+            if group is not None:
+                if group == 1 and node.soft_get('op') is not 'DepthwiseConv2dNative':
+                    continue
+                else:
+                    group_convolution_kernel_reshape(node, group, ir_version='V10')
 
 
 class ConvolutionWithGroupsResolver(BackReplacementPattern):
