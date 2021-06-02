@@ -81,7 +81,7 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
 
     auto resultLayerName = layerName;
     auto out_dims = op->get_output_shape(0).size();
-    if (out_dims == 3 && rank >= 4) {
+    if (out_dims == 3 && !keep_dims && rank >= 4) {
         resultLayerName = layerName + "_reshape";
         auto out_shape = op->get_output_shape(0);
         cldnn::tensor outTensor;
