@@ -22,7 +22,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 | Options  | Values |
 |:---                              |:---
 | Validated Models                 | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation) section)
-| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
+| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin)
 | Supported devices                | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 
 ## How It Works
@@ -164,8 +164,7 @@ All of them can be downloaded from [https://storage.openvinotoolkit.org/models_c
 > **NOTES**:
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
->
-> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+
 
 ## Sample Output
 

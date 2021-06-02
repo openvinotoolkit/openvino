@@ -41,6 +41,14 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds)
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(fe = fem.load_by_framework("mock"));
+
+    FrontEndManager fem2 = std::move(fem);
+    frontends = fem2.get_available_front_ends();
+    ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
+
+    fem2 = FrontEndManager();
+    frontends = fem2.get_available_front_ends();
+    ASSERT_EQ(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
 }
 
 TEST(FrontEndManagerTest, testLoadWithFlags)
@@ -110,8 +118,8 @@ TEST(FrontEndManagerTest, testDefaultInputModel)
     ASSERT_ANY_THROW(im->extract_subgraph({nullptr}, {nullptr}));
     ASSERT_ANY_THROW(im->get_place_by_tensor_name(""));
     ASSERT_ANY_THROW(im->get_place_by_operation_name(""));
-    ASSERT_ANY_THROW(im->get_place_by_operation_and_input_port("", 0));
-    ASSERT_ANY_THROW(im->get_place_by_operation_and_output_port("", 0));
+    ASSERT_ANY_THROW(im->get_place_by_operation_name_and_input_port("", 0));
+    ASSERT_ANY_THROW(im->get_place_by_operation_name_and_output_port("", 0));
     ASSERT_ANY_THROW(im->set_name_for_tensor(nullptr, ""));
     ASSERT_ANY_THROW(im->add_name_for_tensor(nullptr, ""));
     ASSERT_ANY_THROW(im->set_name_for_operation(nullptr, ""));
@@ -135,14 +143,22 @@ TEST(FrontEndManagerTest, testDefaultPlace)
     Place::Ptr place = std::make_shared<Place>();
     ASSERT_ANY_THROW(place->get_names());
     ASSERT_ANY_THROW(place->get_consuming_operations());
+    ASSERT_ANY_THROW(place->get_consuming_operations(0));
     ASSERT_ANY_THROW(place->get_target_tensor());
+    ASSERT_ANY_THROW(place->get_target_tensor(0));
     ASSERT_ANY_THROW(place->get_source_tensor());
+    ASSERT_ANY_THROW(place->get_source_tensor(0));
     ASSERT_ANY_THROW(place->get_producing_operation());
+    ASSERT_ANY_THROW(place->get_producing_operation(0));
     ASSERT_ANY_THROW(place->get_producing_port());
     ASSERT_ANY_THROW(place->get_input_port());
+    ASSERT_ANY_THROW(place->get_input_port(0));
     ASSERT_ANY_THROW(place->get_input_port(""));
+    ASSERT_ANY_THROW(place->get_input_port("", 0));
     ASSERT_ANY_THROW(place->get_output_port());
+    ASSERT_ANY_THROW(place->get_output_port(0));
     ASSERT_ANY_THROW(place->get_output_port(""));
+    ASSERT_ANY_THROW(place->get_output_port("", 0));
     ASSERT_ANY_THROW(place->get_consuming_ports());
     ASSERT_ANY_THROW(place->is_input());
     ASSERT_ANY_THROW(place->is_output());

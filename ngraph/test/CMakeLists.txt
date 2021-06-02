@@ -604,7 +604,6 @@ target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
 
 add_subdirectory(frontend)
-
 ### END FRONTEND ###
 
 #PaddlePaddle
