@@ -55,7 +55,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationRes
 
 class ConcatTransformationTestValues {
 public:
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ConcatTransformationActualValues actual;
     ConcatTransformationResultValues result;
 };

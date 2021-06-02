@@ -50,7 +50,7 @@ class TestValues {
 public:
     ngraph::Shape inputShape;
     ngraph::Shape reshapeOutputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ActualValues actual;
     ResultValues result;
 };

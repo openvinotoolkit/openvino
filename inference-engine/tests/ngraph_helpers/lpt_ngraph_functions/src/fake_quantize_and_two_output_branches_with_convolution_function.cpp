@@ -130,11 +130,11 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
     if (params.updatePrecisions) {
         replace_node(
             convolution1->get_input_node_shared_ptr(1),
-            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution1->get_input_node_shared_ptr(1), params.precisionsOnWeights[0]));
+            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution1->get_input_node_shared_ptr(1), element::i8));
 
         replace_node(
             convolution2->get_input_node_shared_ptr(1),
-            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution2->get_input_node_shared_ptr(1), params.precisionsOnWeights[0]));
+            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution2->get_input_node_shared_ptr(1), element::i8));
     }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };

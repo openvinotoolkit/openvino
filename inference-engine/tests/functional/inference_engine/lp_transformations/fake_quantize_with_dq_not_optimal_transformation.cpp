@@ -39,7 +39,7 @@ public:
         builder::subgraph::DequantizationOperations dequantizationOnWeights;
         builder::subgraph::DequantizationOperations dequantizationAfter;
     };
-    low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Values actual;
     Values expected;
 };
@@ -66,8 +66,7 @@ public:
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizeWithNotOptimalTransformationTestValues testValues = std::get<3>(GetParam());
 
-        const low_precision::LayerTransformation::Params params = low_precision::LayerTransformation::Params(testValues.params).
-            setUpdatePrecisions(updatePrecision);
+        const auto params = TestTransformationParams(testValues.params).setUpdatePrecisions(updatePrecision);
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             precision,
@@ -94,7 +93,7 @@ public:
 
         SimpleLowPrecisionTransformer transformer(precisionsRestrictions, quantizationRestrictions);
         transformer.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
-            low_precision::LayerTransformation::Params(params).setPrecisionsOnActivations({ element::u8 }));
+            TestTransformationParams(params).setPrecisionsOnActivations({ element::u8 }));
         transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
         transformer.transform(actualFunction);
 

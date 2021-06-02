@@ -37,8 +37,8 @@ void GemmTransformation::SetUp() {
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
-    const float low = params.precisionsOnActivations[0] == ngraph::element::u8 ? 0.f : -128.f;
-    const float high = params.precisionsOnActivations[0] == ngraph::element::u8 ? 255.f : 127.f;
+    const float low = 0.f; // params.precisionsOnActivations[0] == ngraph::element::u8 ? 0.f : -128.f;
+    const float high = 255.f; // params.precisionsOnActivations[0] == ngraph::element::u8 ? 255.f : 127.f;
 
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
         netPrecision,

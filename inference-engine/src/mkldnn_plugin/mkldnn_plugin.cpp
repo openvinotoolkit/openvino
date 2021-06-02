@@ -321,11 +321,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     if (useLpt) {
         OV_ITT_SCOPE(FIRST_INFERENCE, MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
 
-        // TODO: LPT: not implemented:
-        //   - supportAsymmetricQuantization
-        //   - support3DTensorOnActivations
-        //   - deconvolutionSpecificChannelsRatio
-
         auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
             OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},

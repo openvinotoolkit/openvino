@@ -396,11 +396,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                 manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
             }
 
-            // TODO: LPT: not implemented:
-            //   - supportAsymmetricQuantization
-            //   - support3DTensorOnActivations
-            //   - deconvolutionSpecificChannelsRatio
-
             auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
                 OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
                     {0, {ngraph::element::u8, ngraph::element::i8}},
@@ -433,16 +428,19 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                 return false;
             });
             lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
-                return WeightableLayerTransformation::isAsymmetricOnWeights(node);
+                size_t inputChannels = node->get_input_shape(0)[1];
+                size_t outputChannels = node->get_output_shape(0)[1];
+                if (inputChannels % 4 != 0 || outputChannels % 16 != 0) {
+                    return true;
+                }
+
+                return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
             });
             lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
                 return MatMulTransformation::is3DTensorOnActivations(node);
             });
 
-            auto params = LayerTransformation::Params();
-            params.setDeconvolutionSpecificChannelsRatio(true);
-
-            lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
+            lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization);
             lptManager.run_passes(nGraphFunc);
         }
 

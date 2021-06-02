@@ -33,8 +33,7 @@ class ReduceSumTransformation : public ReduceTransformation<opset1::ReduceSum> {
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceSumTransformation, ngraph::opset1::ReduceSum>(
-            low_precision::LayerTransformation::Params(transformationParams));
+        transform.add<ngraph::pass::low_precision::ReduceSumTransformation, ngraph::opset1::ReduceSum>(transformationParams);
         transform.transform(actualFunction);
     }
 };

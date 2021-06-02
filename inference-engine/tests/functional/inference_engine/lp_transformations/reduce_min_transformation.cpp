@@ -33,8 +33,7 @@ class ReduceMinTransformation : public ReduceTransformation<opset1::ReduceMin> {
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceMinTransformation, ngraph::opset1::ReduceMin>(
-            low_precision::LayerTransformation::Params(transformationParams));
+        transform.add<ngraph::pass::low_precision::ReduceMinTransformation, ngraph::opset1::ReduceMin>(transformationParams);
         transform.transform(actualFunction);
     }
 };

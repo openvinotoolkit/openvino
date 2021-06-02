@@ -65,7 +65,7 @@ public:
     ngraph::Shape inputShape;
     bool broadcast;
     int constInput;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
     std::string additionalLayer;
@@ -99,7 +99,7 @@ public:
             precision,
             testValues.inputShape,
             testValues.broadcast,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.actual.precision1,
             testValues.actual.dequantization1,
             testValues.actual.precision2,
@@ -109,15 +109,14 @@ public:
             testValues.additionalLayer);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
-                low_precision::LayerTransformation::Params(testValues.params));
+        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = AddFunction::getReference(
             precision,
             testValues.inputShape,
             testValues.broadcast,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.expected.precision1,
             testValues.expected.dequantization1,
             testValues.expected.precision2,
