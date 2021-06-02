@@ -197,7 +197,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
                 event::ptr event;
                 try {
                     stream->set_arguments(*kernels[i], it->kernels[0].params, args);
-                    stream->enqueue_kernel(*kernels[i], it->kernels[0].params, args, {});
+                    event = stream->enqueue_kernel(*kernels[i], it->kernels[0].params, args, {});
                 } catch (std::exception& e) {
                     std::cout << "[clDNN] Could not run kernel for auto-tune: " << it->kernelName
                               << " with auto-tune index " << it->autoTuneIndex << std::endl

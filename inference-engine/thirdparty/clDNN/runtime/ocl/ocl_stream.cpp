@@ -335,7 +335,7 @@ void ocl_stream::enqueue_barrier() {
 
 event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
     if (deps.empty())
-        return create_user_event(true);
+        return _events_pool->get_from_user_pool(_engine.get_cl_context(), true);
 
     if (sync_method == sync_methods::events) {
         cl::Event ret_ev;
@@ -360,7 +360,7 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
         sync_events(deps, is_output);
         return _events_pool->get_from_base_pool(_engine.get_cl_context(), _last_barrier_ev, _last_barrier);
     } else {
-         return create_user_event(true);
+        return _events_pool->get_from_user_pool(_engine.get_cl_context(), true);
     }
 }
 
