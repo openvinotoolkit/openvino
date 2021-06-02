@@ -160,7 +160,7 @@ namespace BehaviorTestsDefinitions {
         // Create CNNNetwork from ngrpah::Function
         InferenceEngine::CNNNetwork cnnNet(function);
         ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-        ASSERT_THROW(ie->GetConfig(targetDevice, key), InferenceEngine::details::InferenceEngineException);
+        ASSERT_THROW(ie->GetConfig(targetDevice, key), InferenceEngine::Exception);
     }
 
     using IncorrectConfigAPITests = BehaviorTestsUtils::BehaviorTestsBasic;
