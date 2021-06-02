@@ -44,6 +44,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(${TARGET_NAME} PRIVATE "-Wno-error=register")
 endif()
 
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
 # perform copy
 add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
@@ -52,12 +54,12 @@ add_custom_command(TARGET ${TARGET_NAME}
 
 # install
 
+ie_cpack_add_component(${PYTHON_VERSION}_dev DEPENDS ${PYTHON_VERSION})
+
 install(TARGETS ${INSTALLED_TARGETS}
-        RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}
-        LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION})
+        RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}_dev
+        LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}_dev)
 
 install(PROGRAMS __init__.py
         DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations
-        COMPONENT ${PYTHON_VERSION})
-
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+        COMPONENT ${PYTHON_VERSION}_dev)
