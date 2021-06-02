@@ -40,8 +40,8 @@ namespace ngraph
 
                 inline void set_u4(uint8_t* buf, size_t idx, uint8_t val)
                 {
-                    const int byte_idx = idx / 2;
-                    const int bit_shift = 4 * (++idx % 2);
+                    const size_t byte_idx = idx / 2;
+                    const uint8_t bit_shift = 4 * (++idx % 2);
                     buf[byte_idx] &= ~(0xF << bit_shift); // half byte zeroed
                     buf[byte_idx] |= (val << bit_shift);  // set 1's
                 }
@@ -55,8 +55,8 @@ namespace ngraph
 
                 inline void set_i4(uint8_t* buf, size_t idx, int8_t val)
                 {
-                    const int byte_idx = idx / 2;
-                    const int bit_shift = 4 * (++idx % 2);
+                    const size_t byte_idx = idx / 2;
+                    const uint8_t bit_shift = 4 * (++idx % 2);
                     buf[byte_idx] &= ~(0xF << bit_shift); // half byte zeroed
                     buf[byte_idx] |= (val << bit_shift);  // set 1's
                 }
