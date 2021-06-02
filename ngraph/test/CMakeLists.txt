@@ -235,6 +235,7 @@ set(SRC
     visitors/op/lstm_sequence.cpp
     visitors/op/matmul.cpp
     visitors/op/max_pool.cpp
+    visitors/op/mish.cpp
     visitors/op/mod.cpp
     visitors/op/mvn.cpp
     visitors/op/non_max_suppression.cpp
