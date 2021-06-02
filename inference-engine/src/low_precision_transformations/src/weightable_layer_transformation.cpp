@@ -188,6 +188,20 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
                 return false;
             }
         }
+
+        const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
+        if (dequantizationOnWeights.subtract) {
+            const auto subConstShape = dequantizationOnWeights.subtractConstant->get_shape();
+            if (shape_size(subConstShape) > 1ul && shape_size(subConstShape) != subConstShape[outChannelsShapeIndex]) {
+                return false;
+            }
+        }
+        if (dequantizationOnWeights.multiply) {
+            const auto mulConstShape = dequantizationOnWeights.multiplyConstant->get_shape();
+            if (shape_size(mulConstShape) > 1ul && shape_size(mulConstShape) != mulConstShape[outChannelsShapeIndex]) {
+                return false;
+            }
+        }
     }
 
     return true;
@@ -228,6 +242,20 @@ bool WeightableLayerTransformation::isQuantized(std::shared_ptr<Node> layer, boo
         if ((dequantizationOnWeights.subtract != nullptr) && (dequantizationOnWeights.subtractConvert != nullptr)) {
             const auto subtractConstantType = dequantizationOnWeights.subtractConstant->output(0).get_element_type();
             if (subtractConstantType != weightsDataPrecision) {
+                return false;
+            }
+        }
+
+        const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
+        if (dequantizationOnWeights.subtract) {
+            const auto subConstShape = dequantizationOnWeights.subtractConstant->get_shape();
+            if (shape_size(subConstShape) > 1ul && shape_size(subConstShape) != subConstShape[outChannelsShapeIndex]) {
+                return false;
+            }
+        }
+        if (dequantizationOnWeights.multiply) {
+            const auto mulConstShape = dequantizationOnWeights.multiplyConstant->get_shape();
+            if (shape_size(mulConstShape) > 1ul && shape_size(mulConstShape) != mulConstShape[outChannelsShapeIndex]) {
                 return false;
             }
         }
