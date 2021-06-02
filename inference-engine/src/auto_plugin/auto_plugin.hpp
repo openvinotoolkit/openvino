@@ -30,10 +30,10 @@ public:
     void SetConfig(const ConfigType& config) override;
 
 private:
-    std::vector<AutoPlugin::DeviceInformation> GetDeviceChoice(const ConfigType&  config) const;
+    std::vector<DeviceName> GetDeviceList(const ConfigType&  config) const;
     std::vector<std::string> GetOptimizationCapabilities(const std::map<std::string, IE::Parameter>& options) const;
-    DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
-    ConfigType GetSupportedConfig(const ConfigType& config, const AutoPlugin::DeviceName & deviceName) const;
+    DeviceName SelectDevice(const std::vector<DeviceName>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
+    ConfigType GetSupportedConfig(const ConfigType& config, const DeviceName & deviceName) const;
     static ConfigType mergeConfigs(ConfigType config, const ConfigType& local);
 
     template <typename T>
@@ -42,17 +42,17 @@ private:
             IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
         }
         auto fullConfig = mergeConfigs(_config, config);
-        auto metaDevices = GetDeviceChoice(fullConfig);
-        DeviceInformation selectedDevice;
+        auto metaDevices = GetDeviceList(fullConfig);
+        DeviceName selectedDevice;
         IE::SoExecutableNetworkInternal executableNetwork;
         while (!metaDevices.empty()) {
             selectedDevice = SelectDevice(metaDevices, networkPrecision);
             try {
-                executableNetwork = GetCore()->LoadNetwork(param, selectedDevice.deviceName, selectedDevice.config);
+                executableNetwork = GetCore()->LoadNetwork(param, selectedDevice, {});
                 break;
             } catch (...) {
                 auto eraseDevice = std::find_if(metaDevices.begin(), metaDevices.end(),
-                    [=](const DeviceInformation& d)->bool{return d.deviceName == selectedDevice.deviceName;});
+                    [=](const DeviceName& d)->bool{return d == selectedDevice;});
                 if (eraseDevice == metaDevices.end()) {
                     IE_THROW() << "Didn't find the selected device name";
                 }
