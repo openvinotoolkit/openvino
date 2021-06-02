@@ -8,16 +8,12 @@
 #include <vector>
 #include <string>
 
-#include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "shared_test_classes/single_layer/pooling.hpp"
-#include "shared_test_classes/single_layer/fake_quantize.hpp"
-#include "test_utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
-using namespace LayerTestsDefinitions;
 
 namespace SubgraphTestsDefinitions {
 typedef std::tuple<
