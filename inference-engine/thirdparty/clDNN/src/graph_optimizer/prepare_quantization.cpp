@@ -21,26 +21,26 @@
 #include <vector>
 
 template<typename T>
-bool check_binarization(memory_impl& mem_input_low, memory_impl& mem_input_high) {
+bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, program_impl& p) {
     bool is_binarization = true;
-    auto data_input_low = static_cast<T*>(mem_input_low.lock());
-    auto data_input_high = static_cast<T*>(mem_input_high.lock());
-    const size_t number_mem_layout_elements = mem_input_high.get_layout().count();
+    const auto& stream = p.get_stream();
+    mem_lock<T> data_input_low_lock{mem_input_low, stream};
+    mem_lock<T> data_input_high_lock{mem_input_high, stream};
+    auto data_input_low = data_input_low_lock.data();
+    auto data_input_high = data_input_high_lock.data();
+    const size_t number_mem_layout_elements = mem_input_high->get_layout().count();
     for (size_t i = 0; i < number_mem_layout_elements; i++) {
         if (data_input_high[i] != data_input_low[i]) {
             is_binarization = false;
             break;
         }
     }
-    mem_input_low.unlock();
-    mem_input_high.unlock();
     return is_binarization;
 }
 
 
-template<typename T>
-void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_node& quantize_node,
-                            const std::function<float(T)>& T_to_float, const std::function<T(float)>& float_to_T) {
+void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_node& quantize_node) {
+    const auto& stream = p.get_stream();
     program_node &input_low_node = quantize_node.get_dependency(1);
     program_node &input_high_node = quantize_node.get_dependency(2);
     program_node &output_low_node = quantize_node.get_dependency(3);
@@ -56,20 +56,20 @@ void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_no
     auto &output_low = output_low_node.as<data>();
     auto &output_high = output_high_node.as<data>();
 
-    auto &mem_input_low = input_low.get_attached_memory();
-    auto &mem_input_high = input_high.get_attached_memory();
-    auto &mem_output_low = output_low.get_attached_memory();
-    auto &mem_output_high = output_high.get_attached_memory();
+    auto mem_input_low = input_low.get_attached_memory_ptr();
+    auto mem_input_high = input_high.get_attached_memory_ptr();
+    auto mem_output_low = output_low.get_attached_memory_ptr();
+    auto mem_output_high = output_high.get_attached_memory_ptr();
 
-    auto scales_layout = mem_input_low.get_layout();
-    scales_layout.size = tensor::max(scales_layout.size, mem_input_high.get_layout().size);
-    scales_layout.size = tensor::max(scales_layout.size, mem_output_low.get_layout().size);
-    scales_layout.size = tensor::max(scales_layout.size, mem_output_high.get_layout().size);
+    auto scales_layout = mem_input_low->get_layout();
+    scales_layout.size = tensor::max(scales_layout.size, mem_input_high->get_layout().size);
+    scales_layout.size = tensor::max(scales_layout.size, mem_output_low->get_layout().size);
+    scales_layout.size = tensor::max(scales_layout.size, mem_output_high->get_layout().size);
 
-    auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, mem_input_low.get_net_id(), false);
-    auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, mem_input_high.get_net_id(), false);
-    auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, mem_output_low.get_net_id(), false);
-    auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, mem_output_high.get_net_id(), false);
+    auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, false);
+    auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, false);
+    auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, false);
+    auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, false);
 
     auto get_offset_safe = [](const layout& l, const tensor& idx) -> int {
         auto sizes = l.size;
@@ -81,17 +81,71 @@ void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_no
                         + (idx.spatial[0] % sizes.spatial[0])*pitches.spatial[0];
     };
 
+    auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
+                           std::function<float(size_t)>& get_data) {
+        switch (memory->get_layout().data_type) {
+            case data_types::f32: {
+                mem_lock<float> data_lock{memory, stream};
+                float* data = data_lock.data();
+                set_data = [data] (size_t idx, float value) {
+                    data[idx] = value;
+                };
+                get_data = [data] (size_t idx) {
+                    return data[idx];
+                };
+                break;
+            }
+            case data_types::f16: {
+                mem_lock<uint16_t> data_lock{memory, stream};
+                uint16_t* data = data_lock.data();
+                set_data = [data] (size_t idx, float value) {
+                    data[idx] = float_to_half(value);
+                };
+                get_data = [data] (size_t idx) {
+                    return half_to_float(data[idx]);
+                };
+                break;
+            }
+            default:
+                throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
+        }
+    };
+
+    std::function<void(size_t, float)> set_data_input_low;
+    std::function<float(size_t)> get_data_input_low;
+    lock_memory(mem_input_low, set_data_input_low, get_data_input_low);
+
+    std::function<void(size_t, float)> set_data_input_high;
+    std::function<float(size_t)> get_data_input_high;
+    lock_memory(mem_input_high, set_data_input_high, get_data_input_high);
+
+    std::function<void(size_t, float)> set_data_output_low;
+    std::function<float(size_t)> get_data_output_low;
+    lock_memory(mem_output_low, set_data_output_low, get_data_output_low);
+
+    std::function<void(size_t, float)> set_data_output_high;
+    std::function<float(size_t)> get_data_output_high;
+    lock_memory(mem_output_high, set_data_output_high, get_data_output_high);
+
+    std::function<void(std::size_t, float)> set_data_input_scale;
+    std::function<float(size_t)> get_data_input_scale;
+    lock_memory(mem_input_scale, set_data_input_scale, get_data_input_scale);
+
+    std::function<void(size_t, float)> set_data_input_shift;
+    std::function<float(size_t)> get_data_input_shift;
+    lock_memory(mem_input_shift, set_data_input_shift, get_data_input_shift);
+
+    std::function<void(size_t, float)> set_data_output_scale;
+    std::function<float(size_t)> get_data_output_scale;
+    lock_memory(mem_output_scale, set_data_output_scale, get_data_output_scale);
+
+    std::function<void(size_t, float)> set_data_output_shift;
+    std::function<float(size_t)> get_data_output_shift;
+    lock_memory(mem_output_shift, set_data_output_shift, get_data_output_shift);
+
     bool has_negative_scales = false;
     bool need_post_scale = false;
     bool need_post_shift = false;
-    auto data_input_low = static_cast<T*>(mem_input_low.lock());
-    auto data_input_high = static_cast<T*>(mem_input_high.lock());
-    auto data_output_low = static_cast<T*>(mem_output_low.lock());
-    auto data_output_high = static_cast<T*>(mem_output_high.lock());
-    auto data_input_scale = static_cast<T*>(mem_input_scale->lock());
-    auto data_input_shift = static_cast<T*>(mem_input_shift->lock());
-    auto data_output_scale = static_cast<T*>(mem_output_scale->lock());
-    auto data_output_shift = static_cast<T*>(mem_output_shift->lock());
     int levels = quantize_node.get_primitive()->levels;
 
     for (int b = 0; b < scales_layout.size.batch[0]; b++) {
@@ -100,23 +154,23 @@ void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_no
                 for (int x = 0; x < scales_layout.size.spatial[0]; x++) {
                     auto idx = cldnn::tensor(format::bfyx, {b, f, y, x}, 0);
                     auto s_offset = scales_layout.get_linear_offset(idx);
-                    auto in_lo = T_to_float(data_input_low[get_offset_safe(mem_input_low.get_layout(), idx)]);
-                    auto in_hi = T_to_float(data_input_high[get_offset_safe(mem_input_high.get_layout(), idx)]);
+                    float in_lo = get_data_input_low(get_offset_safe(mem_input_low->get_layout(), idx));
+                    float in_hi = get_data_input_high(get_offset_safe(mem_input_high->get_layout(), idx));
 
-                    auto out_lo = T_to_float(data_output_low[get_offset_safe(mem_output_low.get_layout(), idx)]);
-                    auto out_hi = T_to_float(data_output_high[get_offset_safe(mem_output_high.get_layout(), idx)]);
-                    data_input_scale[s_offset] = float_to_T((static_cast<float>(levels) - 1) / (in_hi - in_lo));
-                    data_input_shift[s_offset] = float_to_T(- in_lo * (static_cast<float>(levels) - 1) / (in_hi - in_lo));
-                    data_output_scale[s_offset] = float_to_T((out_hi - out_lo) / (static_cast<float>(levels) - 1));
-                    data_output_shift[s_offset] = float_to_T(out_lo);
+                    float out_lo = get_data_output_low(get_offset_safe(mem_output_low->get_layout(), idx));
+                    float out_hi = get_data_output_high(get_offset_safe(mem_output_high->get_layout(), idx));
+                    set_data_input_scale(s_offset, (static_cast<float>(levels) - 1.f) / (in_hi - in_lo));
+                    set_data_input_shift(s_offset, - in_lo * (static_cast<float>(levels) - 1.f) / (in_hi - in_lo));
+                    set_data_output_scale(s_offset, (out_hi - out_lo) / (static_cast<float>(levels) - 1.f));
+                    set_data_output_shift(s_offset, out_lo);
 
-                    if (T_to_float(data_output_scale[s_offset]) != 1.0f) {
+                    if (get_data_output_scale(s_offset) != 1.0f) {
                         need_post_scale = true;
                     }
-                    if (T_to_float(data_output_shift[s_offset]) != 0.0f) {
+                    if (get_data_output_shift(s_offset) != 0.0f) {
                         need_post_shift = true;
                     }
-                    if (T_to_float(data_input_scale[s_offset]) < 0.0f) {
+                    if (get_data_input_scale(s_offset) < 0.0f) {
                         has_negative_scales = true;
                     }
                 }
@@ -130,26 +184,26 @@ void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_no
     bool per_tensor_in_range = true;
     bool per_tensor_out_scale = true;
     bool per_tensor_out_shift = true;
-    float in_scale_val = T_to_float(data_input_scale[0]);
-    float in_shift_val = T_to_float(data_input_shift[0]);
-    float out_scale_val = T_to_float(data_output_scale[0]);
-    float out_shift_val = T_to_float(data_output_shift[0]);
-    float in_lo_val = T_to_float(data_input_low[0]);
-    float in_hi_val = T_to_float(data_input_high[0]);
+    float in_scale_val = get_data_input_scale(0);
+    float in_shift_val = get_data_input_shift(0);
+    float out_scale_val = get_data_output_scale(0);
+    float out_shift_val = get_data_output_shift(0);
+    float in_lo_val = get_data_input_low(0);
+    float in_hi_val = get_data_input_high(0);
     for (size_t i = 0; i < scales_layout.count(); i++) {
-        if (in_scale_val != T_to_float(data_input_scale[i]))
+        if (in_scale_val != get_data_input_scale(i))
             per_tensor_in_scale = false;
-        if (in_shift_val != T_to_float(data_input_shift[i]))
+        if (in_shift_val != get_data_input_shift(i))
             per_tensor_in_shift = false;
-        if (out_scale_val != T_to_float(data_output_scale[i]))
+        if (out_scale_val != get_data_output_scale(i))
             per_tensor_out_scale = false;
-        if (out_shift_val != T_to_float(data_output_shift[i]))
+        if (out_shift_val != get_data_output_shift(i))
             per_tensor_out_shift = false;
-        if (T_to_float(data_input_shift[i]) != 0.0f)
+        if (get_data_input_shift(i) != 0.0f)
             need_pre_shift = true;
 
-        if (in_lo_val != T_to_float(data_input_low[i % mem_input_low.get_layout().count()]) ||
-            in_hi_val != T_to_float(data_input_high[i % mem_input_high.get_layout().count()]))
+        if (in_lo_val != get_data_input_low(i % mem_input_low->get_layout().count()) ||
+            in_hi_val != get_data_input_high(i % mem_input_high->get_layout().count()))
             per_tensor_in_range = false;
     }
 
@@ -157,21 +211,14 @@ void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_no
         return;
     }
 
-    layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
-    float zero = 0.f;
-    auto in_scale_prim = std::make_shared<data>(quantize_node.id() + "_in_scale", memory::attach(dummy_layout, &zero, 1));
-    auto in_shift_prim = std::make_shared<data>(quantize_node.id() + "_in_shift", memory::attach(dummy_layout, &zero, 1));
-    auto out_scale_prim = std::make_shared<data>(quantize_node.id() + "_output_scale", memory::attach(dummy_layout, &zero, 1));
-    auto out_shift_prim = std::make_shared<data>(quantize_node.id() + "_output_shift", memory::attach(dummy_layout, &zero, 1));
+    auto in_scale_prim = std::make_shared<data>(quantize_node.id() + "_in_scale", mem_input_scale);
+    auto in_shift_prim = std::make_shared<data>(quantize_node.id() + "_in_shift", mem_input_shift);
+    auto out_scale_prim = std::make_shared<data>(quantize_node.id() + "_output_scale", mem_output_scale);
+    auto out_shift_prim = std::make_shared<data>(quantize_node.id() + "_output_shift", mem_output_shift);
     auto& in_scale_node = p.get_or_create(in_scale_prim);
     auto& in_shift_node = p.get_or_create(in_shift_prim);
     auto& out_scale_node = p.get_or_create(out_scale_prim);
     auto& out_shift_node = p.get_or_create(out_shift_prim);
-
-    in_scale_node.as<data>().attach_memory(*mem_input_scale);
-    in_shift_node.as<data>().attach_memory(*mem_input_shift);
-    out_scale_node.as<data>().attach_memory(*mem_output_scale);
-    out_shift_node.as<data>().attach_memory(*mem_output_shift);
 
     auto& inputs = p.get_inputs();
 
@@ -237,44 +284,17 @@ void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_no
         quantize_node.set_per_tensor_output_shift();
         quantize_node.set_output_shift_val(out_shift_val);
     }
-
-    mem_input_low.unlock();
-    mem_input_high.unlock();
-    mem_output_low.unlock();
-    mem_output_high.unlock();
-    mem_input_scale->unlock();
-    mem_input_shift->unlock();
-    mem_output_scale->unlock();
-    mem_output_shift->unlock();
 }
 
 void prepare_quantization::handle_quantize_node(program_impl& p, quantize_node& quantize_node) {
     if (quantize_node.get_primitive()->levels == 2) {
-        prepare_packed_quantize(quantize_node);
+        prepare_packed_quantize(p, quantize_node);
     } else if (quantize_node.get_primitive()->levels <= 256 && !quantize_node.get_scale_shift_opt() && !quantize_node.is_constant()) {
-        program_node &output_high_node = quantize_node.get_dependency(4);
-        if (!output_high_node.is_type<data>()) {
-            return;
-        }
-        auto &output_high = output_high_node.as<data>();
-
-        auto &mem_output_high = output_high.get_attached_memory();
-        switch (mem_output_high.get_layout().data_type) {
-            case data_types::f32: {
-                prepare_scale_shift_opt<float>(p, quantize_node);
-                break;
-            }
-            case data_types::f16: {
-                prepare_scale_shift_opt<uint16_t>(p, quantize_node, half_to_float, float_to_half);
-                break;
-            }
-            default:
-                throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
-        }
+        prepare_scale_shift_opt(p, quantize_node);
     }
 }
 
-void prepare_quantization::prepare_packed_quantize(quantize_node& quantize_node) {
+void prepare_quantization::prepare_packed_quantize(program_impl& p, quantize_node& quantize_node) {
     program_node &input_low_node = quantize_node.get_dependency(1);
     program_node &input_high_node = quantize_node.get_dependency(2);
 
@@ -288,15 +308,14 @@ void prepare_quantization::prepare_packed_quantize(quantize_node& quantize_node)
     auto mem_input_low = input_low.get_attached_memory_ptr();
     auto mem_input_high = input_high.get_attached_memory_ptr();
 
-    auto& stream = p.get_stream();
     bool is_binarization = true;
-    switch (mem_input_high.get_layout().data_type) {
+    switch (mem_input_high->get_layout().data_type) {
         case data_types::f32: {
-            is_binarization = check_binarization<float>(mem_input_low, mem_input_high);
+            is_binarization = check_binarization<float>(mem_input_low, mem_input_high, p);
             break;
         }
         case data_types::f16: {
-            is_binarization = check_binarization<uint16_t>(mem_input_low, mem_input_high);
+            is_binarization = check_binarization<uint16_t>(mem_input_low, mem_input_high, p);
             break;
         }
         default:
@@ -319,18 +338,19 @@ void prepare_quantization::prepare_dequantize_merge(program_impl& p, eltwise_nod
         }
     }
 
-    auto get_scale_shift_mem = [](const cldnn::eltwise_node& eltw, size_t dep_id) -> memory_impl& {
+    auto get_scale_shift_mem = [](const cldnn::eltwise_node& eltw, size_t dep_id) -> memory::ptr {
         if (dep_id >= eltw.get_dependencies().size())
             CLDNN_ERROR_MESSAGE(eltw.id(), "Invalid dependency id in dequantize optimization");
 
-        return eltw.get_dependency(dep_id).as<data>().get_attached_memory();
+        return eltw.get_dependency(dep_id).as<data>().get_attached_memory_ptr();
     };
 
-    auto eltw_mode = eltwise_node.get_primitive()->mode;
+    const auto& eltw_mode = eltwise_node.get_primitive()->mode;
     if (eltw_mode != eltwise_mode::sum && eltw_mode != eltwise_mode::prod)
         return;
 
     auto& input = eltwise_node.input();
+    const auto& stream = p.get_stream();
 
     for (auto& user : input.get_users()) {
         if (user == &eltwise_node)
@@ -355,20 +375,20 @@ void prepare_quantization::prepare_dequantize_merge(program_impl& p, eltwise_nod
 
         bool same_params = true;
         for (size_t i = 1; i < eltwise_node.get_dependencies().size(); i++) {
-            auto& mem0 = get_scale_shift_mem(eltwise_dep, i);
-            auto& mem1 = get_scale_shift_mem(eltwise_node, i);
+            auto mem0 = get_scale_shift_mem(eltwise_dep, i);
+            auto mem1 = get_scale_shift_mem(eltwise_node, i);
 
-            auto ptr0 = static_cast<uint8_t*>(mem0.lock());
-            auto ptr1 = static_cast<uint8_t*>(mem1.lock());
+            mem_lock<uint8_t> mem0_lock{mem0, stream};
+            mem_lock<uint8_t> mem1_lock{mem1, stream};
+            auto ptr0 = mem0_lock.data();
+            auto ptr1 = mem1_lock.data();
 
-            for (size_t j = 0; j < mem0.get_layout().bytes_count(); j++) {
+            for (size_t j = 0; j < mem0->get_layout().bytes_count(); j++) {
                 if (ptr0[j] != ptr1[j]) {
                     same_params = false;
                     break;
                 }
             }
-            mem0.unlock();
-            mem1.unlock();
         }
 
         if (same_params) {
@@ -422,7 +442,6 @@ void fill_compensation_typed(W_T* w, AZP_T* azp, W_T* wzp, float* comp, const in
                     }
                 }
             }
-
             comp[g*OC + oc] = -c;
         }
     }
@@ -456,52 +475,52 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
         return true;
     };
 
-    auto fill_compensation = [&](int groups, memory_impl* w, memory_impl* azp, memory_impl* wzp,
-                                    memory_impl::ptr compensation) {
+    const auto& stream = p.get_stream();
+    auto fill_compensation = [&](int groups, const memory::ptr w, const memory::ptr azp, const memory::ptr wzp, memory::ptr compensation) {
         const auto& wl = w->get_layout();
 
-        const int& GS = groups;
-        const int& OC = wl.size.batch[0] / GS;
-        const int& IC = wl.size.feature[0];  // already divided by GS
-        const int& KS = wl.size.spatial[0]*wl.size.spatial[1]*wl.size.spatial[2];
+        const int GS = groups;
+        const int OC = wl.size.batch[0] / GS;
+        const int IC = wl.size.feature[0];  // already divided by GS
+        const int KS = wl.size.spatial[0]*wl.size.spatial[1]*wl.size.spatial[2];
 
         const auto& w_dt = wl.data_type;
         const auto& azp_dt = azp->get_layout().data_type;
 
-        mem_lock<float> comp_lock{compensation};
+        mem_lock<float> comp_lock{compensation, stream};
 
         if (w_dt == data_types::u8 && azp_dt == data_types::u8) {
-            mem_lock<uint8_t> w_lock(*w);
-            mem_lock<uint8_t> azp_lock(*azp);
+            mem_lock<uint8_t> w_lock(w, stream);
+            mem_lock<uint8_t> azp_lock(azp, stream);
             if (wzp) {
-                mem_lock<uint8_t> wzp_lock(*wzp);
+                mem_lock<uint8_t> wzp_lock(wzp, stream);
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), wzp_lock.data(), comp_lock.data(), GS, OC, IC, KS);
             } else {
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), static_cast<uint8_t*>(nullptr), comp_lock.data(), GS, OC, IC, KS);
             }
         } else if (w_dt == data_types::i8 && azp_dt == data_types::u8) {
-            mem_lock<int8_t> w_lock(*w);
-            mem_lock<uint8_t> azp_lock(*azp);
+            mem_lock<int8_t> w_lock(w, stream);
+            mem_lock<uint8_t> azp_lock(azp, stream);
             if (wzp) {
-                mem_lock<int8_t> wzp_lock(*wzp);
+                mem_lock<int8_t> wzp_lock(wzp, stream);
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), wzp_lock.data(), comp_lock.data(), GS, OC, IC, KS);
             } else {
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), static_cast<int8_t*>(nullptr), comp_lock.data(), GS, OC, IC, KS);
             }
         } else if (w_dt == data_types::i8 && azp_dt == data_types::i8) {
-            mem_lock<int8_t> w_lock(*w);
-            mem_lock<int8_t> azp_lock(*azp);
+            mem_lock<int8_t> w_lock(w, stream);
+            mem_lock<int8_t> azp_lock(azp, stream);
             if (wzp) {
-                mem_lock<int8_t> wzp_lock(*wzp);
+                mem_lock<int8_t> wzp_lock(wzp, stream);
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), wzp_lock.data(), comp_lock.data(), GS, OC, IC, KS);
             } else {
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), static_cast<int8_t*>(nullptr), comp_lock.data(), GS, OC, IC, KS);
             }
         } else if (w_dt == data_types::u8 && azp_dt == data_types::i8) {
-            mem_lock<uint8_t> w_lock(*w);
-            mem_lock<int8_t> azp_lock(*azp);
+            mem_lock<uint8_t> w_lock(w, stream);
+            mem_lock<int8_t> azp_lock(azp, stream);
             if (wzp) {
-                mem_lock<uint8_t> wzp_lock(*wzp);
+                mem_lock<uint8_t> wzp_lock(wzp, stream);
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), wzp_lock.data(), comp_lock.data(), GS, OC, IC, KS);
             } else {
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), static_cast<uint8_t*>(nullptr), comp_lock.data(), GS, OC, IC, KS);
@@ -558,13 +577,14 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
 
         auto l = layout{new_a_zp->get_output_layout().data_type, format::bfyx, tensor{1, ifm_aligned, 1, 1}};
         int s = new_a_zp->get_output_layout().size.feature[0];
-        auto azp_aligned = p.get_engine().allocate_memory(l, 0, false);
-        mem_lock<int8_t> new_data{azp_aligned};
-        mem_lock<int8_t> old_data{new_a_zp->as<data>().get_attached_memory()};
+        auto azp_aligned = p.get_engine().allocate_memory(l);
+        auto old_ptr = new_a_zp->as<data>().get_attached_memory_ptr();
+        mem_lock<int8_t> new_data{azp_aligned, stream};
+        mem_lock<int8_t> old_data{old_ptr, stream};
         for (int i = 0; i < ifm_aligned; i++) {
             new_data.data()[i] = old_data.data()[i % s];
         }
-        new_a_zp->as<data>().attach_memory(*azp_aligned);
+        new_a_zp->as<data>().attach_memory(azp_aligned);
 
         input = new_input->id();
         a_zero_points.push_back(new_a_zp->id());
@@ -580,13 +600,14 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
 
         auto l = layout{new_w_zp->get_output_layout().data_type, format::bfyx, tensor{ofm_aligned, 1, 1, 1}};
         int s = new_w_zp->get_output_layout().size.batch[0];
-        auto wzp_aligned = p.get_engine().allocate_memory(l, 0, false);
-        mem_lock<int8_t> new_data{wzp_aligned};
-        mem_lock<int8_t> old_data{new_w_zp->as<data>().get_attached_memory()};
+        auto wzp_aligned = p.get_engine().allocate_memory(l);
+        auto old_ptr = new_w_zp->as<data>().get_attached_memory_ptr();
+        mem_lock<int8_t> new_data{wzp_aligned, stream};
+        mem_lock<int8_t> old_data{old_ptr, stream};
         for (int i = 0; i < ofm_aligned; i++) {
             new_data.data()[i] = old_data.data()[i % s];
         }
-        new_w_zp->as<data>().attach_memory(*wzp_aligned);
+        new_w_zp->as<data>().attach_memory(wzp_aligned);
 
         weights = { new_weights->id() };
         w_zero_points.push_back(new_w_zp->id());
@@ -596,20 +617,17 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
     cldnn::program_node* new_compenstation = nullptr;
     if (need_compensation) {
         auto l = layout{data_types::f32, format::bfyx, tensor{1, ofm_aligned, 1, 1}};
-        auto data_to_allocate = p.get_engine().allocate_memory(l, 0, false);
-        auto w = &new_weights->as<data>().get_attached_memory();
-        auto azp = asymmetric_data ? &new_a_zp->as<data>().get_attached_memory() : nullptr;
-        auto wzp = asymmetric_weights ? &new_w_zp->as<data>().get_attached_memory() : nullptr;
+        auto data_to_allocate = p.get_engine().allocate_memory(l);
+        auto w = new_weights->as<data>().get_attached_memory_ptr();
+        auto azp = asymmetric_data ? new_a_zp->as<data>().get_attached_memory_ptr() : nullptr;
+        auto wzp = asymmetric_weights ? new_w_zp->as<data>().get_attached_memory_ptr() : nullptr;
         int groups = static_cast<int>(convolution_node.get_groups());
         fill_compensation(groups, w, azp, wzp, data_to_allocate);
-        layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
-        float zero = 0.f;
 
-        auto compensation_prim = std::make_shared<data>(convolution_node.id() + "_compensation", memory::attach(dummy_layout, &zero, 1));
+        auto compensation_prim = std::make_shared<data>(convolution_node.id() + "_compensation", data_to_allocate);
         new_compenstation = &p.get_or_create(compensation_prim);
         p.get_inputs().push_back(new_compenstation);
         compensation.push_back(new_compenstation->id());
-        new_compenstation->as<data>().attach_memory(*data_to_allocate);
     }
 
     // Collect dependencies of a new convolution node

@@ -154,14 +154,11 @@ public:
 private:
     void run(program_impl& p) override;
     void handle_quantize_node(program_impl& p, quantize_node& quantize_node);
-    void prepare_packed_quantize(quantize_node& quantize_node);
+    void prepare_packed_quantize(program_impl& p, quantize_node& quantize_node);
     void prepare_dequantize_merge(program_impl& p, eltwise_node& eltwise_node);
     void remove_fake_reorders(program_impl& p, reorder_node& reorder_node);
     void prepare_asymmetric_quantization(program_impl& p, convolution_node& convolution_node);
-    template<typename T>
-    void prepare_scale_shift_opt(program_impl &p, quantize_node& quantize_node,
-                                const std::function<float(T)>& T_to_float = [](float value) {return value;},
-                                const std::function<T(float)>& float_to_T = [](float value) {return value;});
+    void prepare_scale_shift_opt(program_impl &p, quantize_node& quantize_node);
 };
 
 class prepare_conv_eltw_fusing : public base_pass {
