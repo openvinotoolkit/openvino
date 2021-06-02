@@ -428,6 +428,17 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             }
         }
 
+        /* Destination max value for Relu is equal to its source max value,
+         * so we can control overflows if we know only destination statistics
+         */
+        if (!quantizedParams->_dst_quant.IsStatsSet() && quantizedParams->_src_quant.IsStatsSet() && layer.isRelu()) {
+            auto maxInValue = quantizedParams->_src_quant.GetMaxValues().front();
+            auto limit = (inputsSize == 1 ? std::numeric_limits<int8_t>::max() : std::numeric_limits<int16_t>::max()) - 1;
+            if (result * maxInValue > limit) {
+                result = limit / maxInValue;
+            }
+        }
+
         return result;
     }
 
