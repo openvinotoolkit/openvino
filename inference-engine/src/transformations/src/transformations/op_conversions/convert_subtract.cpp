@@ -61,7 +61,7 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         }
 
         auto neg = std::make_shared<ngraph::opset1::Multiply>(sub->input(1).get_source_output(),
-                                                              opset1::Constant::create(sub->get_input_element_type(1), Shape{1}, {-1}));
+                                                              opset1::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
 
         auto add = std::make_shared<ngraph::opset1::Add>(sub->input(0).get_source_output(), neg);
 
