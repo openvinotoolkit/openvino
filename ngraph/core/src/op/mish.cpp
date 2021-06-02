@@ -31,6 +31,16 @@ bool op::v4::Mish::visit_attributes(AttributeVisitor& visitor)
 void op::v4::Mish::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v4_Mish_validate_and_infer_types);
+
+    NODE_VALIDATION_CHECK(
+        this, get_input_size() == 1, "Only accepts one argument. Got: ", get_input_size());
+
+    element::Type data_batch_et = get_input_element_type(0);
+    NODE_VALIDATION_CHECK(this,
+                          data_batch_et.is_real(),
+                          "Element must be of floating point type, Got: ",
+                          data_batch_et);
+
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
