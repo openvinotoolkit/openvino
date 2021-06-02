@@ -28,6 +28,7 @@
 #include "lpt_ngraph_functions/concat_function.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -151,10 +152,6 @@ public:
             testValues.addNotPrecisionPreservedOperation);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}}
-            }),
             ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
         });
 
@@ -168,18 +165,11 @@ public:
 
 //#define VISUALIZE_TREE
 #ifndef VISUALIZE_TREE
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(supportedPrecisionsOnActivation);
-        manager.register_pass<ngraph::pass::low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
-        manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
-        manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
-        manager.register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>();
-        manager.register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>();
 
-        std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
-        common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(params);
-        common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>(params);
-        manager.run_passes(actualFunction);
+        SimpleLowPrecisionTransformer transformer(supportedPrecisionsOnActivation, quantizationRestrictions);
+        transformer.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transformer.transform(actualFunction);
 
         {
             ngraph::pass::Manager standaloneCleanupManager;
@@ -193,50 +183,50 @@ public:
             standaloneCleanupManager.run_passes(actualFunction);
         }
 #else
-        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.actual.svg").run_on_function(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.actual").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.actual.svg").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.actual").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager0;
         manager0.register_pass<ngraph::pass::low_precision::MarkupCanBeQuantized>();
         manager0.run_passes(actualFunction);
-        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming1.svg").run_on_function(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming1.svg").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager1;
         manager1.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(supportedPrecisionsOnActivation);
         manager1.run_passes(actualFunction);
-        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming2.svg").run_on_function(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming2.svg").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager12;
         manager12.register_pass<ngraph::pass::low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
         manager12.run_passes(actualFunction);
-        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming3.svg").run_on_function(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming3.svg").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager2;
         manager2.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
         manager2.run_passes(actualFunction);
-        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming4.svg").run_on_function(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming4").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming4.svg").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming4").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager3;
         manager3.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
         manager3.run_passes(actualFunction);
-        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming5.svg").run_on_function(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming5").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming5.svg").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming5").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager4;
         manager4.register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>();
         manager4.run_passes(actualFunction);
-        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming6.svg").run_on_function(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming6").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming6.svg").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming6").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager5;
-        manager4.register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>();
-        manager4.run_passes(actualFunction);
-        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming7.svg").run_on_function(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming7").run_on_function(actualFunction);
+        manager5.register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>();
+        manager5.run_passes(actualFunction);
+        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming7.svg").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming7").run_on_function(actualFunction);
 
         {
             ngraph::pass::Manager manager;
@@ -258,8 +248,8 @@ public:
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
-        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transformed.svg").run_on_function(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transformed").run_on_function(actualFunction);
+        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transformed.svg").run_on_function(actualFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transformed").run_on_function(actualFunction);
 #endif
         // dequantization output precision depends on input precision
         // to avoid huge amount of tests cases let's define dequantization output precision as input precision
@@ -295,8 +285,8 @@ public:
             testValues.addNotPrecisionPreservedOperation);
 
 #ifdef VISUALIZE_TREE
-        //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.reference.svg").run_on_function(referenceFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.reference").run_on_function(referenceFunction);
+        ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.reference.svg").run_on_function(referenceFunction);
+        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.reference").run_on_function(referenceFunction);
 #endif
     }
 
@@ -340,6 +330,35 @@ const std::vector<ngraph::element::Type> precisions = {
 };
 
 const std::vector<ConcatTransformationTestValues> testValues = {
+    // U8: concat: levels less then threshold is ignored, function is not transformed
+    {
+        LayerTransformation::createParamsU8I8(),
+        false,
+        1,
+        {
+            { 256ul, {}, {0.f}, {2550.f}, {0.f}, {2550.f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {0.1f}, {0.f}, {0.1f} }
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2550.f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {0.1f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, {{ 10.f, 10.f, 10.f, 0.000392157f, 0.000392157f, 0.000392157f }} },
+        },
+        true
+    },
     // right branch is not quantized
     {
         LayerTransformation::createParamsU8I8(),

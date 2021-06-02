@@ -81,11 +81,11 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<IntervalsAlignmentAttributePtr>:
             resultSharedValue->minInterval = sharedValue->minInterval;
 
             const size_t minLevels = NetworkHelper::calculateLevels(
-                attribute->levels,
-                sharedValue->combinedInterval.low,
-                sharedValue->combinedInterval.high,
-                sharedValue->minInterval.low,
-                sharedValue->minInterval.high);
+                resultAttribute->levels,
+                resultSharedValue->combinedInterval.low,
+                resultSharedValue->combinedInterval.high,
+                resultSharedValue->minInterval.low,
+                resultSharedValue->minInterval.high);
             resultSharedValue->minLevels = minLevels;
             resultSharedValue->minLevelsOperation = sharedValue->minLevelsOperation;
         }
@@ -207,11 +207,11 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
             resultSharedValue->minInterval = sharedValue->minInterval;
 
             const size_t minLevels = NetworkHelper::calculateLevels(
-                attribute->levels,
-                sharedValue->combinedInterval.low,
-                sharedValue->combinedInterval.high,
-                sharedValue->minInterval.low,
-                sharedValue->minInterval.high);
+                resultAttribute->levels,
+                resultSharedValue->combinedInterval.low,
+                resultSharedValue->combinedInterval.high,
+                resultSharedValue->minInterval.low,
+                resultSharedValue->minInterval.high);
             resultSharedValue->minLevels = minLevels;
             resultSharedValue->minLevelsOperation = sharedValue->minLevelsOperation;
         }
