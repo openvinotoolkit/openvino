@@ -200,29 +200,37 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
     }
 
     if ((intervalsAlignment != nullptr) && (intervalsAlignment->sharedValue->minLevels >= 2ul)) {
-        const auto& combinedInterval = intervalsAlignment->sharedValue->combinedInterval;
-        const float maxOutputInterval = combinedInterval.high - combinedInterval.low;
-        // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
-        const float quantizationMul = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;
-        const float dequantizationMul = maxOutputInterval / (dataPrecision.max - dataPrecision.min);
+//        const auto& combinedInterval = intervalsAlignment->sharedValue->combinedInterval;
+//        const float maxOutputInterval = combinedInterval.high - combinedInterval.low;
+//        // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
+//        const float quantizationMul = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;
+//        const float dequantizationMul = maxOutputInterval / (dataPrecision.max - dataPrecision.min);
+//
+//        // FQ outputLowValue = dataPrecision.min * dequantizationMul - quantizationSub
+//        const float quantizationSub = combinedInterval.low - dataPrecision.min * dequantizationMul;
+//        const float dequantizationSub = std::round(-quantizationSub * quantizationMul);
+//
+//
+//        const float updatedOutputLowValue = (quantizationDetails.outputLowValues[0] - quantizationSub) * quantizationMul;
+//        const float updatedOutputHighValue = (quantizationDetails.outputHighValues[0] - quantizationSub) * quantizationMul;
+//
+//        const size_t levels = static_cast<size_t>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
 
-        // FQ outputLowValue = dataPrecision.min * dequantizationMul - quantizationSub
-        const float quantizationSub = combinedInterval.low - dataPrecision.min * dequantizationMul;
-        const float dequantizationSub = std::round(-quantizationSub * quantizationMul);
-
-
-        const float updatedOutputLowValue = (quantizationDetails.outputLowValues[0] - quantizationSub) * quantizationMul;
-        const float updatedOutputHighValue = (quantizationDetails.outputHighValues[0] - quantizationSub) * quantizationMul;
-
-        const size_t levels = static_cast<size_t>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
-
-        //const size_t levels = NetworkHelper::calculateLevels(
-        //    dataPrecision.min,
-        //    dataPrecision.max,
-        //    intervalsAlignment->sharedValue->intervalLow,
-        //    intervalsAlignment->sharedValue->intervalHigh,
-        //    quantizationDetails.outputLowValues[0],
-        //    quantizationDetails.outputHighValues[0]);
+        float dequantizationMul;
+        float dequantizationSub;
+        float updatedOutputLowValue;
+        float updatedOutputHighValue;
+        const size_t levels = NetworkHelper::calculateLevels(
+            dataPrecision.min,
+            dataPrecision.max,
+            intervalsAlignment->sharedValue->combinedInterval.low,
+            intervalsAlignment->sharedValue->combinedInterval.high,
+            quantizationDetails.outputLowValues[0],
+            quantizationDetails.outputHighValues[0],
+            dequantizationMul,
+            dequantizationSub,
+            updatedOutputLowValue,
+            updatedOutputHighValue);
 
         //TODO: pass min levels as a parameter?
         if (levels < 2ul) {
