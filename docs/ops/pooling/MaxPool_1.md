@@ -28,10 +28,10 @@
 
 * *pads_value*
 
-    * **Description**: *pads_value* will be used to fill pixels added during padding. If not specified, the new pixels will be filled in with 0.
+    * **Description**: *pads_value* will be used to fill pixels added during padding. If not specified, the new pixels will be filled in with minimum value for the type.
     * **Range of values**: floating point values
     * **Type**: float
-    * **Default value**: 0
+    * **Default value**: *-infinity*
     * **Required**: *no*
 
 * *pads_begin*
@@ -102,6 +102,7 @@
     The type of this output can be specified using the `index_element_type` attribute.
     Values are computed as indices in a tensor flattened to 1-D, not considering padding,
     so the values are in the range `[0, N * C * H * W * D)`.
+    Note: the values of this output can only be calculated correctly if `pads_value` is set to `-infinity`.
 
 
 **Types**
