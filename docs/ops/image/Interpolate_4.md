@@ -89,17 +89,23 @@
 
 **Inputs**
 
-*   **1**: `data` - Input tensor with data for interpolation. Type of elements is any supported floating point type or `int8` type. Required.
+*   **1**: `data` - tensor of type `T` with data for interpolation. **Required.**
 
-*   **2**: `sizes` - 1D tensor describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. Required.
+*   **2**: `sizes` - 1D tensor of type `T_SIZE` describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. **Required.**
 
-*   **3**: `scales` - 1D tensor describing scales for spatial axes. Type of elements is any supported floating point type. Number and order of elements match the number and order of indices in `axes` input. Required.
+*   **3**: `scales` - 1D tensor of type `T_SCALES` describing scales for spatial axes. Number and order of elements match the number and order of indices in `axes` input. **Required.**
 
-*   **4**: `axes` - 1D tensor specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `sizes`. Optional with default value `[0,...,rank(data) - 1]`.
+*   **4**: `axes` - 1D tensor of type `T_AXES` specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `sizes`. **Optional** with default value `[0,...,rank(data) - 1]`.
 
 **Outputs**
 
 *   **1**: Resulting interpolated tensor with elements of the same type as input `data` tensor. The shape of the output matches input `data` shape except spatial dimensions mentioned in `axes` attribute. For other dimensions shape matches sizes from `sizes` in order specified in `axes`.
+
+**Types**
+* *T*: any supported numeric type.
+* *T_SIZE*: any supported integer type.
+* *T_SCALES*: any supported floating point type.
+* *T_AXES*: any supported integer type.
 
 
 **Detailed description**
