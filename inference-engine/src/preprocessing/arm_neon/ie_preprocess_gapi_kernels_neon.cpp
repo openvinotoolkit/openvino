@@ -701,8 +701,10 @@ void calcRowLinear_8UC1(uint8_t* dst[],
 }
 }  // namespace neon
 
-template void chanToPlaneRowImpl(neon_tag, const uint8_t* in, int chan, int chs, uint8_t* out, int length);
-template void chanToPlaneRowImpl(neon_tag, const float*   in, int chan, int chs, float  * out, int length);
+template void chanToPlaneRowImpl(neon_tag, const uint8_t* in, int chan, int chs, uint8_t* out, const int length);
+template void chanToPlaneRowImpl(neon_tag, const float*   in, int chan, int chs, float  * out, const int length);
+
+template void nv12ToRgbRowImpl(neon_tag, const uint8_t** y_rows, const uint8_t* uv_row, uint8_t** out_rows, const int buf_width);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
