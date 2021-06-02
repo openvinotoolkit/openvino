@@ -64,8 +64,7 @@ void ArkFile::LoadFile(const char* fileName, uint32_t arrayIndex, std::string& p
             std::getline(in_file, ptrName, '\0');  // read variable length name followed by space and NUL
             std::getline(in_file, line, '\4');     // read "BFM" followed by space and control-D
             if (line.compare("BFM ") != 0) {
-                fprintf(stderr, "Cannot find array specifier in file %s in LoadKaldiArkArray()!\n", fileName);
-                exit(-1);
+                throw std::runtime_error(std::string("Cannot find array specifier in file %s in LoadFile()!\n") + fileName);
             }
             in_file.read(reinterpret_cast<char*>(ptrNumRows), sizeof(uint32_t));     // read number of rows
             std::getline(in_file, line, '\4');                                       // read control-D

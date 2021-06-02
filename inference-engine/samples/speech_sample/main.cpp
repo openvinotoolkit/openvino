@@ -875,9 +875,9 @@ int main(int argc, char* argv[]) {
                     BaseFile* fileReferenceScores;
                     auto exReferenceScoresFile = fileExt(FLAGS_r);
                     if (exReferenceScoresFile == "ark") {
-                        fileReferenceScores = new ArkFile();
+                        fileReferenceScores = &arkFile;
                     } else if (exReferenceScoresFile == "npz") {
-                        fileReferenceScores = new NumpyFile();
+                        fileReferenceScores = &numpyFile;
                     } else {
                         throw std::logic_error("Invalid Reference Scores file");
                     }
