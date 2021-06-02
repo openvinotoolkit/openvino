@@ -295,6 +295,7 @@ set(SRC
     visitors/op/squeeze.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/swish.cpp
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
@@ -471,6 +472,7 @@ set(MULTI_TEST_SRC
     backend/squared_difference.in.cpp
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
+    backend/swish.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
     backend/tile.in.cpp
