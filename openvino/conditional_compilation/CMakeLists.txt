@@ -49,5 +49,5 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
     ov_force_include(${TARGET_NAME} INTERFACE ${GENERATED_HEADER})
 endif()
 
-file(GLOB_RECURSE hdrs "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
+file(GLOB_RECURSE hdrs ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_SOURCES ${hdrs})
