@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API SplitSqueezeConcatFusion;
 /**
  * @ingroup ie_transformation_common_api
  * @brief SplitSqueezeConcatFusion transformation replaces group of
- * operations: Split -> Squeeze (multiple) -> Concat to Transpose -> Reashape ops.
+ * operations: Split -> Squeeze (multiple) -> Concat to Transpose -> Reshape ops.
  */
 class ngraph::pass::SplitSqueezeConcatFusion : public ngraph::pass::MatcherPass {
 public:
