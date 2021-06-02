@@ -17,12 +17,10 @@ This folder layer tests framework code and test files.
     ```bash
     export PYTHONPATH="path_to_openvino"/tests/layer_tests/:$PYTHONPATH
     ```
-* If you need compare scoring results:
-    * Set up additional environment variable:
-        ```bash
-            >export IE_APP_PATH="path_to_IE"
-        ```
-    * Add IE dependencies in LD_LIBRARY_PATH.
+    ```bash
+    export IE_APP_PATH="path_to_IE"
+    ```
+* Add IE dependencies in LD_LIBRARY_PATH.
 
 ## Run tests
 ```bash
