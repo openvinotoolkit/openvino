@@ -48,10 +48,21 @@ def next_step(additional_info='', step_id=0):
     print(step_info_template)
 
 def process_precision(ie_network: IENetwork, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
-    _configure_network_inputs(ie_network, app_inputs_info, input_precision)
-    _configure_network_outputs(ie_network, output_precision)
+    if input_precision:
+        _configure_network_inputs(ie_network, app_inputs_info, input_precision)
+    if output_precision:
+        _configure_network_outputs(ie_network, output_precision)
     if input_output_precision:
         _configure_network_inputs_and_outputs(ie_network, input_output_precision)
+    input_info = ie_network.input_info
+    for key in app_inputs_info.keys():
+        ## if precision for input set by user, then set it to app_inputs
+        ## if it an image, set U8
+        if input_precision or (input_output_precision and key in input_output_precision.keys()):
+            app_inputs_info[key].precision = input_info[key].precision
+        elif app_inputs_info[key].is_image:
+            app_inputs_info[key].precision = 'U8'
+            input_info[key].precision = 'U8'
 
 def _configure_network_inputs(ie_network: IENetwork, app_inputs_info, input_precision: str):
     input_info = ie_network.input_info
@@ -74,7 +85,7 @@ def _configure_network_inputs_and_outputs(ie_network: IENetwork, input_output_pr
 
     input_info = ie_network.input_info
     output_info = ie_network.outputs
-    
+
     for key, value in user_precision_map.items():
         if key in input_info:
             input_info[key].precision = value
