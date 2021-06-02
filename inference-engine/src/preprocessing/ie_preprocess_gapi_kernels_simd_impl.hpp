@@ -886,8 +886,8 @@ void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan, const int chs, T
 }
 
 template<typename isa_tag_t>
-inline void nv12ToRgbRowImpl(isa_tag_t, const uchar** srcY, const uchar* srcUV,
-                                       uchar** dstRGBx, const int width) {
+void nv12ToRgbRowImpl(isa_tag_t, const uchar** srcY, const uchar* srcUV,
+                      uchar** dstRGBx, const int width) {
     calculate_nv12_to_rgb_impl(srcY, srcUV, dstRGBx, width);
 }
 }  // namespace kernels
