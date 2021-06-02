@@ -61,6 +61,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
     auto shape_b = op->get_input_shape(1);
 
     bool is_fc = IsNodeOnConstPath(op->get_input_node_shared_ptr(1));
+
     is_fc &= std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) { return x != 1; }) <= 2;
 
     if (is_fc) {
@@ -83,10 +84,11 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             for (auto o = transpose_order.size(); o < 4; o++)
                 transpose_order.push_back((uint16_t)o);
 
+            std::vector<uint16_t> cldnn_permute_order = ConvertPermuteOrder(transpose_order);
             auto permuteName = op->get_friendly_name() + "/transpose_b";
             auto permutePrim = cldnn::permute(permuteName,
                                               weightsName,
-                                              transpose_order);
+                                              cldnn_permute_order);
             p.AddPrimitive(permutePrim);
             p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
             weightsName = permuteName;
@@ -102,10 +104,11 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             for (auto o = transpose_order.size(); o < 4; o++)
                 transpose_order.push_back((uint16_t)o);
 
+            std::vector<uint16_t> cldnn_permute_order = ConvertPermuteOrder(transpose_order);
             auto permuteName = op->get_friendly_name() + "/transpose_a";
             auto permutePrim = cldnn::permute(permuteName,
                                               inputName,
-                                              transpose_order);
+                                              cldnn_permute_order);
             p.AddPrimitive(permutePrim);
             p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
             inputName = permuteName;
