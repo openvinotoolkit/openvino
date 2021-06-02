@@ -110,8 +110,8 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
             dispatchData.gws = {input.Batch().v, num_prior_boxes, 1};
             dispatchData.lws = {1, 1, 1};
         } else {
-            dispatchData.gws = {input.Batch().v, num_classes, 1};
-            dispatchData.lws = {1, 1, 1};
+            dispatchData.gws = {input.Batch().v, num_classes, 256};
+            dispatchData.lws = {1, 1, 256};
         }
     } else if (idx == 1) {
         const size_t kSplitNum = 4;
@@ -208,8 +208,16 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                 //cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_MXNET", "true"));
                 cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_MXNET_OPT", "true"));
             } else {
+                size_t num_bit_mask = CeilDiv(num_prior_boxes, 8);
+                size_t num_score_per_item = RoundUp(CeilDiv(num_prior_boxes, 256), 8);
+                size_t num_score_block = CeilDiv(num_prior_boxes, num_score_per_item);
+                //printf("num_prior_boxes=%zd | num_bit_mask=%zd, num_score_per_item=%zd, num_score_block=%zd\n",
+                //        num_prior_boxes, num_bit_mask, num_score_per_item, num_score_block);
                 // cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_CAFFE", "true"));
-                cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_CAFFE_OPT", "true"));
+                cldnnJit.AddConstants({MakeJitConstant("IS_ZERO_ITER_CAFFE_OPT", "true"),
+                                       MakeJitConstant("NUM_BIT_MASK", num_bit_mask),
+                                       MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item),
+                                       MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)});
             }
         } else if (i == 1) {
              if (detectOutParams.detectOutParams.decrease_label_id) {

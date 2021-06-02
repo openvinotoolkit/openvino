@@ -200,27 +200,75 @@ KERNEL (detection_output_stage_0_caffe_opt)(
 {
     const int batchId = get_global_id(0);
     const int classId = get_global_id(1);
-    //printf("detection_output_stage_0_caffe_opt | global_id={batchId[0:%3d]classId[1:%3d][2:%zd]} local_id={[0:%zd][1:%zd][2:%zd]}\n",
-    //        batchId, classId, get_global_id(2), get_local_id(0), get_local_id(1), get_local_id(2));
+    const int box_gid = get_global_id(2);
+    //printf("detection_output_stage_0_caffe_opt | global_id={batchId[0:%3d]classId[1:%3d][2:%3d]} local_id={[0:%zd][1:%zd][2:%zd]}\n",
+    //        batchId, classId, box_gid, get_local_id(0), get_local_id(1), get_local_id(2));
 
-    const int loc_label = ((SHARE_LOCATION)? 0 : classId);
-    const int scores_size_offset = batchId * NUM_CLASSES + classId;
+    const int start_bid = box_gid * NUM_SCORE_PER_ITEM;
+    const int end_bid = min(start_bid + NUM_SCORE_PER_ITEM, NUM_OF_PRIORS);
 
-    buffer2[scores_size_offset] = 0;
-    __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+    __local char bit_mask[NUM_BIT_MASK];
+    __local int block_num[NUM_SCORE_BLOCK];
 
-    for (uint idx_prior = 0; idx_prior < NUM_OF_PRIORS; idx_prior++)
+    block_num[box_gid] = 0;
+
     {
-        UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, idx_prior, classId, batchId);
-        if (score >= 0) {
-            int acc_num = buffer2[scores_size_offset];
-            SCORES_INFO score_info;
-            score_info.batchId = batchId;
-            score_info.classId = classId;
-            score_info.boxId = idx_prior;
-            score_info.score = score;
-            scoresList[acc_num] = score_info;
-            buffer2[scores_size_offset] = (acc_num + 1);
+        int mask_id = start_bid / 8;
+        int total_block_selected_num = 0;
+        for (int i = start_bid; i < end_bid; i += 8) {
+            char mask = 0;
+            for (int bi = 0; bi < 8; bi++) {
+                if ((i + bi) >= NUM_OF_PRIORS)
+                    break;
+
+                UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
+                if (score == -1)
+                    continue;
+
+                mask |= (1 << bi);
+                total_block_selected_num++;
+            }
+            bit_mask[mask_id] = mask;
+            mask_id++;
+        }
+        block_num[box_gid] = total_block_selected_num;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    {
+        if (box_gid == 0 && get_local_id(2) == 0) {
+            int acc_num = 0;
+            for (int i = 0; i < NUM_SCORE_BLOCK; i++) {
+                int n = block_num[i];
+                block_num[i] = acc_num;
+                acc_num += n;
+            }
+            buffer2[batchId * NUM_CLASSES + classId] = acc_num;
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    {
+        __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+
+        int write_offset = block_num[box_gid];
+
+        int mask_id = start_bid / 8;
+        for (int i = start_bid; i < end_bid; i += 8) {
+            const char mask = bit_mask[mask_id];
+            for (int bi = 0; bi < 8; bi++) {
+                if ((mask & (1 << bi)) && (i + bi) < NUM_OF_PRIORS) {
+                    UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
+                    SCORES_INFO score_info;
+                    score_info.batchId = batchId;
+                    score_info.classId = classId;
+                    score_info.boxId = i + bi;
+                    score_info.score = score;
+                    scoresList[write_offset] = score_info;
+                    write_offset++;
+                }
+            }
+            mask_id++;
         }
     }
 }
