@@ -27,7 +27,7 @@ public:
     InitConvMask() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
-        auto conv = pattern::wrap_type<opset6::Convolution>({input, weights});
+        auto conv = pattern::wrap_type<opset6::Convolution, opset6::GroupConvolution>({input, weights});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();

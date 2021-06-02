@@ -24,6 +24,7 @@ class PassThrough;
 class StopPropagation;
 class FakeQuantize;
 class Concat;
+class Reshape;
 
 } // namespace mask_propagation
 } // namespace pass
@@ -188,6 +189,79 @@ public:
         };
 
         auto m = std::make_shared<ngraph::pattern::Matcher>(group_conv, "GroupConvolutionMaskPropagation");
+        register_matcher(m, callback);
+    }
+};
+
+class ngraph::pass::mask_propagation::Reshape : public MatcherPass {
+public:
+    Reshape() {
+        auto input = pattern::any_input(pattern::has_static_shape());
+        auto shape = pattern::any_input();
+        auto reshape = pattern::wrap_type<opset6::Reshape>({input, shape});
+
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            const auto & pattern_map = m.get_pattern_value_map();
+            const auto & m_shape = pattern_map.at(shape);
+            const auto & m_output = pattern_map.at(reshape);
+            const auto & m_input = pattern_map.at(input);
+
+            auto consumers_set = m_output.get_node_shared_ptr()->output(0).get_target_inputs();
+            std::vector<Input<Node>> consumers(consumers_set.begin(), consumers_set.end() );
+
+            // Working only for Reshapes on Group Convolution weights
+            if (!(consumers.size() == 1 && ngraph::is_type<opset6::GroupConvolution>(consumers[0].get_node())
+                    && consumers[0].get_index() == 1)) {
+                std::cout << "HEY";
+                return false;
+            }
+
+            auto shape_val = m_shape.get_node_shared_ptr();
+
+            // Check that only one 1-d dim is added on 1 position of constant, no actions is needed instead
+            auto inp_shape = m_input.get_shape();
+            auto out_shape = m_output.get_shape();
+            inp_shape.insert(inp_shape.begin() + 1, 1);
+            if (inp_shape != out_shape) {
+                return false;
+            }
+
+            auto input_mask = getMask(m_input);
+            if (!input_mask) {
+                return false;
+            }
+            auto input_mask_row = input_mask.get();
+            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask_row = output_mask.get();
+
+            // propagating mask from 0 dim in Reshape input to 0 in reshape output both sides
+            input_mask->add_callback([output_mask_row](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(0) = output_mask_row->at(0);
+                return true;
+            }, output_mask);
+            output_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(0) = input_mask_row->at(0);
+                return true;
+            }, input_mask);
+            input_mask->apply_callback(output_mask);
+
+            auto old_shape_const = m_shape.get_node_shared_ptr();
+            auto new_shape_value = std::vector<int>(m_output.get_shape().begin(), m_output.get_shape().end());
+            new_shape_value[0] = -1;
+
+            auto new_const = opset5::Constant::create(old_shape_const->get_element_type(),
+                                                       old_shape_const->get_shape(), new_shape_value);
+
+            new_const->validate_and_infer_types();
+            new_const->set_friendly_name(old_shape_const->get_friendly_name());
+            ngraph::copy_runtime_info(old_shape_const, new_const);
+            ngraph::replace_node(old_shape_const, new_const);
+
+            setMask(m_output, output_mask);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(reshape, "ReshapeMaskPropagation");
         register_matcher(m, callback);
     }
 };
@@ -526,5 +600,6 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::PassThrough>();
     add_matcher<mask_propagation::FakeQuantize>();
     add_matcher<mask_propagation::Concat>();
+    add_matcher<mask_propagation::Reshape>();
     add_matcher<mask_propagation::StopPropagation>();
 }
