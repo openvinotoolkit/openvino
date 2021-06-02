@@ -13,12 +13,11 @@ def read_ark_file(file_name: str) -> dict:
     def read_key(input_file: IO[Any]) -> str:
         """Read a identifier of utterance matrix"""
         key = ''
-        while True:
+        char = input_file.read(1).decode()
+
+        while char not in ('', ' '):
+            key += char
             char = input_file.read(1).decode()
-            if char in ('', ' '):
-                break
-            else:
-                key += char
 
         return key
 
@@ -44,11 +43,11 @@ def read_ark_file(file_name: str) -> dict:
 
     utterances = {}
     with open(file_name, 'rb') as input_file:
-        while True:
-            key = read_key(input_file)
-            if not key:
-                break
+        key = read_key(input_file)
+
+        while key:
             utterances[key] = read_matrix(input_file)
+            key = read_key(input_file)
 
     return utterances
 
