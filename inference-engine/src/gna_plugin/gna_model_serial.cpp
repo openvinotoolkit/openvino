@@ -251,7 +251,38 @@ void GNAModelSerial::Import(void *basePointer,
             }
         }
     }
+    gnalog() << "Importred input names: " << std::endl;
+    for (auto inName : inputNames) {
+        gnalog() << inName << std::endl;
+    }
+
     ImportInputs(is, basePointer, inputsDesc, inputsDataMap);
+
+    gnalog() << "Importred input scale factors: " << std::endl;
+    for (auto inScaleFactor : inputsDesc->inputScaleFactors) {
+        gnalog() << inScaleFactor << std::endl;
+    }
+    gnalog() << "Importred input orientations: " << std::endl;
+    for (auto inOr : inputsDesc->orientation_in) {
+        gnalog() << inOr.first << " : " << inOr.second << std::endl;
+    }
+    gnalog() << "Importred input bytes_allocated_for_input: " << std::endl;
+    for (auto inBytes : inputsDesc->bytes_allocated_for_input) {
+        gnalog() << inBytes.first << " : " << inBytes.second << std::endl;
+    }
+
+    for ( auto inpiutData : inputsDataMap) {
+        gnalog() << "output " << inpiutData.first << ":" << std::endl;
+        gnalog() << "name: " << inpiutData.second->name() << std::endl;
+        gnalog() << "layout: " << inpiutData.second->getLayout() << std::endl;
+        gnalog() << "precicion: " << inpiutData.second->getPrecision() << std::endl;
+        auto dims = inpiutData.second->getInputData()->getDims();
+        gnalog() << "dims: ";
+        for (auto dim : dims) {
+            gnalog() << dim << "x";
+        }
+        gnalog() << std::endl;
+    }
 
     if (modelHeader.version.major == 2) {
         if (modelHeader.version.minor >= 3) {
@@ -264,7 +295,39 @@ void GNAModelSerial::Import(void *basePointer,
             }
         }
     }
+    gnalog() << "Importred output names: " << std::endl;
+    for(auto outName : outputNames) {
+        gnalog() << outName << std::endl;
+    }
+
     ImportOutputs(is, basePointer, desc, outputsDataMap);
+    gnalog() << "Importred outputs: " << std::endl;
+    for ( auto outDesc : desc) {
+        int i = 0;
+        gnalog() << "output " << i << ":" << std::endl;
+        gnalog() << "scale factor: " << outDesc.scale_factor << std::endl;
+        gnalog() << "num_bytes_per_element: " << outDesc.num_bytes_per_element << std::endl;
+        gnalog() << "num_elements: " << outDesc.num_elements << std::endl;
+        gnalog() << "orientation: " << outDesc.orientation << std::endl;
+        i++;
+    }
+
+    for ( auto outputData : outputsDataMap) {
+        gnalog() << "output " << outputData.first << ":" << std::endl;
+        gnalog() << "name: " << outputData.second->getName() << std::endl;
+        gnalog() << "layout: " << outputData.second->getLayout() << std::endl;
+        gnalog() << "precicion: " << outputData.second->getPrecision() << std::endl;
+        auto dims = outputData.second->getDims();
+        gnalog() << "dims: ";
+        for (auto dim : dims) {
+            gnalog() << dim << "x";
+        }
+        gnalog() << std::endl;
+    }
+    // gnalog() << "Importred output scale factors: " << std::endl;
+    // for (auto inScaleFactor : desc ) {
+    //     gnalog() << inScaleFactor << std::endl;
+    // }
 
     for (auto operation = gna2Model->Operations; operation != gna2Model->Operations + gna2Model->NumberOfOperations; ++operation) {
         readNBits<32>(operation->Type, is);
