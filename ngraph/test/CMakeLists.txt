@@ -377,6 +377,7 @@ set(MULTI_TEST_SRC
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
+    backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
