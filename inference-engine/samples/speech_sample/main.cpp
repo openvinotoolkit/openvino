@@ -443,6 +443,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
                                                  "GPU",
                                                  "GNA_AUTO",
                                                  "GNA_HW",
+                                                 "GNA_HW_WITH_SW_FBACK",
                                                  "GNA_SW_EXACT",
                                                  "GNA_SW",
                                                  "GNA_SW_FP32",
