@@ -64,39 +64,41 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         const auto & original_output_high = pattern_map.at(fq_output_high_p);
         auto mul_constant = pattern_map.at(mul_constant_p).get_node_shared_ptr();
         auto mul_constant_shape = mul_constant->get_shape();
-        bool is_mul_constant_scalar = shape_size(mul_constant_shape) == 1;
+        bool is_single_value = shape_size(mul_constant_shape) == 1;
 
-        if (!is_mul_constant_scalar) {
+        if (!is_single_value) {
             float v;
-            bool is_single_value = false;
             auto constant = std::dynamic_pointer_cast<opset4::Constant>(mul_constant);
-            if (constant)
+            if (constant) {
                 is_single_value = op::util::get_single_value(constant, v);
-            if (is_single_value) {
-                mul_constant = std::make_shared<opset4::Constant>(mul_constant->get_element_type(), Shape{1}, v);
-                mul_constant_shape = Shape{1};
-            } else {
-                auto fq_outputs = fq_node->get_users();
-                // Convolution and GroupConvolution LP transformations require output low/high to have the same values
-                bool fq_output_is_conv = std::any_of(fq_outputs.begin(), fq_outputs.end(),
-                                                     [] (const std::shared_ptr<Node>& node) -> bool {
-                                                         return is_type<opset4::Convolution>(node) ||
-                                                                is_type<opset4::GroupConvolution>(node);
-                                                     });
-                if (fq_output_is_conv) {
-                    return false;
+                if (is_single_value) {
+                    mul_constant_shape = Shape{1};
+                    mul_constant = std::make_shared<opset4::Constant>(mul_constant->get_element_type(), mul_constant_shape, v);
                 }
-                const auto & data_rank = data.get_partial_shape().rank();
-                if (data_rank.is_dynamic()) {
-                    return false;
-                }
-                auto rank = data_rank.get_length();
-                auto diff = rank - mul_constant_shape.size();
-                if (diff > 0) {
-                    mul_constant_shape.insert(mul_constant_shape.begin(), diff, 1);
-                    mul_constant = std::make_shared<ngraph::opset4::Reshape>(mul_constant,
-                            op::Constant::create(element::i64, Shape{mul_constant_shape.size()}, mul_constant_shape), false);
-                }
+            }
+        }
+
+        if (!is_single_value) {
+            auto fq_outputs = fq_node->get_users();
+            // Convolution and GroupConvolution LP transformations require output low/high to have the same values
+            bool fq_output_is_conv = std::any_of(fq_outputs.begin(), fq_outputs.end(),
+                                                 [] (const std::shared_ptr<Node>& node) -> bool {
+                                                     return is_type<opset4::Convolution>(node) ||
+                                                            is_type<opset4::GroupConvolution>(node);
+                                                 });
+            if (fq_output_is_conv) {
+                return false;
+            }
+            const auto & data_rank = data.get_partial_shape().rank();
+            if (data_rank.is_dynamic()) {
+                return false;
+            }
+            auto rank = data_rank.get_length();
+            auto diff = rank - mul_constant_shape.size();
+            if (diff > 0) {
+                mul_constant_shape.insert(mul_constant_shape.begin(), diff, 1);
+                mul_constant = std::make_shared<ngraph::opset4::Reshape>(mul_constant,
+                        op::Constant::create(element::i64, Shape{mul_constant_shape.size()}, mul_constant_shape), false);
             }
         }
 
