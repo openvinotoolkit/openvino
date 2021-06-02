@@ -19,11 +19,6 @@ namespace AutoPlugin {
 
 using DeviceName = std::string;
 
-struct DeviceInformation {
-    DeviceName deviceName;
-    std::map<std::string, std::string> config;
-};
-
 class AutoExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
