@@ -818,7 +818,7 @@ class Graph(nx.MultiDiGraph):
                 attrs = self.node[node_id]
                 color = fill_color_by_type.get(attrs.get('type', ''), fill_color[attrs['kind']])
 
-                if node_id in highlight_nodes or 'highlight' in node_attrs and node_attrs['highlight']:
+                if node_id in highlight_nodes or 'highlight' in node_attrs and fill_color['highlight']:
                     color = fill_color['highlight']
 
                 if attrs.get('op') == 'TensorIterator':
