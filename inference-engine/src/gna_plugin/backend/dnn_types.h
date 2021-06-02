@@ -71,7 +71,7 @@ struct DnnActivation {
         return type;
     }
     static DnnActivation fromType(DnnActivationType type) {
-        DnnActivation activation;
+        DnnActivation activation{};
         activation.type = type;
         activation.args = {};
         return activation;
