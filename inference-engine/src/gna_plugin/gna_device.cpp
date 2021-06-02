@@ -100,7 +100,8 @@ void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t l
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqId{};
-    if (gna2AccelerationMode == Gna2AccelerationModeHardware &&
+    if ((gna2AccelerationMode == Gna2AccelerationModeHardware ||
+         gna2AccelerationMode == Gna2AccelerationModeHardwareWithSoftwareFallback) &&
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
