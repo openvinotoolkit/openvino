@@ -85,8 +85,6 @@
 
 #include <ie_algorithm.hpp>
 
-#include <ngraph/pass/visualize_tree.hpp>
-
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
@@ -371,7 +369,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
-InferenceEngine::ExecutableNetworkInternal::Ptr
+InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
@@ -502,7 +500,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     }
 }
 
-void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
+void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
     extensionManager->AddExtension(extension);
 }
 

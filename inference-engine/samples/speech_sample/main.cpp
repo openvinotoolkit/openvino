@@ -443,7 +443,11 @@ void printPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEn
         float freq = getGnaFrequencyMHz();
         current_units /= freq * 1000;
         call_units /= freq;
-        stream << std::setw(30) << std::left << counter_name.substr(4, counter_name.size() - 1);
+        if (FLAGS_d.find("GNA") != std::string::npos) {
+            stream << std::setw(30) << std::left << counter_name.substr(4, counter_name.size() - 1);
+        } else {
+            stream << std::setw(30) << std::left << counter_name;
+        }
         stream << std::setw(16) << std::right << current_units;
         stream << std::setw(21) << std::right << call_units;
         stream << std::endl;
@@ -663,13 +667,6 @@ int main(int argc, char* argv[]) {
         CNNNetwork network;
         ExecutableNetwork executableNet;
 
-        if (!FLAGS_l.empty()) {
-            // Custom CPU extension is loaded as a shared library and passed as a pointer to base extension
-            IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
-            ie.AddExtension(extension_ptr);
-            slog::info << "Custom Extension loaded: " << FLAGS_l << slog::endl;
-        }
-
         // ------------------------------ Get Available Devices ------------------------------------------------------
         auto isFeature = [&](const std::string xFeature) {
             return FLAGS_d.find(xFeature) != std::string::npos;
@@ -684,7 +681,7 @@ int main(int argc, char* argv[]) {
         std::cout << ie.GetVersions(deviceStr) << std::endl;
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+        // --------------------------- Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files)
         slog::info << "Loading network files:" << slog::endl << FLAGS_m << slog::endl;
 
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;

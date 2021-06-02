@@ -19,8 +19,8 @@ namespace ngraph
             {
                 inline void set_u1(uint8_t* buf, size_t idx, uint8_t val)
                 {
-                    const int byte_idx = idx / 8;
-                    const int bit_idx = 7 - (idx % 8);
+                    const size_t byte_idx = idx / 8;
+                    const uint8_t bit_idx = 7 - (idx % 8);
                     if (val)
                     {
                         buf[byte_idx] |= (1 << bit_idx);
@@ -33,38 +33,38 @@ namespace ngraph
 
                 inline uint8_t get_u1(const uint8_t* buf, size_t idx)
                 {
-                    const int byte_idx = idx / 8;
-                    const int bit_idx = 7 - (idx % 8);
+                    const size_t byte_idx = idx / 8;
+                    const uint8_t bit_idx = 7 - (idx % 8);
                     return (buf[byte_idx] & (1 << bit_idx)) ? 1 : 0;
                 }
 
                 inline void set_u4(uint8_t* buf, size_t idx, uint8_t val)
                 {
-                    const int byte_idx = idx / 2;
-                    const int bit_shift = 4 * (++idx % 2);
+                    const size_t byte_idx = idx / 2;
+                    const uint8_t bit_shift = 4 * (++idx % 2);
                     buf[byte_idx] &= ~(0xF << bit_shift); // half byte zeroed
                     buf[byte_idx] |= (val << bit_shift);  // set 1's
                 }
 
                 inline uint8_t get_u4(const uint8_t* buf, size_t idx)
                 {
-                    const int byte_idx = idx / 2;
-                    const int bit_shift = 4 * (++idx % 2);
+                    const size_t byte_idx = idx / 2;
+                    const uint8_t bit_shift = 4 * (++idx % 2);
                     return (buf[byte_idx] >> bit_shift) & 0xF;
                 }
 
                 inline void set_i4(uint8_t* buf, size_t idx, int8_t val)
                 {
-                    const int byte_idx = idx / 2;
-                    const int bit_shift = 4 * (++idx % 2);
+                    const size_t byte_idx = idx / 2;
+                    const uint8_t bit_shift = 4 * (++idx % 2);
                     buf[byte_idx] &= ~(0xF << bit_shift); // half byte zeroed
                     buf[byte_idx] |= (val << bit_shift);  // set 1's
                 }
 
                 inline int8_t get_i4(const uint8_t* buf, size_t idx)
                 {
-                    const int byte_idx = idx / 2;
-                    const int bit_shift = 4 * (++idx % 2);
+                    const size_t byte_idx = idx / 2;
+                    const uint8_t bit_shift = 4 * (++idx % 2);
                     uint8_t val = (buf[byte_idx] >> bit_shift) & 0xF;
                     if (val & 0x08)
                     { // negative number
@@ -72,25 +72,25 @@ namespace ngraph
                     }
                     return val;
                 }
-                template <typename T>
-                T get_value(const uint8_t* buf, size_t idx, element::Type type)
+                template <typename TO, typename TI>
+                TO get_value(const uint8_t* buf, size_t idx, element::Type from_type)
                 {
-                    if (type == element::u1)
+                    if (from_type == element::u1)
                     {
                         return detail::get_u1(buf, idx);
                     }
 
-                    if (type == element::u4)
+                    if (from_type == element::u4)
                     {
                         return detail::get_u4(buf, idx);
                     }
 
-                    if (type == element::i4)
+                    if (from_type == element::i4)
                     {
                         return detail::get_i4(buf, idx);
                     }
-
-                    return static_cast<T>(buf[idx]);
+                    auto v = reinterpret_cast<const TI*>(buf);
+                    return static_cast<TO>(v[idx]);
                 }
 
                 template <typename TI, typename TO>
@@ -107,21 +107,21 @@ namespace ngraph
                         if (dst_type == element::u1)
                         {
                             detail::set_u1(
-                                output, i, detail::get_value<uint8_t>(input, i, src_type));
+                                output, i, detail::get_value<uint8_t, TI>(input, i, src_type));
                         }
                         else if (dst_type == element::u4)
                         {
                             detail::set_u4(
-                                output, i, detail::get_value<uint8_t>(input, i, src_type));
+                                output, i, detail::get_value<uint8_t, TI>(input, i, src_type));
                         }
                         else if (dst_type == element::i4)
                         {
                             detail::set_i4(
-                                output, i, detail::get_value<int8_t>(input, i, src_type));
+                                output, i, detail::get_value<int8_t, TI>(input, i, src_type));
                         }
                         else
                         {
-                            out[i] = detail::get_value<TO>(input, i, src_type);
+                            out[i] = detail::get_value<TO, TI>(input, i, src_type);
                         }
                     }
                 }

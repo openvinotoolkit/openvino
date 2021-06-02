@@ -97,9 +97,11 @@ InferenceEngine::Blob::Ptr MKLDNNDeconvolutionNode::createWeiBlobAsIO(InferenceE
     auto constNode = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgeAt(1)->getParent());
     if (!constNode)
         IE_THROW() << "Cannot cast const input node for node " << getName() << ".";
-    auto blb = constNode->getConstBlob();
+    auto blb = constNode->getMemoryPtr();
     if (!blb)
         IE_THROW() << "Cannot get const weights blob for node " << getName() << ".";
+
+    auto const blbSize = blb->GetSize();
 
     // WA: In int8 case, we are processing weights using internal blob.
     // So we disconnect constant node containing weights from the graph and then don't use it.
@@ -123,7 +125,7 @@ InferenceEngine::Blob::Ptr MKLDNNDeconvolutionNode::createWeiBlobAsIO(InferenceE
         orderForBlockedDesc.push_back(i);
 
     BlockingDesc blkDesc(dimsForBlockedDesc, orderForBlockedDesc);
-    InferenceEngine::TensorDesc tensorDesc(blb->getTensorDesc().getPrecision(), dims, blkDesc);
+    InferenceEngine::TensorDesc tensorDesc(MKLDNNExtensionUtils::DataTypeToIEPrecision(blb->GetDataType()), dims, blkDesc);
 
     Blob::Ptr internalBlob = InferenceEngine::make_shared_blob<int8_t>(tensorDesc);
     internalBlob->allocate();
@@ -132,11 +134,11 @@ InferenceEngine::Blob::Ptr MKLDNNDeconvolutionNode::createWeiBlobAsIO(InferenceE
         IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
     size_t intBuffSize = internalBlob->byteSize();
 
-    size_t offset = blb->byteSize();
+    size_t offset = blbSize;
     if (intBuffSize < offset) {
         IE_THROW() << "Cannot create internal buffer. Buffer can be overrun.";
     }
-    cpu_memcpy_s(data, intBuffSize, blb->cbuffer(), blb->byteSize());
+    cpu_memcpy_s(data, intBuffSize, blb->GetPtr(), blbSize);
 
     return internalBlob;
 }
