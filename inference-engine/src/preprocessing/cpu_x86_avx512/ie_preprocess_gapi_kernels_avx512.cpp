@@ -650,8 +650,10 @@ void calcRowLinear_32F(float *dst[],
 
 }  // namespace avx512
 
-template void chanToPlaneRowImpl(avx512_tag, const uint8_t* in, int chan, int chs, uint8_t* out, int length);
-template void chanToPlaneRowImpl(avx512_tag, const float*   in, int chan, int chs, float  * out, int length);
+template void chanToPlaneRowImpl(avx512_tag, const uint8_t* in, const int chan, const int chs, uint8_t* out, const int length);
+template void chanToPlaneRowImpl(avx512_tag, const float*   in, const int chan, const int chs, float*   out, const int length);
+
+template void nv12ToRgbRowImpl(avx512_tag, const uint8_t** y_rows, const uint8_t* uv_row, uint8_t** out_rows, const int buf_width);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

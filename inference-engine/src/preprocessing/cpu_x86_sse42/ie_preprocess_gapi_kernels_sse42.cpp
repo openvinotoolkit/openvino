@@ -1365,7 +1365,7 @@ void splitRow_32FC4(const float in[],
     splitRow_32FC4_Impl(in, out0, out1, out2, out3, length);
 }
 
-void calculate_nv12_to_rgb(const  uchar **srcY,
+void calculate_nv12_to_rgb(const  uchar** srcY,
                            const  uchar *srcUV,
                                   uchar **dstRGBx,
                                     int width) {
@@ -1380,8 +1380,10 @@ void calculate_i420_to_rgb(const  uchar **srcY,
     calculate_i420_to_rgb_impl(srcY, srcU, srcV, dstRGBx, width);
 }
 
-template void chanToPlaneRowImpl(sse42_tag, const uint8_t* in, int chan, int chs, uint8_t* out, int length);
-template void chanToPlaneRowImpl(sse42_tag, const float*   in, int chan, int chs, float  * out, int length);
+template void chanToPlaneRowImpl(sse42_tag, const uint8_t* in, const int chan, const int chs, uint8_t* out, const int length);
+template void chanToPlaneRowImpl(sse42_tag, const float* in, const int chan, const int chs, float* out, const int length);
+
+template void nv12ToRgbRowImpl(sse42_tag, const uint8_t** y_rows, const uint8_t* uv_row, uint8_t** out_rows, const int buf_width);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

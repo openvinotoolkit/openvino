@@ -2343,32 +2343,6 @@ GAPI_FLUID_KERNEL(FScalePlaneArea8u, ScalePlaneArea8u, true) {
     }
 };
 
-static const int ITUR_BT_601_CY = 1220542;
-static const int ITUR_BT_601_CUB = 2116026;
-static const int ITUR_BT_601_CUG = -409993;
-static const int ITUR_BT_601_CVG = -852492;
-static const int ITUR_BT_601_CVR = 1673527;
-static const int ITUR_BT_601_SHIFT = 20;
-
-static inline void uvToRGBuv(const uchar u, const uchar v, int& ruv, int& guv, int& buv) {
-    int uu, vv;
-    uu = static_cast<int>(u) - 128;
-    vv = static_cast<int>(v) - 128;
-
-    ruv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVR * vv;
-    guv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVG * vv + ITUR_BT_601_CUG * uu;
-    buv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CUB * uu;
-}
-
-static inline void yRGBuvToRGB(const uchar vy, const int ruv, const int guv, const int buv,
-                                uchar& r, uchar& g, uchar& b) {
-    int yy = static_cast<int>(vy);
-    int y = std::max(0, yy - 16) * ITUR_BT_601_CY;
-    r = saturate_cast<uchar>((y + ruv) >> ITUR_BT_601_SHIFT);
-    g = saturate_cast<uchar>((y + guv) >> ITUR_BT_601_SHIFT);
-    b = saturate_cast<uchar>((y + buv) >> ITUR_BT_601_SHIFT);
-}
-
 static void calculate_nv12_to_rgb_fallback(const  uchar **y_rows,
                                            const  uchar *uv_row,
                                                   uchar **out_rows,

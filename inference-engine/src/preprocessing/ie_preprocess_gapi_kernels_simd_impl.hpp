@@ -374,23 +374,6 @@ CV_ALWAYS_INLINE void splitRow_32FC4_Impl(const float in[], float out0[], float 
 
 //------------------------------------------------------------------------------
 
-static const int ITUR_BT_601_CY = 1220542;
-static const int ITUR_BT_601_CUB = 2116026;
-static const int ITUR_BT_601_CUG = -409993;
-static const int ITUR_BT_601_CVG = -852492;
-static const int ITUR_BT_601_CVR = 1673527;
-static const int ITUR_BT_601_SHIFT = 20;
-
-CV_ALWAYS_INLINE void uvToRGBuv(const uchar u, const uchar v, int& ruv, int& guv, int& buv) {
-    int uu, vv;
-    uu = static_cast<int>(u) - 128;
-    vv = static_cast<int>(v) - 128;
-
-    ruv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVR * vv;
-    guv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVG * vv + ITUR_BT_601_CUG * uu;
-    buv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CUB * uu;
-}
-
 CV_ALWAYS_INLINE void uvToRGBuv(const v_uint8& u, const v_uint8& v,
                                 v_int32 (&ruv)[4], v_int32 (&guv)[4],
                                 v_int32 (&buv)[4]) {
@@ -416,15 +399,6 @@ CV_ALWAYS_INLINE void uvToRGBuv(const v_uint8& u, const v_uint8& v,
         guv[k] = vshift + vg * vv[k] + ug * uu[k];
         buv[k] = vshift + ub * uu[k];
     }
-}
-
-CV_ALWAYS_INLINE void yRGBuvToRGB(const uchar vy, const int ruv, const int guv,
-                                  const int buv, uchar& r, uchar& g, uchar& b) {
-    int yy = static_cast<int>(vy);
-    int y = std::max(0, yy - 16) * ITUR_BT_601_CY;
-    r = saturate_cast<uchar>((y + ruv) >> ITUR_BT_601_SHIFT);
-    g = saturate_cast<uchar>((y + guv) >> ITUR_BT_601_SHIFT);
-    b = saturate_cast<uchar>((y + buv) >> ITUR_BT_601_SHIFT);
 }
 
 CV_ALWAYS_INLINE void yRGBuvToRGB(const v_uint8& vy,
@@ -464,10 +438,8 @@ CV_ALWAYS_INLINE void yRGBuvToRGB(const v_uint8& vy,
     bb = v_pack_u(b0, b1);
 }
 
-CV_ALWAYS_INLINE void calculate_nv12_to_rgb_impl(const  uchar **srcY,
-                                                 const  uchar *srcUV,
-                                                 uchar **dstRGBx,
-                                                 int width) {
+CV_ALWAYS_INLINE void calculate_nv12_to_rgb_impl(const uint8_t** srcY, const uint8_t* srcUV,
+                                                 uint8_t** dstRGBx, int width) {
     int i = 0;
 
 #if MANUAL_SIMD
@@ -902,7 +874,7 @@ template<typename isa_tag_t> struct vector_type_of<isa_tag_t, uint8_t> { using t
 template<typename isa_tag_t> struct vector_type_of<isa_tag_t, float>   { using type = v_float32;};
 
 template<typename isa_tag_t, typename T>
-void chanToPlaneRowImpl(isa_tag_t, const T* in, int chan, int chs, T* out, int length) {
+void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan, const int chs, T* out, const int length) {
     if (chs == 1) {
         copyRow_Impl<vector_type_of_t<isa_tag_t, T>, T>(in, out, length);
         return;
@@ -913,6 +885,11 @@ void chanToPlaneRowImpl(isa_tag_t, const T* in, int chan, int chs, T* out, int l
     }
 }
 
+template<typename isa_tag_t>
+inline void nv12ToRgbRowImpl(isa_tag_t, const uchar** srcY, const uchar* srcUV,
+                                       uchar** dstRGBx, const int width) {
+    calculate_nv12_to_rgb_impl(srcY, srcUV, dstRGBx, width);
+}
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
