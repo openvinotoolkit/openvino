@@ -49,7 +49,7 @@ macro(ie_cpack)
     set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
     set(CPACK_PACKAGE_VENDOR "Intel")
     set(CPACK_COMPONENTS_ALL ${ARGN})
-    set(CPACK_STRIP_FILES ON)
+    set(CPACK_STRIP_FILES OFF)
 
     if(OS_FOLDER)
         set(CPACK_SYSTEM_NAME "${OS_FOLDER}")
