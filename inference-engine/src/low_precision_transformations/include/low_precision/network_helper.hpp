@@ -305,12 +305,24 @@ public:
         }
     }
 
+//    static size_t calculateLevels(
+//        const size_t quantizationLevel,
+//        const float intervalLow,
+//        const float intervalHigh,
+//        const float minIntervalLow,
+//        const float minIntervalHigh);
+
     static size_t calculateLevels(
-        const size_t quantizationLevel,
-        const float intervalLow,
-        const float intervalHigh,
+        const float dataPrecisionMin,
+        const float dataPrecisionMax,
+        const float combinedIntervalLow,
+        const float combinedIntervalHigh,
         const float minIntervalLow,
-        const float minIntervalHigh);
+        const float minIntervalHigh,
+        float& dequantizationMul,
+        float& dequantizationSub,
+        float& updatedOutputLowValue,
+        float& updatedOutputHighValue);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(

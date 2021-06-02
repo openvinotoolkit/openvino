@@ -80,12 +80,23 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<IntervalsAlignmentAttributePtr>:
         if (resultSize > size) {
             resultSharedValue->minInterval = sharedValue->minInterval;
 
+            float dequantizationMul;
+            float dequantizationSub;
+            float updatedOutputLowValue;
+            float updatedOutputHighValue;
+
             const size_t minLevels = NetworkHelper::calculateLevels(
-                resultAttribute->levels,
+                0.f,
+                DataPrecision::getMaxValue(resultAttribute->levels),
                 resultSharedValue->combinedInterval.low,
                 resultSharedValue->combinedInterval.high,
                 resultSharedValue->minInterval.low,
-                resultSharedValue->minInterval.high);
+                resultSharedValue->minInterval.high,
+                dequantizationMul,
+                dequantizationSub,
+                updatedOutputLowValue,
+                updatedOutputHighValue);
+
             resultSharedValue->minLevels = minLevels;
             resultSharedValue->minLevelsOperation = sharedValue->minLevelsOperation;
         }
@@ -206,12 +217,23 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
         if (resultSize > size) {
             resultSharedValue->minInterval = sharedValue->minInterval;
 
+            float dequantizationMul;
+            float dequantizationSub;
+            float updatedOutputLowValue;
+            float updatedOutputHighValue;
+
             const size_t minLevels = NetworkHelper::calculateLevels(
-                resultAttribute->levels,
+                0.f,
+                DataPrecision::getMaxValue(resultAttribute->levels),
                 resultSharedValue->combinedInterval.low,
                 resultSharedValue->combinedInterval.high,
                 resultSharedValue->minInterval.low,
-                resultSharedValue->minInterval.high);
+                resultSharedValue->minInterval.high,
+                dequantizationMul,
+                dequantizationSub,
+                updatedOutputLowValue,
+                updatedOutputHighValue);
+
             resultSharedValue->minLevels = minLevels;
             resultSharedValue->minLevelsOperation = sharedValue->minLevelsOperation;
         }

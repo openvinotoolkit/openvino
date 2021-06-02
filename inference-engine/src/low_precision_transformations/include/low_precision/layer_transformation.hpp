@@ -106,6 +106,17 @@ public:
         }
     }
 
+    // Return maximum value for quantization level. Quantization level is maximum value for precision.
+    static float getMaxValue(const size_t maxLevelsForPrecision) {
+        if (maxLevelsForPrecision == 255ul) {
+            return 254.f;
+        } else if (maxLevelsForPrecision == 256ul) {
+            return 255.f;
+        } else {
+            THROW_TRANSFORMATION_EXCEPTION << "unexpected quantization level " << maxLevelsForPrecision;
+        }
+    }
+
     static bool hasNegativeValues(const std::vector<float>& values) {
         for (const float value : values) {
             if (value < 0.0) {
