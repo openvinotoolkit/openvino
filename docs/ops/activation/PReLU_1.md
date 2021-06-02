@@ -19,7 +19,7 @@ PReLU(x) = \left\{\begin{array}{r}
 \end{array}\right.
 \f]
 
-where α is a learnable parameter and corresponds to the negative slope, per channel, defined by the second input `slope`.
+where α is a learnable parameter and corresponds to the negative slope, defined by the second input `slope`.
 
 Another mathematical representation that may be found in other references:
 
@@ -32,13 +32,13 @@ PReLU(x) = \max(0, x) + \alpha\cdot\min(0, x)
 
 **Inputs**
 
-* **1**: `data`. A tensor of type `T` and arbitrary shape. **Required**.
-* **2**: `slope`. 1D tensor of type `T`. Tensor with negative slope values, one per channel dimension of `data` input tensor. **Required**.
-* **Note**: Channels dimension corresponds to second dimension of `data` input tensor. If `data` rank is less than 2, the number of channels is 1.
+* **1**: `data`. A tensor of type *T* and arbitrary shape. **Required**.
+* **2**: `slope`. A tensor of type *T* and rank greater or equal to 1. Tensor with negative slope values. **Required**.
+* **Note**: Channels dimension corresponds to the second dimension of `data` input tensor. If `slope` input rank is 1 and its dimension is equal to the second dimension of `data` input, then per channel broadcast is applied. Otherwise `slope` input is broadcasted with numpy rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
 
 **Outputs**
 
-* **1**: The result of element-wise *PReLU* operation applied to `data` input tensor with negative slope values from `slope` input tensor. A tensor of type `T` and the same shape as `data` input tensor.
+* **1**: The result of element-wise *PReLU* operation applied to `data` input tensor with negative slope values from `slope` input tensor. A tensor of type *T* and the same shape as `data` input tensor.
 
 **Types**
 
