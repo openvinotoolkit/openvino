@@ -219,7 +219,7 @@ export(TARGETS ${TARGET_NAME} NAMESPACE IE::
 
 # Export for developer package
 
-ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api)
+ie_developer_export_targets(${TARGET_NAME}_plugin_api)
 
 # install TBB
 
