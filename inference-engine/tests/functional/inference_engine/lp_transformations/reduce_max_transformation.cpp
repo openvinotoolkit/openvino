@@ -33,8 +33,7 @@ class ReduceMaxTransformation : public ReduceTransformation<opset1::ReduceMax> {
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceMaxTransformation, ngraph::opset1::ReduceMax>(
-            low_precision::LayerTransformation::Params(transformationParams));
+        transform.add<ngraph::pass::low_precision::ReduceMaxTransformation, ngraph::opset1::ReduceMax>(transformationParams);
         transform.transform(actualFunction);
     }
 };

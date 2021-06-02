@@ -52,7 +52,7 @@ using namespace ngraph;
 using namespace ngraph::pass;
 
 SimpleLowPrecisionTransformer getTransformerWithTransformationByName(
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const TestTransformationParams& params,
     std::string name) {
     using namespace pass::low_precision;
     SimpleLowPrecisionTransformer transformer;

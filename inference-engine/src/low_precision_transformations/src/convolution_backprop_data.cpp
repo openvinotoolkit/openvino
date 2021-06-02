@@ -53,41 +53,11 @@ ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(con
     this->register_matcher(m, callback);
 }
 
-//void ConvolutionBackpropDataTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-//    addPattern(
-//            pass,
-//            context,
-//            make_op_pattern<opset1::ConvolutionBackpropData>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>() }));
-//    addPattern(
-//            pass,
-//            context,
-//            make_op_pattern<opset1::ConvolutionBackpropData>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>() }));
-//    addPattern(
-//            pass,
-//            context,
-//            make_op_pattern<opset1::ConvolutionBackpropData>(
-//                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
-//    addPattern(
-//            pass,
-//            context,
-//            make_op_pattern<opset1::ConvolutionBackpropData>(
-//                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>(), make_op_label<opset1::Constant>() }));
-//}
-
 bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
-    return ConvolutionBackpropDataTransformation::isQuantizedStatic(layer, deconvolutionSpecificChannelsRatio);
+    return ConvolutionBackpropDataTransformation::isQuantizedStatic(layer);
 }
 
-bool ConvolutionBackpropDataTransformation::isQuantizedStatic(
-    const std::shared_ptr<const Node>& layer,
-    const bool deconvolutionSpecificChannelsRatio) noexcept {
-    if (deconvolutionSpecificChannelsRatio) {
-        size_t inputChannels = layer->get_input_shape(0)[1];
-        size_t outputChannels = layer->get_output_shape(0)[1];
-        if (inputChannels % 4 != 0 || outputChannels % 16 != 0) {
-            return false;
-        }
-    }
+bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
     return WeightableLayerTransformation::isQuantizedStatic(layer, false);
 }
 
@@ -242,14 +212,6 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 }
 
 bool ConvolutionBackpropDataTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (deconvolutionSpecificChannelsRatio) {
-        size_t inputChannels = op->get_input_shape(0)[1];
-        size_t outputChannels = op->get_output_shape(0)[1];
-        if (inputChannels % 4 != 0 || outputChannels % 16 != 0) {
-            return false;
-        }
-    }
-
     return canConvolutionBeTransformed(context, op);
 }
 

@@ -19,19 +19,74 @@ typedef std::tuple<
     Shape,
     pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
 
+struct TestTransformationParams {
+    TestTransformationParams(
+        bool updatePrecisions = true,
+        std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
+        std::vector<element::Type> precisionsOnWeights = { element::i8 },
+        bool supportAsymmetricQuantization = true,
+        element::Type deqPrecision = element::f32,
+        bool support3DTensorOnActivations = true,
+        bool deconvolutionSpecificChannelsRatio = false);
+
+    TestTransformationParams& setUpdatePrecisions(const bool updatePrecisions);
+    TestTransformationParams& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization);
+    TestTransformationParams& setPrecisionsOnActivations(const std::vector<element::Type>& precisionsOnActivations);
+    TestTransformationParams& setPrecisionsOnWeights(const std::vector<element::Type>& precisionsOnWeights);
+    TestTransformationParams& setSupport3DTensorOnActivations(const bool support3DTensorOnActivations);
+    TestTransformationParams& setDeconvolutionSpecificChannelsRatio(const bool deconvolutionSpecificChannelsRatio);
+
+    static pass::low_precision::LayerTransformation::Params toParams(const TestTransformationParams& params);
+
+    bool updatePrecisions;
+    std::vector<element::Type> precisionsOnActivations;
+    std::vector<element::Type> precisionsOnWeights;
+    bool supportAsymmetricQuantization;
+    element::Type deqPrecision;
+    bool support3DTensorOnActivations;
+    bool deconvolutionSpecificChannelsRatio;
+};
+
+/*
+TestTransformationParams& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization) {
+        this->supportAsymmetricQuantization = supportAsymmetricQuantization;
+        return *this;
+    }
+
+    TestTransformationParams& setPrecisionsOnActivations(const std::vector<element::Type>& precisionsOnActivations) {
+        this->precisionsOnActivations = precisionsOnActivations;
+        return *this;
+    }
+
+    TestTransformationParams& setPrecisionsOnWeights(const std::vector<element::Type>& precisionsOnWeights) {
+        this->precisionsOnWeights = precisionsOnWeights;
+        return *this;
+    }
+
+    TestTransformationParams& setSupport3DTensorOnActivations(const bool support3DTensorOnActivations) {
+        this->support3DTensorOnActivations = support3DTensorOnActivations;
+        return *this;
+    }
+
+    TestTransformationParams& setDeconvolutionSpecificChannelsRatio(const bool deconvolutionSpecificChannelsRatio) {
+        this->deconvolutionSpecificChannelsRatio = deconvolutionSpecificChannelsRatio;
+        return *this;
+    }
+*/
+
 class LayerTransformation : public CommonTestUtils::TestsCommon {
 public:
-    static pass::low_precision::LayerTransformation::Params createParamsU8U8();
-    static pass::low_precision::LayerTransformation::Params createParamsU8I8();
-    static pass::low_precision::LayerTransformation::Params createParamsI8I8();
-    static pass::low_precision::LayerTransformation::Params createParamsU8I8AndI8();
+    static TestTransformationParams createParamsU8U8();
+    static TestTransformationParams createParamsU8I8();
+    static TestTransformationParams createParamsI8I8();
+    static TestTransformationParams createParamsU8I8AndI8();
 
-    static std::string toString(const pass::low_precision::LayerTransformation::Params& params);
+    static std::string toString(const TestTransformationParams& params);
 
     static std::string getTestCaseNameByParams(
         const element::Type& type,
         const Shape& shape,
-        const pass::low_precision::LayerTransformation::Params& params);
+        const TestTransformationParams& params);
 
     static builder::subgraph::DequantizationOperations toDequantizationOperations(
         const pass::low_precision::FakeQuantizeDequantization& dequantization);

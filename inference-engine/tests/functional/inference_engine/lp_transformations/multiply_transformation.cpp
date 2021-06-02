@@ -26,14 +26,14 @@ using namespace ngraph::builder::subgraph;
 
 class MultiplyTransformationTestValues {
 public:
-    low_precision::LayerTransformation::Params transformationParams;
+    TestTransformationParams transformationParams;
     MultiplyValues actual;
     MultiplyValues expected;
 
     MultiplyTransformationTestValues() = default;
 
     MultiplyTransformationTestValues(
-        low_precision::LayerTransformation::Params transformationParams,
+        TestTransformationParams transformationParams,
         MultiplyValues actual,
         MultiplyValues expected):
         transformationParams(std::move(transformationParams)),
@@ -57,8 +57,7 @@ public:
 
         actualFunction = MultiplyFunction::get(precision, shape, testParams.actual);
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(
-            low_precision::LayerTransformation::Params(testParams.transformationParams));
+        transform.add<low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(testParams.transformationParams);
         transform.transform(actualFunction);
 
         referenceFunction = MultiplyFunction::get(precision, shape, testParams.expected);

@@ -8,6 +8,7 @@
 
 #include <ngraph/ngraph.hpp>
 
+#include "layer_transformation.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/common/operation_precision_restriction.hpp"
@@ -20,8 +21,8 @@ public:
         const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions = {});
 
     template <class T, class Operation>
-    void add(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
-        this->common->add_matcher<T>(params);
+    void add(const TestTransformationParams& params) {
+        this->common->add_matcher<T>(TestTransformationParams::toParams(params));
     }
 
     template <class T>

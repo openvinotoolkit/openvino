@@ -39,7 +39,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     std::vector<int64_t> constantValues;
     bool keepDims;
     Actual actual;

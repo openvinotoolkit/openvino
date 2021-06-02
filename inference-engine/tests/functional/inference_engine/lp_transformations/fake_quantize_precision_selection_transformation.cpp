@@ -73,11 +73,11 @@ public:
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizePrecisionSelectionTransformationTestValues testValues = std::get<3>(GetParam());
 
-        low_precision::LayerTransformation::Params params = createParamsU8I8AndI8();
+        auto params = createParamsU8I8AndI8();
         params.setUpdatePrecisions(updatePrecision);
         params.setPrecisionsOnActivations(testValues.precisionsOnActivations);
 
-        low_precision::LayerTransformation::Params precisionLimitedOperationParams(params);
+        auto precisionLimitedOperationParams(params);
         precisionLimitedOperationParams.setPrecisionsOnActivations(testValues.precisionsOnActivationForLimitedOperation);
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
@@ -121,7 +121,7 @@ public:
         FakeQuantizePrecisionSelectionTransformationTestValues testValues;
         std::tie(precision, shape, updatePrecision, testValues) = obj.param;
 
-        low_precision::LayerTransformation::Params params;
+        TestTransformationParams params;
         params.setUpdatePrecisions(updatePrecision);
         params.setPrecisionsOnActivations(testValues.precisionsOnActivations);
 

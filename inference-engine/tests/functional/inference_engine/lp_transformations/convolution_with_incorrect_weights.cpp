@@ -42,7 +42,7 @@ public:
 
     ngraph::element::Type inputPrecision;
     ngraph::Shape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool isCorrect;
     Actual actual;
     Expected expected;

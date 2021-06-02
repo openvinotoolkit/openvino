@@ -25,12 +25,7 @@ const char LayerTransformation::originalLayerPostfix[] = "_original";
 
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
-    quantizedTensorAlignmentOnActivations(params.quantizedTensorAlignmentOnActivations),
-    quantizedTensorAlignmentOnWeights(params.quantizedTensorAlignmentOnWeights),
-    supportAsymmetricQuantization(params.supportAsymmetricQuantization),
-    deqPrecision(params.deqPrecision),
-    support3DTensorOnActivations(params.support3DTensorOnActivations),
-    deconvolutionSpecificChannelsRatio(params.deconvolutionSpecificChannelsRatio) {}
+    deqPrecision(params.deqPrecision) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
     this->context = context;
@@ -108,10 +103,6 @@ bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationC
 bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const {
     if (dequantization.empty() || (dequantization.subtract == nullptr)) {
         return true;
-    }
-
-    if (!supportAsymmetricQuantization) {
-        return false;
     }
 
     if (!updatePrecisions) {
@@ -250,6 +241,12 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
     return LayerTransformation::PrecisionDetails(element::undefined, hasNegative, hasZeroPoint);
 }
 
+bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer) {
+    const auto nonConstNode = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
+    const auto dequantization = NetworkHelper::getDequantization(nonConstNode);
+    return dequantization.subtract != nullptr;
+}
+
 bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
     return true;
 }
@@ -301,18 +298,6 @@ void LayerTransformation::updateOutput(
     TransformationContext &context,
     std::shared_ptr<ngraph::Node> lastNode,
     std::shared_ptr<ngraph::Node> originalNode) const {
-    //const size_t outputSize = context.function->get_output_size();
-    //for (size_t i = 0; i < outputSize; ++i) {
-    //    std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
-    //    std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
-    //    if (outputNode.get() == lastNode.get()) {
-    //        const std::string originalName = originalNode->get_friendly_name();
-    //        originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
-    //        lastNode->set_friendly_name(originalName);
-    //        break;
-    //    }
-    //}
-
     // TODO: not tested!!!
     for (auto output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {

@@ -83,7 +83,7 @@ class ConcatWithNotQuantizedParentTransformationTestValues {
 public:
     ConcatWithNotQuantizedParentTransformationTestValues() = default;
     ConcatWithNotQuantizedParentTransformationTestValues(
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
+        const TestTransformationParams& params,
         const bool multiChannels,
         const  std::int64_t axis,
         const ConcatWithNotQuantizedParentTransformationActualValues& actual,
@@ -98,7 +98,7 @@ public:
         addNotPrecisionPreservedOperation(addNotPrecisionPreservedOperation),
         checkIntervalsAlignmentAttributes(checkIntervalsAlignmentAttributes) {}
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool multiChannels;
     std::int64_t axis;
     ConcatWithNotQuantizedParentTransformationActualValues actual;
@@ -167,7 +167,8 @@ public:
             ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0})
         });
 
-        const auto params = ngraph::pass::low_precision::LayerTransformation::Params(testValues.params.updatePrecisions);
+        const auto params = TestTransformationParams(testValues.params.updatePrecisions);
+        const auto legacyParams = TestTransformationParams::toParams(params);
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionsRestrictions);
@@ -178,8 +179,8 @@ public:
         manager.register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>();
 
         std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
-        common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(params);
-        common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>(params);
+        common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(legacyParams);
+        common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>(legacyParams);
         manager.run_passes(actualFunction);
 
         {

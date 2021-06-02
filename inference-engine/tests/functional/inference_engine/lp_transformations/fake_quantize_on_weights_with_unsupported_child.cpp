@@ -37,7 +37,7 @@ public:
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ngraph::element::Type precision;
     Actual actual;
     Expected expected;

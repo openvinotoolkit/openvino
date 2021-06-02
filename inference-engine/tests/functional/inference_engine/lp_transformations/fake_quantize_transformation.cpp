@@ -30,7 +30,7 @@ public:
     FakeQuantizeTransformationTestValues() = default;
 
     FakeQuantizeTransformationTestValues(
-        const low_precision::LayerTransformation::Params& params,
+        const TestTransformationParams& params,
         const builder::subgraph::FakeQuantizeOnData& actual,
         const builder::subgraph::FakeQuantizeOnData& expected,
         const ngraph::element::Type expectedFakeQuantizeOnDataPrecision,
@@ -43,7 +43,7 @@ public:
             expectedValues(expectedValues),
             addNotPrecisionPreservedOperation(addNotPrecisionPreservedOperation) {}
 
-    low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     builder::subgraph::FakeQuantizeOnData actual;
     builder::subgraph::FakeQuantizeOnData expected;
     ngraph::element::Type expectedFakeQuantizeOnDataPrecision;
@@ -85,11 +85,10 @@ public:
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizeTransformationTestValues fakeQuantizeOnData = std::get<3>(GetParam());
 
-        const low_precision::LayerTransformation::Params params = low_precision::LayerTransformation::Params(fakeQuantizeOnData.params).
-            setUpdatePrecisions(updatePrecision);
+        const auto params = TestTransformationParams(fakeQuantizeOnData.params).setUpdatePrecisions(updatePrecision);
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
-            fakeQuantizeOnData.params,
+            TestTransformationParams::toParams(fakeQuantizeOnData.params),
             precision,
             shape,
             fakeQuantizeOnData.actual,
@@ -105,7 +104,7 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(
-            fakeQuantizeOnData.params,
+            TestTransformationParams::toParams(fakeQuantizeOnData.params),
             precision,
             shape,
             params.updatePrecisions,

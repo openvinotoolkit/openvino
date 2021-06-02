@@ -38,7 +38,7 @@ public:
     };
 
     ngraph::element::Type originalPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool updatePrecision;
     bool moveSubtract;
     Actual actual;

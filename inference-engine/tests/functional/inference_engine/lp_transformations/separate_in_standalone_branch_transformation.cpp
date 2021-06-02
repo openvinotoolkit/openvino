@@ -30,7 +30,7 @@ using namespace ngraph::pass;
 
 class SeparateInStandaloneBranchTransformationTestValues {
 public:
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ngraph::element::Type precisionBefore;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
 };

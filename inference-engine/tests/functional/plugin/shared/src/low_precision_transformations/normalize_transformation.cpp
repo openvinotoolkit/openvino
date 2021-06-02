@@ -56,7 +56,7 @@ void NormalizeL2Transformation::SetUp() {
     function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
         precision,
         shapes,
-        params.precisionsOnActivations[0],
+        ngraph::element::u8,
         axes,
         fuseMultiply,
         shift);

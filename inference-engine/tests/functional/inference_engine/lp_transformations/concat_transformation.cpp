@@ -84,7 +84,7 @@ class ConcatTransformationTestValues {
 public:
     ConcatTransformationTestValues() = default;
     ConcatTransformationTestValues(
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
+        const TestTransformationParams& params,
         const bool multiChannels,
         const  std::int64_t axis,
         const ConcatTransformationActualValues& actual,
@@ -99,7 +99,7 @@ public:
         addNotPrecisionPreservedOperation(addNotPrecisionPreservedOperation),
         checkIntervalsAlignmentAttributes(checkIntervalsAlignmentAttributes) {}
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool multiChannels;
     std::int64_t axis;
     ConcatTransformationActualValues actual;
