@@ -685,29 +685,6 @@ bool NetworkHelper::isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& no
 }
 
 size_t NetworkHelper::calculateLevels(
-    const float dataPrecisionMin,
-    const float dataPrecisionMax,
-    const float intervalLow,
-    const float intervalHigh,
-    const float minIntervalLow,
-    const float minIntervalHigh) {
-    const float maxOutputInterval = intervalHigh - intervalLow;
-    // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
-    const float quantizationMul = (dataPrecisionMax - dataPrecisionMin) / maxOutputInterval;
-    const float dequantizationMul = maxOutputInterval / (dataPrecisionMax - dataPrecisionMin);
-
-    // FQ outputLowValue = dataPrecision.min * dequantizationMul - quantizationSub
-    const float quantizationSub = intervalLow - dataPrecisionMin * dequantizationMul;
-    //const float dequantizationSub = std::round(-quantizationSub * quantizationMul);
-
-
-    const float updatedOutputLowValue = (minIntervalLow - quantizationSub) * quantizationMul;
-    const float updatedOutputHighValue = (minIntervalHigh - quantizationSub) * quantizationMul;
-
-    return static_cast<size_t>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
-}
-
-size_t NetworkHelper::calculateLevels(
     const size_t quantizationLevel,
     const float intervalLow,
     const float intervalHigh,
@@ -718,8 +695,11 @@ size_t NetworkHelper::calculateLevels(
     }
     const float maxInterval = intervalHigh - intervalLow;
     const float quant = maxInterval / quantizationLevel;
+    if (quant == 0.f) {
+        return 0ul;
+    }
     const float minInterval = minIntervalHigh - minIntervalLow;
-    const float minQuantizationLevel = static_cast<size_t>(minInterval / quant);
+    const float minQuantizationLevel = static_cast<size_t>(minInterval / quant) + 1ul;
     return minQuantizationLevel;
 }
 

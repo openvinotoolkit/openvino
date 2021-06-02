@@ -306,14 +306,6 @@ public:
     }
 
     static size_t calculateLevels(
-        const float dataPrecisionMin,
-        const float dataPrecisionMax,
-        const float intervalLow,
-        const float intervalHigh,
-        const float minIntervalLow,
-        const float minIntervalHigh);
-
-    static size_t calculateLevels(
         const size_t quantizationLevel,
         const float intervalLow,
         const float intervalHigh,
