@@ -7,9 +7,9 @@
 To download the pre-trained model, refer to the [NeMo Speech Models Catalog](https://ngc.nvidia.com/catalog/models/nvidia:nemospeechmodels).
 Here are the instructions on how to obtain QuartzNet in ONNX* format.
 
-Install the NeMo toolkit using [instructions](https://github.com/NVIDIA/NeMo/tree/main#installation).
+1. Install the NeMo toolkit using [instructions](https://github.com/NVIDIA/NeMo/tree/main#installation).
 
-Run the following code:
+2. Run the following code:
 
 ```python
 import nemo
