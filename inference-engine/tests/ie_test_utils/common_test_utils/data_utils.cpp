@@ -72,8 +72,7 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
             compatible = false;
     }
 
-    IE_ASSERT(compatible) << "fill_data_with_broadcast error: Tensor shape " << values_dims
-                          << " can not be broadcasted to shape " << blob_dims;
+    IE_ASSERT(compatible);
 
     auto fill_strides_like_plain = [] (SizeVector dims) {
         SizeVector str(dims.size());
