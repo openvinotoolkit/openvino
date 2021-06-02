@@ -235,6 +235,9 @@ if (ENABLE_OPENCV)
         log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
     endif()
     debug_message(STATUS "opencv=" ${OPENCV})
+
+    # dummy check that OpenCV is here
+    find_package(OpenCV QUIET)
 else()
     reset_deps_cache(OpenCV_DIR)
 endif()
