@@ -144,6 +144,7 @@ struct loop_gpu : typed_primitive_impl<loop> {
             for (size_t i = 0; i < instance.concatenated_input_mem_mappings.size(); ++i) {
                 const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
                 memory_impl::ptr mem = concatenated_input.get_sliced_mem(current_iteration);
+                assert(mem.get() != nullptr);
                 // set input mem
                 if (current_iteration == 0) {
                     body_network->set_input_data(concatenated_input.sliced_data_prim->id(), *mem);
