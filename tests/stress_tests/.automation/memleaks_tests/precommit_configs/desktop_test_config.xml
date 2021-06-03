@@ -11,7 +11,6 @@
     <devices>
         <value>CPU</value>
         <value>GPU</value>
-        <value>MYRIAD</value>
     </devices>
     <models>
         <model name="mobilenet-ssd" precision="FP32" source="omz" />

@@ -1,18 +1,18 @@
 <attributes>
-    <processes>
-        <value>1</value>
-    </processes>
-    <threads>
-        <value>1</value>
-        <value>2</value>
-    </threads>
-    <iterations>
-        <value>100</value>
-    </iterations>
     <devices>
-        <value>MYRIAD</value>
+        <value>CPU</value>
+        <value>GPU</value>
     </devices>
     <models>
+        <!--Models with FP32 precision-->
+        <model name="vgg16" precision="FP32" source="omz" />
+        <model name="mtcnn-r" precision="FP32" source="omz" />
         <model name="mobilenet-ssd" precision="FP32" source="omz" />
+        <model name="ssd300" precision="FP32" source="omz" />
+        <!--Models with FP16 precision-->
+        <model name="vgg16" precision="FP16" source="omz" />
+        <model name="mtcnn-r" precision="FP16" source="omz" />
+        <model name="mobilenet-ssd" precision="FP16" source="omz" />
+        <model name="ssd300" precision="FP16" source="omz" />
     </models>
 </attributes>
