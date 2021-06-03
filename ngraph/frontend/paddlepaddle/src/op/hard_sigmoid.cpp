@@ -3,6 +3,7 @@
 //
 
 #include "hard_sigmoid.hpp"
+#include <ngraph/builder/make_constant.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
@@ -17,12 +18,11 @@ namespace ngraph
                 NamedOutputs hard_sigmoid(const NodeContext& node)
                 {
                     auto data = node.get_ng_input("X");
+                    auto dtype = data.get_element_type();
                     float slope = node.get_attribute<float>("slope", 0.2f);
                     float offset = node.get_attribute<float>("offset", 0.5f);
-                    auto alpha =
-                        ngraph::opset6::Constant::create(ngraph::element::f32, {}, {slope});
-                    auto beta =
-                        ngraph::opset6::Constant::create(ngraph::element::f32, {}, {offset});
+                    auto alpha = builder::make_constant(dtype, {}, slope);
+                    auto beta = builder::make_constant(dtype, {}, offset);
                     return node.default_single_output_mapping(
                         {std::make_shared<ngraph::opset6::HardSigmoid>(data, alpha, beta)},
                         {"Out"});
