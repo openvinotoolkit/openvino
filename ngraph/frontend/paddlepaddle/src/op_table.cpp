@@ -18,8 +18,11 @@
 #include "op/fill_constant_batch_size_like.hpp"
 #include "op/flatten_contiguous_range.hpp"
 #include "op/greater_equal.hpp"
+#include "op/hard_sigmoid.hpp"
+#include "op/hard_swish.hpp"
 #include "op/interp.hpp"
 #include "op/leakyrelu.hpp"
+#include "op/log.hpp"
 #include "op/logical_not.hpp"
 #include "op/matmul.hpp"
 #include "op/mul.hpp"
@@ -28,10 +31,12 @@
 #include "op/pow.hpp"
 #include "op/range.hpp"
 #include "op/relu.hpp"
+#include "op/relu6.hpp"
 #include "op/reshape2.hpp"
 #include "op/rnn.hpp"
 #include "op/scale.hpp"
 #include "op/shape.hpp"
+#include "op/sigmoid.hpp"
 #include "op/slice.hpp"
 #include "op/softmax.hpp"
 #include "op/split.hpp"
@@ -75,7 +80,10 @@ namespace ngraph
                         {"fill_constant", op::fill_constant},
                         {"flatten_contiguous_range", op::flatten_contiguous_range},
                         {"greater_equal", op::greater_equal},
+                        {"hard_sigmoid", op::hard_sigmoid},
+                        {"hard_swish", op::hard_swish},
                         {"leaky_relu", op::leaky_relu},
+                        {"log", op::log},
                         {"logical_not", op::logical_not},
                         {"matmul", op::matmul},
                         {"max_pool2d_with_index", op::pool2d},
@@ -87,12 +95,14 @@ namespace ngraph
                         {"pool2d", op::pool2d},
                         {"range", op::range},
                         {"relu", op::relu},
+                        {"relu6", op::relu6},
                         {"reshape2", op::reshape2},
                         {"rnn", op::rnn},
                         {"scale", op::scale},
                         {"shape", op::shape},
                         {"slice", op::slice},
                         {"softmax", op::softmax},
+                        {"sigmoid", op::sigmoid},
                         {"split", op::split},
                         {"squeeze2", op::squeeze},
                         {"transpose2", op::transpose2},
