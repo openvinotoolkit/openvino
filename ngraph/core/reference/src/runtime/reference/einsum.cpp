@@ -730,8 +730,7 @@ namespace ngraph
                     HostTensorPtr multi_identity =
                         build_multi_identity<T>(input_ptr, repeated_labels, label_dim_map);
 
-                    HostTensorPtr mul_output = std::shared_ptr<HostTensor>(
-                        new HostTensor(input_ptr->get_element_type(), input_ptr->get_shape()));
+                    HostTensorPtr mul_output = input_ptr;
                     ngraph::runtime::reference::multiply<T>(input_ptr->get_data_ptr<T>(),
                                                             multi_identity->get_data_ptr<T>(),
                                                             mul_output->get_data_ptr<T>(),
@@ -1218,6 +1217,10 @@ namespace ngraph
             {
                 NGRAPH_CHECK(inputs.size() > 0, "Einsum must accept at least one input.");
                 auto input_type = inputs[0]->get_element_type();
+                for (size_t input_ind = 1; input_ind < inputs.size(); ++input_ind) {
+                    NGRAPH_CHECK(inputs[input_ind]->get_element_type() == input_type,
+                                 "Input types must be the same.");
+                }
                 if (input_type == element::Type_t::f32)
                 {
                     einsum_details::einsum_impl<float>(inputs, outputs, equation);
