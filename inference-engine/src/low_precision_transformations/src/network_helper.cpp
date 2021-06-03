@@ -1289,9 +1289,9 @@ std::shared_ptr<opset1::Constant> NetworkHelper::normalizeDequantizationShape(co
             return constant;
         }
 
-        const auto eltwiseShape = eltwise->get_output_shape(0);
-        if (constantShape.size() < eltwiseShape.size()) {
-            Shape unsqueezeConstantShape(eltwiseShape.size() - constantShape.size());
+        const size_t eltwiseRank = eltwise->get_output_partial_shape(0).rank().get_length();
+        if (constantShape.size() < eltwiseRank) {
+            Shape unsqueezeConstantShape(eltwiseRank - constantShape.size());
             std::iota(unsqueezeConstantShape.begin(), unsqueezeConstantShape.end(), 0ul);
 
             const auto newConstant = fold<opset1::Unsqueeze>(

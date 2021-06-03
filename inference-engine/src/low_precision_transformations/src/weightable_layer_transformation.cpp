@@ -62,6 +62,11 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
+    const auto channelsDimension = layer->get_input_partial_shape(0)[1];
+    if (channelsDimension.is_dynamic()) {
+        return false;
+    }
+
     if (isGroup(layer)) {
         const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
         if (dequantization.empty()) {

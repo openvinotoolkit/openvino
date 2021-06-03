@@ -87,7 +87,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
             // Insert explicit broadcast for channel dimension [1] and immediately fold it
             Shape broadcastShape(subtract->get_output_partial_shape(0).rank().get_length(), 1);
-            broadcastShape[1] = subtract->get_output_shape(0)[1];
+            broadcastShape[1] = subtract->get_output_partial_shape(0)[1].get_length();
 
             std::shared_ptr<Node> newShift = fold<opset1::Broadcast>(
                 subtract->input_value(1),
