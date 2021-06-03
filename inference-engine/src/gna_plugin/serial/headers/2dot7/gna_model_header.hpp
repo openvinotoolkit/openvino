@@ -154,6 +154,7 @@ struct RuntimeEndPoint {
         orientation = old.orientation;
         layout = InferenceEngine::Layout::NC;
         precision = InferenceEngine::Precision::FP32;
+        descriptor_offset = old.descriptor_offset;
         InferenceEngine::SizeVector dims = {ngroup, elements_count / ngroup};
         shape.NumberOfDimensions = static_cast<uint32_t>(dims.size());
         for (auto i = 0; i < dims.size(); i++) {
