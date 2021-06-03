@@ -87,9 +87,8 @@ def caffe_native_node_infer(node: Node):
     node node to infer the shape for
 
     """
-    log.error("Caffe fallback is deprecated. It will be removed in future releases. Please use extensions for "
-              "unsupported layers.\n See more information in the \"Custom Layers in the Model Optimizer\" chapter "
-              "of the Model Optimizer Developer Guide",
+    log.error("Caffe fallback is deprecated. It will be removed in future releases. Please use extensions for unsupported layers.\n" +
+              "See more information in the \"Custom Layers in the Model Optimizer\" chapter of the Model Optimizer Developer Guide",
               extra={'is_warning': True})
     log.info('Called "caffe_native_node_infer" for node "{}"'.format(node.id))
 

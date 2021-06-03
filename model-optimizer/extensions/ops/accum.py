@@ -68,8 +68,7 @@ class AccumOp(Op):
             else:
                 top_height_ = node.top_height
                 top_width_ = node.top_width
-            if top_height_ > max_height and top_width_ > max_width:  # Layer can specify custom top size which is
-                # larger than default
+            if top_height_ > max_height and top_width_ > max_width:  # Layer can specify custom top size which is larger than default
                 height_ = top_height_
                 width_ = top_width_
             else:  # Otherwise maximum of bottom sizes will be used

@@ -89,8 +89,7 @@ class ApplyPermutation(MiddleReplacementPattern):
                 continue
 
             if len(
-                    node.in_nodes()) != 0:  # there are data nodes without input operation node inside the tensor
-                # iterator
+                    node.in_nodes()) != 0:  # there are data nodes without input operation node inside the tensor iterator
                 edge_attrs = graph.get_edge_data(node.in_node(0).id, node.id)[0]
                 if is_output_data_in_correct_layout(node.in_node(0), edge_attrs['out']):
                     log.debug('Do not permute data node attrs for node "{}" output port "{}"'.format(node.in_node(0).id,

@@ -16,19 +16,16 @@ from mo.graph.graph import Node, Graph
 
 class ReplaceConvolutionTranspose(FrontReplacementSubgraph):
     """
-    This pass adds Transpose around a Convolution layer if after there is sequence Pooling or Activation after
-    Convolution
+    This pass adds Transpose around a Convolution layer if after there is sequence Pooling or Activation afterConvolution
     **IMPORTANT**: This pass must run after inserting Reshapes around Poolings and Convolutions
        For example:
            Let's suppose we have next graph:
 
-           Convolution -> [Pooling | Activation -> Pooling | Pooling -> Activation | Activation]* -> ... ->
-           (ScaleShift | FullyConnected)
+           Convolution -> [Pooling | Activation -> Pooling | Pooling -> Activation | Activation]* -> ... -> (ScaleShift | FullyConnected)
 
            **NOTE**: Please, remember about Reshapes around Poolings and Convolutions.
                      In this example we do not print them for simplicity.
-           **NOTE**: After Convolution, it is not necessary to have a sequence [Pooling | Activation ->
-           Pooling | Pooling -> Activation | Activation]*
+           **NOTE**: After Convolution, it is not necessary to have a sequence [Pooling | Activation -> Pooling | Pooling -> Activation | Activation]*
 
            So this pass will convert this graph to the next one:
 

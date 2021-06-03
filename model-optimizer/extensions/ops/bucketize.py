@@ -44,8 +44,7 @@ class Bucketize(Op):
             node.out_port(0).set_data_type(np.int32)
         else:
             assert node.output_type in [np.int64, np.int32], \
-                'Bucketize `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type)
-                                                                                              .name)
+                'Bucketize `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
             node.out_port(0).set_data_type(node.output_type)
 
     @staticmethod
@@ -72,5 +71,4 @@ class Bucketize(Op):
 
         # compute if all input is constant
         if input_value is not None and buckets_value is not None:
-            node.out_port(0).data.set_value(np.array(np.digitize(input_value, buckets_value,
-                                                                 right=node.with_right_bound), dtype=node.output_type))
+            node.out_port(0).data.set_value(np.array(np.digitize(input_value, buckets_value, right=node.with_right_bound), dtype=node.output_type))

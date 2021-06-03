@@ -5,7 +5,6 @@ from extensions.ops.argmax import ArgMaxOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
-
 class ArgMaxFrontExtractor(FrontExtractorOp):
     op = 'ArgMax'
     enabled = True
@@ -19,8 +18,8 @@ class ArgMaxFrontExtractor(FrontExtractorOp):
             'axis': axis,
 
             # ONNX ArgMax always computes an index of one maximum value
-            'top_k': 1,
-            'out_max_val': 0,
+            'top_k' : 1,
+            'out_max_val' : 0,
 
             # Set attribute to trigger ArgMax replacer in case do not keep the dimension
             'keepdims': keepdims,

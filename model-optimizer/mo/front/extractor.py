@@ -159,7 +159,7 @@ def node_defs_to_str(node: Node):
     return result
 
 
-def update_ie_fields(attrs: dict, ir_version=None):
+def update_ie_fields(attrs: dict, ir_version = None):
     ir_v10_attrs = {
         'IE': [(
             'layer',
@@ -278,21 +278,13 @@ def update_ie_fields(attrs: dict, ir_version=None):
                         if node.has('real_input_dims') else None),
                         ('protobuf', lambda node: node_defs_to_str(node) if node.has('pbs') else None),
                         {'custom_attributes': None},
-                        ('strides',
-                         lambda node: ','.join(map(str, node['stride'][node.spatial_dims])) if node.has_valid(
-                             'stride') else None),
+                        ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims])) if node.has_valid('stride') else None),
                         ('kernel', lambda node: ','.join(map(str, node['kernel_spatial'])) if node.has_valid(
                             'kernel_spatial') else None),
-                        ('dilations',
-                         lambda node: ','.join(map(str, node['dilation'][node.spatial_dims])) if node.has_valid(
-                             'dilation') else None),
+                        ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims])) if node.has_valid('dilation') else None),
 
-                        ('pads_begin', lambda node: ','.join(
-                            map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid(
-                            'pad') else None),
-                        ('pads_end', lambda node: ','.join(
-                            map(str, get_backend_pad(node.pad, node.spatial_dims, 1))) if node.has_valid(
-                            'pad') else None),
+                        ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid('pad') else None),
+                        ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1))) if node.has_valid('pad') else None),
 
                         ('scale', lambda node: attr_getter(node, 'scale')),
                         'crop_width',
@@ -524,7 +516,7 @@ def get_new_placeholder_name(node_id: str, is_out_port: bool = False, port: int 
 
 
 def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.ndarray],
-                           freeze_placeholder: dict, input_user_data_types=dict()):
+                           freeze_placeholder: dict, input_user_data_types = dict()):
     """
     Restructures user input cutting request. Splits ports out of node names. Transforms node names to node ids.
     :param graph: graph to operate on
@@ -579,8 +571,7 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
                 is_out_port = (direction == 'out')
                 new_placeholder_id = get_new_placeholder_name(placeholder_id, is_out_port, port)
                 _freeze_new_placeholder[placeholder_id].append(
-                    {'direction': direction, 'port': port, 'name': placeholder_name, 'id': new_placeholder_id,
-                     'value': value})
+                    {'direction' : direction, 'port' : port, 'name' : placeholder_name, 'id' : new_placeholder_id, 'value' : value})
 
     # input user shapes restructure
     if input_user_shapes is None:
@@ -599,8 +590,7 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
                 _input_shapes[node_id].append({'shape': shape, direction: port})
         if _freeze_placeholder is not None:
             # here we give user an opportunity not to provide node names from --freeze_placeholder_with_value in --input
-            [_input_shapes[ph_id].append({'shape': None, 'port': None}) for ph_id in _freeze_placeholder if
-             ph_id not in _input_shapes]
+            [_input_shapes[ph_id].append({'shape': None, 'port': None}) for ph_id in _freeze_placeholder if ph_id not in _input_shapes]
     else:
         # np.ndarray is a shape. User provided only --input_shape key
         assert isinstance(input_user_shapes, np.ndarray)
@@ -629,9 +619,8 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
         new_phs = _freeze_new_placeholder[node_id]
         if node_id not in _input_shapes:
             raise Error(
-                'Shape is not specified for the placeholder with name {} through --input_shape option.'.format(
-                    new_phs[0]['name']))
-        _ins = _input_shapes[node_id]  # list
+                'Shape is not specified for the placeholder with name {} through --input_shape option.'.format(new_phs[0]['name']))
+        _ins = _input_shapes[node_id] # list
         for new_ph in new_phs:
             name = new_ph['name']
             direction = new_ph['direction']
@@ -642,8 +631,7 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
                 _freeze_placeholder[placeholder_id] = value
             else:
                 raise Error(
-                    'Shape is not specified for the placeholder with name {} through --input_shape option.'.format(
-                        name))
+                    'Shape is not specified for the placeholder with name {} through --input_shape option.'.format(name))
 
     return _input_shapes, _freeze_placeholder
 
@@ -714,8 +702,7 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
         for node_name in list(graph.nodes()):
             if len(list(graph.out_edges(node_name))) == 0:
                 if node_name in input_reachable:
-                    out_ports_count = Node(graph, node_name).out_ports_count if Node(graph, node_name).has_valid(
-                        'out_ports_count') else 1
+                    out_ports_count = Node(graph, node_name).out_ports_count if Node(graph, node_name).has_valid('out_ports_count') else 1
                     for i in range(out_ports_count):
                         sinks.append(add_opoutput(graph, node_name, i, False))
                     undead_outputs.append(node_name)
@@ -725,7 +712,7 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
             log.info('Possible outputs: \'{!s}\' are not input reachable. True outputs are {!s}'
                      ''.format(', '.join([str(d_o) for d_o in dead_outputs]),
                                ', '.join([str(u_o) for u_o in undead_outputs])))
-    else:  # cutting the net by outputs
+    else:   # cutting the net by outputs
         for node, values in user_defined_outputs.items():
             if node not in graph.nodes():
                 raise Error('Node "{}" does not exist in the graph. ' +
@@ -777,8 +764,8 @@ def set_is_input(graph: Graph, placeholders: list, is_input: bool):
 
 def check_input(graph: Graph, node_name: str):
     node = Node(graph, node_name)
-    if node['kind'] == 'op' and node['op'] == 'Parameter' and not len(graph.in_edges(node_name)) and \
-            not node['is_input']:
+    if node['kind'] == 'op' and node['op'] == 'Parameter' and not len(graph.in_edges(node_name)) and not node[
+        'is_input']:
         raise Error("--input parameter was provided. Other inputs are needed for output computation. "
                     "Provide more inputs or choose another place to cut the net. " + refer_to_faq_msg(27))
 
@@ -796,7 +783,7 @@ def split_node_in_port(node_id: str):
                     return node_name, port
                 except ValueError as err:
                     log.warning('Didn\'t recognize port:node format for "{}" because port is not an integer.'.format(
-                        node_id))
+                    node_id))
             else:
                 node_name = separator.join(parts[:-1])
                 try:
@@ -804,7 +791,7 @@ def split_node_in_port(node_id: str):
                     return node_name, port
                 except ValueError as err:
                     log.warning('Didn\'t recognize node:port format for "{}" because port is not an integer.'.format(
-                        node_id))
+                    node_id))
 
     return node_id, None
 
@@ -878,7 +865,7 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     if data_type is None:
         data_type = np.float32
     input_op = Parameter(graph, dict(shape=shape, data_type=data_type, initial_node_name=node_id,
-                                     name=get_new_placeholder_name(node_id, is_out_port, port)))
+                                        name=get_new_placeholder_name(node_id, is_out_port, port)))
 
     fw_name = Node(graph, node_id).soft_get('name')
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],
@@ -916,7 +903,7 @@ def add_input_ops_helper_before_infer_input_port(graph: Graph, smart_node: Node,
                                shape=shape, data_type=data_type))
 
 
-def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, port: int, node_id: str,
+def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, port:int, node_id: str,
                                                 inputs: list, edges_to_remove: list):
     n_inputs = len(smart_node.in_nodes())
     if n_inputs > 1 and port is not None and port != 0:
@@ -935,7 +922,7 @@ def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, 
     edges_to_remove.append((in_node.id, node_id))
 
 
-def add_input_ops_helper_before_infer_output_port(graph: Graph, port: int, node_id: str,
+def add_input_ops_helper_before_infer_output_port(graph: Graph, port:int, node_id: str,
                                                   shape: np.array, data_type, inputs: list, edges_to_remove: list):
     for u, v, edge_attrs in graph.out_edges(node_id, data=True):
         if edge_attrs['out'] == port:
@@ -943,8 +930,7 @@ def add_input_ops_helper_before_infer_output_port(graph: Graph, port: int, node_
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False,
                                shape=shape, data_type=data_type, is_out_port=True))
 
-
-def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node, port: int, node_id: str,
+def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node, port:int, node_id: str,
                                                  inputs: list, edges_to_remove: list):
     out_node = smart_node.out_node(port)
     shape = out_node['shape'] if 'shape' in out_node else None
@@ -952,7 +938,7 @@ def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node,
         raise Error('Shape for tensor "{}" is not defined. Can not proceed.' + refer_to_faq_msg(41),
                     out_node.soft_get('name'))
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=True,
-                               shape=shape.copy(), data_type=out_node.soft_get('data_type', None), is_out_port=True))
+                                shape=shape.copy(), data_type=out_node.soft_get('data_type', None), is_out_port=True))
     edges_to_remove.append((node_id, out_node.id))
 
 
@@ -1029,8 +1015,7 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                         add_input_ops_helper_before_infer_output_port(graph, port, node_id, shape, data_type, inputs,
                                                                       edges_to_remove)
                     else:
-                        add_input_ops_helper_before_infer_input_port(graph, smart_node, port, node_id, shape, data_type,
-                                                                     inputs,
+                        add_input_ops_helper_before_infer_input_port(graph, smart_node, port, node_id, shape, data_type, inputs,
                                                                      edges_to_remove)
                 else:
                     # We cut after infer and we need inferred shapes in nodes
@@ -1144,9 +1129,7 @@ class CaffePythonFrontExtractorOp:
     def check_param(op_cls, attrs):
         for a in attrs:
             if a not in op_cls.supported_attrs(op_cls):
-                log.error(
-                    'Parameter {} is not recognised, please check correctness.\n List of supported parameters is: {}'.format(
-                        a, op_cls.supported_attrs(op_cls)), extra={'is_warning': True})
+                log.error('Parameter {} is not recognised, please check correctness.\n List of supported parameters is: {}'.format(a, op_cls.supported_attrs(op_cls)), extra={'is_warning':True})
 
     @classmethod
     def class_type(cls):

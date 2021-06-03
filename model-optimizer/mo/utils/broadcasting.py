@@ -67,8 +67,7 @@ def bi_directional_shape_broadcasting(input_shape_1: np.array, input_shape_2: np
     return np.maximum(shape_1, shape_2)
 
 
-def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, axes_mapping: np.array) -> \
-        [np.array, np.array]:
+def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, axes_mapping: np.array) -> [np.array, np.array]:
     """
     Explicit shape broadcasting of input tensor. Function only asserts that values are correct and normalizes axes.
     Resulting shape is equal to target_shape.
@@ -116,16 +115,14 @@ def bi_directional_broadcasting(input_value: np.array, second_shape: np.array):
 
 def explicit_broadcasting(input_value: np.array, target_shape: np.array, axes_mapping: np.array) -> np.array:
     """
-    Explicit broadcasting of input tensor. Resulting shape is equal to target_shape except for axes
-    specified in axes_mapping
+    Explicit broadcasting of input tensor. Resulting shape is equal to target_shape except for axes specified in axes_mapping
     :param input_value: input value to broadcast
     :param target_shape: target shape
     :param axes_mapping: a list of axis indices, each index maps an axis from the input_value to axis in the output
     :return: broadcasted value
     """
     res_shape, normalized_axes_mapping = explicit_shape_broadcasting(input_value.shape, target_shape, axes_mapping)
-    # TODO: Function 'expand_dims' should be replaced with 'numpy.expand_dims' if numpy version will be >=18.x in
-    #  requirements.
+    #TODO: Function 'expand_dims' should be replaced with 'numpy.expand_dims' if numpy version will be >=18.x in requirements.
     expand_dim_axis = set(np.arange(len(target_shape))) - set(normalized_axes_mapping)
     input_expanded = input_value.copy()
     

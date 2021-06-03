@@ -17,10 +17,8 @@ class BucketizeFrontReplacer(FrontReplacementSubgraph):
     def find_and_replace_pattern(self, graph: Graph):
         for bucketize in graph.get_op_nodes(op='Bucketize'):
             if bucketize.in_port(1).disconnected():
-                assert bucketize.has_valid('boundaries'), 'The Bucketize node "{}" misses "boundaries" attribute'\
-                    .format(bucketize.name)
-                boundaries_node = Const(graph, {'name': bucketize.name + '/Bucketize_boundaries_',
-                                                'value': bucketize.boundaries}).create_node()
+                assert bucketize.has_valid('boundaries'), 'The Bucketize node "{}" misses "boundaries" attribute'.format(bucketize.name)
+                boundaries_node = Const(graph, {'name': bucketize.name + '/Bucketize_boundaries_', 'value': bucketize.boundaries}).create_node()
                 bucketize.in_port(1).connect(boundaries_node.out_port(0))
                 del bucketize['boundaries']
             else:

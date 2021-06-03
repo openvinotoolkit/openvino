@@ -60,8 +60,7 @@ class ReplacePoolingReshape(FrontReplacementPattern):
             graph, Div, {1: float32_array([node.pool_stride])}, {'name': node_name + '/div_stride_h'})
         div.in_port(0).connect(H.out_port(0))
 
-        concat = create_op_with_const_inputs(graph, Concat, {1: float32_array([node.pool_stride]),
-                                                             2: float32_array([1])},
+        concat = create_op_with_const_inputs(graph, Concat, {1: float32_array([node.pool_stride]), 2: float32_array([1])},
                                              {'name': node_name + '/concat_all_dims', 'in_ports_count': 4, 'axis': 0})
         concat.in_port(0).connect(N.out_port(0))
         concat.in_port(3).connect(div.out_port(0))
