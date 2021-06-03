@@ -10,7 +10,8 @@ set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inferen
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
 
 file(GLOB SOURCE
-        ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.pdx
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
@@ -32,6 +33,7 @@ foreach(PYX_FILE ${OTHER_SOURCES})
     target_include_directories(${PYX_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(${PYX_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
     list(APPEND INSTALLED_TARGETS ${PYX_NAME})
+    ie_python_minimal_api(${PYX_NAME})
 endforeach()
 
 if(COMMAND ie_add_vs_version_file)
@@ -48,6 +50,7 @@ function(python_disable_deprecated_warnings)
 endfunction()
 
 python_disable_deprecated_warnings()
+ie_python_minimal_api(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})

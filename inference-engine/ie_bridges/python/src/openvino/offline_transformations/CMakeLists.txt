@@ -9,12 +9,13 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_tra
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_transformations)
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_transformations)
 
-file(GLOB SOURCE
+set(SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl_defs.pxd
         ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.cpp)
 
-set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
+set_source_files_properties(${SOURCES} PROPERTIES CYTHON_IS_CXX ON)
 
 # create target
 

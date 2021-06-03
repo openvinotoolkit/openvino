@@ -77,6 +77,8 @@ file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
 
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
+ie_python_minimal_api(_${PROJECT_NAME})
+
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph)
 if (TARGET ngraph::onnx_importer)
