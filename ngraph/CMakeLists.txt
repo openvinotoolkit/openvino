@@ -265,7 +265,6 @@ endif()
 add_subdirectory(core)
 
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
-    include(CMakePackageConfigHelpers)
     set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
     export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
 

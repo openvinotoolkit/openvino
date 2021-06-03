@@ -161,6 +161,7 @@ class PrepareLibs(build_clib):
         # additional blacklist filter, just to fix cmake install issues
         blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.dylib']
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
+
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
             for file_path in local_base_dir.rglob('*'):
@@ -209,8 +210,6 @@ class CustomClean(clean):
                 rmtree(install_prefix)
 
     def run(self):
-        self.clean({'build_dir': {'prefix': 'build'},
-                    'dist_dir': {'prefix': 'dist'}})
         self.clean(LIB_INSTALL_CFG)
         self.clean(PY_INSTALL_CFG)
         clean.run(self)
