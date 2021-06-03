@@ -41,7 +41,7 @@ class RollWithEmptyAxesReplacer(FrontReplacementPattern):
 
             # reshape to original shape
             shape_of = Shape(graph, {'name': node_name + '/shape_of'}).create_node()
-            roll_node.in_port(0).get_connection().add_destination(shape_of.in_port(0))
+            reshape_to_1d.in_port(0).get_connection().add_destination(shape_of.in_port(0))
             reshape_to_orig_shape = Reshape(graph, {}).create_node()
             rename_nodes([(roll_node, node_name + '/roll'), (reshape_to_orig_shape, node_name)])
             shape_of.out_port(0).connect(reshape_to_orig_shape.in_port(1))
