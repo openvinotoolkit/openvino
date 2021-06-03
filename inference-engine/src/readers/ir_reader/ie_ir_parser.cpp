@@ -853,7 +853,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
 
         size_t index{0};
         for (const auto & output_params : params.outputPorts) {
-            ngraphNode->set_output_type(index, output_params.precision, ngraph::Shape(output_params.dims));
+            ngraphNode->set_output_type(index, output_params.precision, ngraph::PartialShape(output_params.dims));
             ++index;
         }
     }
