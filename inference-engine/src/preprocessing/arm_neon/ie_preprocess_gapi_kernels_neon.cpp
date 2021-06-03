@@ -90,21 +90,6 @@ void splitRow_32FC4(const float in[], float out0[], float out1[],
     splitRow_32FC4_Impl(in, out0, out1, out2, out3, length);
 }
 
-void calculate_nv12_to_rgb(const  uchar **srcY,
-                           const  uchar *srcUV,
-                                  uchar **dstRGBx,
-                                    int width) {
-    calculate_nv12_to_rgb_impl(srcY, srcUV, dstRGBx, width);
-}
-
-void calculate_i420_to_rgb(const  uchar **srcY,
-                           const  uchar *srcU,
-                           const  uchar *srcV,
-                                  uchar **dstRGBx,
-                                    int width) {
-    calculate_i420_to_rgb_impl(srcY, srcU, srcV, dstRGBx, width);
-}
-
 void calcRowArea_8U(uchar dst[], const uchar *src[], const Size& inSz,
                     const Size& outSz, Q0_16 yalpha, const MapperUnit8U &ymap,
                     int xmaxdf, const short xindex[], const Q0_16 xalpha[],
@@ -705,6 +690,9 @@ template void chanToPlaneRowImpl(neon_tag, const uint8_t* in, int chan, int chs,
 template void chanToPlaneRowImpl(neon_tag, const float*   in, int chan, int chs, float  * out, const int length);
 
 template void nv12ToRgbRowImpl(neon_tag, const uint8_t** y_rows, const uint8_t* uv_row, uint8_t** out_rows, const int buf_width);
+
+template void i420ToRgbRowImpl(neon_tag, const uint8_t** y_rows, const uint8_t* u_row,
+                               const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

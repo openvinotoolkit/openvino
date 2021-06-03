@@ -180,17 +180,6 @@ void splitRow_32FC4(const float in[],
                           float out3[],
                             int length);
 
-void calculate_nv12_to_rgb(const  uchar **srcY,
-                           const  uchar *srcUV,
-                                  uchar **dstRGBx,
-                                    int width);
-
-void calculate_i420_to_rgb(const  uchar **srcY,
-                           const  uchar *srcU,
-                           const  uchar *srcV,
-                                  uchar **dstRGBx,
-                                    int width);
-
 template<typename isa_tag_t, typename T>
 void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan, const int chs,
                         T* out, const int length);
@@ -203,6 +192,13 @@ template<typename isa_tag_t>
 void nv12ToRgbRowImpl(isa_tag_t, const uint8_t** y_rows, const uint8_t* uv_row, uint8_t** out_rows, const int buf_width);
 
 extern template void nv12ToRgbRowImpl(sse42_tag, const uint8_t** y_rows, const uint8_t* uv_row, uint8_t** out_rows, const int buf_width);
+
+template<typename isa_tag_t>
+void i420ToRgbRowImpl(isa_tag_t, const uint8_t** y_rows, const uint8_t* u_row,
+                             const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
+
+extern template void i420ToRgbRowImpl(sse42_tag, const uint8_t** y_rows, const uint8_t* u_row,
+                                      const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

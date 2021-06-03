@@ -438,14 +438,15 @@ CV_ALWAYS_INLINE void yRGBuvToRGB(const v_uint8& vy,
     bb = v_pack_u(b0, b1);
 }
 
-CV_ALWAYS_INLINE void calculate_nv12_to_rgb_impl(const uint8_t** srcY, const uint8_t* srcUV,
-                                                 uint8_t** dstRGBx, int width) {
+template<typename isa_tag_t>
+CV_ALWAYS_INLINE void nv12ToRgbRowImpl(isa_tag_t, const uchar** srcY, const uchar* srcUV,
+                                       uchar** dstRGBx, const int width) {
     int i = 0;
 
 #if MANUAL_SIMD
     constexpr int nlanes = v_uint8::nlanes;
 
-    for ( ; i <= width - 2*nlanes; i += 2*nlanes) {
+    for (; i <= width - 2 * nlanes; i += 2 * nlanes) {
         v_uint8 u, v;
         v_load_deinterleave(srcUV + i, u, v);
 
@@ -482,9 +483,7 @@ CV_ALWAYS_INLINE void calculate_nv12_to_rgb_impl(const uint8_t** srcY, const uin
         v_store_interleave(dstRGBx[1] + i * 3, b1_0, g1_0, r1_0);
         v_store_interleave(dstRGBx[1] + i * 3 + 3 * nlanes, b1_1, g1_1, r1_1);
     }
-
-    vx_cleanup();
-
+    //vx_cleanup();
 #endif
 
     for (; i < width; i += 2) {
@@ -499,25 +498,25 @@ CV_ALWAYS_INLINE void calculate_nv12_to_rgb_impl(const uint8_t** srcY, const uin
                 uchar r, g, b;
                 yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
 
-                dstRGBx[y][3*(i + x)]     = r;
-                dstRGBx[y][3*(i + x) + 1] = g;
-                dstRGBx[y][3*(i + x) + 2] = b;
+                dstRGBx[y][3 * (i + x)] = r;
+                dstRGBx[y][3 * (i + x) + 1] = g;
+                dstRGBx[y][3 * (i + x) + 2] = b;
             }
         }
     }
 }
 
-CV_ALWAYS_INLINE void calculate_i420_to_rgb_impl(const  uchar **srcY, const  uchar *srcU,
-                                                 const  uchar *srcV, uchar **dstRGBx,
-                                                 int width) {
+template<typename isa_tag_t>
+CV_ALWAYS_INLINE void i420ToRgbRowImpl(isa_tag_t, const uint8_t** srcY, const uint8_t* srcU,
+                                       const uint8_t* srcV, uint8_t** dstRGBx, const int width) {
     int i = 0;
 
 #if MANUAL_SIMD
     constexpr int nlanes = v_uint8::nlanes;
 
-    for ( ; i <= width - 2*nlanes; i += 2*nlanes) {
-        v_uint8 u = vx_load(srcU + i/2);
-        v_uint8 v = vx_load(srcV + i/2);
+    for (; i <= width - 2 * nlanes; i += 2 * nlanes) {
+        v_uint8 u = vx_load(srcU + i / 2);
+        v_uint8 v = vx_load(srcV + i / 2);
 
         v_uint8 vy[4];
         v_load_deinterleave(srcY[0] + i, vy[0], vy[1]);
@@ -552,14 +551,11 @@ CV_ALWAYS_INLINE void calculate_i420_to_rgb_impl(const  uchar **srcY, const  uch
         v_store_interleave(dstRGBx[1] + i * 3, b1_0, g1_0, r1_0);
         v_store_interleave(dstRGBx[1] + i * 3 + 3 * nlanes, b1_1, g1_1, r1_1);
     }
-
-    vx_cleanup();
-
-    #endif
-
+    //vx_cleanup();
+#endif
     for (; i < width; i += 2) {
-        uchar u = srcU[i/2];
-        uchar v = srcV[i/2];
+        uchar u = srcU[i / 2];
+        uchar v = srcV[i / 2];
         int ruv, guv, buv;
         uvToRGBuv(u, v, ruv, guv, buv);
 
@@ -569,9 +565,9 @@ CV_ALWAYS_INLINE void calculate_i420_to_rgb_impl(const  uchar **srcY, const  uch
                 uchar r, g, b;
                 yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
 
-                dstRGBx[y][3*(i + x)]     = r;
-                dstRGBx[y][3*(i + x) + 1] = g;
-                dstRGBx[y][3*(i + x) + 2] = b;
+                dstRGBx[y][3 * (i + x)] = r;
+                dstRGBx[y][3 * (i + x) + 1] = g;
+                dstRGBx[y][3 * (i + x) + 2] = b;
             }
         }
     }
@@ -874,7 +870,7 @@ template<typename isa_tag_t> struct vector_type_of<isa_tag_t, uint8_t> { using t
 template<typename isa_tag_t> struct vector_type_of<isa_tag_t, float>   { using type = v_float32;};
 
 template<typename isa_tag_t, typename T>
-void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan, const int chs, T* out, const int length) {
+CV_ALWAYS_INLINE void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan, const int chs, T* out, const int length) {
     if (chs == 1) {
         copyRow_Impl<vector_type_of_t<isa_tag_t, T>, T>(in, out, length);
         return;
@@ -883,12 +879,6 @@ void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan, const int chs, T
     for (int x = 0; x < length; x++) {
         out[x] = in[x*chs + chan];
     }
-}
-
-template<typename isa_tag_t>
-void nv12ToRgbRowImpl(isa_tag_t, const uchar** srcY, const uchar* srcUV,
-                      uchar** dstRGBx, const int width) {
-    calculate_nv12_to_rgb_impl(srcY, srcUV, dstRGBx, width);
 }
 }  // namespace kernels
 }  // namespace gapi
