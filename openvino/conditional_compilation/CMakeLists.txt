@@ -20,7 +20,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
  Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv")
     endif()
     find_package (Python3 COMPONENTS Interpreter)
-    if (NOT Python3_FOUND)
+    if (NOT Python3_Interpreter_FOUND)
         message(FATAL_ERROR " Python3 wasn't found!")
     endif()
 

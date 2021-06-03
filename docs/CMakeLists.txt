@@ -59,7 +59,7 @@ function(build_docs)
         message(FATAL_ERROR "Doxygen is required to build the documentation")
     endif()
 
-    if(NOT Python3_FOUND)
+    if(NOT Python3_Interpreter_FOUND)
         message(FATAL_ERROR "Python3 is required to build the documentation")
     endif()
 

@@ -31,7 +31,7 @@ endif()
 
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
-if(PYTHON3_FOUND)
+if(Python3_FOUND)
     set(Python3_VERSION python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
     message("Python version=${Python3_VERSION}")
 else()

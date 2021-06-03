@@ -88,7 +88,7 @@ find_package( Cython REQUIRED
               PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
               NO_CMAKE_FIND_ROOT_PATH
               NO_DEFAULT_PATH )
-find_package(Python3 COMPONENTS Interpreter Development)
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
@@ -286,7 +286,7 @@ function( cython_add_module _name )
     endif()
   endforeach()
   compile_pyx( ${_name} generated_file ${pyx_module_sources} )
-  Python3_add_library ( ${_name} MODULE ${generated_file} ${other_module_sources} )
+  Python3_add_library ( ${_name} MODULE WITH_SOABI ${generated_file} ${other_module_sources} )
   if( APPLE )
     set_target_properties( ${_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
   endif()
