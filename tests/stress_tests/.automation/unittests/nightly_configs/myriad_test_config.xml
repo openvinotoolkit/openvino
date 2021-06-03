@@ -4,13 +4,12 @@
     </processes>
     <threads>
         <value>1</value>
+        <value>2</value>
     </threads>
     <iterations>
-        <value>30</value>
+        <value>100</value>
     </iterations>
     <devices>
-        <value>CPU</value>
-        <value>GPU</value>
         <value>MYRIAD</value>
     </devices>
     <models>
