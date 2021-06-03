@@ -9,7 +9,6 @@ import sys
 
 def fill_constant(name : str, shape : list, dtype, value):
     pdpd.enable_static()
-
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
         x1 = pdpd.fluid.layers.fill_constant(shape=shape, value=value, dtype=dtype, name='fill_constant')
         x2 = pdpd.fluid.layers.fill_constant(shape=shape, value=value, dtype=dtype, name='fill_constant')
@@ -29,7 +28,6 @@ def fill_constant(name : str, shape : list, dtype, value):
 
 def fill_constant_tensor(name : str, shape : list, dtype, value):
     pdpd.enable_static()
-
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
         node_value = pdpd.static.data(name='value', shape=[1], dtype=dtype)
         x1 = pdpd.fluid.layers.fill_constant(shape=shape, value=node_value, dtype=dtype, name='fill_constant1')
@@ -50,7 +48,6 @@ def fill_constant_tensor(name : str, shape : list, dtype, value):
 
 def fill_constant_shape_tensor(name : str, shape, dtype, value):
     pdpd.enable_static()
-    print(1111)
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
         node_shape = pdpd.fluid.layers.fill_constant(shape=[2], value=shape, dtype='int32', name='shape')
         x1 = pdpd.fluid.layers.fill_constant(shape=node_shape, value=value, dtype=dtype, name='fill_constant')
@@ -70,7 +67,6 @@ def fill_constant_shape_tensor(name : str, shape, dtype, value):
 
 def fill_constant_shape_tensor_list(name : str, shape: list, dtype, value):
     pdpd.enable_static()
-    print(1111)
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
         node_shape = pdpd.fluid.layers.fill_constant(shape=[1], value=shape, dtype='int32', name='shape')
         x1 = pdpd.fluid.layers.fill_constant(shape=[2, node_shape], value=value, dtype=dtype, name='fill_constant')

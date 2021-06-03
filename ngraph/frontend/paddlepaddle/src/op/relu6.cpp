@@ -17,11 +17,7 @@ namespace ngraph
                 NamedOutputs relu6(const NodeContext& node)
                 {
                     auto data = node.get_ng_input("X");
-                    auto threshold = 6.0f;
-                    if (node.has_attribute<float>("threshold"))
-                    {
-                        threshold = node.get_attribute<float>("threshold");
-                    }
+                    auto threshold = node.get_attribute<float>("threshold", 6.0f);
                     return node.default_single_output_mapping(
                         {std::make_shared<ngraph::opset6::Clamp>(data, 0.0, threshold)}, {"Out"});
                 }

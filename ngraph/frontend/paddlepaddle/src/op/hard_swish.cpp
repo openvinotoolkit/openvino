@@ -21,18 +21,19 @@ namespace ngraph
                     {
                         auto threshold = node.get_attribute<float>("threshold");
                         PDPD_ASSERT(std::abs(threshold - 6.0) < 0.001,
-                                    "hard_swish: threshold must = 6.0.");
+                                    "hard_swish: Only threshold = 6.0 is currently supported");
                     }
                     if (node.has_attribute<float>("scale"))
                     {
                         auto scale = node.get_attribute<float>("scale");
-                        PDPD_ASSERT(std::abs(scale - 6.0) < 0.001, "hard_swish: scale must = 6.0.");
+                        PDPD_ASSERT(std::abs(scale - 6.0) < 0.001,
+                                    "hard_swish: Only scale = 6.0 is currently supported");
                     }
                     if (node.has_attribute<float>("offset"))
                     {
                         auto offset = node.get_attribute<float>("offset");
                         PDPD_ASSERT(std::abs(offset - 3.0) < 0.001,
-                                    "hard_swish: offset must = 3.0.");
+                                    "hard_swish: Only offset = 3.0 is currently supported");
                     }
                     return node.default_single_output_mapping(
                         {std::make_shared<ngraph::opset6::HSwish>(data)}, {"Out"});

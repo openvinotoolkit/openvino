@@ -17,16 +17,8 @@ namespace ngraph
                 NamedOutputs hard_sigmoid(const NodeContext& node)
                 {
                     auto data = node.get_ng_input("X");
-                    auto slope = 0.2f;
-                    if (node.has_attribute<float>("slope"))
-                    {
-                        slope = node.get_attribute<float>("slope");
-                    }
-                    auto offset = 0.5f;
-                    if (node.has_attribute<float>("offset"))
-                    {
-                        offset = node.get_attribute<float>("offset");
-                    }
+                    float slope = node.get_attribute<float>("slope", 0.2f);
+                    float offset = node.get_attribute<float>("offset", 0.5f);
                     auto alpha =
                         ngraph::opset6::Constant::create(ngraph::element::f32, {}, {slope});
                     auto beta =

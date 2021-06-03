@@ -14,7 +14,7 @@ def greater_equal(name : str, x, y, data_type, cast_to_fp32=False):
         node_x = pdpd.static.data(name='input_x', shape=x.shape, dtype=data_type)
         node_y = pdpd.static.data(name='input_y', shape=y.shape, dtype=data_type)
         out = pdpd.fluid.layers.greater_equal(x=node_x, y=node_y, name='greater_equal')
-        # FuzzyTest framework doesn't support boolean so cat to fp32/int32
+        # FuzzyTest framework doesn't support boolean so cast to fp32/int32
 
         if cast_to_fp32:
             data_type = "float32"

@@ -33,6 +33,7 @@ def main():
     data_type = 'float32'
     data = np.array([-1, 1, 5]).astype(data_type)
     relu6("relu6", data, 4)
+    relu6("relu6_1", data)
 
 
 if __name__ == "__main__":
