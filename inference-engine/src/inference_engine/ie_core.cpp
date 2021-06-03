@@ -9,10 +9,8 @@
 #include <mutex>
 #include <sys/stat.h>
 
-#include <auto_plugin/auto_config.hpp>
 #include <ie_core.hpp>
 #include <ie_icore.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/graph_util.hpp>
@@ -60,7 +58,7 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
             if (deviceList.find("AUTO") != std::string::npos) {
                 IE_THROW() << "Device list for AUTO should not be AUTO";
             }
-            config_[InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST] = deviceName.substr(std::string("AUTO:").size());
+            config_[InferenceEngine::KEY_AUTO_DEVICE_LIST] = deviceName.substr(std::string("AUTO:").size());
         }
     } else {
         if (deviceName_.empty()) {
@@ -625,15 +623,6 @@ public:
             if (deviceName.find("MULTI:") == 0) {
                 IE_THROW()
                     << "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
-                       "To get individual devices's metrics call GetMetric for each device separately";
-            }
-        }
-
-        // AUTO case
-        {
-            if (deviceName.find("AUTO:") == 0) {
-                IE_THROW()
-                    << "You can get specific metrics with the GetMetric only for the AUTO itself (without devices). "
                        "To get individual devices's metrics call GetMetric for each device separately";
             }
         }

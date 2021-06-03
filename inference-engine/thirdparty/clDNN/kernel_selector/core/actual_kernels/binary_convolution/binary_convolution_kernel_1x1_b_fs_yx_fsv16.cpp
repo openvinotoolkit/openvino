@@ -6,6 +6,7 @@
 #include "binary_convolution_kernel_1x1_b_fs_yx_fsv16.h"
 #include <string>
 #include <core/actual_kernels/activation/activation_kernel_base.h>
+#include <core/actual_kernels/eltwise/eltwise_kernel_base.h>
 
 namespace kernel_selector {
 
@@ -134,6 +135,9 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetFusedPrimitivesJitCons
         std::string data_type = fused_dep_codegen.GetInputTypeName(0, 1);
         std::string vec_data_type = fused_dep_codegen.GetInputTypeName(0, 1);
         std::string sc = "sc" + std::to_string(op_id);
+        std::string e_add = "e_add" + std::to_string(op_id);
+        std::string e_mul = "e_mul" + std::to_string(op_id);
+
         switch (fused_dep.GetType()) {
             case KernelType::SCALE: {
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float" : "as_half";
@@ -155,6 +159,7 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetFusedPrimitivesJitCons
 
                 break;
             }
+
             case KernelType::ACTIVATION: {
                 auto p = fused_dep.GetOpParams<activation_fuse_params>();
                 base_activation_params activation = p->param;
@@ -164,10 +169,31 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetFusedPrimitivesJitCons
                     jit.Merge(MakeActivationJitConstants(activation, fused_dep.output_tensor.GetDType(), suffix));
                     eltwise_fused_ops += "\\\n\tres = ACTIVATION" + suffix + "((OUTPUT_TYPE)res, ACTIVATION_PARAMS" + suffix + ");";
                 }
+
                 break;
             }
+
+            case KernelType::ELTWISE: {
+                std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float" : "as_half";
+                std::string var_name = fused_dep_codegen.GetInputVarName(0);
+                prepare_data += "\\\n\t" + vec_data_type + " " + var_name + " = " + cast_type +
+                                get_aligned_load(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
+
+                auto eltwise_p = std::dynamic_pointer_cast<eltwise_fuse_params>(fused_dep.op_params);
+
+                if (eltwise_p->mode == EltwiseMode::ADD) {
+                    eltwise_fused_ops += "\\\n\t" + data_type + " " + e_add + " = " + get_shuffle(var_name, "oc") + ";";
+                    eltwise_fused_ops += "\\\n\tres = res+" + var_name + ";";
+                } else {
+                    eltwise_fused_ops += "\\\n\t" + data_type + " " + e_mul + " = " + get_shuffle(var_name, "oc") + ";";
+                    eltwise_fused_ops += "\\\n\tres = res*" + var_name + ";";
+                }
+
+                break;
+            }
+
             default:
-                throw std::invalid_argument("Invalid fused op in binary_convolution kernel: " + params.layerID);
+                throw std::invalid_argument("Invalid fused op in binary_convolution_1x1_fsv16 kernel: " + params.layerID);
         }
 
         op_id++;
