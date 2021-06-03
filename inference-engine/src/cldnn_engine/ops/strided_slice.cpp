@@ -7,6 +7,8 @@
 
 #include "ngraph/op/strided_slice.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/non_max_suppression.hpp"
+#include "ngraph_ops/nms_ie_internal.hpp"
 
 #include "api/strided_slice.hpp"
 #include "api/reshape.hpp"
@@ -20,6 +22,25 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
     std::string layerName = layer_type_name_ID(op);
 
     do {
+        bool has_nms_output = false;
+        for (size_t i = 0; i < op->get_output_size(); i++) {
+            auto outTensors = op->get_output_target_inputs(i);
+            for (auto& t : outTensors) {
+                auto outOp = t.get_node();
+                // TODO(eunsoo): optimizer convert all versions of NMS to
+                //               NonMaxSuppressionIEInternal, but need to test
+                if (dynamic_cast<ngraph::op::v1::NonMaxSuppression*>(outOp) ||
+                    dynamic_cast<ngraph::op::v3::NonMaxSuppression*>(outOp) ||
+                    dynamic_cast<ngraph::op::v4::NonMaxSuppression*>(outOp) ||
+                    dynamic_cast<ngraph::op::v5::NonMaxSuppression*>(outOp) ||
+                    dynamic_cast<ngraph::op::internal::NonMaxSuppressionIEInternal*>(outOp)) {
+                    has_nms_output = true;
+                }
+            }
+        }
+        if (has_nms_output)
+            break;
+
         auto data_output = op->input_value(0);
         auto begin_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         auto end_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
