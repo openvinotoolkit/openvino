@@ -6,7 +6,7 @@
         <value>1</value>
     </threads>
     <iterations>
-        <value>30</value>
+        <value>1000</value>
     </iterations>
     <devices>
         <value>MYRIAD</value>
