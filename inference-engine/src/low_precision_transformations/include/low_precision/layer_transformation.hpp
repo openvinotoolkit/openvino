@@ -273,6 +273,7 @@ public:
     void setUpdatePrecisions(const bool updatePrecisions);
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
+    static bool canBeTransformedStatic(const std::shared_ptr<Node>& layer);
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
