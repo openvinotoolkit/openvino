@@ -823,7 +823,7 @@ namespace {
 using chan_to_plane_supported_types = typelist<uint8_t, float>;
 
 template<typename T>
-void chanToPlaneRowImpl(scalar_tag, const T*   in, int chan, int chs, T* out, int length) {
+void chanToPlaneRowImpl(scalar_tag, const T* in, int chan, int chs, T* out, int length) {
     for (int x = 0; x < length; x++) {
         out[x] = in[x*chs + chan];
     }
@@ -845,6 +845,100 @@ struct typed_chan_to_plane_row {
 };
 } //namespace
 
+namespace {
+
+using nv12_to_rgb_supported_types = typelist<uint8_t>;
+
+void nv12ToRgbRowImpl(scalar_tag, const uint8_t** y_rows, const uint8_t* uv_row,
+    uint8_t** out_rows, const int buf_width) {
+    for (int i = 0; i < buf_width; i += 2) {
+        uint8_t u = uv_row[i];
+        uint8_t v = uv_row[i + 1];
+        int ruv, guv, buv;
+        uvToRGBuv(u, v, ruv, guv, buv);
+
+        for (int y = 0; y < 2; y++) {
+            for (int x = 0; x < 2; x++) {
+                uint8_t vy = y_rows[y][i + x];
+                uint8_t r, g, b;
+                yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
+
+                out_rows[y][3 * (i + x)] = r;
+                out_rows[y][3 * (i + x) + 1] = g;
+                out_rows[y][3 * (i + x) + 2] = b;
+            }
+        }
+    }
+}
+
+template<typename isa_tag_t>
+struct typed_nv12_to_rgb_row {
+    using p_f = void (*)(const uint8_t** y_rows, const uint8_t* uv_row,
+        uint8_t** out_rows, const int buf_width);
+
+    template <typename type>
+    p_f operator()(type_to_type<type>) {
+        return [](const uint8_t** y_rows, const uint8_t* uv_row,
+            uint8_t** out_rows, const int buf_width) {
+                const auto inT1 = reinterpret_cast<const type**>(y_rows);
+                const auto inT2 = reinterpret_cast<const type*>(uv_row);
+                auto outT = reinterpret_cast<type**>(out_rows);
+
+                nv12ToRgbRowImpl(isa_tag_t{}, inT1, inT2, outT, buf_width);
+        };
+    }
+};
+}  // namespace
+
+namespace {
+
+using i420_to_rgb_supported_types = typelist<uint8_t>;
+
+static void i420ToRgbRowImpl(scalar_tag, const  uint8_t** y_rows,
+    const  uint8_t* u_row,
+    const  uint8_t* v_row,
+    uint8_t** out_rows,
+    const int buf_width) {
+    for (int i = 0; i < buf_width; i += 2) {
+        uchar u = u_row[i / 2];
+        uchar v = v_row[i / 2];
+        int ruv, guv, buv;
+        uvToRGBuv(u, v, ruv, guv, buv);
+
+        for (int y = 0; y < 2; y++) {
+            for (int x = 0; x < 2; x++) {
+                uchar vy = y_rows[y][i + x];
+                uchar r, g, b;
+                yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
+
+                out_rows[y][3 * (i + x)] = r;
+                out_rows[y][3 * (i + x) + 1] = g;
+                out_rows[y][3 * (i + x) + 2] = b;
+            }
+        }
+    }
+}
+
+template<typename isa_tag_t>
+struct typed_i420_to_rgb_row {
+    using p_f = void (*)(const uint8_t** y_rows, const uint8_t* u_row, const uint8_t* v_row,
+                         uint8_t** out_rows, const int buf_width);
+
+    template <typename type>
+    p_f operator()(type_to_type<type>) {
+        return [](const uint8_t** y_rows, const uint8_t* u_row, const uint8_t* v_row,
+                  uint8_t** out_rows, const int buf_width) {
+                const auto inT1 = reinterpret_cast<const type**>(y_rows);
+                const auto inT2 = reinterpret_cast<const type*>(u_row);
+                const auto inT3 = reinterpret_cast<const type*>(v_row);
+                auto outT = reinterpret_cast<type**>(out_rows);
+
+                i420ToRgbRowImpl(isa_tag_t{}, inT1, inT2, inT3, outT, buf_width);
+        };
+    }
+};
+}  // namespace
+
 template <typename isa_tag_t>
 struct choose_impl {
 GAPI_FLUID_KERNEL(FChanToPlane, ChanToPlane, false) {
@@ -860,132 +954,83 @@ GAPI_FLUID_KERNEL(FChanToPlane, ChanToPlane, false) {
         rowFunc(in.InLineB(0), chan, in.meta().chan, out.OutLineB(), in.length());
     }
 };
+
+GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
+    static const int Window = 1;
+    static const int LPI = 2;
+    static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
+
+    static void run(const cv::gapi::fluid::View & in_y,
+                    const cv::gapi::fluid::View & in_uv,
+                    cv::gapi::fluid::Buffer & out) {
+        GAPI_DbgAssert(is_cv_type_in_list<nv12_to_rgb_supported_types>(out.meta().depth));
+
+        const uchar* uv_row = in_uv.InLineB(0);
+        const uchar* y_rows[2] = { in_y.InLineB(0), in_y.InLineB(1) };
+        uchar* out_rows[2] = { out.OutLineB(0), out.OutLineB(1) };
+
+        int buf_width = out.length();
+
+        const auto rowFunc = type_dispatch<nv12_to_rgb_supported_types>(out.meta().depth, cv_type_id{}, typed_nv12_to_rgb_row<isa_tag_t>{}, nullptr);
+
+        GAPI_DbgAssert(rowFunc);
+
+        rowFunc(y_rows, uv_row, out_rows, buf_width);
+    }
+};
+
+GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
+    static const int Window = 1;
+    static const int LPI = 2;
+    static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
+
+    static void run(const cv::gapi::fluid::View & in_y,
+        const cv::gapi::fluid::View & in_u,
+        const cv::gapi::fluid::View & in_v,
+        cv::gapi::fluid::Buffer & out) {
+        GAPI_DbgAssert(is_cv_type_in_list<i420_to_rgb_supported_types>(out.meta().depth));
+
+        const uchar* u_row = in_u.InLineB(0);
+        const uchar* v_row = in_v.InLineB(0);
+        const uchar* y_rows[2] = { in_y.InLineB(0), in_y.InLineB(1) };
+        uchar* out_rows[2] = { out.OutLineB(0), out.OutLineB(1) };
+
+        int buf_width = out.length();
+        GAPI_DbgAssert(in_u.length() == in_v.length());
+
+        const auto rowFunc = type_dispatch<i420_to_rgb_supported_types>(out.meta().depth, cv_type_id{}, typed_i420_to_rgb_row<isa_tag_t>{}, nullptr);
+
+        GAPI_DbgAssert(rowFunc);
+
+        rowFunc(y_rows, u_row, v_row, out_rows, buf_width);
+    }
+};
 };
 
 namespace {
-struct chanToPlaneISA {
+struct ColorConversionISA {
     cv::gapi::GKernelPackage& pckg;
 
-    chanToPlaneISA(cv::gapi::GKernelPackage& _pckg) : pckg(_pckg) {}
+    ColorConversionISA(cv::gapi::GKernelPackage& _pckg) : pckg(_pckg) {}
 
     template<typename isa_tag_t>
-    bool operator()(type_to_type<isa_tag_t>){
+    bool operator()(type_to_type<isa_tag_t>) {
+        pckg.include<typename choose_impl<isa_tag_t>::FI420toRGB>();
+        pckg.include<typename choose_impl<isa_tag_t>::FNV12toRGB>();
         pckg.include<typename choose_impl<isa_tag_t>::FChanToPlane>();
-
         //at the moment type_dispatch requires something to be returned by the lambda
         return true;
     }
 };
 }  //namespace
 
-cv::gapi::GKernelPackage FChanToPlaneChooseISA() {
+cv::gapi::GKernelPackage FColorConversionChooseISA() {
     // At the moment AVX512 implementation of wide universal intrinsics is slower than AVX2.
     // So, disable it for now.
     using isas = remove_t<isas_set, avx512_tag>;
 
     cv::gapi::GKernelPackage pckg;
-    chanToPlaneISA ctpISA{pckg};
-
-    type_dispatch<isas>(is_isa_present{}, ctpISA, false);
-
-
-    return pckg;
-}
-
-namespace {
-
-    using nv12_to_rgb_supported_types = typelist<uint8_t>;
-
-    void nv12ToRgbRowImpl(scalar_tag, const uint8_t** y_rows, const uint8_t* uv_row,
-        uint8_t** out_rows, const int buf_width) {
-        for (int i = 0; i < buf_width; i += 2) {
-            uint8_t u = uv_row[i];
-            uint8_t v = uv_row[i + 1];
-            int ruv, guv, buv;
-            uvToRGBuv(u, v, ruv, guv, buv);
-
-            for (int y = 0; y < 2; y++) {
-                for (int x = 0; x < 2; x++) {
-                    uint8_t vy = y_rows[y][i + x];
-                    uint8_t r, g, b;
-                    yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
-
-                    out_rows[y][3 * (i + x)] = r;
-                    out_rows[y][3 * (i + x) + 1] = g;
-                    out_rows[y][3 * (i + x) + 2] = b;
-                }
-            }
-        }
-    }
-
-    template<typename isa_tag_t>
-    struct typed_nv12_to_rgb_row {
-        using p_f = void (*)(const uint8_t** y_rows, const uint8_t* uv_row,
-                             uint8_t** out_rows, const int buf_width);
-
-        template <typename type>
-        p_f operator()(type_to_type<type>) {
-            return [](const uint8_t** y_rows, const uint8_t* uv_row, uint8_t** out_rows, const int buf_width) {
-                const auto inT1 = reinterpret_cast<const type**>(y_rows);
-                const auto inT2 = reinterpret_cast<const type*>(uv_row);
-                auto outT = reinterpret_cast<type**>(out_rows);
-
-                nv12ToRgbRowImpl(isa_tag_t{}, inT1, inT2, outT, buf_width);
-            };
-        }
-    };
-}
-
-template <typename isa_tag_t>
-struct choose_impl_1 {
-    GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
-        static const int Window = 1;
-        static const int LPI = 2;
-        static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
-
-        static void run(const cv::gapi::fluid::View & in_y,
-                        const cv::gapi::fluid::View & in_uv,
-                        cv::gapi::fluid::Buffer & out) {
-            GAPI_DbgAssert(is_cv_type_in_list<nv12_to_rgb_supported_types>(out.meta().depth));
-
-            const uchar* uv_row = in_uv.InLineB(0);
-            const uchar* y_rows[2] = { in_y.InLineB(0), in_y.InLineB(1) };
-            uchar* out_rows[2] = { out.OutLineB(0), out.OutLineB(1) };
-
-            int buf_width = out.length();
-
-            const auto rowFunc = type_dispatch<nv12_to_rgb_supported_types>(out.meta().depth, cv_type_id{}, typed_nv12_to_rgb_row<isa_tag_t>{}, nullptr);
-
-            GAPI_DbgAssert(rowFunc);
-
-            rowFunc(y_rows, uv_row, out_rows, buf_width);
-        }
-    };
-};
-
-namespace {
-    struct nv12ToRGBISA {
-        cv::gapi::GKernelPackage& pckg;
-
-        nv12ToRGBISA(cv::gapi::GKernelPackage& _pckg) : pckg(_pckg) {}
-
-        template<typename isa_tag_t>
-        bool operator()(type_to_type<isa_tag_t>) {
-            pckg.include<typename choose_impl_1<isa_tag_t>::FNV12toRGB>();
-
-            //at the moment type_dispatch requires something to be returned by the lambda
-            return true;
-        }
-    };
-}  //namespace
-
-cv::gapi::GKernelPackage FNV12ToRGBChooseISA() {
-    // At the moment AVX512 implementation of wide universal intrinsics is slower than AVX2.
-    // So, disable it for now.
-    using isas = remove_t<isas_set, avx512_tag>;
-
-    cv::gapi::GKernelPackage pckg;
-    nv12ToRGBISA ctpISA{ pckg };
+    ColorConversionISA ctpISA{pckg};
 
     type_dispatch<isas>(is_isa_present{}, ctpISA, false);
 
@@ -2443,154 +2488,6 @@ GAPI_FLUID_KERNEL(FScalePlaneArea8u, ScalePlaneArea8u, true) {
     }
 };
 
-static void calculate_nv12_to_rgb_fallback(const  uchar **y_rows,
-                                           const  uchar *uv_row,
-                                                  uchar **out_rows,
-                                           int buf_width) {
-    for (int i = 0; i < buf_width; i += 2) {
-        uchar u = uv_row[i];
-        uchar v = uv_row[i + 1];
-        int ruv, guv, buv;
-        uvToRGBuv(u, v, ruv, guv, buv);
-
-        for (int y = 0; y < 2; y++) {
-            for (int x = 0; x < 2; x++) {
-                uchar vy = y_rows[y][i + x];
-                uchar r, g, b;
-                yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
-
-                out_rows[y][3*(i + x)]     = r;
-                out_rows[y][3*(i + x) + 1] = g;
-                out_rows[y][3*(i + x) + 2] = b;
-            }
-        }
-    }
-}
-
-static void calculate_i420_to_rgb_fallback(const  uchar **y_rows,
-                                           const  uchar *u_row,
-                                           const  uchar *v_row,
-                                                  uchar **out_rows,
-                                           int buf_width) {
-    for (int i = 0; i < buf_width; i += 2) {
-        uchar u = u_row[i / 2];
-        uchar v = v_row[i / 2];
-        int ruv, guv, buv;
-        uvToRGBuv(u, v, ruv, guv, buv);
-
-        for (int y = 0; y < 2; y++) {
-            for (int x = 0; x < 2; x++) {
-                uchar vy = y_rows[y][i + x];
-                uchar r, g, b;
-                yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
-
-                out_rows[y][3*(i + x)]     = r;
-                out_rows[y][3*(i + x) + 1] = g;
-                out_rows[y][3*(i + x) + 2] = b;
-            }
-        }
-    }
-}
-#if 0
-GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
-    static const int Window = 1;
-    static const int LPI    = 2;
-    static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
-
-    static void run(const cv::gapi::fluid::View &in_y,
-                    const cv::gapi::fluid::View &in_uv,
-                          cv::gapi::fluid::Buffer &out) {
-        const uchar* uv_row = in_uv.InLineB(0);
-        const uchar* y_rows[2] = {in_y. InLineB(0), in_y. InLineB(1)};
-        uchar* out_rows[2] = {out.OutLineB(0), out.OutLineB(1)};
-
-        int buf_width = out.length();
-
-// AVX512 implementation of wide universal intrinsics is slower than AVX2.
-// It is turned off until the cause isn't found out.
-    #if 0
-    #ifdef HAVE_AVX512
-        if (with_cpu_x86_avx512_core()) {
-            #define CV_AVX_512DQ 1
-            avx512::calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
-            return;
-        }
-    #endif  // HAVE_AVX512
-    #endif
-
-    #ifdef HAVE_AVX2
-        if (with_cpu_x86_avx2()) {
-            avx::calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
-            return;
-        }
-    #endif  // HAVE_AVX2
-    #ifdef HAVE_SSE
-        if (with_cpu_x86_sse42()) {
-            calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
-            return;
-        }
-    #endif  // HAVE_SSE
-
-    #ifdef HAVE_NEON
-        neon::calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
-        return;
-    #endif  // HAVE_NEON
-
-        calculate_nv12_to_rgb_fallback(y_rows, uv_row, out_rows, buf_width);
-    }
-};
-#endif
-GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
-    static const int Window = 1;
-    static const int LPI    = 2;
-    static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
-
-    static void run(const cv::gapi::fluid::View &in_y,
-                    const cv::gapi::fluid::View &in_u,
-                    const cv::gapi::fluid::View &in_v,
-                          cv::gapi::fluid::Buffer &out) {
-        const uchar* u_row = in_u.InLineB(0);
-        const uchar* v_row = in_v.InLineB(0);
-        const uchar* y_rows[2] = {in_y. InLineB(0), in_y. InLineB(1)};
-        uchar* out_rows[2] = {out.OutLineB(0), out.OutLineB(1)};
-
-        int buf_width = out.length();
-        GAPI_DbgAssert(in_u.length() ==  in_v.length());
-
-        // AVX512 implementation of wide universal intrinsics is slower than AVX2.
-        // It is turned off until the cause isn't found out.
-        #if 0
-        #ifdef HAVE_AVX512
-            if (with_cpu_x86_avx512_core()) {
-               #define CV_AVX_512DQ 1
-               avx512::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-               return;
-            }
-        #endif  // HAVE_AVX512
-        #endif
-
-        #ifdef HAVE_AVX2
-            if (with_cpu_x86_avx2()) {
-               avx::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-               return;
-            }
-        #endif  // HAVE_AVX2
-        #ifdef HAVE_SSE
-            if (with_cpu_x86_sse42()) {
-               calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-               return;
-            }
-        #endif  // HAVE_SSE
-
-        #ifdef HAVE_NEON
-            neon::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-            return;
-        #endif  // HAVE_NEON
-
-        calculate_i420_to_rgb_fallback(y_rows, u_row, v_row, out_rows, buf_width);
-    }
-};
-
 namespace {
 
 template <typename src_t, typename dst_t>
@@ -2703,13 +2600,10 @@ GAPI_FLUID_KERNEL(FDivC, GDivC, false) {
 using namespace kernels;
 
 cv::gapi::GKernelPackage preprocKernels() {
-    return combine(FNV12ToRGBChooseISA(),
-        combine(
-        FChanToPlaneChooseISA(),
+    return combine(
+        FColorConversionChooseISA(),
         cv::gapi::kernels
-        < //FChanToPlane
-        //,
-        FScalePlanes
+        <FScalePlanes
         , FScalePlanes4
         , FScalePlane
         , FScalePlane32f
@@ -2724,12 +2618,10 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FSplit2
         , FSplit3
         , FSplit4
-        //, FNV12toRGB
-        , FI420toRGB
         , FConvertDepth
         , FSubC
         , FDivC
-        >()));
+        >());
 }
 
 }  // namespace gapi
