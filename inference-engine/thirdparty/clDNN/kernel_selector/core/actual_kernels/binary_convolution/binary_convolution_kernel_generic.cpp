@@ -128,6 +128,7 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
         std::string sh = "sh" + std::to_string(op_id);
         std::string e_add = "e_add" + std::to_string(op_id);
         std::string e_mul = "e_mul" + std::to_string(op_id);
+
         switch (fused_dep.GetType()) {
             case KernelType::SCALE: {
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
@@ -150,8 +151,10 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
                         data_type + " " + sh + " = (i < 16) ? " + var1_name + ".s0" + " : " + var1_name + ".s1;";
                     eltwise_fused_ops += "res = res*" + sc + " + " + sh + ";";
                 }
+
                 break;
             }
+
             case KernelType::QUANTIZE: {
                 std::string var_name_in = fused_dep_codegen.GetInputVarName(0);
                 std::string var_name_out = fused_dep_codegen.GetInputVarName(3);
@@ -210,6 +213,7 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
 
                 break;
             }
+
             case KernelType::ACTIVATION: {
                 auto p = fused_dep.GetOpParams<activation_fuse_params>();
                 base_activation_params activation = p->param;
@@ -219,8 +223,10 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
                     jit.Merge(MakeActivationJitConstants(activation, fused_dep.output_tensor.GetDType(), suffix));
                     eltwise_fused_ops += "\\\n\tres = ACTIVATION" + suffix + "((OUTPUT_TYPE)res, ACTIVATION_PARAMS" + suffix + ");";
                 }
+
                 break;
             }
+
             case KernelType::ELTWISE: {
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
                 std::string var_name = fused_dep_codegen.GetInputVarName(0);
@@ -236,10 +242,12 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
                     eltwise_fused_ops += data_type + " " + e_mul + " = (i < 16) ? " + var_name + ".s0" + " : " + var_name + ".s1;";
                     eltwise_fused_ops += "res = res*" + e_mul +";";
                 }
+
                 break;
             }
+
             default:
-                throw std::invalid_argument("Invalid fused op in binary_convolution kernel: " + params.layerID);
+                throw std::invalid_argument("Invalid fused op in binary_convolution_generic kernel: " + params.layerID);
         }
 
         op_id++;
