@@ -37,6 +37,7 @@
 #include <layers/gna_fake_quantize_layer.hpp>
 #include "gna_graph_patterns.hpp"
 #include "gna_tensor_tools.hpp"
+#include <debug.h>
 
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
