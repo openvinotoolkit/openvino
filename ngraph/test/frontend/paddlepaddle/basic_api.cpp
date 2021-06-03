@@ -11,20 +11,20 @@ static const std::string PDPD = "pdpd";
 
 using PDPDBasicTest = FrontEndBasicTest;
 
-static const std::vector<std::string> models {
-        std::string("conv2d"),
-        std::string("conv2d_s/conv2d.pdmodel"),
-        std::string("conv2d_relu/conv2d_relu.pdmodel"),
-        std::string("2in_2out/2in_2out.pdmodel"),
-        std::string("multi_tensor_split/multi_tensor_split.pdmodel"),
-        std::string("2in_2out_dynbatch/2in_2out_dynbatch.pdmodel"),
-        std::string("bilinear_upsample_tensor_size/bilinear_upsample_tensor_size.pdmodel"),
-        std::string("nearest_upsample_tensor_size/nearest_upsample_tensor_size.pdmodel"),
+static const std::vector<std::string> models{
+    std::string("conv2d"),
+    std::string("conv2d_s/conv2d.pdmodel"),
+    std::string("conv2d_relu/conv2d_relu.pdmodel"),
+    std::string("2in_2out/2in_2out.pdmodel"),
+    std::string("multi_tensor_split/multi_tensor_split.pdmodel"),
+    std::string("2in_2out_dynbatch/2in_2out_dynbatch.pdmodel"),
+    std::string("bilinear_upsample_tensor_size/bilinear_upsample_tensor_size.pdmodel"),
+    std::string("nearest_upsample_tensor_size/nearest_upsample_tensor_size.pdmodel"),
 };
 
-INSTANTIATE_TEST_CASE_P(PDPDBasicTest, FrontEndBasicTest,
-                        ::testing::Combine(
-                            ::testing::Values(PDPD),
-                            ::testing::Values(std::string(TEST_PDPD_MODELS)),
-                            ::testing::ValuesIn(models)),
+INSTANTIATE_TEST_CASE_P(PDPDBasicTest,
+                        FrontEndBasicTest,
+                        ::testing::Combine(::testing::Values(PDPD),
+                                           ::testing::Values(std::string(TEST_PDPD_MODELS)),
+                                           ::testing::ValuesIn(models)),
                         FrontEndBasicTest::getTestCaseName);
