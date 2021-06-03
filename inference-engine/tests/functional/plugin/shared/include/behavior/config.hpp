@@ -57,8 +57,7 @@ namespace BehaviorTestsDefinitions {
         // Create CNNNetwork from ngrpah::Function
         InferenceEngine::CNNNetwork cnnNet(function);
         if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-            targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
-            targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
+            targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
             ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
             ASSERT_THROW(ie->SetConfig(configuration, targetDevice),
                          InferenceEngine::Exception);
@@ -73,8 +72,12 @@ namespace BehaviorTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         // Create CNNNetwork from ngrpah::Function
         InferenceEngine::CNNNetwork cnnNet(function);
-        ASSERT_THROW(auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration),
-                     InferenceEngine::Exception);
+        if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos) {
+            GTEST_SKIP();
+        } else {
+            ASSERT_THROW(auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration),
+                         InferenceEngine::Exception);
+        }
     }
 
     using IncorrectConfigAPITests = BehaviorTestsUtils::BehaviorTestsBasic;
