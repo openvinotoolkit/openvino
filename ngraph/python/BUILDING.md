@@ -60,12 +60,12 @@ Set up the OpenVINO™ environment in order to add the module path to `PYTHONPAT
 
     source ${OPENVINO_BASEDIR}/openvino_dist/bin/setupvars.sh
 
-If you would like to use a specific version of Python, or use a virtual environment, you can set the `PYTHON_EXECUTABLE` 
+If you would like to use a specific version of Python, or use a virtual environment, you can set the `Python3_EXECUTABLE`
 variable. For example: 
 
 ```
--DPYTHON_EXECUTABLE=/path/to/venv/bin/python
--DPYTHON_EXECUTABLE=$(which python3.8)
+-DPython3_EXECUTABLE=/path/to/venv/bin/python
+-DPython3_EXECUTABLE=$(which python3.8)
 ```   
 
 ### Build an nGraph Python Wheel on Linux and macOS
@@ -124,9 +124,9 @@ fail to detect it correctly.
 
 If you want to specify an exact Python version, use the following options:
 ```
--DPYTHON_EXECUTABLE="C:\Program Files\Python37\python.exe" ^
--DPYTHON_LIBRARY="C:\Program Files\Python37\libs\python37.lib" ^
--DPYTHON_INCLUDE_DIR="C:\Program Files\Python37\include" ^
+-DPython3_EXECUTABLE="C:\Program Files\Python37\python.exe" ^
+-DPython3_LIBRARY="C:\Program Files\Python37\libs\python37.lib" ^
+-DPython3_INCLUDE_DIR="C:\Program Files\Python37\include" ^
 ```
 
 In order to build and install OpenVINO™, build the `install` target:

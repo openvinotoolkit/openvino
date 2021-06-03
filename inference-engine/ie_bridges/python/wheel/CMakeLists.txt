@@ -54,7 +54,7 @@ endif()
 add_custom_command(TARGET ie_wheel
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
-    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
+    COMMAND ${Python3_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
         --dist-dir ${CMAKE_BINARY_DIR}/wheels
         --build=${WHEEL_BUILD}
         --plat-name=${WHEEL_PLATFORM}
