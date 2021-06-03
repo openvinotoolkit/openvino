@@ -246,6 +246,12 @@ function(ie_mark_target_as_cc TARGET_NAME)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
 endfunction()
 
+# hint for new find_package(Python3 ...) which requires Python3_EXECUTABLE
+# while old module requries PYTHON_EXECUTABLE (used by pybind11)
+if(DEFINED PYTHON_EXECUTABLE)
+    set(Python3_EXECUTABLE ${PYTHON_EXECUTABLE})
+endif()
+
 # Code style utils
 
 include(cpplint/cpplint)
