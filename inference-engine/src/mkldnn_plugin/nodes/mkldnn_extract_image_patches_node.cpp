@@ -302,19 +302,15 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
     errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
     const auto extImgPatcher = std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(op);
 
-    if (op->get_input_size() != 1 || op->get_output_size() != 1)
+    if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of input or output edges!"
-                   << " Input: " << op->get_input_size() << "; Output: " << op->get_output_size();
+                   << " Input: " << getOriginalInputsNumber() << "; Output: " << getOriginalOutputsNumber();
 
     if (op->get_input_shape(0).size() != 4)
         IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << op->get_input_shape(0).size();
 
     if (op->get_output_shape(0).size() != 4)
         IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << op->get_output_shape(0).size();
-
-    precision = getOriginalInputPrecisionAtPort(0);
-    if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
-        IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
 
     auto ksizes = extImgPatcher->get_sizes();
     auto strides = extImgPatcher->get_strides();
@@ -389,7 +385,7 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
     jpp.KW = _ksizes[1];
     jpp.SH = _strides[0];
     jpp.SW = _strides[1];
-    jpp.dtype_size = precision.size();
+    jpp.dtype_size = getOriginalInputPrecisionAtPort(0).size();
     jpp.block_size = 1;
 
     if (mayiuse(x64::avx512_common)) {
@@ -411,6 +407,10 @@ void MKLDNNExtractImagePatchesNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    precision = getOriginalInputPrecisionAtPort(0);
+    if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
+        IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
+
     addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, precision}},
                          {{TensorDescCreatorTypes::ncsp, precision}},
                          impl_desc_type::ref_any);
@@ -419,7 +419,7 @@ void MKLDNNExtractImagePatchesNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
     const char *src_data = reinterpret_cast<const char *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     char *dst_data = reinterpret_cast<char *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
-    const size_t dtype_size = getParentEdgeAt(0)->getDesc().getPrecision().size();
+    const size_t dtype_size = getOriginalInputPrecisionAtPort(0).size();
 
     const auto& inDims = getParentEdgeAt(0)->getDims().ToSizeVector();
     const size_t IC = inDims[1];

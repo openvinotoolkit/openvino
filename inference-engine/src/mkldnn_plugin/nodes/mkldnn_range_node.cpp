@@ -41,7 +41,7 @@ MKLDNNRangeNode::MKLDNNRangeNode(const std::shared_ptr<ngraph::Node>& op, const 
 
     errorPrefix = "Range layer with name '" + op->get_friendly_name() + "'";
 
-    if (op->get_input_size() != 3 || op->get_output_size() != 1)
+    if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
     SizeVector start_dims = op->get_input_shape(RANGE_START);
@@ -73,9 +73,9 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
             getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::I32 &&
             getOriginalOutputPrecisionAtPort(0)     == Precision::I32) &&
         !(getOriginalInputPrecisionAtPort(RANGE_START) == Precision::FP32 &&
-          getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::FP32 &&
-          getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::FP32 &&
-          getOriginalOutputPrecisionAtPort(0) == Precision::FP32)) {
+            getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::FP32 &&
+            getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::FP32 &&
+            getOriginalOutputPrecisionAtPort(0) == Precision::FP32)) {
         inDataConf.reserve(getOriginalInputsNumber());
         for (int i = 0; i < getOriginalInputsNumber(); ++i)
             inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);

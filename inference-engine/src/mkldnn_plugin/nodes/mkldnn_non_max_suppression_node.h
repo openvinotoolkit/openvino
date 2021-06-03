@@ -81,14 +81,22 @@ private:
     float soft_nms_sigma = 0.0f;
     float scale = 1.f;
 
+    SizeVector inputShape_MAXOUTPUTBOXESPERCLASS;
+    SizeVector inputShape_IOUTHRESHOLD;
+    SizeVector inputShape_SCORETHRESHOLD;
+    SizeVector inputShape_SOFTNMSSIGMA;
+
+    SizeVector outputShape_SELECTEDINDICES;
+    SizeVector outputShape_SELECTEDSCORES;
+
     std::string errorPrefix;
 
     std::vector<std::vector<size_t>> numFiltBox;
     const std::string inType = "input", outType = "output";
 
     void checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type);
-    void check1DInput(const std::shared_ptr<ngraph::Node>& op, const std::vector<Precision> precList, const std::string name, const size_t port);
-    void checkOutput(const std::shared_ptr<ngraph::Node>& op, const std::vector<Precision> precList, const std::string name, const size_t port);
+    void check1DInput(const SizeVector& dims, const std::vector<Precision> precList, const std::string name, const size_t port);
+    void checkOutput(const SizeVector& dims, const std::vector<Precision> precList, const std::string name, const size_t port);
 };
 
 }  // namespace MKLDNNPlugin

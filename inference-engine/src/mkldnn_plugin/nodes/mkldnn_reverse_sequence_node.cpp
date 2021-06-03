@@ -37,14 +37,10 @@ MKLDNNReverseSequenceNode::MKLDNNReverseSequenceNode(const std::shared_ptr<ngrap
     errorPrefix = "ReverseSequence layer with name '" + op->get_friendly_name() + "'";
     const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
 
-    if (op->get_input_size() != 2 || op->get_output_size() != 1)
+    if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
     src_dims = op->get_input_shape(REVERSESEQUENCE_DATA);
-
-    lengthsPrecision = details::convertPrecision(op->get_input_element_type(REVERSESEQUENCE_LENGTHS));
-    if (lengthsPrecision != Precision::I32 && lengthsPrecision != Precision::FP32)
-        lengthsPrecision = Precision::I32;
 
     SizeVector seq_lengths_dims = op->get_input_shape(REVERSESEQUENCE_LENGTHS);
     if (seq_lengths_dims.size() != 1)
@@ -84,6 +80,10 @@ MKLDNNReverseSequenceNode::MKLDNNReverseSequenceNode(const std::shared_ptr<ngrap
 void MKLDNNReverseSequenceNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    lengthsPrecision = getOriginalInputPrecisionAtPort(REVERSESEQUENCE_LENGTHS);
+    if (lengthsPrecision != Precision::I32 && lengthsPrecision != Precision::FP32)
+        lengthsPrecision = Precision::I32;
 
     addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
                           {TensorDescCreatorTypes::ncsp, lengthsPrecision}},

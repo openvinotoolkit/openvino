@@ -40,20 +40,16 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
         errorPrefix = "NMS layer with name '" + op->get_friendly_name() + "' ";
         const auto nms = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op);
 
-        if (nms->get_input_size() < 2 || nms->get_input_size() > 6)
-            IE_THROW() << errorPrefix << "has incorrect number of input edges: " << nms->get_input_size();
+        if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 6)
+            IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
 
-        if (nms->get_output_size() < 1 || nms->get_output_size() > 3)
-            IE_THROW() << errorPrefix << "has incorrect number of output edges: " << nms->get_output_size();
+        if (getOriginalOutputsNumber() < 1 || getOriginalOutputsNumber() > 3)
+            IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
         boxEncodingType = nms->m_center_point_box ? boxEncoding::CENTER : boxEncoding::CORNER;
 
         sort_result_descending = nms->m_sort_result_descending;
 
-        const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16};
-        const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
-
-        checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", inType);
         const SizeVector &boxes_dims = op->get_input_shape(NMS_BOXES);
         num_batches = boxes_dims[0];
         num_boxes = boxes_dims[1];
@@ -62,7 +58,6 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
         if (boxes_dims[2] != 4)
             IE_THROW() << errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
 
-        checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", inType);
         const SizeVector &scores_dims = op->get_input_shape(NMS_SCORES);
         num_classes = scores_dims[1];
         if (scores_dims.size() != 3)
@@ -74,22 +69,19 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
             IE_THROW() << errorPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
 
         numFiltBox.resize(num_batches);
-        for (size_t i = 0; i < numFiltBox.size(); i++)
-            numFiltBox[i].resize(num_classes);
+        for (auto & i : numFiltBox)
+            i.resize(num_classes);
 
-        const std::vector<Precision> supportedPrecision = {Precision::I16, Precision::U8, Precision::I8, Precision::U16, Precision::I32,
-                                                           Precision::U32, Precision::I64, Precision::U64};
-        check1DInput(op, supportedPrecision, "max_output_boxes_per_class", NMS_MAXOUTPUTBOXESPERCLASS);
-        check1DInput(op, supportedFloatPrecision, "iou_threshold", NMS_IOUTHRESHOLD);
-        check1DInput(op, supportedFloatPrecision, "score_threshold", NMS_SCORETHRESHOLD);
-
-        if (op->get_input_size() > NMS_SOFTNMSSIGMA) {
-            check1DInput(op, supportedFloatPrecision, "soft_nms_sigma", NMS_SOFTNMSSIGMA);
+        inputShape_MAXOUTPUTBOXESPERCLASS = op->get_input_shape(NMS_MAXOUTPUTBOXESPERCLASS);
+        inputShape_IOUTHRESHOLD = op->get_input_shape(NMS_IOUTHRESHOLD);
+        inputShape_SCORETHRESHOLD = op->get_input_shape(NMS_SCORETHRESHOLD);
+        if (getOriginalInputsNumber() > NMS_SOFTNMSSIGMA) {
+            inputShape_SOFTNMSSIGMA = op->get_input_shape(NMS_SOFTNMSSIGMA);
         }
 
-        checkOutput(op, supportedIntOutputPrecision, "selected_indices", NMS_SELECTEDINDICES);
-        checkOutput(op, supportedFloatPrecision, "selected_scores", NMS_SELECTEDSCORES);
-        checkPrecision(getOriginalInputPrecisionAtPort(NMS_VALIDOUTPUTS), supportedIntOutputPrecision, "valid_outputs", outType);
+        outputShape_SELECTEDINDICES = op->get_output_shape(NMS_SELECTEDINDICES);
+        outputShape_SELECTEDSCORES = op->get_output_shape(NMS_SELECTEDSCORES);
+
         const SizeVector &valid_outputs_dims = op->get_input_shape(NMS_VALIDOUTPUTS);
         if (valid_outputs_dims.size() != 1)
             IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output rank: " << valid_outputs_dims.size();
@@ -100,6 +92,27 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
 void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16};
+    const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
+
+    checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", inType);
+    checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", inType);
+    checkPrecision(getOriginalInputPrecisionAtPort(NMS_VALIDOUTPUTS), supportedIntOutputPrecision, "valid_outputs", outType);
+
+    const std::vector<Precision> supportedPrecision = {Precision::I16, Precision::U8, Precision::I8, Precision::U16, Precision::I32,
+                                                       Precision::U32, Precision::I64, Precision::U64};
+
+    check1DInput(inputShape_MAXOUTPUTBOXESPERCLASS, supportedPrecision, "max_output_boxes_per_class", NMS_MAXOUTPUTBOXESPERCLASS);
+    check1DInput(inputShape_IOUTHRESHOLD, supportedFloatPrecision, "iou_threshold", NMS_IOUTHRESHOLD);
+    check1DInput(inputShape_SCORETHRESHOLD, supportedFloatPrecision, "score_threshold", NMS_SCORETHRESHOLD);
+
+    if (getOriginalInputsNumber() > NMS_SOFTNMSSIGMA) {
+        check1DInput(inputShape_SOFTNMSSIGMA, supportedFloatPrecision, "soft_nms_sigma", NMS_SOFTNMSSIGMA);
+    }
+
+    checkOutput(outputShape_SELECTEDINDICES, supportedIntOutputPrecision, "selected_indices", NMS_SELECTEDINDICES);
+    checkOutput(outputShape_SELECTEDSCORES, supportedFloatPrecision, "selected_scores", NMS_SELECTEDSCORES);
 
     std::vector<DataConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
@@ -368,11 +381,10 @@ void MKLDNNNonMaxSuppressionNode::checkPrecision(const Precision prec, const std
         IE_THROW() << errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
 }
 
-void MKLDNNNonMaxSuppressionNode::check1DInput(const std::shared_ptr<ngraph::Node>& op, const std::vector<Precision> precList,
+void MKLDNNNonMaxSuppressionNode::check1DInput(const SizeVector& dims, const std::vector<Precision> precList,
                                                          const std::string name, const size_t port) {
     checkPrecision(getOriginalInputPrecisionAtPort(port), precList, name, inType);
 
-    const SizeVector &dims = op->get_input_shape(port);
     if (dims.size() != 0 && dims.size() != 1)
         IE_THROW() << errorPrefix << "has unsupported '" << name << "' input rank: " << dims.size();
     if (dims.size() == 1)
@@ -380,11 +392,10 @@ void MKLDNNNonMaxSuppressionNode::check1DInput(const std::shared_ptr<ngraph::Nod
             IE_THROW() << errorPrefix << "has unsupported '" << name << "' input 1st dimension size: " << dims[0];
 }
 
-void MKLDNNNonMaxSuppressionNode::checkOutput(const std::shared_ptr<ngraph::Node>& op, const std::vector<Precision> precList,
+void MKLDNNNonMaxSuppressionNode::checkOutput(const SizeVector& dims, const std::vector<Precision> precList,
                                                         const std::string name, const size_t port) {
     checkPrecision(getOriginalOutputPrecisionAtPort(port), precList, name, outType);
 
-    const SizeVector &dims = op->get_output_shape(port);
     if (dims.size() != 2)
         IE_THROW() << errorPrefix << "has unsupported '" << name << "' output rank: " << dims.size();
     if (dims[1] != 3)

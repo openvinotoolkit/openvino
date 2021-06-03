@@ -38,7 +38,7 @@ MKLDNNExperimentalDetectronTopKROIsNode::MKLDNNExperimentalDetectronTopKROIsNode
 
     errorPrefix = "ExperimentalDetectronTopKROIs layer with name '" + op->get_friendly_name() + "'";
     const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
-    if (op->get_input_size() != 2 || op->get_output_size() != 1)
+    if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
     if (op->get_input_shape(INPUT_ROIS).size() != 2 || op->get_input_shape(INPUT_PROBS).size() != 1)

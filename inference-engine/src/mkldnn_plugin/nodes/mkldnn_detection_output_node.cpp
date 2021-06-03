@@ -43,11 +43,14 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    if (op->get_input_size() != 3 && op->get_input_size() != 5)
-        IE_THROW() <<  "Invalid number of input edges.";
 
-    if (op->get_output_size() != 1)
-        IE_THROW() << "Invalid number of output edges.";
+    errorPrefix = "DetectionOutput layer with name '" + op->get_friendly_name() + "' ";
+
+    if (getOriginalInputsNumber() != 3 && getOriginalInputsNumber() != 5)
+        IE_THROW() << errorPrefix <<  " has incorrect number of input edges.";
+
+    if (getOriginalOutputsNumber() != 1)
+        IE_THROW() << errorPrefix << " has incorrect number of output edges.";
 
     auto doOp = ngraph::as_type_ptr<const ngraph::op::v0::DetectionOutput>(op);
     auto attributes = doOp->get_attrs();
@@ -70,7 +73,7 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
     _offset = _normalized ? 0 : 1;
     _num_loc_classes = _share_location ? 1 : _num_classes;
 
-    with_add_box_pred = op->get_input_size() == 5;
+    with_add_box_pred = getOriginalInputsNumber() == 5;
     _objectness_score = attributes.objectness_score;
 
     _code_type = (details::CaselessEq<std::string>()(attributes.code_type, "caffe.PriorBoxParameter.CENTER_SIZE") ?
@@ -80,15 +83,15 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
     _priors_batches = op->get_input_shape(idx_priors).front() != 1;
 
     if (_num_priors * _num_loc_classes * 4 != static_cast<int>(op->get_input_shape(idx_location)[1]))
-        IE_THROW() << "Number of priors must match number of location predictions ("
+        IE_THROW() << errorPrefix << " has incorrect number of priors must match number of location predictions ("
                    << _num_priors * _num_loc_classes * 4 << " vs "
                    << op->get_input_shape(idx_location)[1] << ")";
 
     if (_num_priors * _num_classes != static_cast<int>(op->get_input_shape(idx_confidence).back()))
-        IE_THROW() << "Number of priors must match number of confidence predictions.";
+        IE_THROW() << " has incorrect number of priors must match number of confidence predictions.";
 
     if (_decrease_label_id && _background_label_id != 0)
-        IE_THROW() << "Cannot use decrease_label_id and background_label_id parameter simultaneously.";
+        IE_THROW() << errorPrefix << " cannot use decrease_label_id and background_label_id parameter simultaneously.";
 
     _num = static_cast<int>(op->get_input_shape(idx_confidence)[0]);
 

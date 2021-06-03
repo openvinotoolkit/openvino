@@ -42,7 +42,6 @@ private:
     size_t numOfDims;
     size_t axis = 0;
     std::vector<size_t> shape;
-    std::string layerName;
 
     InferenceEngine::Precision dataPrecision;
     std::string errorPrefix;

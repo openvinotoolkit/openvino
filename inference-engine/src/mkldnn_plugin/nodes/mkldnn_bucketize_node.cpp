@@ -38,28 +38,12 @@ MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op
     errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
     const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
 
-    if (op->get_input_size() != 2 || op->get_output_size() != 1) {
+    if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
     }
 
     // check one attribute
     with_right = bucketsize->get_with_right_bound();
-
-    // check precisions for input and output tensors
-    input_precision = getOriginalInputPrecisionAtPort(INPUT_TENSOR_PORT);
-    if (input_precision != Precision::FP32 && input_precision != Precision::I32 &&
-        input_precision != Precision::I64) {
-        input_precision = Precision::FP32;
-    }
-    boundaries_precision = getOriginalInputPrecisionAtPort(INPUT_BINS_PORT);
-    if (boundaries_precision != Precision::FP32 && boundaries_precision != Precision::I32 &&
-        boundaries_precision != Precision::I64) {
-        boundaries_precision = Precision::FP32;
-    }
-    output_precision = getOriginalOutputPrecisionAtPort(OUTPUT_TENSOR_PORT);
-    if (output_precision != Precision::I32 && output_precision != Precision::I64) {
-        output_precision = Precision::I32;
-    }
 
     // check dimensions of input tensors
     SizeVector input_tensor_dims = op->get_input_shape(INPUT_TENSOR_PORT);
@@ -81,6 +65,22 @@ MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op
 void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    // check precisions for input and output tensors
+    input_precision = getOriginalInputPrecisionAtPort(INPUT_TENSOR_PORT);
+    if (input_precision != Precision::FP32 && input_precision != Precision::I32 &&
+        input_precision != Precision::I64) {
+        input_precision = Precision::FP32;
+    }
+    boundaries_precision = getOriginalInputPrecisionAtPort(INPUT_BINS_PORT);
+    if (boundaries_precision != Precision::FP32 && boundaries_precision != Precision::I32 &&
+        boundaries_precision != Precision::I64) {
+        boundaries_precision = Precision::FP32;
+    }
+    output_precision = getOriginalOutputPrecisionAtPort(OUTPUT_TENSOR_PORT);
+    if (output_precision != Precision::I32 && output_precision != Precision::I64) {
+        output_precision = Precision::I32;
+    }
 
     addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, input_precision},
                           {TensorDescCreatorTypes::ncsp, boundaries_precision}},

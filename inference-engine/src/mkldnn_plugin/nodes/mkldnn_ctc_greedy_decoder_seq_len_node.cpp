@@ -33,22 +33,14 @@ MKLDNNCTCGreedyDecoderSeqLenNode::MKLDNNCTCGreedyDecoderSeqLenNode(const std::sh
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    std::string errPrefix = "CTCGreedyDecoderSeqLen layer with name '" + op->get_friendly_name() + "' ";
-    if (op->get_input_size() < 2 || op->get_input_size() > 3)
-        IE_THROW() << errPrefix << "has invalid number of input edges: " << op->get_input_size();
-    if (op->get_output_size() != 2)
-        IE_THROW() << errPrefix << "has invalid number of outputs edges: " << op->get_output_size();
+    errorPrefix = "CTCGreedyDecoderSeqLen layer with name '" + op->get_friendly_name() + "' ";
+    if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 3)
+        IE_THROW() << errorPrefix << "has invalid number of input edges: " << getOriginalInputsNumber();
+    if (getOriginalOutputsNumber() != 2)
+        IE_THROW() << errorPrefix << "has invalid number of outputs edges: " << getOriginalOutputsNumber();
 
     if (op->get_input_shape(DATA_INDEX)[0] != op->get_input_shape(SEQUENCE_LENGTH_INDEX)[0])
-        IE_THROW() << errPrefix << "has invalid input shapes.";
-
-    Precision inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (inDataPrecision != Precision::FP32 && inDataPrecision != Precision::BF16)
-        IE_THROW() << errPrefix << "has unsupported 'data' input precision: " << inDataPrecision;
-
-    Precision seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
-    if (seqLenPrecision != Precision::I32 && seqLenPrecision != Precision::I64)
-        IE_THROW() << errPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
+        IE_THROW() << errorPrefix << "has invalid input shapes.";
 
     auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
     mergeRepeated = greedyDecOp->get_merge_repeated();
@@ -57,6 +49,14 @@ MKLDNNCTCGreedyDecoderSeqLenNode::MKLDNNCTCGreedyDecoderSeqLenNode(const std::sh
 void MKLDNNCTCGreedyDecoderSeqLenNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    Precision inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
+    if (inDataPrecision != Precision::FP32 && inDataPrecision != Precision::BF16)
+        IE_THROW() << errorPrefix << "has unsupported 'data' input precision: " << inDataPrecision;
+
+    Precision seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
+    if (seqLenPrecision != Precision::I32 && seqLenPrecision != Precision::I64)
+        IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
     std::vector<DataConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());

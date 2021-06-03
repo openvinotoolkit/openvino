@@ -36,7 +36,7 @@ MKLDNNExperimentalDetectronPriorGridGeneratorNode::MKLDNNExperimentalDetectronPr
 
     errorPrefix = "ExperimentalDetectronPriorGridGenerator layer with name '" + op->get_friendly_name() + "'";
     const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
-    if (op->get_input_size() != 3 || op->get_output_size() != 1)
+    if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
     if (op->get_input_shape(INPUT_PRIORS).size() != 2 ||

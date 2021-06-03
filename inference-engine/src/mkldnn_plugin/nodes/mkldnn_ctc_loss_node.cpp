@@ -33,7 +33,7 @@ MKLDNNCTCLossNode::MKLDNNCTCLossNode(const std::shared_ptr<ngraph::Node>& op, co
 
     errorPrefix = std::string("CTCLoss layer with name '") + op->get_friendly_name() + "'";
 
-    if (op->get_input_size() != 4 && op->get_input_size() != 5)
+    if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5)
         IE_THROW() << errorPrefix << " has invalid inputs number.";
 
     auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);

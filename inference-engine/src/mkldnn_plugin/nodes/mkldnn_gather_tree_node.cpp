@@ -22,17 +22,6 @@ bool MKLDNNGatherTreeNode::isSupportedOperation(const std::shared_ptr<ngraph::No
             errorMessage = "Node is not an instance of the GatherTree operation from operation set v1.";
             return false;
         }
-
-        auto precision = op->get_input_element_type(GATHER_TREE_STEP_IDX);
-        if (!MKLDNNPlugin::one_of(precision, ngraph::element::f32, ngraph::element::i32))
-            precision = ngraph::element::f32;
-        if (op->get_input_element_type(GATHER_TREE_PARENT_IDX) != precision ||
-            op->get_input_element_type(GATHER_TREE_MAX_SEQ_LEN) != precision ||
-            op->get_input_element_type(GATHER_TREE_END_TOKEN) != precision ||
-            op->get_output_element_type(0) != precision) {
-            errorMessage = "Node has incorrect input/output data precision. Must be the same.";
-            return false;
-        }
     } catch (...) {
         return false;
     }
@@ -52,10 +41,6 @@ MKLDNNGatherTreeNode::MKLDNNGatherTreeNode(const std::shared_ptr<ngraph::Node>& 
     if (op->get_output_size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of output edges.";
 
-    precision = getOriginalInputPrecisionAtPort(GATHER_TREE_STEP_IDX);
-    if (!MKLDNNPlugin::one_of(precision, Precision::FP32, Precision::I32))
-        precision = Precision::FP32;
-
     if (op->get_input_shape(GATHER_TREE_STEP_IDX).size() != 3)
         IE_THROW() << errorPrefix << " step_idx vector should be 3 dimension";
     if (op->get_input_shape(GATHER_TREE_PARENT_IDX).size() != 3)
@@ -69,6 +54,17 @@ MKLDNNGatherTreeNode::MKLDNNGatherTreeNode(const std::shared_ptr<ngraph::Node>& 
 void MKLDNNGatherTreeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    precision = getOriginalInputPrecisionAtPort(GATHER_TREE_STEP_IDX);
+    if (!MKLDNNPlugin::one_of(precision, Precision::FP32, Precision::I32))
+        precision = Precision::FP32;
+
+    if (getOriginalInputPrecisionAtPort(GATHER_TREE_PARENT_IDX)  != precision ||
+        getOriginalInputPrecisionAtPort(GATHER_TREE_MAX_SEQ_LEN) != precision ||
+        getOriginalInputPrecisionAtPort(GATHER_TREE_END_TOKEN)   != precision ||
+        getOriginalOutputPrecisionAtPort(0)                 != precision) {
+            IE_THROW() << errorPrefix << " has incorrect input/output data precision. Must be the same.";
+    }
 
     addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, precision},
                             {TensorDescCreatorTypes::ncsp, precision},

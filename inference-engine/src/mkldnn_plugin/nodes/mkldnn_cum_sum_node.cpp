@@ -37,13 +37,14 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    layerName = op->get_friendly_name();
-    if ((op->get_input_size() != numOfInputs && op->get_input_size() != (numOfInputs - 1)) || op->get_output_size() != 1)
-        IE_THROW() << "CumSum layer with name '" << layerName << "' has incorrect number of input/output edges!";
+    errorPrefix = "CumSum layer with name '" + op->get_friendly_name() + "' ";
+
+    if ((getOriginalInputsNumber() != numOfInputs && getOriginalInputsNumber() != (numOfInputs - 1)) || getOriginalOutputsNumber() != 1)
+        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
     const auto &dataShape = op->get_input_shape(CUM_SUM_DATA);
     if (dataShape.size() < 1) {
-        IE_THROW() << "CumSum layer with name '" << layerName << "' doesn't support 'data' input tensor with rank: " << dataShape.size();
+        IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << dataShape.size();
     }
     numOfDims = dataShape.size();
 
@@ -51,22 +52,13 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
     exclusive = cumsum->is_exclusive();
     reverse = cumsum->is_reverse();
 
-    dataPrecision = getOriginalInputPrecisionAtPort(CUM_SUM_DATA);
-    if (dataPrecision != Precision::I8 && dataPrecision != Precision::U8 && dataPrecision != Precision::I16 && dataPrecision != Precision::I32 &&
-        dataPrecision != Precision::FP32 && dataPrecision != Precision::I64 && dataPrecision != Precision::U64 && dataPrecision != Precision::BF16)
-        IE_THROW() << "CumSum layer with name '" << layerName << "' has unsupported 'data' input precision: " << dataPrecision.name();
-
-    if (cumsum->get_input_size() == numOfInputs) {
-        const auto& axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
-        if (axisTensorPrec != Precision::I32 && axisTensorPrec != Precision::I64)
-            IE_THROW() << "CumSum layer with name '" << layerName << "' has unsupported 'axis' input precision: " << axisTensorPrec.name();
-
+    if (getOriginalInputsNumber() == numOfInputs) {
         if (!ngraph::is_scalar(cumsum->get_input_shape(AXIS)))
-            IE_THROW() << "CumSum layer with name '" << layerName << "' doesn't support 'axis' input tensor with non scalar rank";
+            IE_THROW() << errorPrefix << " doesn't support 'axis' input tensor with non scalar rank";
     }
 
     if (dataShape != cumsum->get_output_shape(0))
-        IE_THROW() << "CumSum layer with name '" << layerName << "' has different 'data' input and output dimensions";
+        IE_THROW() << errorPrefix << " has different 'data' input and output dimensions";
 
     shape = dataShape;
 }
@@ -74,6 +66,17 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
 void MKLDNNCumSumNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    dataPrecision = getOriginalInputPrecisionAtPort(CUM_SUM_DATA);
+    if (dataPrecision != Precision::I8 && dataPrecision != Precision::U8 && dataPrecision != Precision::I16 && dataPrecision != Precision::I32 &&
+        dataPrecision != Precision::FP32 && dataPrecision != Precision::I64 && dataPrecision != Precision::U64 && dataPrecision != Precision::BF16)
+        IE_THROW() << errorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
+
+    if (getOriginalInputsNumber() == numOfInputs) {
+        const auto &axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
+        if (axisTensorPrec != Precision::I32 && axisTensorPrec != Precision::I64)
+            IE_THROW() << errorPrefix << " has unsupported 'axis' input precision: " << axisTensorPrec.name();
+    }
 
     std::vector<DataConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
@@ -90,7 +93,6 @@ void MKLDNNCumSumNode::execute(mkldnn::stream strm) {
     if (inDims.size() == numOfInputs)
         axis = getAxis(getParentEdgeAt(AXIS)->getBlob(), getParentEdgeAt(CUM_SUM_DATA)->getBlob());
 
-    dataPrecision = getParentEdgeAt(CUM_SUM_DATA)->getDesc().getPrecision();
     switch (dataPrecision) {
         case Precision::I8   : {
             exec<int8_t>();
@@ -121,7 +123,7 @@ void MKLDNNCumSumNode::execute(mkldnn::stream strm) {
             break;
         }
         default : {
-            std::string errorMsg = "CumSum layer with name '" + layerName + "' has unsupported 'data' input precision: " + dataPrecision.name();
+            std::string errorMsg = errorPrefix + " has unsupported 'data' input precision: " + dataPrecision.name();
             IE_THROW() << errorMsg;
         }
     }
@@ -262,11 +264,11 @@ size_t MKLDNNCumSumNode::getAxis(const Blob::CPtr& _axis, const Blob::CPtr& _dat
             break;
         }
         default : {
-            IE_THROW() << "CumSum layer with name '" << layerName << "'  doesn't support 'axis' input with precision: " << axisPrecision.name();
+            IE_THROW() << errorPrefix << "  doesn't support 'axis' input with precision: " << axisPrecision.name();
         }
     }
     if (axisValueFromBlob < -dataShapeSize || axisValueFromBlob > dataShapeSize - 1)
-        IE_THROW() << "CumSum layer with name '" << layerName << "'  has axis with a value out of range: " << axisValueFromBlob;
+        IE_THROW() << errorPrefix << "  has axis with a value out of range: " << axisValueFromBlob;
     return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
 }
 
