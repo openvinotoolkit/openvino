@@ -342,7 +342,7 @@ public:
     }
 
     Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operationName,
-                                                     int inputPortIndex) override
+                                                          int inputPortIndex) override
     {
         m_stat.m_get_place_by_operation_and_input_port++;
         m_stat.m_lastArgInt = inputPortIndex;
@@ -351,7 +351,7 @@ public:
     }
 
     Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operationName,
-                                                      int outputPortIndex) override
+                                                           int outputPortIndex) override
     {
         m_stat.m_get_place_by_operation_and_output_port++;
         m_stat.m_lastArgInt = outputPortIndex;

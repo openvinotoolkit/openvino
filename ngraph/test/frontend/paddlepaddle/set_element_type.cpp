@@ -11,14 +11,16 @@ static const auto PDPD = "pdpd";
 
 using PDPDCutTest = FrontEndElementTypeTest;
 
-static SetTypeFEParam getTestData_relu() {
+static SetTypeFEParam getTestData_relu()
+{
     SetTypeFEParam res;
-    res.m_frontEndName =    PDPD;
-    res.m_modelsPath =      std::string(TEST_PDPD_MODELS);
-    res.m_modelName =       "relu/relu.pdmodel";
+    res.m_frontEndName = PDPD;
+    res.m_modelsPath = std::string(TEST_PDPD_MODELS);
+    res.m_modelName = "relu/relu.pdmodel";
     return res;
 }
 
-INSTANTIATE_TEST_CASE_P(PDPDCutTest, FrontEndElementTypeTest,
+INSTANTIATE_TEST_CASE_P(PDPDCutTest,
+                        FrontEndElementTypeTest,
                         ::testing::Values(getTestData_relu()),
                         FrontEndElementTypeTest::getTestCaseName);

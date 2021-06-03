@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <regex>
 #include "../include/op.hpp"
 #include "../include/utils.hpp"
 
@@ -11,23 +10,27 @@ using namespace ngraph::frontend;
 
 using TestEngine = test::IE_CPU_Engine;
 
-std::string FrontendOpTest::getTestCaseName(const testing::TestParamInfo<FrontendOpTestParam> &obj) {
+std::string FrontendOpTest::getTestCaseName(const testing::TestParamInfo<FrontendOpTestParam>& obj)
+{
     std::string res = obj.param.m_frontEndName + "_" + obj.param.m_modelName;
     return FrontEndTestUtils::fileToTestName(res);
 }
 
-void FrontendOpTest::SetUp() {
+void FrontendOpTest::SetUp()
+{
     FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager(); // re-initialize after setting up environment
     initParamTest();
 }
 
-void FrontendOpTest::initParamTest() {
+void FrontendOpTest::initParamTest()
+{
     m_param = GetParam();
     m_param.m_modelName = m_param.m_modelsPath + m_param.m_modelName;
 }
 
-void FrontendOpTest::validateOp() {
+void FrontendOpTest::validateOp()
+{
     // load
     ASSERT_NO_THROW(m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
@@ -43,19 +46,21 @@ void FrontendOpTest::validateOp() {
     // run
     auto test_case = test::TestCase<TestEngine>(function);
 
-    for (auto it = m_param.inputs.begin(); it != m_param.inputs.end(); it++ ) {
-        test_case.add_input(*it);        
-    }   
+    for (auto it = m_param.inputs.begin(); it != m_param.inputs.end(); it++)
+    {
+        test_case.add_input(*it);
+    }
     for (auto it = m_param.expected_outputs.begin(); it != m_param.expected_outputs.end(); it++)
     {
         test_case.add_expected_output(*it);
     }
-        
-    test_case.run();    
+
+    test_case.run();
 }
 
 /*---------------------------------------------------------------------------------------------------------------------*/
 
-TEST_P(FrontendOpTest, test_model_runtime) {
+TEST_P(FrontendOpTest, test_model_runtime)
+{
     ASSERT_NO_THROW(validateOp());
 }
