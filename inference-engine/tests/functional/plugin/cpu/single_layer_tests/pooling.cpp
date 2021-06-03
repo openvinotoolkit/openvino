@@ -5,6 +5,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/single_layer/pooling.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -13,21 +14,24 @@ using namespace LayerTestsDefinitions;
 namespace CPULayerTestsDefinitions {
 typedef std::tuple<
         poolLayerTestParamsSet,
-        CPUSpecificParams
+        CPUSpecificParams,
+        fusingSpecificParams
 > poolLayerCpuTestParamsSet;
 
 class PoolingLayerCPUTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
-                            virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                            virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
         poolLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, cpuParams, fusingParams) = obj.param;
 
         std::ostringstream result;
         result << PoolingLayerTest::getTestCaseName(testing::TestParamInfo<poolLayerTestParamsSet>(
                 basicParamsSet, 0));
         result << CPUTestsBase::getTestCaseName(cpuParams);
+        result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
         return result.str();
     }
@@ -36,7 +40,8 @@ protected:
     void SetUp() {
         poolLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
 
         poolSpecificParams poolParams;
         std::vector<size_t> inputShape;
@@ -48,6 +53,7 @@ protected:
         }
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
@@ -133,7 +139,8 @@ INSTANTIATE_TEST_CASE_P(smoke_MaxPool_CPU_4D, PoolingLayerCPUTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 64, 64})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs))),
+                        ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
+                        ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
@@ -147,7 +154,8 @@ INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({1, 4, 64, 64})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
+                                ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
@@ -161,7 +169,8 @@ INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({1, 4, 64, 64})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::Values(ref)),
+                                ::testing::Values(ref),
+                                ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
 const std::vector<poolSpecificParams> paramsMax5D = {
@@ -200,7 +209,8 @@ INSTANTIATE_TEST_CASE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({1, 3, 16, 32, 32})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
+                                ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
@@ -214,7 +224,8 @@ INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({1, 4, 32, 32, 32})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs))),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
+                                ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_5D_NotOptimized, PoolingLayerCPUTest,
@@ -228,7 +239,58 @@ INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_5D_NotOptimized, PoolingLayerCPUTest,
                                         ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({1, 4, 16, 16, 16})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::Values(ref)),
+                                ::testing::Values(ref),
+                                ::testing::Values(emptyFusingSpec)),
+                        PoolingLayerCPUTest::getTestCaseName);
+
+/* === Fusing === */
+
+const auto avx512_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
+const auto avx512_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx512"}, "jit_avx512"};
+
+const auto avx2_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
+const auto avx2_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2"}, "jit_avx2"};
+
+const auto sse42_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
+const auto sse42_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_sse42"}, "jit_sse42"};
+
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_nhwc, avx2_nhwc, avx512_nhwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D = {sse42_ndhwc, avx2_ndhwc, avx512_ndhwc};
+
+std::vector<fusingSpecificParams> fusingParamsSet {
+    emptyFusingSpec,
+    fusingFakeQuantizePerTensor,
+    fusingFakeQuantizePerChannel,
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        ::testing::ValuesIn(paramsAvg4D),
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(Precision::I8),
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
+                                        ::testing::Values(std::vector<size_t >({1, 4, 64, 64})),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_4D)),
+                                ::testing::ValuesIn(fusingParamsSet)),
+                        PoolingLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_5D_I8, PoolingLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        ::testing::ValuesIn(paramsAvg5D),
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(Precision::I8),
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
+                                        ::testing::Values(std::vector<size_t >({1, 4, 16, 16, 16})),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_5D)),
+                                ::testing::ValuesIn(fusingParamsSet)),
                         PoolingLayerCPUTest::getTestCaseName);
 
 } // namespace
