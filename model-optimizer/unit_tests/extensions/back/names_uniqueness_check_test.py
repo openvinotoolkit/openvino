@@ -54,3 +54,28 @@ class TestNamesUniquenessCheck(unittest.TestCase):
             names.append(node.name)
 
         self.assertEqual(names, ref_names)
+
+    def test_3(self):
+        graph = build_graph(
+            nodes_attrs={
+                'input': {'kind': 'op', 'op': 'Parameter', 'name': 'node_0'},
+                'cast': {'kind': 'op', 'op': 'Cast', 'name': 'node_1'},
+                'result_1': {'kind': 'op', 'op': 'Result', 'name': 'node'},
+                'result_2': {'kind': 'op', 'op': 'Result', 'name': 'node'}
+            },
+            edges=[
+                ('input', 'cast'),
+                ('cast', 'result_1'),
+                ('cast', 'result_2'),
+            ]
+        )
+
+        ref_names = ['node_0', 'node_1', 'node_0_0', 'node_1_1']
+
+        NamesUniquenessCheck().find_and_replace_pattern(graph)
+
+        names = []
+        for node in graph.get_op_nodes():
+            names.append(node.name)
+
+        self.assertEqual(names, ref_names)
