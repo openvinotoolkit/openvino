@@ -151,6 +151,7 @@ set(SRC
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
+    type_prop/matrix_nms.cpp    
     type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
@@ -236,6 +237,7 @@ set(SRC
     visitors/op/lstm_cell.cpp
     visitors/op/lstm_sequence.cpp
     visitors/op/matmul.cpp
+    visitors/op/matrix_nms.cpp
     visitors/op/max_pool.cpp
     visitors/op/mod.cpp
     visitors/op/multiclass_nms.cpp
@@ -388,6 +390,7 @@ set(MULTI_TEST_SRC
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
+    backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp

@@ -83,6 +83,7 @@
 #include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/op/lstm_sequence.hpp"
 #include "ngraph/op/matmul.hpp"
+#include "ngraph/op/matrix_nms.hpp"
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/maximum.hpp"
