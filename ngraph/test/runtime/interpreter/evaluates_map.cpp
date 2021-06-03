@@ -2467,8 +2467,7 @@ namespace
                   const HostTensorVector& inputs)
     {
         const auto equation = op->get_equation();
-        const auto& input_type = inputs[0]->get_element_type();
-        runtime::reference::einsum(outputs, inputs, equation, input_type);
+        runtime::reference::einsum(outputs, inputs, equation);
         return true;
     }
 
