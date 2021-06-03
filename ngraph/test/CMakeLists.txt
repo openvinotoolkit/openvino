@@ -491,7 +491,9 @@ file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manag
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
 file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
+file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
 set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+set(HDR ${FRONTEND_SHARED_TESTS_HDR})
 
 # TODO: try to find a way to move it out of common CMakeLists
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
@@ -525,7 +527,7 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
 endif()
 #-----
 
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
+add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${HDR})
 
 add_executable(unit-test ${SRC})
 
