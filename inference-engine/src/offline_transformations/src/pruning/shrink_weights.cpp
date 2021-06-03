@@ -91,5 +91,8 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
     }
     NGRAPH_DEBUG << "[ INFO ]   TOTAL WEIGHTS: " << total_weights_count << std::endl;
     NGRAPH_DEBUG << "[ INFO ] REDUCED WEIGHTS: " << reduced_weights_count << std::endl;
+    std::cout << "[ INFO ]   TOTAL WEIGHTS: " << total_weights_count << std::endl;
+    std::cout << "[ INFO ] REDUCED WEIGHTS: " << reduced_weights_count << std::endl;
+    std::cout << "[ INFO ] PRUNING RATE: " << float(reduced_weights_count)/float(total_weights_count) << std::endl;
     return true;
 }
