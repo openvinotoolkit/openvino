@@ -75,3 +75,24 @@ bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVect
     NGRAPH_OP_SCOPE(v0_Ceiling_evaluate);
     return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
+
+bool op::Ceiling::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Ceiling_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::boolean:
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}

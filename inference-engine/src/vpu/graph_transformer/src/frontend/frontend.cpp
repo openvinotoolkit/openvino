@@ -221,7 +221,9 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
                               ngraph::pass::ConvertStridedSliceToCropMatcher>(transformationPredicate);
 
     manager.run_passes(nGraphFunc);
+    IE_SUPPRESS_DEPRECATED_START
     return ie::CNNNetwork(ie::details::convertFunctionToICNNNetwork(nGraphFunc, network));
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 std::set<std::string> FrontEnd::checkSupportedLayers(const ie::CNNNetwork& network) {

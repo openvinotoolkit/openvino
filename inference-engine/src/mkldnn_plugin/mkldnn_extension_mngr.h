@@ -18,7 +18,7 @@ public:
     MKLDNNExtensionManager() = default;
     InferenceEngine::ILayerImpl::Ptr CreateImplementation(const std::shared_ptr<ngraph::Node>& op);
     std::shared_ptr<InferenceEngine::ILayerImplFactory> CreateExtensionFactory(const std::shared_ptr<ngraph::Node>& op);
-    void AddExtension(InferenceEngine::IExtensionPtr extension);
+    void AddExtension(const InferenceEngine::IExtensionPtr& extension);
 
 private:
     std::vector<InferenceEngine::IExtensionPtr> _extensions;

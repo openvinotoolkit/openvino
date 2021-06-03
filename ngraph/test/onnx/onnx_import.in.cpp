@@ -2503,45 +2503,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_float)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_select_last_index)
 {
-    try
-    {
-        auto function = onnx_import::import_onnx_model(
-            file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_select_last_index.prototxt"));
-        FAIL() << "Expected exception was not thrown";
-    }
-    catch (const ngraph::ngraph_error& e)
-    {
-        EXPECT_HAS_SUBSTRING(
-            e.what(),
-            std::string(
-                "Mode 'select_last_index=1' is not supported by current implementation of ArgMax"));
-    }
-    catch (...)
-    {
-        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
-    }
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_select_last_index.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{4, 3}, {1, 1, 1, 0.5, 3, 4, 0.5, 1, 1.1, 0, 3, 0});
+    test_case.add_expected_output<std::int64_t>(Shape{1, 3}, {0, 3, 1});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_select_last_index)
 {
-    try
-    {
-        auto function = onnx_import::import_onnx_model(
-            file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_select_last_index.prototxt"));
-        FAIL() << "Expected exception was not thrown";
-    }
-    catch (const ngraph::ngraph_error& e)
-    {
-        EXPECT_HAS_SUBSTRING(
-            e.what(),
-            std::string(
-                "Mode 'select_last_index=1' is not supported by current implementation of ArgMin"));
-        std::string what{e.what()};
-    }
-    catch (...)
-    {
-        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
-    }
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_select_last_index.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{4, 3}, {1, 1, 1, 2, 3, 4, 2, 1, 1.1, 3, 3, 8});
+    test_case.add_expected_output<std::int64_t>(Shape{4}, {2, 0, 1, 1});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k)
@@ -4358,5 +4337,196 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_integer_array)
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<std::int64_t>(Shape{3}, {0, 1, 2});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{2, 2}, {0.f, 5.f, 0.f, 0.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_3x4_linearized_indices)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_3x4_linearized_indices.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_int32_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int32_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<int32_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_int64_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int64_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<int64_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_boolean_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_boolean_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<bool>(Shape{3, 4}, {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float16_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float16_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<ngraph::float16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_double_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_double_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<double>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_int8_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int8_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<int8_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_int16_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int16_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<int16_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_uint8_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint8_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<uint8_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_uint16_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint16_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<uint16_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_uint32_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint32_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<uint32_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_uint64_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint64_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<uint64_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_bfloat16_3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_bfloat16_3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<ngraph::bfloat16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_8x17)
+{
+    auto function = onnx_import::import_onnx_model(
+    file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_8x17.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{8, 17}, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
+    test_case.run();
+}    
+                                                
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+    file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{2, 3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f, 
+                                                          0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 3.f, 0.f});
+    test_case.run();
+}   
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2x3x4)
+{
+    auto function = onnx_import::import_onnx_model(
+    file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x2x3x4.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{2, 2, 3, 4}, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 2.f, 3.f,
+                                                             0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                                             0.f, 0.f, 0.f, 8.f, 0.f, 1.f, 2.f, 0.f, 0.f, 0.f, 3.f, 0.f, 
+                                                             1.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
     test_case.run();
 }

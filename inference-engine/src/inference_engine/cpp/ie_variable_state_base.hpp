@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "cpp/exception2status.hpp"
-#include "cpp_interfaces/impl/ie_variable_state_internal.hpp"
+#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "ie_imemory_state.hpp"
 
 namespace InferenceEngine {
