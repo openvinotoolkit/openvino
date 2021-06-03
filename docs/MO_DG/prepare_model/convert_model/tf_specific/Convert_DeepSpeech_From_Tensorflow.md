@@ -64,8 +64,8 @@ python3 ./mo_tf.py                                                      \
 > names into lstm_fused_cell/Gather**Nd**,lstm_fused_cell/Gather**Nd**_1 
 
 Where:
-* `--freeze_placeholder_with_value input_lengths->[16]` freezes sequence length
+* `--freeze_placeholder_with_value "input_lengths->[16]"` freezes sequence length
 * `--input input_node,previous_state_h/read,previous_state_c/read` and
-`--input_shape [1,16,19,26],[1,2048],[1,2048]` replace the variables with a placeholder
+`--input_shape "[1,16,19,26],[1,2048],[1,2048]"` replace the variables with a placeholder
 * `--output raw_logits,lstm_fused_cell/Gather,lstm_fused_cell/Gather_1` gets data for the next model
 execution.
