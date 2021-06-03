@@ -60,21 +60,21 @@ private:
                                      1 /*single thread per stream*/,
                                      IE::IStreamsExecutor::ThreadBindingType::NONE});
 
-        std::string CPU {"CPU"};
-        auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
+        // start CPU task
+        NetworkTaskSharedPtr cpuTask {};
+        const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
             [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
         if (CPUIter != metaDevices.end()) {
-            CPU = *CPUIter;
+            cpuTask =
+                std::make_shared<std::packaged_task<IE::SoExecutableNetworkInternal()>>(
+                    [=]{return LoadNetworkAsync(false, *CPUIter);});
+            executor->run([=](){(*cpuTask)();});
         }
-        auto cpuTask =
-            std::make_shared<std::packaged_task<IE::SoExecutableNetworkInternal()>>(
-                [=]{return LoadNetworkAsync(false, CPU);});
-        // start CPU task anyway
-        executor->run([=](){(*cpuTask)();});
 
-        const auto accelerator = SelectDevice(metaDevices, networkPrecision);
+        // start accelerator task, like GPU
         NetworkTaskSharedPtr acceleratorTask {};
-        bool isAccelerator = accelerator.find("CPU") != std::string::npos;
+        const auto accelerator = SelectDevice(metaDevices, networkPrecision);
+        bool isAccelerator = accelerator.find("CPU") == std::string::npos;
         if (isAccelerator) {
             acceleratorTask =
                 std::make_shared<std::packaged_task<IE::SoExecutableNetworkInternal()>>(
@@ -105,7 +105,7 @@ private:
 //            IE_THROW() << "Failed to load network by AUTO plugin";
 //        }
         // AutoExecutableNetwork constructor blocks until any network is ready
-        auto impl = std::make_shared<AutoExecutableNetwork>(executor, cpuTask, acceleratorTask);
+        auto impl = std::make_shared<AutoExecutableNetwork>(cpuTask, acceleratorTask);
 
 //        if (std::is_same<std::string, T>::value) {
 //            SetExeNetworkInfo(impl, executableNetwork->GetInputsInfo(),

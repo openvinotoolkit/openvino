@@ -26,8 +26,7 @@ class AutoExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
-    explicit AutoExecutableNetwork(InferenceEngine::IStreamsExecutor::Ptr executor,
-                                   NetworkTaskSharedPtr cpuTask,
+    explicit AutoExecutableNetwork(NetworkTaskSharedPtr cpuTask,
                                    NetworkTaskSharedPtr acceleratorTask);
 
     void Export(std::ostream& networkModel) override;

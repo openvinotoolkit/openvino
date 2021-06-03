@@ -15,14 +15,23 @@
 namespace AutoPlugin {
 using namespace InferenceEngine;
 
-AutoExecutableNetwork::AutoExecutableNetwork(IStreamsExecutor::Ptr executor,
-                                             NetworkTaskSharedPtr cpuTask,
-                                             NetworkTaskSharedPtr acceleratorTask)
-: _executor(executor) {
+AutoExecutableNetwork::AutoExecutableNetwork(NetworkTaskSharedPtr cpuTask,
+                                             NetworkTaskSharedPtr acceleratorTask) {
     // we wait for any network to become ready (maybe this will already an actual device)
-    _networkFirstReady = cpuTask->get_future().get();
-    if (acceleratorTask)
-        _sharedFutureActualNetwork = acceleratorTask->get_future().share();
+    if (cpuTask) {
+        _networkFirstReady = cpuTask->get_future().get();
+    } else if (acceleratorTask) {
+        _networkFirstReady = acceleratorTask->get_future().get();
+    } else {
+        IE_THROW() << "No device task available";
+    }
+
+    if (acceleratorTask) {
+        try {
+            _sharedFutureActualNetwork = acceleratorTask->get_future().share();
+        } catch (const std::future_error& e) {
+        }
+    }
 }
 
 AutoExecutableNetwork::~AutoExecutableNetwork() {
