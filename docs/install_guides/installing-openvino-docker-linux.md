@@ -2,7 +2,7 @@
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance. The Intel® Distribution of OpenVINO™ toolkit includes the Intel® Deep Learning Deployment Toolkit.  
 
-This guide provides device specific of creation a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Linux* and further usage.  
+This guide provides device specifics for a Docker* image creation with Intel® Distribution of OpenVINO™ toolkit for Linux* and its further usage.  
 
 ## System Requirements
 
