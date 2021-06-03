@@ -223,6 +223,7 @@ include(api_validator/api_validator)
 include(vs_version/vs_version)
 include(plugins/plugins)
 include(add_ie_target)
+include(CMakePackageConfigHelpers)
 
 if(ENABLE_FUZZING)
     enable_fuzzing()

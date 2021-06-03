@@ -11,7 +11,7 @@ if(ENABLE_CPPLINT)
     endif()
 endif()
 
-if(ENABLE_CPPLINT)
+if(ENABLE_CPPLINT AND NOT TARGET cpplint_all)
     add_custom_target(cpplint_all ALL)
     set_target_properties(cpplint_all PROPERTIES FOLDER cpplint)
     set(CPPLINT_ALL_OUTPUT_FILES "" CACHE INTERNAL "All cpplint output files")
