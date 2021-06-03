@@ -29,10 +29,10 @@ if(NOT pybind11_POPULATED)
     add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
 endif()
 
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
-if(PYTHON_FOUND)
-    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+if(PYTHON3_FOUND)
+    set(PYTHON3_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
     message("Python version={${Python_VERSION}}")
 else()
     message(FATAL_ERROR "Python was not found!")
