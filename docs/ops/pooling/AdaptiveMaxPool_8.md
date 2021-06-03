@@ -28,7 +28,7 @@ Output(i,j,k) = max(Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end
 
 **Attributes**:
 
-*   *output_type*
+*   *index_element_type*
 
   * **Description**: the type of the 2nd output containing indices
   * **Range of values**: "i64" or "i32"
@@ -44,7 +44,7 @@ Output(i,j,k) = max(Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end
 **Outputs**:
 
 *   **1**: Output of type *T* and shape `[N,C,L_out]`, `[N,C,H_out,W_out]` or `[N,C,D_out,H_out,W_out]`.
-*   **2**: Output of type specified by *output_type* and same shape as 1st output containing indices of elements in 1st output. The values of indices are computed as if input was flatten 1-D tensor.
+*   **2**: Output of type specified by *index_element_type* and same shape as 1st output containing indices of elements in 1st output. The values of indices are computed as if input was flatten 1-D tensor.
 
 **Types**
 
