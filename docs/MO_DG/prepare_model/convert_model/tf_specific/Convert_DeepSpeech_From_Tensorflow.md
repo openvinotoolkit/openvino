@@ -55,13 +55,17 @@ python3 ./mo_tf.py                                                      \
 --freeze_placeholder_with_value input_lengths->[16]                     \
 --input input_node,previous_state_h/read,previous_state_c/read          \
 --input_shape [1,16,19,26],[1,2048],[1,2048]                            \
---output raw_logits,lstm_fused_cell/GatherNd,lstm_fused_cell/GatherNd_1 \
+--output raw_logits,lstm_fused_cell/Gather,lstm_fused_cell/Gather_1 \
 --disable_nhwc_to_nchw
 ```
+
+> **NOTE**: If during conversion you face error 
+>```Exception occurred during running replacer ...No node with name lstm_fused_cell/Gather``` try to replace output 
+> names into lstm_fused_cell/Gather**Nd**,lstm_fused_cell/Gather**Nd**_1 
 
 Where:
 * `--freeze_placeholder_with_value input_lengths->[16]` freezes sequence length
 * `--input input_node,previous_state_h/read,previous_state_c/read` and
 `--input_shape [1,16,19,26],[1,2048],[1,2048]` replace the variables with a placeholder
-* `--output raw_logits,lstm_fused_cell/GatherNd,lstm_fused_cell/GatherNd_1` gets data for the next model
+* `--output raw_logits,lstm_fused_cell/Gather,lstm_fused_cell/Gather_1` gets data for the next model
 execution.
