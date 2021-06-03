@@ -1,0 +1,17 @@
+<attributes>
+    <processes>
+        <value>1</value>
+    </processes>
+    <threads>
+        <value>1</value>
+    </threads>
+    <iterations>
+        <value>30</value>
+    </iterations>
+    <devices>
+        <value>MYRIAD</value>
+    </devices>
+    <models>
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+    </models>
+</attributes>
