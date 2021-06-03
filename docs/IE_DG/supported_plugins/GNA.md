@@ -51,7 +51,7 @@ Intel® Core™ i3-8121U Processor
 Intel® GNA hardware requires a driver to be installed on the system.
 
 * Linux\* OS:
-[Download Intel® GNA driver for Ubuntu Linux 18.04.3 LTS (with HWE Kernel version 5.0+)](https://download.01.org/opencv/drivers/gna/)
+[Download Intel® GNA driver for Ubuntu Linux 18.04.3 LTS (with HWE Kernel version 5.4+)](https://storage.openvinotoolkit.org/drivers/gna/)
 
 * Windows\* OS:
 Intel® GNA driver for Windows is available through Windows Update\*
