@@ -49,7 +49,8 @@ void FrontEndPartialShapeTest::doLoadFromFile()
 
 ///////////////////////////////////////////////////////////////////
 
-TEST_P(FrontEndPartialShapeTest, testCheckOldPartialShape) {
+TEST_P(FrontEndPartialShapeTest, testCheckOldPartialShape)
+{
     ASSERT_NO_THROW(doLoadFromFile());
 
     std::shared_ptr<ngraph::Function> function;

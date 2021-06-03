@@ -199,16 +199,16 @@ Place::Ptr InputModel::get_place_by_operation_name(const std::string& operationN
     FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name);
 }
 
-Place::Ptr InputModel::get_place_by_operation_and_input_port(const std::string& operationName,
-                                                             int inputPortIndex)
+Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::string& operationName,
+                                                                  int inputPortIndex)
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_and_input_port);
+    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_input_port);
 }
 
-Place::Ptr InputModel::get_place_by_operation_and_output_port(const std::string& operationName,
-                                                              int outputPortIndex)
+Place::Ptr InputModel::get_place_by_operation_name_and_output_port(const std::string& operationName,
+                                                                   int outputPortIndex)
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_and_output_port);
+    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_output_port);
 }
 
 void InputModel::set_name_for_tensor(Place::Ptr tensor, const std::string& newName)
@@ -313,14 +313,29 @@ std::vector<std::string> Place::get_names() const
     FRONT_END_NOT_IMPLEMENTED(get_names);
 }
 
+std::vector<Place::Ptr> Place::get_consuming_operations() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
+}
+
 std::vector<Place::Ptr> Place::get_consuming_operations(int outputPortIndex) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
 }
 
+Place::Ptr Place::get_target_tensor() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
+}
+
 Place::Ptr Place::get_target_tensor(int outputPortIndex) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
+}
+
+Place::Ptr Place::get_producing_operation() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_producing_operation);
 }
 
 Place::Ptr Place::get_producing_operation(int inputPortIndex) const
@@ -333,7 +348,17 @@ Place::Ptr Place::get_producing_port() const
     FRONT_END_NOT_IMPLEMENTED(get_producing_port);
 }
 
+Place::Ptr Place::get_input_port() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+}
+
 Place::Ptr Place::get_input_port(int inputPortIndex) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+}
+
+Place::Ptr Place::get_input_port(const std::string& inputName) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_input_port);
 }
@@ -343,7 +368,17 @@ Place::Ptr Place::get_input_port(const std::string& inputName, int inputPortInde
     FRONT_END_NOT_IMPLEMENTED(get_input_port);
 }
 
+Place::Ptr Place::get_output_port() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+}
+
 Place::Ptr Place::get_output_port(int outputPortIndex) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+}
+
+Place::Ptr Place::get_output_port(const std::string& outputName) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_output_port);
 }
@@ -376,6 +411,11 @@ bool Place::is_equal(Ptr another) const
 bool Place::is_equal_data(Ptr another) const
 {
     FRONT_END_NOT_IMPLEMENTED(is_equal_data);
+}
+
+Place::Ptr Place::get_source_tensor() const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_source_tensor);
 }
 
 Place::Ptr Place::get_source_tensor(int inputPortIndex) const

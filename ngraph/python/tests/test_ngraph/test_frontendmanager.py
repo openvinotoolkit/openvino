@@ -151,11 +151,11 @@ def test_model_get_place_by_operation_name():
 
 
 @mock_needed
-def test_model_get_place_by_operation_and_input_port():
+def test_model_get_place_by_operation_name_and_input_port():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_and_input_port(operationName=name, inputPortIndex=i * 2)
+        model.get_place_by_operation_name_and_input_port(operationName=name, inputPortIndex=i * 2)
         stat = get_mdl_stat(model)
         assert stat.get_place_by_operation_and_input_port == i
         assert stat.lastArgString == name
@@ -163,11 +163,11 @@ def test_model_get_place_by_operation_and_input_port():
 
 
 @mock_needed
-def test_model_get_place_by_operation_and_output_port():
+def test_model_get_place_by_operation_name_and_output_port():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_and_output_port(operationName=name, outputPortIndex=i * 2)
+        model.get_place_by_operation_name_and_output_port(operationName=name, outputPortIndex=i * 2)
         stat = get_mdl_stat(model)
         assert stat.get_place_by_operation_and_output_port == i
         assert stat.lastArgString == name
