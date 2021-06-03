@@ -84,6 +84,9 @@ inline bool checkLayout(InferenceEngine::Layout layout, std::vector<size_t> &inp
 TEST_P(LayoutTest, NetWithLayout) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!PluginCache::get().isDeviceAvailable(targetDevice)) {
+        SKIP() << "No devices available for " << targetDevice;
+    }
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     if (checkLayout(layout, inputShapes)) {

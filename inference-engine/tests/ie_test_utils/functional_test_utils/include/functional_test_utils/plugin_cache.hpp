@@ -21,6 +21,8 @@ public:
     PluginCache(const PluginCache&) = delete;
     PluginCache& operator=(const PluginCache&) = delete;
 
+    bool isDeviceAvailable(const std::string& name);
+
 private:
     PluginCache();
     ~PluginCache() = default;
