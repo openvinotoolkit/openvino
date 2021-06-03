@@ -129,6 +129,14 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
     add_gflags()
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
+    add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
+    add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
+endif()
+
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
