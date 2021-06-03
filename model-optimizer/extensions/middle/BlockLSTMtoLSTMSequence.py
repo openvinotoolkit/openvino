@@ -205,8 +205,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
             cell_state_edge = graph.get_edge_data(node.in_node(4).id, node.id)
             cell_state_edge[0]['in'] = c_init_port
 
-
-        #h_init_state
+        # h_init_state
         if 3 in node.in_nodes():
             assert h_init_port not in node.in_nodes()
             hidden_state_edge = graph.get_edge_data(node.in_node(3).id, node.id)

@@ -223,7 +223,8 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
                    mean_offset=mean_offset,
                    mean_size=mean_size,
                    meta_info=meta_info)
-    tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}{}.mapping'.format(output_model_name, ir_path_suffix)))
+    tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}{}.mapping'
+                                                             .format(output_model_name, ir_path_suffix)))
 
 
 def get_ir_version(argv: argparse.Namespace):

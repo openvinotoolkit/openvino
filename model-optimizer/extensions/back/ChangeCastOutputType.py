@@ -14,7 +14,8 @@ class ChangeCastOutputType(BackReplacementPattern):
     """
     Change the Cast dst_type from fp64 to fp32 since not all plugins support fp64 data type.
     Change the Cast dst_type from fp32 to fp16 when generating IR for fp16.
-    But leave fp32 if node returns shape value even if --data_type=FP16 (look extensions/back/MarkNodesWithShapeValues.py).
+    But leave fp32 if node returns shape value even if --data_type=FP16
+    (look extensions/back/MarkNodesWithShapeValues.py).
     """
     enabled = True
     force_shape_inference = True
@@ -33,7 +34,8 @@ class ChangeCastOutputType(BackReplacementPattern):
                 node.dst_type = np.float32
 
             ir_data_type = data_type_str_to_np(node.graph.graph['cmd_params'].data_type)
-            if node.dst_type == np.float32 and ir_data_type == np.float16 and not node.has_and_set('returns_shape_value'):
+            if node.dst_type == np.float32 and ir_data_type == np.float16 and \
+                    not node.has_and_set('returns_shape_value'):
                 log.warning('Change data type from {} to {} for node {}'.format(node.dst_type, ir_data_type, node.name))
                 node.dst_type = ir_data_type
             elif node.has_and_set('returns_shape_value') and node.dst_type == np.float16:

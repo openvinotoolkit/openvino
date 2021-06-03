@@ -25,7 +25,7 @@ class ClipFrontExtractor(FrontExtractorOp):
         else:
             if onnx_node_has_attr(node, 'min') or onnx_node_has_attr(node, 'max'):
                 log.error("ONNX Clip-11 operation '{}' shouldn't have attributes 'min' and 'max', this may mean that "
-                          "this operation created with older opset version.".format(
-                    node.soft_get('name', node.id)), extra={'is_warning': True})
+                          "this operation created with older opset version.".format(node.soft_get('name', node.id)),
+                          extra={'is_warning': True})
             Clamp.update_node_stat(node)
         return cls.enabled

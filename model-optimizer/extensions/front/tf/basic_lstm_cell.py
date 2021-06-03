@@ -94,7 +94,8 @@ class BasicLSTMCell(FrontReplacementSubgraph):
     @staticmethod
     def anchor():
         """ Mnemonic name in the pattern that is used as an anchor name for this pattern in the original graph.
-            Used for the second round of the pattern application when only a part of instances is allowed for conversion.
+            Used for the second round of the pattern application when only a part of instances
+            is allowed for conversion.
         """
         return 'concat'
 

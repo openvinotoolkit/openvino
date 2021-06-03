@@ -87,10 +87,9 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
             if hasattr(c, key) and getattr(c, key) is not None:
                 k = getattr(c, key)
                 if k.lower() in new_keys_lower:
-                    raise Error(
-                        'Attempt to register of custom name {} for the second time as class {}. ' \
-                        'Note that custom names are case-insensitive. ' +
-                        refer_to_faq_msg(55), k, c)
+                    raise Error('Attempt to register of custom name {} for the second time as class {}. ' \
+                                'Note that custom names are case-insensitive. ' +
+                                refer_to_faq_msg(55), k, c)
                 else:
                     new_keys_lower[k.lower()] = k
                     new_keys[k] = c

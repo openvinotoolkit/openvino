@@ -21,6 +21,7 @@ class BatchNormInference(Op):
             'out_ports_count': 1,
             'infer': self.infer
         }, attrs)
+
     @staticmethod
     def infer(node):
         node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())
