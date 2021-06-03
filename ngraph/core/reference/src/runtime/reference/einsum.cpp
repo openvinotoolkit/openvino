@@ -1217,7 +1217,8 @@ namespace ngraph
             {
                 NGRAPH_CHECK(inputs.size() > 0, "Einsum must accept at least one input.");
                 auto input_type = inputs[0]->get_element_type();
-                for (size_t input_ind = 1; input_ind < inputs.size(); ++input_ind) {
+                for (size_t input_ind = 1; input_ind < inputs.size(); ++input_ind)
+                {
                     NGRAPH_CHECK(inputs[input_ind]->get_element_type() == input_type,
                                  "Input types must be the same.");
                 }
