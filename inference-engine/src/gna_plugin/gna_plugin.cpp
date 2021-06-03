@@ -211,15 +211,6 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                   uint32_t num_vector_stride,
                   uint32_t num_bytes_per_element_input,
                   uint32_t num_bytes_per_element) {
-    gnalog() << "export scores" << std::endl;
-    gnalog() << "num_frames: " << num_frames << std::endl;
-    gnalog() << "num_group: " << num_group << std::endl;
-    gnalog() << "num_vector_elements: " << num_vector_elements << std::endl;
-    gnalog() << "num_active_elements: " << num_active_elements << std::endl;
-    gnalog() << "num_vector_stride: " << num_vector_stride << std::endl;
-    gnalog() << "num_bytes_per_element_input: " << num_bytes_per_element_input << std::endl;
-    gnalog() << "num_bytes_per_element: " << num_bytes_per_element << std::endl;
-
     // source scores are possibly padded to multiple of 8 and possibly interleaved
     // rotate if necessary and only copy actual scores (not padding)
     if (orientation == kDnnInterleavedOrientation) {
