@@ -17,9 +17,9 @@
 
 #include <paddlepaddle_frontend/frontend.hpp>
 #include <paddlepaddle_frontend/place.hpp>
+#include "node_context.hpp"
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph
 {
@@ -27,7 +27,7 @@ namespace ngraph
     {
         extern std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP;
 
-        class DecoderPDPDProto
+        class DecoderPDPDProto : public pdpd::DecoderBase
         {
         public:
             explicit DecoderPDPDProto(const std::shared_ptr<OpPlacePDPD>& op)
@@ -35,25 +35,14 @@ namespace ngraph
             {
             }
 
-            // TODO: Further populate get_XXX methods on demand
-            std::vector<int32_t> get_ints(const std::string& name,
-                                          const std::vector<int32_t>& def = {}) const;
-            int get_int(const std::string& name, int def = 0) const;
-            std::vector<float> get_floats(const std::string& name,
-                                          const std::vector<float>& def = {}) const;
-            float get_float(const std::string& name, float def = 0.) const;
-            std::string get_str(const std::string& name, const std::string& def = "") const;
-            bool get_bool(const std::string& name, bool def = false) const;
-            std::vector<int64_t> get_longs(const std::string& name,
-                                           const std::vector<int64_t>& def = {}) const;
-            int64_t get_long(const std::string& name, const int64_t& def = {}) const;
+            std::shared_ptr<Variant> get_attribute(const std::string& name,
+                                                   const VariantTypeInfo& type_info) const override;
 
-            ngraph::element::Type get_dtype(const std::string& name,
-                                            ngraph::element::Type def) const;
+            std::vector<pdpd::OutPortName> get_output_names() const override;
 
-            const std::string& get_op_type() const { return op_place->getDesc()->type(); }
-            std::vector<std::string> get_output_names() const;
-            std::vector<element::Type> get_out_port_types(const std::string& port_name) const;
+            ngraph::element::Type get_out_port_type(const std::string& port_name) const override;
+
+            std::string get_op_type() const override;
 
         private:
             std::vector<paddle::framework::proto::OpDesc_Attr>

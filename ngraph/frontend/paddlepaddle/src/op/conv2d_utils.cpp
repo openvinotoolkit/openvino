@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ngraph/opsets/opset6.hpp>
+
 #include "conv2d_utils.hpp"
 #include "node_context.hpp"
 

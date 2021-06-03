@@ -3,6 +3,8 @@
 //
 
 #include "slice.hpp"
+#include <limits.h>
+#include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph
 {

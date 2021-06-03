@@ -3,6 +3,7 @@
 //
 
 #include "fill_constant_batch_size_like.hpp"
+#include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph
 {

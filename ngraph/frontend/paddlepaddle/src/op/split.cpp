@@ -44,7 +44,7 @@ namespace ngraph
                         if (node.has_ng_input("SectionsTensorList"))
                         {
                             auto inputs = node.get_ng_inputs("SectionsTensorList");
-                            sections_node = std::make_shared<ngraph::opset6::Concat>(inputs, 0);
+                            sections_node = std::make_shared<ngraph::opset7::Concat>(inputs, 0);
                         }
                         else
                         {
