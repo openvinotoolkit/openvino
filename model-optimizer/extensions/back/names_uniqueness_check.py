@@ -63,4 +63,5 @@ class NamesUniquenessCheck(BackReplacementPattern):
         names_to_nodes = nodes_with_equal_names(graph)
         node_names = set(names_to_nodes.keys())
         for nodes in names_to_nodes.values():
-            make_node_names_unique(nodes, node_names)
+            if len(nodes) > 1:
+                make_node_names_unique(nodes, node_names)
