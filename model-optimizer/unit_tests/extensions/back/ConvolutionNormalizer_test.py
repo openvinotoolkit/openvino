@@ -102,7 +102,7 @@ class TestPullReshapeThroughFQ(unittest.TestCase):
 class TestV7ConvolutionWithGroupsResolver(unittest.TestCase):
     def test_v7_group_convolution_resolver(self):
         nodes = {
-            **regular_op_with_shaped_data('input', None, {'type': 'Parameter'}),
+            **regular_op_with_shaped_data('input', [1, 3, 224, 224], {'type': 'Parameter'}),
 
             **valued_const_with_data('weights', np.ones([3, 8, 7, 7])),
 
@@ -133,7 +133,7 @@ class TestV7ConvolutionWithGroupsResolver(unittest.TestCase):
 
     def test_v7_group_convolution_resolver_weight_are_in_the_right_layout(self):
         nodes = {
-            **regular_op_with_shaped_data('input', None, {'type': 'Parameter'}),
+            **regular_op_with_shaped_data('input', [1, 3, 224, 224], {'type': 'Parameter'}),
             **valued_const_with_data('weights', np.ones([24, 1, 7, 7])),
             **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'group': 3, 'output': 24}),
             **result(),
@@ -151,7 +151,7 @@ class TestV7ConvolutionWithGroupsResolver(unittest.TestCase):
 
     def test_v7_group_convolution_resolver_depthwise_conv2d(self):
         nodes = {
-            **regular_op_with_shaped_data('input', None, {'type': 'Parameter'}),
+            **regular_op_with_shaped_data('input', [1, 1, 224, 224], {'type': 'Parameter'}),
 
             **valued_const_with_data('weights', np.ones([1, 8, 7, 7])),
 

@@ -12,29 +12,34 @@ from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.ops.strided_slice import StridedSlice
+from mo.utils.error import Error
 
 
 def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
+    input_shape = node.in_port(0).data.get_shape()
+    assert len(input_shape) in [3, 4, 5]
 
     weights_shape = node.in_port(1).data.get_shape()
     assert weights_shape is not None
+    assert len(weights_shape) in [3, 4, 5]
     assert weights_shape[0] % group == 0
 
-    new_shape = None
-
+    assert int64_array(node.output).ndim == 0
     if ir_version == 'V7':
         if weights_shape[0] == node.output:
             # weights are already is in [G*O I X Y] format
             return
         new_shape = int64_array([node.output, -1, *weights_shape[2:]])
 
-    if ir_version == 'V10':
-        I = node.in_port(0).data.get_shape()[1]
+    elif ir_version == 'V10':
+        I = input_shape[1]
         new_shape = int64_array([group, node.output / group, I / group, *weights_shape[2:]])
         assert np.prod(weights_shape) == np.prod(new_shape), \
             'Initial weights shape {}, grouped weights shape {}'.format(weights_shape, new_shape)
         del node['group']
         node['type'] = 'GroupConvolution'
+    else:
+        raise Error("Unknown IR version: {}".format(ir_version))
 
     reshape = create_op_node_with_second_input(node.graph, Reshape, int64_array(new_shape),
                                                {'override_output_shape': True})
