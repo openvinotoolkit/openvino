@@ -339,10 +339,10 @@ endif()
 # ======================================================================================================
 
 # Check for python 3 interpreter (required tool).
-find_package(Python3 COMPONENTS Interpreter)
-if(NOT Python3_Interpreter_FOUND)
+find_package(PythonInterp QUIET)
+if(NOT PYTHONINTERP_FOUND OR NOT PYTHON_VERSION_MAJOR EQUAL 3)
   message(WARNING "[clDNN] Project requires Python 3.x interpreter to build (with python loader). CMake could not detect it correctly.
-      If you have installed this interpreter, please disregard this warning or specify Python3_EXECUTABLE in CMake command-line."
+      If you have installed this interpreter, please disregard this warning or specify PYTHON_EXECUTABLE in CMake command-line."
     )
 endif()
 

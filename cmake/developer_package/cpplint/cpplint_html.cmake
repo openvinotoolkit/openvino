@@ -10,7 +10,7 @@ file(MAKE_DIRECTORY "${REPORT_DIR}")
 
 execute_process(
     COMMAND
-        "${Python3_EXECUTABLE}"
+        "${PYTHON_EXECUTABLE}"
         "${CONVERT_SCRIPT}"
         "--file=${INPUT_FILE}"
         "--report-dir=${REPORT_DIR}"

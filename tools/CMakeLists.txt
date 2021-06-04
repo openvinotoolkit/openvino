@@ -7,23 +7,18 @@ if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
 endif()
 
-if(DEFINED PYTHON_EXECUTABLE AND NOT DEFINED Python3_EXECUTABLE)
-    set(Python3_EXECUTABLE ${PYTHON_EXECUTABLE})
+find_package(PythonInterp REQUIRED)
+if(NOT PYTHON_VERSION_MAJOR EQUAL 3)
+    message(FATAL_ERROR "Python3 is required. Found version ${PYTHON_VERSION_STRING}")
 endif()
 
-find_package(Python3 COMPONENTS Interpreter)
-if(Python3_Interpreter_FOUND)
-    set(Python3_VERSION python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
-else()
-    message(FATAL_ERROR "Python Interpreter was not found!")
-endif()
-
+set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 set(TARGET_NAME "python_tools")
 
 if(WIN32)
-    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${Python3_VERSION}/openvino)
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
 else()
-    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${Python3_VERSION}/openvino)
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
 endif()
 
 if(ENABLE_PYTHON)
@@ -33,7 +28,7 @@ if(ENABLE_PYTHON)
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINO_MAIN_SOURCE_DIR}/tools/benchmark ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools/benchmark
     )
 
-    ie_cpack_add_component(python_tools_${Python3_VERSION})
+    ie_cpack_add_component(python_tools_${PYTHON_VERSION})
     ie_cpack_add_component(python_tools)
 
     install(DIRECTORY ../inference-engine/tools/benchmark_tool
@@ -45,13 +40,13 @@ if(ENABLE_PYTHON)
             COMPONENT python_tools)
 
     install(FILES README.md
-            DESTINATION python/${Python3_VERSION}/openvino/tools
-            COMPONENT python_tools_${Python3_VERSION})
+            DESTINATION python/${PYTHON_VERSION}/openvino/tools
+            COMPONENT python_tools_${PYTHON_VERSION})
 
     install(DIRECTORY benchmark
-            DESTINATION python/${Python3_VERSION}/openvino/tools
+            DESTINATION python/${PYTHON_VERSION}/openvino/tools
             USE_SOURCE_PERMISSIONS
-            COMPONENT python_tools_${Python3_VERSION})
+            COMPONENT python_tools_${PYTHON_VERSION})
     
-    ie_cpack(python_tools python_tools_${Python3_VERSION})
+    ie_cpack(python_tools python_tools_${PYTHON_VERSION})
 endif()

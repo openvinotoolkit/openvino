@@ -4,7 +4,7 @@
 
 execute_process(
     COMMAND
-        "${Python3_EXECUTABLE}"
+        "${PYTHON_EXECUTABLE}"
         "${CONVERT_SCRIPT}"
     INPUT_FILE "${INPUT_FILE}"
     OUTPUT_FILE "${OUTPUT_FILE}"

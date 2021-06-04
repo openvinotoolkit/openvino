@@ -30,9 +30,9 @@
 # Use the Cython executable that lives next to the Python executable
 # if it is a local installation.
 
-find_package(Python3 COMPONENTS Interpreter)
-if( Python3_Interpreter_FOUND )
-  get_filename_component( _python_path ${Python3_EXECUTABLE} PATH )
+find_package(PythonInterp QUIET)
+if( PYTHONINTERP_FOUND )
+  get_filename_component( _python_path ${PYTHON_EXECUTABLE} PATH )
   find_host_program( CYTHON_EXECUTABLE
     NAMES cython cython.bat cython3
     HINTS ${_python_path} $ENV{HOME}/.local/bin

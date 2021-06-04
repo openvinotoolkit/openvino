@@ -30,14 +30,14 @@ if(NOT pybind11_POPULATED)
 endif()
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
-set(Python3_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-message("Python version=${Python3_VERSION}")
+set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+message("Python version=${PYTHON_VERSION}")
 
 if(OpenVINO_MAIN_SOURCE_DIR)
     if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${Python3_VERSION}/)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/)
     else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${Python3_VERSION}/)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/)
     endif()
     
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
@@ -93,16 +93,16 @@ if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
 
     add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
-    ie_cpack_add_component(pyngraph_${Python3_VERSION})
+    ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
 
     install(TARGETS _${PROJECT_NAME}
-            DESTINATION python/${Python3_VERSION}
-            COMPONENT pyngraph_${Python3_VERSION})
+            DESTINATION python/${PYTHON_VERSION}
+            COMPONENT pyngraph_${PYTHON_VERSION})
 
     install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/src/ngraph
-            DESTINATION python/${Python3_VERSION}
-            COMPONENT pyngraph_${Python3_VERSION}
+            DESTINATION python/${PYTHON_VERSION}
+            COMPONENT pyngraph_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
 
-    ie_cpack(pyngraph_${Python3_VERSION})
+    ie_cpack(pyngraph_${PYTHON_VERSION})
 endif()

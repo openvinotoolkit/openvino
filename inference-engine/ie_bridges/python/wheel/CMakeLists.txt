@@ -21,7 +21,7 @@ set(SETUP_ENV   "${CMAKE_CURRENT_SOURCE_DIR}/.env.in")
 set(CORE_LIBS_DIR ${IE_CPACK_RUNTIME_PATH})
 set(PLUGINS_LIBS_DIR ${IE_CPACK_RUNTIME_PATH})
 set(NGRAPH_LIBS_DIR deployment_tools/ngraph/lib)
-set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${Python3_VERSION})
+set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION})
 set(TBB_LIBS_DIR deployment_tools/inference_engine/external/tbb/lib)
 
 
@@ -54,7 +54,7 @@ endif()
 add_custom_command(TARGET ie_wheel
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
-    COMMAND ${Python3_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
+    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
         --dist-dir ${CMAKE_BINARY_DIR}/wheels
         --build=${WHEEL_BUILD}
         --plat-name=${WHEEL_PLATFORM}

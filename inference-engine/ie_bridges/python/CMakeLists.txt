@@ -35,23 +35,27 @@ endif()
 
 include (cmake/UseCython.cmake)
 
-if(Python3_Interpreter_FOUND)
-    set(Python3_VERSION python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
+if(PYTHONINTERP_FOUND)
+    if(PYTHON_VERSION_MAJOR EQUAL 3)
+        set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+    else()
+        message(FATAL_ERROR "Python Interpretator version ${PYTHON_VERSION_STRING} is obsolete!")
+    endif()
 else()
     message(FATAL_ERROR "Python Interpretator was not found!")
 endif()
 
 if(ENABLE_CONDA_FOLDER)
     if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/Conda/${Python3_VERSION}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/Conda/${PYTHON_VERSION}/openvino)
     else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/Conda/${Python3_VERSION}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/Conda/${PYTHON_VERSION}/openvino)
     endif()
 else()
     if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${Python3_VERSION}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
     else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${Python3_VERSION}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
     endif()
 endif()
 
@@ -76,19 +80,19 @@ endif()
 
 # install
 
-ie_cpack_add_component(${Python3_VERSION})
+ie_cpack_add_component(${PYTHON_VERSION})
 
 install(FILES requirements.txt
-        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${Python3_VERSION}
-        COMPONENT ${Python3_VERSION})
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
+        COMPONENT ${PYTHON_VERSION})
 
 install(FILES requirements.txt
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}
-        COMPONENT ${Python3_VERSION})
+        COMPONENT ${PYTHON_VERSION})
 
 install(PROGRAMS src/openvino/__init__.py
-        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${Python3_VERSION}/openvino
-        COMPONENT ${Python3_VERSION})
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
+        COMPONENT ${PYTHON_VERSION})
 
 # install Python samples
 
@@ -98,4 +102,4 @@ install(DIRECTORY sample/
         DESTINATION ${IE_CPACK_IE_DIR}/samples/python
         COMPONENT python_samples)
 
-ie_cpack(${Python3_VERSION} python_samples)
+ie_cpack(${PYTHON_VERSION} python_samples)

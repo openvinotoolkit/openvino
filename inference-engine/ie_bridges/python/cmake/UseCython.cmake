@@ -88,7 +88,7 @@ find_package( Cython REQUIRED
               PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
               NO_CMAKE_FIND_ROOT_PATH
               NO_DEFAULT_PATH )
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(PythonLibs REQUIRED)
 
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
@@ -235,7 +235,7 @@ function( compile_pyx _name generated_file )
       set( cython_debug_arg "--gdb" )
   endif()
 
-  if( Python3_VERSION_MAJOR EQUAL 3 )
+  if( PYTHON_VERSION_MAJOR EQUAL 3 )
     set( version_arg "-3" )
   else()
     set( version_arg )
@@ -286,12 +286,9 @@ function( cython_add_module _name )
     endif()
   endforeach()
   compile_pyx( ${_name} generated_file ${pyx_module_sources} )
-  if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.17)
-    Python3_add_library ( ${_name} MODULE WITH_SOABI ${generated_file} ${other_module_sources} )
-  else()
-    Python3_add_library ( ${_name} MODULE ${generated_file} ${other_module_sources} )
-    # TODO: add custom suffix
-  endif()
+  # TODO: add custom suffix
+  python_add_module ( ${_name} ${generated_file} ${other_module_sources} )
+  target_include_directories( ${_name} PRIVATE ${PYTHON_INCLUDE_DIRS})
   if( APPLE )
     set_target_properties( ${_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
   endif()
