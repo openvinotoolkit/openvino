@@ -17,6 +17,9 @@
 #include <xmmintrin.h>
 #include <vector>
 #include <utility>
+#include <tbb/parallel_for.h>
+#include <tbb/blocked_range.h>
+#include <mutex>
 
 #ifdef FIX_OPENMP_RELEASE_ISSUE
 #ifdef OPENMP_FOUND
@@ -174,6 +177,17 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
         }
     }
 
+    std::function<bool(const std::pair<float, std::pair<int, int>>&,
+                        const std::pair<float, std::pair<int, int>>&)> compScorePairMxNet =
+                        [](const std::pair<float, std::pair<int, int>>& pair1,
+                        const std::pair<float, std::pair<int, int>>& pair2) {
+                            if (pair1.first == pair2.first) {
+                                return pair1.second.second < pair2.second.second;
+                            } else {
+                                return pair1.first > pair2.first;
+                            }
+                        };
+
     void mxNetNms(const std::vector<std::vector<bounding_box>>& bboxes,
                   const float nms_threshold,
                   const int top_k,
@@ -182,7 +196,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                   std::vector<std::pair<float, std::pair<int, int>>>& scoreIndexPairs) {
         std::sort(scoreIndexPairs.begin(),
                     scoreIndexPairs.end(),
-                    SortScorePairDescend<std::pair<int, int>>);
+                    compScorePairMxNet);
 
         if (top_k != -1)
             if (scoreIndexPairs.size() > static_cast<size_t>(top_k))
@@ -208,12 +222,21 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
         }
     }
 
-    static void caffeNMS(const std::vector<bounding_box>& bboxes,
+    std::function<bool(const std::pair<float, int>&, const std::pair<float, int>&)> compScorePairCaffe =
+                        [](const std::pair<float, int>& pair1, const std::pair<float, int>& pair2) {
+                        if (pair1.first == pair2.first) {
+                            return pair1.second < pair2.second;
+                        } else {
+                            return pair1.first > pair2.first;
+                        }
+    };
+
+    void caffeNMS(const std::vector<bounding_box>& bboxes,
                          std::vector<std::pair<float, int>>& scores,
                          const float nms_threshold,
                          const int top_k,
                          std::vector<int>& indices) {
-        std::stable_sort(scores.begin(), scores.end(), SortScorePairDescend<int>);
+        std::stable_sort(scores.begin(), scores.end(), compScorePairCaffe);
 
         if (top_k > -1 && static_cast<size_t>(top_k) < static_cast<size_t>(scores.size())) {
             scores.resize(top_k);
@@ -234,12 +257,6 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                 indices.push_back(idx);
             }
         }
-    }
-
-    template <typename T>
-    static bool SortScorePairDescend(const std::pair<float, T>& pair1,
-                                     const std::pair<float, T>& pair2) {
-        return pair1.first > pair2.first;
     }
 
     template <typename dtype>
@@ -305,7 +322,9 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
 
                 std::sort(score_index_pairs.begin(),
                             score_index_pairs.end(),
-                            SortScorePairDescend<std::pair<int, int>>);
+                            [](std::pair<float, std::pair<int, int>> pair1, std::pair<float, std::pair<int, int>> pair2) -> bool {
+                                return pair1.first > pair2.first;
+                            });
                 score_index_pairs.resize(args.keep_top_k);
 
                 std::vector<std::vector<std::pair<float, int>>> new_indices(args.num_classes);
@@ -523,6 +542,9 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
         const int input_padding_lower_y = input_padding.lower_size().spatial[1];
         const int stride = input_buffer_size_y * input_buffer_size_x;
 
+        const auto& arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
+        arena->initialize(4);
+
         for (int image = 0; image < num_of_images; ++image) {
             std::vector<std::vector<std::pair<float, int>>>& label_to_scores = confidences[image];
             std::vector<std::pair<float, std::pair<int, int>>> score_index_per_prior;
@@ -537,64 +559,90 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
             if (stride == 1 && std::is_same<dtype, float>::value) {
                 float const* confidence_ptr_float = (float const*)(&(*confidence_data));
                 confidence_ptr_float += idx;
-                __m128 threshold = _mm_load_ps1(&confidence_threshold);
-                for (int prior = 0; prior < num_of_priors; ++prior) {
-                    int cls = 0;
-                    float max_score = 0;
-                    int max_cls = 0;
-                    for (; cls + 3 < num_classes; cls += 4) {
-                        __m128 scores = _mm_loadu_ps(confidence_ptr_float);
-                        confidence_ptr_float += 4;
-                        __m128i mask128 = _mm_castps_si128(_mm_cmpgt_ps(scores, threshold));
-                        if (_mm_testz_si128(mask128, mask128)) {
-                            continue;
-                        }
-                        int mask = _mm_movemask_ps(_mm_castsi128_ps(mask128));
-                        if (mask & 1) {
-                            label_to_scores[cls + 0].emplace_back(_mm_cvtss_f32(scores), prior);
-                            if (_mm_cvtss_f32(scores) > max_score && cls + 0 != 0) {
-                                max_score = _mm_cvtss_f32(scores); max_cls = cls + 0;
+                // __m128 threshold = _mm_load_ps1(&confidence_threshold);
+                std::mutex mutex_label_to_scores, mutex_score_index_per_prior;
+               arena->execute([this, &num_of_priors, &image, &confidence_threshold, &num_classes,
+                 &confidences, &confidence_ptr_float, &score_index_per_prior, &label_to_scores, &mutex_score_index_per_prior, &mutex_label_to_scores] {
+                    tbb::parallel_for(tbb::blocked_range<size_t>(0, num_of_priors),
+                     [this, &image, &confidence_threshold, &num_classes, &confidences,
+                     &confidence_ptr_float, &score_index_per_prior, &label_to_scores, &mutex_score_index_per_prior, &mutex_label_to_scores]
+                     (const tbb::blocked_range<size_t>& r) {
+                         int prior = static_cast<int>(r.begin());
+                         float const* tmp = confidence_ptr_float;
+                         tmp += num_classes * prior;
+
+                        __m128 threshold = _mm_load_ps1(&confidence_threshold);
+                            int cls = 0;
+                            float max_score = 0;
+                            int max_cls = 0;
+                            for (; cls + 3 < num_classes; cls += 4) {
+                                __m128 scores = _mm_loadu_ps(tmp);
+                                tmp += 4;
+                                __m128i mask128 = _mm_castps_si128(_mm_cmpgt_ps(scores, threshold));
+                                if (_mm_testz_si128(mask128, mask128)) {
+                                    continue;
+                                }
+                                int mask = _mm_movemask_ps(_mm_castsi128_ps(mask128));
+                                if (mask & 1) {
+                                    mutex_label_to_scores.lock();
+                                    label_to_scores[cls + 0].emplace_back(_mm_cvtss_f32(scores), prior);
+                                    mutex_label_to_scores.unlock();
+                                    if (_mm_cvtss_f32(scores) > max_score && cls + 0 != 0) {
+                                        max_score = _mm_cvtss_f32(scores); max_cls = cls + 0;
+                                    }
+                                }
+                                if (mask & 2) {
+                                    int score = _mm_extract_ps(scores, 1);
+                                    float s = reinterpret_cast<float&>(score);
+                                    mutex_label_to_scores.lock();
+                                    label_to_scores[cls + 1].emplace_back(s, prior);
+                                    mutex_label_to_scores.unlock();
+                                    if (s > max_score) {
+                                        max_score = s; max_cls = cls + 1;
+                                    }
+                                }
+                                if (mask & 4) {
+                                    int score = _mm_extract_ps(scores, 2);
+                                    float s = reinterpret_cast<float&>(score);
+                                    mutex_label_to_scores.lock();
+                                    label_to_scores[cls + 2].emplace_back(s, prior);
+                                    mutex_label_to_scores.unlock();
+                                    if (s > max_score) {
+                                        max_score = s; max_cls = cls + 2;
+                                    }
+                                }
+                                if (mask & 8) {
+                                    int score = _mm_extract_ps(scores, 3);
+                                    float s = reinterpret_cast<float&>(score);
+                                    mutex_label_to_scores.lock();
+                                    label_to_scores[cls + 3].emplace_back(s, prior);
+                                    mutex_label_to_scores.unlock();
+                                    if (s > max_score) {
+                                        max_score = s; max_cls = cls + 3;
+                                    }
+                                }
                             }
-                        }
-                        if (mask & 2) {
-                            int score = _mm_extract_ps(scores, 1);
-                            float s = reinterpret_cast<float&>(score);
-                            label_to_scores[cls + 1].emplace_back(s, prior);
-                            if (s > max_score) {
-                                max_score = s; max_cls = cls + 1;
+                            for (; cls < num_classes; ++cls) {
+                                float score = *tmp;
+                                if (score > confidence_threshold) {
+                                    mutex_label_to_scores.lock();
+                                    label_to_scores[cls].emplace_back(score, prior);
+                                    mutex_label_to_scores.unlock();
+                                    if (score > max_score) {
+                                        max_score = score;  max_cls = cls;
+                                    }
+                                }
+                                ++tmp;
                             }
-                        }
-                        if (mask & 4) {
-                            int score = _mm_extract_ps(scores, 2);
-                            float s = reinterpret_cast<float&>(score);
-                            label_to_scores[cls + 2].emplace_back(s, prior);
-                            if (s > max_score) {
-                                max_score = s; max_cls = cls + 2;
-                            }
-                        }
-                        if (mask & 8) {
-                            int score = _mm_extract_ps(scores, 3);
-                            float s = reinterpret_cast<float&>(score);
-                            label_to_scores[cls + 3].emplace_back(s, prior);
-                            if (s > max_score) {
-                                max_score = s; max_cls = cls + 3;
-                            }
-                        }
-                    }
-                    for (; cls < num_classes; ++cls) {
-                        float score = *confidence_ptr_float;
-                        if (score > confidence_threshold) {
-                            label_to_scores[cls].emplace_back(score, prior);
-                            if (score > max_score) {
-                                max_score = score;  max_cls = cls;
-                            }
-                        }
-                        ++confidence_ptr_float;
-                    }
-                    score_index_per_prior.emplace_back(std::make_pair(max_score, std::make_pair(max_cls, prior)));
-                }
+                            mutex_score_index_per_prior.lock();
+                            score_index_per_prior.emplace_back(std::make_pair(max_score, std::make_pair(max_cls, prior)));
+                            mutex_score_index_per_prior.unlock();
+                    });
+                });
+
                 scoreIndexPairs.push_back(score_index_per_prior);
             } else {
+                label_to_scores.resize(num_classes);
                 for (int prior = 0; prior < num_of_priors; ++prior) {
                     for (int cls = 0; cls < num_classes; ++cls) {
                         float score = static_cast<float>(confidence_data[idx]);
