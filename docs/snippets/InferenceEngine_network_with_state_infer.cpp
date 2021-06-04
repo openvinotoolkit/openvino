@@ -3,7 +3,7 @@
 //
 
 #include <iostream>
-#include <inference_engine.hpp>
+#include <ie_core.hpp>
 
 using namespace InferenceEngine;
 

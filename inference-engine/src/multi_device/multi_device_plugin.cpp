@@ -12,10 +12,10 @@
 
 
 #include <ie_metric_helpers.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "multi_device_plugin.hpp"
 #include <ie_algorithm.hpp>
+#include <ie_icore.hpp>
 
 // ------------------------------MultiDeviceInferencePlugin----------------------------
 namespace MultiDevicePlugin {
@@ -148,12 +148,12 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const st
     return LoadExeNetworkImpl(modelPath, {}, config);
 }
 
-ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
-                                                                              const std::map<std::string, std::string>& config) {
+IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
+                                                                               const std::map<std::string, std::string>& config) {
     return LoadExeNetworkImpl({}, network, config);
 }
 
-ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const std::string& modelPath,
+IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const std::string& modelPath,
                                                                               CNNNetwork network,
                                                                               const std::map<std::string, std::string>& config) {
     if (GetCore() == nullptr) {
