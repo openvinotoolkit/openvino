@@ -37,7 +37,7 @@ AutoExecutableNetwork::AutoExecutableNetwork(NetworkTaskSharedPtr cpuTask,
 AutoExecutableNetwork::~AutoExecutableNetwork() {
     try {
         if (_sharedFutureActualNetwork.valid()) {
-           _sharedFutureActualNetwork.get();
+            _sharedFutureActualNetwork.get();
         }
     } catch (...) {
     }
