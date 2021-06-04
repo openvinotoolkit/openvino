@@ -22,7 +22,7 @@ from decouple import config
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join('openvino', 'libs')
 WHEEL_LIBS_PACKAGE = 'openvino.libs'
-PYTHON_VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
+Python3_VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
 
 # The following variables can be defined in environment or .env file
 CMAKE_BUILD_DIR = config('CMAKE_BUILD_DIR', '.')
@@ -92,12 +92,12 @@ LIB_INSTALL_CFG = {
 
 PY_INSTALL_CFG = {
     'ie_py': {
-        'name': PYTHON_VERSION,
+        'name': Python3_VERSION,
         'prefix': 'site-packages',
         'install_dir': PY_PACKAGES_DIR,
     },
     'ngraph_py': {
-        'name': f'pyngraph_{PYTHON_VERSION}',
+        'name': f'pyngraph_{Python3_VERSION}',
         'prefix': 'site-packages',
         'install_dir': PY_PACKAGES_DIR,
     },

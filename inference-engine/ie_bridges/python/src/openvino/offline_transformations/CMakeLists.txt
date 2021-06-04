@@ -55,12 +55,12 @@ add_custom_command(TARGET ${TARGET_NAME}
 
 # install
 
-ie_cpack_add_component(${PYTHON_VERSION}_dev DEPENDS ${PYTHON_VERSION})
+ie_cpack_add_component(${Python3_VERSION}_dev DEPENDS ${Python3_VERSION})
 
 install(TARGETS ${INSTALLED_TARGETS}
-        RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}_dev
-        LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}_dev)
+        RUNTIME DESTINATION python/${Python3_VERSION}/openvino/offline_transformations COMPONENT ${Python3_VERSION}_dev
+        LIBRARY DESTINATION python/${Python3_VERSION}/openvino/offline_transformations COMPONENT ${Python3_VERSION}_dev)
 
 install(PROGRAMS __init__.py
-        DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations
-        COMPONENT ${PYTHON_VERSION}_dev)
+        DESTINATION python/${Python3_VERSION}/openvino/offline_transformations
+        COMPONENT ${Python3_VERSION}_dev)

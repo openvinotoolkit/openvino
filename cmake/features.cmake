@@ -36,6 +36,7 @@ ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" OFF "Python3
 #
 # enable or disable output from NGRAPH_DEBUG statements
 #
+
 if(NGRAPH_DEBUG_ENABLE)
     add_definitions(-DNGRAPH_DEBUG_ENABLE)
 endif()
