@@ -61,6 +61,7 @@ set(SRC
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
+    op_eval/einsum.cpp
     op_eval/floor_mod.cpp
     op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
@@ -221,6 +222,7 @@ set(SRC
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/detection_output.cpp
+    visitors/op/einsum.cpp
     visitors/op/elu.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
