@@ -124,11 +124,20 @@ void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
     status = Status::Allocated;
 }
 
+
+const InferenceEngine::TensorDesc& MKLDNNEdge::getInputDesc() const {
+    return inputDesc;
+}
+
 InferenceEngine::TensorDesc MKLDNNEdge::getInputDesc() {
     if (inputDesc.getLayout() == InferenceEngine::Layout::ANY) {
         inputDesc = getSpecifiedInputDesc({});
     }
     return inputDesc;
+}
+
+const InferenceEngine::TensorDesc& MKLDNNEdge::getOutputDesc() const {
+    return outputDesc;
 }
 
 InferenceEngine::TensorDesc MKLDNNEdge::getOutputDesc() {

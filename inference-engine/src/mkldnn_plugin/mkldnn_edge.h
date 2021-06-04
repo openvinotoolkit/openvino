@@ -73,10 +73,12 @@ public:
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
+    const InferenceEngine::TensorDesc& getInputDesc() const;
+    const InferenceEngine::TensorDesc& getOutputDesc() const;
+
 private:
     std::string name();
 
-private:
     std::weak_ptr<MKLDNNNode> parent;
     std::weak_ptr<MKLDNNNode> child;
     int parent_port;

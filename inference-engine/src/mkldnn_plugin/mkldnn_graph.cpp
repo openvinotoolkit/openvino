@@ -81,7 +81,7 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 
     status = Ready;
 
-    ENABLE_CPU_DEBUG_CAP(serialize());
+    ENABLE_CPU_DEBUG_CAP(serialize(*this));
 }
 
 template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
@@ -953,6 +953,10 @@ void MKLDNNGraph::setConfig(const Config &cfg) {
     config = cfg;
 }
 
+const Config& MKLDNNGraph::getConfig() const {
+    return config;
+}
+
 void MKLDNNGraph::setProperty(const std::map<std::string, std::string>& properties) {
     config.readProperties(properties);
 }
@@ -1216,42 +1220,3 @@ void MKLDNNGraph::EnforceBF16() {
 InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
-
-#ifdef CPU_DEBUG_CAPS
-void MKLDNNGraph::serialize() const {
-    const std::string& path = config.debugCaps.graphDumpPath;
-
-    if (path.empty())
-        return;
-
-    if (path == "cout")
-        serializeToCout();
-    else
-        serializeToXML(path);
-}
-
-void MKLDNNGraph::serializeToXML(const std::string& path) const {
-    if (path.empty())
-        return;
-
-    dump().serialize(path);
-}
-
-void MKLDNNGraph::serializeToCout() const {
-    for (auto &graphNode : graphNodes) {
-        std::cout << "name: " << graphNode->getName() << " [ ";
-        if (graphNode->parentEdges.size() > 0) {
-            auto prnt_out_desc = graphNode->parentEdges[0].lock()->getOutputDesc();
-            std::cout << "in: " << prnt_out_desc.getPrecision().name()
-                      << "/l=" << prnt_out_desc.getLayout()
-                      << "; ";
-        }
-        if (graphNode->childEdges.size() > 0) {
-            auto chld_in_desc = graphNode->childEdges[0].lock()->getInputDesc();
-            std::cout << "out: " << chld_in_desc.getPrecision().name()
-                      << "/l=" << chld_in_desc.getLayout();
-        }
-        std::cout << " ]"  << std::endl;
-    }
-}
-#endif
