@@ -15,9 +15,15 @@ def nodes_with_equal_names(graph: Graph):
 
 
 def make_node_names_unique(nodes: list, node_names: set):
-    # Do not rename Result nodes until it is absolutely necessary (when there are two Result nodes with the same name)
-    # find position of Result nodes in the "nodes" list. Take the first element in this list and rename all other nodes.
-    # If the list is empty, then rename all nodes starting from the second one
+    """
+    :param nodes: List with nodes matching a specific name
+    :param node_names: Set with all node names contained in the graph
+
+    Result nodes will be renamed only when it is absolutely necessary(if there are several Result nodes with the same name).
+    Function finds a position of Result nodes in the "nodes" list, take the first and rename all other nodes.
+    If the "nodes" list does not contain Result nodes, then all nodes starting from the second one will be renamed.
+    All new names are added to the "node_names" set.
+    """
     results_pos = [idx for idx, node in enumerate(nodes) if node.op == 'Result']
     node_position_to_keep = 0
     if len(results_pos) != 0:
