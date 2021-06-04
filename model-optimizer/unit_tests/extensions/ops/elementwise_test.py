@@ -5,13 +5,11 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Round, Elementwise, Pow
+from extensions.ops.elementwise import Round, Elementwise
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.middle.passes.infer import type_infer
 from mo.ops.const import Const
-from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import valued_const_with_data, result, regular_op_with_empty_data, connect, \
     shaped_parameter, build_graph
 
@@ -153,100 +151,3 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
         type_infer(graph)
         add_node = Node(graph, 'add')
         self.assertEquals(add_node.out_port(0).get_data_type(), np.float32)
-
-
-class TestPowTypeAlignment(unittest.TestCase):
-
-    @staticmethod
-    def build_graph(edges, ref_edges, base_type=np.float32, exponent_type=np.float32):
-        input_shape = int64_array([1, 3, 255, 255])
-
-        nodes = {
-            **shaped_parameter('input_base', input_shape, {'data_type': base_type}),
-            **shaped_parameter('input_exponent', input_shape, {'data_type': exponent_type}),
-            **regular_op_with_empty_data('pow', {'op': 'Pow', 'type': 'Pow', 'type_infer': Pow.type_infer}),
-            **regular_op_with_empty_data('cast_input', {'op': 'Cast', 'type': 'Cast',
-                                                        'type_infer': Cast.type_infer}),
-            **regular_op_with_empty_data('cast_output', {'op': 'Cast', 'type': 'Cast',
-                                                         'type_infer': Cast.type_infer}),
-            **result('result'),
-        }
-
-        graph = build_graph(nodes, edges, nodes_with_edges_only=True)
-        graph_ref = build_graph(nodes, ref_edges, nodes_with_edges_only=True)
-        graph.stage = 'back'
-        return graph, graph_ref
-
-    def test_base_int32_exponent_float32(self):
-        edges = [
-            *connect('input_base', '0:pow'),
-            *connect('input_exponent', '1:pow'),
-            *connect('pow', 'result')
-        ]
-
-        edges_ref = [
-            *connect('input_base', '0:pow'),
-            *connect('input_exponent', 'cast_input'),
-            *connect('cast_input', '1:pow'),
-            *connect('pow', 'result')
-        ]
-
-        graph, graph_ref = self.build_graph(edges, edges_ref, base_type=np.int32, exponent_type=np.float32)
-        type_infer(graph)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=False)
-        self.assertTrue(flag, 'Graphs after do not match to reference: {}'.format(resp))
-
-    def test_base_float32_exponent_int64(self):
-        edges = [
-            *connect('input_base', '0:pow'),
-            *connect('input_exponent', '1:pow'),
-            *connect('pow', 'result')
-        ]
-
-        edges_ref = [
-            *connect('input_base', 'cast_input'),
-            *connect('cast_input', '0:pow'),
-            *connect('input_exponent', '1:pow'),
-            *connect('pow', 'cast_output'),
-            *connect('cast_output', 'result')
-        ]
-
-        graph, graph_ref = self.build_graph(edges, edges_ref, base_type=np.float32, exponent_type=np.int64)
-        type_infer(graph)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=False)
-        self.assertTrue(flag, 'Graphs after do not match to reference: {}'.format(resp))
-
-    def test_base_in64_exponent_float32(self):
-        edges = [
-            *connect('input_base', '0:pow'),
-            *connect('input_exponent', '1:pow'),
-            *connect('pow', 'result')
-        ]
-
-        edges_ref = [
-            *connect('input_base', '0:pow'),
-            *connect('input_exponent', 'cast_input'),
-            *connect('cast_input', '1:pow'),
-            *connect('pow', 'result')
-        ]
-
-        graph, graph_ref = self.build_graph(edges, edges_ref, base_type=np.int64, exponent_type=np.float32)
-        type_infer(graph)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=False)
-        self.assertTrue(flag, 'Graphs after do not match to reference: {}'.format(resp))
-
-    def test_base_float32_exponent_float32(self):
-        edges = [
-            *connect('input_base', '0:pow'),
-            *connect('input_exponent', '1:pow'),
-            *connect('pow', 'result')
-        ]
-
-        graph, graph_ref = self.build_graph(edges, edges, base_type=np.float32, exponent_type=np.float32)
-        type_infer(graph)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=False)
-        self.assertTrue(flag, 'Graphs after do not match to reference: {}'.format(resp))
