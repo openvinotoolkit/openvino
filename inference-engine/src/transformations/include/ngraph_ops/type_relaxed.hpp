@@ -13,6 +13,7 @@
 
 #include <ngraph/op/convert.hpp>
 #include "ngraph/op/op.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph {
 namespace op {
@@ -167,9 +168,12 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 private:
     void init() {
         validate_and_infer_types();
+        BaseOp::get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("type_relaxed_opset");
     }
 };
 
@@ -285,18 +289,23 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
 }
 
 template <typename BaseOp>
+bool TypeRelaxed<BaseOp>::visit_attributes(AttributeVisitor& visitor) {
+    bool type_relax = true;
+    visitor.on_attribute("type_relax", type_relax);
+    visitor.on_attribute("input_data_types", m_input_data_types);
+    visitor.on_attribute("output_data_types", m_output_data_types);
+    BaseOp::visit_attributes(visitor);
+    return true;
+}
+
+template <typename BaseOp>
 const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const { return get_type_info_static(); }
 
 template <typename BaseOp>
 const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
     auto baseOpTypeInfoPtr = &BaseOp::get_type_info_static();
-
-    // TODO: it should be static const std::string name = std::string("TypeRelaxed_") + baseOpTypeInfoPtr->name;
-    //       but currently it will not pass conversion ot Legacy Opset correctly
-    static const std::string name = baseOpTypeInfoPtr->name;
-
     static const ::ngraph::Node::type_info_t type_info_static{
-        name.c_str(), baseOpTypeInfoPtr->version, baseOpTypeInfoPtr};
+        baseOpTypeInfoPtr->name, baseOpTypeInfoPtr->version, baseOpTypeInfoPtr};
     return type_info_static;
 }
 

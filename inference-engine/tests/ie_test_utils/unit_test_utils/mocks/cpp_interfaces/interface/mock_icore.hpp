@@ -13,6 +13,8 @@ public:
 
     MOCK_CONST_METHOD2(ReadNetwork, InferenceEngine::CNNNetwork(const std::string&, const InferenceEngine::Blob::CPtr&));
     MOCK_CONST_METHOD2(ReadNetwork, InferenceEngine::CNNNetwork(const std::string&, const std::string&));
+    MOCK_CONST_METHOD3(ReadNetwork, InferenceEngine::CNNNetwork(
+        const std::string&, const InferenceEngine::Blob::CPtr&, const std::vector<InferenceEngine::IExtensionPtr>&));
 
     MOCK_METHOD3(LoadNetwork, InferenceEngine::SoExecutableNetworkInternal(
         const InferenceEngine::CNNNetwork&, const std::string&, const std::map<std::string, std::string>&));

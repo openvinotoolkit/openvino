@@ -233,13 +233,12 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "MulticlassNms", MulticlassNms}
 };
 
-Type TypeFromName(const std::string type) {
+Type TypeFromName(const std::string & type) {
     auto itType = type_to_name_tbl.find(type);
     if (type_to_name_tbl.end() != itType) {
         return itType->second;
-    } else {
-        return Unknown;
     }
+    return Unknown;
 }
 
 template<>

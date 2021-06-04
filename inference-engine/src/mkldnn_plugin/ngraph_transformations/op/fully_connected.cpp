@@ -41,5 +41,6 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
 
 bool MKLDNNPlugin::FullyConnectedNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
     visitor.on_attribute("out-size", m_output_size);
+    visitor.on_attribute("out-shape", m_output_shape);
     return true;
 }

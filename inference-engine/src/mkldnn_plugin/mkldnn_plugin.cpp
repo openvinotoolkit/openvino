@@ -6,12 +6,15 @@
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
+#include "mkldnn_opset_extension.h"
 #include "mkldnn_itt.h"
 
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
 #include <ie_plugin_config.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include <ie_icore.hpp>
+#include <fstream>
 #include <vector>
 #include <tuple>
 #include <unordered_set>
@@ -64,6 +67,7 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/serialize.hpp>
 
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -108,6 +112,8 @@ using namespace InferenceEngine;
 Engine::Engine() {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extensions::Cpu::MKLDNNExtensions>());
+    extensionManager->AddExtension(std::make_shared<OpsetExtension>());
+    extensionManager->AddExtension(std::make_shared<TypeRelaxedOpsetExtension>());
 }
 
 Engine::~Engine() {
@@ -546,14 +552,16 @@ static bool hasAVX512() {
 
 Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        std::vector<std::string> metrics;
-        metrics.push_back(METRIC_KEY(AVAILABLE_DEVICES));
-        metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
-        metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
-        metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-        metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        metrics.push_back(METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS));
-        metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
+        std::vector<std::string> metrics = {
+            METRIC_KEY(AVAILABLE_DEVICES),
+            METRIC_KEY(SUPPORTED_METRICS),
+            METRIC_KEY(FULL_DEVICE_NAME),
+            METRIC_KEY(OPTIMIZATION_CAPABILITIES),
+            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+            METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+            METRIC_KEY(RANGE_FOR_STREAMS),
+            METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+        };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         std::string brand_string;
@@ -600,6 +608,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
@@ -694,6 +704,52 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     }
 
     return res;
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
+                                            const std::map<std::string, std::string>& config) {
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::MKLDNN_LT, "ImportNetwork", "ReadFromFile");
+
+    using namespace ngraph::pass;
+
+    std::string xmlString;
+    InferenceEngine::Blob::Ptr dataBlob;
+
+    StreamSerialize::DataHeader hdr = {};
+    networkModel.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
+
+    // read blob content
+    networkModel.seekg(hdr.consts_offset);
+    if (hdr.consts_size) {
+        dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {hdr.consts_size}, InferenceEngine::Layout::C));
+        dataBlob->allocate();
+        networkModel.read(dataBlob->buffer(), hdr.consts_size);
+    }
+
+    // read XML content
+    networkModel.seekg(hdr.model_offset);
+    xmlString.resize(hdr.model_size);
+    networkModel.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+
+    OV_ITT_SCOPE_SKIP(FIRST_INFERENCE, taskChain);
+
+    CNNNetwork cnnnetwork = GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+
+    Config conf = engConfig;
+    conf.readProperties(config);
+
+    if (conf.enableDynamicBatch) {
+        conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
+    }
+
+    auto execNetwork = std::make_shared<MKLDNNExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing);
+
+    execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
+    execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());
+    execNetwork->SetPointerToPlugin(shared_from_this());
+
+    return execNetwork;
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin"};

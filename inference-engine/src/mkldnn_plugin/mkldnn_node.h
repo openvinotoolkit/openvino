@@ -36,7 +36,7 @@ using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeConstPtr = std::shared_ptr<const MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
-Type TypeFromName(const std::string type);
+Type TypeFromName(const std::string & type);
 
 static std::string NameFromType(Type type) {
     switch (type) {
