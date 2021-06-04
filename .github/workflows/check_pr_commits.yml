@@ -8,11 +8,9 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v2
 
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJSON(github) }}
-        run: echo "$GITHUB_CONTEXT"
+      - name: Install dependencies
+        run: python3 -m pip install -r ./.github/org_control/requirements.txt
 
       - name: PR commits
-        run: python .github/org_control/check_pr.py --pr=${{ github.event.number }} --check-commits
+        run: python3 ./.github/org_control/check_pr.py --pr=${{ github.event.number }} --check-commits
 
