@@ -214,7 +214,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 function(ie_python_minimal_api target)
     # pybind11 uses a lot of API which is not a part of minimal python API subset
     # Ref 1: https://docs.python.org/3.11/c-api/stable.html
-    # Ref 2: https://github.com/arvidn/libtorrent/issues/3515
+    # Ref 2: https://github.com/pybind/pybind11/issues/1755
     # target_compile_definitions(${target} PRIVATE Py_LIMITED_API=0x03090000)
     # if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     #     target_compile_options(${target} PRIVATE "-Wno-unused-variable")
