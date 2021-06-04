@@ -10,7 +10,9 @@ core.SetConfig({ { InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, "<path_
 //! [part0]
 
 //! [part1]
+IE_SUPPRESS_DEPRECATED_START
 core.SetConfig({ { PluginConfigParams::KEY_DUMP_KERNELS, PluginConfigParams::YES } }, "GPU");
+IE_SUPPRESS_DEPRECATED_END
 //! [part1]
 
 return 0;
