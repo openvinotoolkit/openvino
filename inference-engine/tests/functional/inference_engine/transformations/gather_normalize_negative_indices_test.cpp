@@ -54,6 +54,43 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+TEST(TransformationTests, GatherNegativeIndicesNormalize2) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{1, 15, 128});
+        auto indices = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {-1});
+        auto axis = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
+
+        auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{1, 15, 128});
+        auto indices = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {-1});
+        auto axis = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
+
+        auto shape_of = std::make_shared<ngraph::opset7::ShapeOf>(data);
+        auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
+                                                                     axis, ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {0}));
+        auto cast = std::make_shared<ngraph::opset7::Convert>(input_gather, ngraph::element::i32);
+        auto add = std::make_shared<ngraph::opset7::Add>(cast, indices);
+        auto gather = std::make_shared<ngraph::opset7::Gather>(data, add, axis);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
 TEST(TransformationTests, GatherNegativeIndicesNormalize_positive_ind) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
