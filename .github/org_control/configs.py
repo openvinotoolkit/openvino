@@ -57,19 +57,19 @@ class Config:
         for name, value in self._json_cfg.items():
             if hasattr(self, name):
                 raise ConfigException(f'Duplicating prosperity: {name}')
-            prosperity_value = self._args.get(name) or os.getenv(name)
-            if prosperity_value:
+            property_value = self._args.get(name) or os.getenv(name)
+            if property_value:
                 # Try to set prosperity_value as Python literal structures, e.g. DRY_RUN=False
                 try:
-                    prosperity_value = ast.literal_eval(prosperity_value)
+                    property_value = ast.literal_eval(property_value)
                 except Exception:
                     pass
-                if not isinstance(prosperity_value, type(value)):
+                if not isinstance(property_value, type(value)):
                     raise ConfigException(f'Python type of {name} parameter must be {type(value)}')
             else:
-                prosperity_value = value
-            setattr(self, name, prosperity_value)
-            Config.properties[name] = prosperity_value
+                property_value = value
+            setattr(self, name, property_value)
+            Config.properties[name] = property_value
 
         self.set_proxy()
 
@@ -78,7 +78,7 @@ class Config:
         try:
             with open(self._file_path) as conf:
                 self._json_cfg = json.load(conf)
-        except:
+        except Exception:
             print('Failed to load configuration from:', self._file_path)
             raise
 
@@ -105,7 +105,7 @@ class Config:
 def _test():
     """Test and debug"""
     print('Config.default_cfg_path:', Config.default_cfg_path)
-    cfg = Config(cli_args=['DRY_RUN=True'])
+    cfg = Config(cli_args=['DRY_RUN', 'PROXIES={"NO_PROXY": "localhost"}'])
     print('Config.properties:', cfg.get_properties())
 
 
