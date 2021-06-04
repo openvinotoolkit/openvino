@@ -5,7 +5,7 @@
 Check GitHub PRs and set labels by type and categories, e.g. 'ExternalPR', 'category: ci'
 """
 
-# pylint: disable=fixme,no-member,too-many-branches,too-many-statements
+# pylint: disable=fixme,no-member
 
 import re
 import sys
@@ -105,6 +105,38 @@ def get_pr_info_str(pull):
     )
 
 
+def update_labels(gh_api, pull, non_org_intel_pr_users, non_org_pr_users):
+    """Checks and updates labels"""
+    print("Check and update labels:")
+    pr_type_by_labels = get_pr_type_by_labels(pull)
+    add_labels = []
+
+    # Checks PR source type
+    if gh_api.is_org_user(pull.user):
+        print(" - Org user")
+    elif github_api.is_intel_email(pull.user.email) or github_api.is_intel_company(
+        pull.user.company
+    ):
+        print(" - Non org user with Intel email or company")
+        non_org_intel_pr_users.add(pull.user)
+        if pr_type_by_labels is not PrType.INTEL:
+            print(f'NO "{PrType.INTEL.value}" label: ', end="")
+            github_api.print_users(pull.user)
+            add_labels.append(PrType.INTEL.value)
+    elif github_api.is_user_ignored(pull.user):
+        print(" - IGNORED non org user with NO Intel email or company")
+    else:
+        print(" - Non org user with NO Intel email or company")
+        non_org_pr_users.add(pull.user)
+        if pr_type_by_labels is not PrType.EXTERNAL:
+            print(f'NO "{PrType.EXTERNAL.value}" label: ', end="")
+            github_api.print_users(pull.user)
+            add_labels.append(PrType.EXTERNAL.value)
+
+    add_labels += get_category_labels(pull)
+    add_pr_labels(pull, add_labels)
+
+
 def get_wrong_commits(pull):
     """Returns commits with incorrect user and email"""
     print("GitHub PR user email:", pull.user.email)
@@ -185,37 +217,14 @@ def main():
         if args.newer and pr_created_at <= pr_created_after:
             print(f"\nIGNORE: {get_pr_info_str(pull)}")
             continue
-        pr_type_by_labels = get_pr_type_by_labels(pull)
-        add_labels = []
-        print(f"\n{get_pr_info_str(pull)}", end="")
 
-        # Checks PR source type
-        if gh_api.is_org_user(pull.user):
-            print(" - Org user")
-        elif github_api.is_intel_email(pull.user.email) or github_api.is_intel_company(
-            pull.user.company
-        ):
-            print(" - Non org user with Intel email or company")
-            non_org_intel_pr_users.add(pull.user)
-            if pr_type_by_labels is not PrType.INTEL:
-                print(f'NO "{PrType.INTEL.value}" label: ', end="")
-                github_api.print_users(pull.user)
-                add_labels.append(PrType.INTEL.value)
-        elif github_api.is_user_ignored(pull.user):
-            print(" - IGNORED non org user with NO Intel email or company")
-        else:
-            print(" - Non org user with NO Intel email or company")
-            non_org_pr_users.add(pull.user)
-            if pr_type_by_labels is not PrType.EXTERNAL:
-                print(f'NO "{PrType.EXTERNAL.value}" label: ', end="")
-                github_api.print_users(pull.user)
-                add_labels.append(PrType.EXTERNAL.value)
-
-        add_labels += get_category_labels(pull)
-        add_pr_labels(pull, add_labels)
-
+        print(f"\n{get_pr_info_str(pull)}")
         if args.check_commits:
-            wrong_pulls[pull.number] = get_wrong_commits(pull)
+            wrong_commits = get_wrong_commits(pull)
+            if wrong_commits:
+                wrong_pulls[pull.number] = wrong_commits
+        else:
+            update_labels(gh_api, pull, non_org_intel_pr_users, non_org_pr_users)
 
     if wrong_pulls:
         for pull_number, wrong_commits in wrong_pulls.items():
