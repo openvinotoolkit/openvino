@@ -17,7 +17,7 @@ void InferenceEngine::LowLatency(InferenceEngine::CNNNetwork &network) {
     manager.run_passes(function);
 }
 
-void InferenceEngine::LowLatency2(InferenceEngine::CNNNetwork &network,
+void InferenceEngine::lowLatency2(InferenceEngine::CNNNetwork &network,
                                   bool use_const_initializer) {
     auto function = network.getFunction();
     ngraph::pass::Manager manager;

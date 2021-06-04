@@ -331,7 +331,7 @@ namespace SubgraphTestsDefinitions {
             executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
-            InferenceEngine::LowLatency2(cnnNetwork);
+            InferenceEngine::lowLatency2(cnnNetwork);
 
             bool ti_found = helpers::is_tensor_iterator_exist(cnnNetwork.getFunction());
             EXPECT_EQ(ti_found, false);

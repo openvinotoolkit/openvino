@@ -53,7 +53,8 @@ namespace InferenceEngine {
  * *
  */
 
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::LowLatency2 instead")
+INFERENCE_ENGINE_DEPRECATED("This transformation will be removed in 2023.1. "
+                            "Use InferenceEngine::lowLatency2 instead.")
 INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
 
 
@@ -85,7 +86,7 @@ INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
  * Loop operation by a given number. Does not affect TensorIterators.
  * *
  */
-INFERENCE_ENGINE_API_CPP(void) LowLatency2(InferenceEngine::CNNNetwork& network,
-                                             bool use_const_initializer = true);
+INFERENCE_ENGINE_API_CPP(void) lowLatency2(InferenceEngine::CNNNetwork& network,
+                                           bool use_const_initializer = true);
 
 } // namespace InferenceEngine

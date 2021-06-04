@@ -197,7 +197,7 @@ namespace LayerTestsDefinitions {
            manager.run_passes(function);
         } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
-            InferenceEngine::LowLatency2(cnnNetwork, iteration_count);
+           InferenceEngine::lowLatency2(cnnNetwork, iteration_count);
         }
     }
 

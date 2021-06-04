@@ -21,11 +21,14 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
 using namespace std;
 using namespace ngraph;
 
-string generate_variable_name(const string& op_name, const string& param_name, int variable_idx)
+namespace
 {
-    return op_name + "/" + param_name + "/" + "variable_" + to_string(variable_idx);
-}
+    string generate_variable_name(const string& op_name, const string& param_name, int variable_idx)
+    {
+        return op_name + "/" + param_name + "/" + "variable_" + to_string(variable_idx);
+    }
 
+} // namespace
 ngraph::pass::LowLatency::LowLatency()
 {
     auto tensor_iterator = ngraph::pattern::wrap_type<opset6::TensorIterator, opset6::Loop>();
@@ -173,7 +176,7 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f)
     using namespace opset7;
 
     SinkVector assigns;
-    for (const auto& op : f->get_ops())
+    for (const auto& op : f->get_ordered_ops())
     {
         if (const auto& sub_graph_op = dynamic_pointer_cast<op::util::SubGraphOp>(op))
         {
