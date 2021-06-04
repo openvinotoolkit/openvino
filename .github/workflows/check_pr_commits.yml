@@ -12,7 +12,6 @@ jobs:
         run: python3 -m pip install -r ./.github/org_control/requirements.txt
 
       - name: PR commits
-        run: python3 ./.github/org_control/check_pr.py --pr=${{ github.event.number }} --check-commits
+        run: python3 ./.github/org_control/check_pr.py --pr=${{ github.event.number }} --check-commits DRY_RUN
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DRY_RUN: True
