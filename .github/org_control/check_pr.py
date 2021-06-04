@@ -239,10 +239,12 @@ def main():
         )
         sys.exit(1)
 
-    print("\nNon org user with Intel email or company:")
-    github_api.print_users(non_org_intel_pr_users)
-    print("\nNon org user with NO Intel email or company:")
-    github_api.print_users(non_org_pr_users)
+    if non_org_intel_pr_users:
+        print("\nNon org user with Intel email or company:")
+        github_api.print_users(non_org_intel_pr_users)
+    if non_org_pr_users:
+        print("\nNon org user with NO Intel email or company:")
+        github_api.print_users(non_org_pr_users)
 
 
 if __name__ == "__main__":
