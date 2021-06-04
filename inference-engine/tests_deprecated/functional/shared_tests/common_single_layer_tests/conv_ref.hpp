@@ -9,7 +9,7 @@
 #include <ie_blob.h>
 #include <precision_utils.h>
 #include <legacy/ie_layers_internal.hpp>
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 template<typename wei_data_t, typename bias_data_t>
 void ref_conv_common(const std::vector<InferenceEngine::Blob::Ptr> srcs,
