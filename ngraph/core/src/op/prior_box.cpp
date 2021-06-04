@@ -187,3 +187,21 @@ bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v0_PriorBox_evaluate);
     return prior_box::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
+
+bool op::v0::PriorBox::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_PriorBox_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64: return true;
+    default: break;
+    }
+    return false;
+}
