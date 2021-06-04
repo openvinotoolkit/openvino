@@ -341,7 +341,7 @@ class TestGraphShapeChecker(unittest.TestCase):
 
         del graph.node['2_data']['shape']
 
-        with self.assertRaisesRegex(Error, "Graph contains data nodes \(1\) with inconsistent shapes:.*"):
+        with self.assertRaisesRegex(Error, r"Graph contains data nodes \(1\) with inconsistent shapes:.*"):
             graph.check_shapes_consistency()
 
     def test_check_shape_consistency_2(self):
@@ -358,7 +358,7 @@ class TestGraphShapeChecker(unittest.TestCase):
         graph.node['1_data']['shape'] = (1, 2, 3)
         graph.node['2_data']['shape'] = (1, 2, 3)
 
-        with self.assertRaisesRegex(Error, "Graph contains data nodes \(2\) with inconsistent shapes:.*"):
+        with self.assertRaisesRegex(Error, r"Graph contains data nodes \(2\) with inconsistent shapes:.*"):
             graph.check_shapes_consistency()
 
 
