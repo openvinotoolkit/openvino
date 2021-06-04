@@ -16,7 +16,9 @@ namespace AutoPlugin {
 using namespace InferenceEngine;
 
 AutoExecutableNetwork::AutoExecutableNetwork(NetworkTaskSharedPtr cpuTask,
-                                             NetworkTaskSharedPtr acceleratorTask) {
+                                             NetworkTaskSharedPtr acceleratorTask,
+                                             InferenceEngine::IStreamsExecutor::Ptr cpuExecutor)
+                                             : _cpuExecutor(cpuExecutor) {
     // we wait for any network to become ready (maybe this will already an actual device)
     if (cpuTask) {
         _networkFirstReady = cpuTask->get_future().get();

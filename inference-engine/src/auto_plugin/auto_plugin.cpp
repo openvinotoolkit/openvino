@@ -122,7 +122,7 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
 
     // TODO: FIXME: revert the exception handling logic back to gracefully handle LoadNetwork failures
 
-    return std::make_shared<AutoExecutableNetwork>(cpuTask, acceleratorTask);
+    return std::make_shared<AutoExecutableNetwork>(cpuTask, acceleratorTask, executor);
 }
 
 IE::QueryNetworkResult AutoInferencePlugin::QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const {

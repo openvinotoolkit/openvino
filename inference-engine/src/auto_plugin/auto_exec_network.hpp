@@ -27,7 +27,8 @@ public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
     explicit AutoExecutableNetwork(NetworkTaskSharedPtr cpuTask,
-                                   NetworkTaskSharedPtr acceleratorTask);
+                                   NetworkTaskSharedPtr acceleratorTask,
+                                   InferenceEngine::IStreamsExecutor::Ptr cpuExecutor);
 
     void Export(std::ostream& networkModel) override;
     InferenceEngine::RemoteContext::Ptr GetContext() const override;
@@ -41,7 +42,7 @@ public:
     ~AutoExecutableNetwork();
 
 private:
-    InferenceEngine::IStreamsExecutor::Ptr _executor;
+    InferenceEngine::IStreamsExecutor::Ptr _cpuExecutor;
     InferenceEngine::SoExecutableNetworkInternal _networkFirstReady;
     InferenceEngine::SoExecutableNetworkInternal _networkActualNeeded;
     AutoPlugin::NetworkSharedFuture _sharedFutureActualNetwork; // for requests
