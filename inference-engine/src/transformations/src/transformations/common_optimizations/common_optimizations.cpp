@@ -149,7 +149,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
     decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
-    decomp->add_matcher<ngraph::pass::GatherNegativeIndicesNormalize>();
+    decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions

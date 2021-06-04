@@ -10,20 +10,20 @@
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API GatherNegativeIndicesNormalize;
+    class TRANSFORMATIONS_API GatherNegativeConstIndicesNormalize;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief GatherNegativeIndicesNormalize check if indices value is negative and
+ * @brief GatherNegativeConstIndicesNormalize check if indices value is negative scalar and
  * normalize it using ShapeOf->Add->Cast subgraph.
  * We need to remove this transformation after support a negative indices in
  * future version of Gather operation.
  */
-class ngraph::pass::GatherNegativeIndicesNormalize : public ngraph::pass::MatcherPass {
+class ngraph::pass::GatherNegativeConstIndicesNormalize : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    GatherNegativeIndicesNormalize();
+    GatherNegativeConstIndicesNormalize();
 };

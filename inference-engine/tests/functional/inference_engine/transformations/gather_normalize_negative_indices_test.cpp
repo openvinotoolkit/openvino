@@ -30,7 +30,7 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize1) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::GatherNegativeIndicesNormalize>();
+        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -67,7 +67,7 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_positive_ind) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::GatherNegativeIndicesNormalize>();
+        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -99,7 +99,7 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_non_static_shape) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::GatherNegativeIndicesNormalize>();
+        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
