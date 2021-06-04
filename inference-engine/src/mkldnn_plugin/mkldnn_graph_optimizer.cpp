@@ -264,7 +264,7 @@ void MKLDNNGraphOptimizer::FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &grap
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Deconvolution && node->getChildEdges().size() == 1 && node->getFusedWith().empty();
+        return node->getType() == Deconvolution && node->getChildEdges().size() == 1;
     };
 
     auto parent = graphNodes.begin();
@@ -276,8 +276,7 @@ void MKLDNNGraphOptimizer::FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &grap
         }
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        // at this moment deconvolution supports only depthwise as post op
-        if (!childNode->canBePerformedAsScaleShift(parentNode.get())) {
+        if (!parentNode->canFuse(childNode)) {
             parent++;
             continue;
         }
