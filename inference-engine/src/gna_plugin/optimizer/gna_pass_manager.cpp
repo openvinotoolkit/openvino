@@ -2083,9 +2083,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         };
 
         auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-        if (!quantParams) {
-            return;
-        }
+        IE_ASSERT(quantParams != nullptr);
 
         // Find all output layers connected to FQ
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer.get(), -1, donotSkip);
