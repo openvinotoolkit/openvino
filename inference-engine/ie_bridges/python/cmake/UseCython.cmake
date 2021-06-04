@@ -289,6 +289,7 @@ function( cython_add_module _name )
   # TODO: add custom suffix
   python_add_module ( ${_name} ${generated_file} ${other_module_sources} )
   target_include_directories( ${_name} PRIVATE ${PYTHON_INCLUDE_DIRS})
+  set_target_properties(${_name} PROPERTIES PREFIX "" SUFFIX "${PYTHON_MODULE_EXTENSION}")
   if( APPLE )
     set_target_properties( ${_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
   endif()
