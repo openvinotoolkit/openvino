@@ -26,7 +26,7 @@ static void insert_extra_pwl_segments(std::vector<gna_pwl_segment_t>& gna_pwl,
         return;
 
     // We're adding a segment at the beginning if the first one doesn't cover min value
-    if ((gna_pwl[0].xBase & XBASEMASK) != INT32_MIN) {
+    if ((gna_pwl[0].xBase & XBASEMASK) != (INT32_MIN & XBASEMASK)) {
         extra_segment.xBase = INT32_MIN & XBASEMASK;
         extra_segment.yBase = gna_pwl[0].yBase;
         extra_segment.slope = 0;
