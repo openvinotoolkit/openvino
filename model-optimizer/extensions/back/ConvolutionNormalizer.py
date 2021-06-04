@@ -74,9 +74,7 @@ class V7ConvolutionWithGroupsResolver(BackReplacementPattern):
         for node in graph.get_op_nodes(type='Convolution'):
             group = node.soft_get('group', None)
             if group is not None:
-                if group == 1 and node.soft_get('op') is not 'DepthwiseConv2dNative':
-                    continue
-                else:
+                if group != 1 or node.soft_get('op') == 'DepthwiseConv2dNative':
                     resolve_convolution_with_group(node, group, ir_version='V7')
 
 
@@ -91,9 +89,7 @@ class V10ConvolutionWithGroupsResolver(BackReplacementPattern):
         for node in graph.get_op_nodes(type='Convolution'):
             group = node.soft_get('group', None)
             if group is not None:
-                if group == 1 and node.soft_get('op') is not 'DepthwiseConv2dNative':
-                    continue
-                else:
+                if group != 1 or node.soft_get('op') == 'DepthwiseConv2dNative':
                     resolve_convolution_with_group(node, group, ir_version='V10')
 
 
