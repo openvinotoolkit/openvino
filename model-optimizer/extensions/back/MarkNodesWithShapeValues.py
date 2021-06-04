@@ -68,6 +68,7 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
                 if not node.is_in_port_connected(port_idx):
                     continue
                 source_node = node.in_port(port_idx).get_source().node
+                # no need to start BFS for ShapeOf nodes, indeed if there is a ShapeOf it's an end of BFS
                 if source_node.soft_get('type') != 'ShapeOf':
                     sources.append(source_node)
         return sources
