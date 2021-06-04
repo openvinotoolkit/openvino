@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::GatherNegativeConstIndicesNormalize, "Gathe
 
 ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNormalize() {
     MATCHER_SCOPE(GatherNegativeConstIndicesNormalize);
-    auto data_input = ngraph::pattern::any_input();
+    auto data_input = ngraph::pattern::any_input(pattern::has_static_shape());
     auto axis_input = ngraph::pattern::any_input();
     auto const_indices_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto gather_node = std::make_shared<ngraph::opset7::Gather>(data_input, const_indices_input, axis_input);
@@ -27,11 +27,7 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
         auto axis = pattern_to_output.at(axis_input);
         auto indices_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(const_indices_input).get_node_shared_ptr());
 
-        if (gather == nullptr) {
-            return false;
-        }
-
-        if (!data.get_partial_shape().rank().is_static()) {
+        if (!gather || !indices_constant) {
             return false;
         }
 
@@ -45,7 +41,7 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
             axis, ngraph::opset7::Constant::create(ngraph::element::i32, Shape{1}, {0}));
         auto cast = std::make_shared<ngraph::opset7::Convert>(input_gather, ngraph::element::i32);
         auto add = std::make_shared<ngraph::opset7::Add>(cast, indices_constant);
-        auto gather_new = std::make_shared<ngraph::opset7::Gather>(data, add, axis);
+        auto gather_new = gather_node->copy_with_new_inputs({data, add, axis});
         gather_new->set_friendly_name(gather->get_friendly_name());
 
         ngraph::copy_runtime_info(gather, {shape_of, input_gather, cast, add, gather_new});
