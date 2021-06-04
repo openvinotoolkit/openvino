@@ -618,7 +618,7 @@ Comparator::Result Comparator::compare(
     auto type_info2 = node2->get_type_info();
 
     if (!compareTypeInfo(type_info1, type_info2)) {
-        return Result::error(typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
+        return Result::error(node1->get_friendly_name() + " (" + typeInfoToStr(type_info1) + ") != " + node2->get_friendly_name() + " (" + typeInfoToStr(type_info2) + ")");
     }
 
     auto subgraph1 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node1);
@@ -681,24 +681,24 @@ void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::o
             auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
             if (const1 && const2 && !equal_value(const1, const2)) {
                 err_log << "Different Constant values detected\n"
-                        << node1->description() << " Input(" << i << ") and "
-                        << node2->description() << " Input(" << i << ")" << std::endl;
+                        << description(node1) << " Input(" << i << ") and "
+                        << description(node2) << " Input(" << i << ")" << std::endl;
             }
         }
 
         if (should_compare(CmpValues::PRECISIONS)) {
             if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
                 err_log << "Different element type detected\n"
-                        << name(node1) << " Input(" << i << ") "
-                        << node1->input(i).get_element_type() << " and " << name(node2) << " Input("
+                        << description(node1) << " Input(" << i << ") "
+                        << node1->input(i).get_element_type() << " and " << description(node2) << " Input("
                         << i << ") " << node2->input(i).get_element_type() << std::endl;
             }
         }
 
         if (!node1->input(i).get_partial_shape().same_scheme(node2->input(i).get_partial_shape())) {
             err_log << "Different shape detected\n"
-                    << name(node1) << " Input(" << i << ") " << node1->input(i).get_partial_shape()
-                    << " and " << name(node2) << " Input(" << i << ") "
+                    << description(node1) << " Input(" << i << ") " << node1->input(i).get_partial_shape()
+                    << " and " << description(node2) << " Input(" << i << ") "
                     << node2->input(i).get_partial_shape() << std::endl;
         }
 
@@ -707,14 +707,14 @@ void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::o
             auto idx1 = node1->get_input_source_output(i).get_index();
             auto idx2 = node2->get_input_source_output(i).get_index();
             err_log << "Different ports detected\n"
-                    << name(node1) << " Input(" << i << ") connected to parent port " << idx1
-                    << " and " << name(node2) << " Input(" << i << ") connected to parent port "
+                    << description(node1) << " Input(" << i << ") connected to parent port " << idx1
+                    << " and " << description(node2) << " Input(" << i << ") connected to parent port "
                     << idx2 << std::endl;
         }
 
         if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1, node2)) {
             err_log << "Different runtime info detected\n"
-                    << name(node1) << " and " << name(node2) << " not equal runtime info."
+                    << description(node1) << " and " << description(node2) << " not equal runtime info."
                     << std::endl;
         }
     }
@@ -725,12 +725,12 @@ void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::
         const auto& tensor1 = node1->output(i).get_tensor();
         const auto& tensor2 = node2->output(i).get_tensor();
 
-        if (tensor1.get_names() != tensor2.get_names()) {
-            err_log << "Output tensors names " << tensor_names(tensor1) << " and "
-                    << tensor_names(tensor2)
-                    << " are different for nodes: " << node1->get_friendly_name() << " and "
-                    << node2->get_friendly_name() << std::endl;
-        }
+        //if (tensor1.get_names() != tensor2.get_names()) {
+        //    err_log << "Output tensors names " << tensor_names(tensor1) << " and "
+        //            << tensor_names(tensor2)
+        //            << " are different for nodes: " << node1->get_friendly_name() << " and "
+        //            << node2->get_friendly_name() << std::endl;
+        //}
 
         if (!node1->output(i).get_partial_shape().same_scheme(
                 node2->output(i).get_partial_shape())) {

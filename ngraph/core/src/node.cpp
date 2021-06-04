@@ -121,6 +121,9 @@ size_t Node::get_default_output_index() const
 size_t Node::no_default_index() const
 {
     NODE_VALIDATION_CHECK(this, false, "Default output not supported");
+    throw std::exception((std::string("Default output not supported: ") + get_type_name() + ": " +
+                          get_friendly_name())
+                             .c_str());
 }
 
 std::shared_ptr<Node>

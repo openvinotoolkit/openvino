@@ -473,6 +473,11 @@ int main(int argc, char* argv[]) {
 
         // Iteration limit
         uint32_t niter = FLAGS_niter;
+        if (niter == 0) {
+            std::cout << "Dumping statistics report: skipped" << std::endl;
+            return 0;
+        }
+
         if ((niter > 0) && (FLAGS_api == "async")) {
             niter = ((niter + nireq - 1) / nireq) * nireq;
             if (FLAGS_niter != niter) {

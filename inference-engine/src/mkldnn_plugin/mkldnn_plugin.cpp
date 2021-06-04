@@ -102,6 +102,8 @@
 # endif
 #endif
 
+#include "transformations/serialize.hpp"
+
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
@@ -355,6 +357,14 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
         //ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/cpu.transformed.svg").run_on_function(nGraphFunc);
         //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(nGraphFunc);
+
+        {
+            const auto processId = GetCurrentProcessId();
+            ngraph::pass::Serialize serializer(
+                "c:\\Projects\\temp\\cpu.transformed." + std::to_string(processId) + ".xml",
+                "c:\\Projects\\temp\\cpu.transformed." + std::to_string(processId) + ".bin");
+            serializer.run_on_function(nGraphFunc);
+        }
     }
 
     ngraph::pass::Manager postLPTPassManager;
