@@ -35,24 +35,28 @@ class ONNXResize11Op(Op):
         if input_shape is None:
             return
 
-        assert (node.is_in_port_connected(0) and node.is_in_port_connected(2)), \
-            "Data and scales inputs must be connected to Node {} with op {}.".format(node.name, node.op)
+        assert (node.is_in_port_connected(0) and (node.is_in_port_connected(2) or node.is_in_port_connected(3))), \
+            "Scales or sizes inputs must be connected to Node {} with op {}.".format(node.soft_get("name", node.id),
+                                                                                     node.soft_get("op", node.id))
 
         assert node.coordinate_transformation_mode != 'tf_crop_and_resize', \
-            'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(node.op, node.name)
+            'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(node.soft_get("op", node.id),
+                                                                                     node.soft_get("name", node.id))
 
         if not node.is_in_port_connected(3):
             # i.e. input 'sizes' is not given
             input2_value = node.in_port(2).data.get_value()
             assert input2_value is not None, \
-                "Node {} with op {} has no value in input port 2".format(node.soft_get('name', node.id), node.op)
+                "Node {} with op {} has no value in input port 2".format(node.soft_get('name', node.id),
+                                                                         node.soft_get("op", node.id))
             scale = np.array(input2_value)
             output_shape = np.floor(input_shape * scale + 1.0e-6).astype(np.int64)
         else:
             # i.e. input 'sizes' is given
             sizes = node.in_port(3).data.get_value()
             assert sizes is not None, \
-                "Node {} with op {} has no value in input port 3".format(node.name, node.op)
+                "Node {} with op {} has no value in input port 3".format(node.soft_get("name", node.id),
+                                                                         node.soft_get("op", node.id))
             output_shape = input_shape.copy()
             spatial_dimension_indices = range(2, len(input_shape))
             output_shape[spatial_dimension_indices] = int64_array(sizes)[2:]

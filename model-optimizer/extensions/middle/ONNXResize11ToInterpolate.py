@@ -34,11 +34,13 @@ def replace_resize(graph: Graph, resize: Node):
         log.warning('The input shape is not 4D or 5D for op with name {}'.format(resize_name))
         return
 
-    assert (resize.is_in_port_connected(0) and resize.is_in_port_connected(2)), \
-        "Data and scales inputs must be connected to Node {} with op {}.".format(resize.name, resize.op)
+    assert (resize.is_in_port_connected(0) and (resize.is_in_port_connected(2) or resize.is_in_port_connected(3))), \
+        "Scales or sizes inputs must be connected to Node {} with op {}.".format(resize.soft_get("name", resize.id),
+                                                                                 resize.soft_get("op", resize.id))
 
     assert resize.soft_get('coordinate_transformation_mode') != 'tf_crop_and_resize', \
-        'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(resize.op, resize_name)
+        'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(resize.soft_get("op", resize.id),
+                                                                                 resize.soft_get("name", resize.id))
 
     layout = graph.graph['layout']
 
