@@ -20,6 +20,7 @@
 #include <transformations/common_optimizations/algebraic_simplification.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
+#include <transformations/common_optimizations/transpose_to_reshape.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -97,8 +98,10 @@ private:
 };
 
 TEST_P(TransposeToReshapeTests, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::TransposeSinking().run_on_function(f);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::TransposeToReshape>();
+    manager.run_passes(f);
     f->validate_nodes_and_infer_types();
     ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
