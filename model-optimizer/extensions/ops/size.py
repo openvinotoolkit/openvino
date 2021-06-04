@@ -9,6 +9,7 @@ from mo.ops.op import Op
 
 class Size(Op):
     op = 'Size'
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         assert 'output_type' in attrs, 'Size has mandatory `output_type` attribute'
