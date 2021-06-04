@@ -29,6 +29,9 @@ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
 
 ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile time" OFF)
 
+# Try to find python3
+find_package(Python3 COMPONENTS Interpreter Development QUIET)
+ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" OFF "Python3_FOUND" OFF)
 
 #
 # enable or disable output from NGRAPH_DEBUG statements

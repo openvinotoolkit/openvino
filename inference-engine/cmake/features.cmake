@@ -66,11 +66,6 @@ ie_dependent_option (ENABLE_SPEECH_DEMO "enable speech demo integration" ON "NOT
 
 ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 
-# Try to find python3
-
-find_package(Python3 COMPONENTS Interpreter Development QUIET)
-ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" ON "Python3_FOUND" OFF)
-
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
 
 set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")

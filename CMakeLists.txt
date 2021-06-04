@@ -52,7 +52,6 @@ function(build_ngraph)
     else ()
         ngraph_set(NGRAPH_ADDRESS_SANITIZER OFF)
     endif ()
-    ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
 
     if(ENABLE_TESTS AND NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)

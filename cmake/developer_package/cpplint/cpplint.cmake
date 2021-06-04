@@ -68,6 +68,7 @@ function(add_cpplint_target TARGET_NAME)
                 "${output_file}"
             COMMAND
                 "${CMAKE_COMMAND}"
+                -D "Python3_EXECUTABLE=${Python3_EXECUTABLE}"
                 -D "CPPLINT_SCRIPT=${IEDevScripts_DIR}/cpplint/cpplint.py"
                 -D "INPUT_FILE=${source_file}"
                 -D "OUTPUT_FILE=${output_file}"
