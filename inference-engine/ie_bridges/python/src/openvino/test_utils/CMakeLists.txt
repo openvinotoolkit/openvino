@@ -9,16 +9,17 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 
-file(GLOB SOURCE
-        ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api_impl.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api.pyx
+                  ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api_impl.cpp
+                  ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api_impl.hpp
+                  ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api_impl_defs.pxd)
 
-set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api.pyx
+                            PROPERTIES CYTHON_IS_CXX ON)
 
 # create target
 
-cython_add_module(${TARGET_NAME} ${SOURCE})
+cython_add_module(${TARGET_NAME} ${SOURCES})
 set(INSTALLED_TARGETS ${TARGET_NAME})
 add_dependencies(${TARGET_NAME} ie_api)
 

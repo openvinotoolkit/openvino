@@ -9,17 +9,17 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_tra
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_transformations)
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_transformations)
 
-set(SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl_defs.pxd
-        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.hpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.cpp)
+set(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl_defs.pxd
+            ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api.pyx
+            ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.hpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.cpp)
 
-set_source_files_properties(${SOURCES} PROPERTIES CYTHON_IS_CXX ON)
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api.pyx
+                            PROPERTIES CYTHON_IS_CXX ON)
 
 # create target
 
-cython_add_module(${TARGET_NAME} ${SOURCE})
+cython_add_module(${TARGET_NAME} ${SOURCES})
 set(INSTALLED_TARGETS ${TARGET_NAME})
 add_dependencies(${TARGET_NAME} ie_api)
 
