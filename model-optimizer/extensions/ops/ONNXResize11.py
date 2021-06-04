@@ -35,7 +35,7 @@ class ONNXResize11Op(Op):
         if input_shape is None:
             return
 
-        assert (node.is_in_port_connected(0) is True and node.is_in_port_connected(2) is True), \
+        assert (node.is_in_port_connected(0) and node.is_in_port_connected(2)), \
             "Data and scales inputs must be connected to Node {} with op {}.".format(node.name, node.op)
 
         assert node.coordinate_transformation_mode != 'tf_crop_and_resize', \
