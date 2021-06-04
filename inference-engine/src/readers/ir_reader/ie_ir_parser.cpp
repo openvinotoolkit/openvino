@@ -778,16 +778,16 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
     const Blob::CPtr& weights,
     const V10Parser::GenericLayerParams& params) {
     // Check that inputs are correctly defined
-    for (size_t i = 0; i < inputs.size(); i++) {
-        if (!inputs[i].get_node())
-            IE_THROW() << params.type << " layer " << params.name
-                               << " with id: " << params.layerId
-                               << " has incorrect input with index " << i << "!";
-        if (ngraph::element::Type_t::undefined == inputs[i].get_element_type())
-            IE_THROW() << params.type << " layer " << params.name
-                               << " with id: " << params.layerId
-                               << " has undefined element type for input with index " << i << "!";
-    }
+    //for (size_t i = 0; i < inputs.size(); i++) {
+    //    if (!inputs[i].get_node())
+    //        IE_THROW() << params.type << " layer " << params.name
+    //                           << " with id: " << params.layerId
+    //                           << " has incorrect input with index " << i << "!";
+    //    if (ngraph::element::Type_t::undefined == inputs[i].get_element_type())
+    //        IE_THROW() << params.type << " layer " << params.name
+    //                           << " with id: " << params.layerId
+    //                           << " has undefined element type for input with index " << i << "!";
+    //}
 
     std::shared_ptr<ngraph::Node> ngraphNode;
 

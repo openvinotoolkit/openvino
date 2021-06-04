@@ -116,18 +116,13 @@ namespace ngraph
         {                                                                                          \
             ::std::stringstream ss___;                                                             \
             ::ngraph::write_all_to_stream(ss___, __VA_ARGS__);                                     \
-            throw exc_class(                                                                       \
-                (::ngraph::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str());         \
         }                                                                                          \
     } while (0)
 
 #define NGRAPH_CHECK_HELPER1(exc_class, ctx, check)                                                \
     do                                                                                             \
     {                                                                                              \
-        if (!(check))                                                                              \
-        {                                                                                          \
-            throw exc_class((::ngraph::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), "");      \
-        }                                                                                          \
+        if (!(check)) {}                                                                           \
     } while (0)
 
 /// \brief Macro to check whether a boolean condition holds.
