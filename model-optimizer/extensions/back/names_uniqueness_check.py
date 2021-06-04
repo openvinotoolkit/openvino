@@ -7,6 +7,10 @@ from mo.graph.graph import Graph, rename_node
 
 
 def nodes_with_equal_names(graph: Graph):
+    """
+    :param graph: Graph to operate on
+    :return: Dictionary with node names as keys and a list of their corresponding nodes as values
+    """
     names_dict = defaultdict(list)
     for node in graph.get_op_nodes():
         node_name = node.soft_get('name', node.id)
@@ -18,6 +22,7 @@ def make_node_names_unique(nodes: list, node_names: set):
     """
     :param nodes: List with nodes matching a specific name
     :param node_names: Set with all node names contained in the graph
+    :return: None
 
     Result nodes will be renamed only when it is absolutely necessary(if there are several Result nodes with the same name).
     Function finds a position of Result nodes in the "nodes" list, take the first and rename all other nodes.
