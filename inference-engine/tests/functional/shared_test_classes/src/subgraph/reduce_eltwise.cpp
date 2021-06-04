@@ -57,7 +57,7 @@ void ReduceEltwiseTest::SetUp() {
 
     auto reduce = std::make_shared<ngraph::opset3::ReduceSum>(paramOuts[0], reductionAxesNode, keepDims);
 
-    std::vector<size_t> constShape(3, 1);
+    std::vector<size_t> constShape(reduce.get()->get_output_size(), 1);
     constShape[2] = inputShape.back();
     auto constant = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
     auto eltw = ngraph::builder::makeEltwise(reduce, constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
