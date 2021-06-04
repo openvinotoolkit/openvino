@@ -6,10 +6,6 @@
 
 using namespace ngraph;
 
-// Define variant for std::string
-constexpr VariantTypeInfo VariantWrapper<std::string>::type_info;
-constexpr VariantTypeInfo VariantWrapper<int64_t>::type_info;
-
 Variant::~Variant() {}
 
 std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Node>& node)
@@ -22,5 +18,5 @@ std::shared_ptr<ngraph::Variant> Variant::merge(const ngraph::NodeVector& nodes)
     return nullptr;
 }
 
-template class ngraph::VariantImpl<std::string>;
-template class ngraph::VariantImpl<int64_t>;
+NGRAPH_VARIANT_DEFINITION(std::string, "Variant::std::string", 0);
+NGRAPH_VARIANT_DEFINITION(std::int64_t, "Variant::int64_t", 0);
