@@ -80,7 +80,7 @@ class ConstantWriter {
 public:
     using FilePosition = int64_t;
     using HashValue = size_t;
-    using ConstWritePositions = std::unordered_map<HashValue, FilePosition>;
+    using ConstWritePositions = std::unordered_map<HashValue, std::pair<FilePosition, void const *>>;
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data)
@@ -93,18 +93,19 @@ public:
             m_binary_output.write(ptr, size);
             return offset;
         }
-        // The biggest supported models have at maximum 1-2 thousand constant nodes,
-        // with 64 bit hash that gives a probability around 1 in 10 trillion that a
-        // hash collision will appear. Because of this, a choice has been made to
-        // not perform collision detection and keep the hashing quick and seamless.
+        // This hash is weak (but efficient) and must be replace with some other
+        // more stable hash algorithm. For example current hash algorithms gives
+        // the same hash for {2, 2} and {0, 128} arrays. So we have to compare
+        // values when finding a match in hash map.
         const HashValue hash = hash_combine(ptr, size);
         const auto found = m_hash_to_file_positions.find(hash);
-        if (found != end(m_hash_to_file_positions)) {
-            return found->second;
+        if (found != end(m_hash_to_file_positions) &&
+            memcmp(static_cast<void const*>(ptr), found->second.second, size) == 0) {
+            return found->second.first;
         }
 
         m_binary_output.write(ptr, size);
-        m_hash_to_file_positions.insert({hash, offset});
+        m_hash_to_file_positions.insert({hash, {offset, static_cast<void const *>(ptr)}});
 
         return offset;
     }
