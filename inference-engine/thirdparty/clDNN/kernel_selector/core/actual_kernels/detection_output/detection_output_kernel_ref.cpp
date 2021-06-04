@@ -79,20 +79,15 @@ int GetPartitionStep(int localWorkItemNum) {
 }
 
 size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
-    const size_t lws_max = info.maxWorkGroupSize;
-    const size_t optimal_lws_values[] = {8, 7, 6, 5, 4, 2, 1};
-    size_t total_lws = gws[0] * gws[2];
-    size_t localClassSize = 1;
-
-    auto rest_lws = lws_max / total_lws;
+    const size_t optimal_values[] = {16, 8, 7, 6, 5, 4, 2, 1};
+    const size_t splitNum = gws[2];
+    const size_t globalClassNum = gws[1];
+    const auto rest_lws = info.maxWorkGroupSize / splitNum;
     size_t lws_idx = 0;
-    while (rest_lws < optimal_lws_values[lws_idx]) lws_idx++;
-    while (gws[1] % optimal_lws_values[lws_idx]) lws_idx++;
+    while (rest_lws < optimal_values[lws_idx]) lws_idx++;
+    while (globalClassNum % optimal_values[lws_idx]) lws_idx++;
 
-    localClassSize = optimal_lws_values[lws_idx];
-    total_lws *= optimal_lws_values[lws_idx];
-
-    return localClassSize;
+    return optimal_values[lws_idx];
 }
 
 DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params& params, int idx) {
@@ -114,7 +109,7 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
             dispatchData.lws = {1, 1, 256};
         }
     } else if (idx == 1) {
-        const size_t kSplitNum = 4;
+        const size_t kSplitNum = 16;
         if (detectOutParams.decrease_label_id) {
             // dispatchData.gws = { 1, 1, 1};
             // dispatchData.lws = { 1, 1, 1};

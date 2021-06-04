@@ -54,10 +54,27 @@ inline int FUNC(partition)(__global SCORES_INFO* arr, int l, int h, bool use_cus
     return (i + 1);
 }
 
+inline void FUNC(bubbleSortIterative)(__global SCORES_INFO* arr, int l, int h)
+{
+    for (int i = 0; i < h-l; i++) {
+        bool swapped = false;
+        for (int j = l; j < h-i; j++) {
+            if ((arr[j].score > arr[j+1].score) || (arr[j].score == arr[j+1].score && arr[j].boxId < arr[j+1].boxId)) {
+                FUNC_CALL(swap_scores_info)(&arr[j], &arr[j+1]);
+                swapped = true;
+            }
+        }
+
+        if (!swapped)
+            break;
+    }
+}
+
 inline void FUNC(quickSortIterative)(__global SCORES_INFO* arr, int l, int h, bool use_custom_comp)
 {
     // Create an auxiliary stack
-    int stack[NUM_OF_PRIORS];
+    const int kStackSize = 100;
+    int stack[kStackSize];
 
     // initialize top of stack
     int top = -1;
@@ -79,15 +96,23 @@ inline void FUNC(quickSortIterative)(__global SCORES_INFO* arr, int l, int h, bo
         // If there are elements on left side of pivot,
         // then push left side to stack
         if (p - 1 > l) {
-            stack[++top] = l;
-            stack[++top] = p - 1;
+            if (top >= (kStackSize - 1)) {
+                FUNC_CALL(bubbleSortIterative)(arr, l, p - 1);
+            } else {
+                stack[++top] = l;
+                stack[++top] = p - 1;
+            }
         }
 
         // If there are elements on right side of pivot,
         // then push right side to stack
         if (p + 1 < h) {
-            stack[++top] = p + 1;
-            stack[++top] = h;
+            if (top >= (kStackSize - 1)) {
+                FUNC_CALL(bubbleSortIterative)(arr, p + 1, h);
+            } else {
+                stack[++top] = p + 1;
+                stack[++top] = h;
+            }
         }
     }
 }
@@ -386,12 +411,15 @@ KERNEL (detection_output_stage_1_caffe_opt)(
     const int classId = get_global_id(1);
     const int workItemId = get_global_id(2);
     const int localClassId = get_local_id(1);
-    __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 4];
+    __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 2];
 
     //printf("detection_output_stage_1 |  global_id={batchId[0:%3d]classId[1:%3d]workItemId[2:%3d]} local_id={[0:%zd]localClassId[1:%3d][2:%zd]}\n",
     //        batchId, classId, workItemId, get_local_id(0), localClassId, get_local_id(2));
 
     const int scoresInfoNum = buffer2[batchId * NUM_CLASSES + classId];
+    if (scoresInfoNum < 2)
+        return;
+
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
 
     if (classId == BACKGROUND_LABEL_ID) {
@@ -411,16 +439,19 @@ KERNEL (detection_output_stage_1_caffe_opt)(
         //    }
         //    printf("}\n");
         //}
-        if (workItemId == 0 && scoresInfoNum > 1) {
+        if (workItemId == 0) {
             __range[localClassId][0] = 0;
             __range[localClassId][1] = scoresInfoNum - 1;
+        } else {
+            __range[localClassId][workItemId * 2] = 0;
+            __range[localClassId][workItemId * 2 + 1] = 0;
         }
         barrier(CLK_LOCAL_MEM_FENCE);
 
         int range_step = 2;
         const int first_id = workItemId * 2;
         for (int i = 0; i < PARTITION_STEP; ++i, range_step *= 2) {
-            if (scoresInfoNum > 1 && workItemId <= i) {
+            if (workItemId <= i) {
                 const int begin_id = __range[localClassId][first_id];
                 const int end_id = __range[localClassId][first_id + 1];
                 const int second_id = first_id + range_step;
@@ -431,22 +462,17 @@ KERNEL (detection_output_stage_1_caffe_opt)(
                     __range[localClassId][first_id + 1 ] = max(pivot - 1, begin_id);
                     __range[localClassId][second_id    ] = min(pivot + 1, end_id);
                     __range[localClassId][second_id + 1] = end_id;
-                } else {
-                    __range[localClassId][second_id    ] = 0;
-                    __range[localClassId][second_id + 1] = 0;
                 }
             }
-            barrier(CLK_LOCAL_MEM_FENCE);
+            barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
         }
 
-        if (scoresInfoNum > 1) {
-            const int begin_id = __range[localClassId][first_id];
-            const int end_id = __range[localClassId][first_id + 1];
-            if (begin_id < end_id) {
-                FUNC_CALL(quickSortIterative)(scoresList, begin_id, end_id, true);
-            }
+        const int begin_id = __range[localClassId][first_id];
+        const int end_id = __range[localClassId][first_id + 1];
+        if (begin_id < end_id) {
+            FUNC_CALL(quickSortIterative)(scoresList, begin_id, end_id, true);
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
         if (workItemId == 0 && (TOP_K != -1 && TOP_K < scoresInfoNum)) {
             buffer2[batchId * NUM_CLASSES + classId] = TOP_K;
@@ -489,46 +515,51 @@ KERNEL (detection_output_stage_1_mxnet_opt)(
 {
     const int batchId = get_global_id(0);
     const int workItemId = get_global_id(2);
-    __local int __range[LOCAL_WORK_NUM * 4];
+    __local int __range[LOCAL_WORK_NUM * 2];
 
     //printf("detection_output_stage_1_mxnet | global_id={batchId[0:%d][1:%d]workItemId[2:%zd]} local_id={[0:%zd][1:%zd][2:%zd]}\n", batchId, get_global_id(1), workItemId, get_local_id(0), get_local_id(1), get_local_id(2));
 
     const int scoresInfoNum = buffer2[batchId];
+    if (scoresInfoNum < 2)
+        return;
+
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[batchId * BUFFER_STRIDE];
 
-    if (workItemId == 0 && scoresInfoNum > 1) {
+    if (workItemId == 0) {
         __range[0] = 0;
         __range[1] = scoresInfoNum - 1;
+    } else {
+        __range[workItemId * 2] = 0;
+        __range[workItemId * 2 + 1] = 0;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+
     int range_step = 2;
     const int first_id = workItemId * 2;
     for (int i = 0; i < PARTITION_STEP; ++i, range_step *= 2) {
-        if (scoresInfoNum > 1 && workItemId <= i) {
+        if (workItemId <= i) {
             const int begin_id = __range[first_id];
             const int end_id = __range[first_id + 1];
             const int second_id = first_id + range_step;
+
             if (begin_id < end_id) {
                 const int pivot = FUNC_CALL(partition)(scoresList, begin_id, end_id, true);
                 __range[first_id     ] = begin_id;
                 __range[first_id + 1 ] = max(pivot - 1, begin_id);
                 __range[second_id    ] = min(pivot + 1, end_id);
                 __range[second_id + 1] = end_id;
-            } else {
-                __range[second_id    ] = 0;
-                __range[second_id + 1] = 0;
             }
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
     }
-    if (scoresInfoNum > 1) {
-        const int begin_id = __range[first_id];
-        const int end_id = __range[first_id + 1];
-        if (begin_id < end_id) {
-            FUNC_CALL(quickSortIterative)(scoresList, begin_id, end_id, true);
-        }
+
+    const int begin_id = __range[first_id];
+    const int end_id = __range[first_id + 1];
+    if (begin_id < end_id) {
+        FUNC_CALL(quickSortIterative)(scoresList, begin_id, end_id, true);
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
+
     if (workItemId == 0 && (TOP_K != -1 && TOP_K < scoresInfoNum)) {
         buffer2[batchId] = TOP_K;
     }
