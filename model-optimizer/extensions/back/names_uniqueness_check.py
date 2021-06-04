@@ -15,6 +15,9 @@ def nodes_with_equal_names(graph: Graph):
 
 
 def make_node_names_unique(nodes: list, node_names: set):
+    # Do not rename Result nodes until it is absolutely necessary (when there are two Result nodes with the same name)
+    # find position of Result nodes in the "nodes" list. Take the first element in this list and rename all other nodes.
+    # If the list is empty, then rename all nodes starting from the second one
     results_pos = [idx for idx, node in enumerate(nodes) if node.op == 'Result']
     node_position_to_keep = 0
     if len(results_pos) != 0:
