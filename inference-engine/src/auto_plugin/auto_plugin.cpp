@@ -113,6 +113,14 @@ void AutoInferencePlugin::SetConfig(const ConfigType& config) {
     for (auto && kvp : config) {
         if (kvp.first == IE::KEY_AUTO_DEVICE_LIST) {
             _config[kvp.first] = kvp.second;
+        } else if (kvp.first == IE::PluginConfigParams::KEY_PERF_COUNT) {
+            if (kvp.second == IE::PluginConfigParams::YES ||
+                kvp.second == IE::PluginConfigParams::NO) {
+                _config[kvp.first] = kvp.second;
+            } else {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
+            }
         } else {
             IE_THROW() << "Unsupported config key: " << kvp.first;
         }
@@ -132,7 +140,10 @@ IE::Parameter AutoInferencePlugin::GetMetric(const std::string& name,
         std::string device_name = {"Inference Engine AUTO device"};
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, device_name);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys;
+        std::vector<std::string> configKeys = {
+            IE::KEY_AUTO_DEVICE_LIST,
+            IE::PluginConfigParams::KEY_PERF_COUNT
+        };
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         std::vector<std::string> capabilities = GetOptimizationCapabilities(options);

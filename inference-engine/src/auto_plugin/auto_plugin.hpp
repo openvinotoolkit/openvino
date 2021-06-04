@@ -63,7 +63,10 @@ private:
         if (!executableNetwork) {
             IE_THROW() << "Failed to load network by AUTO plugin";
         }
-        auto impl = std::make_shared<AutoExecutableNetwork>(executableNetwork);
+
+        bool enablePerfCount = fullConfig.find(IE::PluginConfigParams::KEY_PERF_COUNT) != fullConfig.end();
+
+        auto impl = std::make_shared<AutoExecutableNetwork>(executableNetwork, enablePerfCount);
 
         if (std::is_same<std::string, T>::value) {
             SetExeNetworkInfo(impl, executableNetwork->GetInputsInfo(),
