@@ -24,6 +24,10 @@ void ConvertTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 
 bool ConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(m.get_match_root());
+    if (!convert) {
+        return false;
+    }
+
     if (!canBeTransformed(context, convert)) {
         return false;
     }
