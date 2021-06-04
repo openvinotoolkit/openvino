@@ -139,7 +139,12 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     manager.register_pass<ngraph::pass::Serialize>("/tmp/out_before.xml", "/tmp/out_before.bin");
     manager.register_pass<ngraph::pass::VisualizeTree>("/tmp/out_before.svg");
-    manager.register_pass<ngraph::pass::Tiling>();
+
+    std::vector<std::vector<std::shared_ptr<Function>>> tiles;
+    manager.register_pass<ngraph::pass::Tiling>(tiles, false /* concat outputs */);
+
+
+
     manager.register_pass<ngraph::pass::Serialize>("/tmp/out_after.xml", "/tmp/out_after.bin");
     manager.register_pass<ngraph::pass::VisualizeTree>("/tmp/out_after.svg");
 
@@ -192,6 +197,10 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     manager.run_passes(f);
+
+    Serialize("/tmp/out_tile_1.xml", "/tmp/out_tile_1.bin").run_on_function(tiles[0][0]);
+    Serialize("/tmp/out_tile_4.xml", "/tmp/out_tile_4.bin").run_on_function(tiles[1][1]);
+
 
     // Returning value is false because pass::Manager always apply Validation pass
     // if function was changed. This helps to avoid excess Validations after applying
