@@ -7,7 +7,7 @@ if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
 endif()
 
-if(DEFINED PYTHON_EXECUTABLE)
+if(DEFINED PYTHON_EXECUTABLE AND NOT DEFINED Python3_EXECUTABLE)
     set(Python3_EXECUTABLE ${PYTHON_EXECUTABLE})
 endif()
 
