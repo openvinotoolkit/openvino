@@ -1296,7 +1296,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             fusingPort = i;
             continue;
         }
-        if (!node->isConstant() || node->getType() != Input) {
+        if (node->getType() != Input || !node->isConstant()) {
             return false;
         }
     }
