@@ -6,7 +6,7 @@
 
 **Short description**: Applies max pooling with adaptive kernel size over the input.
 
-**Detailed description**: This operation calculates the output based on the 1st input and `output_size` determined by the 2nd input.
+**Detailed description**: This operation calculates the output based on the first input and `output_size` determined by the second input.
 The kernel dimensions are calculated using the following formulae for the `NCDHW` input case:
 
 \f[
@@ -30,7 +30,7 @@ Output(i,j,k) = max(Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end
 
 *   *index_element_type*
 
-  * **Description**: the type of the 2nd output containing indices
+  * **Description**: the type of the second output containing indices
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i64"
@@ -38,13 +38,13 @@ Output(i,j,k) = max(Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end
 
 **Inputs**:
 
-*   **1**: 3D, 4D or 5D input tensor of shape `[N,C,L]`, `[N,C,H,W]` or `[N,C,D,H,W]` and type *T*. Required.
+*   **1**: 3D, 4D, or 5D input tensor of shape `[N,C,L]`, `[N,C,H,W]` or `[N,C,D,H,W]` and type *T*. Required.
 *   **2**: 1D tensor describing output shape for spatial dimensions. Can be `[L_out]` for 3D input, `[H_out,W_out]` for 4D input, `[D_out,H_out,W_out]` for 5D input and of type *T_IND*. Required.
 
 **Outputs**:
 
 *   **1**: Output of type *T* and shape `[N,C,L_out]`, `[N,C,H_out,W_out]` or `[N,C,D_out,H_out,W_out]`.
-*   **2**: Output of type specified by *index_element_type* and same shape as 1st output containing indices of elements in 1st output. The values of indices are computed as if input was flatten 1-D tensor.
+*   **2**: Output of type specified by *index_element_type* and same shape as the first output containing indices of elements in the first output. The values of indices are computed as if input was flatten 1-D tensor.
 
 **Types**
 

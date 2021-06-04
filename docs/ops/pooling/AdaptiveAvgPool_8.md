@@ -6,7 +6,7 @@
 
 **Short description**: Applies average pooling with adaptive kernel size over the input.
 
-**Detailed description**: This operation calculates the output based on the 1st input and `output_size` determined by the 2nd input.
+**Detailed description**: This operation calculates the output based on the first input and `output_size` determined by the second input.
 The kernel dimensions are calculated using the following formulae for the `NCDHW` input case:
 
 \f[
@@ -20,7 +20,7 @@ w_{end}   &=& ceil((k+1)*W_{in}/W_{out})
 \end{array}
 \f]
 
-The output is calculated following this formula:
+The output is calculated with the following formula:
 
 \f[
 Output(i,j,k) = \frac{Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end}]}{(d_{end}-d_{start})*(h_{end}-h_{start})*(w_{end}-w_{start})}
@@ -28,7 +28,7 @@ Output(i,j,k) = \frac{Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{e
 
 **Inputs**:
 
-*   **1**: 3D, 4D or 5D input tensor of shape `[N,C,L]`, `[N,C,H,W]` or `[N,C,D,H,W]` and type *T*. Required.
+*   **1**: 3D, 4D, or 5D input tensor of shape `[N,C,L]`, `[N,C,H,W]` or `[N,C,D,H,W]` and type *T*. Required.
 *   **2**: 1D tensor describing output shape for spatial dimensions. Can be `[L_out]` for 3D input, `[H_out,W_out]` for 4D input, `[D_out,H_out,W_out]` for 5D input and of type *T_IND*. Required.
 
 **Outputs**:
