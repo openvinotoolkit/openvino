@@ -288,8 +288,9 @@ regular_op_with_shaped_data = lambda name, shape, kwargs: {**regular_op(name, kw
 regular_op_with_empty_data = lambda name, kwargs: {**regular_op(name, kwargs), **empty_data(name + '_d')}
 
 # constants
-const = lambda name, value, kwargs={}: {name: {'kind': 'op', 'value': value, 'shape': int64_array(value.shape),
-                                               'type': 'Const', 'infer': Const.infer, 'op': 'Const', **kwargs}}
+const = lambda name, value, kwargs={}: {name: {'kind': 'op', 'type': 'Const', 'op': 'Const',
+                                               'value': value, 'shape': int64_array(value.shape),
+                                               'infer': Const.infer, 'type_infer': Const.type_infer, **kwargs}}
 
 fake_const = lambda name, shape, kwargs={}: {name: {'kind': 'op', 'op': 'Const', 'type': 'Const',
                                                     'value': None, 'infer': Const.infer, **kwargs,

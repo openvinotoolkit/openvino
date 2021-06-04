@@ -10,6 +10,7 @@ from mo.graph.graph import Graph, Node
 from mo.middle.passes.infer import copy_type_infer
 from mo.ops.op import Op
 from mo.pipeline.common import convert_const_node_value_type
+from mo.utils.error import Error
 
 
 def override_data_type_of_constant(node: Node):
@@ -24,15 +25,15 @@ def override_data_type_of_constant(node: Node):
         in_node_1 = node.in_port(1).get_source().node
 
         if in_node_0.op != 'Const' and in_node_1.op != 'Const':
-            raise Exception("Elementwise operation '{}' has inputs of different data types: '{}' and '{}' "
-                            "that cannot be aligned".format(node.soft_get('name'), in_type_0, in_type_1))
+            raise Error("Elementwise operation '{}' has inputs of different data types: '{}' and '{}' "
+                        "that cannot be aligned".format(node.soft_get('name'), in_type_0, in_type_1))
 
         if in_node_0.op == 'Const':
             node_to_convert, src_type, dst_type = in_node_0, in_type_0, in_type_1
         else:
             node_to_convert, src_type, dst_type = in_node_1, in_type_1, in_type_0
         log.error("Changing Const node '{}' data type from {} to {} for Elementwise operation".format(
-            node.soft_get('name', node_to_convert.id), src_type, dst_type),
+            node_to_convert.soft_get('name', node_to_convert.id), src_type, dst_type),
             extra={'is_warning': True})
         convert_const_node_value_type(node_to_convert, dst_type)
 
