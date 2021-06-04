@@ -4,7 +4,7 @@
 import logging as log
 
 import numpy as np
-
+from mo.utils.error import Error
 from mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.infer import copy_type_infer
@@ -24,8 +24,8 @@ def override_data_type_of_constant(node: Node):
         in_node_1 = node.in_port(1).get_source().node
 
         if in_node_0.op != 'Const' and in_node_1.op != 'Const':
-            raise Exception("Elementwise operation '{}' has inputs of different data types: '{}' and '{}' "
-                            'that cannot be aligned'.format(node.soft_get('name'), in_type_0, in_type_1))
+            raise Error("Elementwise operation '{}' has inputs of different data types: '{}' and '{}' "
+                            "that cannot be aligned".format(node.soft_get('name'), in_type_0, in_type_1))
 
         if in_node_0.op == 'Const':
             node_to_convert, src_type, dst_type = in_node_0, in_type_0, in_type_1

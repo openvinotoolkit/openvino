@@ -120,18 +120,6 @@ class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
             **result('res'),
         }
 
-        nodes_ref = {
-            **regular_op_with_shaped_data('input_1', inp_shape_1, {'op': 'Parameter', 'type': 'Parameter'}),
-            **regular_op_with_shaped_data('input_2', inp_shape_2, {'op': 'Parameter', 'type': 'Parameter',
-                                                                   'returns_shape_value': False}),
-            **shaped_const_with_data('const', const_shape),
-            **regular_op_with_empty_data('concat', {'op': 'Concat', 'type': 'Concat', 'axis': 2,
-                                                    'returns_shape_value': False}),
-            **regular_op_with_empty_data('shapeof', {'op': 'ShapeOf', 'type': 'ShapeOf'}),
-            **regular_op_with_empty_data('reshape', {'op': 'Reshape', 'type': 'Reshape'}),
-            **result('res'),
-        }
-
         edges = [
             *connect('input_1', '0:reshape'),
             *connect('input_2', '0:concat'),
@@ -145,7 +133,6 @@ class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
 
         MarkNodesWithShapeValues().find_and_replace_pattern(graph)
 
-        graph_ref = build_graph(nodes_ref, edges)
+        graph_ref = build_graph(nodes, edges)
         (flag, resp) = compare_graphs(graph, graph_ref, 'res', check_op_attrs=True)
-        msg = "'returns_shape_value' should be False or unset for ShapeOf input nodes"
-        self.assertTrue(flag, msg + ': ' + str(resp))
+        self.assertTrue(flag, "'returns_shape_value' should be False or unset for ShapeOf input nodes" + ': ' + str(resp))
