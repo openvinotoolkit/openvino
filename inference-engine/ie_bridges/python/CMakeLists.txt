@@ -9,7 +9,7 @@ cmake_minimum_required (VERSION 3.13)
 project (ie_python_api)
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
-option(ENABLE_WHEEL "Create wheel package" ON)
+option(ENABLE_WHEEL "Create wheel package" OFF)
 
 set(PYTHON_BRIDGE_CPACK_PATH "python")
 
