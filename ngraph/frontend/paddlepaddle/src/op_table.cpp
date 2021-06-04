@@ -65,6 +65,8 @@ namespace ngraph
                         {"clip", op::clip},
                         {"concat", op::concat},
                         {"conv2d", op::conv2d},
+                        {"depthwise_conv2d", op::conv2d},
+                        {"depthwise_conv2d_transpose", op::conv2d},
                         {"dropout", op::dropout},
                         {"conv2d_transpose", op::conv2d_transpose},
                         {"elementwise_add", op::elementwise_add},

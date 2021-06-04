@@ -133,7 +133,7 @@ if __name__ == "__main__":
             "padding": 1,
             "stride": 1,
             "groups": 3,
-            "use_cudnn": True
+            "use_cudnn": False
         }
     ]
     for test in test_cases:
