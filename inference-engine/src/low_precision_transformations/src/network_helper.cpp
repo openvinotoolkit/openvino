@@ -1635,6 +1635,29 @@ std::vector<element::Type> NetworkHelper::precisionIntersection(
     return v3;
 }
 
+bool NetworkHelper::isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq) {
+    const auto pInputShape = fq->get_input_partial_shape(0);
+    if (pInputShape.rank().is_dynamic()) {
+        return true;
+    }
+
+    auto olShape = fq->get_input_shape(3);
+    if (shape_size(olShape) > 1ul) {
+        const size_t rank = pInputShape.rank().get_length();
+        while (olShape.size() < rank) {
+            olShape.insert(olShape.begin(), 1ul);
+        }
+
+        for (size_t i = 0; i < olShape.size(); ++i) {
+            if (olShape[i] != 1ul && pInputShape[i].is_dynamic()) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph
