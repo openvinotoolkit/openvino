@@ -55,6 +55,10 @@ CNNNetwork IRParser::parse(
 
 namespace {
 
+void operator>>(const std::stringstream& in, ngraph::element::Type& type) {
+    type = details::convertPrecision(in.str());
+}
+
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
     if (!node) return false;
 
@@ -543,6 +547,10 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         }
 
         a->set(node_attrs);
+    } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
+        ngraph::element::TypeVector types;
+        if (!getParameters<ngraph::element::Type>(node.child("data"), name, types)) return;
+        a->set(types);
     } else {
         IE_THROW() << "Error IR reading. Attribute adapter can not be found for " << name
                            << " parameter";
@@ -777,6 +785,11 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
     const pugi::xml_node& node,
     const Blob::CPtr& weights,
     const V10Parser::GenericLayerParams& params) {
+    if (params.type == "GreaterEqual") {
+        int i = 0;
+        ++i;
+    }
+
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())

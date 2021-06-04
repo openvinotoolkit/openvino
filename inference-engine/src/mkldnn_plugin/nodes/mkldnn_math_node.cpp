@@ -10,18 +10,19 @@
 #include "ie_parallel.hpp"
 #include "mkldnn_math_node.h"
 #include "utils/general_utils.h"
+#include "utils/ngraph_utils.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 bool MKLDNNMathNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (initializers.find(op->get_type_info()) == initializers.end()) {
+        if (find_castable_type_info(initializers, op->get_type_info()) == initializers.end()) {
             errorMessage = "Unsupported Math layer type.";
             return false;
         }
 
-        if (MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::HardSigmoid::type_info, ngraph::op::v0::Selu::type_info)) {
+        if (MKLDNNPlugin::one_of_castable(op->get_type_info(), ngraph::op::v0::HardSigmoid::type_info, ngraph::op::v0::Selu::type_info)) {
             auto firstConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
             auto secondConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (!firstConst || !secondConst) {
@@ -42,7 +43,8 @@ MKLDNNMathNode::MKLDNNMathNode(const std::shared_ptr<ngraph::Node>& op, const mk
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    initializers[op->get_type_info()](op, *this);
+    auto it = find_castable_type_info(initializers, op->get_type_info());
+    it->second(op, *this);
 }
 
 void MKLDNNMathNode::initSupportedPrimitiveDescriptors() {

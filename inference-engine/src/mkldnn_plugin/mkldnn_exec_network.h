@@ -43,6 +43,10 @@ public:
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
 
+    void Export(const std::string &modelFileName) final;
+
+    void Export(std::ostream& modelStream) final;
+
 protected:
     friend class MKLDNNInferRequest;
     MKLDNNExtensionManager::Ptr extensionManager;

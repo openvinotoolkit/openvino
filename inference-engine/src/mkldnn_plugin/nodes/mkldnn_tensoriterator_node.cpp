@@ -270,7 +270,7 @@ int getNumIteration(const std::shared_ptr<const ngraph::Node>& op, const std::ve
 
 bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (!one_of_castable(op->get_type_info(),
                 ngraph::op::v0::TensorIterator::type_info,
                 ngraph::op::v5::Loop::type_info)) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";

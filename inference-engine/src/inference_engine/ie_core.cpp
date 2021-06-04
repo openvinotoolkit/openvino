@@ -224,7 +224,7 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
     std::vector<IExtensionPtr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
-    mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
+    mutable std::recursive_mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
 
     bool DeviceSupportsImportExport(const std::string& deviceName) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName);
@@ -405,7 +405,7 @@ public:
      * @param xmlConfigFile An .xml configuraion with device / plugin information
      */
     void RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::recursive_mutex> lock(pluginsMutex);
 
         auto parse_result = ParseXml(xmlConfigFile.c_str());
         if (!parse_result.error_msg.empty()) {
@@ -669,7 +669,7 @@ public:
     InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
 
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::recursive_mutex> lock(pluginsMutex);
 
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
@@ -736,7 +736,7 @@ public:
      * @param deviceName A name of device
      */
     void UnloadPluginByName(const std::string& deviceName) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::recursive_mutex> lock(pluginsMutex);
         auto it = plugins.find(deviceName);
         if (it == plugins.end()) {
             IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
@@ -750,7 +750,7 @@ public:
      * @param deviceName A name of device
      */
     void RegisterPluginByName(const std::string& pluginName, const std::string& deviceName) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::recursive_mutex> lock(pluginsMutex);
 
         auto it = pluginRegistry.find(deviceName);
         if (it != pluginRegistry.end()) {
@@ -779,7 +779,7 @@ public:
      * @return A list of plugin names
      */
     std::vector<std::string> GetListOfDevicesInRegistry() const {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::recursive_mutex> lock(pluginsMutex);
 
         std::vector<std::string> listOfDevices;
         for (auto&& pluginDesc : pluginRegistry) {
@@ -799,7 +799,7 @@ public:
     void SetConfigForPlugins(const std::map<std::string, std::string>& configMap, const std::string& deviceName) {
         auto config = configMap;
 
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::recursive_mutex> lock(pluginsMutex);
 
         if (deviceName.empty()) {
             coreConfig.setAndUpdate(config);
@@ -841,8 +841,8 @@ public:
      * @brief Registers the extension in a Core object
      *        Such extensions can be used for both CNNNetwork readers and device plugins
      */
-    void AddExtension(const IExtensionPtr& extension) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+    void AddExtension(const IExtensionPtr& extension) override {
+        std::lock_guard<std::recursive_mutex> lock(pluginsMutex);
 
         std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
         for (const auto& it : opsets) {

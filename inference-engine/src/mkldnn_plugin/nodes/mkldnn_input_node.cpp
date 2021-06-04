@@ -228,7 +228,7 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 
 MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
-    if (!one_of(op->get_type_info(),
+    if (!one_of_castable(op->get_type_info(),
             v0::Parameter::type_info,
             v0::Constant::type_info,
             v0::Result::type_info,

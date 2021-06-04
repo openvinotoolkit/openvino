@@ -107,6 +107,12 @@ public:
                                             const std::map<std::string, std::string>& config) const = 0;
 
     /**
+     * @brief Registers extension
+     * @param extension Pointer to already loaded extension
+     */
+    virtual void AddExtension(const IExtensionPtr& extension) = 0;
+
+    /**
      * @brief Gets general runtime metric for dedicated hardware.
      *
      * The method is needed to request common device properties

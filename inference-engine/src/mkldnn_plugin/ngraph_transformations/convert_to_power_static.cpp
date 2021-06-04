@@ -41,7 +41,7 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
     auto const_shape = node->get_input_shape(constPort);
     return ngraph::shape_size(const_shape) == 1 &&
            input_rank.get_length() >= const_shape.size() &&
-           !MKLDNNPlugin::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(), ngraph::opset1::NormalizeL2::type_info,
+           !MKLDNNPlugin::one_of_castable(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(), ngraph::opset1::NormalizeL2::type_info,
                                                                                                  ngraph::opset4::Interpolate::type_info,
                                                                                                  ngraph::opset1::Convolution::type_info,
                                                                                                  ngraph::opset1::GroupConvolution::type_info,

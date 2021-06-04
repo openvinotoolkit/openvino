@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <map>
 #include <cassert>
+#include <algorithm>
 #include <ngraph/variant.hpp>
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
@@ -37,6 +39,16 @@ inline const std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ngraph::Node
     if (!typedOp)
         IE_THROW() << "Can't get ngraph node " << op->get_type_name() << " with name " << op->get_friendly_name();
     return typedOp;
+}
+
+template <typename V>
+inline typename std::map<const ngraph::Node::type_info_t, V>::const_iterator
+find_castable_type_info(const std::map<const ngraph::Node::type_info_t, V>& map,
+                        const ngraph::Node::type_info_t& typeInfo) {
+    return std::find_if(map.begin(), map.end(),
+            [typeInfo](const typename std::map<const ngraph::Node::type_info_t, V>::value_type & n) {
+                return typeInfo.is_castable(n.first);
+            });
 }
 
 }  // namespace MKLDNNPlugin

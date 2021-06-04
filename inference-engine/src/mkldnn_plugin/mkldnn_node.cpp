@@ -226,13 +226,24 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "NonMaxSuppressionIEInternal", NonMaxSuppression}
 };
 
-Type TypeFromName(const std::string type) {
+Type TypeFromName(const std::string & type) {
     auto itType = type_to_name_tbl.find(type);
     if (type_to_name_tbl.end() != itType) {
         return itType->second;
-    } else {
-        return Unknown;
     }
+
+    static const char type_relaxed_prefix[] = "TypeRelaxed_";
+
+    auto pos = type.find(type_relaxed_prefix);
+
+    if (pos != std::string::npos) {
+        itType = type_to_name_tbl.find(type.substr(pos + sizeof type_relaxed_prefix - 1));
+        if (type_to_name_tbl.end() != itType) {
+            return itType->second;
+        }
+    }
+
+    return Unknown;
 }
 
 }  //  namespace MKLDNNPlugin

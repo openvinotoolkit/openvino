@@ -19,8 +19,10 @@
 #include <unordered_set>
 #include <utility>
 #include <cstring>
+#include <fstream>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/serialize.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -266,3 +268,27 @@ std::vector<IVariableStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
     return memoryStates;
 }
 IE_SUPPRESS_DEPRECATED_END
+
+void MKLDNNExecNetwork::Export(const std::string &modelFileName) {
+    std::ofstream outputStream(modelFileName, std::ios::out | std::ios::binary);
+    Export(outputStream);
+}
+
+void MKLDNNExecNetwork::Export(std::ostream& modelStream) {
+    auto getCustomOpSets = [this]() {
+        std::map<std::string, ngraph::OpSet> custom_opsets;
+
+        if (extensionManager) {
+            auto extensions = extensionManager->Extensions();
+            for (const auto& extension : extensions) {
+                auto opset = extension->getOpSets();
+                custom_opsets.insert(begin(opset), end(opset));
+            }
+        }
+
+        return custom_opsets;
+    };
+
+    ngraph::pass::StreamSerialize serializer(modelStream, getCustomOpSets());
+    serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(_network.getFunction()));
+}

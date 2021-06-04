@@ -122,11 +122,11 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
 
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
+        if (op->get_type_info().is_castable(ngraph::op::v0::Parameter::type_info)) {
             inputNodesMap[node->getName()] = node;
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
+        if (op->get_type_info().is_castable(ngraph::op::v0::Result::type_info)) {
             auto prev = op->get_input_node_shared_ptr(0);
             std::string inputID;
             inputID = prev->get_friendly_name();
@@ -148,7 +148,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
             graphEdges.push_back(edge);
         }
 
-        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+        if (!MKLDNNPlugin::one_of_castable(op->get_type_info(),
                 ngraph::op::v0::Result::type_info,
                 ngraph::op::v3::Assign::type_info,
                 ngraph::op::v6::Assign::type_info)) {
@@ -221,13 +221,13 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         }
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
+        if (op->get_type_info().is_castable(ngraph::op::v0::Parameter::type_info)) {
             if (inputsInfo.count(node->getName()) != 0) {
                 inputNodesMap[node->getName()] = node;
             }
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
+        if (op->get_type_info().is_castable(ngraph::op::v0::Result::type_info)) {
             const auto &input = op->input_value(0);
             NGRAPH_SUPPRESS_DEPRECATED_START
             auto name = input.get_tensor().get_name();
@@ -252,7 +252,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             graphEdges.push_back(edge);
         }
 
-        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+        if (!MKLDNNPlugin::one_of_castable(op->get_type_info(),
                 ngraph::op::v0::Result::type_info,
                 ngraph::op::v3::Assign::type_info,
                 ngraph::op::v6::Assign::type_info)) {

@@ -19,7 +19,7 @@ using namespace InferenceEngine;
 
 bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v1::Split::type_info, ngraph::op::v1::VariadicSplit::type_info)) {
+        if (!MKLDNNPlugin::one_of_castable(op->get_type_info(), ngraph::op::v1::Split::type_info, ngraph::op::v1::VariadicSplit::type_info)) {
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
         }

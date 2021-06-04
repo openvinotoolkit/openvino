@@ -23,6 +23,7 @@
 #include "emitters/jit_bf16_emitters.hpp"
 #include <mkldnn_selective_build.h>
 #include "utils/general_utils.h"
+#include "utils/ngraph_utils.hpp"
 
 #include "ngraph/ngraph.hpp"
 #include <ngraph/opsets/opset1.hpp>
@@ -939,8 +940,9 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
 
 MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {
-    if (initializers.find(op->get_type_info()) != initializers.end()) {
-        initializers[op->get_type_info()](op, *this);
+    auto it = find_castable_type_info(initializers, op->get_type_info());
+    if (it != initializers.end()) {
+        it->second(op, *this);
     } else {
         IE_THROW(NotImplemented)
             << "CPU Eltwise node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
