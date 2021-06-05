@@ -10,6 +10,10 @@ This folder layer tests framework code and test files.
 
 #### Setup
 
+* Install requirements:
+    ```bash
+    pip3 install -r requirements.txt --proxy proxy-chain.intel.com:911
+    ```
 * Set up environment variables for layer tests:
     ```bash
     export MO_ROOT=PATH_TO_MO
