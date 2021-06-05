@@ -13,6 +13,8 @@
         <value>MYRIAD</value>
     </devices>
     <models>
+        <model name="alexnet" precision="FP32" source="omz" />
         <model name="mobilenet-ssd" precision="FP32" source="omz" />
+        <model name="mtcnn-r" precision="FP32" source="omz" />
     </models>
 </attributes>
