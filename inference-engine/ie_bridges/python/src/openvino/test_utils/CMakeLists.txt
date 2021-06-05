@@ -20,14 +20,11 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api.pyx
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCES})
-set(INSTALLED_TARGETS ${TARGET_NAME})
 add_dependencies(${TARGET_NAME} ie_api)
 
 if(COMMAND ie_add_vs_version_file)
-    foreach(target IN LISTS INSTALLED_TARGETS)
-        ie_add_vs_version_file(NAME ${target}
-                               FILEDESCRIPTION "Test Utils Python library")
-    endforeach()
+    ie_add_vs_version_file(NAME ${target}
+                           FILEDESCRIPTION "Test Utils Python library")
 endif()
 
 if(TARGET commonTestUtils)

@@ -20,14 +20,11 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCES})
-set(INSTALLED_TARGETS ${TARGET_NAME})
 add_dependencies(${TARGET_NAME} ie_api)
 
 if(COMMAND ie_add_vs_version_file)
-    foreach(target IN LISTS INSTALLED_TARGETS)
-        ie_add_vs_version_file(NAME ${target}
-                               FILEDESCRIPTION "Offline Transformatoins Python library")
-    endforeach()
+    ie_add_vs_version_file(NAME ${TARGET_NAME}
+                           FILEDESCRIPTION "Offline Transformatoins Python library")
 endif()
 
 if(TARGET offline_transformations)
@@ -58,7 +55,7 @@ add_custom_command(TARGET ${TARGET_NAME}
 # TODO: use ${PYTHON_VERSION}_dev component below
 # ie_cpack_add_component(${PYTHON_VERSION}_dev DEPENDS ${PYTHON_VERSION})
 
-install(TARGETS ${INSTALLED_TARGETS}
+install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}
         LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION})
 
