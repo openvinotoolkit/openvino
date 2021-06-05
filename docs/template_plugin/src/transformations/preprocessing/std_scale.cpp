@@ -31,10 +31,10 @@ ngraph::pass::AddStdScale::AddStdScale(const ScaleMap& inputInfoMap) {
         NGRAPH_CHECK(scale_const->get_element_type() == ngraph::element::f32, "Scale for ", param->get_friendly_name(), " must have f32 type");
 
         auto copy_param = param->clone_with_new_inputs({});
-        auto mul = std::make_shared<ngraph::opset3::Multiply>(copy_param, it->second);
+        auto div = std::make_shared<ngraph::opset3::Divide>(copy_param, it->second);
 
-        ngraph::replace_node(param, mul);
-        mul->set_argument(0, param);
+        ngraph::replace_node(param, div);
+        div->set_argument(0, param);
 
         // Return true as the root node was changed
         return true;
