@@ -16,11 +16,8 @@ else()
 endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
-
-find_package(PythonInterp 3 QUIET)
-if(PYTHONINTERP_FOUND)
-    option(ENABLE_WHEEL "Create wheel package" OFF)
-endif()
+cmake_dependent_option(ENABLE_WHEEL "Create wheel package" OFF
+    "PYTHONINTERP_FOUND;NOT CMAKE_SOURCE_DIR STREQUAL ie_python_api_SOURCE_DIR" OFF)
 
 set(PYTHON_BRIDGE_CPACK_PATH "python")
 
