@@ -88,7 +88,7 @@ find_package( Cython REQUIRED
               PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
               NO_CMAKE_FIND_ROOT_PATH
               NO_DEFAULT_PATH )
-find_package(PythonLibs REQUIRED)
+find_package(PythonLibs 3 REQUIRED)
 
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )

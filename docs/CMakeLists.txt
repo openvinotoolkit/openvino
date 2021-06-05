@@ -52,12 +52,8 @@ set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation")
 
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
-    find_package(PythonInterp REQUIRED)
-    find_package(LATEX)
-
-    if(NOT PYTHON_VERSION_MAJOR EQUAL 3)
-        message(FATAL_ERROR "Python3 is required. Found version ${PYTHON_VERSION_STRING}")
-    endif()
+    find_package(PythonInterp 3 REQUIRED)
+    find_package(LATEX REQUIRED)
 
     execute_process(
         COMMAND ${PYTHON_EXECUTABLE} -m pip show lxml
@@ -67,10 +63,6 @@ function(build_docs)
 
     if (NOT ${PIP_EXIT_CODE} EQUAL 0)
         message(FATAL_ERROR "lxml package is not installed. Please use \"pip install lxml\".")
-    endif()
-
-    if(NOT LATEX_FOUND)
-        message(FATAL_ERROR "LATEX is required to build the documentation")
     endif()
 
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")

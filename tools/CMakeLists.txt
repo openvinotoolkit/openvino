@@ -7,12 +7,9 @@ if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
 endif()
 
-find_package(PythonInterp REQUIRED)
-if(NOT PYTHON_VERSION_MAJOR EQUAL 3)
-    message(FATAL_ERROR "Python3 is required. Found version ${PYTHON_VERSION_STRING}")
-endif()
-
+find_package(PythonInterp 3 REQUIRED)
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+
 set(TARGET_NAME "python_tools")
 
 if(WIN32)

@@ -30,7 +30,7 @@
 # Use the Cython executable that lives next to the Python executable
 # if it is a local installation.
 
-find_package(PythonInterp QUIET)
+find_package(PythonInterp 3 QUIET)
 if( PYTHONINTERP_FOUND )
   get_filename_component( _python_path ${PYTHON_EXECUTABLE} PATH )
   find_host_program( CYTHON_EXECUTABLE

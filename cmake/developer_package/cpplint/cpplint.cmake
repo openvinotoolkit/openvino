@@ -3,9 +3,9 @@
 #
 
 if(ENABLE_CPPLINT)
-    find_package(PythonInterp QUIET)
+    find_package(PythonInterp 3 QUIET)
 
-    if(NOT PYTHONINTERP_FOUND OR NOT PYTHON_VERSION_MAJOR EQUAL 3)
+    if(NOT PYTHONINTERP_FOUND)
         message(WARNING "Python3 interpreter was not found (required for cpplint check)")
         set(ENABLE_CPPLINT OFF)
     endif()
