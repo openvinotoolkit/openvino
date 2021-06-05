@@ -30,9 +30,8 @@ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
 ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile time" OFF)
 
 # Try to find python3
-find_package(PythonInterp 3 QUIET)
 find_package(PythonLibs 3 QUIET)
-ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" OFF "PYTHONLIBS_FOUND;PYTHONINTERP_FOUND" OFF)
+ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" OFF "PYTHONLIBS_FOUND" OFF)
 
 #
 # enable or disable output from NGRAPH_DEBUG statements

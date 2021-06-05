@@ -235,7 +235,7 @@ function( compile_pyx _name generated_file )
       set( cython_debug_arg "--gdb" )
   endif()
 
-  if( PYTHON_VERSION_MAJOR EQUAL 3 )
+  if( "${PYTHONLIBS_VERSION_STRING}" MATCHES "^3." )
     set( version_arg "-3" )
   else()
     set( version_arg )

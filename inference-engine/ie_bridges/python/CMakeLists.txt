@@ -35,14 +35,10 @@ endif()
 
 include (cmake/UseCython.cmake)
 
-if(PYTHONINTERP_FOUND)
-    if(PYTHON_VERSION_MAJOR EQUAL 3)
-        set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-    else()
-        message(FATAL_ERROR "Python Interpretator version ${PYTHON_VERSION_STRING} is obsolete!")
-    endif()
+if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
+    set(PYTHON_VERSION python${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
 else()
-    message(FATAL_ERROR "Python Interpretator was not found!")
+    message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
 endif()
 
 if(ENABLE_CONDA_FOLDER)
