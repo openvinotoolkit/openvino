@@ -286,7 +286,6 @@ function( cython_add_module _name )
     endif()
   endforeach()
   compile_pyx( ${_name} generated_file ${pyx_module_sources} )
-  # TODO: add custom suffix
   python_add_module ( ${_name} ${generated_file} ${other_module_sources} )
   target_include_directories( ${_name} PRIVATE ${PYTHON_INCLUDE_DIRS})
   set_target_properties(${_name} PROPERTIES PREFIX "" SUFFIX "${PYTHON_MODULE_EXTENSION}")
