@@ -9,17 +9,17 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_e
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
 
-file(GLOB SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx
-                 ${CMAKE_CURRENT_SOURCE_DIR}/*.pxd
-                 ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-                 ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
+                  ${CMAKE_CURRENT_SOURCE_DIR}/*.pxd
+                  ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+                  ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 file(GLOB PYX_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
 set_source_files_properties(${PYX_SOURCES} PROPERTIES CYTHON_IS_CXX ON)
 
 # create target
 
-cython_add_module(${TARGET_NAME} ${SOURCE})
+cython_add_module(${TARGET_NAME} ${SOURCES})
 set(INSTALLED_TARGETS ${TARGET_NAME})
 
 list(REMOVE_ITEM PYX_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
