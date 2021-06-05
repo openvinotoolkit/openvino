@@ -23,7 +23,7 @@ cython_add_module(${TARGET_NAME} ${SOURCES})
 add_dependencies(${TARGET_NAME} ie_api)
 
 if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ${target}
+    ie_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION "Test Utils Python library")
 endif()
 
