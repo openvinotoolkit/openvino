@@ -16,14 +16,13 @@ set(WHEEL_REQUIREMENTS "${CMAKE_CURRENT_SOURCE_DIR}/meta/openvino.requirements.t
 set(WHEEL_OVERVIEW "${CMAKE_CURRENT_SOURCE_DIR}/meta/pypi_overview.md" CACHE STRING "Detailed description")
 
 set(SETUP_PY "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
-set(SETUP_ENV   "${CMAKE_CURRENT_SOURCE_DIR}/.env.in")
+set(SETUP_ENV "${CMAKE_CURRENT_SOURCE_DIR}/.env.in")
 
 set(CORE_LIBS_DIR ${IE_CPACK_RUNTIME_PATH})
 set(PLUGINS_LIBS_DIR ${IE_CPACK_RUNTIME_PATH})
 set(NGRAPH_LIBS_DIR deployment_tools/ngraph/lib)
 set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION})
 set(TBB_LIBS_DIR deployment_tools/inference_engine/external/tbb/lib)
-
 
 if(APPLE)
     set(WHEEL_PLATFORM macosx_10_15_x86_64)
@@ -45,19 +44,23 @@ if(TARGET _pyngraph)
 endif()
 
 if(LINUX)
-    find_host_program(patchelf_program NAMES patchelf)
+    find_host_program(patchelf_program
+                      NAMES patchelf
+                      DOC "Path to patchelf tool")
     if(NOT patchelf_program)
         message(FATAL_ERROR "patchelf is not found, which is needed to build ie_wheel")
     endif()
 endif()
 
 add_custom_command(TARGET ie_wheel
+    PRE_BUILD
+        COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
+            --dist-dir ${CMAKE_BINARY_DIR}/wheels
+            --build=${WHEEL_BUILD}
+            --plat-name=${WHEEL_PLATFORM}
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
-    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
-        --dist-dir ${CMAKE_BINARY_DIR}/wheels
-        --build=${WHEEL_BUILD}
-        --plat-name=${WHEEL_PLATFORM}
+        COMMAND ${CMAKE_COMMAND} -E rm "${CMAKE_CURRENT_SOURCE_DIR}/.env"
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${WHEEL_PACKAGE_NAME}"
     VERBATIM

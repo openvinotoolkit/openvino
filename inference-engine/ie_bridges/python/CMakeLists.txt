@@ -8,24 +8,21 @@ cmake_minimum_required (VERSION 3.13)
 # Set the project name
 project (ie_python_api)
 
-option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
-option(ENABLE_WHEEL "Create wheel package" OFF)
-
-set(PYTHON_BRIDGE_CPACK_PATH "python")
-
-string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
-if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
-    set(ARCH intel64)
-elseif(ARCH STREQUAL "i386")
-    set(ARCH ia32)
-endif()
-
 if(DEFINED IE_MAIN_SOURCE_DIR)
     set(InferenceEngine_LIBRARIES inference_engine)
 else()
     find_package(InferenceEngineDeveloperPackage REQUIRED)
     set(InferenceEngine_LIBRARIES IE::inference_engine)
 endif()
+
+option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
+
+find_package(PythonInterp 3 QUIET)
+if(PYTHONINTERP_FOUND)
+    option(ENABLE_WHEEL "Create wheel package" OFF)
+endif()
+
+set(PYTHON_BRIDGE_CPACK_PATH "python")
 
 if(UNIX)
     # cython generated files requires public visibility. Force visibility required.
