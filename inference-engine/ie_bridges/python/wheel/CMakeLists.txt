@@ -37,11 +37,13 @@ endif()
 
 configure_file(${SETUP_ENV} "${CMAKE_CURRENT_SOURCE_DIR}/.env")
 
-add_custom_target(ie_wheel ALL DEPENDS ie_libraries ie_plugins ie_api)
+add_custom_target(ie_wheel ALL DEPENDS ie_api)
 
-if(TARGET _pyngraph)
-    add_dependencies(ie_wheel _pyngraph)
-endif()
+foreach(_target ie_libraries ie_plugins _pyngraph)
+    if(TARGET ${_target})
+        add_dependencies(ie_wheel ${_target})
+    endif()
+endforeach()
 
 if(LINUX)
     find_host_program(patchelf_program
@@ -68,5 +70,5 @@ add_custom_command(TARGET ie_wheel
 
 set_property(TARGET ie_wheel
     APPEND
-    PROPERTY ADDITIONAL_CLEAN_FILES ${CMAKE_BINARY_DIR}/wheels
+    PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_BINARY_DIR}/wheels"
 )
