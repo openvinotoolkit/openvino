@@ -74,6 +74,17 @@ struct Version {
             major = _major;
             minor = _minor;
         }
+
+        /**
+         * @brief A copy operator
+         * @param other An object to copy
+         * @return A copy
+         */
+        ApiVersion& operator=(const ApiVersion& other) {
+            major = other.major;
+            minor = other.minor;
+            return *this;
+        }
     };
 
     /**

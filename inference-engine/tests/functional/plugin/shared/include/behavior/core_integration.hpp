@@ -10,9 +10,7 @@
 #include <memory>
 #include <fstream>
 #include <ngraph/variant.hpp>
-#include <hetero/hetero_plugin_config.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <ngraph/op/util/op_types.hpp>
 
 #include "common_test_utils/file_utils.hpp"
@@ -1241,7 +1239,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
         if (deviceIDs.empty())
             GTEST_SKIP();
         ASSERT_NO_THROW(ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO,
-                                        {{"TARGET_FALLBACK", deviceName + "." + deviceIDs[0] + "," + CommonTestUtils::DEVICE_CPU}}));
+                                        {{"TARGET_FALLBACK", deviceName + "." + deviceIDs[0] + "," + deviceName}}));
     } else {
         GTEST_SKIP();
     }
@@ -1291,7 +1289,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO,
-                                     {{"TARGET_FALLBACK", deviceName + ".100," + CommonTestUtils::DEVICE_CPU}}), Exception);
+                                     {{"TARGET_FALLBACK", deviceName + ".100," + deviceName}}), Exception);
     } else {
         GTEST_SKIP();
     }
@@ -1308,7 +1306,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
         auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
         if (deviceIDs.empty())
             GTEST_SKIP();
-        std::string heteroDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName + "." + deviceIDs[0] + "," + CommonTestUtils::DEVICE_CPU;
+        std::string heteroDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName + "." + deviceIDs[0] + "," + deviceName;
         ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork, heteroDevice));
     } else {
         GTEST_SKIP();
@@ -1392,7 +1390,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
                 devices += ',';
             }
         }
-        std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + CommonTestUtils::DEVICE_CPU);
+        std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + deviceName);
         ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 {"TARGET_FALLBACK",                   targetFallback}}));
@@ -1416,7 +1414,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
         }
         ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork, CommonTestUtils::DEVICE_MULTI, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-                {"TARGET_FALLBACK",                   deviceName + "," + CommonTestUtils::DEVICE_CPU}}));
+                {"TARGET_FALLBACK",                   deviceName + "," + deviceName}}));
     } else {
         GTEST_SKIP();
     }
@@ -1446,7 +1444,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
             expectedLayers.emplace(node->get_friendly_name());
         }
         QueryNetworkResult result;
-        std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + CommonTestUtils::DEVICE_CPU);
+        std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + deviceName);
         ASSERT_NO_THROW(result = ie.QueryNetwork(multinputNetwork, CommonTestUtils::DEVICE_HETERO, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 {"TARGET_FALLBACK",                   targetFallback}}));
@@ -1483,7 +1481,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         QueryNetworkResult result;
         ASSERT_NO_THROW(result = ie.QueryNetwork(multinputNetwork, CommonTestUtils::DEVICE_MULTI, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-                {"TARGET_FALLBACK",                   deviceName + "," + CommonTestUtils::DEVICE_CPU}}));
+                {"TARGET_FALLBACK",                   deviceName + "," + deviceName}}));
 
         std::unordered_set<std::string> actualLayers;
         for (auto &&layer : result.supportedLayersMap) {

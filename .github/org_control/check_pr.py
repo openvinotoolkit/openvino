@@ -33,11 +33,21 @@ def get_pr_labels(pull):
 
 
 def set_pr_labels(pull, labels):
-    """Sets PR labels"""
+    """Sets new PR labels (all previously set labels are removed)"""
     if not labels or Config().DRY_RUN:
         return
-    print(f'Set PR labels:', labels)
+    print('Set PR labels:', labels)
+    # set_labels() should accept list but fails with empty "AssertionError:"
     pull.set_labels(labels)
+
+
+def add_pr_labels(pull, labels):
+    """Adds PR labels"""
+    if not labels or Config().DRY_RUN:
+        return
+    print('Add PR labels:', labels)
+    for label in labels:
+        pull.add_to_labels(label)
 
 
 def get_pr_type_by_labels(pull):
@@ -80,6 +90,17 @@ def get_category_labels(pull):
     return labels
 
 
+def get_pr_info_str(pull):
+    """Gets info about PR using a few workarounds"""
+    pr_title = pull.title.encode("ASCII", "ignore").decode()
+
+    # Workaround for PyGithub issue: https://github.com/PyGithub/PyGithub/issues/512
+    pr_created_at = pull.created_at.replace(tzinfo=datetime.timezone.utc).astimezone()
+
+    return f'PR: {pull.number} - {pr_title} - Created: {pr_created_at} - ' \
+           f'Labels: {get_pr_labels(pull)} - Type: {get_pr_type_by_labels(pull)}'
+
+
 def main():
     """The main entry point function"""
     arg_parser = ArgumentParser()
@@ -103,19 +124,19 @@ def main():
         print(f'\nPRs count ({args.pr_state}):', pulls.totalCount)
 
     if args.newer:
-        pr_created_after = datetime.datetime.now() - datetime.timedelta(minutes=int(args.newer))
-        print('PRs created after:', pr_created_after)
+        pr_created_after = (datetime.datetime.now() -
+                            datetime.timedelta(minutes=int(args.newer))).astimezone()
+        print('Checking PRs created after:', pr_created_after)
     non_org_intel_pr_users = set()
     non_org_pr_users = set()
     for pull in pulls:
-        if args.newer and pull.created_at <= pr_created_after:
-            print(f'\nIGNORE: {pull} - Created: {pull.created_at}')
+        pr_created_at = pull.created_at.replace(tzinfo=datetime.timezone.utc).astimezone()
+        if args.newer and pr_created_at <= pr_created_after:
+            print(f'\nIGNORE: {get_pr_info_str(pull)}')
             continue
-        pr_lables = get_pr_labels(pull)
         pr_type_by_labels = get_pr_type_by_labels(pull)
-        set_labels = []
-        print(f'\n{pull} - Created: {pull.created_at} - Labels: {pr_lables} -',
-              f'Type: {pr_type_by_labels}', end='')
+        add_labels = []
+        print(f'\n{get_pr_info_str(pull)}', end='')
 
         # Checks PR source type
         if gh_api.is_org_user(pull.user):
@@ -127,21 +148,23 @@ def main():
             if pr_type_by_labels is not PrType.INTEL:
                 print(f'NO "{PrType.INTEL.value}" label: ', end='')
                 github_api.print_users(pull.user)
-                set_labels.append(PrType.INTEL.value)
+                add_labels.append(PrType.INTEL.value)
+        elif github_api.is_user_ignored(pull.user):
+            print(' - IGNORED non org user with NO Intel email or company')
         else:
-            print(f' - Non org user with NO Intel email or company')
+            print(' - Non org user with NO Intel email or company')
             non_org_pr_users.add(pull.user)
             if pr_type_by_labels is not PrType.EXTERNAL:
                 print(f'NO "{PrType.EXTERNAL.value}" label: ', end='')
                 github_api.print_users(pull.user)
-                set_labels.append(PrType.EXTERNAL.value)
+                add_labels.append(PrType.EXTERNAL.value)
 
-        set_labels += get_category_labels(pull)
-        set_pr_labels(pull, set_labels)
+        add_labels += get_category_labels(pull)
+        add_pr_labels(pull, add_labels)
 
-    print(f'\nNon org user with Intel email or company:')
+    print('\nNon org user with Intel email or company:')
     github_api.print_users(non_org_intel_pr_users)
-    print(f'\nNon org user with NO Intel email or company:')
+    print('\nNon org user with NO Intel email or company:')
     github_api.print_users(non_org_pr_users)
 
 

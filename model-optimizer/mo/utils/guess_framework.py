@@ -28,17 +28,17 @@ def deduce_framework_by_namespace(argv: Namespace):
 
 
 def guess_framework_by_ext(input_model_path: str) -> int:
-    if re.match('^.*\.caffemodel$', input_model_path):
+    if re.match(r'^.*\.caffemodel$', input_model_path):
         return 'caffe'
-    elif re.match('^.*\.pb$', input_model_path):
+    elif re.match(r'^.*\.pb$', input_model_path):
         return 'tf'
-    elif re.match('^.*\.pbtxt$', input_model_path):
+    elif re.match(r'^.*\.pbtxt$', input_model_path):
         return 'tf'
-    elif re.match('^.*\.params$', input_model_path):
+    elif re.match(r'^.*\.params$', input_model_path):
         return 'mxnet'
-    elif re.match('^.*\.nnet$', input_model_path):
+    elif re.match(r'^.*\.nnet$', input_model_path):
         return 'kaldi'
-    elif re.match('^.*\.mdl', input_model_path):
+    elif re.match(r'^.*\.mdl', input_model_path):
         return 'kaldi'
-    elif re.match('^.*\.onnx$', input_model_path):
+    elif re.match(r'^.*\.onnx$', input_model_path):
         return 'onnx'
