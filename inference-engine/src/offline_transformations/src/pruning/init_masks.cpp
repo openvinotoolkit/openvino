@@ -21,7 +21,6 @@ class InitConvMask;
 } // namespace pass
 } // namespace ngraph
 
-// TODO: add same for Group Conv
 class ngraph::pass::init_masks::InitConvMask : public MatcherPass {
 public:
     InitConvMask() {
@@ -35,7 +34,7 @@ public:
 
             // Initializing weights mask:
             // 1. Looking for Const node with weights
-            std::vector<std::shared_ptr<Node>> weights_calculation_nodes;
+            NodeVector weights_calculation_nodes;
             auto cur_node = m_output.get_node()->get_input_node_shared_ptr(1);
 
             while (!ngraph::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {

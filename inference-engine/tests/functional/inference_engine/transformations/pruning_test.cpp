@@ -24,7 +24,7 @@ void compare_masks(const Mask & mask, const Mask & ref_mask) {
     ASSERT_EQ(mask.size(), ref_mask.size());
     ASSERT_EQ(mask, ref_mask);
 }
-// TODO: add tests for concat
+
 Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) {
     std::vector<double> values(shape_size(shape), 1);
     for (size_t dim = 0; dim < mask.size(); ++dim) {
@@ -545,4 +545,153 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerChannel) {
     compare_masks(*getMask(fq->input(2).get_source_output()),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(fq->input(3).get_source_output()),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(fq->input(4).get_source_output()),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
+}
+
+TEST(TransformationTests, TestConcatMaskPropagation) {
+    Shape input_shape{1, 3, 64, 64};
+    Shape weights_shape1{8, 3, 3, 3};
+    Shape weights_shape2{16, 3, 3, 3};
+    Shape weights_shape3{8, 3, 3, 3};
+
+    Shape weight_shape_out_conv{3, 32, 3, 3};
+    auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+    auto weights_1 = create_constant_with_zeros(weights_shape1, {{0, 1, 2, 3}, {}, {}, {}});
+    auto conv1 = std::make_shared<opset5::Convolution>(input, weights_1, Strides(2, 1),
+                                                      CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto weights_2 = create_constant_with_zeros(weights_shape2, {{7, 8, 9, 10}, {}, {}, {}});
+    auto conv2 = std::make_shared<opset5::Convolution>(input, weights_2, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto weights_3 = create_constant_with_zeros(weights_shape3, {{4, 5, 6, 7}, {}, {}, {}});
+    auto conv3 = std::make_shared<opset5::Convolution>(input, weights_3, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto concat = std::make_shared<opset5::Concat>(OutputVector{conv1->output(0), conv2->output(0), conv3->output(0)}, 1);
+
+    auto weights_out_conv = create_constant_with_zeros(weight_shape_out_conv, {{}, {}, {}, {}});
+    auto conv_out = std::make_shared<opset5::Convolution>(concat, weights_out_conv, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto f = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
+
+    pass::Manager m;
+    m.register_pass<pass::InitMasks>();
+    m.register_pass<pass::PropagateMasks>();
+    m.run_passes(f);
+
+    compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)),  Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
+
+    compare_masks(*getMask(weights_2.get_node_shared_ptr()->output(0)),  Mask({{7, 8, 9, 10}, {}, {}, {}}));
+    compare_masks(*getMask(conv2->output(0)),  Mask({{}, {7, 8, 9, 10}, {}, {}}));
+
+    compare_masks(*getMask(weights_3.get_node_shared_ptr()->output(0)),  Mask({{4, 5, 6, 7}, {}, {}, {}}));
+    compare_masks(*getMask(conv3->output(0)),  Mask({{}, {4, 5, 6, 7}, {}, {}}));
+
+    compare_masks(*getMask(concat->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+    compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+}
+
+
+TEST(TransformationTests, TestConcatMaskPropagationUp) {
+    Shape input_shape{1, 3, 64, 64};
+    Shape weights_shape1{8, 3, 3, 3};
+    Shape weights_shape2{16, 3, 3, 3};
+    Shape weights_shape3{8, 3, 3, 3};
+
+    Shape weight_shape_out_conv{3, 32, 3, 3};
+    auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+    auto weights_1 = create_constant_with_zeros(weights_shape1, {{0, 1, 2, 3, 4, 5}, {}, {}, {}});
+    auto conv1 = std::make_shared<opset5::Convolution>(input, weights_1, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto weights_2 = create_constant_with_zeros(weights_shape2, {{7, 8, 9, 10}, {}, {}, {}});
+    auto conv2 = std::make_shared<opset5::Convolution>(input, weights_2, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto weights_3 = create_constant_with_zeros(weights_shape3, {{2, 3, 4, 5, 6, 7}, {}, {}, {}});
+    auto conv3 = std::make_shared<opset5::Convolution>(input, weights_3, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto concat = std::make_shared<opset5::Concat>(OutputVector{conv1->output(0), conv2->output(0), conv3->output(0)}, 1);
+
+    auto add_const = create_constant_with_zeros(Shape{1, 32, 1, 1}, {{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}});
+    auto add = std::make_shared<opset5::Add>(concat, add_const);
+
+    auto weights_out_conv = create_constant_with_zeros(weight_shape_out_conv, {{}, {}, {}, {}});
+    auto conv_out = std::make_shared<opset5::Convolution>(add, weights_out_conv, Strides(2, 1),
+                                                          CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto f = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
+
+    pass::Manager m;
+    m.register_pass<pass::InitMasks>();
+    m.register_pass<pass::PropagateMasks>();
+    m.run_passes(f);
+
+    compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)),  Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
+
+    compare_masks(*getMask(weights_2.get_node_shared_ptr()->output(0)),  Mask({{7, 8, 9, 10}, {}, {}, {}}));
+    compare_masks(*getMask(conv2->output(0)),  Mask({{}, {7, 8, 9, 10}, {}, {}}));
+
+    compare_masks(*getMask(weights_3.get_node_shared_ptr()->output(0)),  Mask({{4, 5, 6, 7}, {}, {}, {}}));
+    compare_masks(*getMask(conv3->output(0)),  Mask({{}, {4, 5, 6, 7}, {}, {}}));
+
+    compare_masks(*getMask(add_const.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+    compare_masks(*getMask(add->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+
+
+    compare_masks(*getMask(concat->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+    compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+}
+
+
+TEST(TransformationTests, TestConcatMaskPropagationUpEmpty) {
+    Shape input_shape{1, 3, 64, 64};
+    Shape weights_shape1{8, 3, 3, 3};
+    Shape weights_shape2{16, 3, 3, 3};
+    Shape weights_shape3{8, 3, 3, 3};
+
+    Shape weight_shape_out_conv{3, 32, 3, 3};
+    auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+    auto weights_1 = create_constant_with_zeros(weights_shape1, {{0, 1, 2, 3, 4, 5}, {}, {}, {}});
+    auto conv1 = std::make_shared<opset5::Convolution>(input, weights_1, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto weights_2 = create_constant_with_zeros(weights_shape2, {{7, 8, 9, 10}, {}, {}, {}});
+    auto conv2 = std::make_shared<opset5::Convolution>(input, weights_2, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto weights_3 = create_constant_with_zeros(weights_shape3, {{2, 3, 4, 5, 6, 7}, {}, {}, {}});
+    auto conv3 = std::make_shared<opset5::Convolution>(input, weights_3, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+    auto concat = std::make_shared<opset5::Concat>(OutputVector{conv1->output(0), conv2->output(0), conv3->output(0)}, 1);
+
+    auto add_const = create_constant_with_zeros(Shape{1, 32, 1, 1}, {{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}});
+    auto add = std::make_shared<opset5::Add>(concat, add_const);
+
+    auto f = std::make_shared<Function>(NodeVector{add}, ParameterVector{input});
+
+    pass::Manager m;
+    m.register_pass<pass::InitMasks>();
+    m.register_pass<pass::PropagateMasks>();
+    m.run_passes(f);
+
+    compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(conv1->output(0)),  Mask({{}, {}, {}, {}}));
+
+    compare_masks(*getMask(weights_2.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
+
+    compare_masks(*getMask(weights_3.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(conv3->output(0)),  Mask({{}, {}, {}, {}}));
+
+    compare_masks(*getMask(add_const.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(add->output(0)),  Mask({{}, {}, {}, {}}));
+
+
+    compare_masks(*getMask(concat->output(0)),  Mask({{}, {}, {}, {}}));
 }
