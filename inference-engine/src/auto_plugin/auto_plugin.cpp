@@ -69,7 +69,7 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
                                                                             const ConfigType& config,
                                                                             const std::string& networkPrecision) {
     if (GetCore() == nullptr) {
-        IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
+        IE_THROW() << "Please, work with AUTO device via InferenceEngine::Core object";
     }
 
     if (modelPath.empty() && network.getFunction() == nullptr) {
@@ -78,20 +78,51 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
 
     auto fullConfig = mergeConfigs(_config, config);
     auto metaDevices = GetDeviceList(fullConfig);
-    auto LoadNetworkAsync =
-        [&](bool bIsAccel, const std::string& device)
+    auto LoadNetworkCPUAsync =[&]()
             -> IE::SoExecutableNetworkInternal {
             IE::SoExecutableNetworkInternal executableNetwork;
-            std::cout << "!!! DEBUG: Starting Async loading to the " << device <<  " !!!" << std::endl;
+            std::cout << "!!! DEBUG: starting Async loading to CPU !!!" << std::endl;
             if (!modelPath.empty()) {
-                executableNetwork = GetCore()->LoadNetwork(modelPath, device, {});
+                executableNetwork = GetCore()->LoadNetwork(modelPath, "CPU", {});
             } else {
-                executableNetwork = GetCore()->LoadNetwork(network, device, {});
+                executableNetwork = GetCore()->LoadNetwork(network, "CPU", {});
             }
-            std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
+            std::cout << "!!! DEBUG: CPU was loaded !!!" << std::endl;
             return executableNetwork;
         };
 
+    auto LoadNetworkOtherAcceleratorAsync =
+        [&](const std::vector<DeviceName>& acceleratorDevices)
+            -> IE::SoExecutableNetworkInternal {
+            IE::SoExecutableNetworkInternal executableNetwork;
+            std::cout << "!!! DEBUG: starting Async loading to accelerator !!!" << std::endl;
+            auto acceleratorDeviceList = acceleratorDevices;
+            DeviceName accelerator;
+            while (!acceleratorDeviceList.empty()) {
+                accelerator = SelectDevice(acceleratorDeviceList, networkPrecision);
+                try {
+                    if (!modelPath.empty()) {
+                        executableNetwork = GetCore()->LoadNetwork(modelPath, accelerator, {});
+                    } else {
+                        executableNetwork = GetCore()->LoadNetwork(network, accelerator, {});
+                    }
+                    break;
+                } catch (...) {
+                    auto eraseDevice = std::find_if(acceleratorDeviceList.begin(), acceleratorDeviceList.end(),
+                                                    [=](const DeviceName& d)->bool{return d == accelerator;});
+                    if (eraseDevice == acceleratorDeviceList.end()) {
+                        IE_THROW() << "Didn't find the selected device name";
+                    }
+                    acceleratorDeviceList.erase(eraseDevice);
+                    executableNetwork = {};
+                }
+                if (!executableNetwork) {
+                    IE_THROW() << "Failed to load network by AUTO plugin";
+                }
+            }
+            std::cout << "!!! DEBUG: accelerator " << accelerator << "was loaded!!!" << std::endl;
+            return executableNetwork;
+    };
     auto executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
         IE::IStreamsExecutor::Config{"AutoPluginAsyncLoad",
                                      static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
@@ -100,27 +131,21 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
 
     // start CPU task
     NetworkTaskSharedPtr cpuTask {};
-    const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
-                                      [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
-    if (CPUIter != metaDevices.end()) {
+    if (std::find(metaDevices.begin(), metaDevices.end(), "CPU") != metaDevices.end()) {
         cpuTask =
             std::make_shared<std::packaged_task<IE::SoExecutableNetworkInternal()>>(
-                [=]{return LoadNetworkAsync(false, *CPUIter);});
+                [=]{return LoadNetworkCPUAsync();});
         executor->run([=](){(*cpuTask)();});
     }
 
     // start accelerator task, like GPU
     NetworkTaskSharedPtr acceleratorTask {};
-    const auto accelerator = SelectDevice(metaDevices, networkPrecision);
-    bool isAccelerator = accelerator.find("CPU") == std::string::npos;
-    if (isAccelerator) {
-        acceleratorTask =
-            std::make_shared<std::packaged_task<IE::SoExecutableNetworkInternal()>>(
-                [=]{return LoadNetworkAsync(isAccelerator, accelerator);});
-        executor->run([=](){(*acceleratorTask)();});
+    if (std::find(metaDevices.begin(), metaDevices.end(), "CPU") != metaDevices.end()) {
+        metaDevices.erase(std::find(metaDevices.begin(), metaDevices.end(), "CPU"));
     }
-
-    // TODO: FIXME: revert the exception handling logic back to gracefully handle LoadNetwork failures
+    acceleratorTask = std::make_shared<std::packaged_task<IE::SoExecutableNetworkInternal()>>(
+            [=]{return LoadNetworkOtherAcceleratorAsync(metaDevices);});
+    executor->run([=](){(*acceleratorTask)();});
 
     return std::make_shared<AutoExecutableNetwork>(cpuTask, acceleratorTask, executor);
 }
@@ -128,7 +153,7 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
 IE::QueryNetworkResult AutoInferencePlugin::QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const {
     IE::QueryNetworkResult queryResult = {};
     if (GetCore() == nullptr) {
-        IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
+        IE_THROW() << "Please, work with AUTO device via InferenceEngine::Core object";
     }
 
     if (network.getFunction() == nullptr) {
