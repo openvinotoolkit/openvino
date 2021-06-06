@@ -424,7 +424,16 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
 
     if (deviceName == CommonTestUtils::DEVICE_CPU ||
         deviceName == CommonTestUtils::DEVICE_GPU) {
-        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplemented);
+        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NetworkNotRead);
+
+        const std::string modelName = "compiled_blob.blob";
+        {
+            std::ofstream file(modelName);
+            file << "content";
+        }
+
+        EXPECT_THROW(ie.ImportNetwork(modelName, deviceName), NotImplemented);
+        ASSERT_EQ(0, std::remove(modelName.c_str()));
     }
 }
 
@@ -432,13 +441,13 @@ TEST(IEClassBasicTest, smoke_ImportNetworkHeteroThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
 
-    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_HETERO), Exception);
+    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_HETERO), NetworkNotRead);
 }
 
 TEST(IEClassBasicTest, smoke_ImportNetworkMultiThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core ie;
-    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_MULTI), Exception);
+    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_MULTI), NetworkNotRead);
 }
 
 TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
@@ -446,7 +455,7 @@ TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
     Core ie;
     RemoteContext::Ptr context = nullptr;
     std::istringstream stream("None");
-    ASSERT_THROW(ie.ImportNetwork(stream, context, {}), Exception);
+    ASSERT_THROW(ie.ImportNetwork(stream, context, {}), NotImplemented);
 }
 
 //
