@@ -35,9 +35,9 @@ else()
     message(FATAL_ERROR "This platform is not supported")
 endif()
 
-configure_file(${SETUP_ENV} "${CMAKE_CURRENT_SOURCE_DIR}/.env")
+configure_file(${SETUP_ENV} "${CMAKE_CURRENT_SOURCE_DIR}/.env" @ONLY)
 
-add_custom_target(ie_wheel ALL DEPENDS ie_api)
+add_custom_target(ie_wheel ALL DEPENDS ie_api offline_transformations_api)
 
 foreach(_target ie_libraries ie_plugins _pyngraph)
     if(TARGET ${_target})
@@ -56,13 +56,13 @@ endif()
 
 add_custom_command(TARGET ie_wheel
     PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
         COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
             --dist-dir ${CMAKE_BINARY_DIR}/wheels
             --build=${WHEEL_BUILD}
             --plat-name=${WHEEL_PLATFORM}
     POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E rm "${CMAKE_CURRENT_SOURCE_DIR}/.env"
-        COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${WHEEL_PACKAGE_NAME}"
     VERBATIM

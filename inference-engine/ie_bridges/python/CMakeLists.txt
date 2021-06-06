@@ -37,7 +37,7 @@ else()
 endif()
 
 if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
-    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+    set(PYTHON_VERSION python${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
 else()
     message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
 endif()
