@@ -16,6 +16,7 @@
 #include <blob_factory.hpp>
 
 #include <istream>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <string>
@@ -157,9 +158,15 @@ RemoteContext::Ptr IInferencePlugin::GetDefaultContext(const ParamMap&) {
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(const std::string&,
-                                                                            const std::map<std::string, std::string>&) {
-    IE_THROW(NotImplemented);
+std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(const std::string& modelFileName,
+                                                                            const std::map<std::string, std::string>& config) {
+    std::ifstream blobFile(modelFileName, std::ios::binary);
+
+    if (!blobFile.is_open()) {
+        IE_THROW(NetworkNotRead);
+    }
+
+    return ImportNetwork(blobFile, config);
 }
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(std::istream& networkModel,
