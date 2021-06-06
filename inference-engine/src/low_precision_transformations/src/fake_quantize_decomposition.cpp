@@ -199,7 +199,11 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         }
     }
 
-    if ((intervalsAlignment != nullptr) && (intervalsAlignment->sharedValue->minLevels >= 2ul)) {
+    if (intervalsAlignment != nullptr) {
+        if (intervalsAlignment->sharedValue->minLevels <= 2ul) {
+            return false;
+        }
+
 //        const auto& combinedInterval = intervalsAlignment->sharedValue->combinedInterval;
 //        const float maxOutputInterval = combinedInterval.high - combinedInterval.low;
 //        // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
