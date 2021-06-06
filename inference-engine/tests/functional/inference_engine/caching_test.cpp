@@ -653,8 +653,8 @@ TEST_P(CachingTest, TestNoCacheEnabled_cacheDirConfig) {
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
         testLoad([&](Core &ie) {
             m_testFunction(ie);
         });
