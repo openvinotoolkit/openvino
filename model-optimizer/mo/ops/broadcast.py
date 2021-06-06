@@ -1,9 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
-from mo.front.common.partial_infer.utils import dynamic_dimension, is_fully_defined
+from mo.front.common.partial_infer.utils import is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op

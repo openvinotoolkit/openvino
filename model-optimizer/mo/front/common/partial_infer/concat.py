@@ -1,18 +1,16 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging as log
-
-# Concat infer : N - number of inputs to concat
-#                axis - dimension number for tensors concatenation
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import shape_array, is_fully_defined
 from mo.ops.op import PermuteAttrs
+from mo.utils.error import Error
 
 
 def concat_infer(node):
+    node_name = node.soft_get('name', node.id)
     if not node.has('axis'):
         N = node.N
         axis_input = node.in_node(N)
@@ -28,7 +26,7 @@ def concat_infer(node):
     if any(s is None for s in shapes):
         return
 
-    shape = np.array(shapes[0])
+    shape = shape_array(shapes[0])
 
     axis = get_canonical_axis_index(shape, node.axis)
     node.axis = axis
@@ -41,23 +39,17 @@ def concat_infer(node):
         if np.ma.allequal(shape[not_mask], s[not_mask]):
             shape[mask] += s[mask]
         else:
-            log.error('Concat input shapes do not match')
-            return
+            raise Error('Concat input shapes do not match for node "{}" with axis {}'.format(node_name, axis))
 
     node.out_port(0).data.set_shape(shape)
-    if len(shape) != 4:
-        # exclude it from NHWC to NCHW conversion
-        if 'axis' in node.dim_attrs:
-            node.dim_attrs.remove('axis')
-
     PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
 
     values = [node.in_node(i).value for i in range(N)]
-    if any(v is None for v in values):
+    if any([v is None for v in values]):
         return
 
     # if one of the input values are dynamic then we need to properly keep data type of the input
-    if any(not is_fully_defined(v) for v in values):
+    if any([not is_fully_defined(v) for v in values]):
         # TODO FIXME need to correctly determine data type of output. We need to analyze data type of all non-dynamic
         # inputs and take type from it.
         node.out_port(0).data.set_value(np.ma.concatenate(values, axis=node.axis))
