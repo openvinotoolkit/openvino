@@ -27,18 +27,16 @@ class SpaceToBatch(Op):
         """
         https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/space-to-batch
         """
-        input_shape = node.in_node(0).shape
-        if input_shape is None:
-            return
-
-        if len(node.in_nodes()) != 4:
-            return
+        input_shape = node.in_port(0).data.get_shape()
+        node_name = node.soft_get('name', node.id)
+        assert len(node.in_nodes()) == 4, 'Some inputs are not connected for the operation SpaceToBatch with name {}' \
+                                          ''.format(node_name)
 
         block_size = node.in_port(1).data.get_value()
         pads_begin = node.in_port(2).data.get_value()
         pads_end = node.in_port(3).data.get_value()
-        if block_size is None or pads_begin is None or pads_end is None:
-            return
+        assert block_size is not None and pads_begin is not None and pads_end is not None,\
+            'Some inputs are not defined for SpaceToBatch operation with name {}'.format(node_name)
 
         pads = pads_begin + input_shape + pads_end
 
@@ -47,7 +45,7 @@ class SpaceToBatch(Op):
         else:
             block_elements_count = dynamic_dimension
         node.out_port(0).data.set_shape([input_shape[0] * block_elements_count,
-                                         *[int(x) for x in (pads[1:] / block_size[1:])]])
+                                         *[x for x in (pads[1:] // block_size[1:])]])
 
         # block_shape, pads_begin, pads_end should be permuted during the NHWC->NCHW layout change
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')

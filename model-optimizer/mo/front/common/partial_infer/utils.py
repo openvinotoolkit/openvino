@@ -29,6 +29,15 @@ def compare_dimensions(dim1, dim2):
     return dim1 is dynamic_dimension or dim2 is dynamic_dimension or dim1 == dim2
 
 
+def compare_shapes(shape1, shape2):
+    if shape1.ndim != shape2.ndim:
+        return False
+    for d1, d2 in zip(shape1, shape2):
+        if not compare_dimensions(d1, d2):
+            return False
+    return True
+
+
 def unmask_shape(value):
     if not isinstance(value, np.ma.masked_array):
         return value

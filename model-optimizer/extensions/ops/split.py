@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
@@ -191,12 +191,12 @@ class SplitBase(Op):
         assert axis is not None, '{} `axis` is unknown for node {}'.format(op, name)
         assert axis.ndim == 0, '{} `axis` should be scalar, but it`s not for node {}'.format(op, name)
 
-        assert input_shape[axis] % num_splits == 0, \
+        assert not is_fully_defined(input_shape[axis]) or input_shape[axis] % num_splits == 0, \
             'Input shape is not evenly divided by `num_splits` of {} node {}. `input_shape`={}, `axis`={}, ' \
             '`num_splits`={}'.format(op, name, input_shape, axis, num_splits)
 
         out_shape = input_shape.copy()
-        out_shape[axis] = np.int64(input_shape[axis] / num_splits)
+        out_shape[axis] = input_shape[axis] // num_splits
 
         input_value = node.in_port(0).data.get_value()
         output_value = np.split(input_value.copy(), axis=axis, indices_or_sections=num_splits) \
