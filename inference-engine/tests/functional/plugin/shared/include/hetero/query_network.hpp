@@ -13,8 +13,8 @@
 namespace HeteroTests {
 
 using QueryNetworkTestParameters = std::tuple<
-    std::string,
-    std::pair<std::set<std::string>, std::shared_ptr<ngraph::Function>>
+    std::string,                                                        // devices
+    std::pair<std::set<std::string>, std::shared_ptr<ngraph::Function>> // expected nodes/graph
 >;
 
 struct QueryNetworkTest : public testing::WithParamInterface<QueryNetworkTestParameters>,
