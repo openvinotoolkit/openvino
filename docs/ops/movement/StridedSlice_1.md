@@ -51,13 +51,13 @@
 
 **Inputs**:
 
-*   **1**: input tensor to be sliced of type `T` and arbitrary shape. **Required.**
+*   **1**: `data` - input tensor to be sliced of type `T` and arbitrary shape. **Required.**
 
 *   **2**: `begin` - 1D tensor of type `T_IND` with begin indexes for input tensor slicing. **Required.**  
-    Out-of-bounds values are silently clamped. If `begin_mask[i]` is `1`, the value of `begin[i]` is ignored and the range of the appropriate dimension starts from `0`. Negative values mean indexing starts from the end. For example, if `foo=[1,2,3]`, `begin[0]=-1` means `begin[0]=3`.
+    Out-of-bounds values are silently clamped. If `begin_mask[i]` is `1`, the value of `begin[i]` is ignored and the range of the appropriate dimension starts from `0`. Negative values mean indexing starts from the end. For example, if `data=[1,2,3]`, `begin[0]=-1` means `begin[0]=3`.
 
 *   **3**: `end` - 1D tensor of type `T_IND` with end indexes for input tensor slicing. **Required.**  
-    Out-of-bounds values will be silently clamped. If `end_mask[i]` is `1`, the value of `end[i]` is ignored and the full range of the appropriate dimension is used instead. Negative values mean indexing starts from the end. For example, if `foo=[1,2,3]`, `end[0]=-1` means `end[0]=3`.
+    Out-of-bounds values will be silently clamped. If `end_mask[i]` is `1`, the value of `end[i]` is ignored and the full range of the appropriate dimension is used instead. Negative values mean indexing starts from the end. For example, if `data=[1,2,3]`, `end[0]=-1` means `end[0]=3`.
 
 *   **4**: `stride` - 1D tensor of type `T_IND` with strides. **Optional.**
 
