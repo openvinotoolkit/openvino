@@ -64,8 +64,9 @@ int main(int argc, char *argv[]) {
             inferRequest.Infer();
             // check states
             auto states = inferRequest.QueryState();
-            if (states.empty())
-                continue;
+            if (states.empty()) {
+                throw std::runtime_error("Queried states are empty");
+            }
             auto mstate = as<MemoryBlob>(states[0].GetState());
             if (mstate == nullptr) {
                 throw std::runtime_error("Can't cast state to MemoryBlob");
