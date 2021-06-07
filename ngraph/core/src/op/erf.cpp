@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Erf::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Erf, "Erf", 0, util::UnaryElementwiseArithmetic);
 
 bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor)
 {
