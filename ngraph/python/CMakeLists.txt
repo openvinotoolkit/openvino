@@ -29,14 +29,9 @@ if(NOT pybind11_POPULATED)
     add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
 endif()
 
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
-
-if(PYTHON_FOUND)
-    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-    message("Python version={${Python_VERSION}}")
-else()
-    message(FATAL_ERROR "Python was not found!")
-endif()
+# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
+set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+message("Python version=${PYTHON_VERSION}")
 
 if(OpenVINO_MAIN_SOURCE_DIR)
     if(WIN32)
@@ -92,6 +87,10 @@ if(OpenVINO_MAIN_SOURCE_DIR)
 endif()
 
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+    if(COMMAND ie_python_minimal_api)
+        ie_python_minimal_api(_${PROJECT_NAME})
+    endif()
+
     add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
     ie_cpack_add_component(pyngraph_${PYTHON_VERSION})

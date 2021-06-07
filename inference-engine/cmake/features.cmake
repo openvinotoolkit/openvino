@@ -66,8 +66,6 @@ ie_dependent_option (ENABLE_SPEECH_DEMO "enable speech demo integration" ON "NOT
 
 ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 
-ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
-
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
 
 set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")

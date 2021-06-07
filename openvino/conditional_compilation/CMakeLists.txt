@@ -19,8 +19,8 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         message(FATAL_ERROR "In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics.\
  Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv")
     endif()
-    find_package (Python3 COMPONENTS Interpreter)
-    if (NOT Python3_FOUND)
+    find_package (PythonInterp REQUIRED)
+    if(NOT PYTHON_VERSION_MAJOR EQUAL 3)
         message(FATAL_ERROR " Python3 wasn't found!")
     endif()
 
@@ -41,7 +41,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
     set(GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ccheader.py)
 
     add_custom_command(OUTPUT ${GENERATED_HEADER}
-                       COMMAND ${Python3_EXECUTABLE} ${GENERATOR} --stat ${SELECTIVE_BUILD_STAT} --out ${GENERATED_HEADER}
+                       COMMAND ${PYTHON_EXECUTABLE} ${GENERATOR} --stat ${SELECTIVE_BUILD_STAT} --out ${GENERATED_HEADER}
                        DEPENDS ${STAT_FILES})
     add_custom_target(conditional_compilation_gen DEPENDS ${GENERATED_HEADER})
     add_dependencies(${TARGET_NAME} conditional_compilation_gen)
