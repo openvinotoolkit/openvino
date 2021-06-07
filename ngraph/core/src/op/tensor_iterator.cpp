@@ -129,7 +129,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
                 m_body->get_results().at(merged_input_description->m_body_value_index)->input(0);
             ends.push_back(body_value.get_node()->shared_from_this());
 
-            auto body_value_partial_shape = body_value.get_partial_shape();
             auto body_parameter =
                 m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
 
