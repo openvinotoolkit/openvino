@@ -10,9 +10,7 @@
 #include <memory>
 #include <fstream>
 #include <ngraph/variant.hpp>
-#include <hetero/hetero_plugin_config.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <ngraph/op/util/op_types.hpp>
 
 #include "common_test_utils/file_utils.hpp"

@@ -1,7 +1,4 @@
-#include <inference_engine.hpp>
-#include "ie_plugin_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
-
+#include <ie_core.hpp>
 
 int main() {
 //! [part8]
