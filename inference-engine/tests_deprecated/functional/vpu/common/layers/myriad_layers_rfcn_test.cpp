@@ -788,6 +788,8 @@ TEST_F(myriadLayersRfcnTests_smoke, ReshapeRfcn)
     ASSERT_NO_THROW(PrepareInputAndReference(model_to_softmax, prior_network_output_layer));
     ASSERT_NO_THROW(RunNetwork(model_to_reshape, test_network_output_layer));
 
+    ASSERT_TRUE(prior_network_output);
+
     ASSERT_EQ(outputBlob->size(), prior_network_output->size());
     CompareCommonAbsolute(outputBlob, prior_network_output, 0.0f);
 }
@@ -801,6 +803,8 @@ TEST_F(myriadLayersRfcnTests_smoke, SoftmaxRfcn)
     ASSERT_NO_THROW(RunNetwork(model_to_softmax, test_network_output_layer));
 
     int param_axis = 1;
+    ASSERT_TRUE(prior_network_output);
+
     ref_soft_max(prior_network_output, _refBlob, param_axis);
 
     CompareCommonAbsolute(outputBlob, _refBlob, ERROR_BOUND);
@@ -813,6 +817,8 @@ TEST_F(myriadLayersRfcnTests_smoke, GlobalAvgPooling7x7Rfcn)
 
     ASSERT_NO_THROW(PrepareInputAndReference(model_to_psroipooling, prior_network_output_layer));
     ASSERT_NO_THROW(RunNetwork(model_to_pooling, test_network_output_layer));
+
+    ASSERT_TRUE(prior_network_output);
 
     refGlobalAvgPooling7x7Rfcn(prior_network_output, _refBlob);
 
