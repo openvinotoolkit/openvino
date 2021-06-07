@@ -255,7 +255,7 @@ public:
     virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const;
 
 protected:
-    virtual ~IInferencePlugin() = default;
+    ~IInferencePlugin() = default;
 
     /**
      * @brief Creates an executable network from a parsed network object, users can create as many networks as they need
