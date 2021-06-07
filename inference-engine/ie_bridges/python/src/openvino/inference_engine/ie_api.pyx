@@ -1393,6 +1393,7 @@ cdef class IENetwork:
                 self.impl = C.IENetwork(model_, weights_)
             else:
                 self.impl = C.IENetwork()
+            free(bin_buffer)
         free(xml_buffer)
 
     ## Name of the loaded network
