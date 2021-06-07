@@ -16,8 +16,7 @@ namespace ngraph
             class NGRAPH_API Log : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Log", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a natural log operation.
                 Log() = default;
                 /// \brief Constructs a natural log operation.

@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Log::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Log, "Log", 0);
 
 op::Log::Log(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)

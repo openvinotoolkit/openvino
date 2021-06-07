@@ -6,6 +6,12 @@
 
 **Short description**: *Log* performs element-wise natural logarithm operation with given tensor.
 
+**Detailed description**: *Log* does the following with the input tensor *a*:
+
+\f[
+a_{i} = log(a_{i})
+\f]
+
 **Attributes**:
 
     No attributes available.
@@ -21,12 +27,6 @@
 **Types**
 
 * *T*: any numeric type.
-
-*Log* does the following with the input tensor *a*:
-
-\f[
-a_{i} = log(a_{i})
-\f]
 
 **Examples**
 
