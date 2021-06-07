@@ -4,7 +4,7 @@
 
 **Category**: Arithmetic unary operation
 
-**Short description**: *Erf* calculates the Gauss error function element-wise with given tensor.
+**Short description**:  *Erf* performs element-wise Gauss error function (erf) with given tensor.
 
 **Detailed Description**
 
@@ -13,17 +13,15 @@ For each element from the input tensor calculates corresponding element in the o
 erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
 \f]
 
-**Attributes**:
-
-    No attributes available.
+**Attributes**: *Erf* operation has no attributes.
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required.**
+* **1**: A tensor `x` of type `T` and arbitrary shape. **Required**.
 
 **Outputs**
 
-* **1**: The result of element-wise operation. A tensor of type T.
+* **1**: The result of element-wise *Erf* function applied to the input tensor `x`. A tensor of type `T` and the same shape as `x` input tensor.
 
 **Types**
 
