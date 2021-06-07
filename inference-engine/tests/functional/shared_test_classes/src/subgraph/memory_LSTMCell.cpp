@@ -9,6 +9,9 @@
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
 
+using namespace ngraph;
+using namespace opset7;
+
 namespace SubgraphTestsDefinitions {
 
     std::string MemoryLSTMCellTest::getTestCaseName(const testing::TestParamInfo<memoryLSTMCellParams> &obj) {
@@ -17,9 +20,11 @@ namespace SubgraphTestsDefinitions {
         size_t inputSize;
         size_t hiddenSize;
         std::map<std::string, std::string> config;
-        std::tie(targetDevice, netPrecision, inputSize, hiddenSize, config) = obj.param;
+        ngraph::helpers::MemoryTransformation transformation;
+        std::tie(transformation, targetDevice, netPrecision, inputSize, hiddenSize, config) = obj.param;
         std::ostringstream result;
 
+        result << "transformation=" << transformation << "_";
         result << "netPrecision=" << netPrecision.name() << "_";
         result << "IS=" << inputSize << "_";
         result << "HS=" << hiddenSize << "_";
@@ -34,7 +39,7 @@ namespace SubgraphTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         std::map<std::string, std::string> config;
         size_t inputSize;
-        std::tie(targetDevice, netPrecision, inputSize, hiddenSize, config) = this->GetParam();
+        std::tie(transformation, targetDevice, netPrecision, inputSize, hiddenSize, config) = this->GetParam();
         configuration.insert(config.begin(), config.end());
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -51,49 +56,53 @@ namespace SubgraphTestsDefinitions {
         reccurrenceWeights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
         bias_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize, -0.2f, 0.1f);
 
-        auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+        auto input_parameter = builder::makeParams(ngPrc, {input_dims});
 
-        auto input_add_const = ngraph::builder::makeConstant(ngPrc, input_dims, input_bias);
-        auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
+        auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
 
-        auto input_mul_const = ngraph::builder::makeConstant(ngPrc, input_dims, input_weights);
-        auto mul = ngraph::builder::makeEltwise(add, input_mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        auto input_mul_const = builder::makeConstant(ngPrc, input_dims, input_weights);
+        auto mul = builder::makeEltwise(add, input_mul_const, helpers::EltwiseTypes::MULTIPLY);
 
-        auto unsqueeze_input_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto unsqueeze_input = std::make_shared<ngraph::opset5::Unsqueeze>(mul, unsqueeze_input_const);
+        auto unsqueeze_input_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
+        auto unsqueeze_input = std::make_shared<Unsqueeze>(mul, unsqueeze_input_const);
 
-        auto permute_in_params = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{3}, ngraph::Shape{{1, 0, 2}});
-        auto permute_in = std::make_shared<ngraph::opset5::Transpose>(unsqueeze_input, permute_in_params);
+        auto permute_in_params = std::make_shared<Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
+        auto permute_in = std::make_shared<Transpose>(unsqueeze_input, permute_in_params);
 
-        auto cell_memory_constant = ngraph::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
-        auto cell_memory_read = std::make_shared<ngraph::opset5::ReadValue>(cell_memory_constant, "cell_memory");
+        auto cell_memory_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+        auto var_cell =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "cell_state_1"});
+        auto var_hidden =
+                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "hidden_state_1"});
+        auto cell_memory_read = std::make_shared<ReadValue>(cell_memory_constant, var_cell);
 
-        auto hidden_memory_constant = ngraph::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
-        auto hidden_memory_read = std::make_shared<ngraph::opset5::ReadValue>(hidden_memory_constant, "hidden_memory");
+        auto hidden_memory_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+        auto hidden_memory_read = std::make_shared<ReadValue>(hidden_memory_constant, var_hidden);
 
         // Body - inputs
-        auto X = std::make_shared<ngraph::opset5::Parameter>(ngPrc, ngraph::Shape{1, 1, inputSize});
-        auto H_t = std::make_shared<ngraph::opset5::Parameter>(ngPrc, ngraph::Shape{1, hiddenSize});
-        auto C_t = std::make_shared<ngraph::opset5::Parameter>(ngPrc, ngraph::Shape{1, hiddenSize});
+        auto X = std::make_shared<Parameter>(ngPrc, Shape{1, 1, inputSize});
+        auto H_t = std::make_shared<Parameter>(ngPrc, Shape{1, hiddenSize});
+        auto C_t = std::make_shared<Parameter>(ngPrc, Shape{1, hiddenSize});
         // Body - layers
-        auto squeeze_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(X, squeeze_const);
+        auto squeeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
+        auto squeeze = std::make_shared<Squeeze>(X, squeeze_const);
 
-        auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
-        auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-        auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
-        auto lstm = std::make_shared<ngraph::opset5::LSTMCell>(squeeze, H_t, C_t, weightsNode, reccurrenceWeightsNode, biasNode, hiddenSize);
+        auto weightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
+        auto reccurrenceWeightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+        auto biasNode = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+        auto lstm = std::make_shared<LSTMCell>(squeeze, H_t, C_t, weightsNode, reccurrenceWeightsNode, biasNode, hiddenSize);
 
-        auto unsqueeze_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(lstm->output(0), unsqueeze_const);
+        auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
+        auto unsqueeze = std::make_shared<Unsqueeze>(lstm->output(0), unsqueeze_const);
         // body - outputs
         auto H_o = lstm->output(0);
         auto C_o = lstm->output(1);
         auto unsqueeze_o = unsqueeze->output(0);
 
-        auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{unsqueeze_o, H_o, C_o}, ngraph::ParameterVector {X, H_t, C_t});
+        auto body = std::make_shared<Function>(OutputVector{unsqueeze_o, H_o, C_o}, ParameterVector {X, H_t, C_t});
         // TI construction
-        auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
         tensor_iterator->set_invariant_input(X, permute_in);
         tensor_iterator->set_merged_input(H_t, hidden_memory_read, H_o);
@@ -107,27 +116,27 @@ namespace SubgraphTestsDefinitions {
         out_hidden.get_tensor().set_element_type(ngPrc);
         out_cell.get_tensor().set_element_type(ngPrc);
 
-        auto cell_memory_write = std::make_shared<ngraph::opset5::Assign>(out_cell, "cell_memory");
-        auto hidden_memory_write = std::make_shared<ngraph::opset5::Assign>(out_hidden, "hidden_memory");
+        auto cell_memory_write = std::make_shared<Assign>(out_cell, var_cell);
+        auto hidden_memory_write = std::make_shared<Assign>(out_hidden, var_hidden);
 
-        auto final_reshape_pattern = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{4},
+        auto final_reshape_pattern = std::make_shared<Constant>(element::i64, Shape{4},
                                                                                 std::vector<size_t>({1, 1, 1, hiddenSize}));
-        auto final_reshape = std::make_shared<ngraph::opset5::Reshape>(out_unsqueeze, final_reshape_pattern, false);
+        auto final_reshape = std::make_shared<Reshape>(out_unsqueeze, final_reshape_pattern, false);
 
         cell_memory_write->add_control_dependency(cell_memory_read);
-        final_reshape->add_control_dependency(cell_memory_write);
-
         hidden_memory_write->add_control_dependency(hidden_memory_read);
-        final_reshape->add_control_dependency(hidden_memory_write);
 
-        function = std::make_shared<ngraph::Function>(final_reshape, input_parameter, "TI_with_memory");
+        function = std::make_shared<Function>(OutputVector{final_reshape},
+                                              SinkVector{cell_memory_write, hidden_memory_write},
+                                              input_parameter,
+                                              "TI_with_memory");
     }
 
     void MemoryLSTMCellTest::switchToNgraphFriendlyModel() {
         InferenceEngine::Precision netPrecision;
         std::map<std::string, std::string> config;
         size_t inputSize;
-        std::tie(targetDevice, netPrecision, inputSize, hiddenSize, config) = this->GetParam();
+        std::tie(transformation, targetDevice, netPrecision, inputSize, hiddenSize, config) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         std::vector<size_t> input_dims { 1, inputSize };
@@ -135,46 +144,46 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> hidden_memory_dims {1, hiddenSize};
         std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-        auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+        auto input_parameter = builder::makeParams(ngPrc, {input_dims});
 
-        auto input_add_const = ngraph::builder::makeConstant(ngPrc, input_dims, input_bias);
-        auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
+        auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
 
-        auto input_mul_const = ngraph::builder::makeConstant(ngPrc, input_dims, input_weights);
-        auto mul = ngraph::builder::makeEltwise(add, input_mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        auto input_mul_const = builder::makeConstant(ngPrc, input_dims, input_weights);
+        auto mul = builder::makeEltwise(add, input_mul_const, helpers::EltwiseTypes::MULTIPLY);
 
-        auto unsqueeze_input_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto unsqueeze_input = std::make_shared<ngraph::opset5::Unsqueeze>(mul, unsqueeze_input_const);
+        auto unsqueeze_input_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
+        auto unsqueeze_input = std::make_shared<Unsqueeze>(mul, unsqueeze_input_const);
 
-        auto cell_memory_constant = ngraph::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+        auto cell_memory_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
 
-        auto hidden_memory_constant = ngraph::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+        auto hidden_memory_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
 
         // Body - layers
-        auto squeeze_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(unsqueeze_input, squeeze_const);
+        auto squeeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
+        auto squeeze = std::make_shared<Squeeze>(unsqueeze_input, squeeze_const);
 
-        auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
-        auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-        auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
-        auto lstm = std::make_shared<ngraph::opset5::LSTMCell>(squeeze, hidden_memory_constant, cell_memory_constant, weightsNode,
+        auto weightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
+        auto reccurrenceWeightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+        auto biasNode = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+        auto lstm = std::make_shared<LSTMCell>(squeeze, hidden_memory_constant, cell_memory_constant, weightsNode,
                                                                reccurrenceWeightsNode, biasNode, hiddenSize);
 
-        auto unsqueeze_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(lstm->output(0), unsqueeze_const);
+        auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
+        auto unsqueeze = std::make_shared<Unsqueeze>(lstm->output(0), unsqueeze_const);
 
-        auto final_reshape_pattern = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64,
-                                                                            ngraph::Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
-        auto final_reshape = std::make_shared<ngraph::opset5::Reshape>(unsqueeze, final_reshape_pattern, false);
+        auto final_reshape_pattern = std::make_shared<Constant>(element::i64,
+                                                                            Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
+        auto final_reshape = std::make_shared<Reshape>(unsqueeze, final_reshape_pattern, false);
 
-        function = std::make_shared<ngraph::Function>(final_reshape, input_parameter, "TI_unrolled_without_memory");
+        function = std::make_shared<Function>(final_reshape, input_parameter, "TI_unrolled_without_memory");
     }
 
     void MemoryLSTMCellTest::CreatePureTensorIteratorModel() {
         InferenceEngine::Precision netPrecision;
         std::map<std::string, std::string> config;
         size_t inputSize;
-        std::tie(targetDevice, netPrecision, inputSize, hiddenSize, config) = this->GetParam();
+        std::tie(transformation, targetDevice, netPrecision, inputSize, hiddenSize, config) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         std::vector<size_t> input_dims { 1, inputSize };
@@ -182,49 +191,49 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> hidden_memory_dims {1, hiddenSize};
         std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-        auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+        auto input_parameter = builder::makeParams(ngPrc, {input_dims});
 
-        auto input_add_const = ngraph::builder::makeConstant(ngPrc, input_dims, input_bias);
-        auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
+        auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
 
-        auto input_mul_const = ngraph::builder::makeConstant(ngPrc, input_dims, input_weights);
-        auto mul = ngraph::builder::makeEltwise(add, input_mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        auto input_mul_const = builder::makeConstant(ngPrc, input_dims, input_weights);
+        auto mul = builder::makeEltwise(add, input_mul_const, helpers::EltwiseTypes::MULTIPLY);
 
-        auto unsqueeze_input_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto unsqueeze_input = std::make_shared<ngraph::opset5::Unsqueeze>(mul, unsqueeze_input_const);
+        auto unsqueeze_input_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
+        auto unsqueeze_input = std::make_shared<Unsqueeze>(mul, unsqueeze_input_const);
 
-        auto permute_in_params = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{3}, ngraph::Shape{{1, 0, 2}});
-        auto permute_in = std::make_shared<ngraph::opset5::Transpose>(unsqueeze_input, permute_in_params);
+        auto permute_in_params = std::make_shared<Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
+        auto permute_in = std::make_shared<Transpose>(unsqueeze_input, permute_in_params);
 
-        auto cell_memory_constant = ngraph::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+        auto cell_memory_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
 
-        auto hidden_memory_constant = ngraph::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+        auto hidden_memory_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
 
         // Body - inputs
-        auto X = std::make_shared<ngraph::opset5::Parameter>(ngPrc, ngraph::Shape{1, 1, inputSize});
-        auto H_t = std::make_shared<ngraph::opset5::Parameter>(ngPrc, ngraph::Shape{1, hiddenSize});
-        auto C_t = std::make_shared<ngraph::opset5::Parameter>(ngPrc, ngraph::Shape{1, hiddenSize});
+        auto X = std::make_shared<Parameter>(ngPrc, Shape{1, 1, inputSize});
+        auto H_t = std::make_shared<Parameter>(ngPrc, Shape{1, hiddenSize});
+        auto C_t = std::make_shared<Parameter>(ngPrc, Shape{1, hiddenSize});
         H_t->set_friendly_name("hidden_state_1");
         C_t->set_friendly_name("cell_state_1");
         // Body - layers
-        auto squeeze_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(X, squeeze_const);
+        auto squeeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
+        auto squeeze = std::make_shared<Squeeze>(X, squeeze_const);
 
-        auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
-        auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-        auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
-        auto lstm = std::make_shared<ngraph::opset5::LSTMCell>(squeeze, H_t, C_t, weightsNode, reccurrenceWeightsNode, biasNode, hiddenSize);
+        auto weightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
+        auto reccurrenceWeightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+        auto biasNode = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+        auto lstm = std::make_shared<LSTMCell>(squeeze, H_t, C_t, weightsNode, reccurrenceWeightsNode, biasNode, hiddenSize);
 
-        auto unsqueeze_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, squeeze_axes);
-        auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(lstm->output(0), unsqueeze_const);
+        auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
+        auto unsqueeze = std::make_shared<Unsqueeze>(lstm->output(0), unsqueeze_const);
         // body - outputs
         auto H_o = lstm->output(0);
         auto C_o = lstm->output(1);
         auto unsqueeze_o = unsqueeze->output(0);
 
-        auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{unsqueeze_o, H_o, C_o}, ngraph::ParameterVector {X, H_t, C_t});
+        auto body = std::make_shared<Function>(OutputVector{unsqueeze_o, H_o, C_o}, ParameterVector {X, H_t, C_t});
         // TI construction
-        auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
         tensor_iterator->set_sliced_input(X, permute_in, 0, 1, 1, -1, 0);
         tensor_iterator->set_merged_input(H_t, hidden_memory_constant, H_o);
@@ -237,56 +246,35 @@ namespace SubgraphTestsDefinitions {
         out_hidden.get_tensor().set_element_type(ngPrc);
         out_cell.get_tensor().set_element_type(ngPrc);
 
-        auto final_reshape_pattern = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{4},
+        auto final_reshape_pattern = std::make_shared<Constant>(element::i64, Shape{4},
                                                                                 std::vector<size_t>({1, 1, 1, hiddenSize}));
-        auto final_reshape = std::make_shared<ngraph::opset5::Reshape>(out_unsqueeze, final_reshape_pattern, false);
+        auto final_reshape = std::make_shared<Reshape>(out_unsqueeze, final_reshape_pattern, false);
 
-        function = std::make_shared<ngraph::Function>(final_reshape, input_parameter, "PureTI");
+        function = std::make_shared<Function>(final_reshape, input_parameter, "PureTI");
     }
 
     void MemoryLSTMCellTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-        IE_SUPPRESS_DEPRECATED_START
-        LoadNetwork();
-        auto states = executableNetwork.QueryState();
-        for (auto& state : states) {
-            auto name = state.GetName();
-            if (name == "cell_memory") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
-                                                                           cell_memory_init.data(), cell_memory_init.size());
-                state.SetState(blob);
-            } else if (name == "hidden_memory") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
-                                                                           hidden_memory_init.data(), hidden_memory_init.size());
-                state.SetState(blob);
-            } else {
-                GTEST_FAIL() << "unknown memory state";
-            }
+        if (transformation != ngraph::helpers::MemoryTransformation::NONE) {
+            ApplyLowLatency();
+        } else {
+            LoadNetwork();
         }
-        IE_SUPPRESS_DEPRECATED_END
+
+        InitMemory();
         GenerateInputs();
         Infer();
-        switchToNgraphFriendlyModel();
+
+        // Calculate ref values
+        if (transformation == ngraph::helpers::MemoryTransformation::NONE) {
+            switchToNgraphFriendlyModel();
+        } else {
+            CreatePureTensorIteratorModel();
+        }
         Validate();
     }
 
-    void MemoryLSTMCellTest::RunLowLatency(bool regular_api) {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-        CreatePureTensorIteratorModel();
-        if (regular_api) {
-            cnnNetwork = InferenceEngine::CNNNetwork{function};
-            InferenceEngine::LowLatency(cnnNetwork);
-            ConfigureNetwork();
-            executableNetwork = core->LoadNetwork(static_cast<const InferenceEngine::CNNNetwork>(cnnNetwork), targetDevice, configuration);
-        } else {
-            // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
-            ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::LowLatency>(); // LowLatency enables UnrollTI
-            manager.run_passes(function);
-            LoadNetwork();
-        }
+    void MemoryLSTMCellTest::InitMemory() {
         IE_SUPPRESS_DEPRECATED_START
         auto states = executableNetwork.QueryState();
         for (auto& state : states) {
@@ -304,13 +292,52 @@ namespace SubgraphTestsDefinitions {
             }
         }
         IE_SUPPRESS_DEPRECATED_END
-        GenerateInputs();
-        Infer();
+    }
 
+    void MemoryLSTMCellTest::ApplyLowLatency() {
+        // Calculate values after LowLatency transformation
         CreatePureTensorIteratorModel();
-        ngraph::pass::Manager manager_2;
-        manager_2.register_pass<ngraph::pass::UnrollTensorIterator>();
-        manager_2.run_passes(function);
-        Validate();
+        if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY) {
+            function->validate_nodes_and_infer_types();
+            // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
+            pass::Manager manager;
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            manager.register_pass<ngraph::pass::LowLatency>();
+            NGRAPH_SUPPRESS_DEPRECATED_END // LowLatency enables UnrollTI
+            manager.run_passes(function);
+            bool ti_found = helpers::is_tensor_iterator_exist(function);
+            EXPECT_EQ(ti_found, true);
+            LoadNetwork();
+        } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
+            function->validate_nodes_and_infer_types();
+            // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
+
+            pass::Manager manager;
+            manager.register_pass<pass::LowLatency2>();
+            manager.run_passes(function);
+            bool ti_found = helpers::is_tensor_iterator_exist(function);
+            EXPECT_EQ(ti_found, false);
+            LoadNetwork();
+        } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_REGULAR_API) {
+            cnnNetwork = InferenceEngine::CNNNetwork{function};
+            IE_SUPPRESS_DEPRECATED_START
+            InferenceEngine::LowLatency(cnnNetwork);
+            IE_SUPPRESS_DEPRECATED_END
+
+            bool ti_found = helpers::is_tensor_iterator_exist(cnnNetwork.getFunction());
+            EXPECT_EQ(ti_found, true);
+
+            ConfigureNetwork();
+            executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+        } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
+            cnnNetwork = InferenceEngine::CNNNetwork{function};
+            InferenceEngine::lowLatency2(cnnNetwork);
+
+            bool ti_found = helpers::is_tensor_iterator_exist(cnnNetwork.getFunction());
+            EXPECT_EQ(ti_found, false);
+
+            ConfigureNetwork();
+            executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+        }
     }
 }  // namespace SubgraphTestsDefinitions
