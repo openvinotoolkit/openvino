@@ -303,7 +303,7 @@ limitations under the License.
                 </tab>
                 <tab type="user" title="Introduction to OpenVINO state API" url="@ref openvino_docs_IE_DG_network_state_intro"/>
                 <tab type="usergroup" title="Supported Devices" url="@ref openvino_docs_IE_DG_supported_plugins_Supported_Devices">
-                    <tab type="usergroup" title="GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CL_DNN">
+                    <tab type="usergroup" title="GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU">
                         <tab type="user" title="RemoteBlob API of GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API"/>
                     </tab>
                     <tab type="user" title="CPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CPU"/>

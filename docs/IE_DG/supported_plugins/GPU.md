@@ -1,4 +1,4 @@
-GPU Plugin {#openvino_docs_IE_DG_supported_plugins_CL_DNN}
+GPU Plugin {#openvino_docs_IE_DG_supported_plugins_GPU}
 =======
 
 The GPU plugin uses the Intel® Compute Library for Deep Neural Networks (clDNN) to infer deep neural networks.
@@ -89,12 +89,9 @@ Some layers are executed during the load time, not during the inference. One of 
 
 The following layers are not accelerated on the GPU and executed on the host CPU instead:
 * Proposal
-* SimplerNMS
+* NonMaxSuppression
 * PriorBox
 * DetectionOutput
-
-## Known Layers Limitations
-* ROIPooling is supported for 'max' value of 'method' attribute.
 
 ## Supported Configuration Parameters
 
@@ -107,31 +104,19 @@ When specifying key values as raw strings (that is, when using Python API), omit
 | `KEY_CACHE_DIR`      | `"<cache_dir>"`                    | `""`              | Specifies a directory where compiled OCL binaries can be cached. First model loading generates the cache, and all subsequent LoadNetwork calls use precompiled kernels which significantly improves load time. If empty - caching is disabled             |
 | `KEY_PERF_COUNT`      | `YES` / `NO`                    | `NO`              | Collect performance counters during inference             |
 | `KEY_CONFIG_FILE`     | `"<file1> [<file2> ...]"`         | `""`              | Load custom layer configuration files                     |
-| `KEY_DUMP_KERNELS`    | `YES` / `NO`                    | `NO`              | Dump the final kernels used for custom layers             |
-| `KEY_TUNING_MODE`     | `TUNING_DISABLED` <br /> `TUNING_CREATE` <br />  `TUNING_USE_EXISTING`            | `TUNING_DISABLED` | Disable inference kernel tuning     <br /> Create tuning file (expect much longer runtime)  <br />         Use an existing tuning file              |
-| `KEY_TUNING_FILE`     | `"<filename>"`                  | `""`              | Tuning file to create / use                               |
-| `KEY_CLDNN_PLUGIN_PRIORITY` | `<0-3>`                       | `0`               | OpenCL queue priority (before usage, make sure your OpenCL driver supports appropriate extension)<br> Higher value means higher priority for clDNN OpenCL queue. 0 disables the setting. |
-| `KEY_CLDNN_PLUGIN_THROTTLE` | `<0-3>`                       | `0`               | OpenCL queue throttling (before usage, make sure your OpenCL driver supports appropriate extension)<br> Lower value means lower driver thread priority and longer sleep time for it. 0 disables the setting. |
-| `KEY_CLDNN_GRAPH_DUMPS_DIR` | `"<dump_dir>"`                       | `""`               | clDNN graph optimizer stages dump output directory (in GraphViz format)                                     |
-| `KEY_CLDNN_SOURCES_DUMPS_DIR` | `"<dump_dir>"`                       | `""`               | Final optimized clDNN OpenCL sources dump output directory                                   |
-| `KEY_GPU_THROUGHPUT_STREAMS`  | `KEY_GPU_THROUGHPUT_AUTO`, or positive integer| 1 | Specifies a number of GPU "execution" streams for the throughput mode (upper bound for a number of inference requests that can be executed simultaneously).<br>This option is can be used to decrease GPU stall time by providing more effective load from several streams. Increasing the number of streams usually is more effective for smaller topologies or smaller input sizes. Note that your application should provide enough parallel slack (e.g. running many inference requests) to leverage full GPU bandwidth. Additional streams consume several times more GPU memory, so make sure the system has enough memory available to suit parallel stream execution. Multiple streams might also put additional load on CPU. If CPU load increases, it can be regulated by setting an appropriate `KEY_CLDNN_PLUGIN_THROTTLE` option value (see above). If your target system has relatively weak CPU, keep throttling low. <br>The default value is 1, which implies latency-oriented behavior.<br>`KEY_GPU_THROUGHPUT_AUTO` creates bare minimum of streams to improve the performance; this is the most portable option if you are not sure how many resources your target machine has (and what would be the optimal number of streams). <br> A positive integer value creates the requested number of streams. |
+| `KEY_GPU_PLUGIN_PRIORITY` | `<0-3>`                       | `0`               | OpenCL queue priority (before usage, make sure your OpenCL driver supports appropriate extension)<br> Higher value means higher priority for OpenCL queue. 0 disables the setting. |
+| `KEY_GPU_PLUGIN_THROTTLE` | `<0-3>`                       | `0`               | OpenCL queue throttling (before usage, make sure your OpenCL driver supports appropriate extension)<br> Lower value means lower driver thread priority and longer sleep time for it. 0 disables the setting. |
+| `KEY_GPU_THROUGHPUT_STREAMS`  | `KEY_GPU_THROUGHPUT_AUTO`, or positive integer| 1 | Specifies a number of GPU "execution" streams for the throughput mode (upper bound for a number of inference requests that can be executed simultaneously).<br>This option is can be used to decrease GPU stall time by providing more effective load from several streams. Increasing the number of streams usually is more effective for smaller topologies or smaller input sizes. Note that your application should provide enough parallel slack (e.g. running many inference requests) to leverage full GPU bandwidth. Additional streams consume several times more GPU memory, so make sure the system has enough memory available to suit parallel stream execution. Multiple streams might also put additional load on CPU. If CPU load increases, it can be regulated by setting an appropriate `KEY_GPU_PLUGIN_THROTTLE` option value (see above). If your target system has relatively weak CPU, keep throttling low. <br>The default value is 1, which implies latency-oriented behavior.<br>`KEY_GPU_THROUGHPUT_AUTO` creates bare minimum of streams to improve the performance; this is the most portable option if you are not sure how many resources your target machine has (and what would be the optimal number of streams). <br> A positive integer value creates the requested number of streams. |
 | `KEY_EXCLUSIVE_ASYNC_REQUESTS` | `YES` / `NO`                | `NO`              | Forces async requests (also from different executable networks) to execute serially.|
-| `KEY_GPU_MAX_NUM_THREADS` | `integer value` | `maximum # of HW threads available in host environment` |  Specifies the number of CPU threads that can be used for clDNN engine, e.g, JIT compilation of clDNN kernels or clDNN cpu kernel processing. The default value is set as the number of maximum available threads in host environment to minimize the time for LoadNetwork, where the clDNN kernel build time occupies a large portion. Note that if the specified value is larger than the maximum available # of threads or less than zero, it is set as maximum available # of threads. It can be specified with a smaller number than the available HW threads according to the usage scenario, e.g., when the user wants to assign more CPU threads while clDNN plugin is running. Note that setting this value with lower number will affect not only the network loading time but also the cpu layers of GPU networks that are optimized with multi-threading. |
+| `KEY_GPU_MAX_NUM_THREADS` | `integer value` | `maximum # of HW threads available in host environment` |  Specifies the number of CPU threads that can be used for GPU engine, e.g, JIT compilation of GPU kernels or cpu kernel processing within GPU plugin. The default value is set as the number of maximum available threads in host environment to minimize the time for LoadNetwork, where the GPU kernel build time occupies a large portion. Note that if the specified value is larger than the maximum available # of threads or less than zero, it is set as maximum available # of threads. It can be specified with a smaller number than the available HW threads according to the usage scenario, e.g., when the user wants to assign more CPU threads while GPU plugin is running. Note that setting this value with lower number will affect not only the network loading time but also the cpu layers of GPU networks that are optimized with multi-threading. |
 | `KEY_GPU_ENABLE_LOOP_UNROLLING` | `YES` / `NO`             | `YES`             | Enables recurrent layers such as TensorIterator or Loop with fixed iteration count to be unrolled. It is turned on by default. Turning this key on will achieve better inference performance for loops with not too many iteration counts (less than 16, as a rule of thumb). Turning this key off will achieve better performance for both graph loading time and inference time with many iteration counts (greater than 16). Note that turning this key on will increase the graph loading time in proportion to the iteration counts. Thus, this key should be turned off if graph loading time is considered to be most important target to optimize. |
-
-## Note on Debug Capabilities of the GPU Plugin
-
-Inference Engine GPU plugin provides possibility to dump the user custom OpenCL&trade; kernels to a file to allow you to properly debug compilation issues in your custom kernels.
-
-The application can use the <code>SetConfig()</code> function with the key <code>PluginConfigParams::KEY_DUMP_KERNELS</code> and value: <code>PluginConfigParams::YES</code>. Then during network loading, all custom layers will print their OpenCL kernels with the JIT instrumentation added by the plugin.
-The kernels will be stored in the working directory under files named the following way: <code>clDNN_program0.cl</code>, <code>clDNN_program1.cl</code>.
-
-This option is disabled by default. Additionally, the application can call the <code>SetConfig()</code> function with the key <code>PluginConfigParams::KEY_DUMP_KERNELS</code> and value: <code>PluginConfigParams::NO</code> before network loading.
-
-How to verify that this option is disabled:
-1.  Delete all <code>clDNN_program*.cl</code> files from the current directory
-2.  Run your application to load a network
-3.  Examine the working directory for the presence of any kernel file (for example, <code>clDNN_program0.cl</code>)
+| `KEY_CLDNN_PLUGIN_PRIORITY` | `<0-3>`                       | `0`               | OpenCL queue priority (before usage, make sure your OpenCL driver supports appropriate extension)<br> Higher value means higher priority for OpenCL queue. 0 disables the setting. **Deprecated**. Please use KEY_GPU_PLUGIN_PRIORITY |
+| `KEY_CLDNN_PLUGIN_THROTTLE` | `<0-3>`                       | `0`               | OpenCL queue throttling (before usage, make sure your OpenCL driver supports appropriate extension)<br> Lower value means lower driver thread priority and longer sleep time for it. 0 disables the setting. **Deprecated**. Please use KEY_GPU_PLUGIN_THROTTLE |
+| `KEY_CLDNN_GRAPH_DUMPS_DIR` | `"<dump_dir>"`                       | `""`               | clDNN graph optimizer stages dump output directory (in GraphViz format) **Deprecated**. Will be removed in the next release                                     |
+| `KEY_CLDNN_SOURCES_DUMPS_DIR` | `"<dump_dir>"`                       | `""`               | Final optimized clDNN OpenCL sources dump output directory. **Deprecated**. Will be removed in the next release                                   |
+| `KEY_DUMP_KERNELS`    | `YES` / `NO`                    | `NO`              | Dump the final kernels used for custom layers. **Deprecated**. Will be removed in the next release             |
+| `KEY_TUNING_MODE`     | `TUNING_DISABLED` <br /> `TUNING_CREATE` <br />  `TUNING_USE_EXISTING`            | `TUNING_DISABLED` | Disable inference kernel tuning     <br /> Create tuning file (expect much longer runtime)  <br />         Use an existing tuning file. **Deprecated**. Will be removed in the next release |
+| `KEY_TUNING_FILE`     | `"<filename>"`                  | `""`              | Tuning file to create / use. **Deprecated**. Will be removed in the next release |
 
 ## GPU Context and Video Memory Sharing RemoteBlob API
 
