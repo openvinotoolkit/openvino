@@ -9,8 +9,8 @@
 #include <gtest/gtest.h>
 
 using BasicTestParam = std::tuple<std::string,  // FrontEnd name
-        std::string,  // Base path to models
-        std::string>; // Model name
+                                  std::string,  // Base path to models
+                                  std::string>; // Model name
 
 class FrontEndBasicTest : public ::testing::TestWithParam<BasicTestParam>
 {
