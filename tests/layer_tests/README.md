@@ -12,7 +12,7 @@ This folder layer tests framework code and test files.
 
 * Install requirements:
     ```bash
-    pip3 install -r requirements.txt --proxy proxy-chain.intel.com:911
+    pip3 install -r requirements.txt
     ```
 * Set up environment variables for layer tests:
     ```bash
