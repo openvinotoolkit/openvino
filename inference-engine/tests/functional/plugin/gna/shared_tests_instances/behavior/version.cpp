@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "hetero/hetero_plugin_config.hpp"
 #include "behavior/version.hpp"
 
 using namespace BehaviorTestsDefinitions;

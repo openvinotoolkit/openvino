@@ -1260,12 +1260,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             is_quantized_int8_model = true;
         }
 
-        // WA to keep fsv16 layout disabled for some topologies where it leads to regressions.
-        // For reshape bfy*x is preferred, as fsv16 introduces extra reorders
         if (prim.type() == cldnn::crop::type_id()) {
-            if (prim.get_dependencies()[0]->is_type<reshape>() || prim.get_dependencies()[0]->is_type<concatenation>()) {
-                can_use_fsv16 = false;
-            }
             total_crop_layers++;
         }
 
