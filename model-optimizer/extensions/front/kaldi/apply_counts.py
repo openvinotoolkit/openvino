@@ -51,7 +51,7 @@ def apply_biases_to_last_layer(graph, counts):
     outputs_ids = find_outputs(graph)
     for output in outputs_ids.copy():
         node = Node(graph, output)
-        if node.op != 'Assign':
+        if node.op != 'Assign' and node.op != "MemoryOffset":
             continue
         outputs_ids.remove(output)
 
@@ -118,3 +118,26 @@ class ApplyCountsFilePattern(FrontReplacementSubgraph):
                         refer_to_faq_msg(92)) from e
 
         apply_biases_to_last_layer(graph, counts)
+
+
+class ApplyPriorsFilePattern(FrontReplacementSubgraph):
+    """
+    Pass applies s file as biases to last layer
+    """
+    enabled = True
+    graph_condition = [lambda graph: graph.graph['priors'] is not None]
+
+    def run_after(self):
+        from extensions.front.output_cut import OutputCut
+        from extensions.front.MoveEmbeddedInputsToInputs import MoveEmbeddedInputsToInputs
+        return [MoveEmbeddedInputsToInputs,
+                OutputCut,
+                ]
+
+    def run_before(self):
+        from extensions.front.MatMul_normalizer import FullyConnectedDecomposer
+        return [FullyConnectedDecomposer,
+                ]
+
+    def find_and_replace_pattern(self, graph: Graph):
+        apply_biases_to_last_layer(graph, graph.graph['priors'])
