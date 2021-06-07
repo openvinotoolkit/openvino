@@ -36,10 +36,10 @@ def replace_resize(graph: Graph, resize: Node):
 
     assert (resize.is_in_port_connected(0) and (resize.is_in_port_connected(2) or resize.is_in_port_connected(3))), \
         "Scales or sizes inputs must be connected to Node {} with op {}.".format(resize.soft_get("name", resize.id),
-                                                                                 resize.soft_get("op", resize.id))
+                                                                                 resize.op)
 
     assert resize.soft_get('coordinate_transformation_mode') != 'tf_crop_and_resize', \
-        'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(resize.soft_get("op", resize.id),
+        'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(resize.op,
                                                                                  resize.soft_get("name", resize.id))
 
     layout = graph.graph['layout']
@@ -75,7 +75,7 @@ def replace_resize(graph: Graph, resize: Node):
                       {'name': resize_name + '/axis',
                        'value': int64_array(np.arange(begin_dim, end_dim))}).create_node()
 
-    shape_calculation_mode = 'sizes' if resize.is_in_port_connected(3) else 'scales'
+    shape_calculation_mode = 'scales' if resize.is_in_port_connected(2) else 'sizes'
 
     interpolate_node = Interpolate(graph, {'version': 'opset4',
                                            'mode': convert_mode(resize.mode),
@@ -97,7 +97,7 @@ def replace_resize(graph: Graph, resize: Node):
 
     dst_dtype = np.float32  # even if data_type=FP16 use float32 for shape values
 
-    if not resize.is_in_port_connected(3):
+    if resize.is_in_port_connected(2):
         cast_shape_to_float = Cast(graph, {'dst_type': dst_dtype}).create_node()
         mul_node = Mul(graph, {'name': resize_name + '/Mul'}).create_node()
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
