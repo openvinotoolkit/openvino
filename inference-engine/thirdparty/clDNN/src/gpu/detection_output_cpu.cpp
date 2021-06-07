@@ -183,15 +183,20 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                    const int top_k,
                    const bool share_location,
                    std::map<int, std::vector<int>>& indices,
-                   std::vector<std::pair<float, std::pair<int, int>>>& scoreIndexPairs) {
-        std::sort(scoreIndexPairs.begin(), scoreIndexPairs.end(), comp_score_descend<std::pair<int, int>>);
+                   std::vector<std::pair<float, std::pair<int, int>>>& score_index_pairs) {
+        if (top_k != -1 && (score_index_pairs.size() > static_cast<size_t>(top_k))) {
+            std::partial_sort(score_index_pairs.begin(),
+                              score_index_pairs.begin() + top_k,
+                              score_index_pairs.end(),
+                              comp_score_descend<std::pair<int, int>>);
+            score_index_pairs.resize(top_k);
+        } else {
+            std::sort(score_index_pairs.begin(), score_index_pairs.end(), comp_score_descend<std::pair<int, int>>);
+        }
 
-        if (top_k != -1)
-            if (scoreIndexPairs.size() > static_cast<size_t>(top_k))
-                scoreIndexPairs.resize(top_k);
-        while (scoreIndexPairs.size() != 0) {
-            const int cls = scoreIndexPairs.front().second.first;
-            const int prior = scoreIndexPairs.front().second.second;
+        while (score_index_pairs.size() != 0) {
+            const int cls = score_index_pairs.front().second.first;
+            const int prior = score_index_pairs.front().second.second;
             std::vector<int>& currInd = indices[cls];
             bool keep = true;
             for (size_t i = 0; i < currInd.size(); i++) {
@@ -206,7 +211,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
             if (keep) {
                 currInd.push_back(prior);
             }
-            scoreIndexPairs.erase(scoreIndexPairs.begin());
+            score_index_pairs.erase(score_index_pairs.begin());
         }
     }
 
@@ -253,7 +258,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                              const int num_of_images,
                              const std::vector<std::vector<std::vector<bounding_box>>>& all_bboxes,
                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
-                             std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
+                             std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& score_index_pairs) {
         mem_lock<dtype> lock{instance.output_memory()};
         auto out_ptr = lock.begin();
 
@@ -286,7 +291,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                     num_det += static_cast<int>(indices[cls].size());
                 }
             } else {
-                std::vector<std::pair<float, std::pair<int, int>>>& score_image = scoreIndexPairs[image];
+                std::vector<std::pair<float, std::pair<int, int>>>& score_image = score_index_pairs[image];
                 mxnet_nms(bboxes_per_image, args.nms_threshold, args.top_k, args.share_location, indices, score_image);
                 for (auto it = indices.begin(); it != indices.end(); it++) {
                     num_det += static_cast<int>(it->second.size());
@@ -596,7 +601,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
     void extract_confidences_per_image_mxnet(const detection_output_inst& instance,
                                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
                                              const int num_of_priors,
-                                             std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
+                                             std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& score_index_pairs) {
         const int num_classes = instance.argument.num_classes;
 
         const int num_of_images = static_cast<int>(confidences.size());
@@ -687,7 +692,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                     }
                     score_index_per_prior.emplace_back(std::make_pair(max_score, std::make_pair(max_cls, prior)));
                 }
-                scoreIndexPairs.push_back(score_index_per_prior);
+                score_index_pairs.push_back(score_index_per_prior);
             } else {
                 for (int prior = 0; prior < num_of_priors; ++prior) {
                     for (int cls = 0; cls < num_classes; ++cls) {
@@ -706,7 +711,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
     void prepare_data(const detection_output_inst& instance,
                       std::vector<std::vector<std::vector<bounding_box>>>& bboxes,
                       std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
-                      std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
+                      std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& score_index_pairs) {
         assert(bboxes.size() == confidences.size());
 
         const auto& args = instance.argument;
@@ -772,7 +777,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
         if (nms_type == CAFFE) {
             extract_confidences_per_image_caffe<dtype>(instance, confidences, num_of_priors);
         } else {
-            extract_confidences_per_image_mxnet<dtype>(instance, confidences, num_of_priors, scoreIndexPairs);
+            extract_confidences_per_image_mxnet<dtype>(instance, confidences, num_of_priors, score_index_pairs);
         }
     }
 
@@ -788,13 +793,13 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
         std::vector<std::vector<std::vector<bounding_box>>> bboxes(num_of_images);
         // Per image : class -> confidences per bounding box.
         std::vector<std::vector<std::vector<std::pair<float, int>>>> confidences(num_of_images);
-        std::vector<std::vector<std::pair<float, std::pair<int, int>>>> scoreIndexPairs;
+        std::vector<std::vector<std::pair<float, std::pair<int, int>>>> score_index_pairs;
         if (instance.location_memory().get_layout().data_type == data_types::f32) {
-            prepare_data<data_type_to_type<data_types::f32>::type>(instance, bboxes, confidences, scoreIndexPairs);
-            generate_detections<data_type_to_type<data_types::f32>::type>(instance, num_of_images, bboxes, confidences, scoreIndexPairs);
+            prepare_data<data_type_to_type<data_types::f32>::type>(instance, bboxes, confidences, score_index_pairs);
+            generate_detections<data_type_to_type<data_types::f32>::type>(instance, num_of_images, bboxes, confidences, score_index_pairs);
         } else {
-            prepare_data<data_type_to_type<data_types::f16>::type>(instance, bboxes, confidences, scoreIndexPairs);
-            generate_detections<data_type_to_type<data_types::f16>::type>(instance, num_of_images, bboxes, confidences, scoreIndexPairs);
+            prepare_data<data_type_to_type<data_types::f16>::type>(instance, bboxes, confidences, score_index_pairs);
+            generate_detections<data_type_to_type<data_types::f16>::type>(instance, num_of_images, bboxes, confidences, score_index_pairs);
         }
 
         dynamic_cast<cldnn::user_event*>(ev.get())->set();  // set as complete
