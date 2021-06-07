@@ -518,13 +518,13 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
         mem_lock<dtype> lock{input_confidence, stream};
         auto confidence_data = lock.begin();
 
-        assert(num_of_priors * num_classes == input_confidence.get_layout().size.feature[0]);
+        assert(num_of_priors * num_classes == input_confidence->get_layout().size.feature[0]);
 
-        const auto& input_buffer_size = input_confidence.get_layout().get_buffer_size();
+        const auto& input_buffer_size = input_confidence->get_layout().get_buffer_size();
         const int input_buffer_size_x = input_buffer_size.spatial[0];
         const int input_buffer_size_y = input_buffer_size.spatial[1];
         const int input_buffer_size_f = input_buffer_size.feature[0];
-        const auto& input_padding = input_confidence.get_layout().data_padding;
+        const auto& input_padding = input_confidence->get_layout().data_padding;
         const int input_padding_lower_x = input_padding.lower_size().spatial[0];
         const int input_padding_lower_y = input_padding.lower_size().spatial[1];
         const int stride = input_buffer_size_y * input_buffer_size_x;

@@ -147,7 +147,7 @@ struct loop_gpu : typed_primitive_impl<loop> {
             const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
             memory::ptr mem = concatenated_input.get_sliced_mem(0);
             if (mem) {
-                body_network->set_input_data(concatenated_input.sliced_data_prim->id(), *mem);
+                body_network->set_input_data(concatenated_input.sliced_data_prim->id(), mem);
             } else {
                 CLDNN_ERROR_MESSAGE(node.id(), "sliced input memory of loop is not allocated properly");
             }
@@ -161,7 +161,7 @@ struct loop_gpu : typed_primitive_impl<loop> {
                 const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
                 memory::ptr mem = concatenated_input.get_sliced_mem(current_iteration);
                 if (mem) {
-                    concatenated_input.sliced_data_prim->set_output_memory(*mem);
+                    concatenated_input.sliced_data_prim->set_output_memory(mem);
                 } else {
                     CLDNN_ERROR_MESSAGE(node.id(), "sliced input memory of loop is not allocated properly");
                 }
