@@ -8,7 +8,7 @@ from mo.ops.const import Const
 
 class ShapeOfConstFolding(BackReplacementPattern):
     """
-    The transformation folding Const() -> ShapeOf() to Const()
+    The transformation folds ShapeOf(Const) -> Const
     """
     enabled = True
 
@@ -17,9 +17,7 @@ class ShapeOfConstFolding(BackReplacementPattern):
         return [SmartReshape_HC_Reshape_MatMul]
 
     def find_and_replace_pattern(self, graph: Graph):
-        print("ShapeOfConstFolding")
         for shapeof_node in graph.get_op_nodes(op='ShapeOf'):
-            print("ShapeOfConstFolding 11111")
             in_node = shapeof_node.in_port(0).get_source().node
             if in_node.op == 'Const':
                 shapeof_node.in_port(0).disconnect()

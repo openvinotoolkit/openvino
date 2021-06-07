@@ -6,10 +6,10 @@ import unittest
 import numpy as np
 
 from extensions.back.ShapeOfConstFolding import ShapeOfConstFolding
+from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
-from mo.front.common.partial_infer.eltwise import eltwise_infer
 
 const_value = np.random.rand(1, 3, 30, 30)
 nodes_attributes = {'input': {'shape': int64_array([1, 3, 30, 30]), 'type': 'Parameter', 'kind': 'op',
