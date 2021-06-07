@@ -89,7 +89,7 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
 
     dims_indices = range(len(weights_node.shape))
     permuted_indices = gconv.get_weights_permute.inv[dims_indices]
-    feature_dim = np.where(permuted_indices == 0)[0]
+    feature_dim = np.where(permuted_indices == 0)[0][0]
 
     for conv in conv_nodes[1:]:
         weights_value = np.concatenate((weights_value, conv.in_node(1).value), axis=feature_dim)
