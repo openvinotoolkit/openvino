@@ -82,9 +82,10 @@ jobs:
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
       # For opencv-python: setuptools and upgrade
-      sudo apt-get install python3-setuptools
+      sudo apt-get install python3-setuptools patchelf
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/wheel/requirements-dev.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
       # Speed up build
@@ -106,6 +107,7 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/bin/python3.6
+        -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
         -DNGRAPH_ONNX_IMPORT_ENABLE=ON
         -DNGRAPH_ONNX_EDITOR_ENABLE=ON
