@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import get_shape_from_slice, dynamic_dimension
+from mo.front.common.partial_infer.utils import get_shape_from_slice, dynamic_dimension, dynamic_dimension_value
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.utils import array_to_str
@@ -90,13 +90,13 @@ class StridedSlice(Op):
                         stop = None
                     slices[i] = slice(start, stop, strides[i])
                 else:
-                    slices[i] = None
+                    slices[i] = dynamic_dimension_value
             in_idx += 1 if not node.new_axis_mask[i] else 0
         return slices
 
     @staticmethod
     def align_mask_with_slice_rank(node: Node, slice_rank: int):
-        # align masks sizes with slice_rank (not confuse with extending, mask_aligment != mask_extending)
+        # align masks sizes with slice_rank (not confuse with extending, mask_alignment != mask_extending)
         for mask_name in StridedSlice.get_mask_names():
             num_insertations = slice_rank - len(node[mask_name])
             val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end

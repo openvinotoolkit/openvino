@@ -19,6 +19,16 @@ def shape_array(value, dtype=np.int64):
 #    return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)
 
 
+def compare_dimensions(dim1, dim2):
+    """
+    Compare if dim1 is equal to dim2 or any of them is dynamic
+    :param dim1: dimension to compare
+    :param dim2: dimension to compare
+    :return: boolean result of the comparison
+    """
+    return dim1 is dynamic_dimension or dim2 is dynamic_dimension or dim1 == dim2
+
+
 def unmask_shape(value):
     if not isinstance(value, np.ma.masked_array):
         return value
@@ -132,10 +142,7 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
 
     in_idx = 0
     for i, s in enumerate(slices):
-        if s is None:
-            output_shape.append(dynamic_dimension_value)
-            in_idx += 1
-        elif s is dynamic_dimension:
+        if s is dynamic_dimension:
             output_shape.append(dynamic_dimension_value)
             in_idx += 1
         elif isinstance(s, slice):

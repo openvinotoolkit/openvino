@@ -31,7 +31,7 @@ def match_shapes(pattern: np.array, shape: np.array):
     if pattern.size != shape.size:
         return False
     indices = [i for i, n in enumerate(pattern) if n != 0 and n is not dynamic_dimension]
-    return np.array_equal(pattern[indices], shape[indices])
+    return np.ma.allequal(pattern[indices], shape[indices])
 
 
 def symm_match_shapes(shape1: np.array, shape2: np.array):
