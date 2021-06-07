@@ -36,15 +36,16 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
             return false;
         }
 
-        auto shape_of = std::make_shared<ngraph::opset7::ShapeOf>(data);
+        auto input_type = indices_constant->get_element_type();
+        auto shape_of = std::make_shared<ngraph::opset7::ShapeOf>(data, input_type);
         auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
-            axis, ngraph::opset7::Constant::create(ngraph::element::i32, Shape{1}, {0}));
-        auto cast = std::make_shared<ngraph::opset7::Convert>(input_gather, ngraph::element::i32);
-        auto add = std::make_shared<ngraph::opset7::Add>(cast, indices_constant);
+            axis, ngraph::opset7::Constant::create(input_type, Shape{1}, {0}));
+
+        auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices_constant);
         auto gather_new = gather_node->copy_with_new_inputs({data, add, axis});
         gather_new->set_friendly_name(gather->get_friendly_name());
 
-        ngraph::copy_runtime_info(gather, {shape_of, input_gather, cast, add, gather_new});
+        ngraph::copy_runtime_info(gather, {shape_of, input_gather, add, gather_new});
         ngraph::replace_node(gather, gather_new);
 
         return true;
