@@ -628,3 +628,14 @@ It means that you trying to convert the topology which contains '_contrib_box_nm
 </script>
 
 \endhtmlonly
+
+#### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" means? <a name="question-103"></a>
+
+If file '*.caffemodel' exist and correct and among possible reasons you can see third point about protobuf implementation then you have used python protobuf implementation. In some cases it gives error during model parsing. Then you should build cpp implementation of protobuf by yourself or use one of wheels from ModelOptimizer package. For complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
+
+#### 104. What does the message "SyntaxError: 'yield' inside list comprehension" during MxNet\* model conversion means? <a name="question-104"></a>
+
+You can face with "SyntaxError: 'yield' inside list comprehension" issue during converting MxNet\* models (mobilefacedet-v1-mxnet, brain-tumor-segmentation-0001) on Windows* platform with Python* 3.8 environment. This issue existed due to API changes for `yeld expression` in Python 3.8 
+We suggest some workarounds:
+1. Use Python 3.6/3.7 to convert MxNet\* models on Windows
+2. Update mxnet but in that case, you can have conflicts between previously installed PyPI dependencies: pip install mxnet=1.7.0.post2
