@@ -137,18 +137,29 @@ struct loop_gpu : typed_primitive_impl<loop> {
 
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
         const auto& concatenated_output_mem_mappings = instance.concatenated_output_mem_mappings;
+
+        // Set sliced input data
+        for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
+            const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
+            memory_impl::ptr mem = concatenated_input.get_sliced_mem(0);
+            if (mem) {
+                body_network->set_input_data(concatenated_input.sliced_data_prim->id(), *mem);
+            } else {
+                CLDNN_ERROR_MESSAGE(node.id(), "sliced input memory of loop is not allocated properly");
+            }
+        }
+
         std::vector<event_impl::ptr> loop_carried_dep(events.begin(), events.end());
 
         while (current_iteration < trip_count && execution_condition) {
-            // Copy & Set sliced input memory offset
-            for (size_t i = 0; i < instance.concatenated_input_mem_mappings.size(); ++i) {
+            // Copy & Set sliced input memory
+            for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
                 const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
                 memory_impl::ptr mem = concatenated_input.get_sliced_mem(current_iteration);
-                // set input mem
-                if (current_iteration == 0) {
-                    body_network->set_input_data(concatenated_input.sliced_data_prim->id(), *mem);
-                } else {
+                if (mem) {
                     concatenated_input.sliced_data_prim->set_output_memory(*mem);
+                } else {
+                    CLDNN_ERROR_MESSAGE(node.id(), "sliced input memory of loop is not allocated properly");
                 }
             }
 
