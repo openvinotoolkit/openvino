@@ -10,4 +10,3 @@ ie_add_sample(NAME benchmark_app
               HEADERS ${HDR}
               DEPENDENCIES format_reader ie_samples_utils
               OPENCV_DEPENDENCIES core)
-
