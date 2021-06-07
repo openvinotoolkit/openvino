@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/multiple_LSTMCell.hpp"
+#include "shared_test_classes/subgraph/reduce_eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 
-TEST_P(MultipleLSTMCellTest, CompareWithRefs) {
+TEST_P(ReduceEltwiseTest, CompareWithRefs) {
     Run();
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace SubgraphTestsDefinitions
