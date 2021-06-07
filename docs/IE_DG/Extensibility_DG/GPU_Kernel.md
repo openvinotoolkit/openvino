@@ -219,22 +219,6 @@ __kernel void example_relu_kernel(
 
 ## Debugging Tips<a name="debugging-tips"></a>
 
-* **Dumping the Resulting Kernels**.
-It is recommended to get a dump of the kernel with all of
-the values set by the Inference Engine, such as tensor sizes,
-floating-point, and integer kernel parameters. To get the dump, add the
-following line to your code that configures the GPU plugin to output the
-custom kernels:
-
-@snippet snippets/GPU_Kernel.cpp part1
-
-When the Inference Engine compiles the kernels for the specific network,
-it also outputs the resulting code for the custom kernels. In the
-directory of your executable, find files like
-`clDNN_program0.cl`, `clDNN_program1.cl`. There are as many files as
-distinct sets of parameters for your custom kernel: different input
-tensor sizes and kernel parameters.
-
 * **Using `printf` in the OpenCL™ Kernels**.
 To debug the specific values, you can use `printf` in your kernels.
 However, be careful: for instance, do not output excessively
