@@ -65,7 +65,7 @@ bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 bool op::v3::Asinh::has_evaluate() const
 {
-    NGRAPH_OP_SCOPE(v1_Asinh_has_evaluate);
+    NGRAPH_OP_SCOPE(v3_Asinh_has_evaluate);
     switch (get_input_element_type(0))
     {
     case ngraph::element::i32:
