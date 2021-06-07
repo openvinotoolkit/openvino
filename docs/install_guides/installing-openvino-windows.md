@@ -248,8 +248,8 @@ Or proceed to the <a href="#get-started">Get Started</a> to get started with run
 
 > **NOTE**: These steps are required only if you want to use an Intel® integrated GPU.
 
-If your applications offload computation to **Intel® Integrated Graphics**, you must have the latest version of Intel Graphics Driver for Windows installed for your hardware. 
-[Download and install a higher version](https://downloadcenter.intel.com/download/30148/Intel-Graphics-Windows-10-DCH-Drivers). 
+If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed for your hardware. 
+[Download and install the recommended version](https://downloadcenter.intel.com/download/30079/Intel-Graphics-Windows-10-DCH-Drivers). 
 
 To check if you have this driver installed:
 
