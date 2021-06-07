@@ -1,0 +1,17 @@
+name: PR Commits
+on: [pull_request]
+
+jobs:
+  Checks:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: python3 -m pip install -r ./.github/org_control/requirements.txt
+
+      - name: PR commits
+        run: python3 ./.github/org_control/check_pr.py --pr=${{ github.event.number }} --check-commits DRY_RUN
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
