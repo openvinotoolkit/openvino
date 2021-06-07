@@ -75,7 +75,7 @@ def replace_resize(graph: Graph, resize: Node):
                       {'name': resize_name + '/axis',
                        'value': int64_array(np.arange(begin_dim, end_dim))}).create_node()
 
-    shape_calculation_mode = 'scales' if resize.is_in_port_connected(2) else 'sizes'
+    shape_calculation_mode = 'sizes' if resize.is_in_port_connected(3) else 'scales'
 
     interpolate_node = Interpolate(graph, {'version': 'opset4',
                                            'mode': convert_mode(resize.mode),
@@ -97,7 +97,7 @@ def replace_resize(graph: Graph, resize: Node):
 
     dst_dtype = np.float32  # even if data_type=FP16 use float32 for shape values
 
-    if resize.is_in_port_connected(2):
+    if not resize.is_in_port_connected(3):
         cast_shape_to_float = Cast(graph, {'dst_type': dst_dtype}).create_node()
         mul_node = Mul(graph, {'name': resize_name + '/Mul'}).create_node()
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))

@@ -39,15 +39,11 @@ class ONNXResize11Op(Op):
             "One of the scales or sizes inputs must be connected to Node {} with op {}.".format(node.soft_get("name", node.id),
                                                                                                 node.op)
 
-        assert not (node.is_in_port_connected(2) and node.is_in_port_connected(3)), \
-            "Only one of scales and sizes can be specified. For Node {} with op {} connected both.".format(
-                node.soft_get("name", node.id), node.op)
-
         assert node.coordinate_transformation_mode != 'tf_crop_and_resize', \
             'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(node.op,
                                                                                      node.soft_get("name", node.id))
 
-        if node.is_in_port_connected(2):
+        if not node.is_in_port_connected(3):
             # i.e. input 'sizes' is not given
             input2_value = node.in_port(2).data.get_value()
             assert input2_value is not None, \
