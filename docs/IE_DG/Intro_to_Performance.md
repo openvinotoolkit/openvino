@@ -6,23 +6,23 @@ This section is a shorter version of the
 ## Precision
 Inference precision directly affects the performance. 
 
-Model Optimizer can produce an IR with different precision. For example, FP16 IR initially targets VPU and GPU devices, while, for example, for the CPU the FP16 IR is    typically up-scaled to the regular float32 automatically upon loading. But notice that further device-specific inference precision settings are available, 
+Model Optimizer can produce an IR with different precision. For example, an FP16 IR initially targets VPU and GPU devices, while, for example, for the CPU, an FP16 IR is    typically up-scaled to the regular FP32 automatically upon loading. But notice that further device-specific inference precision settings are available, 
 for example, [8-bit integer](Int8Inference.md) or [bfloat16](Bfloat16Inference.md), which is specific to the CPU inference, below.
-Note that for [MULTI device](supported_plugins/MULTI.md) that supports automatic inference on multiple devices in parallel, you can use the FP16 IR (no need for FP32).
+Note that for the [MULTI device](supported_plugins/MULTI.md) plugin that supports automatic inference on multiple devices in parallel, you can use an FP16 IR (no need for FP32).
 You can find more information, including preferred data types for specific devices, in the
-[Supported Devices](supported_plugins/Supported_Devices.md) section.
+[Supported Devices](supported_plugins/Supported_Devices.md) document.
 
 ## Automatic Lowering of the Inference Precision
-By default, plugins enable the optimizations that allow lower precision if acceptable range of accuracy is preserved.
-For example, for the CPU that supports the AVX512_BF16 instructions, a float16/float32 model is converted to [bfloat16](Bfloat16Inference.md) internal representation to accelerate inference.
-To compare the associated speedup, below is the example command line to disable this feature on the CPU device with the AVX512_BF16 support and get regular float32 execution:
+By default, plugins enable the optimizations that allow lower precision if the acceptable range of accuracy is preserved.
+For example, for the CPU that supports the AVX512_BF16 instructions, an FP16/FP32 model is converted to a [bfloat16](Bfloat16Inference.md) IR to accelerate inference.
+To compare the associated speedup, run the example command below to disable this feature on the CPU device with the AVX512_BF16 support and get regular FP32 execution:
 ```
 $ benchmark_app -m <model.xml> -enforcebf16=false
  ```
-Notice that for quantized (e.g. int8) models the bfloat16 calculations (of the layers that remain in fp32) is disabled by default.
-Refer to the [CPU device documentation](supported_plugins/CPU.md) for more details.
+Notice that for quantized (e.g. INT8) models the bfloat16 calculations (of the layers that remain in FP32) is disabled by default.
+Refer to the [CPU Plugin documentation](supported_plugins/CPU.md) for more details.
 
-Similarly, the GPU device has a dedicated config key to enable FP16 execution of the layers that remain in FP32 in the quantized models (as the quantization is typically performed on the FP32 models), refer to the ENABLE_FP16_FOR_QUANTIZED_MODELS key in the [GPU device documentation](supported_plugins/CL_DNN.md) 
+Similarly, the GPU device has a dedicated config key to enable FP16 execution of the layers that remain in FP32 in the quantized models (as the quantization is typically performed on the FP32 models), refer to the ENABLE_FP16_FOR_QUANTIZED_MODELS key in the [GPU Plugin documentation](supported_plugins/CL_DNN.md) 
 
 ## Latency vs. Throughput
 One way to increase computational efficiency is batching, which combines many (potentially tens) of
@@ -58,7 +58,7 @@ Please see more on the NUMA support in the [Optimization Guide](../optimization_
 
 ## Throughput Mode for CPU
 Unlike most accelerators, CPU is perceived as an inherently latency-oriented device. 
-OpenVINO offers a  "throughput" mode, which allows running multiple inference requests on the CPU simultaneously, greatly improving the throughput.
+OpenVINO™ toolkit provides a "throughput" mode that allows running multiple inference requests on the CPU simultaneously, which greatly improves the throughput.
 
 Internally, the execution resources are split/pinned into execution "streams".
 Using this feature gains much better performance for the networks that originally are not scaled well with a number of threads (for example, lightweight topologies). This is especially pronounced for the many-core server machines.
