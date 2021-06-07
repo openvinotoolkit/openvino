@@ -555,7 +555,7 @@ class ngraph::pass::mask_propagation::PassThrough : public MatcherPass {
 public:
     PassThrough() {
         auto unary_op = pattern::wrap_type<op::util::UnaryElementwiseArithmetic, opset6::Clamp,
-                                            opset6::Convert, opset6::ConvertLike, opset5::AvgPool, opset6::MaxPool,
+                                            opset6::Convert, opset6::ConvertLike, opset6::AvgPool, opset6::MaxPool,
                                             opset6::ROIPooling, opset6::PSROIPooling, opset6::Pad>();
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
