@@ -68,7 +68,9 @@ TEST(TransformationTests, LowLatencyLSTM) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
@@ -149,7 +151,9 @@ TEST(TransformationTests, LowLatencyGRU) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
@@ -227,7 +231,9 @@ TEST(TransformationTests, LowLatencyRNN) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
@@ -317,7 +323,9 @@ TEST(TransformationTests, LowLatencyLSTMReshape) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
@@ -413,7 +421,9 @@ TEST(TransformationTests, LowLatencyLSTM_Loop) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
