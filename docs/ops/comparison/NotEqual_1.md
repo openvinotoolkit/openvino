@@ -4,7 +4,18 @@
 
 **Category**: Comparison binary operation
 
-**Short description**: *NotEqual* performs element-wise comparison operation with two given tensors applying multi-directional broadcast rules.
+**Short description**: *NotEqual* performs element-wise comparison binary operation with two given tensors applying 
+multi-directional broadcast rules.
+
+**Detailed description**
+Before performing comparison operation, input tensors *a* and *b* are broadcasted if their shapes are different and 
+`auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+
+After broadcasting *NotEqual* does the following with the input tensors *a* and *b*:
+
+\f[
+o_{i} = a_{i} != b_{i}
+\f]
 
 **Attributes**:
 
@@ -30,15 +41,6 @@
 **Types**
 
 * *T*: arbitrary supported type.
-
-**Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
-
-After broadcasting *NotEqual* does the following with the input tensors *a* and *b*:
-
-\f[
-o_{i} = a_{i} != b_{i}
-\f]
 
 **Examples** 
 
