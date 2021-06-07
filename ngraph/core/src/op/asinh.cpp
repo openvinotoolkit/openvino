@@ -32,25 +32,26 @@ shared_ptr<Node> op::v3::Asinh::clone_with_new_inputs(const OutputVector& new_ar
 namespace asinhop
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
+    inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
     {
-        runtime::reference::asinh(
-            arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(arg0->get_shape()));
+        runtime::reference::asinh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
     }
 
     bool evaluate_asinh(const HostTensorPtr& arg0, const HostTensorPtr& out)
     {
         bool rc = true;
+        size_t count = shape_size(arg0->get_shape());
         out->set_unary(arg0);
+
         switch (arg0->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_asinh, i32, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_asinh, i64, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_asinh, u32, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_asinh, u64, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_asinh, f16, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_asinh, f32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_asinh, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_asinh, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_asinh, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_asinh, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_asinh, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_asinh, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
