@@ -39,7 +39,7 @@ std::vector<std::string> filterFilesByExtensions(const std::vector<std::string>&
     return filtered;
 }
 
-template<typename T>
+template <typename T>
 void fillBlobImage(Blob::Ptr& inputBlob, const std::vector<std::string>& filePaths, const size_t& batchSize, const benchmark_app::InputInfo& app_info,
                    const size_t& requestId, const size_t& inputId, const size_t& inputSize) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
@@ -282,7 +282,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSi
                     } else if (precision == InferenceEngine::Precision::U8) {
                         fillBlobImage<uint8_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
                     } else {
-                        THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
+                        IE_THROW() << "Input precision is not supported for " << item.first;
                     }
                     continue;
                 }
