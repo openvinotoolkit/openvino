@@ -6,7 +6,7 @@
 
 **Short description**: *RegionYolo* computes the coordinates of regions with probability for each class.
 
-**Detailed description**: This operation is directly mapped to the original YOLO layer. [Reference](https://arxiv.org/pdf/1612.08242.pdf)
+**Detailed description**: This operation is directly mapped to the [YOLO9000: Better, Faster, Stronger](https://arxiv.org/pdf/1612.08242.pdf) paper. 
 
 **Attributes**:
 
@@ -78,14 +78,17 @@
 
 **Inputs**:
 
-*   **1**: `data` - 4D input tensor with floating point elements and shape `[N, C, H, W]`. Required.
+*   **1**: `data` - 4D tensor of type `T` and shape `[N, C, H, W]`. **Required.**
 
 **Outputs**:
 
-*   **1**: output tensor of rank 4 or less that codes detected regions. Refer to the original YOLO paper to decode the output as boxes. `anchors` should be used to decode real box coordinates. If `do_softmax` is set to 0, then the output shape is `[N, (classes + coords + 1)*len(mask), H, W]`. If `do_softmax` is set to 1, then output shape is partially flattened and defined in the following way:
+*   **1**: tensor of type `T` and rank 4 or less that codes detected regions. Refer to the [YOLO9000: Better, Faster, Stronger](https://arxiv.org/pdf/1612.08242.pdf) paper to decode the output as boxes. `anchors` should be used to decode real box coordinates. If `do_softmax` is set to `0`, then the output shape is `[N, (classes + coords + 1) * len(mask), H, W]`. If `do_softmax` is set to `1`, then output shape is partially flattened and defined in the following way:
 
-    flat_dim = data.shape[axis] * data.shape[axis+1] * ... * data.shape[end_axis]
-    output.shape = [data.shape[0], ..., data.shape[axis-1], flat_dim, data.shape[end_axis + 1], ...]
+    `flat_dim = data.shape[axis] * data.shape[axis+1] * ... * data.shape[end_axis]`  
+    `output.shape = [data.shape[0], ..., data.shape[axis-1], flat_dim, data.shape[end_axis + 1], ...]`
+
+**Types**
+* *T*: any supported floating point type.
 
 **Example**
 
