@@ -18,6 +18,7 @@
 
 #include "api/reduce.hpp"
 #include "api/reorder.hpp"
+#include "api/reshape.hpp"
 
 namespace CLDNNPlugin {
 
@@ -78,6 +79,28 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
 
     p.AddPrimitive(reducePrim);
 
+    auto resultLayerName = layerName;
+    auto out_dims = op->get_output_shape(0).size();
+    if (out_dims == 3 && !keep_dims && rank >= 4) {
+        resultLayerName = layerName + "_reshape";
+        auto out_shape = op->get_output_shape(0);
+        cldnn::tensor outTensor;
+        switch (rank) {
+            case 6:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]), 1, 1);
+            case 5:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]), 1);
+            case 4:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]));
+        }
+        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor);
+        p.AddPrimitive(reshape_prim);
+        p.AddPrimitiveToProfiler(op, resultLayerName);
+    }
+
     auto reorderLayerName = layerName + "_reorder";
     cldnn::format out_format = cldnn::format::any;
     auto out_dt = DataTypeFromPrecision(op->get_output_element_type(0));
@@ -89,7 +112,7 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
         else if (rank - rawAxes.size() <= 4)
             out_format = cldnn::format::bfyx;
 
-        auto reorder_prim = cldnn::reorder(reorderLayerName, layerName, out_format, out_dt);
+        auto reorder_prim = cldnn::reorder(reorderLayerName, resultLayerName, out_format, out_dt);
         p.AddPrimitive(reorder_prim);
         p.AddPrimitiveToProfiler(op, reorderLayerName);
     } else {
