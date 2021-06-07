@@ -6,13 +6,9 @@ project(python_tools)
 if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
 endif()
-find_package(PythonInterp)
 
-if(PYTHONINTERP_FOUND)
-    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-else()
-    message(FATAL_ERROR "Python Interpreter was not found!")
-endif()
+find_package(PythonInterp 3 REQUIRED)
+set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 
 set(TARGET_NAME "python_tools")
 
@@ -23,7 +19,6 @@ else()
 endif()
 
 if(ENABLE_PYTHON)
-
     # creates a copy inside bin directory for developers to have ability running python benchmark_app
     add_custom_target(${TARGET_NAME} ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools
@@ -51,5 +46,4 @@ if(ENABLE_PYTHON)
             COMPONENT python_tools_${PYTHON_VERSION})
     
     ie_cpack(python_tools python_tools_${PYTHON_VERSION})
-
 endif()
