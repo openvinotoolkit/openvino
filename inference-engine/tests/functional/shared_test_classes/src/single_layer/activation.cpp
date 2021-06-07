@@ -176,7 +176,7 @@ InferenceEngine::Blob::Ptr ActivationParamLayerTest::GenerateInput(const Inferen
     if (name == "negativeSlope") {
         const auto elemnts_count = ngraph::shape_size(function->get_parameters()[1]->get_shape());
         std::vector<float> param_data(elemnts_count);
-        std::iota(param_data.begin(), param_data.end(), 2);
+        std::iota(param_data.begin(), param_data.end(), -10);
         blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
     } else if (name == "leakySlope") {
         const auto elemnts_count = ngraph::shape_size(function->get_parameters()[1]->get_shape());

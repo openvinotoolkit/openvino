@@ -69,7 +69,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> intActivationTy
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
-        {PReLu, {{}}},
+        {PReLu, {{}}}, // Slope will be filled with increasing values from -10 to match slope input shape
         {LeakyRelu, {{0.01f}}}
 };
 
