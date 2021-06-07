@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, dynamic_dimension_value
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
@@ -46,7 +46,10 @@ def infer_for_opset4(node: Node):
         scales = node.in_port(2).data.get_value()
         assert scales is not None
         for i, axis in enumerate(axes):
-            output_shape[axis] = math.floor(scales[i] * output_shape[axis] + 1.0e-5)
+            if output_shape[axis] is not dynamic_dimension and scales[i] is not dynamic_dimension:
+                output_shape[axis] = math.floor(scales[i] * output_shape[axis] + 1.0e-5)
+            else:
+                output_shape[axis] = dynamic_dimension_value
 
     if node.is_in_port_connected(3):
         PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'axis')
