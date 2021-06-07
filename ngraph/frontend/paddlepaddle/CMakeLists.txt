@@ -7,7 +7,8 @@ file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp ${CMAKE_
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 if (TARGET ext_protobuf)
-    add_dependencies(ngraph::paddlepaddle_ngraph_frontend ext_protobuf)
+#    add_dependencies(ngraph::paddlepaddle_ngraph_frontend ext_protobuf)
+    add_dependencies(paddlepaddle_ngraph_frontend ext_protobuf)
 endif()
 
 set(paddlepaddle_ngraph_frontend_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -19,17 +20,39 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
-set(PROTOBUF_GENERATE_CPP_APPEND_PATH ON)
+set(PROTO_SRCS)
+set(PROTO_HDRS)
+
+# Generate protobuf file on build time for each '.proto' file in src/proto
 file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${proto_files})
+
+foreach(INFILE ${proto_files})
+    set(ABS_FILE ${ROOT_DIR}/${INFILE})
+    get_filename_component(FILE_DIR ${ABS_FILE} DIRECTORY)
+    get_filename_component(FILE_WE ${INFILE} NAME_WE)
+    set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.cc)
+    set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.h)
+    set(GENERATED_PROTO ${INFILE})
+    add_custom_command(
+            OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
+            COMMAND protobuf::protoc ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
+            DEPENDS protobuf::protoc ${GENERATED_PROTO}
+            COMMENT "Running C++ protocol buffer compiler on ${GENERATED_PROTO}"
+            VERBATIM)
+    list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
+    list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
+endforeach()
+
+add_custom_target(paddlepaddle_ngraph_frontend_proto DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
+
+set_source_files_properties(${PROTO_HDRS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
 
 include_directories(${Protobuf_INCLUDE_DIRS} ${paddlepaddle_ngraph_frontend_INCLUDE_DIR})
 
 # Create shared library
 add_library(paddlepaddle_ngraph_frontend SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
-add_library(ngraph::paddlepaddle_ngraph_frontend ALIAS paddlepaddle_ngraph_frontend)
 
-add_dependencies(paddlepaddle_ngraph_frontend libprotobuf)
+add_dependencies(paddlepaddle_ngraph_frontend libprotobuf paddlepaddle_ngraph_frontend_proto)
 
 if(NOT WIN32)
     # Addition dependency on static libprotobuf for non-Windows
@@ -48,9 +71,9 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 if(WIN32)
-    target_link_libraries(paddlepaddle_ngraph_frontend PRIVATE libprotobuf PUBLIC ngraph  PRIVATE ngraph::builder)
+    target_link_libraries(paddlepaddle_ngraph_frontend PRIVATE libprotobuf PUBLIC ngraph PRIVATE ngraph::builder)
 else()
-    target_link_libraries(paddlepaddle_ngraph_frontend PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT} PUBLIC ngraph  PRIVATE ngraph::builder)
+    target_link_libraries(paddlepaddle_ngraph_frontend PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT} PUBLIC ngraph PRIVATE ngraph::builder)
 endif()
 
 target_link_libraries(paddlepaddle_ngraph_frontend PRIVATE frontend_manager)
