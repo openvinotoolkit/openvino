@@ -40,6 +40,8 @@ public:
     Interval combinedInterval;
     Interval minInterval;
     size_t minLevels;
+    // preferable precisions which are preferred by affected quantization operations to avoid zero points
+    std::set<element::Type> preferablePrecisions;
 
     // TODO: debug only
     std::string minLevelsOperation;
@@ -54,6 +56,8 @@ public:
         size_t levels,
         const IntervalsAlignmentSharedValue::Interval minInterval,
         size_t minLevels);
+
+    // specify subgraph original levels
     size_t levels;
 };
 
