@@ -75,6 +75,8 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<IntervalsAlignmentAttributePtr>:
         assert(!std::isinf(resultSharedValue->combinedInterval.low));
         assert(!std::isinf(resultSharedValue->combinedInterval.high));
 
+        resultSharedValue->preferablePrecisions.insert(sharedValue->preferablePrecisions.begin(), sharedValue->preferablePrecisions.end());
+
         const auto resultSize = abs(resultSharedValue->minInterval.high - resultSharedValue->minInterval.low);
         const auto size = abs(sharedValue->minInterval.high - sharedValue->minInterval.low);
         if (resultSize > size) {
@@ -181,6 +183,10 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
             fakeQuantize->get_levels()));
     rtInfo[ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name] = attribute;
 
+    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
+    LayerTransformation::PrecisionDetails preferablePrecision = LayerTransformation::getPrecisionDetails(quantizationDetails);
+    attribute->get()->sharedValue->preferablePrecisions.insert(preferablePrecision.precision);
+
     attribute->get()->sharedValue->minLevelsOperation = node->get_friendly_name();
 
     return attribute;
@@ -211,6 +217,8 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
 
         assert(!std::isinf(resultSharedValue->combinedInterval.low));
         assert(!std::isinf(resultSharedValue->combinedInterval.high));
+
+        resultSharedValue->preferablePrecisions.insert(sharedValue->preferablePrecisions.begin(), sharedValue->preferablePrecisions.end());
 
         const auto resultSize = abs(resultSharedValue->minInterval.high - resultSharedValue->minInterval.low);
         const auto size = abs(sharedValue->minInterval.high - sharedValue->minInterval.low);
