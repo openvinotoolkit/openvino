@@ -79,7 +79,6 @@
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
 #include "cldnn_itt.h"
-#include "cldnn/cldnn_config.hpp"
 #include "gpu/gpu_config.hpp"
 
 #ifdef __linux__

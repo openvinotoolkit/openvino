@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cldnn/cldnn_config.hpp>
 #include <gna/gna_config.hpp>
 #include <gpu/gpu_config.hpp>
 #include <inference_engine.hpp>

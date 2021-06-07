@@ -9,7 +9,6 @@
 
 #include <ie_compound_blob.h>
 
-#include <cldnn/cldnn_config.hpp>
 #include <gpu/gpu_config.hpp>
 #include <remote_blob_tests/remote_blob_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
