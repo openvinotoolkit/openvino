@@ -64,25 +64,45 @@ if(PROTOC_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
 else()
     if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.0")
-        FetchContent_Declare(
-            ext_protobuf
-            GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
-            GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
-            GIT_SHALLOW TRUE
-        )
-
-        FetchContent_GetProperties(ext_protobuf)
-        if(NOT ext_protobuf_POPULATED)
-            FetchContent_Populate(ext_protobuf)
-            set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
-            set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
-            add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
+        if (NOT BUILD_STANDALONE_STATIC)
+            FetchContent_Declare(
+                ext_protobuf
+                GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
+                GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
+                GIT_SHALLOW TRUE
+            )
+            FetchContent_GetProperties(ext_protobuf)
+            if(NOT ext_protobuf_POPULATED)
+                FetchContent_Populate(ext_protobuf)
+                set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+                set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+                add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
+            endif()
+        endif()
+        if (USE_STATIC_PROTOBUF)
+            FetchContent_Declare(
+                    ext_protobuf_static
+                    GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
+                    GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
+                    GIT_SHALLOW TRUE
+            )
+            FetchContent_GetProperties(ext_protobuf_static)
+            if(NOT ext_protobuf_static_POPULATED AND BUILD_STANDALONE_STATIC)
+                FetchContent_Populate(ext_protobuf_static)
+                set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+                set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+                add_subdirectory(${ext_protobuf_static_SOURCE_DIR}/cmake ${ext_protobuf_static_BINARY_DIR} EXCLUDE_FROM_ALL)
+            endif()
         endif()
     else()
         message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
     endif()
 
-    set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
+    if (BUILD_STANDALONE_STATIC)
+        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_static_SOURCE_DIR}/src)
+    else()
+        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
+    endif()
     if(NGRAPH_USE_PROTOBUF_LITE)
         set(Protobuf_LIBRARIES libprotobuf-lite)
     else()
@@ -117,6 +137,7 @@ endif()
 # Now make sure we restore the original flags
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")
 
+message("NGRAPH_INSTALL_LIB = ${NGRAPH_INSTALL_LIB}")
 install(TARGETS ${Protobuf_LIBRARIES}
     RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
     ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
@@ -124,3 +145,155 @@ install(TARGETS ${Protobuf_LIBRARIES}
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
     export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
 endif()
+
+#TODO: ---Find out the way to reuse these function from Protobuf modules ---
+
+function(protobuf_generate)
+    include(CMakeParseArguments)
+
+    set(_options APPEND_PATH)
+    set(_singleargs LANGUAGE OUT_VAR EXPORT_MACRO PROTOC_OUT_DIR)
+    if(COMMAND target_sources)
+        list(APPEND _singleargs TARGET)
+    endif()
+    set(_multiargs PROTOS IMPORT_DIRS GENERATE_EXTENSIONS)
+
+    cmake_parse_arguments(protobuf_generate "${_options}" "${_singleargs}" "${_multiargs}" "${ARGN}")
+
+    if(NOT protobuf_generate_PROTOS AND NOT protobuf_generate_TARGET)
+        message(SEND_ERROR "Error: protobuf_generate called without any targets or source files")
+        return()
+    endif()
+
+    if(NOT protobuf_generate_OUT_VAR AND NOT protobuf_generate_TARGET)
+        message(SEND_ERROR "Error: protobuf_generate called without a target or output variable")
+        return()
+    endif()
+
+    if(NOT protobuf_generate_LANGUAGE)
+        set(protobuf_generate_LANGUAGE cpp)
+    endif()
+    string(TOLOWER ${protobuf_generate_LANGUAGE} protobuf_generate_LANGUAGE)
+
+    if(NOT protobuf_generate_PROTOC_OUT_DIR)
+        set(protobuf_generate_PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
+    endif()
+
+    if(protobuf_generate_EXPORT_MACRO AND protobuf_generate_LANGUAGE STREQUAL cpp)
+        set(_dll_export_decl "dllexport_decl=${protobuf_generate_EXPORT_MACRO}:")
+    endif()
+
+    if(NOT protobuf_generate_GENERATE_EXTENSIONS)
+        if(protobuf_generate_LANGUAGE STREQUAL cpp)
+            set(protobuf_generate_GENERATE_EXTENSIONS .pb.h .pb.cc)
+        elseif(protobuf_generate_LANGUAGE STREQUAL python)
+            set(protobuf_generate_GENERATE_EXTENSIONS _pb2.py)
+        else()
+            message(SEND_ERROR "Error: protobuf_generate given unknown Language ${LANGUAGE}, please provide a value for GENERATE_EXTENSIONS")
+            return()
+        endif()
+    endif()
+
+    if(protobuf_generate_TARGET)
+        get_target_property(_source_list ${protobuf_generate_TARGET} SOURCES)
+        foreach(_file ${_source_list})
+            if(_file MATCHES "proto$")
+                list(APPEND protobuf_generate_PROTOS ${_file})
+            endif()
+        endforeach()
+    endif()
+
+    if(NOT protobuf_generate_PROTOS)
+        message(SEND_ERROR "Error: protobuf_generate could not find any .proto files")
+        return()
+    endif()
+
+    if(protobuf_generate_APPEND_PATH)
+        # Create an include path for each file specified
+        foreach(_file ${protobuf_generate_PROTOS})
+            get_filename_component(_abs_file ${_file} ABSOLUTE)
+            get_filename_component(_abs_path ${_abs_file} PATH)
+            list(FIND _protobuf_include_path ${_abs_path} _contains_already)
+            if(${_contains_already} EQUAL -1)
+                list(APPEND _protobuf_include_path -I ${_abs_path})
+            endif()
+        endforeach()
+    else()
+        set(_protobuf_include_path -I ${CMAKE_CURRENT_SOURCE_DIR})
+    endif()
+
+    foreach(DIR ${protobuf_generate_IMPORT_DIRS})
+        get_filename_component(ABS_PATH ${DIR} ABSOLUTE)
+        list(FIND _protobuf_include_path ${ABS_PATH} _contains_already)
+        if(${_contains_already} EQUAL -1)
+            list(APPEND _protobuf_include_path -I ${ABS_PATH})
+        endif()
+    endforeach()
+
+    set(_generated_srcs_all)
+    foreach(_proto ${protobuf_generate_PROTOS})
+        get_filename_component(_abs_file ${_proto} ABSOLUTE)
+        get_filename_component(_abs_dir ${_abs_file} DIRECTORY)
+        get_filename_component(_basename ${_proto} NAME_WE)
+        file(RELATIVE_PATH _rel_dir ${CMAKE_CURRENT_SOURCE_DIR} ${_abs_dir})
+
+        set(_generated_srcs)
+        message(${_rel_dir})
+
+        foreach(_ext ${protobuf_generate_GENERATE_EXTENSIONS})
+            list(APPEND _generated_srcs "${protobuf_generate_PROTOC_OUT_DIR}/${_basename}${_ext}")
+        endforeach()
+        list(APPEND _generated_srcs_all ${_generated_srcs})
+
+        add_custom_command(
+                OUTPUT ${_generated_srcs}
+                COMMAND  protobuf::protoc
+                ARGS --${protobuf_generate_LANGUAGE}_out ${_dll_export_decl}${protobuf_generate_PROTOC_OUT_DIR} ${_protobuf_include_path} ${_abs_file}
+                DEPENDS ${_abs_file} protobuf::protoc
+                COMMENT "Running ${protobuf_generate_LANGUAGE} protocol buffer compiler on ${_proto}"
+                VERBATIM )
+    endforeach()
+
+    set_source_files_properties(${_generated_srcs_all} PROPERTIES GENERATED TRUE)
+    if(protobuf_generate_OUT_VAR)
+        set(${protobuf_generate_OUT_VAR} ${_generated_srcs_all} PARENT_SCOPE)
+    endif()
+    if(protobuf_generate_TARGET)
+        target_sources(${protobuf_generate_TARGET} PRIVATE ${_generated_srcs_all})
+    endif()
+
+endfunction()
+
+function(PROTOBUF_GENERATE_CPP SRCS HDRS)
+    cmake_parse_arguments(protobuf_generate_cpp "" "EXPORT_MACRO" "" ${ARGN})
+
+    set(_proto_files "${protobuf_generate_cpp_UNPARSED_ARGUMENTS}")
+    if(NOT _proto_files)
+        message(SEND_ERROR "Error: PROTOBUF_GENERATE_CPP() called without any proto files")
+        return()
+    endif()
+
+    if(PROTOBUF_GENERATE_CPP_APPEND_PATH)
+        set(_append_arg APPEND_PATH)
+    endif()
+
+    if(DEFINED Protobuf_IMPORT_DIRS)
+        set(_import_arg IMPORT_DIRS ${Protobuf_IMPORT_DIRS})
+    endif()
+
+    set(_outvar)
+    protobuf_generate(${_append_arg} LANGUAGE cpp EXPORT_MACRO ${protobuf_generate_cpp_EXPORT_MACRO} OUT_VAR _outvar ${_import_arg} PROTOS ${_proto_files})
+
+    set(${SRCS})
+    set(${HDRS})
+    message(${_outvar})
+    foreach(_file ${_outvar})
+        if(_file MATCHES "cc$")
+            list(APPEND ${SRCS} ${_file})
+        else()
+            list(APPEND ${HDRS} ${_file})
+        endif()
+    endforeach()
+    set(${SRCS} ${${SRCS}} PARENT_SCOPE)
+    set(${HDRS} ${${HDRS}} PARENT_SCOPE)
+endfunction()
