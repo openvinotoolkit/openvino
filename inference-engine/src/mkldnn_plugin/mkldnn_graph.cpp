@@ -311,7 +311,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         }
         InputInfo::Ptr ii = inputsInfo[input.first];
         if (ii && ii->getPreProcess().getNumberOfChannels()) {
-            _meanImages[input.first].Load(outDims, ii);
+            _normalizePreprocMap[input.first].Load(outDims, ii);
         }
     }
 }
@@ -362,7 +362,7 @@ void MKLDNNGraph::InitDescriptors() {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "InitDescriptors", "Prepare");
 
     for (auto &node : graphNodes) {
-        if (node->getType() == Input && _meanImages.find(node->getName()) != _meanImages.end()) {
+        if (node->getType() == Input && _normalizePreprocMap.find(node->getName()) != _normalizePreprocMap.end()) {
             auto *inputNode = dynamic_cast<MKLDNNInputNode *>(node.get());
             if (inputNode)
                 inputNode->withMeanImage();
@@ -726,9 +726,10 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
         }
 
         // todo: make sure 'name' exists in this map...
-        if (_meanImages.find(name) != _meanImages.end()) {
+        if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
             if (in->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
-                _meanImages[name].Subtract(outDims, reinterpret_cast<float *>(inter_data_ptr), in->getTensorDesc().getLayout());
+                _normalizePreprocMap[name].NormalizeImage(outDims, reinterpret_cast<float *>(inter_data_ptr),
+                                                          in->getTensorDesc().getLayout());
             } else {
                 IE_THROW() << "Mean image of type " << in->getTensorDesc().getPrecision().name() << " is unsupported";
             }
@@ -738,7 +739,7 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
     }
 }
 
-void MKLDNNGraph::PullOutputData(BlobMap &out) {
+void MKLDNNGraph::PullOutputData(const BlobMap &out) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
 
@@ -746,22 +747,12 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         auto name = outputMap.first;
         auto node = outputMap.second;
         const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
-        if (out.find(name) == out.end()) {
-            // TODO [NM]: Do we really need this path?
-            // TODO: Create blob from MemoryDesc
-            Blob::Ptr outBlob = make_shared_blob<float>({Precision::FP32, node->getParentEdgeAt(0)->getDims().ToSizeVector(),
-                                                         TensorDesc::getLayoutByDims(node->getParentEdgeAt(0)->getDims().ToSizeVector())},
-                                                        reinterpret_cast<float*>(intr_blob.GetData()));
-            out[name] = outBlob;
+
+        if (!out.count(name)) {
+            IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
         }
 
-        Blob::Ptr &ext_blob = out[name];
-
-        // TODO: Why we allow allocation of output memory inside Infer call??
-        // Suggestion is to disable this behaviour
-        if (ext_blob->buffer() == nullptr) {
-            ext_blob->allocate();
-        }
+        const Blob::Ptr &ext_blob = out.at(name);
 
         auto srcPrec = MKLDNNExtensionUtils::DataTypeToIEPrecision(intr_blob.GetDataType());
         auto dstPrec = ext_blob->getTensorDesc().getPrecision();

@@ -26,7 +26,7 @@ class GNAFakeQuantizeLayer {
      * @brief convert FQ layer directly to gna-pwl activation layer
      */
     DnnActivation parseAsActivation() const {
-        DnnActivation fqActivation;
+        DnnActivation fqActivation{};
 
         fqActivation.fqParams.levels = fqLayer->GetParamAsSizeT("levels");
         auto inputShape  = getShapeForRange(fqLayer, 1);
@@ -63,7 +63,7 @@ class GNAFakeQuantizeLayer {
         return getInputLayerAt(fqLayer, 0);
     }
 
-    int32_t getLevels() {
+    size_t getLevels() {
         return fqLayer->GetParamAsSizeT("levels");
     }
 
