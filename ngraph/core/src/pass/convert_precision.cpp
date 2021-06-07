@@ -917,6 +917,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
 
         new_const->validate_and_infer_types();
         new_const->set_friendly_name(constant->get_friendly_name());
+        return true;
     }
     return false;
 }

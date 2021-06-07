@@ -425,6 +425,11 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             auto pass_config = manager.get_pass_config();
             pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
                 [config](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+                    auto sub_graph_op = std::dynamic_pointer_cast<const ngraph::op::util::SubGraphOp>(node);
+                    int64_t num_iter = sub_graph_op->get_num_iterations();
+                    if (num_iter == 1) {
+                        return false;
+                    }
                     return !config.enable_loop_unrolling;
                 });
 
