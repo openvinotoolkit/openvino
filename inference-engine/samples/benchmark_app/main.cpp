@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <ngraph/util.hpp>
 
 #include <inference_engine.hpp>
 #include <vpu/vpu_plugin_config.hpp>
@@ -104,6 +105,11 @@ T getMedianValue(const std::vector<T> &vec) {
            sortedVec[sortedVec.size() / 2ULL] :
            (sortedVec[sortedVec.size() / 2ULL] + sortedVec[sortedVec.size() / 2ULL - 1ULL]) / static_cast<T>(2.0);
 }
+
+using ngraph::PartialShape;
+using ngraph::Node;
+
+
 
 /**
 * @brief The entry point of the benchmark application
@@ -331,14 +337,19 @@ int main(int argc, char *argv[]) {
             slog::info << "Loading network files" << slog::endl;
 
             auto startTime = Time::now();
-            //CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
+#if 1
+            CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
+#else
             ngraph::frontend::FrontEndManager manager;
             auto FE = manager.loadByFramework("tf");
             auto inputModel = FE->loadFromFile(FLAGS_m);
             inputModel->setPartialShape(inputModel->getInputs()[0], ngraph::PartialShape({1, 224, 224, 3}));
             auto ngFunc = FE->convert(inputModel);
             CNNNetwork cnnNetwork(ngFunc);
+#endif
             cnnNetwork.serialize("benchmark_app_loaded_network.xml");
+            ngraph::output_dynamic_statistics(cnnNetwork.getFunction(), std::cerr);
+            return 1;
 
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;

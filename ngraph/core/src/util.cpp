@@ -707,3 +707,166 @@ vector<int64_t> read_index_vector(shared_ptr<runtime::Tensor> tv)
 
     return index_vec;
 }
+
+namespace ngraph {
+
+    struct OperationDescription {
+        // All non dynamic dimesions are all set to 1
+        typedef PartialShape DynamicMask;
+
+        std::string name;
+        int64_t version;
+        std::vector<DynamicMask> inputs;
+        std::vector<DynamicMask> outputs;
+
+        explicit OperationDescription(std::shared_ptr<Node> node) {
+            name = node->get_type_info().name;
+            version = node->get_type_info().version;
+            create_mask(node->inputs(), inputs);
+            create_mask(node->outputs(), outputs);
+        }
+
+        OperationDescription(const std::string _name,
+                             int64_t _version,
+                             std::vector<DynamicMask> _inputs,
+                             std::vector<DynamicMask> _outputs)
+                : name(_name), version(_version), inputs(_inputs), outputs(_outputs) {
+        }
+
+        template<typename T>
+        void create_mask(const std::vector<T> &ports, std::vector<DynamicMask> &dest) {
+            dest.clear();
+            for (const auto &port : ports) {
+                PartialShape shape = port.get_partial_shape();
+                if (!shape.rank().is_dynamic()) {
+                    size_t rank = shape.rank().get_length();
+                    for (size_t i = 0; i < rank; ++i) {
+                        if (!shape[i].is_dynamic()) {
+                            shape[i] = 1; // set all not dynamic dimensions to 1
+                        }
+                    }
+                }
+                dest.push_back(shape);
+            }
+        }
+
+        static bool less(const std::vector<OperationDescription::DynamicMask> &x1,
+                         const std::vector<OperationDescription::DynamicMask> &x2) {
+            if (x1.size() < x2.size())
+                return true;
+
+            if (x2.size() < x1.size())
+                return false;
+
+            for (size_t i = 0; i < x1.size(); ++i) {
+                const auto &shape1 = x1[i];
+                const auto &shape2 = x2[i];
+
+                if (shape1.rank().is_dynamic() && shape2.rank().is_static())
+                    return true;
+
+                if (shape1.rank().is_static() && shape2.rank().is_dynamic())
+                    return false;
+
+                if (shape1.rank().is_static() && shape2.rank().is_static()) {
+                    if (shape1.rank().get_length() < shape2.rank().get_length())
+                        return true;
+
+                    if (shape2.rank().get_length() < shape1.rank().get_length())
+                        return false;
+
+                    for (size_t j = 0; j < shape1.rank().get_length(); ++j) {
+                        if (shape1[j].is_dynamic() && !shape2[j].is_dynamic())
+                            return true;
+
+                        if (!shape1[j].is_dynamic() && shape2[j].is_dynamic())
+                            return false;
+                        // if they both are dynamic or static, then they are equal
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        bool is_dynamic() const {
+            auto has_dynamic = [](const PartialShape &shape) { return shape.is_dynamic(); };
+            return inputs.end() != std::find_if(inputs.begin(), inputs.end(), has_dynamic) ||
+                   outputs.end() != std::find_if(outputs.begin(), outputs.end(), has_dynamic);
+        }
+    };
+
+    bool operator<(const OperationDescription &x1, const OperationDescription &x2) {
+        if (x1.name < x2.name)
+            return true;
+
+        if (x2.name < x1.name)
+            return false;
+
+        if (x1.version < x2.version)
+            return true;
+
+        if (x2.version < x1.version)
+            return false;
+
+        if (OperationDescription::less(x1.inputs, x2.inputs))
+            return true;
+        else if (OperationDescription::less(x2.inputs, x1.inputs))
+            return false;
+
+        if (OperationDescription::less(x1.outputs, x2.outputs))
+            return true;
+        else if (OperationDescription::less(x2.outputs, x1.outputs))
+            return false;
+
+        return false;
+    }
+
+    void print_partial_shape(std::ostream &out, const PartialShape &shape) {
+        out << '[';
+        if (shape.rank().is_dynamic())
+            out << "...";
+        else {
+            size_t rank = shape.rank().get_length();
+            for (size_t i = 0; i < rank; ++i) {
+                if (i > 0)
+                    out << ", ";
+                if (shape[i].is_static())
+                    out << 'S';
+                else
+                    out << shape[i];
+            }
+        }
+        out << ']';
+    }
+
+    std::ostream &operator<<(std::ostream &out, const std::vector<PartialShape> &shapes) {
+        out << "(";
+        for (size_t i = 0; i < shapes.size(); ++i) {
+            if (i > 0)
+                out << ", ";
+            print_partial_shape(out, shapes[i]);
+        }
+        out << ")";
+        return out;
+    }
+
+    std::ostream &operator<<(std::ostream &out, const OperationDescription &x) {
+        out << x.name << "-" << x.version << x.inputs << " --> " << x.outputs;
+        return out;
+    }
+
+
+    void output_dynamic_statistics(std::shared_ptr<Function> func, std::ostream &out) {
+        std::set<OperationDescription> operations;
+        for (auto &node : func->get_ops()) {
+            OperationDescription od(node);
+            // allops << od << '\n';
+            if (od.is_dynamic())
+                operations.insert(od);
+        }
+        for (const auto &x : operations) {
+            out << x << std::endl;
+        }
+    }
+}
