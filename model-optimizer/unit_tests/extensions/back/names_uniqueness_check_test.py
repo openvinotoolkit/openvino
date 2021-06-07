@@ -4,6 +4,7 @@
 import unittest
 
 from extensions.back.names_uniqueness_check import NamesUniquenessCheck
+from mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 
@@ -24,8 +25,10 @@ class TestNamesUniquenessCheck(unittest.TestCase):
 
         NamesUniquenessCheck().find_and_replace_pattern(graph)
         names = [node.name for node in graph.get_op_nodes()]
+        result_name = Node(graph, 'result').name
 
         self.assertTrue(len(set(names)) == 3)
+        self.assertTrue(result_name == 'node')
 
     def test_2(self):
         graph = build_graph(
@@ -42,8 +45,10 @@ class TestNamesUniquenessCheck(unittest.TestCase):
 
         NamesUniquenessCheck().find_and_replace_pattern(graph)
         names = [node.name for node in graph.get_op_nodes()]
+        result_name = Node(graph, 'result').name
 
         self.assertTrue(len(set(names)) == 3)
+        self.assertTrue(result_name == 'node')
 
     def test_3(self):
         graph = build_graph(
