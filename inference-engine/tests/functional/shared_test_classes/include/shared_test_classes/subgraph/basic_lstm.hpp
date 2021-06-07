@@ -18,7 +18,9 @@ namespace SubgraphTestsDefinitions {
 typedef std::tuple<
         InferenceEngine::Precision,          // Network Precision
         std::string,                         // Target Device
-        std::map<std::string, std::string>   // Configuration
+        std::map<std::string, std::string>,  // Configuration
+        std::pair<size_t, size_t>,           // Third dimenstion and hidden size
+        bool                                 // Decompose LSTMCell
 > basicLstmParams;
 
 class Basic_LSTM_S : public testing::WithParamInterface<basicLstmParams>,
@@ -32,8 +34,10 @@ public:
         const InferenceEngine::Precision& netPrecission = InferenceEngine::Precision::FP32,
         std::vector<float>* hidden_memory_init_out = nullptr,
         std::vector<float>* cell_memory_init_out = nullptr);
+    void GenerateInputs() override;
 protected:
     size_t hidden_size;
+    size_t third_dim;
     std::vector<float> hidden_memory_init;
     std::vector<float> cell_memory_init;
     void SetUp() override;
