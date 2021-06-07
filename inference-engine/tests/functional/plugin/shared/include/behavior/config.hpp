@@ -100,6 +100,7 @@ namespace BehaviorTestsDefinitions {
     using CorrectConfigAPITests = BehaviorTestsUtils::BehaviorTestsBasic;
 
     TEST_P(CorrectConfigAPITests, canSetExclusiveAsyncRequests) {
+        std::cout << "#####  canSetExclusiveAsyncRequests now\n";
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         // Create CNNNetwork from ngrpah::Function
@@ -110,20 +111,30 @@ namespace BehaviorTestsDefinitions {
         if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
             targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
             targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
+            std::cout << "#####  [114] ASSERT_NO_THROW(ie->SetConfig(config, targetDevice)); now\n";
             ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
         }
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+        std::cout << "##### ZT_DEBUG, targetDevice: " << targetDevice << '\n';
+        for (std::map<std::basic_string<char>, std::basic_string<char>>::const_iterator it = config.begin(); it != config.end(); ++it) {
+            std::cout << "##### ZT_DEBUG, config: " << it->first << " " << it->second << "\n";
+        }
+        std::cout << "\n";
         execNet.CreateInferRequest();
 
         if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
+            std::cout << "#####  [122] ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber()now\n";
             ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
         } else if ((targetDevice == CommonTestUtils::DEVICE_KEEMBAY) ||
                    (targetDevice == CommonTestUtils::DEVICE_MYRIAD)) {
+            std::cout << "#####  [126] ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber()now\n";
             ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
         } else if ((targetDevice == CommonTestUtils::DEVICE_MULTI) ||
                    (targetDevice == CommonTestUtils::DEVICE_AUTO)) {
+            std::cout << "#####  [130] nothing now\n";
         } else {
+            std::cout << "#####  [132] ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber()now\n";
             ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
         }
     }
