@@ -455,7 +455,7 @@ TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
     Core ie;
     RemoteContext::Ptr context = nullptr;
     std::istringstream stream("None");
-    ASSERT_THROW(ie.ImportNetwork(stream, context, {}), NotImplemented);
+    ASSERT_THROW(ie.ImportNetwork(stream, context, {}), Exception);
 }
 
 //
