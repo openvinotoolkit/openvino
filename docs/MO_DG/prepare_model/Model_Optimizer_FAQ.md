@@ -631,7 +631,7 @@ It means that you trying to convert the topology which contains '_contrib_box_nm
 
 #### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" means? <a name="question-103"></a>
 
-If file '*.caffemodel' exists and is correct and among possible reasons you can see the third point about protobuf implementation then you are using python protobuf implementation. In some cases it gives error during model parsing. You can build 'cpp' implementation of protobuf by yourself or use one of wheels from ModelOptimizer package. For complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
+If file '*.caffemodel' exists and is correct and among possible reasons you can see the third point about protobuf implementation then you are using python protobuf implementation. In some cases it gives error during model parsing: for example 'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type. You can use Python3.6/3.7 or you can build 'cpp' implementation of protobuf by yourself for your version of Python. For complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
 
 #### 104. What does the message "SyntaxError: 'yield' inside list comprehension" during MxNet\* model conversion means? <a name="question-104"></a>
 
