@@ -108,15 +108,18 @@ void NumpyFile::GetFileInfo(const char* fileName, uint32_t numArrayToFindSize, u
     cnpy::npz_t my_npz1 = cnpy::npz_load(fileName);
     auto it = my_npz1.begin();
     std::advance(it, numArrayToFindSize);
+    if (it != my_npz1.end()) {
+        numArrays = my_npz1.size();
+        cnpy::NpyArray my_npy = it->second;
+        numMemoryBytes = my_npy.data_holder->size();
 
-    numArrays = my_npz1.size();
-    cnpy::NpyArray my_npy = it->second;
-    numMemoryBytes = my_npy.data_holder->size();
-
-    if (ptrNumArrays != NULL)
-        *ptrNumArrays = numArrays;
-    if (ptrNumMemoryBytes != NULL)
-        *ptrNumMemoryBytes = numMemoryBytes;
+        if (ptrNumArrays != NULL)
+            *ptrNumArrays = numArrays;
+        if (ptrNumMemoryBytes != NULL)
+            *ptrNumMemoryBytes = numMemoryBytes;
+    } else {
+        throw std::runtime_error(std::string("Failed to get info %s  GetFileInfo()!\n") + fileName);
+    }
 }
 
 void NumpyFile::LoadFile(const char* fileName, uint32_t arrayIndex, std::string& ptrName, std::vector<uint8_t>& memory, uint32_t* ptrNumRows,
@@ -124,16 +127,20 @@ void NumpyFile::LoadFile(const char* fileName, uint32_t arrayIndex, std::string&
     cnpy::npz_t my_npz1 = cnpy::npz_load(fileName);
     auto it = my_npz1.begin();
     std::advance(it, arrayIndex);
-    ptrName = it->first;
-    cnpy::NpyArray my_npy = it->second;
-    *ptrNumRows = my_npy.shape[0];
-    *ptrNumColumns = my_npy.shape[1];
+    if (it != my_npz1.end()) {
+        ptrName = it->first;
+        cnpy::NpyArray my_npy = it->second;
+        *ptrNumRows = my_npy.shape[0];
+        *ptrNumColumns = my_npy.shape[1];
 
-    for (size_t i = 0; i < my_npy.data_holder->size(); i++) {
-        memory.at(i) = my_npy.data_holder->at(i);
+        for (size_t i = 0; i < my_npy.data_holder->size(); i++) {
+            memory.at(i) = my_npy.data_holder->at(i);
+        }
+
+        *ptrNumBytesPerElement = sizeof(float);
+    } else {
+        throw std::runtime_error(std::string("Failed to open %s for reading in LoadFile()!\n") + fileName);
     }
-
-    *ptrNumBytesPerElement = sizeof(float);
 }
 
 void NumpyFile::SaveFile(const char* fileName, bool shouldAppend, std::string name, void* ptrMemory, uint32_t numRows, uint32_t numColumns) {
