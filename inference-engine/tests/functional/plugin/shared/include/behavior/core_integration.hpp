@@ -453,6 +453,12 @@ TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
 // LoadNetwork
 //
 
+TEST_P(IEClassNetworkTestP, LoadNetworkWithoutDeviceNameNoThrow) {
+  SKIP_IF_CURRENT_TEST_IS_DISABLED()
+  Core ie;
+  ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork));
+}
+
 TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;

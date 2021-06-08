@@ -107,7 +107,7 @@ public:
      * @return An executable network reference
      */
     ExecutableNetwork LoadNetwork(
-        const CNNNetwork& network, const std::string& deviceName,
+        const CNNNetwork& network, const std::string& deviceName = "AUTO",
         const std::map<std::string, std::string>& config = {});
 
     /**
@@ -124,7 +124,7 @@ public:
      * @return An executable network reference
      */
     ExecutableNetwork LoadNetwork(
-        const std::string& modelPath, const std::string& deviceName,
+        const std::string& modelPath, const std::string& deviceName = "AUTO",
         const std::map<std::string, std::string>& config = {});
 
     /**
