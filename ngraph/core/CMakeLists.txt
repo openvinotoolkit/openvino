@@ -105,6 +105,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
     FILES_MATCHING
         PATTERN "*.hpp"
         PATTERN "*.h"
+        PATTERN "*version.in.hpp" EXCLUDE
 )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/ngraph/version.hpp
     DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph
