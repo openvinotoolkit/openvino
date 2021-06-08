@@ -85,8 +85,8 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
         return LayerInfo(ptr).isNonValuesChangable();
     });
     IE_ASSERT(inputLayer != nullptr);
-    size_t weightsSize = (LayerInfo(prevLayer).has32BOutput() || LayerInfo(inputLayer).isInput()) ?
-                         weightsSize = nextLayer->outData[0]->getDims().back() :
+    size_t weightsSize = LayerInfo(prevLayer).has32BOutput() ?
+                         nextLayer->outData[0]->getDims().back() :
                          Get2DReshapedData(nextLayer->outData[0], 8)->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
@@ -745,7 +745,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         std::function<void(CNNLayerPtr)> propogateNHWCOrderRecursive =
             [pattern_end, &propogateNHWCOrderRecursive, &setNHWCOrder](CNNLayerPtr current_layer) {
             if (current_layer == pattern_end) return;
-            for (int i = 0; i < current_layer->outData.size(); ++i) {
+            for (size_t i = 0; i < current_layer->outData.size(); ++i) {
                 setNHWCOrder(current_layer->outData[i]);
                 auto input_to = getInputTo(current_layer->outData[i]);
                 IE_ASSERT(!input_to.empty());
@@ -1483,7 +1483,7 @@ void EltwiseSplitOverChannelsPass::run() {
                 SizeVector newDims;
                 size_t elements_num = std::min(totalElementsForOutput - usedElements,
                         static_cast<size_t>(maxAffineElements));
-                if (inputDesc.getLayout() == Layout::NC) {
+                if (inputDesc.getDims().size() == 2) {
                     newDims = SizeVector{1, elements_num};
                 } else {
                     elements_num = elements_num - elements_num % out_width;
@@ -1936,9 +1936,16 @@ void FuseFQIntoWeightsPass::run() {
         }
 
         GNAFakeQuantizeLayer gnaFakeQuantizeLayer(fqLayer);
-        size_t layers_connected_to_fq_count = getInputTo(fqLayer->outData[0]).size();
+        auto inputTo = getInputTo(fqLayer->outData[0]);
+        size_t layers_connected_to_fq_count = inputTo.size();
+        auto layerBeforeWeightable = fqLayer;
+        while (layers_connected_to_fq_count == 1 && LayerInfo(inputTo.begin()->second).isNonFunctional()) {
+            layerBeforeWeightable = inputTo.begin()->second;
+            inputTo = getInputTo(layerBeforeWeightable->outData[0]);
+            layers_connected_to_fq_count = inputTo.size();
+        }
         for (int index = 0; index < layers_connected_to_fq_count; index++) {
-            auto weightableLayer = CNNNetGetNextLayerSkipCertain(fqLayer, 0, index, isNonFunctional).first;
+            auto weightableLayer = CNNNetGetNextLayerSkipCertain(layerBeforeWeightable, 0, index, isNonFunctional).first;
             if (!LayerInfo(weightableLayer).isWeightable()) {
                 continue;
             }

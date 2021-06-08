@@ -15,10 +15,10 @@ namespace GNAPluginNS {
  * Input2: [B, C]                       Kernel: [C, B, 1, 1]
  * Output: [A, C]                       Output: [1, 1, A, C]
  */
-class ConvertMatmulToPointWiseConvolution : public ngraph::pass::FunctionPass {
+class ConvertMatmulToPointWiseConvolution : public ngraph::pass::MatcherPass {
 public:
   NGRAPH_RTTI_DECLARATION;
-  bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+  ConvertMatmulToPointWiseConvolution();
 };
 
 } // namespace GNAPluginNS

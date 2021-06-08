@@ -146,8 +146,8 @@ protected:
 
         size_t elemNum = inputShape[inputShape.size() - 1];
 
-        const float weightsMin = -0.1f;
-        const float weightsMax = 0.1f;
+        const float weightsMin = -0.2f;
+        const float weightsMax = 0.2f;
         std::vector<float> weights = CommonTestUtils::generate_float_numbers(elemNum * elemNum, weightsMin, weightsMax);
         auto weightsNode = std::make_shared<ngraph::opset7::Constant>(ngPrc, ngraph::Shape{elemNum, elemNum}, weights);
         auto weightsLowNode = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{ 1 },
@@ -192,7 +192,10 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::vector<std::map<std::string, std::string>> configs = {
     {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
+        {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
+    },
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
     }
 };
 
@@ -203,8 +206,7 @@ const std::vector<std::vector<size_t>> inputShape = {
 };
 
 const std::vector<std::pair<float, float>> fqStats = {
-    {-2.0, 2.0},
-    {-5.0, 5.0}
+    {-0.5, 0.5}
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulToPointwiseConv,
