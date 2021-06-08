@@ -216,6 +216,7 @@ set(SRC
     visitors/op/batch_norm.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
+    visitors/op/ceiling.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
     visitors/op/convolution_backprop.cpp
