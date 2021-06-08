@@ -64,14 +64,23 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
 
     DataPrecision dataPrecision;
     {
+        std::vector<element::Type> concatChildrenPrecisions = precisionsOnActivations;
         for (auto quantizationLayer : subgraph.quantizationLayers) {
             std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(quantizationLayer->shared_from_this());
             if (!NetworkHelper::isQuantizeSupported(fq)) {
                 return false;
             }
 
-            const DataPrecision tmp = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false);
+            // define concatenation operation consumers precisions
+            std::vector<element::Type> fqChildrenPrecisions = precisionsOnActivations;
+            fillAvailablePrecisions(quantizationLayer, fqChildrenPrecisions);
+            concatChildrenPrecisions = NetworkHelper::precisionIntersection(concatChildrenPrecisions, fqChildrenPrecisions);
+            if (concatChildrenPrecisions.empty()) {
+                return false;
+            }
 
+            // define FakeQuantize precisions without zero point
+            const DataPrecision tmp = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false);
             if (dataPrecision.precision == ngraph::element::undefined) {
                 dataPrecision = tmp;
                 continue;
@@ -80,6 +89,10 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
             if ((tmp.precision != dataPrecision.precision) && (tmp.precision == ngraph::element::u8)) {
                 dataPrecision = tmp;
             }
+        }
+
+        if (std::find(concatChildrenPrecisions.begin(), concatChildrenPrecisions.end(), dataPrecision.precision) == concatChildrenPrecisions.end()) {
+            dataPrecision = DataPrecision(concatChildrenPrecisions[0]);
         }
     }
 
