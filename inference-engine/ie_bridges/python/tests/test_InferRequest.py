@@ -525,7 +525,15 @@ def test_resize_algorithm_work(device):
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
 
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                    "Memory layers fully supported only on CPU")
 def test_query_state(device):
+    ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin")
+
     import ngraph as ng
     from ngraph.impl import Function
 
@@ -554,7 +562,15 @@ def test_query_state(device):
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
 
 
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                    "Memory layers fully supported only on CPU")
 def test_query_state_reset(device):
+    ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin")
+
     import ngraph as ng
     from ngraph.impl import Function
 
@@ -588,7 +604,15 @@ def test_query_state_reset(device):
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
 
 
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                    "Memory layers fully supported only on CPU")
 def test_query_state_write_buffer(device):
+    ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin")
+
     import ngraph as ng
     from ngraph.impl import Function
     from openvino.inference_engine import TensorDesc, Blob
