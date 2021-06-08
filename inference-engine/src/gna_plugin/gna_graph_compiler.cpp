@@ -606,7 +606,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
 
     cnn2dValidator.ValidateCnn2D(layer->name,
         in_height, in_width, in_channels,
-        convolution._kernel_y, convolution._kernel_x, filter_n, inputPrec);
+        convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x, inputPrec);
 
     float weight_scale_factor = 1.0f;
     float output_scale_factor = 1.0f;
@@ -1027,8 +1027,13 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto layerInfo = LayerInfo(concatParent);
         // auto layerInfo = LayerInfo(getCreatorLayer(concatLayerInput->insData[it].lock()).lock());
         if (layerInfo.isInput()) {
+            auto & bytesAllocated = inputDesc->bytes_allocated_for_input[((InferenceEngine::CNNLayerPtr)layerInfo)->name];
+
             connectInput(layer, &concatLayerInfo.gna_ptr,
-                inputLayer.tensorSize, inputLayer.offset, idx, false);
+                         concatLayerInfo.reserved_size, inputLayer.offset, idx, false);
+
+            // TODO: currently connectInput api accept only total size, for concat we need extension for allocated, and actual sizes
+            bytesAllocated = inputLayer.tensorSize;
 
             concatLayerInfo.input_allocated = true;
         } else if (layerInfo.isMemory()) {

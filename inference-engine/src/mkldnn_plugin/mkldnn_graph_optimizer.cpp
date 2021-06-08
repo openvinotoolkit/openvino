@@ -158,12 +158,11 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndBias(MKLDNNGraph &graph) {
     };
 
     auto isSutableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
-        if ((parentNode->isConstant() && !childNode->isConstant()) || childNode->getAlgorithm() != EltwiseAdd || !childNode->getFusedWith().empty() ||
-            childNode->getParentEdges().size() != 2)
+        if (childNode->getAlgorithm() != EltwiseAdd || !childNode->getFusedWith().empty() || childNode->getParentEdges().size() != 2)
             return false;
 
         auto biasNode = childNode->getParentEdgesAtPort(1)[0]->getParent();
-        if (biasNode->getChildEdges().size() != 1)
+        if (biasNode->getType() != Input || !biasNode->isConstant() || biasNode->getChildEdges().size() != 1)
             return false;
 
         auto convOutDims = parentNode->getChildEdgesAtPort(0)[0]->getDims().ToSizeVector();
@@ -265,7 +264,7 @@ void MKLDNNGraphOptimizer::FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &grap
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Deconvolution && node->getChildEdges().size() == 1 && node->getFusedWith().empty();
+        return node->getType() == Deconvolution && node->getChildEdges().size() == 1;
     };
 
     auto parent = graphNodes.begin();
@@ -277,8 +276,7 @@ void MKLDNNGraphOptimizer::FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &grap
         }
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        // at this moment deconvolution supports only depthwise as post op
-        if (!childNode->canBePerformedAsScaleShift(parentNode.get())) {
+        if (!parentNode->canFuse(childNode)) {
             parent++;
             continue;
         }
@@ -302,6 +300,8 @@ void MKLDNNGraphOptimizer::FuseMultiplyAndAdd(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableSecondInput = [](MKLDNNNodePtr node, MKLDNNDims dataDims) {
+        if (node->getType() != Input || !node->isConstant())
+            return false;
         auto secondInputDims = node->outDims[0];
         if (secondInputDims.ndims() != dataDims.ndims() || secondInputDims.ndims() < 2)
             return false;
@@ -326,8 +326,7 @@ void MKLDNNGraphOptimizer::FuseMultiplyAndAdd(MKLDNNGraph &graph) {
     };
 
     auto isSutableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
-        if ((parentNode->isConstant() && !childNode->isConstant()) || childNode->getAlgorithm() != EltwiseAdd || !childNode->getFusedWith().empty() ||
-            childNode->getParentEdges().size() != 2)
+        if (childNode->getAlgorithm() != EltwiseAdd || !childNode->getFusedWith().empty() || childNode->getParentEdges().size() != 2)
             return false;
 
         return isSutableSecondInput(childNode->getParentEdgesAtPort(1)[0]->getParent(), childNode->getParentEdgesAtPort(0)[0]->getDims());
@@ -478,11 +477,11 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                 if (zeroPointsConstant == nullptr)
                     IE_THROW() << "Cannot cast to Input node";
 
-                auto zeroPointsBlob = dynamic_cast<const TBlob<uint8_t>*>(zeroPointsConstant->getConstBlob().get());
+                auto zeroPointsBlob = zeroPointsConstant->getMemoryPtr();
                 if (zeroPointsBlob == nullptr)
                     IE_THROW() << "Cannot cast to TBlob internal zero points blob";
 
-                auto zeroPointsData = zeroPointsBlob->cbuffer().as<uint8_t*>();
+                auto zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->GetPtr());
                 if (zeroPointsData == nullptr)
                     IE_THROW() << "zeroPointsBlob has not allocated buffer";
 
@@ -515,18 +514,19 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
         if (!weightsConstant || !weightsConstant->isConstant())
             return;
 
-        auto weightsBlob = dynamic_cast<const TBlob<int8_t>*>(weightsConstant->getConstBlob().get());
+        auto weightsBlob = weightsConstant->getMemoryPtr();
         if (weightsBlob == nullptr)
             IE_THROW() << "Cannot cast to TBlob internal weights blob";
 
-        auto weightsPtr = weightsBlob->cbuffer().as<int8_t*>();
+        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->GetPtr());
         if (weightsPtr == nullptr)
             IE_THROW() << "weightsBlob has not allocated buffer";
 
         ptrdiff_t G = convNode->getGroupNum();
-        ptrdiff_t OC = weightsConstant->outDims[0][0] / G;
-        ptrdiff_t IC = weightsConstant->outDims[0][1];
-        ptrdiff_t KD = weightsConstant->outDims[0].ndims() == 5 ? weightsConstant->outDims[0][2] : 1;
+        const int groupOffset = convNode->getAlgorithm() == ConvolutionGrouped ? 1 : 0;
+        ptrdiff_t OC = weightsConstant->outDims[0][0 + groupOffset];
+        ptrdiff_t IC = weightsConstant->outDims[0][1 + groupOffset];
+        ptrdiff_t KD = weightsConstant->outDims[0].ndims() == (5 + groupOffset) ? weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 3] : 1;
         ptrdiff_t KH = weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 2];
         ptrdiff_t KW = weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 1];
 
@@ -652,7 +652,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
         bool isSupportedParams = conv->getGroupNum() == 1 &&
                 is1x1Convolution(conv) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
                 everyone_is(1, strides[strides.size() - 1], strides[strides.size() - 2]) &&
-                everyone_is(Precision::FP32, conv->getOriginalInputPrecisionAtPort(0), conv->getOriginalOutputPrecisionAtPort(0)) &&
+                !conv->canBeExecutedInInt8() &&
                 node->getChildEdgeAt(0)->getDims().ndims() == 4;
         if (!isSupportedParams) return false;
 
@@ -1121,17 +1121,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        bool isSutableMVN = (node->getType() == MVN);
-
-        if (isSutableMVN) {
-            auto mvnNode = std::dynamic_pointer_cast<MKLDNNMVNNode>(node);
-            if (mvnNode == nullptr)
-                IE_THROW() << "CPU node with name '" << node->getName() << "' is not a MVN node.";
-
-            return mvnNode->getChildEdges().size() == 1 && !mvnNode->getAcrossChannels() && mvnNode->getNormalizeVariance();
-        } else {
-            return false;
-        }
+        return (node->getType() == MVN) && (node->getChildEdges().size() == 1);
     };
 
     auto parent = graphNodes.begin();
@@ -1527,9 +1517,9 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
     auto& graphNodes = graph.GetNodes();
 
     auto getConstPort = [](const MKLDNNNodePtr node) -> int {
-        if (node->getParentEdgeAt(0)->getParent()->isConstant() && node->getParentEdgeAt(0)->getParent()->getType() == Input) {
+        if (node->getParentEdgeAt(0)->getParent()->getType() == Input && node->getParentEdgeAt(0)->getParent()->isConstant()) {
             return 0;
-        } else if (node->getParentEdgeAt(1)->getParent()->isConstant() && node->getParentEdgeAt(1)->getParent()->getType() == Input) {
+        } else if (node->getParentEdgeAt(1)->getParent()->getType() == Input && node->getParentEdgeAt(1)->getParent()->isConstant()) {
            return 1;
         } else {
             return -1;

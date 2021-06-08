@@ -6660,21 +6660,21 @@ struct permute_reorder_params {
 
 #define CASE_PERMUTE_REORDER_F32_0 {1, 16, 32, 2},   {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv16,  format::bfyx
 #define CASE_PERMUTE_REORDER_F32_1 {2, 7, 9, 27},  {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
-#define CASE_PERMUTE_REORDER_F32_2 {1, 16, 4, 5, 16},{0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_F16_0 {1, 16, 2, 4},     {0, 2, 1, 3},    {0, 2, 1, 3},    data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  format::bfyx
-#define CASE_PERMUTE_REORDER_F16_1 {1, 16, 4, 5, 16}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_F16_2 {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F32_2 {1, 16, 4, 5, 16}, {0, 3, 2, 1, 4}, {0, 3, 2, 1, 4}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F16_0 {1, 16, 2, 4},     {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  format::bfyx
+#define CASE_PERMUTE_REORDER_F16_1 {1, 16, 4, 5, 16}, {0, 4, 2, 3, 1}, {0, 1, 2, 3, 4}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F16_2 {1, 5, 1, 2, 14},  {0, 3, 2, 1, 4}, {0, 3, 2, 1, 4}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
 
 // type change
-#define CASE_PERMUTE_REORDER_S8_TO_F32_0 {1, 15, 4, 5},    {0, 2, 3, 1},    {0, 3, 1, 2},    data_types::i8, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
-#define CASE_PERMUTE_REORDER_S8_TO_F32_1 {1, 2, 15, 4, 5}, {0, 2, 4, 1, 3}, {0, 3, 1, 4, 2}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_F32_TO_F16_0 {1, 5, 1, 2, 14}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_U8_TO_F16_0 {1, 17, 1, 2, 7},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::u8, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_S8_TO_F32_0 {1, 15, 4, 5},    {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::i8, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
+#define CASE_PERMUTE_REORDER_S8_TO_F32_1 {1, 2, 15, 4, 5}, {0, 3, 2, 1, 4}, {0, 3, 2, 1, 4}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F32_TO_F16_0 {1, 5, 1, 2, 14}, {0, 4, 2, 3, 1}, {0, 1, 2, 3, 4}, data_types::f32, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_U8_TO_F16_0 {1, 17, 1, 2, 7},  {0, 4, 2, 3, 1}, {0, 1, 2, 3, 4}, data_types::u8, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
 
 // dim change
 #define CASE_PERMUTE_REORDER_4D_TO_5D_F32_0 {1, 16, 8, 16}, {1, 2, 0, 3}, {0, 3, 1, 4, 2}, data_types::f32, data_types::f32, format::bfyx, format::bfzyx
 #define CASE_PERMUTE_REORDER_4D_TO_6D_F32_1 {1, 16, 8, 16}, {0, 2, 3, 1}, {0, 3, 5, 4, 1, 2}, data_types::f32, data_types::f32, format::bfyx, format::bfwzyx
-#define CASE_PERMUTE_REORDER_5D_TO_4D_F32_0 {1, 16, 4, 5, 18},{0, 2, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_5D_TO_4D_F32_0 {1, 16, 4, 5, 18},{0, 4, 2, 3, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
 #define CASE_PERMUTE_REORDER_5D_TO_4D_F32_1 {1, 16, 4, 5, 16},{0, 2, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::bfzyx, format::bfyx
 #define CASE_PERMUTE_REORDER_5D_TO_6D_F32_2 {1, 16, 8, 4, 16}, {0, 4, 2, 3, 1}, {0, 3, 5, 4, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfwzyx
 #define CASE_PERMUTE_REORDER_6D_TO_4D_F32_0 {1, 16, 4, 5, 4, 16}, {0, 2, 5, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::bfwzyx, format::bfyx

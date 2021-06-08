@@ -8,8 +8,6 @@
 #include <cpp/ie_cnn_network.h>
 #include <cpp/ie_executable_network.hpp>
 #include <cpp/ie_infer_request.hpp>
-#include <multi-device/multi_device_config.hpp>
-#include <auto_plugin/auto_config.hpp>
 
 #include <file_utils.h>
 #include <ngraph_functions/subgraph_builders.hpp>

@@ -22,8 +22,6 @@ struct Config {
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
     std::string dumpToDot = "";
-    std::string dumpQuantizedGraphToDot = "";
-    std::string dumpQuantizedGraphToIr = "";
     int batchLimit = 0;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
 

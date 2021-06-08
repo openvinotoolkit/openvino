@@ -4,46 +4,48 @@
 
 **Category**: *Reduction*
 
-**Short description**: *ReduceLogicalAnd* operation performs reduction with *logical and* operation of the 1st input tensor in slices specified by the 2nd input.
+**Short description**: *ReduceLogicalAnd* operation performs the reduction with *logical and* operation on a given input `data` along dimensions specified by `axes` input.
+
+**Detailed Description**
+
+*ReduceLogicalAnd* operation performs the reduction with *logical and* operation on a given input `data` along dimensions specified by `axes` input.
+Each element in the output is calculated as follows:
+
+    output[i0, i1, ..., iN] = and[j0,c..., jN](x[j0, ..., jN]))
+
+where indices i0, ..., iN run through all valid indices for input `data`, and *logical and* operation `and[j0, ..., jN]` has `jk = ik` for those dimensions `k` that are not in the set of indices specified by `axes` input.
+
+Particular cases:
+
+1. If `axes` is an empty list, *ReduceLogicalAnd* corresponds to the identity operation. 
+2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for the entire input tensor.
 
 **Attributes**
 
 * *keep_dims*
 
-  * **Description**: If set to `true` it holds axes that are used for reduction. For each such axis, output dimension is equal to 1.
-  * **Range of values**: true or false
+  * **Description**: If set to `true`, it holds axes that are used for the reduction. For each such axis, the output dimension is equal to 1.
+  * **Range of values**: `true` or `false`
   * **Type**: `boolean`
-  * **Default value**: false
+  * **Default value**: `false`
   * **Required**: *no*
 
 **Inputs**
 
-* **1**: Input tensor x of type *T1*. **Required.**
+* **1**: `data` - A tensor of type *T_BOOL* and arbitrary shape. **Required.**
 
-* **2**: Scalar or 1D tensor of type *T_IND* with axis indices for the 1st input along which reduction is performed. Accepted range is `[-r, r-1]` where where `r` is the rank of input tensor, all values must be unique, repeats are not allowed. **Required.**
+* **2**: `axes` - Axis indices of `data` input tensor, along which the reduction is performed. A scalar or 1D tensor of unique elements and type *T_IND*. The range of elements is `[-r, r-1]`, where `r` is the rank of `data` input tensor. **Required.**
 
 **Outputs**
 
-* **1**: Tensor of the same type as the 1st input tensor and `shape[i] = shapeOf(input1)[i]` for all `i` that is not in the list of axes from the 2nd input. For dimensions from the 2nd input tensor, `shape[i] == 1` if `keep_dims == true`, or `i`-th dimension is removed from the output otherwise.
+* **1**: The result of *ReduceLogicalAnd* function applied to `data` input tensor. A tensor of type *T_BOOL* and `shape[i] = shapeOf(data)[i]` for all `i` dimensions not in `axes` input tensor. For dimensions in `axes`, `shape[i] == 1` if `keep_dims == true`; otherwise, the `i`-th dimension is removed from the output.
 
 **Types**
 
-* *T1*: any supported numeric type.
-* *T_IND*: `int64` or `int32`.
+* *T_BOOL*: `boolean`.
+* *T_IND*: any supported integer type.
 
-**Detailed Description**
-
-Each element in the output is the result of reduction with *logical and* operation along dimensions specified by the 2nd input:
-
-    output[i0, i1, ..., iN] = and[j0,..., jN](x[j0, ..., jN]))
-
-Where indices i0, ..., iN run through all valid indices for the 1st input and *logical and* operation `and[j0, ..., jN]` have `jk = ik` for those dimensions `k` that are not in the set of indices specified by the 2nd input of the operation. 
-Corner cases:
-
-1. When the 2nd input is an empty list, then this operation does nothing, it is an identity. 
-2. When the 2nd input contains all dimensions of the 1st input, this means that a single reduction value is calculated for entire input tensor. 
-
-**Example**
+**Examples**
 
 ```xml
 <layer id="1" type="ReduceLogicalAnd" ...>

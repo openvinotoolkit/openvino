@@ -61,6 +61,7 @@ set(SRC
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
+    op_eval/einsum.cpp
     op_eval/floor_mod.cpp
     op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
@@ -221,6 +222,7 @@ set(SRC
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/detection_output.cpp
+    visitors/op/einsum.cpp
     visitors/op/elu.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
@@ -350,11 +352,14 @@ set(MULTI_TEST_SRC
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
     backend/dyn_reshape.in.cpp
+    backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/elu.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
+    backend/experimental_detectron_detection_output.in.cpp
+    backend/experimental_detectron_prior_grid.in.cpp
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
@@ -394,6 +399,7 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
+    backend/prelu.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
@@ -463,7 +469,15 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
         onnx/onnx_import_with_editor.in.cpp)
 endif()
 
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
+# SOURCE AND HEADERS FOR FRONTEND TESTING
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
+set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+
+file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
+file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
+set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+
+add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
@@ -551,3 +565,10 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
+
+############ FRONTEND ############
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
+target_link_libraries(unit-test PRIVATE frontend_manager)
+
+add_subdirectory(frontend)
+### END FRONTEND ###

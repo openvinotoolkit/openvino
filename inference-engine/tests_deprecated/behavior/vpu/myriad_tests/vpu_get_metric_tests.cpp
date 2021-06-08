@@ -19,8 +19,8 @@ protected:
     }
 
     ExecutableNetwork loadNetworkOnDevice(const std::string &deviceName) {
-        auto network = ie.ReadNetwork(FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str,
-                                      FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob);
+        auto network = ie.ReadNetwork(convReluNormPoolFcModelFP16.model_xml_str,
+                                      convReluNormPoolFcModelFP16.weights_blob);
 
         return ie.LoadNetwork(network, deviceName);
     }
