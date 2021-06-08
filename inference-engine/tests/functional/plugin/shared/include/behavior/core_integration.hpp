@@ -52,6 +52,16 @@ namespace BehaviorTestsDefinitions {                                            
     ASSERT_NE(metrics.end(), it);                                    \
 }
 
+#define SKIP_IF_NOT_IMPLEMENTED(...)                                            \
+{                                                                               \
+    try {                                                                       \
+        __VA_ARGS__;                                                            \
+    } catch (const InferenceEngine::NotImplemented&) {                          \
+        GTEST_SKIP();                                                           \
+    }                                                                           \
+}
+
+
 class IEClassBasicTestP : public ::testing::Test, public WithParamInterface<std::pair<std::string, std::string> > {
 protected:
     std::string deviceName;
