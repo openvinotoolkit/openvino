@@ -115,7 +115,7 @@ class ShapeOfConstFoldingTests(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'last')
         self.assertTrue(flag, resp)
 
-    def test_const_with_tow_outputs(self):
+    def test_const_with_two_outputs(self):
         graph = build_graph(nodes_attributes2,
                             [('input', 'input_data'),
                              ('input_data', 'reshape'),
