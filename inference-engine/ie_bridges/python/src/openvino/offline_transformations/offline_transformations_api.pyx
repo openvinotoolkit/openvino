@@ -17,8 +17,8 @@ def ApplyPOTTransformations(IENetwork network, string device):
     C.ApplyPOTTransformations(network.impl, device)
 
 
-def ApplyLowLatencyTransformation(IENetwork network, int64_t num_iterations=1):
-    C.ApplyLowLatencyTransformation(network.impl, num_iterations)
+def ApplyLowLatencyTransformation(IENetwork network, bool use_const_initializer = True):
+    C.ApplyLowLatencyTransformation(network.impl, use_const_initializer)
 
 
 def ApplyPruningTransformation(IENetwork network):
