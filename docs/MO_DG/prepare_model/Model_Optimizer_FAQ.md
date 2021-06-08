@@ -636,6 +636,6 @@ If a '*.caffemodel' file exists and it is correct, the error possibly occured du
 #### 104. What does the message "SyntaxError: 'yield' inside list comprehension" during MxNet\* model conversion mean? <a name="question-104"></a>
 
 The issue "SyntaxError: 'yield' inside list comprehension" might occur during converting MXNet\* models (mobilefacedet-v1-mxnet, brain-tumor-segmentation-0001) on Windows* platform with Python* 3.8 environment. This issue is caused by API changes for `yield expression` in Python 3.8.
-We suggest some workarounds:
+The following workarounds are suggested to resolve this issue:
 1. Use Python 3.6/3.7 to convert MxNet\* models on Windows
 2. Update mxnet but in that case, you can have conflicts between previously installed PyPI dependencies: pip install mxnet=1.7.0.post2
