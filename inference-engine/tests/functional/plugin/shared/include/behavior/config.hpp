@@ -113,8 +113,10 @@ namespace BehaviorTestsDefinitions {
             ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
         }
         // Load CNNNetwork to target plugins
-        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-        execNet.CreateInferRequest();
+        if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
+            auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+            execNet.CreateInferRequest();
+        }
 
         if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
             ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
@@ -142,8 +144,10 @@ namespace BehaviorTestsDefinitions {
             ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
         }
         // Load CNNNetwork to target plugins
-        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-        execNet.CreateInferRequest();
+        if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
+            auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+            execNet.CreateInferRequest();
+        }
 
         if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
             (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
@@ -173,8 +177,10 @@ namespace BehaviorTestsDefinitions {
                 ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
             }
             // Load CNNNetwork to target plugins
-            auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-            execNet.CreateInferRequest();
+            if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
+                auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+                execNet.CreateInferRequest();
+            }
 
             if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
                 (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {

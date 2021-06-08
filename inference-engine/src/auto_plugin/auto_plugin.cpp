@@ -111,7 +111,7 @@ IE::Parameter AutoInferencePlugin::GetConfig(const std::string& name,
 
 void AutoInferencePlugin::SetConfig(const ConfigType& config) {
     for (auto && kvp : config) {
-        if (kvp.first == IE::KEY_AUTO_DEVICE_LIST) {
+        if (kvp.first.find("AUTO_") == 0) {
             _config[kvp.first] = kvp.second;
         } else if (kvp.first == IE::PluginConfigParams::KEY_PERF_COUNT) {
             if (kvp.second == IE::PluginConfigParams::YES ||
@@ -211,14 +211,14 @@ ConfigType AutoInferencePlugin::GetSupportedConfig(const ConfigType&  config,
 
 void AutoInferencePlugin::CheckConfig(const ConfigType& config) {
     std::vector<std::string> supportedConfigKeys = GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = config.find(key);
-        if (config.end() == itKey) {
+    for (auto&& c : config) {
+        auto itKey = std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), c.first);
+        if (supportedConfigKeys.end() == itKey) {
             // CVS-57233
-            if (key.find("AUTO_") == 0) {
+            if (c.first.find("AUTO_") == 0) {
                 continue;
             }
-            IE_THROW() << "AUTO plugin doesn't support config key " << key;
+            IE_THROW() << "AUTO plugin doesn't support config key " << c.first;
         }
     }
 }
