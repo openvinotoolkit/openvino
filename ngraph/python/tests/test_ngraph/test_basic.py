@@ -415,7 +415,7 @@ def test_sink_function_ctor():
 
     ordered_ops = function.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
-    assert op_types == ['Parameter', 'ReadValue', 'Add', 'Assign', 'Result']
+    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
     assert len(function.get_ops()) == 5
     assert function.get_output_size() == 1
     assert function.get_output_op(0).get_type_name() == "Result"
