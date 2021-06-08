@@ -106,14 +106,14 @@ protected:
     virtual uint32_t get_groups() const { return 1; }
     virtual bool get_depthwise_sep_opt() const { return false; }
 
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false) const {
-        if (events.size() == 1)
+    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
+        if (events.size() == 1 && !is_output)
             return events[0];
 
-        if (group)
+        if (group && !is_output)
             return stream.group_events(events);
 
-        return stream.enqueue_marker(events);
+        return stream.enqueue_marker(events, is_output);
     }
 
     void init_kernels() override {
@@ -158,7 +158,7 @@ protected:
                             typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
         if (optimized_out(instance)) {
-            return aggregate_events(events, stream);
+            return aggregate_events(events, stream, false, instance.is_output());
         }
 
         std::vector<event::ptr> tmp_events(events);
