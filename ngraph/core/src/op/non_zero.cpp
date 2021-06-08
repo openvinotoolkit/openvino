@@ -59,12 +59,8 @@ void op::v3::NonZero::validate_and_infer_types()
     }
     else
     {
-        const Dimension dim = input_shape.is_static()
-                                  ? std::accumulate(begin(input_shape),
-                                                    end(input_shape),
-                                                    Dimension(0, 1),
-                                                    std::multiplies<Dimension>())
-                                  : Dimension();
+        const Dimension dim = std::accumulate(
+            begin(input_shape), end(input_shape), Dimension(0, 1), std::multiplies<Dimension>());
         set_output_type(0, m_output_type, PartialShape{input_shape.rank(), dim});
     }
 
