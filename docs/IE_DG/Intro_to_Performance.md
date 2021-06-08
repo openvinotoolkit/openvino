@@ -22,7 +22,7 @@ $ benchmark_app -m <model.xml> -enforcebf16=false
 Notice that for quantized (e.g. INT8) models the bfloat16 calculations (of the layers that remain in FP32) is disabled by default.
 Refer to the [CPU Plugin documentation](supported_plugins/CPU.md) for more details.
 
-Similarly, the GPU device has a dedicated config key to enable FP16 execution of the layers that remain in FP32 in the quantized models (as the quantization is typically performed on the FP32 models), refer to the ENABLE_FP16_FOR_QUANTIZED_MODELS key in the [GPU Plugin documentation](supported_plugins/CL_DNN.md) 
+Similarly, the GPU device has a dedicated config key to enable FP16 execution of the layers that remain in FP32 in the quantized models (as the quantization is typically performed on the FP32 models), refer to the ENABLE_FP16_FOR_QUANTIZED_MODELS key in the [GPU Plugin documentation](supported_plugins/GPU.md)
 
 ## Latency vs. Throughput
 One way to increase computational efficiency is batching, which combines many (potentially tens) of
