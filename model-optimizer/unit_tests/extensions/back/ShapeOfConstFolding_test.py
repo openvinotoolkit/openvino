@@ -31,8 +31,7 @@ nodes_attributes = {'input': {'shape': int64_array([1, 3, 30, 30]), 'type': 'Par
 
                     # new nodes
                     'new_const_shapeof': {'type': 'Const', 'kind': 'op', 'op': 'Const',
-                                          'value': int64_array([1, 3, 30, 30])},
-                    'new_const_shapeof_data': {'value': int64_array([1, 3, 30, 30]), 'kind': 'data'},
+                                          'value': int64_array([1, 3, 30, 30])}
                     }
 
 const_value2 = np.random.rand(30, 30)
@@ -64,7 +63,6 @@ nodes_attributes2 = {'input': {'shape': int64_array([1, 3, 30, 30]), 'type': 'Pa
                      # new nodes
                      'new_const_shapeof': {'type': 'Const', 'kind': 'op', 'op': 'Const',
                                           'value': int64_array([2700, 30])},
-                     'new_const_shapeof_data': {'value': int64_array([2700, 30]), 'kind': 'data'},
                      }
 
 
@@ -99,8 +97,8 @@ class ShapeOfConstFoldingTests(unittest.TestCase):
                                  ('input_data', 'shapeof_input'),
                                  ('shapeof_input', 'shapeof_input_data'),
                                  ('shapeof_input_data', 'mul'),
-                                 ('new_const_shapeof', 'new_const_shapeof_data'),
-                                 ('new_const_shapeof_data', 'mul'),
+                                 ('new_const_shapeof', 'shapeof_const_data'),
+                                 ('shapeof_const_data', 'mul'),
                                  ('mul', 'mul_data'),
                                  ('mul_data', 'last')],
                                 {
@@ -109,7 +107,7 @@ class ShapeOfConstFoldingTests(unittest.TestCase):
                                     'shapeof_input': {'value': int64_array([1, 3, 30, 30])},
                                     'shapeof_input_data': {'value': int64_array([1, 3, 30, 30])},
                                     'new_const_shapeof': {'value': int64_array([1, 3, 30, 30])},
-                                    'new_const_shapeof_data': {'value': int64_array([1, 3, 30, 30])},
+                                    'shapeof_const_data': {'value': int64_array([1, 3, 30, 30])},
                                     'mul_data': {'value': int64_array([1, 9, 900, 900])},
                                 },
                                 nodes_with_edges_only=True)
@@ -147,8 +145,8 @@ class ShapeOfConstFoldingTests(unittest.TestCase):
         graph_ref = build_graph(nodes_attributes2,
                                 [('input', 'input_data'),
                                  ('input_data', 'reshape'),
-                                 ('new_const_shapeof', 'new_const_shapeof_data'),
-                                 ('new_const_shapeof_data', 'gather'),
+                                 ('new_const_shapeof', 'shapeof_const_data'),
+                                 ('shapeof_const_data', 'gather'),
                                  ('gather', 'gather_data'),
                                  ('const_concat', 'const_concat_data'),
                                  ('const_concat_data', 'concat'),
@@ -164,7 +162,7 @@ class ShapeOfConstFoldingTests(unittest.TestCase):
                                     'input': {'shape': int64_array([1, 3, 30, 30])},
                                     'input_data': {'shape': int64_array([1, 3, 30, 30])},
                                     'new_const_shapeof': {'value': int64_array([2700, 30])},
-                                    'new_const_shapeof_data': {'value': int64_array([2700, 30])},
+                                    'shapeof_const_data': {'value': int64_array([2700, 30])},
                                 },
                                 nodes_with_edges_only=True)
         ShapeOfConstFolding().find_and_replace_pattern(graph)
