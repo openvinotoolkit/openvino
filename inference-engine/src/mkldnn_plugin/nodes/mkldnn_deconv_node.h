@@ -37,14 +37,17 @@ public:
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
 
 private:
     bool withGroups = false;
     bool isDW = false;
+    bool isInt8 = false;
     size_t groupNum = 1;
     size_t outDepth;
     size_t IC;
     size_t OC;
+    std::vector<ptrdiff_t> kernel;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
@@ -57,6 +60,9 @@ private:
     void setPostOps(mkldnn::primitive_attr &attr);
 
     std::string errorPrefix;
+
+    bool canBeExecutedInInt8() const;
+    InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
 };
 
 }  // namespace MKLDNNPlugin

@@ -136,4 +136,16 @@ namespace Metrics {
     DECLARE_METRIC_KEY(GNA_LIBRARY_FULL_VERSION, std::string);
 }  // namespace Metrics
 
+namespace PluginConfigParams {
+
+/**
+ * @brief The key controls threading inside GNA Inference Engine plugin.
+ *
+ * It is passed to Core::SetConfig(), this option should be used with values:
+ * PluginConfigParams::YES or PluginConfigParams::NO
+ */
+DECLARE_CONFIG_KEY(SINGLE_THREAD);
+
+}  // namespace PluginConfigParams
+
 }  // namespace InferenceEngine

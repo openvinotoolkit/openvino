@@ -40,7 +40,9 @@ public:
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
-        const FakeQuantizeOnData& fqOnData3);
+        const FakeQuantizeOnData& fqOnData3,
+        const std::string& neighborType,
+        const std::string& additionalLayer);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithIntermediate(
         const ngraph::element::Type precision,
@@ -128,7 +130,9 @@ public:
         const DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations1,
-        const DequantizationOperations& dequantizationOperations2);
+        const DequantizationOperations& dequantizationOperations2,
+        const std::string& neighborType,
+        const std::string& additionalLayer);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithIntermediate(
         const ngraph::element::Type precision,

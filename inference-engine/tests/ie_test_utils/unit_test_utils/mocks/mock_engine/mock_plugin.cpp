@@ -17,8 +17,11 @@ MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
     _target = target;
 }
 
-void MockPlugin::SetConfig(const std::map<std::string, std::string>& config) {
-    this->config = config;
+void MockPlugin::SetConfig(const std::map<std::string, std::string>& _config) {
+    this->config = _config;
+    if (_target) {
+        _target->SetConfig(config);
+    }
 }
 
 Parameter MockPlugin::GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const {
@@ -40,8 +43,9 @@ MockPlugin::LoadNetwork(const CNNNetwork &network,
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-MockPlugin::LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
-                        RemoteContext::Ptr context) {
+MockPlugin::LoadNetwork(const CNNNetwork& network,
+                        const std::map<std::string, std::string>& config,
+                        const std::shared_ptr<RemoteContext>& context) {
     if (_target) {
         return _target->LoadNetwork(network, config, context);
     } else {
@@ -49,44 +53,44 @@ MockPlugin::LoadNetwork(const CNNNetwork& network, const std::map<std::string, s
     }
 }
 
-InferenceEngine::IExecutableNetworkInternal::Ptr
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::LoadNetwork(const std::string &modelPath,
                         const std::map<std::string, std::string> &config) {
     if (_target) {
         return _target->LoadNetwork(modelPath, config);
     } else {
-        return InferenceEngine::InferencePluginInternal::LoadNetwork(modelPath, config);
+        return InferenceEngine::IInferencePlugin::LoadNetwork(modelPath, config);
     }
 }
 
-ExecutableNetworkInternal::Ptr
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::LoadExeNetworkImpl(const CNNNetwork& network,
                                const std::map<std::string, std::string>& config) {
     return {};
 }
 
-InferenceEngine::ExecutableNetworkInternal::Ptr
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::ImportNetworkImpl(std::istream& networkModel,
                               const std::map<std::string, std::string>& config) {
     if (_target) {
-        return std::static_pointer_cast<ExecutableNetworkInternal>(_target->ImportNetwork(networkModel, config));
+        return _target->ImportNetwork(networkModel, config);
     } else {
         IE_THROW(NotImplemented);
     }
 }
 
-InferenceEngine::ExecutableNetworkInternal::Ptr
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::ImportNetworkImpl(std::istream& networkModel,
-                              const InferenceEngine::RemoteContext::Ptr& context,
+                              const std::shared_ptr<InferenceEngine::RemoteContext>& context,
                               const std::map<std::string, std::string>& config) {
     if (_target) {
-        return std::static_pointer_cast<ExecutableNetworkInternal>(_target->ImportNetwork(networkModel, context, config));
+        return _target->ImportNetwork(networkModel, context, config);
     } else {
         IE_THROW(NotImplemented);
     }
 }
 
-InferenceEngine::RemoteContext::Ptr MockPlugin::GetDefaultContext(const InferenceEngine::ParamMap& params) {
+std::shared_ptr<InferenceEngine::RemoteContext> MockPlugin::GetDefaultContext(const InferenceEngine::ParamMap& params) {
     if (_target) {
         return _target->GetDefaultContext(params);
     } else {
@@ -108,21 +112,21 @@ void MockPlugin::SetCore(InferenceEngine::ICore* core) noexcept {
     if (_target) {
         _target->SetCore(core);
     }
-    InferenceEngine::InferencePluginInternal::SetCore(core);
+    InferenceEngine::IInferencePlugin::SetCore(core);
 }
 
 void MockPlugin::SetName(const std::string& name) noexcept {
     if (_target) {
         _target->SetName(name);
     }
-    InferenceEngine::InferencePluginInternal::SetName(name);
+    InferenceEngine::IInferencePlugin::SetName(name);
 }
 
 std::string MockPlugin::GetName() const noexcept {
     if (_target) {
         return _target->GetName();
     }
-    return InferenceEngine::InferencePluginInternal::GetName();
+    return InferenceEngine::IInferencePlugin::GetName();
 }
 
 

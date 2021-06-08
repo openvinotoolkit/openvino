@@ -1,0 +1,1 @@
+pytest-dependency==0.5.1

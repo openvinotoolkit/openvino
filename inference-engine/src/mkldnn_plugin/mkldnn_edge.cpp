@@ -117,6 +117,13 @@ bool MKLDNNEdge::needReorder() {
     return canBeInPlaceConflicts || !MKLDNNExtensionUtils::initTensorsAreEqual(getInputDesc(), getOutputDesc());
 }
 
+void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
+    if (status != Status::NeedAllocation)
+        return;
+    memoryPtr = ptr;
+    status = Status::Allocated;
+}
+
 InferenceEngine::TensorDesc MKLDNNEdge::getInputDesc() {
     if (inputDesc.getLayout() == InferenceEngine::Layout::ANY) {
         inputDesc = getSpecifiedInputDesc({});
@@ -646,6 +653,10 @@ void MKLDNNEdge::init() {
     if (edgePtr.get() == this) {
         changeStatus(Status::NeedAllocation);
     } else {
+        if (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) {
+            changeStatus(Status::NeedAllocation);
+            return;
+        }
         sharedMemFrom(edgePtr);
     }
 

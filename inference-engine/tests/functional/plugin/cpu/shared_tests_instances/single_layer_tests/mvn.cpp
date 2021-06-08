@@ -10,6 +10,9 @@
 using namespace LayerTestsDefinitions;
 
 const std::vector<std::vector<size_t>> inputShapes = {
+    {8},
+    {1, 16},
+    {3, 19},
     {1, 32, 17},
     {1, 37, 9},
     {1, 16, 5, 8},
