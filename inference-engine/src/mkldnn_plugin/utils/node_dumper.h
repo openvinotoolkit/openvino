@@ -6,6 +6,7 @@
 
 #include "mkldnn_node.h"
 #include "utils/blob_dump.h"
+#include "utils/debug_capabilities.h"
 
 #include <unordered_map>
 #include <string>
@@ -22,7 +23,7 @@ namespace MKLDNNPlugin {
  */
 class NodeDumper {
 public:
-    NodeDumper(int _count);
+    NodeDumper(const DebugCaps::Config& config, const int _count);
 
     void dumpInputBlobs(const MKLDNNNodePtr &node) const;
     void dumpOutputBlobs(const MKLDNNNodePtr &node) const;
@@ -41,10 +42,8 @@ private:
     void formatNodeName(std::string& name) const;
 
     DUMP_FORMAT dumpFormat;
-
+    std::string dumpDirName;
     int count;
-
-    std::string dumpDirName = "mkldnn_dump";
 
     enum FILTER {
         BY_EXEC_ID,

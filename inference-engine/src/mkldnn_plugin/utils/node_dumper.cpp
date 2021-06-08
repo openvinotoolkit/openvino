@@ -6,9 +6,10 @@
 #include "node_dumper.h"
 
 #include "mkldnn_node.h"
-#include "utils/blob_dump.h"
-
 #include "ie_common.h"
+#include "utils/blob_dump.h"
+#include "utils/debug_capabilities.h"
+
 #include <array>
 #include <regex>
 #include <sstream>
@@ -18,27 +19,24 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-NodeDumper::NodeDumper(int _count):
-    count(_count), dumpFormat(DUMP_FORMAT::BIN) {
-    const char* dumpDirEnv = std::getenv("OV_CPU_BLOB_DUMP_DIR");
-    if (dumpDirEnv)
-        dumpDirName = dumpDirEnv;
+NodeDumper::NodeDumper(const DebugCaps::Config& config, const int _count)
+    : dumpFormat(DUMP_FORMAT::BIN)
+    , dumpDirName("mkldnn_dump")
+    , count(_count) {
+    if (!config.blobDumpDir.empty())
+        dumpDirName = config.blobDumpDir;
 
-    const char* dumpFormatEnv = std::getenv("OV_CPU_BLOB_DUMP_FORMAT");
-    if (dumpFormatEnv)
-        dumpFormat = parseDumpFormat(dumpFormatEnv);
+    if (!config.blobDumpFormat.empty())
+        dumpFormat = parseDumpFormat(config.blobDumpFormat);
 
-    const char* filter = std::getenv("OV_CPU_BLOB_DUMP_NODE_EXEC_ID");
-    if (filter)
-        dumpFilters[FILTER::BY_EXEC_ID] = filter;
+    if (!config.blobDumpNodeExecId.empty())
+        dumpFilters[FILTER::BY_EXEC_ID] = config.blobDumpNodeExecId;
 
-    filter = std::getenv("OV_CPU_BLOB_DUMP_NODE_TYPE");
-    if (filter)
-        dumpFilters[FILTER::BY_TYPE] = filter;
+    if (!config.blobDumpNodeType.empty())
+        dumpFilters[FILTER::BY_TYPE] = config.blobDumpNodeType;
 
-    filter = std::getenv("OV_CPU_BLOB_DUMP_NODE_NAME");
-    if (filter)
-        dumpFilters[FILTER::BY_NAME] = filter;
+    if (!config.blobDumpNodeName.empty())
+        dumpFilters[FILTER::BY_NAME] = config.blobDumpNodeName;
 }
 
 void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
