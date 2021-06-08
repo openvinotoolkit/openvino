@@ -229,7 +229,7 @@ def main():
     if wrong_pulls:
         for pull_number, wrong_commits in wrong_pulls.items():
             print(
-                f"\nERROR: Remove or replace wrong commits in the PR {pull_number}:\n    ",
+                f"\nERROR: Remove or replace wrong commits in the PR {pull_number}:\n   ",
                 "\n    ".join(wrong_commits),
             )
         print(
