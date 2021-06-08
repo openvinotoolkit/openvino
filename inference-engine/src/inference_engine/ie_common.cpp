@@ -53,6 +53,27 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     return actual->getOpSets();
 }
 namespace details {
+
+void Rethrow() {
+    try {
+        throw;
+    } catch (const GeneralError& e) {throw e;}
+      catch (const NotImplemented& e) {throw e;}
+      catch (const NetworkNotLoaded& e) {throw e;}
+      catch (const ParameterMismatch& e) {throw e;}
+      catch (const NotFound& e) {throw e;}
+      catch (const OutOfBounds& e) {throw e;}
+      catch (const Unexpected& e) {throw e;}
+      catch (const RequestBusy& e) {throw e;}
+      catch (const ResultNotReady& e) {throw e;}
+      catch (const NotAllocated& e) {throw e;}
+      catch (const InferNotStarted& e) {throw e;}
+      catch (const NetworkNotRead& e) {throw e;}
+      catch (const InferCancelled& e) {throw e;}
+      catch (const std::exception& e) {IE_THROW() << e.what();}
+      catch(...) {IE_THROW(Unexpected);}
+}
+
 IE_SUPPRESS_DEPRECATED_START
 
 StatusCode InferenceEngineException::getStatus() const {

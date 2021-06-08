@@ -8,6 +8,7 @@ import os
 import re
 from collections import OrderedDict
 from itertools import zip_longest
+from distutils.util import strtobool
 
 import numpy as np
 
@@ -257,9 +258,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Apply additional transformations. ' +
                                    'Usage: "--transform transformation_name1[args],transformation_name2..." ' +
                                    'where [args] is key=value pairs separated by semicolon. ' +
-                                   'Examples: "--transform LowLatency" or ' +
-                                   '          "--transform LowLatency[num_iterations=2]" ' +
-                                   'Available transformations: "LowLatency"',
+                                   'Examples: "--transform LowLatency2" or ' +
+                                   '          "--transform LowLatency2[use_const_initializer=False]" ' +
+                                   'Available transformations: "LowLatency2"',
                               default="")
     common_group.add_argument('--disable_fusing',
                               help='Turn off fusing of linear operations to Convolution',
@@ -414,6 +415,15 @@ def get_onnx_cli_options():
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
+
+
+def get_params_with_paths_list():
+    return ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
+            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol', 'mean_file',
+            'mean_file_offsets', 'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
+            'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
+            'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
+            'transformations_config']
 
 
 def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
@@ -1142,6 +1152,14 @@ def isfloat(value):
         return False
 
 
+def isbool(value):
+    try:
+        strtobool(value)
+        return True
+    except ValueError:
+        return False
+
+
 def convert_string_to_real_type(value: str):
     values = value.split(',')
     for i in range(len(values)):
@@ -1150,6 +1168,8 @@ def convert_string_to_real_type(value: str):
             values[i] = int(value)
         elif isfloat(value):
             values[i] = float(value)
+        elif isbool(value):
+            values[i] = strtobool(value)
 
     return values[0] if len(values) == 1 else values
 
@@ -1234,12 +1254,15 @@ def check_positive(value):
     return int_value
 
 
-def depersonalize(value: str):
+def depersonalize(value: str, key: str):
+    dir_keys = [
+        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+    ]
     if not isinstance(value, str):
         return value
     res = []
     for path in value.split(','):
-        if os.path.isdir(path):
+        if os.path.isdir(path) and key in dir_keys:
             res.append('DIR')
         elif os.path.isfile(path):
             res.append(os.path.join('DIR', os.path.split(path)[1]))
@@ -1252,7 +1275,7 @@ def get_meta_info(argv: argparse.Namespace):
     meta_data = {'unset': []}
     for key, value in argv.__dict__.items():
         if value is not None:
-            value = depersonalize(value)
+            value = depersonalize(value, key)
             meta_data[key] = value
         else:
             meta_data['unset'].append(key)
