@@ -41,6 +41,7 @@ namespace ngraph
         class Graph;
         class Subgraph;
         class Tensor;
+        class SparseTensor;
         class Attribute;
 
         class ONNX_IMPORTER_API Node
@@ -114,6 +115,10 @@ namespace ngraph
                                                            Tensor default_value) const;
 
         template <>
+        ONNX_IMPORTER_API SparseTensor Node::get_attribute_value(const std::string& name,
+                                                                 SparseTensor default_value) const;
+
+        template <>
         ONNX_IMPORTER_API Graph Node::get_attribute_value(const std::string& name,
                                                           Graph default_value) const;
 
@@ -148,6 +153,11 @@ namespace ngraph
                                       std::vector<Tensor> default_value) const;
 
         template <>
+        ONNX_IMPORTER_API std::vector<SparseTensor>
+            Node::get_attribute_value(const std::string& name,
+                                      std::vector<SparseTensor> default_value) const;
+
+        template <>
         ONNX_IMPORTER_API std::vector<Graph>
             Node::get_attribute_value(const std::string& name,
                                       std::vector<Graph> default_value) const;
@@ -169,6 +179,9 @@ namespace ngraph
 
         template <>
         ONNX_IMPORTER_API Tensor Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API SparseTensor Node::get_attribute_value(const std::string& name) const;
 
         template <>
         ONNX_IMPORTER_API Subgraph Node::get_attribute_value(const std::string& name) const;
@@ -195,6 +208,10 @@ namespace ngraph
 
         template <>
         ONNX_IMPORTER_API std::vector<Tensor>
+            Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<SparseTensor>
             Node::get_attribute_value(const std::string& name) const;
 
         template <>
