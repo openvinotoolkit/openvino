@@ -75,14 +75,14 @@ class Validator {
     VectorOrSquareLimitByChannelsAndPrecision kernelLimit {
         { 240, { 3, 7, 3 }, { 2, 7, 2 } },
         { 120, { 3, 7, 3 }, { 1, 7, 1 } } };
-
+    VectorOrSquareLimitByChannelsAndPrecision& strideLimit = kernelLimit;
     const VectorOrSquareLimit poolingWindowLimit{ 3, 1, 1 };
 
     static void ThrowIfNotEmpty(const std::string prefix, const std::string error);
 public:
     void ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
         const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-        OvGnaType inPrecision) const;
+        const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision) const;
 
     void ValidatePooling2D(std::string name,
         const uint32_t windowH, const uint32_t windowW,

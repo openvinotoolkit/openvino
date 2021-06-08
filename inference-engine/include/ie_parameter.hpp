@@ -335,6 +335,11 @@ private:
     Any* ptr = nullptr;
 };
 
+/**
+ * @brief An std::map object containing parameters
+  */
+using ParamMap = std::map<std::string, Parameter>;
+
 #ifdef __ANDROID__
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);

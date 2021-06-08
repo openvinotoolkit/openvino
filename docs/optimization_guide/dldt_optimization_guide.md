@@ -161,16 +161,19 @@ In fact, the OpenVINO does support the "throughput" mode for the CPU, which allo
 
 Internally, the execution resources are split/pinned into execution "streams".
 This feature usually provides much better performance for the networks than batching. This is especially true for the many-core server machines:
+![](../img/cpu_streams_explained_1.png)
+Compared with the batching, the parallelism is somewhat transposed (i.e. performed over inputs, and much less within CNN ops):
 ![](../img/cpu_streams_explained.png)
 
 Try the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample and play with number of streams running in parallel. The rule of thumb is tying up to a number of CPU cores on your machine.
 For example, on an 8-core CPU, compare the `-nstreams 1` (which is a legacy, latency-oriented scenario) to the 2, 4, and 8 streams.
+Notice that on a multi-socket machine, the bare minimum of streams for a latency scenario equals the number of sockets.
 
 In addition, you can play with the batch size to find the throughput sweet spot.
 
 If your application is hard or impossible to change in accordance with the multiple-requests logic, consider the "multiple-instance" trick to improve the throughput:  
 -   For multi-socket execution, it is recommended to set   [`KEY_CPU_THREADS_NUM`](../IE_DG/supported_plugins/CPU.md) to the number of cores per socket, and run as many instances of the application as you have sockets.
--   Similarly, for extremely lightweight networks (running faster than 1ms) and/or many-core machines (16+ cores), try limiting the number of CPU inference  threads to just `#&zwj;phys` cores and further, while trying to saturate the machine with running multiple instances of the application.
+-   Similarly, for extremely lightweight networks (running faster than 1ms) and/or many-core machines (16+ cores), try limiting the number of CPU inference threads to just `#&zwj;phys` cores and further, while trying to saturate the machine with running multiple instances of the application.
 
 
 ### GPU Checklist <a name="gpu-checklist"></a>
@@ -362,19 +365,17 @@ Note that in many cases, you can directly share the (input) data with the Infere
 
 The general approach for sharing data between Inference Engine and media/graphics APIs like Intel&reg; Media Server Studio (Intel&reg; MSS) is based on sharing the *system* memory.  That is, in your code, you should map or copy the data from the API to the CPU address space first.
 
-For Intel MSS, it is recommended to perform a viable pre-processing, for example, crop/resize, and then convert to RGB again with the [Video Processing Procedures (VPP)](https://software.intel.com/en-us/node/696108). Then lock the result and create an Inference Engine blob on top of that. The resulting pointer can be used for the `SetBlob`:
+For Intel® Media SDK, it is recommended to perform a viable pre-processing, for example, crop/resize, and then convert to RGB again with the [Video Processing Procedures (VPP)](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onevpl.htm). Then lock the result and create an Inference Engine blob on top of that. The resulting pointer can be used for `SetBlob`:
 
 @snippet snippets/dldt_optimization_guide2.cpp part2
 
-**WARNING**: The `InferenceEngine::NHWC` layout is not supported natively by most InferenceEngine plugins so internal conversion might happen.
+Using the `InferenceEngine::NHWC` layout:
 
 @snippet snippets/dldt_optimization_guide3.cpp part3
 
-Alternatively, you can use RGBP (planar RGB) output from Intel MSS. This allows to wrap the (locked) result as regular NCHW which is generally friendly for most plugins (unlike NHWC). Then you can use it with `SetBlob` just like in previous example:
+Alternatively, you can use an RGBP (planar RGB) output from Intel® Media SDK. This allows you to wrap the (locked) result as regular NCHW. Then you can use it with `SetBlob` just like in the previous example:
 
 @snippet snippets/dldt_optimization_guide4.cpp part4
-
-The only downside of this approach is that VPP conversion to RGBP is not hardware accelerated (and performed on the GPU EUs). Also, it is available only on LInux.
 
 ### OpenCV* Interoperability Example <a name="opencv-interoperability"></a>
 

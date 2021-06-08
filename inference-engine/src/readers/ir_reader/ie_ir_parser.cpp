@@ -48,7 +48,7 @@ IRParser::IRParser(size_t version, const std::vector<InferenceEngine::IExtension
     }
 }
 
-std::shared_ptr<ICNNNetwork> IRParser::parse(
+CNNNetwork IRParser::parse(
     const pugi::xml_node& root, const Blob::CPtr& weights) {
     return parser->parse(root, weights);
 }
@@ -912,7 +912,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
     }
 }
 
-std::shared_ptr<ICNNNetwork> V10Parser::parse(
+CNNNetwork V10Parser::parse(
     const pugi::xml_node& root, const Blob::CPtr& weights) {
     std::shared_ptr<ngraph::Function> function;
     XmlDeserializer visitor(root, weights, opsets, variables);

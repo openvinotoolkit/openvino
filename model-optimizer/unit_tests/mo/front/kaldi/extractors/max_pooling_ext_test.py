@@ -27,7 +27,7 @@ class MaxPoolingComponentFrontExtractorTest(KaldiFrontExtractorTest):
     def test_attrs(self):
         val_attrs = {
             'window': [1, 1, 1, 2],
-            'stride': [1, 1, 2, 2],
+            'stride': [1, 1, 1, 2],
             'pool_stride': 4,
             'pad': [[[0, 0], [0, 0], [0, 0], [0, 0]]]
         }

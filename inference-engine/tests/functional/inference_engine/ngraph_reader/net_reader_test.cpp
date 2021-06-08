@@ -7,8 +7,7 @@
 #include <string>
 #include <vector>
 #include <gtest/gtest.h>
-
-#include <legacy/details/ie_cnn_network_tools.h>
+#include <iostream>
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/unicode_utils.hpp"
@@ -18,13 +17,8 @@
 
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-
-#include <iostream>
-
-#define GTEST_COUT std::cerr << "[          ] [ INFO ] "
-
-#include <codecvt>
-
+# define GTEST_COUT std::cerr << "[          ] [ INFO ] "
+# include <codecvt>
 #endif
 
 using NetReaderNoParamTest = CommonTestUtils::TestsCommon;
@@ -39,66 +33,31 @@ using NetReaderTestParams = std::tuple<InferenceEngine::SizeVector, InferenceEng
 class NetReaderTest
         : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<NetReaderTestParams> {
 protected:
-    static void read(const std::string &modelPath, const std::string &weightsPath, InferenceEngine::Core &ie,
-                     InferenceEngine::CNNNetwork &network) {
-        network = ie.ReadNetwork(modelPath, weightsPath);
+    static InferenceEngine::CNNNetwork read(const std::string &modelPath, const std::string &weightsPath,
+                                            InferenceEngine::Core &ie) {
+        return ie.ReadNetwork(modelPath, weightsPath);
     }
 
     void SetUp() override {
+        InferenceEngine::SizeVector _inputDims;
+        InferenceEngine::Precision _netPrc;
         std::tie(_inputDims, _netPrc) = GetParam();
-        (void) FuncTestUtils::TestModel::generateTestModel(_modelPath,
-                                                             _weightsPath,
-                                                             _netPrc,
-                                                             _inputDims,
-                                                             &_refLayers);
+        (void) FuncTestUtils::TestModel::generateTestModel(_modelPath, _weightsPath, _netPrc, _inputDims);
     }
 
     void TearDown() override {
         CommonTestUtils::removeIRFiles(_modelPath, _weightsPath);
     }
 
-    /* validates a read network with the reference map of CNN layers */
-    void compareWithRef(const InferenceEngine::CNNNetwork &network,
-                        const std::vector<InferenceEngine::CNNLayerPtr> &refLayersVec) {
-        IE_SUPPRESS_DEPRECATED_START
-        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-        ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer(
-                InferenceEngine::details::CNNNetSortTopologically(InferenceEngine::CNNNetwork(convertedNetwork)),
-                refLayersVec, false));
-        IE_SUPPRESS_DEPRECATED_END
-    }
-
     const std::string _modelPath = "NetReader_test.xml";
     const std::string _weightsPath = "NetReader_test.bin";
-    InferenceEngine::SizeVector _inputDims;
-    InferenceEngine::Precision _netPrc;
-
-    std::vector<InferenceEngine::CNNLayerPtr> _refLayers;
 };
-
-TEST_P(NetReaderTest, ReadCorrectModelWithWeightsAndValidate) {
-    InferenceEngine::Core ie;
-    InferenceEngine::CNNNetwork network;
-    read(_modelPath, _weightsPath, ie, network);
-
-    for (auto input : network.getInputsInfo()) {
-        input.second->setPrecision(_netPrc);
-    }
-    for (auto input : network.getOutputsInfo()) {
-        input.second->setPrecision(_netPrc);
-    }
-
-    compareWithRef(network, _refLayers);
-}
 
 TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
     InferenceEngine::Core ie;
 
-    InferenceEngine::CNNNetwork network;
-    read(_modelPath, _weightsPath, ie, network);
-
-    InferenceEngine::CNNNetwork network2;
-    read(_modelPath, _weightsPath, ie, network2);
+    auto network = read(_modelPath, _weightsPath, ie);
+    auto network2 = read(_modelPath, _weightsPath, ie);
 
     IE_SUPPRESS_DEPRECATED_START
 
@@ -117,7 +76,6 @@ TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
 TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
     GTEST_COUT << "params.modelPath: '" << _modelPath << "'" << std::endl;
     GTEST_COUT << "params.weightsPath: '" << _weightsPath << "'" << std::endl;
-    GTEST_COUT << "params.netPrc: '" << _netPrc.name() << "'" << std::endl;
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
         std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
         std::wstring modelPath = CommonTestUtils::addUnicodePostfixToPath(_modelPath, postfix);

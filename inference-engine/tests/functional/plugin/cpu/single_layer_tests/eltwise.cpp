@@ -333,5 +333,61 @@ const auto params_5D_Planar_Blocked = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_Planar_Blocked, EltwiseLayerCPUTest, params_5D_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
 
+
+std::vector<std::vector<std::vector<size_t>>> inShapes_4D_1D = {
+        {{2, 17, 5, 4}, {4}},
+        {{1, 3, 3, 3}, {3}},
+};
+
+std::vector<CPUSpecificParams> cpuParams_4D_1D = {
+        CPUSpecificParams({nChw16c, x}, {nChw16c}, {}, {}),
+        CPUSpecificParams({nhwc, x}, {nhwc}, {}, {}),
+        CPUSpecificParams({nchw, x}, {nchw}, {}, {})
+};
+
+const auto params_4D_1D = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(inShapes_4D_1D),
+                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
+                ::testing::ValuesIn(secondaryInputTypes),
+                ::testing::ValuesIn(opTypes),
+                ::testing::ValuesIn(netPrc),
+                ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D)));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_1D, EltwiseLayerCPUTest, params_4D_1D, EltwiseLayerCPUTest::getTestCaseName);
+
+std::vector<std::vector<std::vector<size_t>>> inShapes_5D_1D = {
+        {{2, 17, 5, 4, 10}, {10}},
+        {{1, 3, 3, 3, 3}, {3}},
+};
+
+std::vector<CPUSpecificParams> cpuParams_5D_1D = {
+        CPUSpecificParams({nCdhw16c, x}, {nCdhw16c}, {}, {}),
+        CPUSpecificParams({ndhwc, x}, {ndhwc}, {}, {}),
+        CPUSpecificParams({ncdhw, x}, {ncdhw}, {}, {})
+};
+
+const auto params_5D_1D = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(inShapes_5D_1D),
+                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
+                ::testing::ValuesIn(secondaryInputTypes),
+                ::testing::ValuesIn(opTypes),
+                ::testing::ValuesIn(netPrc),
+                ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D)));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_1D, EltwiseLayerCPUTest, params_5D_1D, EltwiseLayerCPUTest::getTestCaseName);
+
+
 } // namespace
 } // namespace CPULayerTestsDefinitions

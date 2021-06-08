@@ -73,3 +73,19 @@ bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs,
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return mean::evaluate_mean(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }
+
+bool op::v1::ReduceMean::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_ReduceMean_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}

@@ -14,5 +14,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*SplitLayerTest.*numSplits\=30.*)",
         // CVS-51758
         ".*PreprocessConversionTest.*oLT=NHWC.*",
+        ".*PreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*",
     };
 }
