@@ -512,7 +512,6 @@ size_t jit_store_emitter::aux_vecs_count() const {
 size_t jit_store_emitter::get_inputs_num() const { return 1; }
 
 void jit_store_emitter::emit_data() const {
-    jit_emitter::emit_data();
     if (emu_vcvtneps2bf16)
         emu_vcvtneps2bf16->emit_data();
 }
