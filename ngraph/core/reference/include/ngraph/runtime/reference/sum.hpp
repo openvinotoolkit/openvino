@@ -44,8 +44,8 @@ namespace ngraph
             template <typename T>
             void sum(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes)
             {
-                constexpr bool dont_keep_dims_in_ouput = false;
-                auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_ouput);
+                constexpr bool dont_keep_dims_in_output = false;
+                auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
 
                 std::vector<T> cs(shape_size(out_shape), 0);
                 std::fill(out, out + shape_size(out_shape), 0);
@@ -57,7 +57,7 @@ namespace ngraph
                 for (const Coordinate& input_coord : input_transform)
                 {
                     Coordinate output_coord =
-                        reduce(input_coord, reduction_axes, dont_keep_dims_in_ouput);
+                        reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
 
                     size_t in_idx = std::inner_product(
                         input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
