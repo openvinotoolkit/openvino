@@ -52,7 +52,6 @@ function(build_ngraph)
     else ()
         ngraph_set(NGRAPH_ADDRESS_SANITIZER OFF)
     endif ()
-    ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
 
     if(ENABLE_TESTS AND NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)
@@ -85,6 +84,12 @@ function(build_ngraph)
         ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE OFF)
     endif()
 
+    if(ENABLE_PYTHON)
+        ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE ON)
+    else()
+        ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
     elseif(UNIX)
@@ -103,6 +108,7 @@ function(build_ngraph)
     endif()
 
     ie_cpack_add_component(ngraph REQUIRED)
+    ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
     set(SDL_cmake_included ON)
     add_subdirectory(ngraph)

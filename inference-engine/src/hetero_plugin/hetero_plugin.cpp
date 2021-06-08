@@ -12,7 +12,6 @@
 #include <fstream>
 #include <unordered_set>
 #include "ie_plugin_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
 #include "hetero_executable_network.hpp"
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
@@ -38,7 +37,7 @@ Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs & loc
 
 }  // namespace
 
-InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&    network,
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&    network,
                                                                            const Configs&                   config) {
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
@@ -58,7 +57,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const
     return std::make_shared<HeteroExecutableNetwork>(network, mergeConfigs(_config, config), this);
 }
 
-InferenceEngine::ExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& heteroModel, const Configs& config) {
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& heteroModel, const Configs& config) {
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }

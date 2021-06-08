@@ -127,6 +127,12 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     return true;
 }
 
+bool op::v6::ReadValue::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v6_ReadValue_has_evaluate);
+    return true;
+}
+
 bool op::v6::ReadValue::constant_fold(OutputVector& output_values,
                                       const OutputVector& inputs_values)
 {

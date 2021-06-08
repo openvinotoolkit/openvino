@@ -13,8 +13,8 @@
 #include <ie_algorithm.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ie_icore.hpp>
 
-#include <auto_plugin/auto_config.hpp>
 #include "auto_plugin.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
@@ -54,8 +54,8 @@ IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::
     return LoadNetworkImpl(fileName, config);
 }
 
-IE::ExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
-                                                                           const ConfigType&     config) {
+IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
+                                                                            const ConfigType&     config) {
     if (network.getFunction() == nullptr) {
         IE_THROW() << "AUTO device supports just ngraph network representation";
     }
@@ -131,7 +131,7 @@ IE::Parameter AutoInferencePlugin::GetMetric(const std::string& name,
         std::vector<std::string> configKeys;
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
-        std::vector<std::string> capabilities = GetOptimizationCapabilities();
+        std::vector<std::string> capabilities = GetOptimizationCapabilities(options);
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
@@ -143,7 +143,7 @@ std::vector<AutoPlugin::DeviceInformation> AutoInferencePlugin::GetDeviceChoice(
     std::vector<DeviceInformation> metaDevices;
     std::vector<std::string> availableDevices;
 
-    auto deviceListConfig = config.find(IE::AutoConfigParams::KEY_AUTO_DEVICE_LIST);
+    auto deviceListConfig = config.find(IE::KEY_AUTO_DEVICE_LIST);
     if (deviceListConfig == config.end()) {
         availableDevices = GetCore()->GetAvailableDevices();
     } else {
@@ -153,7 +153,7 @@ std::vector<AutoPlugin::DeviceInformation> AutoInferencePlugin::GetDeviceChoice(
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
         IE::DeviceIDParser deviceParser(deviceWithID);
         std::string deviceName = deviceParser.getDeviceName();
-        ConfigType tconfig = mergeConfigs(_config, config);
+        ConfigType tconfig = config;
 
         // set device ID if any
         std::string deviceIDLocal = deviceParser.getDeviceID();
@@ -177,20 +177,23 @@ std::vector<AutoPlugin::DeviceInformation> AutoInferencePlugin::GetDeviceChoice(
     return metaDevices;
 }
 
-std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities() const {
+std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities(const std::map<std::string, IE::Parameter> & options) const {
     // FIXME: workaround to get devicelist.
     std::unordered_set<std::string> capabilities;
     std::vector<std::string> queryDeviceLists{"CPU", "GPU"};
+
+    if (options.find(IE::KEY_AUTO_DEVICE_LIST) != options.end()) {
+        auto deviceListConfig = options.at(IE::KEY_AUTO_DEVICE_LIST).as<std::string>();
+        queryDeviceLists = IE::DeviceIDParser::getHeteroDevices(deviceListConfig);
+    } else if (_config.find(IE::KEY_AUTO_DEVICE_LIST) != _config.end()) {
+        auto deviceListConfig = _config.at(IE::KEY_AUTO_DEVICE_LIST);
+        queryDeviceLists = IE::DeviceIDParser::getHeteroDevices(deviceListConfig);
+    }
     for (auto &item : queryDeviceLists) {
         try {
             std::vector<std::string> device_cap =
                 GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
             for (auto &cap : device_cap) {
-                // For CPU test SetBlobOfKindTest::CompareWithRefs which checks BATCHED_BLOB capability,
-                // and AUTO select CPU but not GPU (GPU has this capability).
-                if (cap == METRIC_VALUE(BATCHED_BLOB)) {
-                    continue;
-                }
                 capabilities.insert(cap);
             }
         } catch (...) {
