@@ -1324,12 +1324,20 @@ void InsertSplitAligningFilterPass::run() {
             continue;
         }
 
+        auto outFunctionalLayers = CNNNetGetAllNextLayersSkipCertain(l, -1, [](CNNLayerPtr next_layer) {
+            return GNAPluginNS::LayerInfo(next_layer).isNonFunctional();
+        });
+        size_t padding = 0;
+        for (auto &&outFunctionalLayer : outFunctionalLayers) {
+            padding = std::max(padding, LayerInfo(outFunctionalLayer).paddingSize());
+        }
+
         size_t currentOffset = 0;
         int splitOutIndex = 0;
         for (auto &&splitOutput  : l->outData) {
             auto outputSize = product(++begin(splitOutput->getDims()), end(splitOutput->getDims()));
 
-            if (currentOffset != ALIGN64(currentOffset)) {
+            if ((currentOffset != ALIGN64(currentOffset)) || (padding != 0)) {
                 // check that this split output actually connected to further layers
                 if (getInputTo(splitOutput).empty()) {
                     gnalog() << "Output port: " << splitOutIndex << " of " << l->name << " unconnected, skipping\n";
@@ -2083,6 +2091,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         };
 
         auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+        IE_ASSERT(quantParams != nullptr);
 
         // Find all output layers connected to FQ
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer.get(), -1, donotSkip);
@@ -2296,7 +2305,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                 }
             }
             // Find a convolution in next layers to rotate weights columns
-            if (!l->outData.empty() && !getInputTo(l->outData[0]).empty() && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
+            if (!l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
                 std::vector<TranspositionInfo> transpositionInfo;
                 auto nextLayer = getInputTo(l->outData[0]).begin()->second;
                 transpositionInfo = FindTranspositionInfoFromNextLayers(nextLayer);
@@ -2337,7 +2346,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
             }
             // Find a convolution in previous or next layers
             auto transpositionInfo = FindTranspositionInfoFromPrevLayers(firstInput);
-            if (!FoundPartToTranspose(transpositionInfo)) {
+            if (!FoundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
                 transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
             }
             if (FoundPartToTranspose(transpositionInfo)) {
