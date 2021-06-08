@@ -28,7 +28,13 @@ extern primitive_impl* create_nms_gpu(const non_max_suppression_node& node);
 
 static primitive_impl* create_nms(const non_max_suppression_node& node) {
     auto params = get_default_params<kernel_selector::non_max_suppression_params>(node);
-    if (params.engineInfo.bIMMADSupport) {
+    auto scoresTensor = convert_data_tensor(node.input_scores().get_output_layout());
+    const size_t kBatchNum = scoresTensor.Batch().v;
+    const size_t kClassNum = scoresTensor.Feature().v;
+    const size_t kNStreams = static_cast<size_t>(node.get_program().get_engine().configuration().n_streams);
+    const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
+
+    if (kKeyValue > 64) {
         return create_nms_gpu(node);
     } else {
         return create_nms_cpu(node);
