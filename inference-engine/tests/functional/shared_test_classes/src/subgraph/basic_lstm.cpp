@@ -3,6 +3,7 @@
 //
 
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
+#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "ngraph_functions/builders.hpp"
 
@@ -13,7 +14,9 @@ std::string Basic_LSTM_S::getTestCaseName(testing::TestParamInfo<basicLstmParams
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
-    std::tie(netPrecision, targetDevice, configuration) = obj.param;
+    std::pair<size_t, size_t> size_params;
+    bool decompose;
+    std::tie(netPrecision, targetDevice, configuration, size_params, decompose) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -22,6 +25,9 @@ std::string Basic_LSTM_S::getTestCaseName(testing::TestParamInfo<basicLstmParams
     for (auto const& configItem : configuration) {
         result << "_configItem=" << configItem.first << "_" << configItem.second;
     }
+    result << "_TD=" << size_params.first;
+    result << "_HS=" << size_params.second;
+    result << "_D=" << decompose;
     return result.str();
 }
 
@@ -29,11 +35,20 @@ void Basic_LSTM_S::SetUp() {
     threshold = 0.1f;
 
     InferenceEngine::Precision netPrecision;
-    std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
-    hidden_size = 118;
+    std::pair<size_t, size_t> size_params;
+    bool decompose;
+    std::tie(netPrecision, targetDevice, configuration, size_params, decompose) = this->GetParam();
+    third_dim = size_params.first;
+    hidden_size = size_params.second;
     outPrc = InferenceEngine::Precision::FP32;
 
-    function = GetNetwork(49, hidden_size, netPrecision, &hidden_memory_init, &cell_memory_init);
+    function = GetNetwork(size_params.first, size_params.second, netPrecision, &hidden_memory_init, &cell_memory_init);
+
+    if (decompose) {
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        manager.run_passes(function);
+    }
 }
 
 std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
@@ -99,6 +114,24 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fc1) };
     return std::make_shared<ngraph::Function>(results, params, "Basic_LSTM_S");
+}
+
+void Basic_LSTM_S::GenerateInputs() {
+    // Generate inputs can be called before actual network loading in case lf LowLatencyTransformation
+    auto inputs_function = ngraph::clone_function(*function);
+    auto inputsCnnNetwork = InferenceEngine::CNNNetwork{ inputs_function };
+    auto inputsExecutableNetwork = core->LoadNetwork(inputsCnnNetwork, targetDevice);
+    const auto& inputsInfo = inputsExecutableNetwork.GetInputsInfo();
+    const auto& functionParams = inputs_function->get_parameters();
+    for (int i = 0; i < functionParams.size(); ++i) {
+        const auto& param = functionParams[i];
+        const auto infoIt = inputsInfo.find(param->get_friendly_name());
+        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+
+        const auto& info = infoIt->second;
+        auto blob = GenerateInput(*info);
+        inputs.push_back(blob);
+    }
 }
 
 void Basic_LSTM_S::Run() {
