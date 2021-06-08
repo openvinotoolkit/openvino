@@ -69,12 +69,19 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
         {256ul, ngraph::Shape{1, 1, 1, 1}, { 5.f }, { 6.f }, { 5.f }, { 6.f }},
         {{ngraph::element::f32}, { {12.f}, ngraph::element::f32, {}, false }, { {4.f}, ngraph::element::f32, {}, false }},
         "",
-                ""
+        ""
     },
     // with incorrect zero point on weights
     {
         {256ul, ngraph::Shape{1, 1, 1, 1}, { 0.f }, { 255.f }, { -12.7f }, { 12.8f }},
         {{ngraph::element::f32}, { {1000.f}, ngraph::element::f32, {}, false }, { {4.f}, ngraph::element::f32, {}, false }},
+        "",
+        ""
+    },
+    // issue #56886: with incorrect dequantization on weights
+    {
+        {256ul, ngraph::Shape{1, 1, 1, 1}, { 0.f }, { 255.f }, { 0.f }, { 25.5f }},
+        {{ngraph::element::f32}, {}, { {4.f, 2.f, 4.f, 2.f, 4.f, 2.f, 4.f, 2.f}, ngraph::element::f32, {8, 1, 1, 1}, false }},
         "",
         ""
     }

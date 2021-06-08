@@ -85,10 +85,13 @@ NGRAPH_OP(RNNSequence, op::v5)
 NGRAPH_OP(Round, op::v5)
 
 NGRAPH_OP(CTCGreedyDecoderSeqLen, op::v6)
+NGRAPH_OP(ExperimentalDetectronDetectionOutput, op::v6)
+NGRAPH_OP(ExperimentalDetectronPriorGridGenerator, op::v6)
 NGRAPH_OP(ExperimentalDetectronTopKROIs, op::v6)
 NGRAPH_OP(GatherElements, op::v6)
 NGRAPH_OP(MVN, ngraph::op::v6)
 
 NGRAPH_OP(DFT, op::v7)
+NGRAPH_OP(Einsum, op::v7)
 NGRAPH_OP(IDFT, op::v7)
 NGRAPH_OP(Roll, ngraph::op::v7)

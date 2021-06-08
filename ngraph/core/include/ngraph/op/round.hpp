@@ -47,6 +47,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
                 RoundMode get_mode() const { return m_mode; }
 

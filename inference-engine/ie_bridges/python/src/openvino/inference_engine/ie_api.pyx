@@ -751,6 +751,7 @@ cdef class InputInfoCPtr:
         cdef C.DataPtr c_data_ptr = deref(self._ptr).getInputData()
         data_ptr = DataPtr()
         data_ptr._ptr = c_data_ptr
+        data_ptr._ptr_plugin = self._ptr_plugin
         return data_ptr
 
     ## tensor_desc of this input
@@ -918,6 +919,7 @@ cdef class ExecutableNetwork:
         for in_ in c_inputs:
             input_info_ptr = InputInfoCPtr()
             input_info_ptr._ptr = in_.second
+            input_info_ptr._ptr_plugin = deref(self.impl).getPluginLink()
             inputs[in_.first.decode()] = input_info_ptr
         return inputs
 
@@ -937,6 +939,7 @@ cdef class ExecutableNetwork:
         for in_ in c_inputs:
             data_ptr = DataPtr()
             data_ptr._ptr = in_.second
+            data_ptr._ptr_plugin = deref(self.impl).getPluginLink()
             inputs[in_.first.decode()] = data_ptr
         return inputs
 
@@ -949,6 +952,7 @@ cdef class ExecutableNetwork:
         for in_ in c_outputs:
             data_ptr = CDataPtr()
             data_ptr._ptr = in_.second
+            data_ptr._ptr_plugin = deref(self.impl).getPluginLink()
             outputs[in_.first.decode()] = data_ptr
         return outputs
 
@@ -965,6 +969,7 @@ cdef class ExecutableNetwork:
     def get_exec_graph_info(self):
         ie_network = IENetwork()
         ie_network.impl = deref(self.impl).GetExecGraphInfo()
+        ie_network._ptr_plugin = deref(self.impl).getPluginLink()
         return ie_network
 
     ## Gets general runtime metric for an executable network. It can be network name, actual device ID on
@@ -1388,6 +1393,7 @@ cdef class IENetwork:
                 self.impl = C.IENetwork(model_, weights_)
             else:
                 self.impl = C.IENetwork()
+            free(bin_buffer)
         free(xml_buffer)
 
     ## Name of the loaded network

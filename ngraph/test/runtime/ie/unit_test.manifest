@@ -71,6 +71,7 @@ onnx_top_k_opset_11_const_k_smallest_negative_axis
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
+onnx_constant_sparse_tensor_boolean_3x4
 
 # Layer <name> input port 1 is not connected to any data
 onnx_model_conv_transpose_w_groups
@@ -122,6 +123,9 @@ onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
 onnx_dyn_shapes_slice_10_3d_input_12_axes
 onnx_top_k_opset_10
 onnx_model_scatterND_param_i64_indices
+IE_CPU.onnx_constant_sparse_tensor_int64_3x4
+IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
+
 
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
@@ -734,9 +738,6 @@ lrn_2d_across_outermost_axis
 dyn_group_convolution_backprop_filters
 
 # Layer <op_name> input port 1 is not connected to any data
-prelu
-prelu_shared_slope
-prelu_negative_slope
 convolution_simple_padding
 
 # Cannot cast ngraph node Stack to CNNLayer!
@@ -1217,6 +1218,8 @@ IE_CPU.dft3d_eval_bfloat16
 IE_CPU.dft1d_eval_float16
 IE_CPU.dft2d_eval_float16
 IE_CPU.dft3d_eval_float16
+IE_CPU.onnx_constant_sparse_tensor_float16_3x4
+
 
 # nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
 IE_CPU.idft1d_eval_bfloat16
@@ -1225,6 +1228,14 @@ IE_CPU.idft3d_eval_bfloat16
 IE_CPU.idft1d_eval_float16
 IE_CPU.idft2d_eval_float16
 IE_CPU.idft3d_eval_float16
+
+# The plugin does not support UNSPECIFIED
+IE_CPU.onnx_constant_sparse_tensor_uint32_3x4
+IE_CPU.onnx_constant_sparse_tensor_double_3x4
+
+# Sparse tensor with (u)i16 type tests
+IE_CPU.onnx_constant_sparse_tensor_int16_3x4
+IE_CPU.onnx_constant_sparse_tensor_uint16_3x4
 
 #-------------------------------------------------------------------------------
 #

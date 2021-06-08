@@ -41,6 +41,25 @@ TEST(type_prop, detectron_detection_output)
     EXPECT_EQ(detection->get_output_shape(0), (Shape{rois_num, 4}));
     EXPECT_EQ(detection->get_output_shape(1), (Shape{rois_num}));
     EXPECT_EQ(detection->get_output_shape(2), (Shape{rois_num}));
+
+
+    rois = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+    deltas = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+    scores = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+    im_info = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+
+    detection = std::make_shared<ExperimentalDetection>(rois, deltas, scores, im_info, attrs);
+
+    ASSERT_EQ(detection->get_output_element_type(0), element::f32);
+    ASSERT_EQ(detection->get_output_element_type(1), element::i32);
+    ASSERT_EQ(detection->get_output_element_type(2), element::f32);
+
+    EXPECT_EQ(detection->get_output_shape(0), (Shape{rois_num, 4}));
+    EXPECT_EQ(detection->get_output_shape(1), (Shape{rois_num}));
+    EXPECT_EQ(detection->get_output_shape(2), (Shape{rois_num}));
+
+
+
 }
 
 TEST(type_prop, detectron_detection_output_dynamic_input_shapes)

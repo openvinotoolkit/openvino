@@ -24,6 +24,7 @@ public:
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
     void initDescriptor(const InferenceEngine::LayerConfig& config) override;
     void createPrimitive() override;
+    void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
     void filterSupportedPrimitiveDescriptors() override;
     bool created() const override;

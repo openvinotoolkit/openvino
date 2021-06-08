@@ -11,6 +11,7 @@
 #include <ie_preprocess.hpp>
 #include <ie_compound_blob.h>
 #include <ie_algorithm.hpp>
+#include <ie_remote_context.hpp>
 #include <debug.h>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
@@ -21,9 +22,10 @@ namespace InferenceEngine {
 
 IInferRequestInternal::~IInferRequestInternal() {}
 
-IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs) {
+IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs) :
     // We should copy maps since they can be overriden in SetBlob with preprocess
-    copyInputOutputInfo(networkInputs, networkOutputs, _networkInputs, _networkOutputs);
+    _networkInputs{copyInfo(networkInputs)},
+    _networkOutputs{copyInfo(networkOutputs)} {
 }
 
 void IInferRequestInternal::Infer() {
@@ -145,7 +147,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& da
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        copyPreProcess(info, foundInput->getPreProcess());
+       foundInput->getPreProcess() = copyPreProcess(info);
     } else {
         IE_THROW() << "Pre-process can't be set to output blob";
     }
@@ -213,16 +215,18 @@ bool IInferRequestInternal::findInputAndOutputBlobByName(const std::string& name
                                         [&](const std::pair<std::string, DataPtr>& pair) {
                                             return pair.first == name;
                                         });
-    if (foundOutputPair == std::end(_networkOutputs) && (foundInputPair == std::end(_networkInputs))) {
-        IE_THROW(NotFound) << "Failed to find input or output with name: \'" << name << "\'";
-    }
+    bool retVal;
+
     if (foundInputPair != std::end(_networkInputs)) {
         foundInput = foundInputPair->second;
-        return true;
-    } else {
+        retVal = true;
+    } else if (foundOutputPair != std::end(_networkOutputs)) {
         foundOutput = foundOutputPair->second;
-        return false;
+        retVal = false;
+    } else {
+        IE_THROW(NotFound) << "Failed to find input or output with name: \'" << name << "\'";
     }
+    return retVal;
 }
 
 void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& name, bool isInput, const SizeVector& refDims) const {

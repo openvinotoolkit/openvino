@@ -47,8 +47,6 @@ public:
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
 
-    ~HeteroExecutableNetwork() override = default;
-
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
 

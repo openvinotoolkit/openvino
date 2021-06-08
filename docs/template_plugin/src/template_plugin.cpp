@@ -7,7 +7,6 @@
 #include <ie_plugin_config.hpp>
 #include <ie_algorithm.hpp>
 
-#include <hetero/hetero_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 
 #include <ngraph/op/util/op_types.hpp>
@@ -84,7 +83,7 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
 // ! [plugin:transform_network]
 
 // ! [plugin:load_exe_network_impl]
-InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network, const ConfigMap& config) {
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network, const ConfigMap& config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::LoadExeNetworkImpl");
 
     InferenceEngine::InputsDataMap networkInputs = network.getInputsInfo();
@@ -97,7 +96,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
 // ! [plugin:load_exe_network_impl]
 
 // ! [plugin:import_network_impl]
-InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::ImportNetworkImpl(std::istream& modelStream, const std::map<std::string, std::string>& config) {
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetworkImpl(std::istream& modelStream, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetworkImpl");
 
     auto fullConfig = Configuration {config, _cfg};
@@ -188,7 +187,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 // ! [plugin:query_network]
 
 // ! [plugin:add_extension]
-void Plugin::AddExtension(InferenceEngine::IExtensionPtr /*extension*/) {
+void Plugin::AddExtension(const InferenceEngine::IExtensionPtr& /*extension*/) {
     // TODO: add extensions if plugin supports extensions
     IE_THROW(NotImplemented);
 }
