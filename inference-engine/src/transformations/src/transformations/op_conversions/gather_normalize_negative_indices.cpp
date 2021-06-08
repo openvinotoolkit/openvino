@@ -57,7 +57,7 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
         auto input_type = indices_constant->get_element_type();
         auto shape_of = std::make_shared<ngraph::opset7::ShapeOf>(data, input_type);
         auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
-            ngraph::opset7::Constant::create(input_type, Shape{1}, {axis_value}), ngraph::opset7::Constant::create(input_type, Shape{1}, {0}));
+            ngraph::opset7::Constant::create(input_type, Shape{}, {axis_value}), ngraph::opset7::Constant::create(input_type, Shape{}, {0}));
 
         auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices_constant);
         auto gather_new = gather_node->copy_with_new_inputs({data, add, axis_constant});
