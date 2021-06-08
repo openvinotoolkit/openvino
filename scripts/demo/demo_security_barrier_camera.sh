@@ -3,6 +3,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+printf "\e[0;33mWARNING: If you get an error when running the demo in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
+
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
 . "$ROOT_DIR/utils.sh"
@@ -11,6 +13,7 @@ usage() {
     echo "Security barrier camera demo that showcases three models coming with the product"
     echo "-d name     specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified"
     echo "-help            print help message"
+    echo "-sample-options   specify command line arguments for the sample"
     exit 1
 }
 
@@ -59,14 +62,6 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 if [[ $DISTRO == "centos" ]]; then
-    sudo -E yum install -y centos-release-scl epel-release
-    sudo -E yum install -y gcc gcc-c++ make glibc-static glibc-devel libstdc++-static libstdc++-devel libstdc++ libgcc \
-                           glibc-static.i686 glibc-devel.i686 libstdc++-static.i686 libstdc++.i686 libgcc.i686 cmake
-
-    sudo -E rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-1.el7.nux.noarch.rpm || true
-    sudo -E yum install -y epel-release
-    sudo -E yum install -y cmake ffmpeg gstreamer1 gstreamer1-plugins-base libusbx-devel
-
     # check installed Python version
     if command -v python3.5 >/dev/null 2>&1; then
         python_binary=python3.5
@@ -76,24 +71,9 @@ if [[ $DISTRO == "centos" ]]; then
         python_binary=python3.6
         pip_binary=pip3.6
     fi
-    if [ -z "$python_binary" ]; then
-        sudo -E yum install -y rh-python36 || true
-        . scl_source enable rh-python36
-        python_binary=python3.6
-        pip_binary=pip3.6
-    fi
 elif [[ $DISTRO == "ubuntu" ]]; then
-    sudo -E apt update
-    print_and_run sudo -E apt -y install build-essential python3-pip virtualenv cmake libcairo2-dev libpango1.0-dev libglib2.0-dev libgtk2.0-dev libswscale-dev libavcodec-dev libavformat-dev libgstreamer1.0-0 gstreamer1.0-plugins-base
     python_binary=python3
     pip_binary=pip3
-
-    system_ver=`cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2`
-    if [ "$system_ver" = "16.04" ]; then
-        sudo -E apt-get install -y libpng12-dev
-    else
-        sudo -E apt-get install -y libpng-dev
-    fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     # check installed Python version
     if command -v python3.7 >/dev/null 2>&1; then
@@ -116,11 +96,7 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-if [[ $DISTRO == "macos" ]]; then
-    "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
-else
-    sudo -E "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
-fi
+"$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 
 if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
     setupvars_path="$ROOT_DIR/../../bin/setupvars.sh"
