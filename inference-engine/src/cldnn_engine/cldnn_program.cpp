@@ -92,7 +92,7 @@ bool Program::CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops,
     return true;
 }
 
-Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config)
+Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config, bool createTopologyOnly)
     : m_config(config)
     , m_engine(engine)
     , m_curBatch(-1)
@@ -127,11 +127,11 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
             blobMemCache.clear();
 
             ChangeInputBatch(1U << static_cast<unsigned>(b));
-            m_programs.insert(m_programs.begin(), BuildProgram(ops, networkInputs, networkOutputs));
+            m_programs.insert(m_programs.begin(), BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly));
             m_engine->release_pending_memory(0);
         }
     } else {
-        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs));
+        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly));
         m_engine->release_pending_memory(0);
     }
 }
@@ -173,9 +173,10 @@ void Program::CleanupBuild() {
     m_networkOutputs.clear();
 }
 
-std::shared_ptr<cldnn::program> Program::BuildProgram(std::vector<std::shared_ptr<ngraph::Node>> ops,
+std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
                                                       InferenceEngine::InputsDataMap networkInputs,
-                                                      InferenceEngine::OutputsDataMap networkOutputs) {
+                                                      InferenceEngine::OutputsDataMap networkOutputs,
+                                                      bool createTopologyOnly) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::BuildProgram");
     cldnn::build_options options;
     if (!m_config.graph_dumps_dir.empty()) {
@@ -185,10 +186,12 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(std::vector<std::shared_pt
     options.set_option(cldnn::build_option::tuning_config(m_config.tuningConfig));
 
     PrepareBuild(networkInputs, networkOutputs);
-    for (auto op : ops) {
+    for (const auto& op : ops) {
         CreateSingleLayerPrimitive(*m_topology, op);
     }
-    {
+    if (createTopologyOnly) {
+        return {};
+    } else {
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::CreateProgram");
         auto program = std::make_shared<cldnn::program>(*m_engine, *m_topology, options);
         CleanupBuild();

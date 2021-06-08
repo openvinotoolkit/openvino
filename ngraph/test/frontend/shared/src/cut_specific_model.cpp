@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <regex>
-#include <algorithm>
 #include "../include/cut_specific_model.hpp"
 #include "../include/utils.hpp"
 #include "ngraph/opsets/opset7.hpp"
@@ -14,8 +12,7 @@ using namespace ngraph::frontend;
 static std::string joinStrings(const std::vector<std::string>& strings)
 {
     std::ostringstream res;
-    std::copy(strings.begin(), strings.end(),
-              std::ostream_iterator<std::string>(res, "_"));
+    std::copy(strings.begin(), strings.end(), std::ostream_iterator<std::string>(res, "_"));
     return res.str();
 }
 
@@ -86,7 +83,7 @@ TEST_P(FrontEndCutModelTest, testOverrideInputs)
         std::vector<std::string> names;
         ASSERT_NO_THROW(names = newInput->get_names());
         bool found = false;
-        for (const auto& name: m_param.m_newInputs)
+        for (const auto& name : m_param.m_newInputs)
         {
             if (std::find(names.begin(), names.begin(), name) != names.end())
             {
@@ -111,7 +108,7 @@ TEST_P(FrontEndCutModelTest, testOverrideOutputs)
         std::vector<std::string> names;
         ASSERT_NO_THROW(names = newOutput->get_names());
         bool found = false;
-        for (const auto& name: m_param.m_newOutputs)
+        for (const auto& name : m_param.m_newOutputs)
         {
             if (std::find(names.begin(), names.begin(), name) != names.end())
             {
@@ -150,11 +147,13 @@ TEST_P(FrontEndCutModelTest, testOldOutputs)
     // Ensure that it contains expected old outputs
     for (const auto& name : m_param.m_oldOutputs)
     {
-        EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node)
-                                 {
-                                     return node->get_friendly_name().find(name) != std::string::npos;
-                                 }) != ops.end()) << "Name not found:" << name;
+        EXPECT_TRUE(std::find_if(ops.begin(),
+                                 ops.end(),
+                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                     return node->get_friendly_name().find(name) !=
+                                            std::string::npos;
+                                 }) != ops.end())
+            << "Name not found:" << name;
     }
 }
 
@@ -172,21 +171,25 @@ TEST_P(FrontEndCutModelTest, testNewInputs_func)
     // Ensure that it doesn't contain old inputs
     for (const auto& name : m_param.m_oldInputs)
     {
-        EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node)
-                                 {
-                                     return node->get_friendly_name().find(name) != std::string::npos;
-                                 }) == ops.end()) << "Name shall not exist:" << name;
+        EXPECT_TRUE(std::find_if(ops.begin(),
+                                 ops.end(),
+                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                     return node->get_friendly_name().find(name) !=
+                                            std::string::npos;
+                                 }) == ops.end())
+            << "Name shall not exist:" << name;
     }
 
     // Ensure that it contains expected new inputs
     for (const auto& name : m_param.m_newInputs)
     {
-        EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node)
-                                 {
-                                     return node->get_friendly_name().find(name) != std::string::npos;
-                                 }) != ops.end()) << "Name not found:" << name;
+        EXPECT_TRUE(std::find_if(ops.begin(),
+                                 ops.end(),
+                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                     return node->get_friendly_name().find(name) !=
+                                            std::string::npos;
+                                 }) != ops.end())
+            << "Name not found:" << name;
     }
 }
 
@@ -204,21 +207,25 @@ TEST_P(FrontEndCutModelTest, testNewOutputs_func)
     // Ensure that it doesn't contain old outputs
     for (const auto& name : m_param.m_oldOutputs)
     {
-        EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node)
-                                 {
-                                     return node->get_friendly_name().find(name) != std::string::npos;
-                                 }) == ops.end()) << "Name shall not exist:" << name;
+        EXPECT_TRUE(std::find_if(ops.begin(),
+                                 ops.end(),
+                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                     return node->get_friendly_name().find(name) !=
+                                            std::string::npos;
+                                 }) == ops.end())
+            << "Name shall not exist:" << name;
     }
 
     // Ensure that it contains expected new outputs
     for (const auto& name : m_param.m_newOutputs)
     {
-        EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node)
-                                 {
-                                     return node->get_friendly_name().find(name) != std::string::npos;
-                                 }) != ops.end()) << "Name not found:" << name;
+        EXPECT_TRUE(std::find_if(ops.begin(),
+                                 ops.end(),
+                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                     return node->get_friendly_name().find(name) !=
+                                            std::string::npos;
+                                 }) != ops.end())
+            << "Name not found:" << name;
     }
 }
 
@@ -237,21 +244,25 @@ TEST_P(FrontEndCutModelTest, testExtractSubgraph)
     // Ensure that it doesn't contain expected old outputs
     for (const auto& name : m_param.m_oldOutputs)
     {
-        EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node)
-                                 {
-                                     return node->get_friendly_name().find(name) != std::string::npos;
-                                 }) == ops.end()) << "Name shall not exist:" << name;
+        EXPECT_TRUE(std::find_if(ops.begin(),
+                                 ops.end(),
+                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                     return node->get_friendly_name().find(name) !=
+                                            std::string::npos;
+                                 }) == ops.end())
+            << "Name shall not exist:" << name;
     }
 
     // Ensure that it contains expected new outputs
     for (const auto& name : m_param.m_newOutputs)
     {
-        EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node)
-                                 {
-                                     return node->get_friendly_name().find(name) != std::string::npos;
-                                 }) != ops.end()) << "Name not found:" << name;
+        EXPECT_TRUE(std::find_if(ops.begin(),
+                                 ops.end(),
+                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                     return node->get_friendly_name().find(name) !=
+                                            std::string::npos;
+                                 }) != ops.end())
+            << "Name not found:" << name;
     }
 }
 
@@ -267,13 +278,14 @@ TEST_P(FrontEndCutModelTest, testSetTensorValue)
     auto ops = function->get_ordered_ops();
 
     auto const_name = m_param.m_tensorValueName;
-    auto const_node_it = std::find_if(ops.begin(), ops.end(),
-                                      [&](const std::shared_ptr<ngraph::Node>& node)
-                                      {
-                                          return node->get_friendly_name().find(const_name) != std::string::npos;
-                                      });
+    auto const_node_it =
+        std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
+            return node->get_friendly_name().find(const_name) != std::string::npos;
+        });
     ASSERT_TRUE(const_node_it != ops.end()) << "Name shall exist:" << const_name;
     auto data = std::dynamic_pointer_cast<opset7::Constant>(*const_node_it)->get_vector<float>();
-    EXPECT_EQ(data.size(), m_param.m_tensorValue.size()) << "Data size must be equal to expected size";
-    EXPECT_TRUE(std::equal(data.begin(), data.end(), m_param.m_tensorValue.begin())) << "Data must be equal";
+    EXPECT_EQ(data.size(), m_param.m_tensorValue.size())
+        << "Data size must be equal to expected size";
+    EXPECT_TRUE(std::equal(data.begin(), data.end(), m_param.m_tensorValue.begin()))
+        << "Data must be equal";
 }

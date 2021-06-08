@@ -6,15 +6,23 @@
 
 To download the pre-trained model, refer to the [NeMo Speech Models Catalog](https://ngc.nvidia.com/catalog/models/nvidia:nemospeechmodels).
 Here are the instructions on how to obtain QuartzNet in ONNX* format.
+
+1. Install the NeMo toolkit using the [instructions](https://github.com/NVIDIA/NeMo/tree/main#installation).
+
+2. Run the following code:
+
 ```python
 import nemo
 import nemo.collections.asr as nemo_asr
 
-quartznet = nemo_asr.models.ASRConvCTCModel.from_pretrained(model_info='QuartzNet15x5-En')
+quartznet = nemo_asr.models.EncDecCTCModel.from_pretrained(model_name="QuartzNet15x5Base-En")
 # Export QuartzNet model to ONNX* format
+quartznet.decoder.export('decoder_qn.onnx')
+quartznet.encoder.export('encoder_qn.onnx')
 quartznet.export('qn.onnx')
 ```
-This code produces 3 ONNX* model files: `encoder_qt.onnx`, `decoder_qt.onnx`, `qn.onnx`.
+
+This code produces 3 ONNX* model files: `encoder_qn.onnx`, `decoder_qn.onnx`, `qn.onnx`.
 They are `decoder`, `encoder` and a combined `decoder(encoder(x))` models, respectively.
 
 ## Convert ONNX* QuartzNet model to IR

@@ -9,7 +9,6 @@
 #pragma once
 
 #include "ie_transformations.hpp"
-#include "ie_plugin_config.hpp"
 #include "ie_compound_blob.h"
 #include "ie_core.hpp"
 

@@ -500,6 +500,7 @@ Standard ONNX\* operators:
 | Sigmoid | No |
 | Sign | No |
 | Sin | No |
+| Size | No |
 | Slice | No |
 | Softmax | No |
 | Softplus | No |

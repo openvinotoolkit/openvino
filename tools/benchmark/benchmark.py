@@ -93,7 +93,7 @@ class Benchmark:
             infer_request.infer()
         else:
             infer_request.async_infer()
-            status = exe_network.wait()
+            status = infer_request.wait()
             if status != StatusCode.OK:
                 raise Exception(f"Wait for all requests is failed with status code {status}!")
         return infer_request.latency

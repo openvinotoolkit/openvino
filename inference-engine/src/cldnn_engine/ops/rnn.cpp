@@ -165,7 +165,7 @@ void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell
     cldnn::primitive_id outputCellID = layerName + ".1";
     p.AddPrimitive(cldnn::crop(outputCellCropID, lstm_elt_id, hiddenSz, cellCropSz));
     p.AddInnerPrimitiveToProfiler(outputCellCropID, op->get_friendly_name(), op);
-    p.AddPrimitive(cldnn::reshape(outputCellID, outputHiddenCropID, outSz));
+    p.AddPrimitive(cldnn::reshape(outputCellID, outputCellCropID, outSz));
     p.AddInnerPrimitiveToProfiler(outputCellID, op->get_friendly_name(), op);
 
     // output primitive IDs

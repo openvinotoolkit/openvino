@@ -604,9 +604,13 @@ private:
 
 bool MKLDNNMVNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto& inDataShapeSize = op->input_value(0).get_shape().size();
-        if (inDataShapeSize < 1 || inDataShapeSize > 5) {
-            errorMessage = "First input accepts ranks from 1 to 5. Actual: " + std::to_string(inDataShapeSize);
+        if (op->get_output_partial_shape(0).rank().is_dynamic()) {
+            errorMessage = "Unsupported dynamic input rank.";
+            return false;
+        }
+        const auto& inDataRank = op->get_output_partial_shape(0).rank().get_length();
+        if (inDataRank < 1 || inDataRank > 5) {
+            errorMessage = "First input accepts ranks from 1 to 5. Actual: " + std::to_string(inDataRank);
             return false;
         }
 
@@ -632,21 +636,20 @@ bool MKLDNNMVNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
             // 4D: axes: [1,2,3], [2,3]
             // 5D: axes: [1,2,3,4], [2,3,4]
             auto axesVal = axesOp->cast_vector<int>();
-            auto& mvnShape = mvnOp->get_output_shape(0);
             for (int& axe : axesVal)
-                axe = axe < 0 ? axe + mvnShape.size() : axe;
+                axe = axe < 0 ? axe + inDataRank : axe;
             std::sort(axesVal.begin(), axesVal.end());
-            if (mvnShape.size() == 1) {
+            if (inDataRank == 1) {
                 if (axesVal.size() != 1 || axesVal[0] != 0) {
                     errorMessage = "Unsupported axes.";
                     return false;
                 }
             } else {
-                if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2)) {
+                if (inDataRank > 5 || (inDataRank != axesVal.size() + 1 && inDataRank != axesVal.size() + 2)) {
                     errorMessage = "Unsupported axes.";
                     return false;
                 }
-                int value = mvnShape.size() - 1;
+                int value = inDataRank - 1;
                 for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
                     if (axesVal[i] != value) {
                         errorMessage = "Unsupported axes.";
@@ -703,12 +706,6 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     setPostOps(attr, true);
 
     Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
-    if (getParentEdgeAt(0)->getDims().ndims() < 3 || getParentEdgeAt(0)->getDims().ndims() > 5
-            || acrossChannels_ || !normalizeVariance_) {
-        if (!isFloatCompatible(inputPrecision)) {
-            inputPrecision = Precision::FP32;
-        }
-    }
     Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!mayiuse(avx512_core)) {
         if (outputPrecision == Precision::BF16)
@@ -1407,6 +1404,16 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
 
 bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41)) {
+        return false;
+    }
+    // limit post ops to unary when shape transformed on channel
+    // 1D only fused with unary
+    int inputRank = getParentEdgeAt(0)->getDims().ndims();
+    bool unaryEltwise = one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
+                                            EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
+                                            EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
+    if ((inputRank == 1 && !unaryEltwise) ||
+        (inputRank == 2 && !unaryEltwise && acrossChannels_)) {
         return false;
     }
 

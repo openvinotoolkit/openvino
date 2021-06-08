@@ -120,3 +120,9 @@ bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVec
     NGRAPH_OP_SCOPE(v0_Tile_evaluate);
     return evaluate_tile(outputs, inputs);
 }
+
+bool op::v0::Tile::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Tile_has_evaluate);
+    return true;
+}

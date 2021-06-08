@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <regex>
-#include <algorithm>
 #include "../include/partial_shape.hpp"
 #include "../include/utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-std::string FrontEndPartialShapeTest::getTestCaseName(const testing::TestParamInfo<PartialShapeParam>& obj)
+std::string
+    FrontEndPartialShapeTest::getTestCaseName(const testing::TestParamInfo<PartialShapeParam>& obj)
 {
     BaseFEParam base;
     PartShape part;
@@ -49,7 +48,8 @@ void FrontEndPartialShapeTest::doLoadFromFile()
 
 ///////////////////////////////////////////////////////////////////
 
-TEST_P(FrontEndPartialShapeTest, testCheckOldPartialShape) {
+TEST_P(FrontEndPartialShapeTest, testCheckOldPartialShape)
+{
     ASSERT_NO_THROW(doLoadFromFile());
 
     std::shared_ptr<ngraph::Function> function;
@@ -70,7 +70,8 @@ TEST_P(FrontEndPartialShapeTest, testSetNewPartialShape)
     Place::Ptr place;
     ASSERT_NO_THROW(place = m_inputModel->get_place_by_tensor_name(m_partShape.m_tensorName));
     ASSERT_NE(place, nullptr);
-    ASSERT_NO_THROW(m_inputModel->set_partial_shape(place, PartialShape{m_partShape.m_newPartialShape}));
+    ASSERT_NO_THROW(
+        m_inputModel->set_partial_shape(place, PartialShape{m_partShape.m_newPartialShape}));
 
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));

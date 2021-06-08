@@ -79,6 +79,7 @@ void register_implementations_gpu() {
     REGISTER_GPU(cum_sum);
     REGISTER_GPU(embedding_bag);
     REGISTER_GPU(extract_image_patches);
+    REGISTER_GPU(loop);
 }
 
 }  // namespace gpu
