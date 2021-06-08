@@ -8,7 +8,7 @@ set -e
 #===================================================================================================
 # Option parsing
 
-all_comp=(opencv_req opencv_opt python dev myriad dlstreamer installer pot cl_compiler)
+all_comp=(opencv_req opencv_opt python dev myriad dlstreamer installer cl_compiler)
 os=${os:-auto}
 
 # public options
@@ -103,7 +103,6 @@ if [ "$os" == "ubuntu18.04" ] ; then
     pkgs_dev=(cmake g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
-    pkgs_pot=()
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
         gstreamer1.0-plugins-bad
@@ -146,7 +145,6 @@ elif [ "$os" == "ubuntu20.04" ] ; then
     pkgs_dev=(cmake g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
-    pkgs_pot=(libblas-dev liblapack-dev gfortran)
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
         gstreamer1.0-plugins-bad
@@ -196,7 +194,6 @@ elif [ "$os" == "rhel8" ] ; then
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl sudo)
     pkgs_myriad=()
     pkgs_installer=()
-    pkgs_pot=()
     pkgs_opencv_opt=(
         gstreamer1
         gstreamer1-plugins-bad-free
@@ -215,7 +212,6 @@ elif [ "$os" == "centos7" ] ; then
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl sudo)
     pkgs_myriad=(libusbx)
     pkgs_installer=()
-    pkgs_pot=()
     pkgs_cl_compiler=()
     pkgs_opencv_opt=(
         gstreamer1

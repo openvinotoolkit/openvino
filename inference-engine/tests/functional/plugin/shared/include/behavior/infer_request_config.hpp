@@ -15,7 +15,6 @@
 #include "ngraph_functions/builders.hpp"
 #include <vpu/vpu_plugin_config.hpp>
 #include <gna/gna_config.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <ie_core.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <base/behavior_test_utils.hpp>
@@ -43,8 +42,10 @@ TEST_P(InferConfigTests, canSetExclusiveAsyncRequests) {
         ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
     }
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-    execNet.CreateInferRequest();
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+        execNet.CreateInferRequest();
+    }
 
     if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
@@ -72,8 +73,10 @@ TEST_P(InferConfigTests, withoutExclusiveAsyncRequests) {
         ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
     }
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-    execNet.CreateInferRequest();
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+        execNet.CreateInferRequest();
+    }
 
     if ((targetDevice == CommonTestUtils::DEVICE_GNA) || (targetDevice == CommonTestUtils::DEVICE_HDDL)) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());

@@ -17,8 +17,11 @@ MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
     _target = target;
 }
 
-void MockPlugin::SetConfig(const std::map<std::string, std::string>& config) {
-    this->config = config;
+void MockPlugin::SetConfig(const std::map<std::string, std::string>& _config) {
+    this->config = _config;
+    if (_target) {
+        _target->SetConfig(config);
+    }
 }
 
 Parameter MockPlugin::GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const {

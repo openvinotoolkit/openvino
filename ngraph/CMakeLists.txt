@@ -26,6 +26,15 @@ set(NGRAPH_INCLUDE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/core/include
 )
 
+set(FRONTEND_INCLUDE_PATH
+    ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager/include
+)
+
+# Will be used by frontends to construct frontend-specific source location paths
+set(FRONTEND_BASE_PATH
+    ${CMAKE_CURRENT_SOURCE_DIR}/frontend
+)
+
 if (APPLE)
     # Enable MACOS_RPATH by default.
     cmake_policy(SET CMP0042 NEW)
@@ -92,7 +101,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" OFF)
 endif()
 if(NGRAPH_ONNX_EDITOR_ENABLE AND NOT NGRAPH_ONNX_IMPORT_ENABLE)
-    message(FATAL_ERROR "ONNX Editor compotent requires ONNX Importer. Set NGRAPH_ONNX_IMPORT_ENABLE=ON.")
+    message(FATAL_ERROR "ONNX Editor component requires ONNX Importer. Set NGRAPH_ONNX_IMPORT_ENABLE=ON.")
 endif()
 
 message(STATUS "NGRAPH_ADDRESS_SANITIZER_ENABLE:      ${NGRAPH_ADDRESS_SANITIZER_ENABLE}")
@@ -256,7 +265,6 @@ endif()
 add_subdirectory(core)
 
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
-    include(CMakePackageConfigHelpers)
     set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
     export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
 

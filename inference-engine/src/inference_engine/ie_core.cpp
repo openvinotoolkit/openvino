@@ -9,10 +9,8 @@
 #include <mutex>
 #include <sys/stat.h>
 
-#include <auto_plugin/auto_config.hpp>
 #include <ie_core.hpp>
 #include <ie_icore.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/graph_util.hpp>
@@ -60,7 +58,7 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
             if (deviceList.find("AUTO") != std::string::npos) {
                 IE_THROW() << "Device list for AUTO should not be AUTO";
             }
-            config_[InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST] = deviceName.substr(std::string("AUTO:").size());
+            config_[InferenceEngine::KEY_AUTO_DEVICE_LIST] = deviceName.substr(std::string("AUTO:").size());
         }
     } else {
         if (deviceName_.empty()) {
@@ -180,6 +178,7 @@ class Core::Impl : public ICore {
     class CoreConfig final {
     public:
         struct CacheConfig {
+            std::string                    _cacheDir;
             std::shared_ptr<ICacheManager> _cacheManager;
         };
 
@@ -187,6 +186,7 @@ class Core::Impl : public ICore {
             auto it = config.find(CONFIG_KEY(CACHE_DIR));
             if (it != config.end()) {
                 std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+                _cacheConfig._cacheDir = it->second;
                 if (!it->second.empty()) {
                     FileUtils::createDirectoryRecursive(it->second);
                     _cacheConfig._cacheManager = std::make_shared<FileStorageCacheManager>(std::move(it->second));
@@ -238,6 +238,27 @@ class Core::Impl : public ICore {
                             METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         bool supported = (it != supportedMetricKeys.end()) &&
                     plugin.GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {});
+        return supported;
+    }
+
+    bool DeviceSupportsCacheDir(const InferencePlugin& plugin) const {
+        return DeviceSupportsConfigKey(plugin, CONFIG_KEY(CACHE_DIR));
+    }
+
+    bool DeviceSupportsConfigKey(const InferencePlugin& plugin, const std::string& key) const {
+        bool supported = false;
+        std::vector<std::string> supportedMetricKeys;
+        try {
+            // If plugin doesn't support 'SUPPORTED_METRICS' - treat it as config is not supported as well
+            supportedMetricKeys =
+                    plugin.GetMetric(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
+        } catch(...) {}
+        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
+                            METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        if (it != supportedMetricKeys.end()) {
+            std::vector<std::string> configKeys = plugin.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
+            supported = std::find(configKeys.begin(), configKeys.end(), key) != configKeys.end();
+        }
         return supported;
     }
 
@@ -606,15 +627,6 @@ public:
             }
         }
 
-        // AUTO case
-        {
-            if (deviceName.find("AUTO:") == 0) {
-                IE_THROW()
-                    << "You can get specific metrics with the GetMetric only for the AUTO itself (without devices). "
-                       "To get individual devices's metrics call GetMetric for each device separately";
-            }
-        }
-
         auto parsed = parseDeviceNameIntoConfig(deviceName);
 
         // we need to return a copy of Parameter object which is created on Core side,
@@ -700,6 +712,12 @@ public:
 
                 // configuring
                 {
+                    if (DeviceSupportsCacheDir(plugin)) {
+                        auto cacheConfig = coreConfig.getCacheConfig();
+                        if (cacheConfig._cacheManager) {
+                            desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
+                        }
+                    }
                     allowNotImplemented([&]() {
                         plugin.SetConfig(desc.defaultConfig);
                     });
@@ -816,7 +834,14 @@ public:
         for (auto& plugin : plugins) {
             if (deviceName.empty() || deviceName == plugin.first) {
                 allowNotImplemented([&]() {
-                    plugin.second.SetConfig(config);
+                    auto configCopy = config;
+                    if (DeviceSupportsCacheDir(plugin.second)) {
+                        auto cacheConfig = coreConfig.getCacheConfig();
+                        if (cacheConfig._cacheManager) {
+                            configCopy[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
+                        }
+                    }
+                    plugin.second.SetConfig(configCopy);
                 });
             }
         }

@@ -12,7 +12,6 @@
 #include <fstream>
 #include <unordered_set>
 #include "ie_plugin_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
 #include "hetero_executable_network.hpp"
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
