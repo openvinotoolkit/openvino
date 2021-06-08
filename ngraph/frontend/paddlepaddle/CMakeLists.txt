@@ -44,7 +44,10 @@ endforeach()
 
 add_custom_target(paddlepaddle_ngraph_frontend_proto DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
 
-set_source_files_properties(${PROTO_HDRS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
+set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
+
+# Disable all warnings for generated code
+set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_FLAGS -w)
 
 include_directories(${Protobuf_INCLUDE_DIRS} ${paddlepaddle_ngraph_frontend_INCLUDE_DIR})
 
