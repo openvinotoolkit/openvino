@@ -119,6 +119,29 @@ TEST(TransformationTests, ConvertPrecision_ShapeOf) {
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
 }
 
+TEST(TransformationTests, ConvertPrecision_ConstantRelu) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input = opset4::Constant::create(element::f16, Shape{1, 1000, 4}, {0});
+        auto relu1 = std::make_shared<opset4::Relu>(input);
+        auto relu2 = std::make_shared<opset4::Relu>(relu1);
+
+        f = std::make_shared<Function>(NodeVector{relu2}, ParameterVector{});
+
+        pass::Manager manager;
+
+        static const precisions_array precisions = {
+                { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+}
+
 TEST(TransformationTests, ConvertPrecision_Convert) {
     std::shared_ptr<Function> f(nullptr);
     {

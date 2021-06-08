@@ -61,6 +61,7 @@ set(SRC
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
+    op_eval/einsum.cpp
     op_eval/floor_mod.cpp
     op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
@@ -221,6 +222,7 @@ set(SRC
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/detection_output.cpp
+    visitors/op/einsum.cpp
     visitors/op/elu.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
@@ -466,36 +468,14 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
         onnx/onnx_import_with_editor.in.cpp)
 endif()
 
-foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
-    string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
-    string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
-    set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
-
-    foreach(TEST_SRC ${MULTI_TEST_SRC})
-        string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
-        string(REPLACE ".in." "_${BACKEND_NAME}." TARGET_NAME ${TEST_SRC})
-        configure_file(${TEST_SRC} ${TARGET_NAME})
-        set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME} ${SRC})
-    endforeach()
-
-    message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
-endforeach()
-
-# SOURCE FOR FRONTEND TESTING
-
-# ---TODO FIXME --DO_NOT_RELEASE-- (mnosov)
-set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
-# --- END OF --DO_NOT_RELEASE--
-
+# SOURCE AND HEADERS FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
 file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
 file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
 set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
-set(HDR ${FRONTEND_SHARED_TESTS_HDR})
 
-# TODO: try to find a way to move it out of common CMakeLists
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
 
     find_package(Python3 COMPONENTS Interpreter)
@@ -525,9 +505,32 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
         add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
     endif()
 endif()
-#-----
 
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${HDR})
+add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
+
+foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
+    string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
+    string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
+    set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
+
+    foreach(TEST_SRC ${MULTI_TEST_SRC})
+        string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
+        string(REPLACE ".in." "_${BACKEND_NAME}." TARGET_NAME ${TEST_SRC})
+        configure_file(${TEST_SRC} ${TARGET_NAME})
+        set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME} ${SRC})
+    endforeach()
+
+    message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
+endforeach()
+
+# ---TODO FIXME --DO_NOT_RELEASE-- (mnosov)
+set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
+set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+if (PDPD_PYTHON_OK)
+    set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+endif()
+# --- END OF --DO_NOT_RELEASE--
 
 add_executable(unit-test ${SRC})
 

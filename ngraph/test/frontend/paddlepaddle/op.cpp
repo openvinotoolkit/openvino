@@ -18,8 +18,8 @@
 using namespace ngraph;
 using namespace InferenceEngine;
 
-#include "../shared/include/basic_api.hpp"
 #include <cnpy.h>
+#include "../shared/include/basic_api.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -102,12 +102,14 @@ namespace fuzzyOp
     using PDPDFuzzyOpTestParam = std::tuple<std::string,  // FrontEnd name
                                             std::string,  // Base path to models
                                             std::string>; // modelname
-    template<typename T>
-    inline void add_input_output(cnpy::NpyArray& npy_array, test::TestCase<TestEngine>& test_case, bool is_input=true)
+    template <typename T>
+    inline void add_input_output(cnpy::NpyArray& npy_array,
+                                 test::TestCase<TestEngine>& test_case,
+                                 bool is_input = true)
     {
         T* npy_begin = npy_array.data<T>();
         std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
-        if(is_input)
+        if (is_input)
             test_case.add_input(data);
         else
             test_case.add_expected_output(data);
@@ -192,9 +194,6 @@ namespace fuzzyOp
         std::shared_ptr<ngraph::Function> function;
         function = m_frontEnd->convert(m_inputModel);
         ASSERT_NE(function, nullptr);
-
-        // debug
-        // visualizer(function, get_modelfolder(m_modelFile)+"/fuzzy");
 
         // run
         run_fuzzy(function, m_modelFile);
