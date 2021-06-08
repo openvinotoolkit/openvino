@@ -6,8 +6,8 @@
 #include <frontend_manager/frontend_exceptions.hpp>
 #include <frontend_manager/frontend_manager.hpp>
 
-#include "gtest/gtest.h"
 #include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include "backend.hpp"
 #include "ngraph/file_util.hpp"
@@ -34,10 +34,8 @@ static int set_test_env(const char* name, const char* value)
 TEST(FrontEndManagerTest, testAvailableFrontEnds)
 {
     FrontEndManager fem;
-    ASSERT_NO_THROW(fem.register_front_end("mock", [](FrontEndCapFlags fec)
-    {
-        return std::make_shared<FrontEnd>();
-    }));
+    ASSERT_NO_THROW(fem.register_front_end(
+        "mock", [](FrontEndCapFlags fec) { return std::make_shared<FrontEnd>(); }));
     auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
     FrontEnd::Ptr fe;
@@ -54,13 +52,11 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds)
 
 TEST(FrontEndManagerTest, testLoadWithFlags)
 {
-    int expFlags = FrontEndCapabilities::FEC_CUT |
-            FrontEndCapabilities::FEC_WILDCARDS |
-            FrontEndCapabilities::FEC_NAMES;
+    int expFlags = FrontEndCapabilities::FEC_CUT | FrontEndCapabilities::FEC_WILDCARDS |
+                   FrontEndCapabilities::FEC_NAMES;
     int actualFlags = FrontEndCapabilities::FEC_DEFAULT;
     FrontEndManager fem;
-    ASSERT_NO_THROW(fem.register_front_end("mock", [&actualFlags](int fec)
-    {
+    ASSERT_NO_THROW(fem.register_front_end("mock", [&actualFlags](int fec) {
         actualFlags = fec;
         return std::make_shared<FrontEnd>();
     }));
@@ -76,8 +72,8 @@ TEST(FrontEndManagerTest, testLoadWithFlags)
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd)
 {
-    std::string fePath =
-            ngraph::file_util::get_directory(ngraph::runtime::Backend::get_backend_shared_library_search_directory());
+    std::string fePath = ngraph::file_util::get_directory(
+        ngraph::runtime::Backend::get_backend_shared_library_search_directory());
     fePath = fePath + FrontEndPathSeparator + "someInvalidPath";
     set_test_env("OV_FRONTEND_PATH", fePath.c_str());
 
@@ -92,7 +88,7 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd)
     FrontEndManager fem;
     ASSERT_ANY_THROW(fem.load_by_model(""));
 
-    std::unique_ptr<FrontEnd> fePtr (new FrontEnd()); // to verify base destructor
+    std::unique_ptr<FrontEnd> fePtr(new FrontEnd()); // to verify base destructor
     FrontEnd::Ptr fe = std::make_shared<FrontEnd>();
     ASSERT_ANY_THROW(fe->load_from_file(""));
     ASSERT_ANY_THROW(fe->load_from_files({"", ""}));
@@ -110,7 +106,7 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd)
 
 TEST(FrontEndManagerTest, testDefaultInputModel)
 {
-    std::unique_ptr<InputModel> imPtr (new InputModel()); // to verify base destructor
+    std::unique_ptr<InputModel> imPtr(new InputModel()); // to verify base destructor
     InputModel::Ptr im = std::make_shared<InputModel>();
     ASSERT_ANY_THROW(im->get_inputs());
     ASSERT_ANY_THROW(im->get_outputs());
@@ -140,7 +136,7 @@ TEST(FrontEndManagerTest, testDefaultInputModel)
 
 TEST(FrontEndManagerTest, testDefaultPlace)
 {
-    std::unique_ptr<Place> placePtr (new Place()); // to verify base destructor
+    std::unique_ptr<Place> placePtr(new Place()); // to verify base destructor
     Place::Ptr place = std::make_shared<Place>();
     ASSERT_ANY_THROW(place->get_names());
     ASSERT_ANY_THROW(place->get_consuming_operations());

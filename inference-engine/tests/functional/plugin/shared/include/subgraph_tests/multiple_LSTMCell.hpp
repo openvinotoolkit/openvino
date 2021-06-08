@@ -12,12 +12,4 @@ TEST_P(MultipleLSTMCellTest, CompareWithRefs) {
     Run();
 };
 
-TEST_P(MultipleLSTMCellTest, CompareWithRefs_LowLatencyTransformation) {
-    RunLowLatency();
-};
-
-TEST_P(MultipleLSTMCellTest, CompareWithRefs_LowLatencyRegularAPITransformation) {
-    RunLowLatency(true);
-};
-
 } // namespace SubgraphTestsDefinitions

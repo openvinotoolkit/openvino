@@ -17,22 +17,12 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API TransposeSinking;
-class TRANSFORMATIONS_API TransposeOptimization;
 class TRANSFORMATIONS_API TransposeReduction;
 class TRANSFORMATIONS_API TransposeFQReduction;
+class TRANSFORMATIONS_API TransposeFuse;
 
 }  // namespace pass
 }  // namespace ngraph
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief TransposeOptimization transformation replaces suitable Transposes with Reshape operation or optimises them out
- */
-class ngraph::pass::TransposeOptimization : public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    TransposeOptimization();
-};
 
 /**
  * @ingroup ie_transformation_common_api
@@ -56,6 +46,17 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
+ * @brief TransposeFuse transformation eliminates 2 consequtive Transposes if they result in no changes to input or fuses them
+ * to single Transpose if input gets changed
+ */
+class ngraph::pass::TransposeFuse : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    TransposeFuse();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
  * @brief TransposeSinking transformation sinks Transposes through known operations
  */
 class ngraph::pass::TransposeSinking: public ngraph::pass::GraphRewrite {
@@ -64,6 +65,6 @@ public:
     TransposeSinking() {
         add_matcher<ngraph::pass::TransposeFQReduction>();
         add_matcher<ngraph::pass::TransposeReduction>();
-        add_matcher<ngraph::pass::TransposeOptimization>();
+        add_matcher<ngraph::pass::TransposeFuse>();
     }
 };
