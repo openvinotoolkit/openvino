@@ -248,8 +248,8 @@ Or proceed to the <a href="#get-started">Get Started</a> to get started with run
 
 > **NOTE**: These steps are required only if you want to use an Intel® integrated GPU.
 
-If your applications offload computation to **Intel® Integrated Graphics**, you must have the latest version of Intel Graphics Driver for Windows installed for your hardware. 
-[Download and install a higher version](http://downloadcenter.intel.com/product/80939/Graphics-Drivers). 
+If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed for your hardware. 
+[Download and install the recommended version](https://downloadcenter.intel.com/download/30079/Intel-Graphics-Windows-10-DCH-Drivers). 
 
 To check if you have this driver installed:
 
@@ -264,8 +264,6 @@ To check if you have this driver installed:
 4. Click the **Driver** tab to see the driver version. 
 
    ![](../img/DeviceDriverVersion.PNG)
-
-> **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Drivers & Software](https://downloadcenter.intel.com/download/29993/Intel-Iris-Xe-MAX-Dedicated-Graphics-Drivers?product=80939) page for driver downloads and installation instructions.  
 
 You are done updating your device driver and are ready to use your GPU. Proceed to the <a href="#get-started">Get Started</a> to get started with running code samples and demo applications.
 
