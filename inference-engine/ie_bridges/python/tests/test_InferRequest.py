@@ -525,17 +525,16 @@ def test_resize_algorithm_work(device):
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
 
-# issue 56653
-@pytest.mark.skip(reason="Test will enable when nGraph Python API allows to create network with memory")
 def test_query_state(device):
     import ngraph as ng
     from ngraph.impl import Function
-    input_data = ng.parameter([5, 7], name="input_data", dtype=np.float32)
+
+    input_data = ng.parameter([10], name="input_data", dtype=np.float32)
     rv = ng.read_value(input_data, "var_id_667")
-    #a = ng.add(rv, input_data)
-    node = ng.assign(rv, "var_id_667")
-    res = ng.result(rv, "res")
-    func = Function([res], sinks=[node], parameters=[input_data], name='test')
+    add = ng.add(rv, input_data, name = "MemoryAdd")
+    node = ng.assign(add, "var_id_667")
+    res = ng.result(add, "res")
+    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
     caps = Function.to_capsule(func)
 
     net = ie.IENetwork(caps)
@@ -544,9 +543,84 @@ def test_query_state(device):
     request = exec_net.requests[0]
     mem_states = request.query_state()
     mem_state = mem_states[0]
-    with pytest.raises(ValueError) as e:
-        ones_arr = np.ones(shape=(1, 800), dtype=np.float32)
-        mem_state.state.buffer[:] = ones_arr
-    assert "assignment destination is read-only" in str(e.value)
-    assert mem_state.name == 'id_1'
+
+    assert mem_state.name == 'var_id_667'
     assert mem_state.state.tensor_desc.precision == 'FP32'
+
+    for i in range(1, 10):
+        res = exec_net.infer({"input_data": [1] * 10})
+        expected_res = np.array([i] * 10, dtype=float)
+        assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
+            "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
+
+
+def test_query_state_reset(device):
+    import ngraph as ng
+    from ngraph.impl import Function
+
+    input_data = ng.parameter([10], name="input_data", dtype=np.float32)
+    rv = ng.read_value(input_data, "var_id_667")
+    add = ng.add(rv, input_data, name="MemoryAdd")
+    node = ng.assign(add, "var_id_667")
+    res = ng.result(add, "res")
+    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
+    caps = Function.to_capsule(func)
+
+    net = ie.IENetwork(caps)
+    ie_core = ie.IECore()
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    mem_states = request.query_state()
+    mem_state = mem_states[0]
+
+    assert mem_state.name == 'var_id_667'
+    assert mem_state.state.tensor_desc.precision == 'FP32'
+
+    for i in range(1, 10):
+        # reset initial state of ReadValue to zero
+        mem_state.reset()
+        res = exec_net.infer({"input_data": [1] * 10})
+
+        # always ones
+        expected_res = np.array([1] * 10, dtype=np.float32)
+
+        assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
+            "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
+
+
+def test_query_state_write_buffer(device):
+    import ngraph as ng
+    from ngraph.impl import Function
+    from openvino.inference_engine import TensorDesc, Blob
+
+    input_data = ng.parameter([10], name="input_data", dtype=np.float32)
+    rv = ng.read_value(input_data, "var_id_667")
+    add = ng.add(rv, input_data, name="MemoryAdd")
+    node = ng.assign(add, "var_id_667")
+    res = ng.result(add, "res")
+    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
+    caps = Function.to_capsule(func)
+
+    net = ie.IENetwork(caps)
+    ie_core = ie.IECore()
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    mem_states = request.query_state()
+    mem_state = mem_states[0]
+
+    assert mem_state.name == 'var_id_667'
+    assert mem_state.state.tensor_desc.precision == 'FP32'
+
+    for i in range(1, 10):
+        # create initial value
+        const_init = 5
+        init_array = np.array([const_init] * 10, dtype=np.float32)
+        tensor_desc = TensorDesc("FP32", [10], "C")
+        blob = Blob(tensor_desc, init_array)
+        mem_state.state = blob
+
+        res = exec_net.infer({"input_data": [1] * 10})
+        expected_res = np.array([1 + const_init] * 10, dtype=np.float32)
+
+        assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
+            "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
