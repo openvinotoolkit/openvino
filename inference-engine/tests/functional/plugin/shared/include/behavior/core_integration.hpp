@@ -52,15 +52,6 @@ namespace BehaviorTestsDefinitions {                                            
     ASSERT_NE(metrics.end(), it);                                    \
 }
 
-#define SKIP_IF_NOT_IMPLEMENTED(...)                                            \
-{                                                                               \
-    try {                                                                       \
-        __VA_ARGS__;                                                            \
-    } catch (const InferenceEngine::NotImplemented&) {                          \
-        GTEST_SKIP();                                                           \
-    }                                                                           \
-}
-
 class IEClassBasicTestP : public ::testing::Test, public WithParamInterface<std::pair<std::string, std::string> > {
 protected:
     std::string deviceName;
@@ -490,12 +481,11 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkThrowsIfNoDeviceName) {
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    if (!strm.str().empty()) {
-        IE_SUPPRESS_DEPRECATED_START
-        ASSERT_THROW(executableNetwork = ie.ImportNetwork(strm), Exception);
-        IE_SUPPRESS_DEPRECATED_END
-    }
+    ASSERT_NO_THROW(executableNetwork.Export(strm));
+
+    IE_SUPPRESS_DEPRECATED_START
+    ASSERT_THROW(executableNetwork = ie.ImportNetwork(strm), Exception);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
@@ -504,11 +494,9 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
-    if (executableNetwork) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.Export(strm));
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
 TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
@@ -518,18 +506,16 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
     std::string fileName{"ExportedNetwork"};
     {
         ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(simpleNetwork, deviceName));
-        SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(fileName));
+        ASSERT_NO_THROW(executableNetwork.Export(fileName));
     }
-    if (CommonTestUtils::fileExists(fileName)) {
+    {
         {
             std::ifstream strm(fileName);
-            SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
+            ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
         }
         ASSERT_EQ(0, remove(fileName.c_str()));
     }
-    if (executableNetwork) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
 //
