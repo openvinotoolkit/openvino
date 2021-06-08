@@ -35,6 +35,8 @@ public:
             const ie::CNNNetwork& network,
             const std::map<std::string, std::string>& config) const override;
 
+    using ie::IInferencePlugin::ImportNetwork;
+
     ie::IExecutableNetworkInternal::Ptr ImportNetwork(
             std::istream& model,
             const std::map<std::string, std::string>& config) override;
