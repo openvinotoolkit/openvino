@@ -198,7 +198,7 @@ if [ "$OS_PATH" == "x86_64" ]; then
 fi
 
 samples_path="${INTEL_OPENVINO_DIR}/deployment_tools/inference_engine/samples/cpp"
-build_dir="$HOME/inference_engine_samples_build"
+build_dir="$HOME/inference_engine_cpp_samples_build"
 binaries_dir="${build_dir}/${OS_PATH}/Release"
 
 if [ -e "$build_dir/CMakeCache.txt" ]; then
