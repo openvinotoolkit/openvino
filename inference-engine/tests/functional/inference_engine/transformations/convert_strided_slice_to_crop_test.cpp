@@ -53,6 +53,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests1) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
         manager.run_passes(f);
+
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -234,6 +235,55 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative2) {
         sslice->set_friendly_name("strided_slice");
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+
+TEST(TransformationTests, ConvertStridedSliceToCropNoneZeroBeginValuesWithMask) {
+    // when begin_mask/end_mask are present begin/end values should not affect output shape
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 4});
+        auto slice_begin  = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 2, 1});
+        auto slice_end    = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 2});
+        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+
+        std::vector<int64_t> begin_mask       = {1, 0, 1, 1};
+        std::vector<int64_t> end_mask         = {1, 0, 1, 0};
+        std::vector<int64_t> new_axis_mask    = {0, 1, 0, 0};
+        std::vector<int64_t> shrink_axis_mask = {0, 0, 0, 0};
+        std::vector<int64_t> ellipsis_mask    = {0, 0, 0, 0};
+
+        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
+                                                                     begin_mask, end_mask,
+                                                                     new_axis_mask, shrink_axis_mask, ellipsis_mask);
+        sslice->set_friendly_name("strided_slice");
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 4});
+
+        std::vector<int64_t> axes   = {0, 1, 2, 3};
+        std::vector<int64_t> dim    = {1, 1, 2, 2};
+        std::vector<int64_t> offset = {0, 0, 0, 0};
+
+        auto reshape = ngraph::op::util::reshapeTo(input, {1, 1, 2, 4});
+        reshape->set_friendly_name("strided_slice/Reshape_for_Crop");
+
+        auto crop = std::make_shared<ngraph::op::CropIE>(reshape, axes, dim, offset);
+        crop->set_friendly_name("strided_slice");
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{crop}, ngraph::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
