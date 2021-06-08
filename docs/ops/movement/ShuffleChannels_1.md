@@ -10,17 +10,17 @@
 
 **Detailed description**:
 
-Input ND tensor of `data_shape` is always interpreted as 4D tensor with the following shape:
+Input tensor of `data_shape` is always interpreted as 4D tensor with the following shape:
 
     dim 0: data_shape[0] * data_shape[1] * ... * data_shape[axis-1] (or 1 if axis == 0)
     dim 1: group
     dim 2: data_shape[axis] / group
     dim 3: data_shape[axis+1] * data_shape[axis+2] * ... * data_shape[data_shape.size()-1] (or 1 if axis points to last dimension)
 
-So the dimensions before and after the dimension pointed by `axis` are flattened and reshaped back to the original shape after channnels shuffling.
+Trailing and leading to `axis` dimensions are flattened and reshaped back to the original shape after channels shuffling.
 
 
-The operation is equivalent with the following transformation of the input tensor *x* of shape *[N, C, H, W]*:
+The operation is equivalent to the following transformation of the input tensor `x` of shape `[N, C, H, W]` and `axis = 1`:
 
 \f[
 x' = reshape(x, [N, group, C / group, H * W])\\
@@ -28,7 +28,7 @@ x'' = transpose(x', [0, 2, 1, 3])\\
 y = reshape(x'', [N, C, H, W])\\
 \f]
 
-where `group` is the layer attribute described below and the `axis = 1`.
+where `group` is the layer attribute described below.
 
 **Attributes**:
 
@@ -50,7 +50,7 @@ where `group` is the layer attribute described below and the `axis = 1`.
 
 **Inputs**:
 
-*   **1**: `data` ND (1D or bigger) input tensor of type *T*. **Required.**
+*   **1**: `data` input tensor of type *T* and rank greater or equal to 1. **Required.**
 
 **Outputs**:
 
