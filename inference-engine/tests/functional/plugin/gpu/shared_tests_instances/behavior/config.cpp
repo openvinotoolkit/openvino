@@ -106,6 +106,13 @@ namespace {
                     ::testing::ValuesIn(autoconf)),
             CorrectConfigAPITests::getTestCaseName);
 
+    INSTANTIATE_TEST_CASE_P(smoke_AutoCG_BehaviorTests, CorrectConfigAPITests,
+                            ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(auto_cpu_gpu_conf)),
+                            CorrectConfigAPITests::getTestCaseName);
+
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
@@ -124,14 +131,14 @@ namespace {
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                    ::testing::ValuesIn(autoconf)),
+                    ::testing::ValuesIn(autoinconfigs)),
             IncorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_AutoCG_BehaviorTests, IncorrectConfigAPITests,
                             ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(auto_cpu_gpu_conf)),
+                                ::testing::ValuesIn(autoinconfigs)),
                             IncorrectConfigAPITests::getTestCaseName);
 
 
