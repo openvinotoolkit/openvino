@@ -3,10 +3,8 @@
 //
 
 #include <string>
-#include <vector>
 #include <memory>
 #include <map>
-#include <unordered_map>
 
 #include "ie_metric_helpers.hpp"
 #include "auto_exec_network.hpp"

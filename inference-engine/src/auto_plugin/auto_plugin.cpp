@@ -209,6 +209,20 @@ ConfigType AutoInferencePlugin::GetSupportedConfig(const ConfigType&  config,
     return supportedConfig;
 }
 
+void AutoInferencePlugin::CheckConfig(const ConfigType& config) {
+    std::vector<std::string> supportedConfigKeys = GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
+    for (auto&& key : supportedConfigKeys) {
+        auto itKey = config.find(key);
+        if (config.end() == itKey) {
+            // CVS-57233
+            if (key.find("AUTO_") == 0) {
+                continue;
+            }
+            IE_THROW() << "AUTO plugin doesn't support config key " << key;
+        }
+    }
+}
+
 DeviceName AutoInferencePlugin::SelectDevice(const std::vector<DeviceName>& metaDevices, const std::string& networkPrecision) {
     if (metaDevices.empty()) {
         IE_THROW(NotFound) << "No available device to select in AUTO plugin";

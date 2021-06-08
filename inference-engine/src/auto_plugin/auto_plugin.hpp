@@ -34,6 +34,7 @@ private:
     std::vector<std::string> GetOptimizationCapabilities(const std::map<std::string, IE::Parameter>& options) const;
     DeviceName SelectDevice(const std::vector<DeviceName>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
     ConfigType GetSupportedConfig(const ConfigType& config, const DeviceName & deviceName) const;
+    void CheckConfig(const ConfigType& config);
     static ConfigType mergeConfigs(ConfigType config, const ConfigType& local);
 
     template <typename T>
@@ -41,6 +42,9 @@ private:
         if (GetCore() == nullptr) {
             IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
         }
+
+        CheckConfig(config);
+
         auto fullConfig = mergeConfigs(_config, config);
         auto metaDevices = GetDeviceList(fullConfig);
         DeviceName selectedDevice;
