@@ -61,38 +61,77 @@ void regclass_pyngraph_Place(py::module m)
     place.def("get_names", &ngraph::frontend::Place::get_names);
     place.def("is_equal", &ngraph::frontend::Place::is_equal, py::arg("other"));
     place.def("is_equal_data", &ngraph::frontend::Place::is_equal_data, py::arg("other"));
+
+    place.def(
+        "get_consuming_operations",
+        static_cast<std::vector<ngraph::frontend::Place::Ptr> (ngraph::frontend::Place::*)() const>(
+            &ngraph::frontend::Place::get_consuming_operations));
     place.def("get_consuming_operations",
-              &ngraph::frontend::Place::get_consuming_operations,
-              py::arg_v("outputPortIndex", -1, "-1"));
+              static_cast<std::vector<ngraph::frontend::Place::Ptr> (ngraph::frontend::Place::*)(
+                  int) const>(&ngraph::frontend::Place::get_consuming_operations),
+              py::arg("outputPortIndex"));
+
     place.def("get_target_tensor",
-              &ngraph::frontend::Place::get_target_tensor,
-              py::arg_v("outputPortIndex", -1, "-1"));
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
+                  &ngraph::frontend::Place::get_target_tensor));
+    place.def("get_target_tensor",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
+                  &ngraph::frontend::Place::get_target_tensor),
+              py::arg("outputPortIndex"));
+
     place.def("get_producing_operation",
-              &ngraph::frontend::Place::get_producing_operation,
-              py::arg_v("inputPortIndex", -1, "-1"));
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
+                  &ngraph::frontend::Place::get_producing_operation));
+    place.def("get_producing_operation",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
+                  &ngraph::frontend::Place::get_producing_operation),
+              py::arg("inputPortIndex"));
+
     place.def("get_producing_port", &ngraph::frontend::Place::get_producing_port);
+
+    place.def("get_input_port",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
+                  &ngraph::frontend::Place::get_input_port));
     place.def("get_input_port",
               static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
                   &ngraph::frontend::Place::get_input_port),
-              py::arg_v("inputPortIndex", -1, "-1"));
+              py::arg("inputPortIndex"));
+    place.def("get_input_port",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(
+                  const std::string&) const>(&ngraph::frontend::Place::get_input_port),
+              py::arg("inputName"));
     place.def("get_input_port",
               static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(
                   const std::string&, int) const>(&ngraph::frontend::Place::get_input_port),
               py::arg("inputName"),
-              py::arg_v("inputPortIndex", -1, "-1"));
+              py::arg("inputPortIndex"));
+
+    place.def("get_output_port",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
+                  &ngraph::frontend::Place::get_output_port));
     place.def("get_output_port",
               static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
                   &ngraph::frontend::Place::get_output_port),
-              py::arg_v("outputPortIndex", -1, "-1"));
+              py::arg("outputPortIndex"));
+    place.def("get_output_port",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(
+                  const std::string&) const>(&ngraph::frontend::Place::get_output_port),
+              py::arg("outputName"));
     place.def("get_output_port",
               static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(
                   const std::string&, int) const>(&ngraph::frontend::Place::get_output_port),
               py::arg("outputName"),
-              py::arg_v("outputPortIndex", -1, "-1"));
+              py::arg("outputPortIndex"));
+
     place.def("get_consuming_ports", &ngraph::frontend::Place::get_consuming_ports);
+
     place.def("get_source_tensor",
-              &ngraph::frontend::Place::get_source_tensor,
-              py::arg_v("inputPortIndex", -1, "-1"));
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
+                  &ngraph::frontend::Place::get_source_tensor));
+    place.def("get_source_tensor",
+              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
+                  &ngraph::frontend::Place::get_source_tensor),
+              py::arg("inputPortIndex"));
 }
 
 void regclass_pyngraph_InputModel(py::module m)
@@ -106,12 +145,12 @@ void regclass_pyngraph_InputModel(py::module m)
     im.def("get_place_by_operation_name",
            &ngraph::frontend::InputModel::get_place_by_operation_name,
            py::arg("operationName"));
-    im.def("get_place_by_operation_and_input_port",
-           &ngraph::frontend::InputModel::get_place_by_operation_and_input_port,
+    im.def("get_place_by_operation_name_and_input_port",
+           &ngraph::frontend::InputModel::get_place_by_operation_name_and_input_port,
            py::arg("operationName"),
            py::arg("inputPortIndex"));
-    im.def("get_place_by_operation_and_output_port",
-           &ngraph::frontend::InputModel::get_place_by_operation_and_output_port,
+    im.def("get_place_by_operation_name_and_output_port",
+           &ngraph::frontend::InputModel::get_place_by_operation_name_and_output_port,
            py::arg("operationName"),
            py::arg("outputPortIndex"));
 

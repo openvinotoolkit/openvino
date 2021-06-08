@@ -283,7 +283,7 @@ public:
         return std::make_shared<PlaceMockPy>();
     }
 
-    Place::Ptr get_place_by_operation_and_input_port(const std::string& operationName,
+    Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operationName,
                                                      int inputPortIndex) override
     {
         m_stat.m_get_place_by_operation_and_input_port++;
@@ -292,7 +292,7 @@ public:
         return std::make_shared<PlaceMockPy>();
     }
 
-    Place::Ptr get_place_by_operation_and_output_port(const std::string& operationName,
+    Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operationName,
                                                       int outputPortIndex) override
     {
         m_stat.m_get_place_by_operation_and_output_port++;
