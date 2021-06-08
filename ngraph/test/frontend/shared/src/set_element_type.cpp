@@ -2,31 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <regex>
-#include <algorithm>
 #include "../include/set_element_type.hpp"
+#include <algorithm>
+#include <regex>
 #include "../include/utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-std::string FrontEndElementTypeTest::getTestCaseName(const testing::TestParamInfo<SetTypeFEParam>& obj) {
+std::string
+    FrontEndElementTypeTest::getTestCaseName(const testing::TestParamInfo<SetTypeFEParam>& obj)
+{
     std::string res = obj.param.m_frontEndName + "_" + obj.param.m_modelName;
     return FrontEndTestUtils::fileToTestName(res);
 }
 
-void FrontEndElementTypeTest::SetUp() {
+void FrontEndElementTypeTest::SetUp()
+{
     FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager(); // re-initialize after setting up environment
     initParamTest();
 }
 
-void FrontEndElementTypeTest::initParamTest() {
+void FrontEndElementTypeTest::initParamTest()
+{
     m_param = GetParam();
     m_param.m_modelName = m_param.m_modelsPath + m_param.m_modelName;
 }
 
-void FrontEndElementTypeTest::doLoadFromFile() {
+void FrontEndElementTypeTest::doLoadFromFile()
+{
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
@@ -51,10 +56,9 @@ TEST_P(FrontEndElementTypeTest, testSetElementType)
     std::shared_ptr<ngraph::Function> function;
     function = m_frontEnd->convert(m_inputModel);
     auto ops = function->get_ordered_ops();
-    auto it = std::find_if(ops.begin(), ops.end(),
-                 [&](const std::shared_ptr<ngraph::Node>& node) {
-                     return node->get_friendly_name().find(name) != std::string::npos;
-                 });
+    auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
+        return node->get_friendly_name().find(name) != std::string::npos;
+    });
     ASSERT_NE(it, ops.end());
     EXPECT_EQ((*it)->get_output_element_type(0), element::f16);
 }

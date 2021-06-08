@@ -55,10 +55,9 @@ TEST_P(FrontEndPartialShapeTest, testCheckOldPartialShape)
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
-    auto it = std::find_if(ops.begin(), ops.end(),
-                           [&](const std::shared_ptr<ngraph::Node> &node) {
-                               return node->get_friendly_name().find(m_partShape.m_tensorName) != std::string::npos;
-                           });
+    auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
+        return node->get_friendly_name().find(m_partShape.m_tensorName) != std::string::npos;
+    });
     ASSERT_NE(it, ops.end());
     auto shape = (*it)->get_output_partial_shape(0);
     ASSERT_EQ(shape, m_partShape.m_oldPartialShape);
@@ -76,11 +75,9 @@ TEST_P(FrontEndPartialShapeTest, testSetNewPartialShape)
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
-    auto it = std::find_if(ops.begin(), ops.end(),
-                           [&](const std::shared_ptr<ngraph::Node>& node)
-                           {
-                               return node->get_friendly_name().find(m_partShape.m_tensorName) != std::string::npos;
-                           });
+    auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
+        return node->get_friendly_name().find(m_partShape.m_tensorName) != std::string::npos;
+    });
     ASSERT_NE(it, ops.end());
     auto shape = (*it)->get_output_partial_shape(0);
     ASSERT_EQ(shape, m_partShape.m_newPartialShape);

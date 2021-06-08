@@ -130,11 +130,13 @@ TEST_P(FrontEndCutModelTest, testOldInputs)
     // Ensure that it contains expected old inputs
     for (const auto& name : m_param.m_oldInputs)
     {
-        EXPECT_TRUE(std::find_if(ops.begin(), ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node)
-                                 {
-                                     return node->get_friendly_name().find(name) != std::string::npos;
-                                 }) != ops.end()) << "Name not found:" << name;
+        EXPECT_TRUE(std::find_if(ops.begin(),
+                                 ops.end(),
+                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                     return node->get_friendly_name().find(name) !=
+                                            std::string::npos;
+                                 }) != ops.end())
+            << "Name not found:" << name;
     }
 }
 

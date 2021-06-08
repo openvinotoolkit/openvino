@@ -40,9 +40,10 @@ namespace FrontEndTestUtils
 #endif
     }
 
-    inline void setupTestEnv() {
-        std::string fePath =
-                ngraph::file_util::get_directory(ngraph::runtime::Backend::get_backend_shared_library_search_directory());
+    inline void setupTestEnv()
+    {
+        std::string fePath = ngraph::file_util::get_directory(
+            ngraph::runtime::Backend::get_backend_shared_library_search_directory());
         set_test_env("OV_FRONTEND_PATH", fePath.c_str());
     }
 } // namespace FrontEndTestUtils

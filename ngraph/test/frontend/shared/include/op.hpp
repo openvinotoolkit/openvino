@@ -18,28 +18,30 @@
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
-struct FrontendOpTestParam {
-    std::string              m_frontEndName;
-    std::string              m_modelsPath;
-    std::string              m_modelName;
+struct FrontendOpTestParam
+{
+    std::string m_frontEndName;
+    std::string m_modelsPath;
+    std::string m_modelName;
 
     Inputs inputs;
     Outputs expected_outputs;
 };
 
-class FrontendOpTest : public ::testing::TestWithParam<FrontendOpTestParam> {
+class FrontendOpTest : public ::testing::TestWithParam<FrontendOpTestParam>
+{
 public:
-    FrontendOpTestParam      m_param;
+    FrontendOpTestParam m_param;
 
-    ngraph::frontend::FrontEndManager  m_fem;
-    ngraph::frontend::FrontEnd::Ptr    m_frontEnd;
-    ngraph::frontend::InputModel::Ptr  m_inputModel;
-    
-    static std::string getTestCaseName(const testing::TestParamInfo<FrontendOpTestParam> &obj);
+    ngraph::frontend::FrontEndManager m_fem;
+    ngraph::frontend::FrontEnd::Ptr m_frontEnd;
+    ngraph::frontend::InputModel::Ptr m_inputModel;
+
+    static std::string getTestCaseName(const testing::TestParamInfo<FrontendOpTestParam>& obj);
 
     void SetUp() override;
-    
+
 protected:
     void initParamTest();
-    void validateOp();    
+    void validateOp();
 };
