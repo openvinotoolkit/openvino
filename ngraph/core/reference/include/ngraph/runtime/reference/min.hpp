@@ -27,16 +27,18 @@ namespace ngraph
                 T minval = std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity()
                                                                 : std::numeric_limits<T>::max();
 
-                const auto out_shape = reduce(in_shape, reduction_axes, false);
+                constexpr bool dont_keep_dims_in_output = false;
+                const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
                 std::fill(out, out + shape_size(out_shape), minval);
 
                 const auto in_strides = row_major_strides(in_shape);
                 const auto out_strides = row_major_strides(out_shape);
 
-                CoordinateTransform input_transform(in_shape);
+                CoordinateTransformBasic input_transform(in_shape);
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes, false);
+                    Coordinate output_coord =
+                        reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
 
                     size_t in_idx = std::inner_product(
                         input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
