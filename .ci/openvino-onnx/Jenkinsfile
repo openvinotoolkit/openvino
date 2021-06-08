@@ -84,9 +84,6 @@ def gitSubmoduleUpdate(String repository_name, String workdir) {
     }
 }
 
-
-
-
 def prepare_repository(String workdir) {
     dir("${workdir}") {
         println "Preparing repository in directory: ${workdir}"
