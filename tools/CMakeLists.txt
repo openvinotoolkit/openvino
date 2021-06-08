@@ -1,24 +1,25 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 cmake_minimum_required(VERSION 3.13)
+
 project(python_tools)
 
 if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
 endif()
 
-find_package(PythonInterp 3 REQUIRED)
-set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-
-set(TARGET_NAME "python_tools")
-
-if(WIN32)
-    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
-else()
-    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
-endif()
-
 if(ENABLE_PYTHON)
+    find_package(PythonInterp 3 REQUIRED)
+    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+
+    set(TARGET_NAME "python_tools")
+
+    if(WIN32)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
+    else()
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
+    endif()
+
     # creates a copy inside bin directory for developers to have ability running python benchmark_app
     add_custom_target(${TARGET_NAME} ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools

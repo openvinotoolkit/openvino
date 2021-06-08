@@ -19,10 +19,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         message(FATAL_ERROR "In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics.\
  Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv")
     endif()
-    find_package (PythonInterp REQUIRED)
-    if(NOT PYTHON_VERSION_MAJOR EQUAL 3)
-        message(FATAL_ERROR " Python3 wasn't found!")
-    endif()
+    find_package (PythonInterp 3 REQUIRED)
 
     file(GLOB STAT_FILES ${SELECTIVE_BUILD_STAT})
 
