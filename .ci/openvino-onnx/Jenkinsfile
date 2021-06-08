@@ -90,15 +90,8 @@ def gitSubmoduleUpdate(String repository_name, String workdir) {
 def prepare_repository(String workdir) {
     dir("${workdir}") {
         println "Preparing repository in directory: ${workdir}"
-        withEnv(["http_proxy=http://proxy-ir.intel.com:911",
-                  "HTTP_PROXY=http://proxy-ir.intel.com:911",
-                  "https_proxy=http://proxy-ir.intel.com:911",
-                  "HTTPS_PROXY=http://proxy-ir.intel.com:911"]) {
-            print env.http_proxy
-            checkout scm
-            gitSubmoduleUpdate(PROJECT_NAME, workdir)
-        }
-
+        checkout scm
+        gitSubmoduleUpdate(PROJECT_NAME, workdir)
     }
 }
 
@@ -207,12 +200,6 @@ CONFIGURATION_WORKFLOW = { configuration ->
 
 pipeline {
     agent none
-    environment {
-        http_proxy="http://proxy-ir.intel.com:911"
-        HTTP_PROXY="http://proxy-ir.intel.com:911"
-        https_proxy="http://proxy-ir.intel.com:911"
-        HTTPS_PROXY="http://proxy-ir.intel.com:911"
-    }
     options {
         skipDefaultCheckout true
         timeout(activity: true, time: 120, unit: 'MINUTES')
