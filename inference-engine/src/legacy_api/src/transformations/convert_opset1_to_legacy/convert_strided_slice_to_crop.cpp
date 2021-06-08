@@ -9,7 +9,6 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
-
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
@@ -137,7 +136,6 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
                     lb = std::min(static_cast<int64_t>(input_shape[input_shape_idx]), lb);
                     ub = std::min(static_cast<int64_t>(input_shape[input_shape_idx]), ub);
 
-                    offset.emplace_back(lb);
 
                     // set default value for stride or use given value
                     int64_t stride = 1;
@@ -153,6 +151,7 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
                             ub = -1;
 
                         lb = std::min(lb, static_cast<int64_t>(input_shape[input_shape_idx]) - 1);
+                        offset.emplace_back(lb);
                         lb -= 1;  // we always get 1st element, so we need decrease range
                         if (ub <= lb)
                             dimension = (ub - lb) / stride + 1;
@@ -160,12 +159,16 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
                         // apply masks
                         if (begin_mask.count(axis))
                             lb = 0;
-                        if (end_mask.count(axis))
+                        offset.emplace_back(lb);
+
+                        if (end_mask.count(axis)) {
                             ub = static_cast<int64_t>(input_shape[input_shape_idx]);
+                        }
 
                         lb += 1;  // we always get 1st element, so we need decrease range
-                        if (ub >= lb)
+                        if (ub >= lb) {
                             dimension = (ub - lb) / stride + 1;
+                        }
                     }
 
                     dim.emplace_back(dimension);
