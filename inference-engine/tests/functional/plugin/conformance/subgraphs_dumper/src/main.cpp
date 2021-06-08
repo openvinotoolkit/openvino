@@ -19,17 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-int main(int argc, char *argv[]) {
-    uint8_t ret_code = 0;
-
-    gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
-    if (FLAGS_h) {
-        showUsage();
-        return 0;
-    }
-    SubgraphsDumper::ClonersMap::constant_size_threshold_mb = FLAGS_constants_size_threshold;
+std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::string> &dirs) {
     std::vector<std::string> input_folder_content;
-    std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
     for (const auto &dir : dirs) {
         if (!CommonTestUtils::directoryExists(dir)) {
             std::string msg = "Input directory (" + dir + ") doesn't not exist!";
@@ -51,9 +42,13 @@ int main(int argc, char *argv[]) {
         std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist!";
         throw std::runtime_error(msg);
     }
+    return models;
+}
 
+void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
+                 uint8_t& ret_code,
+                 const std::vector<SubgraphsDumper::Model>& models) {
     auto ie = InferenceEngine::Core();
-    auto cache = SubgraphsDumper::OPCache::make_cache();
     time_t rawtime;
     struct tm *timeinfo;
     char buffer[20];
@@ -92,6 +87,27 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+}
+
+
+int main(int argc, char *argv[]) {
+    uint8_t ret_code = 0;
+
+    gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
+    if (FLAGS_h) {
+        showUsage();
+        return 0;
+    }
+    SubgraphsDumper::ClonersMap::constant_size_threshold_mb = FLAGS_constants_size_threshold;
+
+    std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
+    std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
+    auto cachedOps = findModelsInDirs(local_cache_dirs);
+    auto models = findModelsInDirs(dirs);
+
+    auto cache = SubgraphsDumper::OPCache::make_cache();
+    cacheModels(cache, ret_code, cachedOps);
+    cacheModels(cache, ret_code, models);
     cache->serialize_cached_ops(FLAGS_output_folder);
 
     return ret_code;
