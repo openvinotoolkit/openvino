@@ -184,7 +184,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     size_t buffer_stride = num_prior_boxes * buffer_bytes;
     size_t buffer1_size = num_of_images * num_classes * buffer_stride;
     size_t buffer2_size = num_of_images * num_classes * buffer_stride;
-    size_t buffer3_size = num_of_images * num_classes * 4;
+    size_t buffer3_size = num_of_images * (num_classes + 1) * 4;
     // printf("GetKernelsData | buffer_stride = [%zd], buffer1_size = [%zd], buffer2/3_size = [%zd], buffer4_size = [%zd]\n",
     //        buffer_stride, buffer1_size, buffer2_size, buffer4_size);
 

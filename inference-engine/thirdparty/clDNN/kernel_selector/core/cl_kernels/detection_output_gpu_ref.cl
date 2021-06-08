@@ -16,6 +16,9 @@
 #include "include/detection_output_common.cl"
 
 
+#define unroll_for __attribute__((opencl_unroll_hint)) for
+#define NUM_CLASSES_ACC (NUM_CLASSES + 1)
+
 typedef struct {
     int batchId;
     int classId;
@@ -177,7 +180,7 @@ KERNEL (detection_output_stage_0_caffe)(
     {
         for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
         {
-            int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
+            int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
             buffer2[scores_size_offset] = 0;
         }
         for (uint idx_prior = 0; idx_prior < NUM_OF_PRIORS; idx_prior++)
@@ -186,7 +189,7 @@ KERNEL (detection_output_stage_0_caffe)(
             {
                 UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, idx_prior, idx_class, idx_image);
                 if (score >= 0) {
-                    int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
+                    int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
                     int acc_num = buffer2[scores_size_offset];
                     int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS + acc_num;
                     SCORES_INFO score_info;
@@ -202,7 +205,7 @@ KERNEL (detection_output_stage_0_caffe)(
         }
         //for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
         //{
-        //    int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
+        //    int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
         //    int acc_num = buffer2[scores_size_offset];
         //    int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
         //    printf("detection_output_stage_0_caffe | acc_num[%d]\n", acc_num);
@@ -268,7 +271,7 @@ KERNEL (detection_output_stage_0_caffe_opt)(
                 block_num[i] = acc_num;
                 acc_num += n;
             }
-            buffer2[batchId * NUM_CLASSES + classId] = acc_num;
+            buffer2[batchId * NUM_CLASSES_ACC + classId] = acc_num;
         }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -377,7 +380,7 @@ KERNEL (detection_output_stage_1_caffe)(
     {
         for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
         {
-            int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
+            int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
             if (idx_class == BACKGROUND_LABEL_ID)
             {
                 buffer2[scores_size_offset] = 0;
@@ -416,7 +419,7 @@ KERNEL (detection_output_stage_1_caffe_opt)(
     //printf("detection_output_stage_1 |  global_id={batchId[0:%3d]classId[1:%3d]workItemId[2:%3d]} local_id={[0:%zd]localClassId[1:%3d][2:%zd]}\n",
     //        batchId, classId, workItemId, get_local_id(0), localClassId, get_local_id(2));
 
-    const int scoresInfoNum = buffer2[batchId * NUM_CLASSES + classId];
+    const int scoresInfoNum = buffer2[batchId * NUM_CLASSES_ACC + classId];
     if (scoresInfoNum < 2)
         return;
 
@@ -424,7 +427,7 @@ KERNEL (detection_output_stage_1_caffe_opt)(
 
     if (classId == BACKGROUND_LABEL_ID) {
         if (workItemId == 0) {
-            buffer2[batchId * NUM_CLASSES + classId] = 0;
+            buffer2[batchId * NUM_CLASSES_ACC + classId] = 0;
         }
     } else {
         //if (batchId == 0 && classId == 1 && workItemId == 0) {
@@ -475,7 +478,7 @@ KERNEL (detection_output_stage_1_caffe_opt)(
         barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
         if (workItemId == 0 && (TOP_K != -1 && TOP_K < scoresInfoNum)) {
-            buffer2[batchId * NUM_CLASSES + classId] = TOP_K;
+            buffer2[batchId * NUM_CLASSES_ACC + classId] = TOP_K;
         }
     }
 }
@@ -581,12 +584,16 @@ KERNEL (detection_output_stage_2_caffe)(
     {
         for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
         {
+            if (idx_class == 0)
+            {
+                buffer2[idx_image * NUM_CLASSES_ACC + NUM_CLASSES] = 0;
+            }
             if (idx_class == BACKGROUND_LABEL_ID)
             {
                 continue;
             }
             int selectedBoxNum = 0;
-            int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
+            int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
             int acc_num = buffer2[scores_size_offset];
             int loc_label = ((SHARE_LOCATION)? 0 : idx_class);
             int bboxes_offset = (idx_image * NUM_LOC_CLASSES * NUM_OF_PRIORS) + loc_label * NUM_OF_PRIORS;
@@ -631,6 +638,7 @@ KERNEL (detection_output_stage_2_caffe)(
             }
             //printf("detection_output_stage_2 | buffer2[%d] = %d\n", scores_size_offset, selectedBoxNum);
             buffer2[scores_size_offset] = selectedBoxNum;
+            buffer2[idx_image * NUM_CLASSES_ACC + NUM_CLASSES] += selectedBoxNum;
         }
     }
 }
@@ -642,12 +650,12 @@ KERNEL (detection_output_stage_2_caffe_opt)(
     __global UNIT_TYPE* input_prior_box,
     __global uchar *buffer0,
     __global uchar *buffer1,
-    __global int *buffer2)
+    volatile __global int *buffer2)
 {
     const int batchId = get_global_id(0);
     const int classId = get_global_id(1);
     const int loc_label = ((SHARE_LOCATION)? 0 : classId);
-    const int scoresInfoIdx = batchId * NUM_CLASSES + classId;
+    const int scoresInfoIdx = batchId * NUM_CLASSES_ACC + classId;
 
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
@@ -656,6 +664,12 @@ KERNEL (detection_output_stage_2_caffe_opt)(
 
     //printf("detection_output_stage_2_caffe_opt | global_id={batchId[0:%3d]classId[1:%3d][2:%zd]} local_id={[0:%zd][1:%zd][2:%zd]} scoresInfoNum=[%d]\n",
     //        batchId, classId, get_global_id(2), get_local_id(0), get_local_id(1), get_local_id(2), scoresInfoNum);
+
+    if (classId == 0)
+    {
+        buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES] = 0;
+    }
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
     int selectedBoxNum = 0;
     for (uint idx_score = 0; idx_score < scoresInfoNum; idx_score++)
@@ -689,6 +703,8 @@ KERNEL (detection_output_stage_2_caffe_opt)(
         }
     }
     buffer2[scoresInfoIdx] = selectedBoxNum;
+
+    atomic_add(&buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES], selectedBoxNum);
 }
 #endif /* IS_SECOND_ITER_CAFFE_OPT */
 
@@ -842,124 +858,91 @@ KERNEL (detection_output_stage_final_caffe)(
 
     for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++)
     {
-        int num_det = 0;
-        for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
+        const int total_det = buffer2[idx_image * NUM_CLASSES_ACC + NUM_CLASSES];
+        if (KEEP_TOP_K > -1 && total_det > KEEP_TOP_K)
         {
-            if (idx_class == BACKGROUND_LABEL_ID)
+            int num_det = 0;
+            for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
             {
-                continue;
+                int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
+                const int acc_num = buffer2[scores_size_offset];
+                int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
+                for (uint idx_score = 0; idx_score < acc_num; idx_score++)
+                {
+                    SCORES_INFO score_info;
+                    score_info = selectedScoresList[scores_offset + idx_score];
+                    scoresList[num_det + idx_score] = score_info;
+                    //printf("detection_output_stage_final | selectedScoresList[%d] = [batchId:%d, classId:%d, boxId:%d, score:%f] -> %d\n", scores_offset + idx_score, score_info.batchId, score_info.classId, score_info.boxId, score_info.score, num_det + idx_score);
+                }
+                num_det += acc_num;
+                buffer2[scores_size_offset] = 0;
             }
-            int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
-            const int acc_num = buffer2[scores_size_offset];
-            int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
-            //printf("detection_output_stage_final | acc_num[%d]\n", acc_num);
-            for (uint idx_score = 0; idx_score < acc_num; idx_score++)
+            FUNC_CALL(quickSortIterative)(scoresList, 0, num_det - 1, true);
+
+            for (uint idx_num_det = 0; idx_num_det < KEEP_TOP_K; idx_num_det++)
             {
                 SCORES_INFO score_info;
-                score_info = selectedScoresList[scores_offset + idx_score];
-                scoresList[num_det + idx_score] = score_info;
-                //printf("detection_output_stage_final | selectedScoresList[%d] = [batchId:%d, classId:%d, boxId:%d, score:%f] -> %d\n", scores_offset + idx_score, score_info.batchId, score_info.classId, score_info.boxId, score_info.score, num_det + idx_score);
+                score_info = scoresList[idx_num_det];
+                //printf("detection_output_stage_final | scoresList[%d] = [batchId:%d, classId:%d, boxId:%d, score:%f]\n", idx_num_det, score_info.batchId, score_info.classId, score_info.boxId, score_info.score);
+                int scores_size_offset = idx_image * NUM_CLASSES_ACC + score_info.classId;
+                int acc_num = buffer2[scores_size_offset];
+                int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + score_info.classId * NUM_OF_PRIORS + acc_num;
+                selectedScoresList[scores_offset] = score_info;
+                buffer2[scores_size_offset] = (acc_num + 1);
             }
-            num_det += acc_num;
-            buffer2[scores_size_offset] = 0;
         }
-        //printf("detection_output_stage_final | num_det[%d] before checking keep_top_k\n", num_det);
-
-        FUNC_CALL(quickSortIterative)(scoresList, 0, num_det - 1, true);
-
-        if (KEEP_TOP_K > -1 && num_det > KEEP_TOP_K)
-        {
-            num_det = KEEP_TOP_K;
-        }
-        //printf("detection_output_stage_final | num_det[%d] after checking keep_top_k\n", num_det);
-        for (uint idx_num_det = 0; idx_num_det < num_det; idx_num_det++)
-        {
-            SCORES_INFO score_info;
-            score_info = scoresList[idx_num_det];
-            //printf("detection_output_stage_final | scoresList[%d] = [batchId:%d, classId:%d, boxId:%d, score:%f]\n", idx_num_det, score_info.batchId, score_info.classId, score_info.boxId, score_info.score);
-            int scores_size_offset = idx_image * NUM_CLASSES + score_info.classId;
-            int acc_num = buffer2[scores_size_offset];
-            int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + score_info.classId * NUM_OF_PRIORS + acc_num;
-            selectedScoresList[scores_offset] = score_info;
-            buffer2[scores_size_offset] = (acc_num + 1);
-        }
-
-        //for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
-        //{
-        //    if (idx_class == BACKGROUND_LABEL_ID)
-        //    {
-        //        continue;
-        //    }
-        //    int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
-        //    int acc_num = buffer3[scores_size_offset];
-        //    int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
-        //    printf("detection_output_stage_final | acc_num[%d]\n", acc_num);
-        //    for (uint idx_score = 0; idx_score < acc_num; idx_score++)
-        //    {
-        //        SCORES_INFO score_info;
-        //        score_info = selectedScoresList[scores_offset + idx_score];
-        //        printf("detection_output_stage_final | selectedScoresList[%d] = [batchId:%d, classId:%d, boxId:%d, score:%f]\n", scores_offset + idx_score, score_info.batchId, score_info.classId, score_info.boxId, score_info.score);
-        //    }
-        //}
     }
-    //printf("gpu kernel result =====================================\n");
-    int count = 0;
+    uint outputIdx = 0;
     for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++)
     {
         for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
         {
-            int scores_size_offset = idx_image * NUM_CLASSES + idx_class;
-            int acc_num = buffer2[scores_size_offset];
-            if (acc_num == 0)
-            {
-                continue;
-            }
+            int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
+            const int acc_num = buffer2[scores_size_offset];
             int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
-            int loc_label = ((SHARE_LOCATION)? 0 : idx_class);
-            int bboxes_offset = (idx_image * NUM_LOC_CLASSES * NUM_OF_PRIORS) + loc_label * NUM_OF_PRIORS;
             for (uint idx_score = 0; idx_score < acc_num; idx_score++)
             {
-                SCORES_INFO score_info;
-                score_info = selectedScoresList[scores_offset + idx_score];
-                output[count * OUTPUT_ROW_SIZE] = TO_UNIT_TYPE(score_info.batchId);
-                output[count * OUTPUT_ROW_SIZE + 1] = TO_UNIT_TYPE((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
-                output[count * OUTPUT_ROW_SIZE + 2] = TO_UNIT_TYPE(score_info.score);
-                UNIT_TYPE decoded_bbox[4];
-                FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, score_info.boxId, loc_label, idx_image);
-                //BBOXES_INFO bbox_info;
-                //bbox_info = bboxesList[bboxes_offset + score_info.boxId];
-                UNIT_TYPE xmin = decoded_bbox[0];
-                UNIT_TYPE ymin = decoded_bbox[1];
-                UNIT_TYPE xmax = decoded_bbox[2];
-                UNIT_TYPE ymax = decoded_bbox[3];
-
-                if (CLIP_AFTER_NMS) {
-                    xmin = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), xmin));
-                    ymin = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), ymin));
-                    xmax = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), xmax));
-                    ymax = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), ymax));
-                }
-                output[count * OUTPUT_ROW_SIZE + 3] = xmin;
-                output[count * OUTPUT_ROW_SIZE + 4] = ymin;
-                output[count * OUTPUT_ROW_SIZE + 5] = xmax;
-                output[count * OUTPUT_ROW_SIZE + 6] = ymax;
-                //printf("[%d, %d, %f, %f, %f, %f, %f] -> [%d]\n", score_info.batchId, score_info.classId, score_info.score, xmin, ymin, xmax, ymax, score_info.boxId);
-                ++count;
+                scoresList[outputIdx] = selectedScoresList[scores_offset + idx_score];
+                outputIdx++;
             }
         }
     }
-
-    while (count < NUM_OF_IMAGES * KEEP_TOP_K)
+    //printf("gpu kernel result =====================================\n");
+    unroll_for (uint i = 0; i < outputIdx; i++)
     {
-        output[count * OUTPUT_ROW_SIZE] = -1.0;
-        output[count * OUTPUT_ROW_SIZE + 1] = 0.0;
-        output[count * OUTPUT_ROW_SIZE + 2] = 0.0;
-        output[count * OUTPUT_ROW_SIZE + 3] = 0.0;
-        output[count * OUTPUT_ROW_SIZE + 4] = 0.0;
-        output[count * OUTPUT_ROW_SIZE + 5] = 0.0;
-        output[count * OUTPUT_ROW_SIZE + 6] = 0.0;
-        //printf("[-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]\n");
-        ++count;
+        SCORES_INFO score_info;
+        score_info = scoresList[i];
+
+        output[i * OUTPUT_ROW_SIZE] = TO_UNIT_TYPE(scoresList[i].batchId);
+        output[i * OUTPUT_ROW_SIZE + 1] = TO_UNIT_TYPE((DECREASE_LABEL_ID) ? scoresList[i].classId - 1 : scoresList[i].classId);
+        output[i * OUTPUT_ROW_SIZE + 2] = TO_UNIT_TYPE(scoresList[i].score);
+        UNIT_TYPE decoded_bbox[4];
+        const uint loc_label = ((SHARE_LOCATION)? 0 : scoresList[i].classId);
+        FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, scoresList[i].boxId, loc_label, scoresList[i].batchId);
+        UNIT_TYPE xmin = decoded_bbox[0];
+        UNIT_TYPE ymin = decoded_bbox[1];
+        UNIT_TYPE xmax = decoded_bbox[2];
+        UNIT_TYPE ymax = decoded_bbox[3];
+        if (CLIP_AFTER_NMS) {
+            xmin = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), xmin));
+            ymin = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), ymin));
+            xmax = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), xmax));
+            ymax = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), ymax));
+        }
+        output[i * OUTPUT_ROW_SIZE + 3] = xmin;
+        output[i * OUTPUT_ROW_SIZE + 4] = ymin;
+        output[i * OUTPUT_ROW_SIZE + 5] = xmax;
+        output[i * OUTPUT_ROW_SIZE + 6] = ymax;
+    }
+    unroll_for (uint i = outputIdx; i < NUM_OF_IMAGES * KEEP_TOP_K; i++)
+    {
+        output[i * OUTPUT_ROW_SIZE] = -1.0;
+        output[i * OUTPUT_ROW_SIZE + 1] = 0.0;
+        output[i * OUTPUT_ROW_SIZE + 2] = 0.0;
+        output[i * OUTPUT_ROW_SIZE + 3] = 0.0;
+        output[i * OUTPUT_ROW_SIZE + 4] = 0.0;
+        output[i * OUTPUT_ROW_SIZE + 5] = 0.0;
+        output[i * OUTPUT_ROW_SIZE + 6] = 0.0;
     }
     //printf("===============================================\n");
 }
