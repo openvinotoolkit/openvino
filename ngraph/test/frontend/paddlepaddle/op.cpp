@@ -18,8 +18,8 @@
 using namespace ngraph;
 using namespace InferenceEngine;
 
+#include <cnpy.h>
 #include "../shared/include/basic_api.hpp"
-#include "npy.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -43,7 +43,7 @@ static bool starts_with(std::string const& value, std::string const& starting)
     return std::equal(starting.begin(), starting.end(), value.begin());
 }
 
-static std::string get_modelfolder(std::string& modelfile)
+static std::string get_model_folder(std::string& modelfile)
 {
     if (!ends_with(modelfile, ".pdmodel"))
         return modelfile;
@@ -96,46 +96,27 @@ inline void visualizer(std::shared_ptr<ngraph::Function> function, std::string p
     network.serialize(path + ".xml", path + ".bin");
 }
 
-std::string get_npy_dtype(std::string& filename)
-{
-    std::ifstream stream(filename, std::ifstream::binary);
-    if (!stream)
-    {
-        throw std::runtime_error("io error: failed to open a file.");
-    }
-
-    std::string header = npy::read_header(stream);
-
-    // parse header
-    npy::header_t npy_header = npy::parse_header(header);
-    return npy_header.dtype.str();
-}
-
-template <typename T>
-void load_from_npy(std::string& file_path, std::vector<T>& npy_data)
-{
-    std::ifstream npy_file(file_path);
-    std::vector<unsigned long> npy_shape;
-    bool fortran_order = false;
-    if (npy_file.good())
-        npy::LoadArrayFromNumpy(file_path, npy_shape, fortran_order, npy_data);
-
-    if (npy_data.empty())
-    {
-        throw std::runtime_error("failed to load npy for test case " + file_path);
-    }
-}
-
 namespace fuzzyOp
 {
     using PDPDFuzzyOpTest = FrontEndBasicTest;
     using PDPDFuzzyOpTestParam = std::tuple<std::string,  // FrontEnd name
                                             std::string,  // Base path to models
                                             std::string>; // modelname
-
-    void run_fuzzy(std::shared_ptr<ngraph::Function> function, std::string& modelfile)
+    template <typename T>
+    inline void add_input_output(cnpy::NpyArray& npy_array,
+                                 test::TestCase<TestEngine>& test_case,
+                                 bool is_input = true)
     {
-        auto modelfolder = get_modelfolder(modelfile);
+        T* npy_begin = npy_array.data<T>();
+        std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
+        if (is_input)
+            test_case.add_input(data);
+        else
+            test_case.add_expected_output(data);
+    }
+    void run_fuzzy(std::shared_ptr<ngraph::Function> function, std::string& model_file)
+    {
+        auto model_folder = get_model_folder(model_file);
 
         // run test
         auto test_case = test::TestCase<TestEngine>(function);
@@ -144,30 +125,26 @@ namespace fuzzyOp
         for (size_t i = 0; i < parameters.size(); i++)
         {
             // read input npy file
-            std::string datafile =
-                modelfolder + "/input" + std::to_string((parameters.size() - 1) - i) + ".npy";
-            auto dtype = get_npy_dtype(datafile);
-            if (dtype == "<f4")
+            std::string data_file =
+                model_folder + "/input" + std::to_string((parameters.size() - 1) - i) + ".npy";
+            cnpy::NpyArray input = cnpy::npy_load(data_file);
+            auto input_dtype = parameters[i]->get_element_type();
+
+            if (input_dtype == element::f32)
             {
-                std::vector<float> data_in;
-                load_from_npy(datafile, data_in);
-                test_case.add_input(data_in);
+                add_input_output<float>(input, test_case, true);
             }
-            else if (dtype == "<i4")
+            else if (input_dtype == element::i32)
             {
-                std::vector<int32_t> data_in;
-                load_from_npy(datafile, data_in);
-                test_case.add_input(data_in);
+                add_input_output<int32_t>(input, test_case, true);
             }
-            else if (dtype == "<i8")
+            else if (input_dtype == element::i64)
             {
-                std::vector<int64_t> data_in;
-                load_from_npy(datafile, data_in);
-                test_case.add_input(data_in);
+                add_input_output<int64_t>(input, test_case, true);
             }
             else
             {
-                throw std::runtime_error("not supported dtype in" + dtype);
+                throw std::runtime_error("not supported dtype in" + input_dtype.get_type_name());
             }
         }
 
@@ -176,30 +153,25 @@ namespace fuzzyOp
         for (size_t i = 0; i < results.size(); i++)
         {
             // read expected output npy file
-            std::string datafile = modelfolder + "/output" + std::to_string(i) + ".npy";
-            auto dtype = get_npy_dtype(datafile);
-            if (dtype == "<f4")
+            std::string data_file = model_folder + "/output" + std::to_string(i) + ".npy";
+            cnpy::NpyArray output = cnpy::npy_load(data_file);
+            auto output_dtype = results[i]->get_element_type();
+            if (output_dtype == element::f32)
             {
-                std::vector<float> expected_results;
-                load_from_npy(datafile, expected_results);
-                test_case.add_expected_output(expected_results);
+                add_input_output<float>(output, test_case, false);
                 use_float_test = true;
             }
-            else if (dtype == "<i4")
+            else if (output_dtype == element::i32)
             {
-                std::vector<int32_t> expected_results;
-                load_from_npy(datafile, expected_results);
-                test_case.add_expected_output(expected_results);
+                add_input_output<int32_t>(output, test_case, false);
             }
-            else if (dtype == "<i8")
+            else if (output_dtype == element::i64)
             {
-                std::vector<int64_t> expected_results;
-                load_from_npy(datafile, expected_results);
-                test_case.add_expected_output(expected_results);
+                add_input_output<int64_t>(output, test_case, false);
             }
             else
             {
-                throw std::runtime_error("not supported dtype out " + dtype);
+                throw std::runtime_error("not supported dtype out " + output_dtype.get_type_name());
             }
         }
 
@@ -222,9 +194,6 @@ namespace fuzzyOp
         std::shared_ptr<ngraph::Function> function;
         function = m_frontEnd->convert(m_inputModel);
         ASSERT_NE(function, nullptr);
-
-        // debug
-        // visualizer(function, get_modelfolder(m_modelFile)+"/fuzzy");
 
         // run
         run_fuzzy(function, m_modelFile);
