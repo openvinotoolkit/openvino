@@ -23,6 +23,7 @@ if(NOT WIN32)
 
     message("Static protobuf lib: ${PROTOBUF_STATIC_LIB_OUTPUT}")
 
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libprotobuf_static)
     add_custom_command(
             OUTPUT
             ${PROTOBUF_STATIC_LIB_OUTPUT}
@@ -38,7 +39,7 @@ if(NOT WIN32)
                     -DNGRAPH_INSTALL_LIB=${NGRAPH_INSTALL_LIB}
                      ${NGRAPH_FORWARD_CMAKE_ARGS}
             COMMAND ${CMAKE_COMMAND} --build . --target libprotobuf
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libprotobuf_static
             COMMENT "Build Protobuf Static Library"
             # TODO: add DEPENDS - not clear what shall be the input for this command
     )
