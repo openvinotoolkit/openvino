@@ -36,16 +36,28 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
             return false;
         }
 
-        // check `axis` dimension of data tensor is static
         auto axis = axis_constant->cast_vector<int64_t>();
-        if (axis.size() != 1 || !data.get_partial_shape()[axis[0]].is_static()) {
+        if (axis.size() != 1) {
+            return false;
+        }
+
+        auto axis_value = axis[0];
+
+        // normalize `axis` value if it is negative
+        if (axis_value < 0) {
+            axis_value = axis_value + data.get_partial_shape().rank().get_length();
+        }
+        NGRAPH_CHECK(data.get_partial_shape().rank().get_length() > axis_value);
+
+        // check `axis` dimension of data tensor is static
+        if (!data.get_partial_shape()[axis_value].is_static()) {
             return false;
         }
 
         auto input_type = indices_constant->get_element_type();
         auto shape_of = std::make_shared<ngraph::opset7::ShapeOf>(data, input_type);
         auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
-            axis_constant, ngraph::opset7::Constant::create(input_type, Shape{1}, {0}));
+            ngraph::opset7::Constant::create(input_type, Shape{1}, {axis_value}), ngraph::opset7::Constant::create(input_type, Shape{1}, {0}));
 
         auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices_constant);
         auto gather_new = gather_node->copy_with_new_inputs({data, add, axis_constant});
