@@ -176,6 +176,8 @@ namespace ngraph
                 // Don't constant fold a constant; it would make a copy
                 bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override
                 {
+                    (void)outputs;
+                    (void)inputs;
                     return false;
                 }
 
