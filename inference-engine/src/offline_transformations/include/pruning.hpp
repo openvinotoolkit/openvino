@@ -14,6 +14,7 @@ namespace ngraph {
 namespace pass {
 
 class InitConstMask;
+class InitMasks;
 class PropagateMasks;
 class ShrinkWeights;
 
@@ -21,6 +22,16 @@ class Pruning;
 
 } // namespace pass
 } // namespace ngraph
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Initialising masks for pruned operations
+ */
+class ngraph::pass::InitMasks : public ngraph::pass::GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    InitMasks();
+};
 
 /**
  * @ingroup ie_transformation_common_api
