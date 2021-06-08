@@ -92,29 +92,22 @@ if [[ $DISTRO == "centos" ]]; then
     # check installed Python version
     if command -v python3.5 >/dev/null 2>&1; then
         python_binary=python3.5
-        pip_binary=pip3.5
     fi
     if command -v python3.6 >/dev/null 2>&1; then
         python_binary=python3.6
-        pip_binary=pip3.6
     fi
 elif [[ $DISTRO == "ubuntu" ]]; then
     python_binary=python3
-    pip_binary=pip3
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     # check installed Python version
     if command -v python3.7 >/dev/null 2>&1; then
         python_binary=python3.7
-        pip_binary=pip3.7
     elif command -v python3.6 >/dev/null 2>&1; then
         python_binary=python3.6
-        pip_binary=pip3.6
     elif command -v python3.5 >/dev/null 2>&1; then
         python_binary=python3.5
-        pip_binary=pip3.5
     else
         python_binary=python3
-        pip_binary=pip3
     fi
 fi
 
@@ -123,7 +116,7 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-"$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
+"$python_binary" -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 
 downloader_dir="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/tools/downloader"
 
