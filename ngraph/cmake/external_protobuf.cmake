@@ -87,7 +87,7 @@ else()
                     GIT_SHALLOW TRUE
             )
             FetchContent_GetProperties(ext_protobuf_static)
-            if(NOT ext_protobuf_static_POPULATED AND BUILD_STANDALONE_STATIC)
+            if((NOT ext_protobuf_static_POPULATED) AND BUILD_STANDALONE_STATIC)
                 FetchContent_Populate(ext_protobuf_static)
                 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
                 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
