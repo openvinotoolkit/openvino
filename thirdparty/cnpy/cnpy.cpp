@@ -183,9 +183,9 @@ void cnpy::parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_siz
 }
 
 cnpy::NpyArray load_the_npy_file(FILE* fp) {
-    std::vector<size_t> shape;
-    size_t word_size;
-    bool fortran_order;
+    std::vector<size_t> shape(0);
+    size_t word_size = 0;
+    bool fortran_order = false;
     cnpy::parse_npy_header(fp,word_size,shape,fortran_order);
     if (word_size >= 0 && word_size < ULLONG_MAX) {
         cnpy::NpyArray arr(shape, word_size, fortran_order);
@@ -225,9 +225,9 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
     err = inflate(&d_stream, Z_FINISH);
     err = inflateEnd(&d_stream);
 
-    std::vector<size_t> shape;
-    size_t word_size;
-    bool fortran_order;
+    std::vector<size_t> shape(0);
+    size_t word_size = 0;
+    bool fortran_order = false;
     cnpy::parse_npy_header(&buffer_uncompr[0],word_size,shape,fortran_order);
     if (word_size >= 0 && word_size < ULLONG_MAX) {
         cnpy::NpyArray array(shape, word_size, fortran_order);
