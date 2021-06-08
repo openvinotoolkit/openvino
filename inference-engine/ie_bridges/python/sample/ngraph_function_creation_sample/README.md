@@ -1,7 +1,8 @@
 # nGraph Function Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to execute an inference using [nGraph function feature](../../../../../docs/nGraph_DG/build_function.md) to create a network that uses weights from LeNet classification network. So you don't need an XML file, the model will be created from the source code on the fly.  
-In addition to regular images, the sample also supports single-channel ubyte images as an input.
+This sample demonstrates how to execute an inference using [nGraph function feature](../../../../../docs/nGraph_DG/build_function.md) to create a network that uses weights from LeNet classification network, which is known to work well on digit classification tasks. So you don't need an XML file, the model will be created from the source code on the fly.  
+
+In addition to regular grayscale images with a digit, the sample also supports single-channel `ubyte` images as an input.
 
 The following Inference Engine Python API is used in the application:
 
@@ -14,6 +15,9 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 | Options                    | Values                                                                  |
 | :------------------------- | :---------------------------------------------------------------------- |
+| Validated Models           | LeNet (image classification network)                                    |
+| Model Format               | Network weights file (\*.bin)                                           |
+| Validated images           | The sample uses OpenCV\* to [read input grayscale image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png) or single-channel `ubyte` image                                          |
 | Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../../samples/ngraph_function_creation_sample)              |
 
@@ -72,7 +76,7 @@ To run the sample, you need specify a model weights and image:
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
 ```sh
-python ngraph_function_creation_sample.py -m <path_to_model>/lenet.bin -i <path_to_image>/3.bmp -d GPU
+python ngraph_function_creation_sample.py -m <path_to_model>/lenet.bin -i <path_to_image>/3.png -d GPU
 ```
 
 ## Sample Output
@@ -84,10 +88,10 @@ The sample application logs each step in a standard output stream and outputs to
 [ INFO ] Loading the network using ngraph function with weights from <path_to_model>/lenet.bin
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
-[ WARNING ] <path_to_image>/3.bmp is inverted to white over black
-[ WARNING ] <path_to_image>/3.bmp is resized from (100, 100) to (28, 28)
+[ WARNING ] <path_to_image>/3.png is inverted to white over black
+[ WARNING ] <path_to_image>/3.png is is resized from (351, 353) to (28, 28)
 [ INFO ] Starting inference in synchronous mode
-[ INFO ] Image path: <path_to_image>/3.bmp
+[ INFO ] Image path: <path_to_image>/3.png
 [ INFO ] Top 10 results:
 [ INFO ] classid probability
 [ INFO ] -------------------

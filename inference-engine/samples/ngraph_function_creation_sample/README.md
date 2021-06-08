@@ -1,6 +1,6 @@
 # nGraph Function Creation C++ Sample {#openvino_inference_engine_samples_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to execute an synchronous inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a network, which uses weights from LeNet classification network.
+This sample demonstrates how to execute an synchronous inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a network, which uses weights from LeNet classification network, which is known to work well on digit classification tasks.
 
 The sample supports only single-channel `ubyte` images as an input.
 
