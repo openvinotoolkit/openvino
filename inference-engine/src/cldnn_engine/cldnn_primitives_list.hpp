@@ -198,7 +198,7 @@ REGISTER_FACTORY(v5, GatherND);
 // ----------------------------- Unsupported v5 ops ----------------------------- //
 // REGISTER_FACTORY(v5, BatchNormInference);
 // REGISTER_FACTORY(v5, GRUSequence);
-// REGISTER_FACTORY(v5, Loop);
+REGISTER_FACTORY(v5, Loop);
 // REGISTER_FACTORY(v5, RNNSequence);
 
 // ------------------------------ Supported v6 ops ------------------------------ //

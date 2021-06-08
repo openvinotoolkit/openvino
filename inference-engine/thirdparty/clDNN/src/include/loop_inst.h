@@ -7,7 +7,9 @@
 
 #include "cldnn/primitives/loop.hpp"
 #include "cldnn/primitives/mutable_data.hpp"
+#include "cldnn/primitives/data.hpp"
 #include "cldnn/primitives/input_layout.hpp"
+#include "cldnn/primitives/eltwise.hpp"
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/error_handler.hpp"
 
@@ -27,24 +29,10 @@ private:
 
     std::vector<loop::io_primitive_map> input_primitive_maps;
     std::vector<loop::io_primitive_map> output_primitive_maps;
-    std::vector<cldnn::loop::backedge_mapping> back_edges;
+    mutable std::vector<loop::backedge_mapping> back_edges;
     bool use_current_iteration;
     bool use_execution_condition;
     mutable program_impl::ptr body_program;
-    mutable std::map<primitive_id, memory::ptr> backedge_mem_impls;
-    mutable std::map<primitive_id, std::shared_ptr<mutable_data>> backedge_layers;
-    mutable std::map<primitive_id, std::shared_ptr<memory>> backedge_mem;
-
-    mutable bool output_is_backedge;
-
-    void setup_internal_mutabledata_node(primitive_id md_id, layout md_layout, std::vector<primitive_id> md_inputs_id = {}, uint32_t net_id = 0) const {
-        if (body.get_primitives().count(md_id) == 0) {
-            backedge_mem_impls[md_id] = get_program().get_engine().allocate_memory(md_layout, net_id);
-            backedge_mem[md_id] = backedge_mem_impls[md_id];
-            backedge_layers[md_id] = std::make_shared<mutable_data>(md_id, md_inputs_id, backedge_mem[md_id]);
-            body.add(backedge_layers[md_id]);
-        }
-    }
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) :
@@ -63,7 +51,6 @@ public:
 
     int64_t get_max_iteration() const { return max_iteration; }
     program_impl::ptr get_body_program() const { return body_program; }
-    bool is_output_working_as_backedge() const { return output_is_backedge; }
     bool is_current_iteration_used() const { return use_current_iteration; }
     bool is_execution_condition_used() const { return use_execution_condition; }
 
@@ -104,6 +91,73 @@ public:
             return axis;
         }
         return (ndim - 1) - (axis - 2);
+    }
+
+    // read scala value from data primitive
+    static int64_t read_scalar_value(memory::ptr mem, stream& stream) {
+        int64_t trip_count = 0;
+        const layout& prim_layout = mem->get_layout();
+
+        switch (prim_layout.data_type) {
+        case data_types::u8: {
+            mem_lock<uint8_t> lock_prim_output{mem, stream};
+            trip_count = *lock_prim_output.data();
+            break;
+        }
+        case data_types::i8: {
+            mem_lock<int8_t> lock_prim_output{mem, stream};
+            trip_count = *lock_prim_output.data();
+            break;
+        }
+        case data_types::i32: {
+            mem_lock<int32_t> lock_prim_output{mem, stream};
+            trip_count = *lock_prim_output.data();
+            break;
+        }
+        case data_types::i64: {
+            mem_lock<int64_t> lock_prim_output{mem, stream};
+            trip_count = *lock_prim_output.data();
+            break;
+        }
+        default:
+            assert(false);
+        }
+        return trip_count;
+    }
+
+    static void write_scalar_value(memory::ptr mem, stream& stream, int64_t input) {
+        const layout& prim_layout = mem->get_layout();
+
+        switch (prim_layout.data_type) {
+        case data_types::u8: {
+            assert(input >= std::numeric_limits<uint8_t>::min() &&
+                   input <= std::numeric_limits<uint8_t>::max());
+            mem_lock<uint8_t> lock_prim_output{mem, stream};
+            *lock_prim_output.data() = static_cast<uint8_t>(input);
+            break;
+        }
+        case data_types::i8: {
+            assert(input >= std::numeric_limits<int8_t>::min() &&
+                   input <= std::numeric_limits<int8_t>::max());
+            mem_lock<int8_t> lock_prim_output{mem, stream};
+            *lock_prim_output.data() = static_cast<int8_t>(input);
+            break;
+        }
+        case data_types::i32: {
+            assert(input >= std::numeric_limits<int32_t>::min() &&
+                   input <= std::numeric_limits<int32_t>::max());
+            mem_lock<int32_t> lock_prim_output{mem, stream};
+            *lock_prim_output.data() = static_cast<int32_t>(input);
+            break;
+        }
+        case data_types::i64: {
+            mem_lock<int64_t> lock_prim_output{mem, stream};
+            *lock_prim_output.data() = input;
+            break;
+        }
+        default:
+            assert(false);
+        }
     }
 
     layout calc_body_input_layout(const loop::io_primitive_map& inputDesc) const {
@@ -164,6 +218,7 @@ public:
 
     static bool is_integer(const data_types& data_type) {
         switch (data_type) {
+            case data_types::u8:
             case data_types::i8:
             case data_types::i32:
             case data_types::i64:
@@ -173,28 +228,59 @@ public:
         }
     }
 
-    void process_single_int_input(const primitive_id& id) const {
+    void process_current_iteration() const {
+        const primitive_id& current_iteration_id = get_current_iteration_id();
+        if (current_iteration_id.empty()) {
+            return;
+        }
+
         const topology_map& body_topology_map = body.get_primitives();
-        if (!id.empty()) {
-            // add input_layout if not exist
-            if (body_topology_map.count(id)) {
-                layout body_input_layout(data_types::i32, format::bfyx, {1, 1, 1, 1});
-                body.add(std::make_shared<input_layout>(id, body_input_layout));
+        const layout body_input_layout(data_types::i64, format::bfyx, {1, 1, 1, 1});
+
+        // add current_iteration primitive
+        // if current_iteration primitive is not exist in body,
+        if (body_topology_map.find(current_iteration_id) == body_topology_map.end()) {
+            body.add(std::make_shared<input_layout>(current_iteration_id, body_input_layout));
+        } else {
+            const auto& body_input_prim = body.at(current_iteration_id);
+            const auto input_layout_prim = std::dynamic_pointer_cast<input_layout>(body_input_prim);
+            if (!input_layout_prim) {
+                CLDNN_ERROR_MESSAGE(this->id(), "Not cldnn::input_layout");
             } else {
-                const auto& body_input_prim = body.at(id);
-                CLDNN_ERROR_BOOL(this->id(), "Error while building body program",
-                    body_input_prim->type != input_layout::type_id(),
-                    id + " is not cldnn::input_layout");
-                const auto input_layout_prim = static_cast<const input_layout*>(body_input_prim.get());
-                CLDNN_ERROR_BOOL(this->id(), "Error while building body program",
-                    !static_cast<bool>(input_layout_prim->output_data_type),
-                    "data_type of " + id + " is not specified");
-                CLDNN_ERROR_BOOL(this->id(), "Error while building body program",
-                    !is_integer(*input_layout_prim->output_data_type),
-                    id + " is not integer type");
-                CLDNN_ERROR_BOOL(this->id(), "Error while building body program",
-                    input_layout_prim->layout.count() != 1,
-                    id + " should have 1 element");
+                input_layout_prim->change_layout(body_input_layout);
+            }
+        }
+
+        // add increment value: 1
+        const primitive_id increment_value_id = current_iteration_id + "_inc";
+        auto mem = get_program().get_engine().allocate_memory(body_input_layout);
+        auto& stream = get_program().get_stream();
+        write_scalar_value(mem, stream, 1);
+        body.add(std::make_shared<data>(increment_value_id, mem));
+
+        // add eltwise sum to update current_iteration
+        const primitive_id updated_currnet_iteration_id = current_iteration_id + "_update";
+        body.add(std::make_shared<eltwise>(updated_currnet_iteration_id,
+            current_iteration_id, increment_value_id, eltwise_mode::sum));
+
+        // set backedge
+        back_edges.emplace_back(updated_currnet_iteration_id, current_iteration_id);
+    }
+
+    void process_single_int_output(const primitive_id& id) const {
+        // add mutable if not exist
+        const topology_map& body_topology_map = body.get_primitives();
+        layout body_output_layout(data_types::i64, format::bfyx, {1, 1, 1, 1});
+        if (!id.empty()) {
+            auto body_output = body_topology_map.find(id);
+            if (body_output == body_topology_map.end()) {
+                auto mem = get_program().get_engine().allocate_memory(body_output_layout);
+                auto md = std::make_shared<data>(id, mem);
+                body.add(md);
+            } else {
+                auto body_output_prim = body.at(body_output->first);
+                auto mem = get_program().get_engine().allocate_memory(body_output_layout);
+                body_output_prim.reset(new mutable_data(body_output->first, mem));
             }
         }
     }
@@ -230,37 +316,33 @@ public:
         }
         std::set<primitive_id> output_names;
         output_names.insert(output_primitive_maps.front().internal_id);
-        const auto& back_edges_list = this->get_primitive()->back_edges;
 
         // add current_iteration_id in body network, condition_id if exist
-        process_single_int_input(get_current_iteration_id());
-        process_single_int_input(get_condition_id());
+        process_current_iteration();
+        process_single_int_output(get_condition_id());
 
         // setup outputs for backedges
-        for (auto& back_edge : back_edges_list) {
+        for (auto& back_edge : back_edges) {
             // check whether the back_edge.to has its corresponding io_primitive_map
             const auto& input_map = std::find_if(input_primitive_maps.begin(), input_primitive_maps.end(),
                 [&](const loop::io_primitive_map& pm) {
                     return pm.internal_id == back_edge.to;
                 });
-            if (input_map == input_primitive_maps.end()) {
+
+            // backedge which is current_iteration does not have
+            // input primitive map because its initial value is always
+            // zero and the value will be set in execute_impl()
+            if (back_edge.to != get_current_iteration_id() && input_map == input_primitive_maps.end()) {
                 std::string msg = "No primitive mapping for backedge (internal_id: " + back_edge.to + ')';
                 CLDNN_ERROR_MESSAGE(this->id(), msg.c_str());
             }
 
-            for (const auto& prim : body.get_primitives()) {
-                if (prim.first != back_edge.from) {
-                    continue;
-                }
-                const auto dependencies_ref = prim.second->dependencies();
-                std::vector<primitive_id> dep_pids(dependencies_ref.size());
-                for (const auto& dep : dependencies_ref) {
-                    dep_pids.emplace_back(dep.get());
-                }
-                setup_internal_mutabledata_node(back_edge.from, calc_body_input_layout(*input_map), dep_pids);
-            }
-
             output_names.insert(back_edge.from);
+        }
+
+        // if execution_condition_id is specified, we need to add the id in build_option::outputs
+        if (!get_condition_id().empty()) {
+            output_names.insert(get_condition_id());
         }
 
         auto opts = get_program().get_options();
@@ -310,6 +392,7 @@ public:
             from_primitive(from_primitive),
             to_primitive(to_primitive),
             from_mems(from_mems),
+            initial_mem(initial_mem),
             stream(stream),
             type(type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -472,6 +555,7 @@ private:
     std::vector<concatenated_memory_mapping> concatenated_output_mem_mappings;
 
     static std::string to_string(const loop_node& node);
+    size_t current_iteratoin_backedge_mapping_idx = 0;
 
 public:
     typed_primitive_inst(network_impl& network, const loop_node& node);
@@ -479,6 +563,12 @@ public:
     void preprocess_input_memory();
     void preprocess_output_memory();
     void preprocess_backedge_memory();
+    const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
+        if (!node.is_current_iteration_used()) {
+            CLDNN_ERROR_MESSAGE(node.id(), "no backedge mapping for current_iteration");
+        }
+        return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);
+    }
 
 private:
     network_impl::ptr body_network;
