@@ -136,6 +136,9 @@ public:
     void execute(mkldnn::stream strm, int n_iter) override {
         auto mem = mem_holder_dst;
         auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
+        if (data_ptr == nullptr) {
+            IE_THROW() << "TensorIterator node has not allocated memory for IterCountPortHelper";
+        }
         *data_ptr = n_iter;
     }
 };
@@ -150,6 +153,9 @@ public:
 
     int getStatus() override {
         auto data_ptr = static_cast<uint8_t*>(mem_holder.get_data_handle());
+        if (data_ptr == nullptr) {
+            IE_THROW() << "TensorIterator node has not allocated memory for asBoolCheck";
+        }
         return *data_ptr == static_cast<uint8_t>(0) ? 0 : 1;
     }
 };
@@ -164,6 +170,9 @@ public:
 
     int getStatus() override {
         auto data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
+        if (data_ptr == nullptr) {
+            IE_THROW() << "TensorIterator node has not allocated memory for asIntCheck";
+        }
         return *data_ptr;
     }
 };
@@ -283,6 +292,9 @@ MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(const std::shared_ptr<ngraph:
 
 void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
     auto tiOp = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(ngraphOp);
+    if (tiOp == nullptr) {
+        IE_THROW() << "Can't cast TensorIterator node with name: " << getName() << " to ngraph::op::util::SubGraphOp";
+    }
     const std::shared_ptr<const ngraph::Function> body = tiOp->get_function();
     sub_graph.CreateGraph(body, ext_mng, weightCache);
 

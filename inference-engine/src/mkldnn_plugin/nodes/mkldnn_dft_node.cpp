@@ -49,7 +49,7 @@ MKLDNNDFTNode::MKLDNNDFTNode(const std::shared_ptr<ngraph::Node>& op, const mkld
 
     /* Data */
     inputShape = inDims[DATA_INDEX].ToSizeVector();
-    if (inputShape.size() < 1) {
+    if (inputShape.size() < 2) {
         IE_THROW() << layerErrorPrefix << " has invalid 'data' input tensor with rank: " << inputShape.size();
     }
 
