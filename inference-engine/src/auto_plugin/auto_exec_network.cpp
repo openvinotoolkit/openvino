@@ -3,10 +3,8 @@
 //
 
 #include <string>
-#include <vector>
 #include <memory>
 #include <map>
-#include <unordered_map>
 
 #include "ie_metric_helpers.hpp"
 #include "auto_exec_network.hpp"
@@ -15,8 +13,8 @@
 namespace AutoPlugin {
 using namespace InferenceEngine;
 
-AutoExecutableNetwork::AutoExecutableNetwork(const SoExecutableNetworkInternal& network) :
-    _network(network) {
+AutoExecutableNetwork::AutoExecutableNetwork(const SoExecutableNetworkInternal& network, bool enablePerfCount) :
+    _network(network), _enablePerfCount(enablePerfCount) {
 }
 
 AutoExecutableNetwork::~AutoExecutableNetwork() = default;
@@ -24,7 +22,7 @@ AutoExecutableNetwork::~AutoExecutableNetwork() = default;
 InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                                           OutputsDataMap networkOutputs) {
     SoIInferRequestInternal inferRequest = {_network, _network->CreateInferRequest()};
-    return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest);
+    return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest, _enablePerfCount);
 }
 
 void AutoExecutableNetwork::Export(std::ostream& networkModel) {

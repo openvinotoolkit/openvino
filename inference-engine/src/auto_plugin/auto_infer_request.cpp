@@ -11,13 +11,23 @@ namespace AutoPlugin {
 
 AutoInferRequest::AutoInferRequest(const InputsDataMap&              networkInputs,
                                    const OutputsDataMap&             networkOutputs,
-                                   const SoIInferRequestInternal&    inferRequest)
+                                   const SoIInferRequestInternal&    inferRequest,
+                                   bool                              enablePerfCount)
     : IInferRequestInternal(networkInputs, networkOutputs)
-    , _inferRequest(inferRequest) {
+    , _inferRequest(inferRequest)
+    , _enablePerfCount(enablePerfCount) {
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoInferRequest::GetPerformanceCounts() const {
-    return _inferRequest->GetPerformanceCounts();
+    if (_enablePerfCount) {
+        try {
+            return _inferRequest->GetPerformanceCounts();
+        } catch (...) {
+            return {};
+        }
+    } else {
+        return {};
+    }
 }
 
 void AutoInferRequest::InferImpl() {
