@@ -6,6 +6,14 @@
 #include "common_test_utils/test_constants.hpp"
 
 namespace SubgraphTestsDefinitions {
+    std::vector<ngraph::helpers::MemoryTransformation> transformation {
+            ngraph::helpers::MemoryTransformation::NONE,
+            ngraph::helpers::MemoryTransformation::LOW_LATENCY,
+            ngraph::helpers::MemoryTransformation::LOW_LATENCY_REGULAR_API,
+            ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
+            ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API
+    };
+
     std::vector<size_t> input_sizes = {
         80,
         32,
@@ -30,6 +38,7 @@ namespace SubgraphTestsDefinitions {
 
     INSTANTIATE_TEST_CASE_P(smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
         ::testing::Combine(
+            ::testing::ValuesIn(transformation),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::ValuesIn(input_sizes),

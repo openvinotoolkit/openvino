@@ -19,11 +19,12 @@ namespace FrontEndTestUtils
             if (c == '/')
             {
                 c = '_';
-            } else if (c == '.')
+            }
+            else if (c == '.')
             {
                 c = '_';
             }
         }
         return res;
     }
-}
+} // namespace FrontEndTestUtils

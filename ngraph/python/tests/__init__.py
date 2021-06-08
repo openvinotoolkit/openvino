@@ -110,8 +110,6 @@ xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint da
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
-xfail_issue_51993 = xfail_test(reason="PRelu supports only 1D tensor for 'slope' input broadcasted"
-                                      "by channel")
 xfail_issue_55760 = xfail_test(reason="RuntimeError: Reversed axis have axes above the source space shape")
 
 # Model MSFT issues:
@@ -149,5 +147,5 @@ xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1
 xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")
 xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadcast_cpu - "
                                       "Not equal to tolerance")
-
 xfail_issue_45432 = xfail_test(reason="Einsum is not implemented in CPU plugin.")
+xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
