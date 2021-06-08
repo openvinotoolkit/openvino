@@ -50,7 +50,7 @@ def resize_upsample_bilinear():
                  {'name': 'bilinear_upsample_true_0', 'align_corners': True, 'align_mode': 0}]
 
     for test in test_case:
-        pdpd_result = pdpd_interpolate(data, [8, 8], None, mode='bilinear', align_corners=test['align_corners'],
+        pdpd_result = pdpd_interpolate(data, [64, 64], None, mode='bilinear', align_corners=test['align_corners'],
                                        align_mode=test['align_mode'], data_format='NCHW', name=test['name'])
         print(test['name'])
         print(pdpd_result)
@@ -83,30 +83,32 @@ def resize_upsample_nearest():
         [13, 14, 15, 16]
     ]]], dtype=np.float32)
 
-    test_case = [{'name': 'nearest_upsample_false_0', 'align_corners': False, 'align_mode': 0}]
+    test_case = [
+        {'name': 'nearest_upsample_false_0', 'size': [64, 64], 'align_corners': False, 'align_mode': 0},
+        {'name': 'nearest_upsample_false_1', 'size': [16, 64], 'align_corners': False, 'align_mode': 0}
+    ]
 
     for test in test_case:
-        pdpd_result = pdpd_interpolate(data, [8, 8], None, mode='nearest', align_corners=test['align_corners'],
+        pdpd_result = pdpd_interpolate(data, test['size'], None, mode='nearest', align_corners=test['align_corners'],
                                        align_mode=test['align_mode'], data_format='NCHW', name=test['name'])
         print(test['name'])
         print(pdpd_result)
 
 
 def resize_downsample_nearest():
-    data = np.array([[[
-        [1, 2, 3, 4],
-        [5, 6, 7, 8],
-        [9, 10, 11, 12],
-        [13, 14, 15, 16]
-    ]]], dtype=np.float32)
-    data_28 = data.reshape([1, 1, 2, 8])
-    test_case = [{'name': 'nearest_downsample_false_0', 'align_corners': False, 'align_mode': 1}]
+    data = np.arange(0, 4096).astype(np.float32)
+    data_64 = data.reshape([1, 1, 64, 64])
+    test_case = [
+        {'name': 'nearest_downsample_false_0', 'size': [8, 8], 'align_corners': False, 'align_mode': 1},
+        {'name': 'nearest_downsample_false_1', 'size': [4, 8], 'align_corners': False, 'align_mode': 1}
+    ]
 
     for test in test_case:
-        pdpd_result = pdpd_interpolate(data_28, [2, 4], None, mode='nearest', align_corners=test['align_corners'],
+        pdpd_result = pdpd_interpolate(data_64, test['size'], None, mode='nearest', align_corners=test['align_corners'],
                                        align_mode=test['align_mode'], data_format='NCHW', name=test['name'])
         print(test['name'])
         print(pdpd_result)
+
 
 def nearest_upsample_tensor_size():
     data = np.array([[[
