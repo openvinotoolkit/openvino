@@ -11,6 +11,7 @@
 #include "serial/headers/2dot6/gna_model_header.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
 #include "gna_data_types.hpp"
+#include "gna2-common-api.h"
 #pragma pack(push, 1)
 
 namespace GNAPluginNS {
