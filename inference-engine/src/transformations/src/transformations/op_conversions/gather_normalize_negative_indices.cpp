@@ -15,17 +15,17 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::GatherNegativeConstIndicesNormalize, "Gathe
 
 ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNormalize() {
     MATCHER_SCOPE(GatherNegativeConstIndicesNormalize);
-    auto data_input = ngraph::pattern::any_input(pattern::has_static_shape());
-    auto axis_input = ngraph::pattern::any_input();
-    auto const_indices_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto gather_node = std::make_shared<ngraph::opset7::Gather>(data_input, const_indices_input, axis_input);
+    auto data_input = ngraph::pattern::any_input(pattern::has_static_rank());
+    auto axis_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto indices_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto gather_node = std::make_shared<ngraph::opset7::Gather>(data_input, indices_input, axis_input);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto gather = std::dynamic_pointer_cast<ngraph::opset7::Gather>(pattern_to_output.at(gather_node).get_node_shared_ptr());
         auto data = pattern_to_output.at(data_input);
-        auto axis = pattern_to_output.at(axis_input);
-        auto indices_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(const_indices_input).get_node_shared_ptr());
+        auto axis_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(axis_input).get_node_shared_ptr());
+        auto indices_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(indices_input).get_node_shared_ptr());
 
         if (!gather || !indices_constant) {
             return false;
@@ -36,13 +36,19 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
             return false;
         }
 
+        // check `axis` dimension of data tensor is static
+        auto axis = axis_constant->cast_vector<int64_t>();
+        if (axis.size() != 1 || !data.get_partial_shape()[axis[0]].is_static()) {
+            return false;
+        }
+
         auto input_type = indices_constant->get_element_type();
         auto shape_of = std::make_shared<ngraph::opset7::ShapeOf>(data, input_type);
         auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
-            axis, ngraph::opset7::Constant::create(input_type, Shape{1}, {0}));
+            axis_constant, ngraph::opset7::Constant::create(input_type, Shape{1}, {0}));
 
         auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices_constant);
-        auto gather_new = gather_node->copy_with_new_inputs({data, add, axis});
+        auto gather_new = gather_node->copy_with_new_inputs({data, add, axis_constant});
         gather_new->set_friendly_name(gather->get_friendly_name());
 
         ngraph::copy_runtime_info(gather, {shape_of, input_gather, add, gather_new});
