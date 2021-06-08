@@ -47,7 +47,7 @@ jobs:
     displayName: 'Make dir'
 
   - script: |
-      certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
+      certutil -urlcache -split -f https://openvinoweb.z5.web.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
       call install_ib_console.bat
     workingDirectory: $(WORK_DIR)
     displayName: 'Install IncrediBuild'

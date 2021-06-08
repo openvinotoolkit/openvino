@@ -54,6 +54,8 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
             for (size_t dim = 0; dim < mask->size(); ++dim) {
                 const auto &dim_size = mask->at(dim).size();
                 if (dim_size == 0) continue;
+                // Broadcastable 1-size dimension shouldn't be shrank with mask
+                if (const_node->get_shape().at(dim) == 1 && dim_size > 1) continue;
 
                 // Convert dims that we want remove to dims that we need to keep
                 std::vector<int64_t> dims_to_keep;
