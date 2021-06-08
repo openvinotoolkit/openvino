@@ -631,11 +631,11 @@ It means that you trying to convert the topology which contains '_contrib_box_nm
 
 #### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean? <a name="question-103"></a>
 
-If file '*.caffemodel' exists and is correct and among possible reasons you can see the third point about protobuf implementation then you are using python protobuf implementation. In some cases it gives error during model parsing: for example "'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can use Python3.6/3.7 or you can build 'cpp' implementation of protobuf by yourself for your version of Python. For complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
+If a file '*.caffemodel' exists and it is correct, you can observe error due to use of python protobuf implementation. In some cases it gives error during model parsing: for example "'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can use Python3.6/3.7 or you can build 'cpp' implementation of protobuf by yourself for your version of Python. For complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
 
 #### 104. What does the message "SyntaxError: 'yield' inside list comprehension" during MxNet\* model conversion mean? <a name="question-104"></a>
 
-You can face with "SyntaxError: 'yield' inside list comprehension" issue during converting MxNet\* models (mobilefacedet-v1-mxnet, brain-tumor-segmentation-0001) on Windows* platform with Python* 3.8 environment. This issue existed due to API changes for `yeld expression` in Python 3.8 
+You can face with "SyntaxError: 'yield' inside list comprehension" issue during converting MxNet\* models (mobilefacedet-v1-mxnet, brain-tumor-segmentation-0001) on Windows* platform with Python* 3.8 environment. This issue existed due to API changes for `yield expression` in Python 3.8 
 We suggest some workarounds:
 1. Use Python 3.6/3.7 to convert MxNet\* models on Windows
 2. Update mxnet but in that case, you can have conflicts between previously installed PyPI dependencies: pip install mxnet=1.7.0.post2
