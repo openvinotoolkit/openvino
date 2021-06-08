@@ -18,8 +18,6 @@ Supported values:\
 
 ie_option (ENABLE_PROFILING_FIRST_INFERENCE "Build with ITT tracing of first inference time." ON)
 
-ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
-
 ie_option(ENABLE_TEMPLATE_PLUGIN "Register template plugin into plugins.xml" OFF)
 
 ie_option_enum(SELECTIVE_BUILD "Enable OpenVINO conditional compilation or statistics collection. \
@@ -32,6 +30,9 @@ ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile t
 # Try to find python3
 find_package(PythonLibs 3 QUIET)
 ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" OFF "PYTHONLIBS_FOUND" OFF)
+
+find_package(PythonInterp 3 QUIET)
+ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FOUND" OFF)
 
 #
 # enable or disable output from NGRAPH_DEBUG statements
