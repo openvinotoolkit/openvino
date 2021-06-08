@@ -508,6 +508,7 @@ public:
 #define CASE_CONV_FP32_13 {1, 16, 18, 5, 4}, {1, 16, 16, 3, 2}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 #define CASE_CONV_FP32_14 {1, 3, 4, 5}, {1, 30, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 
+
 #define CASE_CONV_FP16_1 {1, 15, 4, 5}, {1, 30, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_CONV_FP16_2 {1, 16, 4, 5}, {1, 32, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::os_is_yx_isv16_osv16, data_types::f16, format::bfyx
 #define CASE_CONV_FP16_3 {1, 16, 4, 5}, {1, 32, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::os_is_yx_isv16_osv16, data_types::f16, format::bfyx
@@ -3428,7 +3429,7 @@ struct mvn_test_params {
     tensor elwise_size;
     data_types input_type;
     format input_format;
-    bool accross_channels;
+    bool across_channels;
     bool normalize_variance;
     data_types default_type;
     format default_format;
@@ -6659,21 +6660,21 @@ struct permute_reorder_params {
 
 #define CASE_PERMUTE_REORDER_F32_0 {1, 16, 32, 2},   {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv16,  format::bfyx
 #define CASE_PERMUTE_REORDER_F32_1 {2, 7, 9, 27},  {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
-#define CASE_PERMUTE_REORDER_F32_2 {1, 16, 4, 5, 16},{0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_F16_0 {1, 16, 2, 4},     {0, 2, 1, 3},    {0, 2, 1, 3},    data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  format::bfyx
-#define CASE_PERMUTE_REORDER_F16_1 {1, 16, 4, 5, 16}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_F16_2 {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F32_2 {1, 16, 4, 5, 16}, {0, 3, 2, 1, 4}, {0, 3, 2, 1, 4}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F16_0 {1, 16, 2, 4},     {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  format::bfyx
+#define CASE_PERMUTE_REORDER_F16_1 {1, 16, 4, 5, 16}, {0, 4, 2, 3, 1}, {0, 1, 2, 3, 4}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F16_2 {1, 5, 1, 2, 14},  {0, 3, 2, 1, 4}, {0, 3, 2, 1, 4}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
 
 // type change
-#define CASE_PERMUTE_REORDER_S8_TO_F32_0 {1, 15, 4, 5},    {0, 2, 3, 1},    {0, 3, 1, 2},    data_types::i8, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
-#define CASE_PERMUTE_REORDER_S8_TO_F32_1 {1, 2, 15, 4, 5}, {0, 2, 4, 1, 3}, {0, 3, 1, 4, 2}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_F32_TO_F16_0 {1, 5, 1, 2, 14}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_U8_TO_F16_0 {1, 17, 1, 2, 7},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::u8, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_S8_TO_F32_0 {1, 15, 4, 5},    {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::i8, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
+#define CASE_PERMUTE_REORDER_S8_TO_F32_1 {1, 2, 15, 4, 5}, {0, 3, 2, 1, 4}, {0, 3, 2, 1, 4}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F32_TO_F16_0 {1, 5, 1, 2, 14}, {0, 4, 2, 3, 1}, {0, 1, 2, 3, 4}, data_types::f32, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_U8_TO_F16_0 {1, 17, 1, 2, 7},  {0, 4, 2, 3, 1}, {0, 1, 2, 3, 4}, data_types::u8, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
 
 // dim change
 #define CASE_PERMUTE_REORDER_4D_TO_5D_F32_0 {1, 16, 8, 16}, {1, 2, 0, 3}, {0, 3, 1, 4, 2}, data_types::f32, data_types::f32, format::bfyx, format::bfzyx
 #define CASE_PERMUTE_REORDER_4D_TO_6D_F32_1 {1, 16, 8, 16}, {0, 2, 3, 1}, {0, 3, 5, 4, 1, 2}, data_types::f32, data_types::f32, format::bfyx, format::bfwzyx
-#define CASE_PERMUTE_REORDER_5D_TO_4D_F32_0 {1, 16, 4, 5, 18},{0, 2, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_5D_TO_4D_F32_0 {1, 16, 4, 5, 18},{0, 4, 2, 3, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
 #define CASE_PERMUTE_REORDER_5D_TO_4D_F32_1 {1, 16, 4, 5, 16},{0, 2, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::bfzyx, format::bfyx
 #define CASE_PERMUTE_REORDER_5D_TO_6D_F32_2 {1, 16, 8, 4, 16}, {0, 4, 2, 3, 1}, {0, 3, 5, 4, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfwzyx
 #define CASE_PERMUTE_REORDER_6D_TO_4D_F32_0 {1, 16, 4, 5, 4, 16}, {0, 2, 5, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::bfwzyx, format::bfyx
@@ -6686,6 +6687,8 @@ struct permute_reorder_params {
 
 // permute_opt for blocked format => reorder to differnt dim
 #define CASE_PERMUTE_REORDER_TILED_F32_3 {1, 45, 1, 3, 259}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F32_4 {2, 273, 19, 19}, {0, 3, 1, 2}, {0, 2, 3, 1},  data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F32_5 {2, 546, 2, 2}, {0, 3, 1, 2}, {0, 2, 3, 1},  data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx
 
 // permute opt for blocked format => reorder to different dim/type
 #define CASE_PERMUTE_REORDER_TILED_I8_4 {1, 45, 1, 3, 259}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
@@ -6753,6 +6756,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_redundant_reorder,
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_1, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_2, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_3, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_4, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_I8_4, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_5, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_6, 3, 4},
@@ -7202,6 +7206,12 @@ struct eltwise_test_params {
 #define CASE_ELTWISE_U8_FP32_2      {2, 16, 4, 4}, data_types::u8,  data_types::f32, format::bfzyx,          data_types::f16,  format::bfzyx,            eltwise_mode::sum
 #define CASE_ELTWISE_U8_FP32_3      {2, 32, 4, 4}, data_types::u8,  data_types::f32, format::b_fs_yx_fsv16,  data_types::f16,  format::b_fs_yx_fsv16,    eltwise_mode::sum
 
+#define CASE_ELTWISE_FP32_5         {1,  5, 4, 4}, data_types::f32, data_types::f32, format::b_fs_yx_fsv4,  data_types::f32,  format::b_fs_yx_fsv4,    eltwise_mode::sum
+#define CASE_ELTWISE_FP32_6         {2, 32, 4, 8}, data_types::f32, data_types::f32, format::b_fs_yx_fsv4,  data_types::f32,  format::b_fs_yx_fsv4,    eltwise_mode::sum
+#define CASE_ELTWISE_FP16_5         {2, 32, 4, 8}, data_types::f16, data_types::f16, format::b_fs_yx_fsv4,  data_types::f16,  format::b_fs_yx_fsv4,    eltwise_mode::sum
+#define CASE_ELTWISE_I8_4           {2, 16, 4, 4}, data_types::i8,  data_types::i8,  format::b_fs_yx_fsv4,  data_types::f32,  format::b_fs_yx_fsv4,    eltwise_mode::sum
+#define CASE_ELTWISE_U8_4           {2, 16, 4, 4}, data_types::u8,  data_types::u8,  format::b_fs_yx_fsv4,  data_types::f32,  format::b_fs_yx_fsv4,    eltwise_mode::sum
+
 
 class EltwiseFusingTest : public ::BaseFusingTest<eltwise_test_params> {
 public:
@@ -7291,6 +7301,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_1, 3, 4},
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_2, 3, 4},
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_3, 3, 4},
+                            // fsv4
+                            eltwise_test_params{CASE_ELTWISE_FP16_5, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_5, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_6, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_I8_4, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_U8_4, 3, 4},
                         }), );
 
 class eltwise_const_path : public EltwiseFusingTest {};
@@ -7313,6 +7329,10 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             eltwise_test_params{CASE_ELTWISE_FP16_3, 2, 3},
                             eltwise_test_params{CASE_ELTWISE_FP32_3, 2, 3},
+                            eltwise_test_params{CASE_ELTWISE_FP32_5, 2, 3},
+                            eltwise_test_params{CASE_ELTWISE_FP32_6, 2, 3},
+                            eltwise_test_params{CASE_ELTWISE_I8_4, 2, 3},
+                            eltwise_test_params{CASE_ELTWISE_U8_4, 2, 3},
                         }), );
 
 class eltwise_fp32_fsv16 : public EltwiseFusingTest {};
@@ -7400,6 +7420,51 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             eltwise_test_params{CASE_ELTWISE_FP16_4, 4, 5},
                         }), );
 
+class eltwise_fp32_fsv4 : public EltwiseFusingTest {};
+TEST_P(eltwise_fp32_fsv4, add) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      input_layout("input2", get_input_layout2(p)),
+                      data("add_data", get_mem(get_per_channel_layout(p), -10, 10)),
+                      eltwise("eltwise", {"input", "input2"}, p.mode, p.default_type),
+                      eltwise("add", {"eltwise", "add_data"}, eltwise_mode::sum),
+                      activation("activation", "add", activation_func::negative),
+                      reorder("out", "activation", p.default_format, data_types::f32));
+
+    implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
+    bo_fused.set_option(build_option::force_implementations({ {"eltwise", eltw_impl} }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(eltwise_fp32_fsv4, add_per_element) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      input_layout("input2", get_input_layout2(p)),
+                      data("add_data", get_mem(get_input_layout(p), -10, 10)),
+                      eltwise("eltwise", {"input", "input2"}, p.mode, p.default_type),
+                      eltwise("add", {"eltwise", "add_data"}, eltwise_mode::sum),
+                      activation("activation", "add", activation_func::negative),
+                      reorder("out", "activation", p.default_format, data_types::f32));
+
+    implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
+    bo_fused.set_option(build_option::force_implementations({ {"eltwise", eltw_impl} }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu,
+                        eltwise_fp32_fsv4,
+                        ::testing::ValuesIn(std::vector<eltwise_test_params>{
+                            eltwise_test_params{CASE_ELTWISE_FP32_5, 3, 5},
+                            eltwise_test_params{CASE_ELTWISE_FP32_6, 3, 5},
+                            eltwise_test_params{CASE_ELTWISE_I8_4,   3, 5},
+                            eltwise_test_params{CASE_ELTWISE_U8_4,   3, 5},
+                        }), );
+
+//
 class eltwise_fp32_fused_prims : public EltwiseFusingTest {};
 TEST_P(eltwise_fp32_fused_prims, scale_activation) {
     auto p = GetParam();
@@ -7470,6 +7535,11 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_1, 3, 5},
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_2, 3, 5},
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_3, 3, 5},
+                            // fsv4
+                            eltwise_test_params{CASE_ELTWISE_FP32_5, 3, 5},
+                            eltwise_test_params{CASE_ELTWISE_FP32_6, 3, 5},
+                            eltwise_test_params{CASE_ELTWISE_I8_4, 3, 5},
+                            eltwise_test_params{CASE_ELTWISE_U8_4, 3, 5},
                         }), );
 
 class eltwise_fp32_scale : public EltwiseFusingTest {};
@@ -8058,9 +8128,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_nd_update_quantize,
         scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_3, 2, 3 },
         scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_4, 2, 3 },
         scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_5, 2, 3 },
-        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_6, 2, 3 },
         scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_7, 2, 3 },
-        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_8, 2, 3 },
         scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_9, 2, 3 },
 
         scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_1, 2, 3 },

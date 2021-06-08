@@ -223,6 +223,12 @@ bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
     return evaluate_space_to_depth(outputs, inputs);
 }
 
+bool ngraph::op::v0::SpaceToDepth::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_has_evaluate);
+    return !get_input_partial_shape(0).is_dynamic();
+}
+
 namespace ngraph
 {
     template <>

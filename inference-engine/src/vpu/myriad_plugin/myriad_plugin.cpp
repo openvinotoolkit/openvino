@@ -9,7 +9,7 @@
 
 #include <ie_metric_helpers.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <legacy/ie_util_internal.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
@@ -29,7 +29,7 @@ using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
+IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         const CNNNetwork& network,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
