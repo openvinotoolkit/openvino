@@ -61,11 +61,11 @@ public:
     MKLDNNMemoryPtr& getMemoryPtr();
 
     bool needReorder();
-    bool isDropped();
+    bool isDropped() const;
     bool isUseExternalMemory() const;
 
-    int getInputNum();
-    int getOutputNum();
+    int getInputNum() const;
+    int getOutputNum() const;
 
     void setChildPort(const size_t port) { child_port = port; }
 
@@ -73,8 +73,8 @@ public:
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
-    const InferenceEngine::TensorDesc& getInputDesc() const;
-    const InferenceEngine::TensorDesc& getOutputDesc() const;
+    const InferenceEngine::TensorDesc& getInputDescRO() const;
+    const InferenceEngine::TensorDesc& getOutputDescRO() const;
 
 private:
     std::string name();

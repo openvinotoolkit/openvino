@@ -239,14 +239,14 @@ void serializeToCout(const MKLDNNGraph &graph) {
         std::cout << "name: " << node->getName() << " [ ";
         if (!node->getParentEdges().empty()) {
             const auto& parentEdge = *(node->getParentEdges()[0].lock());
-            const auto& prnt_out_desc = parentEdge.getOutputDesc();
+            const auto& prnt_out_desc = parentEdge.getOutputDescRO();
             std::cout << "in: " << prnt_out_desc.getPrecision().name()
                       << "/l=" << prnt_out_desc.getLayout()
                       << "; ";
         }
         if (!node->getChildEdges().empty()) {
             const auto& childEdge = *(node->getChildEdges()[0].lock());
-            const auto& chld_in_desc = childEdge.getInputDesc();
+            const auto& chld_in_desc = childEdge.getInputDescRO();
             std::cout << "out: " << chld_in_desc.getPrecision().name()
                       << "/l=" << chld_in_desc.getLayout();
         }
