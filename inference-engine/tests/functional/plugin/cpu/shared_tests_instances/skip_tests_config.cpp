@@ -35,8 +35,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReluShapeOfSubgraphTest.*)",
         // TODO: Issue: 34805
         R"(.*ActivationLayerTest.*Ceiling.*)",
-        // TODO: Issue: 32032
-        R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
@@ -69,6 +67,8 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 55656 AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
+        // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
+        R"(.*smoke_SetBlobOfKindAUTO.*SetBlobOfKindTest.CompareWithRefs.*)",
         // reference doesn't cover I8, U8 cases. Issue: 55842
         R"(.*Gather7LayerTest.*netPRC=I8.*)",
     };
