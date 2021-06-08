@@ -110,6 +110,7 @@ public:
     }
 
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+        (void)visitor;
         return true;
     }
 };
