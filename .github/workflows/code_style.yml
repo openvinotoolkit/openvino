@@ -16,6 +16,8 @@ jobs:
         run: |
           sudo apt --assume-yes install libusb-1.0-0-dev
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+          # Add for -DENABLE_PYTHON=ON, no cython
+          python3 -m pip install -r ./inference-engine/ie_bridges/python/wheel/requirements-dev.txt
 
       # Run cmake with -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT in order to enable codestyle check for ITT collector
       - name: CMake
