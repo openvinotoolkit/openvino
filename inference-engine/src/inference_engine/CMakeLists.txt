@@ -217,9 +217,7 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
 
 # Export for build tree
 
-export(TARGETS ${NGRAPH_LIBRARIES} ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
-
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+export(TARGETS ${NGRAPH_LIBRARIES} ${TARGET_NAME} NAMESPACE IE::
         APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 
 # Export for developer package
