@@ -12,11 +12,12 @@ from mo.ops.op import Op
 
 class RegionYoloOp(Op):
     op = 'RegionYolo'
+    enabled = False
 
-    def __init__(self, graph: Graph, attrs: Node):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
             'in_ports_count': 1,
             'out_ports_count': 1,
@@ -50,22 +51,20 @@ class RegionYoloOp(Op):
 
     @staticmethod
     def regionyolo_infer(node: Node):
-        input_shape = node.in_node(0).shape
-        if input_shape is None:
-            return
+        input_shape = node.in_port(0).data.get_shape()
         axis = get_canonical_axis_index(input_shape, node.axis)
         end_axis = get_canonical_axis_index(input_shape, node.end_axis)
         node.axis = axis
         node.end_axis = end_axis
         if node.do_softmax:
-            flat_dim = np.prod(input_shape[axis: end_axis + 1])
-            node.out_node().shape = np.array([*input_shape[:axis], flat_dim, *input_shape[end_axis + 1:]])
+            flat_dim = np.ma.prod(input_shape[axis: end_axis + 1])
+            node.out_port(0).data.set_shape([*input_shape[:axis], flat_dim, *input_shape[end_axis + 1:]])
         else:
             layout = node.graph.graph['layout']
             assert len(layout) == 4
 
-            node.out_node().shape = shape_for_layout(layout,
-                                                     batch=input_shape[get_batch_dim(layout, 4)],
-                                                     features=(node.classes + node.coords + 1) * len(node.mask),
-                                                     height=input_shape[get_height_dim(layout, 4)],
-                                                     width=input_shape[get_width_dim(layout, 4)])
+            node.out_port(0).data.set_shape(shape_for_layout(layout,
+                                                             batch=input_shape[get_batch_dim(layout, 4)],
+                                                             features=(node.classes + node.coords + 1) * len(node.mask),
+                                                             height=input_shape[get_height_dim(layout, 4)],
+                                                             width=input_shape[get_width_dim(layout, 4)]))

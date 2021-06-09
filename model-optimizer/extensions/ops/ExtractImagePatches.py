@@ -4,13 +4,14 @@
 import numpy as np
 
 from mo.front.common.layout import shape_for_layout, get_batch_dim, get_features_dim
-from mo.front.common.partial_infer.utils import int64_array, tf_window_op_pad_infer
+from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class ExtractImagePatches(Op):
     op = "ExtractImagePatches"
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         assert 'spatial_dims' in attrs, \
@@ -47,7 +48,7 @@ class ExtractImagePatches(Op):
         N = input_shape[get_batch_dim(layout, 4)]
         C = input_shape[get_features_dim(layout, 4)]
 
-        size_spatial = int64_array(node.sizes)[node.spatial_dims]
+        size_spatial = shape_array(node.sizes)[node.spatial_dims]
 
         input_spatial_shape = input_shape[node.spatial_dims]
         stride_spatial_shape = node.strides[node.spatial_dims]
@@ -66,4 +67,4 @@ class ExtractImagePatches(Op):
                                      height=output_spatial_shape[0],
                                      width=output_spatial_shape[1])
 
-        node.out_port(0).data.set_shape(int64_array(out_shape))
+        node.out_port(0).data.set_shape(out_shape)
