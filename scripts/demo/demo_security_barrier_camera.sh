@@ -73,7 +73,9 @@ elif [[ $DISTRO == "ubuntu" ]]; then
     python_binary=python3
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     # check installed Python version
-    if command -v python3.7 >/dev/null 2>&1; then
+    if command -v python3.8 >/dev/null 2>&1; then
+        python_binary=python3.8
+    elif command -v python3.7 >/dev/null 2>&1; then
         python_binary=python3.7
     elif command -v python3.6 >/dev/null 2>&1; then
         python_binary=python3.6
@@ -89,6 +91,7 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
+"$python_binary" -m pip install -U pip
 "$python_binary" -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 
 if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
