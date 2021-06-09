@@ -286,13 +286,21 @@ set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
 if (ENABLE_MKL_DNN)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
-    list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+    if (NOT ENABLE_STRICT_DEPENDENCIES)
+        # For convinience add a runtime dependency to build along with this target.
+        # Warning: Parallel build with -GNinja may not be efficient.
+        list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+    endif()
 endif()
 
 if (ENABLE_CLDNN)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
-    list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
+    if (NOT ENABLE_STRICT_DEPENDENCIES)
+        # For convinience add a runtime dependency to build along with this target.
+        # Warning: Parallel build with -GNinja may not be efficient.
+        list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
+    endif()
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
@@ -399,6 +407,7 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
+    backend/prelu.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
