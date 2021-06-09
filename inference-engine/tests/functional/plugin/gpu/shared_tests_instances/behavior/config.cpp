@@ -4,6 +4,7 @@
 
 #include "behavior/config.hpp"
 #include "cldnn/cldnn_config.hpp"
+#include "gpu/gpu_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -12,6 +13,7 @@ namespace {
             InferenceEngine::Precision::FP16
     };
 
+    IE_SUPPRESS_DEPRECATED_START
     const std::vector<std::map<std::string, std::string>> inconfigs = {
             {{InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, "OFF"}},
             {{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "ON"}},
@@ -46,6 +48,7 @@ namespace {
             {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}}
     };
+    IE_SUPPRESS_DEPRECATED_END
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
@@ -73,6 +76,29 @@ namespace {
             {}
     };
 
+    IE_SUPPRESS_DEPRECATED_START
+    const std::vector<std::map<std::string, std::string>> conf_gpu = {
+            // Deprecated
+            {{InferenceEngine::CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS, InferenceEngine::PluginConfigParams::NO}},
+            {{InferenceEngine::CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE, "0"}},
+            {{InferenceEngine::CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE, "1"}},
+            {{InferenceEngine::CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY, "0"}},
+            {{InferenceEngine::CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY, "1"}},
+
+            {{InferenceEngine::GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, InferenceEngine::PluginConfigParams::NO}},
+            {{InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, "0"}},
+            {{InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, "1"}},
+            {{InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY, "0"}},
+            {{InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY, "1"}},
+            {{InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS, "1"}},
+            {{InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS, "4"}},
+            {{InferenceEngine::GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, InferenceEngine::PluginConfigParams::NO}},
+    };
+    IE_SUPPRESS_DEPRECATED_END
+
     const std::vector<std::map<std::string, std::string>> multiconf = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU}}
     };
@@ -90,6 +116,13 @@ namespace {
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                 ::testing::ValuesIn(conf)),
+            CorrectConfigAPITests::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_GPU_BehaviorTests, CorrectConfigAPITests,
+            ::testing::Combine(
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                ::testing::ValuesIn(conf_gpu)),
             CorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, CorrectConfigAPITests,

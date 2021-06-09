@@ -4,7 +4,7 @@
 
 #include <string>
 #include <vector>
-#include "cldnn/cldnn_config.hpp"
+#include "gpu/gpu_config.hpp"
 #include "multi/multi_remote_blob_tests.hpp"
 #include "common_test_utils/test_constants.hpp"
 

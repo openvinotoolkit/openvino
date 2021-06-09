@@ -3,7 +3,7 @@
 //
 
 #include "behavior/infer_request_output.hpp"
-#include "cldnn/cldnn_config.hpp"
+#include "gpu/gpu_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
