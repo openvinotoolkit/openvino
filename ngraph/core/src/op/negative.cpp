@@ -22,7 +22,6 @@ void op::Negative::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_Negative_validate_and_infer_types);
     auto input_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this, input_et != element::boolean, "Input type cannot be a boolean");
     NODE_VALIDATION_CHECK(this, input_et.is_signed(), "Input type has to be signed");
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }

@@ -83,7 +83,7 @@ TEST(type_prop, negative_incompatible_input_type_boolean)
     {
         EXPECT_HAS_SUBSTRING(
             error.what(),
-            std::string("Input type cannot be a boolean"));
+            std::string("Input type has to be signed"));
     }
     catch (...)
     {
