@@ -274,6 +274,17 @@ void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const
     }
 }
 
+void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, const InferenceEngine::TensorDesc &expectedDesc) {
+    auto expectedDims = actualDesc.getDims();
+    auto actualDims = expectedDesc.getDims();
+    ASSERT_EQ(actualDims.size(), expectedDims.size());
+    for (size_t j = 0; j < actualDims.size(); ++j) {
+        ASSERT_EQ(actualDims.at(j), expectedDims.at(j));
+    }
+    ASSERT_EQ(actualDesc.getLayout(), expectedDesc.getLayout());
+    ASSERT_EQ(actualDesc.getPrecision(), expectedDesc.getPrecision());
+}
+
 void LayerTestsCommon::ConfigureNetwork() {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
         if (inLayout != InferenceEngine::Layout::ANY) {
