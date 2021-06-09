@@ -11,7 +11,7 @@ using namespace ngraph;
 
 // ExtractImagePatches v3
 
-constexpr NodeTypeInfo op::v3::ExtractImagePatches::type_info;
+NGRAPH_RTTI_DEFINITION(op::v3::ExtractImagePatches, "ExtractImagePatches", 3);
 
 op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
                                                  const Shape& sizes,
