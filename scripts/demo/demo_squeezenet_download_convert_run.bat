@@ -205,7 +205,7 @@ if "!MSBUILD_BIN!" == "" (
     GOTO errorHandling
 )
 
-set "SOLUTION_DIR64=%BUILD_FOLDER%\inference_engine_cpp_samples_build"
+set "SOLUTION_DIR64=%BUILD_FOLDER%\inference_engine_samples_build"
 
 echo Creating Visual Studio !MSBUILD_VERSION! %PLATFORM% files in %SOLUTION_DIR64%... && ^
 if exist "%SOLUTION_DIR64%\CMakeCache.txt" del "%SOLUTION_DIR64%\CMakeCache.txt"
