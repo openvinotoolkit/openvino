@@ -108,6 +108,10 @@ bool Data::isDynamic() const {
     return tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR && pShape.is_dynamic();
 }
 
+const ngraph::PartialShape& Data::getPartialShape() const {
+    return pShape;
+}
+
 void Data::setLayout(Layout layout) {
     tensorDesc.setLayout(layout);
 }

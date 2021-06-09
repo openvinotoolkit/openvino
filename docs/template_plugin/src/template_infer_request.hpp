@@ -39,6 +39,9 @@ public:
     void waitPipeline();
     void inferPostprocess();
 
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+    void SetShape(const std::string& name, const InferenceEngine::SizeVector& dims) override;
+
 private:
     void allocateDeviceBuffers();
     void allocateBlobs();

@@ -148,6 +148,8 @@ public:
 
     bool isDynamic() const;
 
+    const ngraph::PartialShape& getPartialShape() const;
+
     /**
      * @private
      * @brief Don't touch this field. An implementation details for Data object.

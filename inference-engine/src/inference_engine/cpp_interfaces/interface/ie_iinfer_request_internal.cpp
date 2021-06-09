@@ -122,9 +122,10 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
             data = it->second->getRoiBlob();
         } else {
             data = _inputs[name];
+            const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : foundInput->getTensorDesc().getDims();
             checkBlob(data, name, true,
                 foundInput->getTensorDesc().getLayout() != SCALAR
-                ? foundInput->getTensorDesc().getDims()
+                ? dims
                 : oneVector);
 
             auto& devBlob = _deviceInputs[name];
@@ -135,9 +136,10 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
         }
     } else {
         data = _outputs[name];
+        const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : foundOutput->getTensorDesc().getDims();
         checkBlob(data, name, false,
             foundOutput->getTensorDesc().getLayout() != SCALAR
-            ? foundOutput->getTensorDesc().getDims()
+            ? dims
             : oneVector);
     }
     return data;
@@ -253,7 +255,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& 
             if (foundInputPair == std::end(_networkInputs)) {
                 IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
             }
-            dims = foundInputPair->second->getTensorDesc().getDims();
+            dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : foundInputPair->second->getTensorDesc().getDims();
             refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR
                 ? details::product(dims)
                 : 1;
@@ -265,7 +267,13 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& 
             if (foundOutputPair == std::end(_networkOutputs)) {
                 IE_THROW(NotFound) << "Failed to find output with name: \'" << name << "\'";
             }
-            dims = foundOutputPair->second->getTensorDesc().getDims();
+            ngraph::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
+            if (foundOutputPair->second->getPartialShape().compatible(blobPartialShape)) {
+                dims = blob->getTensorDesc().getDims();
+            } else {
+                // TODO: it is strange to request tensor desc from data when the shapes are not compatible, probably we need to immediately throw here
+                dims = foundOutputPair->second->getTensorDesc().getDims();
+            }
             refSize = foundOutputPair->second->getTensorDesc().getLayout() != SCALAR
                 ? details::product(dims)
                 : 1;
