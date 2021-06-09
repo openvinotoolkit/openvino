@@ -23,7 +23,7 @@ if (ENABLE_CLANG_FORMAT)
     endif()
 endif()
 
-if(ENABLE_CLANG_FORMAT)
+if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
     add_custom_target(clang_format_check_all)
     add_custom_target(clang_format_fix_all)
     set_target_properties(clang_format_check_all clang_format_fix_all

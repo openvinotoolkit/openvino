@@ -37,6 +37,7 @@ extensions/back/LRNToNorm.py
 extensions/back/MarkNodesWithShapeValues.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
+extensions/back/names_uniqueness_check.py
 extensions/back/NormalizeToNormalizeL2.py
 extensions/back/op_versioning.py
 extensions/back/OptimizeTransposeReshapeSequence.py
@@ -56,6 +57,7 @@ extensions/back/ReverseInputChannels.py
 extensions/back/RNNSequenceTypeRename.py
 extensions/back/ScalarConstNormalize.py
 extensions/back/SelectBroadcast.py
+extensions/back/ShapeOfConstFolding.py
 extensions/back/ShuffleChannelPatternOptimization.py
 extensions/back/ShufflenetReLUReorder.py
 extensions/back/SpecialNodesFinalization.py
@@ -338,6 +340,7 @@ extensions/front/onnx/roialign_ext.py
 extensions/front/onnx/roifeatureextractor_ext.py
 extensions/front/onnx/scatter_ext.py
 extensions/front/onnx/shape_ext.py
+extensions/front/onnx/size_ext.py
 extensions/front/onnx/slice_ext.py
 extensions/front/onnx/softmax_ext.py
 extensions/front/onnx/softmaxONNX_to_softmax.py
@@ -363,6 +366,7 @@ extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/RollWithEmptyAxesReplacer.py
 extensions/front/scatter_normalizer.py
+extensions/front/SizeReplacer.py
 extensions/front/softmax.py
 extensions/front/Softplus_fusion.py
 extensions/front/softsign_replacer.py
@@ -483,7 +487,6 @@ extensions/front/tf/roll_ext.py
 extensions/front/tf/RollRealImagPack.py
 extensions/front/tf/select_ext.py
 extensions/front/tf/sign_ext.py
-extensions/front/tf/SizeReplacer.py
 extensions/front/tf/slice_ext.py
 extensions/front/tf/softmax_ext.py
 extensions/front/tf/softplus_ext.py
