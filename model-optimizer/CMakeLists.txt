@@ -21,7 +21,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         
         PATTERN "extensions/front/caffe/CustomLayersMapping.xml" EXCLUDE
         PATTERN "mo/utils/convert.py" EXCLUDE
-        PATTERN "mo/utils/unittest" EXCLUDE
+        PATTERN "unit_tests" EXCLUDE
         
         REGEX ".*__pycache__.*" EXCLUDE
         REGEX ".*\\.pyc$" EXCLUDE

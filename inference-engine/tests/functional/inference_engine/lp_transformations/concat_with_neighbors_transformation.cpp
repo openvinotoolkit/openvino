@@ -15,6 +15,7 @@
 #include <low_precision/transformer.hpp>
 #include <low_precision/concat.hpp>
 #include <low_precision/concat_multi_channels.hpp>
+#include <low_precision/convolution.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
@@ -65,6 +66,8 @@ public:
     bool multiChannels;
     ConcatTransformationActualValues actual;
     ConcatTransformationResultValues result;
+    std::string neighborType;
+    std::string additionalLayer;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationTestValues& values) {
@@ -89,15 +92,25 @@ public:
             shape,
             testValues.actual.fakeQuantize1,
             testValues.actual.fakeQuantize2,
-            testValues.actual.fakeQuantize3);
+            testValues.actual.fakeQuantize3,
+            testValues.neighborType,
+            testValues.additionalLayer);
 
-        SimpleLowPrecisionTransformer transform;
+        SimpleLowPrecisionTransformer transformBranchSpecific;
         if (testValues.multiChannels) {
-            transform.add<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>(testValues.params);
+            transformBranchSpecific.add<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>(testValues.params);
         } else {
-            transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
+            transformBranchSpecific.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
         }
-        transform.transform(actualFunction);
+        if (testValues.additionalLayer == "convolution" || testValues.neighborType == "convolution") {
+            transformBranchSpecific.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
+        }
+        transformBranchSpecific.transform(actualFunction);
+        if (testValues.additionalLayer == "convolution" || testValues.neighborType == "convolution") {
+            SimpleLowPrecisionTransformer transformConvolution;
+            transformConvolution.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
+            transformConvolution.transform(actualFunction);
+        }
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithNeighbors(
             precision,
@@ -109,7 +122,9 @@ public:
             testValues.result.dequantizationBefore,
             testValues.result.precisionAfterOp,
             testValues.result.dequantizationAfter1,
-            testValues.result.dequantizationAfter2);
+            testValues.result.dequantizationAfter2,
+            testValues.neighborType,
+            testValues.additionalLayer);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
@@ -157,7 +172,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {}, { 0.01f } },
             { ngraph::element::f32, {}, { 0.01f } }
-        }
+        },
+        "concat",
+        ""
     },
     // U8: concat multi channels
     {
@@ -177,7 +194,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {}, {{ 0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f }} },
             { ngraph::element::f32, {}, {{ 0.005f, 0.005f, 0.005f, 0.00333f, 0.00333f, 0.00333f }} }
-        }
+        },
+        "concat",
+        ""
     },
     // U8: concat multi channels with subtract
     {
@@ -197,7 +216,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {{ 0.f, 0.f, 0.f, -255.f, -255.f, -255.f }}, {{ 0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f }} },
             { ngraph::element::f32, { -255.f }, { 0.005f } }
-        }
+        },
+        "concat",
+        ""
     },
     // I8: concat
     {
@@ -217,7 +238,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::i8,
             { ngraph::element::f32, {}, { 0.01f } },
             { ngraph::element::f32, {}, { 0.01f } }
-        }
+        },
+        "concat",
+        ""
     },
     // I8: concat multi channels
     {
@@ -237,7 +260,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::i8,
             { ngraph::element::f32, {}, {{ 0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f }} },
             { ngraph::element::f32, {}, {{ 0.005f, 0.005f, 0.005f, 0.00333f, 0.00333f, 0.00333f }} }
-        }
+        },
+        "concat",
+        ""
     },
     // mixed: U8 + I8: concat multi channels
     {
@@ -257,7 +282,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {{ 0.f, 0.f, 0.f, 128.f, 128.f, 128.f }}, { 0.01f } },
             { ngraph::element::f32, { 128.f }, { 0.01f } }
-        }
+        },
+        "concat",
+        ""
     },
     // not update precisions
     {
@@ -277,7 +304,38 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::f32,
             { {}, {{ 0.f, 0.f, 0.f, 128.f, 128.f, 128.f }}, { 0.01f } },
             { {}, { 128.f }, { 0.01f } }
-        }
+        },
+        "concat",
+        ""
+    },
+    // convolution neighbor and additional layer
+    // different precisions on FQ, u8 have to be chosen
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        {
+            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-12.8f}, {12.7f} },
+            {}
+        },
+        {
+            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {128.f}, {154.f} },
+            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f} },
+            {},
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {},
+                {{ 128.f, 128.f, 128.f, 128.f, 128.f, 128.f }, ngraph::element::f32, { 1, 6, 1, 1 }, false},
+                {{0.1f}, ngraph::element::f32, { 1, 1, 1, 1 } } },
+            {
+                {},
+                {{128.f, 128.f, 128.f}, ngraph::element::f32, { 1, 3, 1, 1 }, false},
+                {{0.1f}, ngraph::element::f32, { 1, 1, 1, 1 } } }
+        },
+        "convolution",
+        "convolution"
     },
 };
 

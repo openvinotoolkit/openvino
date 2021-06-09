@@ -355,6 +355,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
     bool recalc_processing_order = false;
     std::map<primitive_id, std::vector<primitive_id>> fusing_history;
 
+    const uint8_t supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
@@ -401,6 +402,25 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             // TODO: check if that's enough for correct work
             if (in_dt == data_types::u8 || in_dt == data_types::i8)
+                return true;
+
+            return false;
+        };
+
+        auto bin_conv_supports_eltw_fusings = [](binary_convolution_node& conv_node) -> bool {
+            auto& eltw_node = static_cast<const eltwise_node&>(*conv_node.get_users().front());
+            auto& eltw_prim = *eltw_node.get_primitive();
+
+            if (eltw_node.get_dependencies().size() < 2)
+                return false;
+
+            auto const_layout = eltw_node.get_dependency(1).get_output_layout();
+            auto conv_layout = conv_node.get_output_layout();
+            auto per_channel_eltwise = const_layout.size.feature[0] == conv_layout.size.feature[0];
+
+            if (eltw_node.get_dependency(1).is_constant() && per_channel_eltwise &&
+                (eltw_prim.mode == eltwise_mode::sum || eltw_prim.mode == eltwise_mode::prod) &&
+                (conv_node.get_primitive()->dilation == tensor{1}))
                 return true;
 
             return false;
@@ -520,7 +540,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                 // find original dependency of current_node using fusing_history
                 // and check the number of users of it.
                 // If the node has multiple users it's not fusible.
-                if (input_data.has_fused_primitives()) {
+                if (!supports_immad && input_data.has_fused_primitives()) {
                     size_t num_original_dependencies = 0;
                     auto iter = fusing_history.find(current_node_id);
                     if (iter != fusing_history.end()) {
@@ -797,11 +817,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = (parents[i]->is_type<convolution>() && conv_supports_fusings(parents[i]->as<convolution>())) ||
+                                      (parents[i]->is_type<binary_convolution>() && bin_conv_supports_eltw_fusings(parents[i]->as<binary_convolution>())) ||
                                       (parents[i]->is_type<mvn>() && mvn_supports_fusings(parents[i]->as<mvn>())) ||
                                       (parents[i]->is_type<deconvolution>()) ||
                                       (parents[i]->is_type<permute>()) ||
                                       (parents[i]->is_type<resample>()) ||
                                       (parents[i]->is_type<space_to_depth>()) ||
+                                      (parents[i]->is_type<fully_connected>() && fc_supports_fusings(parents[i]->as<fully_connected>())) ||
                                       (parents[i]->is_type<gemm>() && gemm_supports_fusings(parents[i]->as<gemm>())) ||
                                       (parents[i]->is_type<batch_to_space>()) ||
                                       (parents[i]->is_type<space_to_batch>()) ||
@@ -872,7 +894,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             bool merge_allowed = true;
             // If fused node is not convolution and fused node has multiple users,
             //  follow the legacy checking rule
-            if (fused_node->is_type<convolution>() && fused_node->get_users().size() > 1) {
+            if (!supports_immad && fused_node->is_type<convolution>() && fused_node->get_users().size() > 1) {
                 // Allowed new pattern: Elt1, Act, Elt2, Elt3, Elt4 are fused to Conv1
                 // * Conv1 -> Eltw1(Add) -> Act(Clamp) -> Eltw2(Mul) -> Eltw3(Mul) -> Eltw4(Add) -> Conv2
                 // *   \–----------------------------------->/                          \---------> Eltw5(Div)

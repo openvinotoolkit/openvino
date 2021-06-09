@@ -71,8 +71,8 @@ const std::vector<std::vector<size_t >> kernels2D = {
                                                           {1, 3},
                                                           {1, 2},
                                                           {2, 2},
-                                                          // {7, 1}, TODO: fix accuracy failures, see issue 54140
-                                                          // {3, 3}, TODO: fix accuracy failures, see issue 54140
+                                                          {7, 1},
+                                                          {3, 3},
 };
 const std::vector<std::vector<size_t >> strides2D = {
                                                           {1, 1},

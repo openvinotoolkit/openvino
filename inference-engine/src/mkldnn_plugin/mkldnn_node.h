@@ -34,65 +34,6 @@ namespace MKLDNNPlugin {
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
-// TODO [NM]: move into separate header
-enum Type {
-    Unknown,
-    Generic,
-    Reorder,
-    Input,
-    Output,
-    Convolution,
-    Deconvolution,
-    Lrn,
-    Pooling,
-    FullyConnected,
-    Softmax,
-    Split,
-    Concatenation,
-    Eltwise,
-    MatMul,
-    Reshape,
-    Tile,
-    ROIAlign,
-    ROIPooling,
-    PSROIPooling,
-    BatchToSpace,
-    DepthToSpace,
-    Pad,
-    Transpose,
-    SpaceToBatch,
-    SpaceToDepth,
-    StridedSlice,
-    MemoryOutput,
-    MemoryInput,
-    RNNCell,
-    RNNSeq,
-    FakeQuantize,
-    BinaryConvolution,
-    DeformableConvolution,
-    TensorIterator,
-    Convert,
-    MVN,
-    NormalizeL2,
-    ScatterUpdate,
-    ScatterElementsUpdate,
-    ScatterNDUpdate,
-    Interpolate,
-    Reduce,
-    Broadcast,
-    EmbeddingSegmentsSum,
-    EmbeddingBagPackedSum,
-    EmbeddingBagOffsetsSum,
-    Gather,
-    GatherElements,
-    GatherND,
-    OneHot,
-    RegionYolo,
-    Select,
-    Roll,
-    Reference,
-};
-
 Type TypeFromName(const std::string type);
 
 static std::string NameFromType(Type type) {
@@ -203,6 +144,12 @@ static std::string NameFromType(Type type) {
             return "Select";
         case Roll:
             return "Roll";
+        case ShuffleChannels:
+            return "ShuffleChannels";
+        case DFT:
+            return "DFT";
+        case Math:
+            return "Math";
         default:
             return "Unknown";
     }
@@ -417,13 +364,13 @@ public:
         this->fusingPort = fusingPort;
     }
 
-    const std::string getName() const {
+    const std::string &getName() const {
         return name;
     }
 
     void addOriginalLayer(const std::string& layerName);
 
-    const std::string getOriginalLayers() const {
+    const std::string &getOriginalLayers() const {
         return originalLayers;
     }
 
@@ -639,9 +586,16 @@ public:
         return false;
     }
 
-protected:
+    void setQuantizedGraphFlag(bool flag) {
+        isInQuantizedGraph = flag;
+    }
+
     bool canBePerformedAsScaleShift(const MKLDNNNode *parentNode = nullptr) const;
+
+protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
+    // TODO [mandrono]: place outside of the node API
+    void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
 
     void setType(Type type) {
         this->type = type;
@@ -703,6 +657,8 @@ protected:
 
     Algorithm algorithm = Algorithm::Undefined;
 
+    bool isInQuantizedGraph = false;
+
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;
     friend class MKLDNNGraphOptimizer;
@@ -710,7 +666,7 @@ protected:
 
     bool isUninitTensorDesc(const InferenceEngine::TensorDesc& desc) const;
     bool isInitConfig(const InferenceEngine::LayerConfig& config) const;
-    virtual void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority);
+    void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     virtual bool canBeInPlace() const;
 
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();

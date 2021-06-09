@@ -13,8 +13,6 @@
 
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-#include <legacy/ie_util_internal.hpp>
-
 using namespace InferenceEngine;
 using namespace ngraph;
 

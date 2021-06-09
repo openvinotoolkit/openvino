@@ -14,7 +14,7 @@
 namespace cldnn {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(CLDNN);
+    OV_ITT_DOMAIN(CLDNN)
 }
 }
 }

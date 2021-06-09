@@ -9,7 +9,7 @@ add_library(cpuSpecificRtInfo STATIC ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin/uti
 target_link_libraries(cpuSpecificRtInfo PRIVATE ${NGRAPH_LIBRARIES})
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin)
-set(DEPENDENCIES MKLDNNPlugin)
+set(DEPENDENCIES MKLDNNPlugin AutoPlugin)
 set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo)
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND INCLUDES "${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op")

@@ -1,4 +1,4 @@
-py-cpuinfo
-numpy
-progress
-opencv-python
+py-cpuinfo>=7.0.0
+numpy>=1.16.6,<1.20
+progress>=1.5
+opencv-python==4.5.*

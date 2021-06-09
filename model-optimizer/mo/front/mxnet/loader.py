@@ -107,6 +107,9 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
             node['value'] = np.zeros(rnn_states[node['name']])
         node_name = graph.unique_id(node['name'])
         graph.add_node(node_name, **symbol_attrs(node))
+        if hasattr(graph, 'op_names_statistic') and 'op' in node:
+            if node['op'] != 'null':
+                graph.op_names_statistic[node['op']] += 1
         graph.node[node_name].update(common_mxnet_fields(Node(graph, node_name)))
         index_node_keys[i] = node_name
         fw_name_map[node_name] = node['name']

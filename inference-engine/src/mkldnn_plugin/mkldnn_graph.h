@@ -7,7 +7,7 @@
 #include "cpp/ie_cnn_network.h"
 #include "config.h"
 #include "mkldnn_memory.h"
-#include "mean_image.h"
+#include "normalize_preprocess.h"
 #include "mkldnn_node.h"
 #include "mkldnn_edge.h"
 #include <map>
@@ -39,6 +39,8 @@ public:
     }
 
     void setConfig(const Config &cfg);
+    const Config& getConfig() const;
+
     void setProperty(const std::map<std::string, std::string> &properties);
     Config getProperty() const;
 
@@ -51,13 +53,17 @@ public:
                      MKLDNNWeightsSharing::Ptr &w_cache);
 
     bool hasMeanImageFor(const std::string& name) {
-        return _meanImages.find(name) != _meanImages.end();
+        return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
     }
 
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
-    void PullOutputData(InferenceEngine::BlobMap &out);
+    void PullOutputData(const InferenceEngine::BlobMap &out);
 
     void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
+
+    const std::vector<MKLDNNNodePtr>& GetNodes() const {
+        return graphNodes;
+    }
 
     std::vector<MKLDNNNodePtr>& GetNodes() {
         return graphNodes;
@@ -77,6 +83,14 @@ public:
 
     std::map<std::string, MKLDNNNodePtr>& GetOutputNodesMap() {
         return outputNodesMap;
+    }
+
+    bool hasInputWithName(const std::string& name) const {
+        return inputNodesMap.count(name);
+    }
+
+    bool hasOutputWithName(const std::string& name) const {
+        return outputNodesMap.count(name);
     }
 
     mkldnn::engine getEngine() const {
@@ -153,6 +167,10 @@ public:
 
     void SortTopologically();
 
+    bool isQuantized() const {
+        return isQuantizedFlag;
+    }
+
 protected:
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
 
@@ -164,7 +182,7 @@ protected:
         outputNodesMap.clear();
         graphNodes.clear();
         graphEdges.clear();
-        _meanImages.clear();
+        _normalizePreprocMap.clear();
     }
     Status status { NotReady };
     Config config;
@@ -182,8 +200,10 @@ protected:
     std::vector<MKLDNNNodePtr> graphNodes;
     std::vector<MKLDNNEdgePtr> graphEdges;
 
-    std::map<std::string, MeanImage> _meanImages;
+    std::map<std::string, NormalizePreprocess> _normalizePreprocMap;
     std::string _name;
+
+    bool isQuantizedFlag = false;
 
     static mkldnn::engine eng;
 
@@ -204,7 +224,7 @@ protected:
     friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
-    void printGraphInfo() const;
+    void EnforceBF16();
 };
 
 }  // namespace MKLDNNPlugin

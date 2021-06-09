@@ -40,7 +40,6 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${PUBLIC_HEADERS_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${IE_MAIN_SOURCE_DIR}/src/inference_engine # For CNNNetworkNGraphImpl
-    $<TARGET_PROPERTY:inference_engine_snippets,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
@@ -61,7 +60,7 @@ add_library(${TARGET_NAME} SHARED
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Legacy library")
 
-target_link_libraries(${TARGET_NAME} PUBLIC inference_engine inference_engine_snippets
+target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
                                      PRIVATE pugixml openvino::itt
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
@@ -82,5 +81,4 @@ ie_developer_export_targets(${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)

@@ -1,5 +1,5 @@
-tensorflow>=2.2
-networkx>=1.11
-numpy>=1.14.0
-defusedxml>=0.5.0
-requests>=2.20.0
+tensorflow~=2.4.1
+networkx~=2.5
+numpy>=1.16.6,<1.20
+defusedxml>=0.7.1
+requests>=2.25.1

@@ -140,10 +140,17 @@ public:
 
     /**
      * @brief Gets pre-process info for the input
-     *
      * @return A reference to the PreProcessInfo instance that contains pre-process info for this input
      */
     PreProcessInfo& getPreProcess() {
+        return _preProcessInfo;
+    }
+
+    /**
+     * @brief Gets pre-process info for the input
+     * @return A reference to the PreProcessInfo instance that contains pre-process info for this input
+     */
+    const PreProcessInfo& getPreProcess() const {
         return _preProcessInfo;
     }
 

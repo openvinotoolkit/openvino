@@ -107,18 +107,22 @@ add_executable("${CLDNN_BUILD__PROJ}"
     ${__CLDNN_AllSources}
   )
 
+if(COMMAND set_ie_threading_interface_for)
+  set_ie_threading_interface_for("${CLDNN_BUILD__PROJ}")
+endif()
+
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
 # Set library dependencies
-target_link_libraries("${CLDNN_BUILD__PROJ}" "${CLDNN_BUILD__PROJ__clDNN}")
+target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE "${CLDNN_BUILD__PROJ__clDNN}")
 
 if(WIN32)
-  target_link_libraries("${CLDNN_BUILD__PROJ}" setupapi)
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))
-  target_link_libraries("${CLDNN_BUILD__PROJ}" pthread)
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
-target_link_libraries("${CLDNN_BUILD__PROJ}" ${CLDNN__SYSTEM_LINK_LIBRARIES})
+target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
 
 # =================================== Custom pre- and post-steps =======================================
 

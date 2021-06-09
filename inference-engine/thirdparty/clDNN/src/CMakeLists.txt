@@ -157,6 +157,14 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
     openvino::itt
   )
 
+if(COMMAND add_cpplint_target)
+  add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")
+endif()
+
+if(COMMAND set_ie_threading_interface_for)
+  set_ie_threading_interface_for("${CLDNN_BUILD__PROJ}")
+endif()
+
 if(WIN32)
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))

@@ -21,4 +21,3 @@ if (ENABLE_MYRIAD)
 endif()
 
 add_subdirectory(conformance)
-

@@ -42,7 +42,27 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     auto convolution = m.get_match_root();
 
     if (!canConvolutionBeTransformed(context, convolution)) {
-        return false;
+        auto weightInput = convolution->get_input_node_shared_ptr(1);
+        std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(weightInput);
+        FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
+                                                    NetworkHelper::getDequantization(convolution, 1ul) :
+                                                    NetworkHelper::getDequantization(reshapeFromWeights);
+        if (dequantization.empty()) {
+            const auto fqOnWeights = getFakeQuantizeOnWeights(convolution);
+            std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
+            if (reshapeFromWeights != nullptr) {
+                resultConstant = fold_reshape<opset1::Reshape>(
+                        resultConstant,
+                        reshapeFromWeights->input_value(1),
+                        false);
+            }
+            if (as_type_ptr<opset1::Constant>(resultConstant)) {
+                replace_node(weightInput, resultConstant);
+            }
+        } else {
+            NetworkHelper::foldDequantization(dequantization.multiply, 0, true);
+        }
+        return true;
     }
 
     convolution = NetworkHelper::separateInStandaloneBranch(convolution);
@@ -70,15 +90,16 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             broadcastShape[1] = subtract->get_output_shape(0)[1];
 
             std::shared_ptr<Node> newShift = fold<opset1::Broadcast>(
-                subtract->input_value(1).get_node_shared_ptr(),
+                subtract->input_value(1),
                 std::make_shared<opset1::Constant>(
                     element::i64,
                     Shape{ length },
                     broadcastShape));
 
             const auto newSubtract = as_type_ptr<opset1::Subtract>(subtract->clone_with_new_inputs({
-                subtract->input_value(0).get_node_shared_ptr(),
+                subtract->input_value(0),
                 newShift }));
+            NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
 
             newSubtract->set_output_type(0, subtract->get_output_element_type(0), newSubtract->get_output_partial_shape(0));
@@ -155,7 +176,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         if (is_type<opset1::Convert>(convolution->get_input_node_ptr(0))) {
             auto newConvolution = convolution->clone_with_new_inputs({
                 convolution->get_input_node_ptr(0)->get_input_source_output(0),
-                convolution->get_input_node_shared_ptr(1) });
+                convolution->input_value(1)});
             replace_node(convolution, newConvolution);
             convolution = newConvolution;
         }
@@ -203,7 +224,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                         reshapeFromWeights :
                         multiplyFromWeights->input_value(0)
                     }),
-                fold<opset1::Convert>(
+                foldConvert(
                     fold_reshape<opset1::Reshape>(
                         multiplyFromWeights->input_value(1),
                         std::make_shared<opset1::Constant>(element::u64, Shape{ newScaleShape.size() }, newScaleShape),
@@ -228,8 +249,9 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 zeroPointShape[0] = weightsShape[0];
 
                 auto zeroPointConstant = fold<opset1::Broadcast>(
-                    subtractFromWeights->get_input_node_shared_ptr(1),
+                    subtractFromWeights->input_value(1),
                     std::make_shared<opset1::Constant>(element::i32, Shape{ zeroPointShape.size() }, zeroPointShape));
+                NetworkHelper::copyInfo(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
                 replace_node(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
             }
         }
@@ -244,7 +266,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             auto newConvolution = convolution->clone_with_new_inputs({
                 convolution->get_input_source_output(0),
                 childNode.get() == convolution.get() ?
-                    convolution->get_input_node_ptr(1)->get_input_node_shared_ptr(0) :
+                    convolution->get_input_node_ptr(1)->input_value(0) :
                     childNode->copy_with_new_inputs({convertFromWeights->input_value(0), childNode->input_value(1)})});
             replace_node(convolution, newConvolution);
             convolution = newConvolution;

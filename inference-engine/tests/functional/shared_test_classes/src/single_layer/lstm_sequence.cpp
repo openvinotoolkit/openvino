@@ -11,7 +11,7 @@ namespace LayerTestsDefinitions {
 
     std::string LSTMSequenceTest::getTestCaseName(const testing::TestParamInfo<LSTMSequenceParams> &obj) {
         ngraph::helpers::SequenceTestsMode mode;
-        size_t seq_lenghts;
+        size_t seq_lengths;
         size_t batch;
         size_t hidden_size;
         size_t input_size;
@@ -22,7 +22,7 @@ namespace LayerTestsDefinitions {
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
-        std::tie(mode, seq_lenghts, batch, hidden_size, input_size, activations, clip, direction, netPrecision,
+        std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, netPrecision,
                  targetDevice) = obj.param;
         std::vector<std::vector<size_t>> inputShapes = {
                 {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
@@ -30,7 +30,7 @@ namespace LayerTestsDefinitions {
         };
         std::ostringstream result;
         result << "mode=" << mode << "_";
-        result << "seq_lenghts=" << seq_lenghts << "_";
+        result << "seq_lengths=" << seq_lengths << "_";
         result << "batch=" << batch << "_";
         result << "hidden_size=" << hidden_size << "_";
         result << "input_size=" << input_size << "_";
@@ -46,7 +46,7 @@ namespace LayerTestsDefinitions {
     void LSTMSequenceTest::SetUp() {
         using namespace ngraph::helpers;
         using namespace ngraph::builder;
-        size_t seq_lenghts;
+        size_t seq_lengths;
 
         size_t batch;
         size_t hidden_size;
@@ -57,12 +57,12 @@ namespace LayerTestsDefinitions {
         float clip;
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
-        std::tie(m_mode, seq_lenghts, batch, hidden_size, input_size, activations, clip, direction, netPrecision,
+        std::tie(m_mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, netPrecision,
                  targetDevice) = this->GetParam();
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
-        m_max_seq_len = seq_lenghts;
+        m_max_seq_len = seq_lengths;
         std::vector<std::vector<size_t>> inputShapes = {
-                {{batch, seq_lenghts, input_size}, {batch, num_directions, hidden_size}, {batch, num_directions, hidden_size},
+                {{batch, seq_lengths, input_size}, {batch, num_directions, hidden_size}, {batch, num_directions, hidden_size},
                  {batch}, {num_directions, 4 * hidden_size, input_size}, {num_directions, 4 * hidden_size, hidden_size}, {num_directions, 4 * hidden_size}},
         };
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

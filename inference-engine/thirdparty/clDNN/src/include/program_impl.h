@@ -145,6 +145,7 @@ public:
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
+    const std::list<optimized_info>& get_optimized() const { return optimized; }
     bool has_node(const primitive_id& prim) const { return nodes_map.count(prim) > 0; }
     program_node& get_node(primitive_id const& id);
     program_node const& get_node(primitive_id const& id) const;
@@ -196,7 +197,7 @@ public:
     void mark_if_data_flow(program_node& node);
     // Reverses connection - user becomes dependency.
 
-    void remove_nodes(std::list<program_node*>& to_remove);
+    void remove_nodes(std::vector<program_node*>& to_remove);
     void dump_program(const char* stage,
                       bool with_full_info,
                       std::function<bool(program_node const&)> const& filter = nullptr) const;

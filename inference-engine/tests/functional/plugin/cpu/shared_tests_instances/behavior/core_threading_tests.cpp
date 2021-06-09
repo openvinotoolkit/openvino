@@ -10,6 +10,7 @@ const Params params[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_CPU, {{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_HETERO, {{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU }}},
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_MULTI, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU }}},
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_AUTO, {{AUTO_CONFIG_KEY(DEVICE_LIST), CommonTestUtils::DEVICE_CPU }}},
 };
 
 const Params paramsStreams[] = {

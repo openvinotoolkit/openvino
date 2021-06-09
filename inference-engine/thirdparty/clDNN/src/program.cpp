@@ -56,6 +56,7 @@
 #include "to_string_utils.h"
 #include "gpu/memory_gpu.h"
 #include "cldnn_itt.h"
+#include "loop_inst.h"
 
 #include "gpu/ocl_toolkit.h"
 
@@ -482,19 +483,21 @@ void program_impl::post_optimize_graph(bool is_internal) {
 
     if (options.get<build_option_type::optimize_data>()->enabled())
         apply_opt_pass<remove_redundant_reorders>(lo, false, true, true);  // pass to remove output reorders while all others graph optimizations were done
+
+    // update loop input/output primitive mappings
+    apply_opt_pass<update_loop_primitive_map>();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program_impl::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty())
+    if (node.get_dependencies().empty() || node.is_type<prior_box>()) {
         return;
-    if (node.is_type<prior_box>())
-        return;
+    }
     node.constant = true;
     for (auto& dep : node.get_dependencies()) {
-        if (!dep->constant) {
+        if (!dep->is_constant()) {
             node.constant = false;
-            break;
+            return;
         }
     }
 }
@@ -884,8 +887,21 @@ bool program_impl::extract_and_remove(program_node& node) {
     }
 
     auto& input = node.get_dependency(0);
-    node.dependencies.clear();
+
+    // update primitive_map of loop primitive,
+    // if extracted node is input of loop
+    for (const auto user : node.users) {
+        if (user->is_type<loop>()) {
+            loop_node& loop = *user;
+            loop.update_primitive_map(node.id(), input.id());
+        }
+        if (node.dependencies.front()->is_type<loop>()) {
+            loop_node& loop = *node.dependencies.front();
+            loop.update_primitive_map(node.id(), user->id());
+        }
+    }
     input.users.remove(&node);
+    node.dependencies.clear();
 
     if (!node.is_endpoint())
         replace_all_usages(node, input);
@@ -976,12 +992,14 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node,
     fused_node.recalc_output_layout(true);
 }
 
-void program_impl::remove_nodes(std::list<program_node*>& to_remove) {
+void program_impl::remove_nodes(std::vector<program_node*>& to_remove) {
     for (auto const& node : to_remove) {
         if (node->is_input()) {
             get_inputs().remove(node);
         } else {
-            for (auto& dep : node->dependencies) dep->users.remove(node);
+            for (auto& dep : node->dependencies) {
+                dep->users.remove(node);
+            }
         }
         for (auto& user : node->users) {
             user->dependencies.erase(std::remove(user->dependencies.begin(), user->dependencies.end(), node),
@@ -1242,12 +1260,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             is_quantized_int8_model = true;
         }
 
-        // WA to keep fsv16 layout disabled for some topologies where it leads to regressions.
-        // For reshape bfy*x is preferred, as fsv16 introduces extra reorders
         if (prim.type() == cldnn::crop::type_id()) {
-            if (prim.get_dependencies()[0]->is_type<reshape>() || prim.get_dependencies()[0]->is_type<concatenation>()) {
-                can_use_fsv16 = false;
-            }
             total_crop_layers++;
         }
 

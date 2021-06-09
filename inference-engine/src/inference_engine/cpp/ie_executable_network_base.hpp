@@ -15,7 +15,6 @@
 #include <vector>
 
 #include <ie_iexecutable_network.hpp>
-#include <cpp/ie_executable_network.hpp>
 #include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cpp/exception2status.hpp"
@@ -65,14 +64,12 @@ public:
         TO_STATUS(_impl->Export(networkModel));
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept override {
-        IE_SUPPRESS_DEPRECATED_START
         // should be refactored together with ExecutableNetwork interface
         TO_STATUS(graphPtr = _impl->GetExecGraphInfo());
-        IE_SUPPRESS_DEPRECATED_END
     }
 
-    IE_SUPPRESS_DEPRECATED_START
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
         try {

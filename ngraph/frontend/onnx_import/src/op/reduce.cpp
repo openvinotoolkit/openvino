@@ -41,7 +41,6 @@ namespace ngraph
                     const std::int64_t noop_with_empty_axes =
                         node.get_attribute_value<std::int64_t>("noop_with_empty_axes", 0);
                     const auto input = node.get_ng_inputs().at(0);
-                    const auto input_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
                     if (node.get_ng_inputs().size() > 1)
                     {
                         const auto reduction_axes = node.get_ng_inputs().at(1);
@@ -63,17 +62,7 @@ namespace ngraph
                     }
                     else
                     {
-                        if (input_rank.is_static())
-                        {
-                            auto all_axes = onnx_import::common::get_monotonic_range<int64_t>(
-                                input_rank.get_length());
-                            return default_opset::Constant::create(
-                                element::i64, Shape{all_axes.size()}, all_axes);
-                        }
-                        else
-                        {
-                            return get_dynamic_all_axes_range(node);
-                        }
+                        return get_dynamic_all_axes_range(node);
                     }
                 }
 

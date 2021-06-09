@@ -11,15 +11,14 @@
 #pragma once
 
 #include <string>
+#include <memory>
 
+#include "ie_api.h"
 #include "ie_blob.h"
 #include "details/ie_so_loader.h"
+#include "ie_imemory_state.hpp"
 
 namespace InferenceEngine {
-
-namespace details {
-class SharedObjectLoader;
-}
 
 class IVariableStateInternal;
 
@@ -27,21 +26,40 @@ class IVariableStateInternal;
  * @brief C++ exception based error reporting wrapper of API class IVariableState
  */
 class INFERENCE_ENGINE_API_CLASS(VariableState) {
-    std::shared_ptr<IVariableStateInternal> _impl = nullptr;
-    details::SharedObjectLoader::Ptr _so = nullptr;
+    details::SharedObjectLoader              _so;
+    std::shared_ptr<IVariableStateInternal>  _impl;
+    IE_SUPPRESS_DEPRECATED_START
+    std::shared_ptr<IVariableState>          actual;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr
      * @param impl Initialized shared pointer
      * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin object is destroyed.
      */
-    explicit VariableState(const std::shared_ptr<IVariableStateInternal>& impl,
-                           const details::SharedObjectLoader::Ptr& so = {});
-
+    VariableState(const details::SharedObjectLoader&             so,
+                  const std::shared_ptr<IVariableStateInternal>& impl);
     friend class InferRequest;
     friend class ExecutableNetwork;
 
 public:
+    /**
+     * @brief Default constructor
+     */
+    VariableState() = default;
+
+    IE_SUPPRESS_DEPRECATED_START
+    /**
+     * @deprecated This ctor will be removed in 2022.1
+     * @brief constructs VariableState from the initialized std::shared_ptr
+     * @param pState Initialized shared pointer
+     * @param plg Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin object is destroyed.
+     */
+    INFERENCE_ENGINE_DEPRECATED("This ctor will be removed in 2022.1")
+    explicit VariableState(std::shared_ptr<IVariableState> pState,
+                           std::shared_ptr<details::SharedObjectLoader> plg = {});
+    IE_SUPPRESS_DEPRECATED_END
+
     /**
      * @copybrief IVariableState::Reset
      *
@@ -61,7 +79,7 @@ public:
      * @copybrief IVariableState::GetState
      *
      * Wraps IVariableState::GetState
-     * @return A blob representing a state 
+     * @return A blob representing a state
      */
     Blob::CPtr GetState() const;
 
