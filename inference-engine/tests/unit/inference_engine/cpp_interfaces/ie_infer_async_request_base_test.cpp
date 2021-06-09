@@ -307,6 +307,15 @@ TEST_F(InferRequestTests, throwsIfGetBlobReturnNotOK) {
     ASSERT_THROW(blob = request->GetBlob(name), Exception);
 }
 
+// SetShape
+TEST_F(InferRequestTests, canForwardSetBlob) {
+    SizeVector shape;
+    std::string name = "blob1";
+
+    EXPECT_CALL(*mock_request.get(), SetShape(name, shape));
+    ASSERT_NO_THROW(request->SetShape(name, shape));
+}
+
 // SetBlob
 TEST_F(InferRequestTests, canForwardSetBlob) {
     Blob::Ptr blob;

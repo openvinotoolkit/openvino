@@ -194,6 +194,12 @@ public:
      */
     virtual InferenceEngine::StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept = 0;
 
+    virtual InferenceEngine::StatusCode SetShape(const std::string& name, const SizeVector& shapes, ResponseDesc* resp) noexcept {
+        (void) name;
+        (void) shapes;
+        (void) resp;
+        return NOT_IMPLEMENTED;
+    }
 protected:
     ~IInferRequest() = default;
 };
