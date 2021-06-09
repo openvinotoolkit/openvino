@@ -824,7 +824,7 @@ std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeOutputs(cons
     for (auto const &output : outputsDataMap) {
         auto outputName = output.first;
         auto outputDims = output.second->getTensorDesc().getDims();
-        struct Gna2Shape outputShape = {0, {0}};
+        HeaderLatest::RuntimeEndPoint::Shape outputShape;
         outputShape.NumberOfDimensions = outputDims.size();
         for (size_t i=0; i < outputShape.NumberOfDimensions; ++i) {
             outputShape.Dimensions[i] = static_cast<uint32_t>(outputDims[i]);
@@ -854,7 +854,7 @@ std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeInputs(const
     for (auto const& input : inputsDataMap) {
         auto inputName = input.first;
         auto inputDims = input.second->getTensorDesc().getDims();
-        struct Gna2Shape inputShape = {0, {0}};
+        HeaderLatest::RuntimeEndPoint::Shape inputShape;
         inputShape.NumberOfDimensions = inputDims.size();
         for (size_t i=0; i < inputShape.NumberOfDimensions; ++i) {
             inputShape.Dimensions[i] = static_cast<uint32_t>(inputDims[i]);
