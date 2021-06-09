@@ -216,9 +216,11 @@ TEST(FrontEndExceptionTest, frontend_assert_throw_check_info)
     } catch (const ngraph::frontend::GeneralFailure &ex) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
+        return;
     } catch (...) {
         FAIL() << "Not expected exception type.";
     }
+    FAIL() << "Test is expected to throw an exception.";
 }
 
 TEST(FrontEndExceptionTest, frontend_not_implemented_throw_check_info)
@@ -229,46 +231,54 @@ TEST(FrontEndExceptionTest, frontend_not_implemented_throw_check_info)
     } catch (const ngraph::frontend::NotImplementedFailure &ex) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find("TestClass"), std::string::npos);
+        return;
     } catch (...) {
         FAIL() << "Not expected exception type.";
     }
+    FAIL() << "Test is expected to throw an exception.";
 }
 
 TEST(FrontEndExceptionTest, frontend_general_error_throw_info)
 {
     std::string msg("msg example");
     try {
-        EXPECT_NO_THROW(FRONT_END_GENERAL_CHECK(true, msg));
+        FRONT_END_GENERAL_CHECK(false, msg);
     } catch (const ngraph::frontend::GeneralFailure &ex) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
+        return;
     } catch (...) {
         FAIL() << "Not expected exception type.";
     }
+    FAIL() << "Test is expected to throw an exception.";
 }
 
 TEST(FrontEndExceptionTest, frontend_op_conversion_error_throw_info)
 {
     std::string msg("msg example");
     try {
-        EXPECT_NO_THROW(FRONT_END_OP_CONVERSION_CHECK(true, msg));
+        FRONT_END_OP_CONVERSION_CHECK(false, msg);
     } catch (const ngraph::frontend::OpConversionFailure &ex) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
+        return;
     } catch (...) {
         FAIL() << "Not expected exception type.";
     }
+    FAIL() << "Test is expected to throw an exception.";
 }
 
 TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info)
 {
     std::string msg("msg example");
     try {
-        EXPECT_NO_THROW(FRONT_END_INITIALIZATION_CHECK(true, msg));
+        FRONT_END_INITIALIZATION_CHECK(false, msg);
     } catch (const ngraph::frontend::InitializationFailure &ex) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
+        return;
     } catch (...) {
         FAIL() << "Not expected exception type.";
     }
+    FAIL() << "Test is expected to throw an exception.";
 }
