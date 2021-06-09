@@ -7,6 +7,7 @@
 
 #include "ngraph/function.hpp"     // ngraph::Function
 #include "ngraph/op/parameter.hpp" // ngraph::op::Parameter
+#include "ngraph/op/sink.hpp"
 #include "pyngraph/function.hpp"
 
 namespace py = pybind11;
@@ -17,6 +18,42 @@ void regclass_pyngraph_Function(py::module m)
 {
     py::class_<ngraph::Function, std::shared_ptr<ngraph::Function>> function(m, "Function");
     function.doc() = "ngraph.impl.Function wraps ngraph::Function";
+
+    function.def(py::init([](const ngraph::ResultVector& res,
+                             const std::vector<std::shared_ptr<ngraph::Node>>& nodes,
+                             const ngraph::ParameterVector& params,
+                             const std::string& name) {
+                     ngraph::SinkVector sinks;
+                     for (const auto& node : nodes)
+                     {
+                         auto sink = std::dynamic_pointer_cast<ngraph::op::Sink>(node);
+                         NGRAPH_CHECK(sink != nullptr, "Node {} is not instance of Sink");
+                         sinks.push_back(sink);
+                     }
+                     return std::make_shared<ngraph::Function>(res, sinks, params, name);
+                 }),
+                 py::arg("results"),
+                 py::arg("sinks"),
+                 py::arg("parameters"),
+                 py::arg("name"),
+                 R"(
+                    Create user-defined Function which is a representation of a model.
+
+                    Parameters
+                    ----------
+                    results : List[op.Result]
+                        List of results.
+
+                    sinks : List[Node]
+                        List of Nodes to be used as Sinks (e.g. Assign ops).
+
+                    parameters : List[op.Parameter]
+                        List of parameters.
+
+                    name : str
+                        String to set as function's friendly name.
+                 )");
+
     function.def(py::init<const std::vector<std::shared_ptr<ngraph::Node>>&,
                           const std::vector<std::shared_ptr<ngraph::op::Parameter>>&,
                           const std::string&>(),
@@ -37,6 +74,7 @@ void regclass_pyngraph_Function(py::module m)
                     name : str
                         String to set as function's friendly name.
                  )");
+
     function.def(py::init<const std::shared_ptr<ngraph::Node>&,
                           const std::vector<std::shared_ptr<ngraph::op::Parameter>>&,
                           const std::string&>(),

@@ -403,3 +403,25 @@ def test_mutiple_outputs():
     output = computation(input_data)
 
     assert np.equal(output, expected_output).all()
+
+
+def test_sink_function_ctor():
+    input_data = ng.parameter([2, 2], name="input_data", dtype=np.float32)
+    rv = ng.read_value(input_data, "var_id_667")
+    add = ng.add(rv, input_data, name="MemoryAdd")
+    node = ng.assign(add, "var_id_667")
+    res = ng.result(add, "res")
+    function = Function(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
+
+    ordered_ops = function.get_ordered_ops()
+    op_types = [op.get_type_name() for op in ordered_ops]
+    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
+    assert len(function.get_ops()) == 5
+    assert function.get_output_size() == 1
+    assert function.get_output_op(0).get_type_name() == "Result"
+    assert function.get_output_element_type(0) == input_data.get_element_type()
+    assert list(function.get_output_shape(0)) == [2, 2]
+    assert (function.get_parameters()[0].get_partial_shape()) == PartialShape([2, 2])
+    assert len(function.get_parameters()) == 1
+    assert len(function.get_results()) == 1
+    assert function.get_friendly_name() == "TestFunction"
