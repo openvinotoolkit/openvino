@@ -7,12 +7,13 @@
 #include <memory>
 #include <string>
 #include "ngraph/check.hpp"
+#include "frontend_manager_defs.hpp"
 
 namespace ngraph
 {
     namespace frontend
     {
-        class GeneralFailure : public CheckFailure
+        class FRONTEND_API GeneralFailure : public CheckFailure
         {
         public:
             GeneralFailure(const CheckLocInfo& check_loc_info,
@@ -25,7 +26,7 @@ namespace ngraph
             }
         };
 
-        class InitializationFailure : public CheckFailure
+        class FRONTEND_API InitializationFailure : public CheckFailure
         {
         public:
             InitializationFailure(const CheckLocInfo& check_loc_info,
@@ -38,7 +39,7 @@ namespace ngraph
             }
         };
 
-        class OpValidationFailure : public CheckFailure
+        class FRONTEND_API OpValidationFailure : public CheckFailure
         {
         public:
             OpValidationFailure(const CheckLocInfo& check_loc_info,
@@ -51,7 +52,7 @@ namespace ngraph
             }
         };
 
-        class OpConversionFailure : public CheckFailure
+        class FRONTEND_API OpConversionFailure : public CheckFailure
         {
         public:
             OpConversionFailure(const CheckLocInfo& check_loc_info,
@@ -64,7 +65,7 @@ namespace ngraph
             }
         };
 
-        class NotImplementedFailure : public CheckFailure
+        class FRONTEND_API NotImplementedFailure : public CheckFailure
         {
         public:
             NotImplementedFailure(const CheckLocInfo& check_loc_info,
