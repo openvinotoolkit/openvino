@@ -11,11 +11,16 @@
 #include "serial/headers/2dot6/gna_model_header.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
 #include "gna_data_types.hpp"
-#include "gna_device.hpp"
+
 #pragma pack(push, 1)
 
 namespace GNAPluginNS {
 namespace Header2dot7 {
+
+/**
+ Maximal number of supported shape dimensions.
+ */
+#define GNA_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS 8
 
 /**
  * @brief Header version 2.7
@@ -132,9 +137,19 @@ struct RuntimeEndPoint {
     */
     uint64_t descriptor_offset = 0ull;
     /**
-     * Specifying dimensions
-     */
-    struct Gna2Shape shape = {0, {0}};
+     Shape specifying dimension values.
+    */
+    struct Shape {
+        /**
+         Number of dimensions or rank or order.
+        */
+        uint32_t NumberOfDimensions = 0;
+        /**
+         array specifying value of each dimension.
+        Set all zeros for scalars.
+        */
+        uint32_t Dimensions[GNA_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS] = {0};
+    } shape;
     /**
      * Blob layout
      */
@@ -166,7 +181,7 @@ struct RuntimeEndPoint {
                     void* descriptor_ptr,
                     uint32_t element_size,
                     uint32_t elements_count,
-                    Gna2Shape shape,
+                    Shape shape,
                     uint8_t layout,
                     uint8_t precision,
                     intel_dnn_orientation_t orientation) : scaleFactor(scaleFactor),
