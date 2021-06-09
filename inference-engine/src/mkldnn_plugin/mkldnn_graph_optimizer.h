@@ -32,6 +32,7 @@ private:
     void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
     void FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph);
     void FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph);
+    void FuseReduceAndSimpleOperation(MKLDNNGraph &graph);
 
     void DropDoubleReorders(MKLDNNGraph& graph);
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
