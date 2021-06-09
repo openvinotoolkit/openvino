@@ -8,8 +8,6 @@
 
 **Detailed description**:
 
-The *SpaceToBatch* operation is similar to the TensorFlow* operation [SpaceToBatchND](https://www.tensorflow.org/api_docs/python/tf/space_to_batch_nd)
-
 The operation is equivalent to the following transformation of the input tensor `data` of shape `[batch, D_1, D_2 ... D_{N - 1}]` and `block_shape`, `pads_begin`, `pads_end` of shapes `[N]` to *Y* output tensor.
 
 Zero-pad the start and end of dimensions  \f$[D_0, \dots, D_{N - 1}]\f$ of the input according to `pads_begin` and `pads_end`
