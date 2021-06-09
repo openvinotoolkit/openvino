@@ -395,6 +395,7 @@ public:
         opsetNames.insert("opset4");
         opsetNames.insert("opset5");
         opsetNames.insert("opset6");
+        opsetNames.insert("opset7");
     }
 
     ~Impl() override = default;
@@ -566,18 +567,6 @@ public:
     SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                               const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-
-        if (parsed._deviceName.empty()) {
-            ExportMagic magic = {};
-            auto currentPos = networkModel.tellg();
-            networkModel.read(magic.data(), magic.size());
-            auto exportedWithName = (exportMagic == magic);
-            if (exportedWithName) {
-                std::getline(networkModel, parsed._deviceName);
-            }
-            networkModel.seekg(currentPos, networkModel.beg);
-        }
-
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
     }
 
@@ -1022,18 +1011,6 @@ void Core::AddExtension(const IExtensionPtr& extension) {
 ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName, const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
-
-    // TODO: remove once NotImplemented exception is deprecated and not used
-    if (deviceName.find("HETERO") == 0) {
-        IE_THROW() << "HETERO device does not support ImportNetwork";
-    }
-    if (deviceName.find("MULTI") == 0) {
-        IE_THROW() << "MULTI device does not support ImportNetwork";
-    }
-    if (deviceName.find("AUTO") == 0) {
-        IE_THROW() << "AUTO device does not support ImportNetwork";
-    }
-
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
     auto exec = _impl->GetCPPPluginByName(parsed._deviceName).ImportNetwork(modelFileName, parsed._config);
     return { exec, exec };
@@ -1041,7 +1018,30 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName, const st
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
     auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
+    return { exec, exec };
+}
+
+ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
+
+    using ExportMagic = std::array<char, 4>;
+    constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
+
+    std::string deviceName;
+    ExportMagic magic = {};
+    auto currentPos = networkModel.tellg();
+    networkModel.read(magic.data(), magic.size());
+    if (exportMagic == magic) {
+        std::getline(networkModel, deviceName);
+    } else {
+        IE_THROW() << "Passed compiled stream does not contain device name. "
+            "Please, provide device name manually";
+    }
+    networkModel.seekg(currentPos, networkModel.beg);
+
+    auto exec = _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, {});
     return { exec, exec };
 }
 
@@ -1124,8 +1124,8 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
             IE_THROW()
                 << "You can only GetConfig of the AUTO itself (without devices). "
                    "GetConfig is also possible for the individual devices before creating the AUTO on top.";
-      }
-  }
+        }
+    }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName);
 
