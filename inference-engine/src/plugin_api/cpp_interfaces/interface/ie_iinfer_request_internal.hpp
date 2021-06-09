@@ -233,6 +233,9 @@ protected:
     std::map<std::string, PreProcessDataPtr> _preProcData;        //!< A map of pre-process data per input
     int m_curBatch = -1;  //!< Current batch value used in dynamic batching
 
+    // Shapes that set by real in
+    std::map<std::string, InferenceEngine::SizeVector>      m_realShapes;
+
     /**
      * @brief A shared pointer to IInferRequestInternal
      * @note Needed to correctly handle ownership between objects.
