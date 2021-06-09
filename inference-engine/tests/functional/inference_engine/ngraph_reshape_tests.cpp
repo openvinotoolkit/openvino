@@ -236,6 +236,120 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
 }
 
+TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToDynamic) {
+    const ngraph::PartialShape refShape{1, 3, ngraph::Dimension::dynamic(), 25};
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("data");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+
+    CNNNetwork cnnNetwork(ngraph);
+    std::map<std::string, ngraph::PartialShape> shapes;
+    shapes["data"] = refShape;
+
+    ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+
+    auto changedFunction = cnnNetwork.getFunction();
+    ASSERT_NE(nullptr, changedFunction);
+    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(changedFunction->get_results()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(ngraph->get_parameters()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(ngraph->get_results()[0]->get_partial_shape().is_dynamic());
+    ASSERT_EQ(changedFunction->get_parameters()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(changedFunction->get_results()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(ngraph->get_results()[0]->get_partial_shape(), refShape);
+}
+
+TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToFullyDynamic) {
+    const ngraph::PartialShape refShape = ngraph::PartialShape::dynamic();
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("data");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+
+    CNNNetwork cnnNetwork(ngraph);
+    std::map<std::string, ngraph::PartialShape> shapes;
+    shapes["data"] = refShape;
+
+    ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+
+    auto changedFunction = cnnNetwork.getFunction();
+    ASSERT_NE(nullptr, changedFunction);
+    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(changedFunction->get_results()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(ngraph->get_parameters()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(ngraph->get_results()[0]->get_partial_shape().is_dynamic());
+    ASSERT_EQ(changedFunction->get_parameters()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(changedFunction->get_results()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(ngraph->get_results()[0]->get_partial_shape(), refShape);
+}
+
+TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUDynamicToDynamic) {
+    const ngraph::PartialShape refShape{1, 3, ngraph::Dimension::dynamic(), 25};
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, ngraph::Dimension::dynamic()});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("data");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_partial_shape(), ngraph::PartialShape({1, 3, 22, ngraph::Dimension::dynamic()}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_partial_shape(), ngraph::PartialShape({1, 3, 22, ngraph::Dimension::dynamic()}));
+
+    CNNNetwork cnnNetwork(ngraph);
+    std::map<std::string, ngraph::PartialShape> shapes;
+    shapes["data"] = refShape;
+
+    ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+
+    auto changedFunction = cnnNetwork.getFunction();
+    ASSERT_NE(nullptr, changedFunction);
+    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(changedFunction->get_results()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(ngraph->get_parameters()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(ngraph->get_results()[0]->get_partial_shape().is_dynamic());
+    ASSERT_EQ(changedFunction->get_parameters()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(changedFunction->get_results()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(ngraph->get_results()[0]->get_partial_shape(), refShape);
+}
+
 class CustomTestOp: public ngraph::op::Op {
 public:
     static constexpr ngraph::NodeTypeInfo type_info{"CustomTestLayer", 0};

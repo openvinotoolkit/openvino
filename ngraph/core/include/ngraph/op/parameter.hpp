@@ -40,7 +40,7 @@ namespace ngraph
                 bool is_relevant_to_shapes() const;
                 void set_is_relevant_to_shapes(bool is_relevant);
 
-                const PartialShape& get_partial_shape() const { return m_partial_shape; }
+                const PartialShape& get_partial_shape() const override { return m_partial_shape; }
                 PartialShape& get_partial_shape() { return m_partial_shape; }
                 void set_partial_shape(const PartialShape& partial_shape)
                 {

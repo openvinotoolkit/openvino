@@ -311,7 +311,7 @@ void CNNNetworkNGraphImpl::reshape() {
 }
 
 StatusCode
-CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
                               ResponseDesc* responseDesc) noexcept {
     if (inputShapes.empty()) return OK;
 
@@ -324,7 +324,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         if (it == inputShapes.end()) {
             continue;
         }
-        if (param->get_partial_shape().is_dynamic() || param->get_shape() != it->second) {
+        if (param->get_partial_shape().is_dynamic() || param->get_partial_shape() != it->second) {
             needReshape = true;
             break;
         }
@@ -343,17 +343,22 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         ssr_manager.register_pass<ngraph::pass::SmartReshape>();
         ssr_manager.run_passes(_ngraph_function);
 
-        std::map<std::string, ngraph::PartialShape> reshapeShapes;
-        for (const auto & item : inputShapes) {
-            reshapeShapes[item.first] = ngraph::PartialShape(item.second);
-        }
-        reshape(reshapeShapes);
+        reshape(inputShapes);
     } catch (std::exception& ex) {
         reshape(originalInputShapes);
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
     }
 
     return OK;
+}
+
+StatusCode
+CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+                              ResponseDesc* responseDesc) noexcept {
+    std::map<std::string, ngraph::PartialShape> shapes;
+    for (const auto& shape : inputShapes)
+        shapes[shape.first] = ngraph::PartialShape(shape.second);
+    return reshape(shapes, responseDesc);
 }
 
 void
