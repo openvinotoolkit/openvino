@@ -287,13 +287,21 @@ set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
 if (ENABLE_MKL_DNN)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
-    list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+    if (NOT ENABLE_STRICT_DEPENDENCIES)
+        # For convinience add a runtime dependency to build along with this target.
+        # Warning: Parallel build with -GNinja may not be efficient.
+        list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+    endif()
 endif()
 
 if (ENABLE_CLDNN)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
-    list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
+    if (NOT ENABLE_STRICT_DEPENDENCIES)
+        # For convinience add a runtime dependency to build along with this target.
+        # Warning: Parallel build with -GNinja may not be efficient.
+        list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
+    endif()
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
@@ -400,6 +408,7 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
+    backend/prelu.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
@@ -470,7 +479,15 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
         onnx/onnx_import_with_editor.in.cpp)
 endif()
 
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
+# SOURCE AND HEADERS FOR FRONTEND TESTING
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
+set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+
+file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
+file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
+set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+
+add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
@@ -486,13 +503,6 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
 
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
-
-# SOURCE FOR FRONTEND TESTING
-file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
-set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
-
-file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
-set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
 add_executable(unit-test ${SRC})
 

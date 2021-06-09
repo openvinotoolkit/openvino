@@ -9,7 +9,7 @@
 #include <map>
 #include <vector>
 #include <ngraph/op/util/attr_types.hpp>
-#include <cldnn/cldnn_config.hpp>
+#include <gpu/gpu_config.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include "common_test_utils/test_constants.hpp"
 #include "ie_api.h"
@@ -289,8 +289,8 @@ namespace {
                 InferenceEngine::Precision::FP16,
             }), // precision
             ::testing::ValuesIn(std::vector<Config> {
-                {CommonTestUtils::DEVICE_GPU, {{CLDNNConfigParams::KEY_CLDNN_ENABLE_LOOP_UNROLLING, PluginConfigParams::YES}}},
-                {CommonTestUtils::DEVICE_GPU, {{CLDNNConfigParams::KEY_CLDNN_ENABLE_LOOP_UNROLLING, PluginConfigParams::NO}}}
+                {CommonTestUtils::DEVICE_GPU, {{GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, PluginConfigParams::YES}}},
+                {CommonTestUtils::DEVICE_GPU, {{GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, PluginConfigParams::NO}}}
             })), // configuration
         TensorIteratorWithConfigTest::getTestCaseName);
 }  // namespace
