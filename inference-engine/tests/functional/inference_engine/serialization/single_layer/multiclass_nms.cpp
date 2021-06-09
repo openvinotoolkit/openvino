@@ -27,30 +27,29 @@ namespace {
         InputShapeParams{2, 50, 50}
     };
 
-    const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
-    const std::vector<float> threshold = {0.3f, 0.7f};
-    const std::vector<float> sigmaThreshold = {0.0f, 0.5f};
-    const std::vector<ngraph::op::v8::MulticlassNms::BoxEncodingType> encodType = {op::v8::MulticlassNms::BoxEncodingType::CENTER,
-                                                                                    op::v8::MulticlassNms::BoxEncodingType::CORNER};
-    const std::vector<bool> sortResDesc = {true, false};
+    const std::vector<op::v8::MulticlassNms::SortResultType> sortResultType = {op::v8::MulticlassNms::SortResultType::CLASSID,
+                                                                       op::v8::MulticlassNms::SortResultType::SCORE,
+                                                                       op::v8::MulticlassNms::SortResultType::NONE};
     const std::vector<element::Type> outType = {element::i32, element::i64};
+    const std::vector<int> nmsTopK = {10, 100};
+    const std::vector<int> keepTopK = {10, 5};
+    const std::vector<float> iouThr = {0.1f, 0.6f};
+    const std::vector<float> scoreThr = {0.3f, 0.7f};
+    const std::vector<int> backgroudClass = {-1, 0};
+    const std::vector<float> eta = {0.0f, 0.5f};
 
-    const auto inPrecisions = ::testing::Combine(
-        ::testing::Values(InferenceEngine::Precision::FP32),
-        ::testing::Values(InferenceEngine::Precision::I32),
-        ::testing::Values(InferenceEngine::Precision::FP32));
-
-    const auto nmsParams = ::testing::Combine(
-            ::testing::ValuesIn(inShapeParams),
-            inPrecisions,
-            ::testing::ValuesIn(maxOutBoxPerClass),
-            ::testing::ValuesIn(threshold), // IOU threshold
-            ::testing::ValuesIn(threshold), // Score threshold
-            ::testing::ValuesIn(sigmaThreshold),
-            ::testing::ValuesIn(encodType),
-            ::testing::ValuesIn(sortResDesc),
-            ::testing::ValuesIn(outType),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
+                                            ::testing::Combine(::testing::Values(InferenceEngine::Precision::FP32),
+                                                                ::testing::Values(InferenceEngine::Precision::I32),
+                                                                ::testing::Values(InferenceEngine::Precision::FP32)),
+                                            ::testing::ValuesIn(sortResultType),
+                                            ::testing::ValuesIn(outType),
+                                            ::testing::ValuesIn(iouThr),
+                                            ::testing::ValuesIn(nmsTopK),
+                                            ::testing::ValuesIn(keepTopK),
+                                            ::testing::ValuesIn(backgroudClass),
+                                            ::testing::ValuesIn(eta),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
     INSTANTIATE_TEST_CASE_P(smoke_MulticlassNmsLayerTest, MulticlassNmsLayerTest, nmsParams, MulticlassNmsLayerTest::getTestCaseName);
 }  // namespace

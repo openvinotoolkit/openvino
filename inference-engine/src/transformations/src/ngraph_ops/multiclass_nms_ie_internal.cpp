@@ -16,101 +16,99 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::internal::MulticlassNmsIEInternal::type_info;
 
 op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
-                                                               const Output<Node>& scores,
-                                                               const Output<Node>& max_output_boxes_per_class,
-                                                               const Output<Node>& iou_threshold,
-                                                               const Output<Node>& score_threshold,
-                                                               int center_point_box,
-                                                               bool sort_result_descending,
-                                                               const ngraph::element::Type& output_type)
-        : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
-          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
-    constructor_validate_and_infer_types();
-}
-
-op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
-                                                               const Output<Node>& scores,
-                                                               const Output<Node>& max_output_boxes_per_class,
-                                                               const Output<Node>& iou_threshold,
-                                                               const Output<Node>& score_threshold,
-                                                               const Output<Node>& soft_nms_sigma,
-                                                               int center_point_box,
-                                                               bool sort_result_descending,
-                                                               const ngraph::element::Type& output_type)
-        : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma}),
-          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
+                                     const Output<Node>& scores,
+                                     const int32_t sort_result_type,
+                                     const ngraph::element::Type& output_type,
+                                     const float iou_threshold,
+                                     const float score_threshold,
+                                     const int nms_top_k,
+                                     const int keep_top_k,
+                                     const int background_class,
+                                     const float nms_eta)
+    : Op({boxes, scores})
+    , m_sort_result_type{sort_result_type}
+    , m_output_type{output_type}
+    , m_iou_threshold{iou_threshold}
+    , m_score_threshold{score_threshold}
+    , m_nms_top_k{nms_top_k}
+    , m_keep_top_k{keep_top_k}
+    , m_background_class{background_class}
+    , m_nms_eta{nms_eta} {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<Node> op::internal::MulticlassNmsIEInternal::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
     INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_clone_with_new_inputs);
-    if (new_args.size() == 6) {
-        return make_shared<MulticlassNmsIEInternal>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-                                             new_args.at(4), new_args.at(5), m_center_point_box, m_sort_result_descending,
-                                             m_output_type);
-    } else if (new_args.size() == 5) {
-        return make_shared<MulticlassNmsIEInternal>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-                                             new_args.at(4), m_center_point_box, m_sort_result_descending,
-                                             m_output_type);
-    }
-    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
+    check_new_args_count(this, new_args);
+    NODE_VALIDATION_CHECK(this, new_args.size() == 2, "Number of inputs must be 2");
+
+    return std::make_shared<MulticlassNmsIEInternal>(new_args.at(0),
+                                                   new_args.at(1),
+                                                   m_sort_result_type,
+                                                   m_output_type,
+                                                   m_iou_threshold,
+                                                   m_score_threshold,
+                                                   m_nms_top_k,
+                                                   m_keep_top_k,
+                                                   m_background_class,
+                                                   m_nms_eta);
 }
 
 bool op::internal::MulticlassNmsIEInternal::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_visit_attributes);
-    visitor.on_attribute("center_point_box", m_center_point_box);
-    visitor.on_attribute("sort_result_descending", m_sort_result_descending);
+    visitor.on_attribute("sort_result_type", m_sort_result_type);
     visitor.on_attribute("output_type", m_output_type);
+    visitor.on_attribute("nms_top_k", m_nms_top_k);
+    visitor.on_attribute("keep_top_k", m_keep_top_k);
+    visitor.on_attribute("iou_threshold", m_iou_threshold);
+    visitor.on_attribute("score_threshold", m_score_threshold);
+    visitor.on_attribute("background_class", m_background_class);
+    visitor.on_attribute("nms_eta", m_nms_eta);
     return true;
-}
-
-static constexpr size_t boxes_port = 0;
-static constexpr size_t scores_port = 1;
-static constexpr size_t max_output_boxes_per_class_port = 2;
-
-int64_t op::internal::MulticlassNmsIEInternal::max_boxes_output_from_input() const {
-    int64_t max_output_boxes{0};
-
-    size_t num_of_inputs = inputs().size();
-    if (num_of_inputs < 3) {
-        return 0;
-    }
-
-    const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
-    max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
-
-    return max_output_boxes;
 }
 
 void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_validate_and_infer_types);
-    const auto boxes_ps = get_input_partial_shape(boxes_port);
-    const auto scores_ps = get_input_partial_shape(scores_port);
+    const auto boxes_ps = get_input_partial_shape(0);
+    const auto scores_ps = get_input_partial_shape(1);
 
-    // NonMaxSuppression produces triplets
-    // that have the following format: [batch_index, class_index, box_index]
-    PartialShape out_shape = {Dimension::dynamic(), 3};
+    auto first_dim_shape = Dimension::dynamic();
 
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
         const auto num_boxes_boxes = boxes_ps[1];
-        const auto max_output_boxes_per_class_node = input_value(max_output_boxes_per_class_port).get_node_shared_ptr();
-        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
-            op::is_constant(max_output_boxes_per_class_node)) {
+        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
-            const auto max_output_boxes_per_class = max_boxes_output_from_input();
+            int64_t max_output_boxes_per_class = 0;
+            if (m_nms_top_k >= 0)
+                max_output_boxes_per_class = std::min(num_boxes, (int64_t)m_nms_top_k);
+            else
+                max_output_boxes_per_class = num_boxes;
 
-            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
-                           scores_ps[0].get_length();
+            auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
+            if (m_keep_top_k >= 0)
+                max_output_boxes_per_batch =
+                    std::min(max_output_boxes_per_batch, (int64_t)m_keep_top_k);
+
+            first_dim_shape = max_output_boxes_per_batch * scores_ps[0].get_length();
         }
     }
 
-    set_output_type(0, m_output_type, out_shape);
-    set_output_type(1, element::f32, out_shape);
-    set_output_type(2, m_output_type, Shape{1});
+    // 'selected_outputs' have the following format:
+    //      [number of selected boxes, [class_id, box_score, xmin, ymin, xmax, ymax]]
+    set_output_type(0, element::f32, {first_dim_shape, 6});
+    // 'selected_indices' have the following format:
+    //      [number of selected boxes, ]
+    set_output_type(1, m_output_type, {first_dim_shape});
+    // 'selected_num' have the following format:
+    //      [num_batches, ]
+    if (boxes_ps.rank().is_static() && boxes_ps.rank().get_length() > 0) {
+        set_output_type(2, m_output_type, {boxes_ps[0]});
+    } else {
+        set_output_type(2, m_output_type, {Dimension::dynamic()});
+    }
 }
-
+/*
 // TODO: test usage only
 namespace multiclass_nms_v8 {
 using V8BoxEncoding = op::v8::MulticlassNms::BoxEncodingType;
@@ -430,10 +428,11 @@ void multiclass_nms_postprocessing(const HostTensorVector& outputs,
     }
 }
 } // namespace multiclass_nms_v8
-
+*/
 bool op::internal::MulticlassNmsIEInternal::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const {
     INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_evaluate);
+    /*
     auto info = multiclass_nms_v8::get_info_for_nms_eval(this, inputs);
     size_t num_of_outputs = outputs.size();
 
@@ -477,7 +476,7 @@ bool op::internal::MulticlassNmsIEInternal::evaluate(const HostTensorVector& out
         if (num_of_outputs >= 2) {
             outputs[1]->get_data_ptr<float>()[i] = -1.0f;
         }
-    }
+    }*/
 
     return true;
 }

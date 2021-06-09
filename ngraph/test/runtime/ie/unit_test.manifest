@@ -1230,6 +1230,7 @@ IE_CPU.multiclass_nms_by_IOU_and_scores
 IE_CPU.multiclass_nms_two_batches
 IE_CPU.multiclass_nms_two_classes
 IE_CPU.multiclass_nms_by_IOU_and_scores_without_constants
+IE_CPU.multiclass_nms_*
 
 # Unsupported dynamic op
 IE_CPU.range_v4_trunc_inputs

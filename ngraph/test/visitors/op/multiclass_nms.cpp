@@ -25,18 +25,35 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto box_encoding = opset7::MulticlassNms::BoxEncodingType::CENTER;
-    bool sort_result_descending = false;
-    element::Type output_type = element::i32;
+    auto sort_result_type = opset7::MulticlassNms::SortResultType::SCORE;
+    auto output_type = ngraph::element::i64;
+    int nms_top_k = 100;
+    int keep_top_k = 10;
+    float iou_threshold = 0.1f;
+    float score_threshold = 0.2f;
+    int background_class = 2;
+    float nms_eta = 0.3f;
 
-    auto nms = make_shared<opset7::MulticlassNms>(
-        boxes, scores, box_encoding, sort_result_descending, output_type);
+    auto nms = make_shared<opset7::MulticlassNms>(boxes, scores, sort_result_type, output_type, iou_threshold, score_threshold, nms_top_k, keep_top_k, background_class, nms_eta);
     NodeBuilder builder(nms);
     auto g_nms = as_type_ptr<opset7::MulticlassNms>(builder.create());
 
-    EXPECT_EQ(g_nms->get_box_encoding(), nms->get_box_encoding());
-    EXPECT_EQ(g_nms->get_sort_result_descending(), nms->get_sort_result_descending());
+    EXPECT_EQ(g_nms->get_sort_result_type(), nms->get_sort_result_type());
     EXPECT_EQ(g_nms->get_output_type(), nms->get_output_type());
+    EXPECT_EQ(g_nms->get_nms_top_k(), nms->get_nms_top_k());
+    EXPECT_EQ(g_nms->get_keep_top_k(), nms->get_keep_top_k());
+    EXPECT_EQ(g_nms->get_iou_threshold(), nms->get_iou_threshold());
+    EXPECT_EQ(g_nms->get_score_threshold(), nms->get_score_threshold());
+    EXPECT_EQ(g_nms->get_background_class(), nms->get_background_class());
+    EXPECT_EQ(g_nms->get_nms_eta(), nms->get_nms_eta());
+    EXPECT_EQ(sort_result_type, nms->get_sort_result_type());
+    EXPECT_EQ(output_type, nms->get_output_type());
+    EXPECT_EQ(nms_top_k, nms->get_nms_top_k());
+    EXPECT_EQ(keep_top_k, nms->get_keep_top_k());
+    EXPECT_EQ(iou_threshold, nms->get_iou_threshold());
+    EXPECT_EQ(score_threshold, nms->get_score_threshold());
+    EXPECT_EQ(background_class, nms->get_background_class());
+    EXPECT_EQ(nms_eta, nms->get_nms_eta());    
 }
 
 TEST(attributes, multiclass_nms_v8_op_default_attributes)
@@ -49,7 +66,12 @@ TEST(attributes, multiclass_nms_v8_op_default_attributes)
     NodeBuilder builder(nms);
     auto g_nms = as_type_ptr<opset7::MulticlassNms>(builder.create());
 
-    EXPECT_EQ(g_nms->get_box_encoding(), nms->get_box_encoding());
-    EXPECT_EQ(g_nms->get_sort_result_descending(), nms->get_sort_result_descending());
+    EXPECT_EQ(g_nms->get_sort_result_type(), nms->get_sort_result_type());
     EXPECT_EQ(g_nms->get_output_type(), nms->get_output_type());
+    EXPECT_EQ(g_nms->get_nms_top_k(), nms->get_nms_top_k());
+    EXPECT_EQ(g_nms->get_keep_top_k(), nms->get_keep_top_k());
+    EXPECT_EQ(g_nms->get_iou_threshold(), nms->get_iou_threshold());
+    EXPECT_EQ(g_nms->get_score_threshold(), nms->get_score_threshold());
+    EXPECT_EQ(g_nms->get_background_class(), nms->get_background_class());
+    EXPECT_EQ(g_nms->get_nms_eta(), nms->get_nms_eta());
 }

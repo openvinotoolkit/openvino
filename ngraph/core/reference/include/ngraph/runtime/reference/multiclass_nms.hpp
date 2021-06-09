@@ -14,6 +14,7 @@
 #include <ngraph/runtime/host_tensor.hpp>
 #include <vector>
 #include "ngraph/node.hpp"
+#include "ngraph/op/util/nms_base.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
@@ -28,23 +29,24 @@ namespace ngraph
                                 const Shape& boxes_data_shape,
                                 const float* scores_data,
                                 const Shape& scores_data_shape,
-                                int64_t max_output_boxes_per_class,
+                                op::util::NmsBase::SortResultType sort_result_type,
                                 float iou_threshold,
                                 float score_threshold,
-                                float soft_nms_sigma,
+                                int nms_top_k,
+                                int keep_top_k,
+                                int background_class,
+                                float nms_eta,
+                                float* selected_outputs,
+                                const Shape& selected_outputs_shape,
                                 int64_t* selected_indices,
                                 const Shape& selected_indices_shape,
-                                float* selected_scores,
-                                const Shape& selected_scores_shape,
-                                int64_t* valid_outputs,
-                                const bool sort_result_descending);
+                                int64_t* valid_outputs);
 
             void multiclass_nms_postprocessing(const HostTensorVector& outputs,
                                                const ngraph::element::Type output_type,
+                                               const std::vector<float>& selected_outputs,
                                                const std::vector<int64_t>& selected_indices,
-                                               const std::vector<float>& selected_scores,
-                                               int64_t valid_outputs,
-                                               const ngraph::element::Type selected_scores_type);
-        }
-    }
-}
+                                               int64_t valid_outputs);
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

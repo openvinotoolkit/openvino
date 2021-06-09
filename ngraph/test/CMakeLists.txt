@@ -279,6 +279,13 @@ set(SRC
     uint4.cpp
     util.cpp
 )
+# // TODO: test usage only
+set (SRC 
+    main.cpp
+    op.cpp
+    util.cpp
+    type_prop/multiclass_nms.cpp
+    visitors/op/multiclass_nms.cpp)
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
@@ -442,6 +449,10 @@ set(MULTI_TEST_SRC
     backend/validate_call.in.cpp
     backend/zero_sized.in.cpp
 )
+
+# // TODO: test usage only
+set (MULTI_TEST_SRC 
+    backend/multiclass_nms.in.cpp)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND MULTI_TEST_SRC

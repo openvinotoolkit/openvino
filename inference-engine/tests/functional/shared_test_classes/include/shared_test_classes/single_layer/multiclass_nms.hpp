@@ -22,13 +22,13 @@ using InputPrecisions = std::tuple<InferenceEngine::Precision,  // boxes and sco
 
 using NmsParams = std::tuple<InputShapeParams,                                   // Params using to create 1st and 2nd inputs
                              InputPrecisions,                                    // Input precisions
-                             int32_t,                                            // Max output boxes per class
-                             float,                                              // IOU threshold
-                             float,                                              // Score threshold
-                             float,                                              // Soft NMS sigma
-                             ngraph::op::v8::MulticlassNms::BoxEncodingType,     // Box encoding
-                             bool,                                               // Sort result descending
+                             ngraph::op::v8::MulticlassNms::SortResultType,      // Order of output elements
                              ngraph::element::Type,                              // Output type
+                             float,                                              // IOU, score threshold
+                             int,                                                // Maximum number of boxes to be selected per class
+                             int,                                                // Maximum number of boxes to be selected per batch element
+                             int,                                                // Background class id
+                             float,                                              // Eta parameter for adpative NMS
                              std::string>;                                       // Device name
 
 class MulticlassNmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {

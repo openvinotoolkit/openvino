@@ -514,16 +514,5 @@ std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
                                       const std::vector<int64_t> &signalSize,
                                       const ngraph::helpers::DFTOpType opType);
 
-std::shared_ptr<ngraph::Node> makeMulticlassNms(const ngraph::Output<Node> &boxes,
-                                      const ngraph::Output<Node> &scores,
-                                      const element::Type& maxBoxesPrec,
-                                      const element::Type& thrPrec,
-                                      const int32_t &maxOutBoxesPerClass,
-                                      const float &iouThr,
-                                      const float &scoreThr,
-                                      const float &softNmsSigma,
-                                      const ngraph::op::v8::MulticlassNms::BoxEncodingType &boxEncoding,
-                                      const bool &sortResDescend,
-                                      const ngraph::element::Type& outType);
 }  // namespace builder
 }  // namespace ngraph

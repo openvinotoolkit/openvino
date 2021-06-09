@@ -23,22 +23,14 @@ public:
 
     MulticlassNmsIEInternal(const Output<Node>& boxes,
                             const Output<Node>& scores,
-                            const Output<Node>& max_output_boxes_per_class,
-                            const Output<Node>& iou_threshold,
-                            const Output<Node>& score_threshold,
-                            int center_point_box,
-                            bool sort_result_descending,
-                            const ngraph::element::Type& output_type = ngraph::element::i64);
-
-    MulticlassNmsIEInternal(const Output<Node>& boxes,
-                            const Output<Node>& scores,
-                            const Output<Node>& max_output_boxes_per_class,
-                            const Output<Node>& iou_threshold,
-                            const Output<Node>& score_threshold,
-                            const Output<Node>& soft_nms_sigma,
-                            int center_point_box,
-                            bool sort_result_descending,
-                            const ngraph::element::Type& output_type = ngraph::element::i64);
+                            const int32_t sort_result_type = 2,
+                            const ngraph::element::Type& output_type = ngraph::element::i32,
+                            const float iou_threshold = 0.0f,
+                            const float score_threshold = 0.0f,
+                            const int nms_top_k = -1,
+                            const int keep_top_k = -1,
+                            const int background_class = -1,
+                            const float nms_eta = 1.0f);
 
     void validate_and_infer_types() override;
 
@@ -51,12 +43,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 
-    int m_center_point_box;
-    bool m_sort_result_descending = true;
-    element::Type m_output_type;
-
-private:
-    int64_t max_boxes_output_from_input() const;
+    int32_t m_sort_result_type = 2;
+    ngraph::element::Type m_output_type = ngraph::element::i32;
+    float m_iou_threshold = 0.0f;
+    float m_score_threshold = 0.0f;
+    int m_nms_top_k = -1;
+    int m_keep_top_k = -1;
+    int m_background_class = -1;
+    float m_nms_eta = 1.0f;
 };
 
 }  // namespace internal
