@@ -52,29 +52,17 @@ set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation")
 
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
-    find_package(Python3 COMPONENTS Interpreter)
-    find_package(LATEX)
-
-    if(NOT DOXYGEN_FOUND)
-        message(FATAL_ERROR "Doxygen is required to build the documentation")
-    endif()
-
-    if(NOT Python3_FOUND)
-        message(FATAL_ERROR "Python3 is required to build the documentation")
-    endif()
+    find_package(PythonInterp 3 REQUIRED)
+    find_package(LATEX REQUIRED)
 
     execute_process(
-        COMMAND ${Python3_EXECUTABLE} -m pip show lxml
+        COMMAND ${PYTHON_EXECUTABLE} -m pip show lxml
         RESULT_VARIABLE PIP_EXIT_CODE
         OUTPUT_QUIET
     )
 
     if (NOT ${PIP_EXIT_CODE} EQUAL 0)
         message(FATAL_ERROR "lxml package is not installed. Please use \"pip install lxml\".")
-    endif()
-
-    if(NOT LATEX_FOUND)
-        message(FATAL_ERROR "LATEX is required to build the documentation")
     endif()
 
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -217,7 +205,7 @@ function(build_docs)
 
     add_custom_command(TARGET py_api
                        PRE_BUILD
-                       COMMAND ${Python3_EXECUTABLE} ${PYX_FILTER} ${PYTHON_API_OUT}
+                       COMMAND ${PYTHON_EXECUTABLE} ${PYX_FILTER} ${PYTHON_API_OUT}
                        COMMENT "Pre-process Python API")
 
     # Preprocess docs
@@ -317,8 +305,8 @@ function(build_docs)
     add_custom_command(TARGET preprocess_docs
                        PRE_BUILD
                        ${commands}
-                       COMMAND ${Python3_EXECUTABLE} ${DOXY_LAYOUT_SCRIPT} --openvino ${OPENVINO_LAYOUT_BUILD}
-                       COMMAND ${Python3_EXECUTABLE} ${DOXY_MD_FILTER} ${DOCS_BUILD_DIR}
+                       COMMAND ${PYTHON_EXECUTABLE} ${DOXY_LAYOUT_SCRIPT} --openvino ${OPENVINO_LAYOUT_BUILD}
+                       COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER} ${DOCS_BUILD_DIR}
                        COMMENT "Pre-process markdown and image links")
 
     # IE dev guide and C++ API
@@ -353,7 +341,7 @@ function(build_docs)
 
     add_custom_command(TARGET openvino_docs
                        POST_BUILD
-                       COMMAND ${Python3_EXECUTABLE} ${DOXY_LOG_SCRIPT} --log "${DOCS_BUILD_DIR}/ie_docs.log"
+                       COMMAND ${PYTHON_EXECUTABLE} ${DOXY_LOG_SCRIPT} --log "${DOCS_BUILD_DIR}/ie_docs.log"
                                                                         --include_omz $<BOOL:${OMZ_DOCS_DIR}>
                                                                         --include_wb $<BOOL:${WORKBENCH_DOCS_DIR}>
                                                                         --include_pot $<BOOL:${POT_DOCS_DIR}>
@@ -365,7 +353,7 @@ function(build_docs)
 
     if(EXISTS "${LINKCHECKER_PY}")
         add_custom_target(docs_check
-                            COMMAND ${Python3_EXECUTABLE} "${LINKCHECKER_PY}" -v "${DOCS_BUILD_DIR}/html/"
+                            COMMAND ${PYTHON_EXECUTABLE} "${LINKCHECKER_PY}" -v "${DOCS_BUILD_DIR}/html/"
                             COMMENT "Check links in generated documentation"
                             WORKING_DIRECTORY "${DOCS_BUILD_DIR}"
                             VERBATIM)

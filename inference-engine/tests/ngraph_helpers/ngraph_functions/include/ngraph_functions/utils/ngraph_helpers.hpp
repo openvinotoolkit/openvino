@@ -214,6 +214,15 @@ enum class SequenceTestsMode {
     CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
 };
 
+enum class MemoryTransformation {
+    NONE,
+    LOW_LATENCY,
+    LOW_LATENCY_REGULAR_API,
+    LOW_LATENCY_V2,
+    LOW_LATENCY_V2_REGULAR_API,
+    LOW_LATENCY_V2_ORIGINAL_INIT
+};
+
 std::ostream &operator<<(std::ostream &os, const ReductionType &m);
 std::ostream &operator<<(std::ostream &os, const PadMode &m);
 
@@ -296,6 +305,8 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCa
 std::ostream& operator<<(std::ostream & os, TensorIteratorBody type);
 
 std::ostream& operator<<(std::ostream & os, SequenceTestsMode type);
+
+std::ostream& operator<<(std::ostream & os, MemoryTransformation type);
 
 }  // namespace helpers
 }  // namespace ngraph
