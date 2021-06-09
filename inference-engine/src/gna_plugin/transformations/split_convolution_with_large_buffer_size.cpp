@@ -38,7 +38,6 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
                     std::shared_ptr<ngraph::Node> add,
                     std::shared_ptr<ngraph::Node> bias,
                     std::shared_ptr<ngraph::Node> fq) {
-    gnalog() << conv->get_friendly_name() << " Split\n";
     auto input_size = std::accumulate(std::begin(conv->get_input_shape(0)),
         std::end(conv->get_input_shape(0)), 1, std::multiplies<size_t>());
     if (input_size <= GNALimitations::bufferMaxSize) {
@@ -72,7 +71,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
     }
 
     auto concat = std::make_shared<ngraph::opset7::Concat>(convOutputs, width_axis);
-    concat->set_friendly_name(conv->get_friendly_name() + "/concat");
+    concat->set_friendly_name(conv->get_friendly_name());
     ngraph::replace_node(root_node, concat);
     return true;
 }

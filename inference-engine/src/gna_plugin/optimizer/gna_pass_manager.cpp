@@ -85,7 +85,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
         return LayerInfo(ptr).isNonValuesChangable();
     });
     IE_ASSERT(inputLayer != nullptr);
-    size_t weightsSize = LayerInfo(prevLayer).has32BOutput() ?
+    size_t weightsSize = (LayerInfo(prevLayer).has32BOutput() || LayerInfo(inputLayer).isInput()) ?
                          nextLayer->outData[0]->getDims().back() :
                          Get2DReshapedData(nextLayer->outData[0], 8)->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);

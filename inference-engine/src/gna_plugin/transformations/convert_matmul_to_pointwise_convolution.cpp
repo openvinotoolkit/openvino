@@ -14,8 +14,8 @@
 using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(ConvertMatmulToPointWiseConvolution, "ConvertMatmulToPointWiseConvolution", 0);
-NGRAPH_RTTI_DEFINITION(ConvertMatmulWithBiasToPointWiseConvolution, "ConvertMatmulToPointWiseConvolution", 0);
-NGRAPH_RTTI_DEFINITION(ConvertMatmulWithFqToPointWiseConvolution, "ConvertMatmulToPointWiseConvolution", 0);
+NGRAPH_RTTI_DEFINITION(ConvertMatmulWithBiasToPointWiseConvolution, "ConvertMatmulWithBiasToPointWiseConvolution", 0);
+NGRAPH_RTTI_DEFINITION(ConvertMatmulWithFqToPointWiseConvolution, "ConvertMatmulWithFqToPointWiseConvolution", 0);
 
 static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std::shared_ptr<ngraph::Node> matmul_node) {
     auto input1_shape = matmul_node->get_input_shape(0);
@@ -54,8 +54,6 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
 
     auto input_node = matmul_node->input_value(0).get_node_shared_ptr();
     auto weights_node = matmul_node->input_value(1).get_node_shared_ptr();
-    std::shared_ptr<ngraph::Node> matmul_output =
-        matmul_node->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
     auto base_name = matmul_node->get_friendly_name();
 
     auto reshape_const_before = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
@@ -102,7 +100,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
                                                                             ngraph::Shape{output_shape.size()},
                                                                             output_shape);
     auto reshape_after =  std::make_shared<ngraph::opset7::Reshape>(transpose_after, reshape_const_after, false);
-    reshape_after->set_friendly_name(base_name + "/reshape_out");
+    reshape_after->set_friendly_name(base_name);
 
     ngraph::replace_node(root_node, reshape_after);
     return true;
