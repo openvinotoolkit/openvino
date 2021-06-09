@@ -340,6 +340,7 @@ namespace ngraph
         // calling code, or updates to the calling code if it is making an invalid assumption of
         // only one output.
         const Shape& get_shape() const;
+        virtual const PartialShape& get_partial_shape() const;
 
         /// Returns the tensor for output or input i
         descriptor::Tensor& get_output_tensor(size_t i) const;
