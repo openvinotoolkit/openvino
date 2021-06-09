@@ -5,6 +5,7 @@ import numpy as np
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
+from onnx.onnx_cpp2py_export.checker import ValidationError
 
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
@@ -279,7 +280,6 @@ def test_pad_opset_1():
 
     # no paddings arttribute
     model = get_node_model("Pad", x)
-    from onnx.onnx_cpp2py_export.checker import ValidationError
     with pytest.raises(ValidationError):
         import_onnx_model(model)
 
