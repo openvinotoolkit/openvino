@@ -47,7 +47,10 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
         if (axis_value < 0) {
             axis_value = axis_value + data.get_partial_shape().rank().get_length();
         }
-        NGRAPH_CHECK(data.get_partial_shape().rank().get_length() > axis_value);
+
+        if (data.get_partial_shape().rank().get_length() < axis_value) {
+            return false;
+        }
 
         // check `axis` dimension of data tensor is static
         if (!data.get_partial_shape()[axis_value].is_static()) {
