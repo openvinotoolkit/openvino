@@ -286,29 +286,12 @@ protected:
                                                                            const std::map<std::string, std::string>& config);
 
     /**
-     * @brief Creates an executable network from an previously exported network
-     * @note The function is called from
-     * IInferencePlugin::ImportNetwork(std::istream&, const RemoteContext::Ptr&, const std::map<std::string, std::string>&)
-     * performs common steps first and calls this plugin-dependent implementation after.
-     * @param networkModel Reference to network model output stream
-     * @param config A string -> string map of parameters
-     * @return An Executable network
+     * @brief Set input and output information to executable network. This method is used to
+     * set addtional information to InferenceEngine::IExecutableNetworkInternal create by device plugin.
+     * @param exeNetwork An executable network object to set information to
+     * @param inputs An input information to set
+     * @param outputs An output information to set
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetworkImpl(std::istream& networkModel,
-                                                                          const std::map<std::string, std::string>& config);
-
-    /**
-     * @brief Imports network wit RemoteContext
-     * @param networkModel Reference to network model output stream
-     * @param context - a pointer to plugin context derived from RemoteContext class used to
-     *        execute the network
-     * @param config A string -> string map of parameters
-     * @return An Executable network
-     */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetworkImpl(std::istream& networkModel,
-                                                                          const std::shared_ptr<RemoteContext>& context,
-                                                                          const std::map<std::string, std::string>& config);
-
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const ConstInputsDataMap& inputs,
                            const ConstOutputsDataMap& outputs);

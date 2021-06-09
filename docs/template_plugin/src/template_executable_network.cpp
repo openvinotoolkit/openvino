@@ -175,9 +175,9 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
 }
 // ! [executable_network:get_metric]
 
-// ! [executable_network:export_impl]
-void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::ExportImpl");
+// ! [executable_network:export]
+void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::Export");
 
     // Note: custom ngraph extensions are not supported
     std::map<std::string, ngraph::OpSet> custom_opsets;
@@ -198,4 +198,4 @@ void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
 
     // TODO: implement network precision, layout, preprocessing info serialization
 }
-// ! [executable_network:export_impl]
+// ! [executable_network:export]

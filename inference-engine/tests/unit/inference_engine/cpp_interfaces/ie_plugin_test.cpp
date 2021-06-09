@@ -149,29 +149,6 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetNotAllocatedBlob) {
     }
 }
 
-TEST_F(InferenceEnginePluginInternalTest, executableNetworkInternalExportsMagicAndName) {
-    std::stringstream strm;
-    ASSERT_NO_THROW(mockIExeNetworkInternal->WrapOstreamExport(strm));
-    ExportMagic actualMagic = {};
-    strm.read(actualMagic.data(), actualMagic.size());
-    ASSERT_EQ(exportMagic, actualMagic);
-    std::string pluginName;
-    std::getline(strm, pluginName);
-    ASSERT_EQ(pluginId, pluginName);
-    std::string exportedString;
-    std::getline(strm, exportedString);
-    ASSERT_EQ(mockIExeNetworkInternal->exportString, exportedString);
-}
-
-TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImports) {
-    std::stringstream strm;
-    ASSERT_NO_THROW(mockIExeNetworkInternal->WrapOstreamExport(strm));
-    ASSERT_NO_THROW(mock_plugin_impl->ImportNetwork(strm, {}));
-    ASSERT_EQ(mockIExeNetworkInternal->exportString, mock_plugin_impl->importedString);
-    mock_plugin_impl->importedString = {};
-}
-
-
 TEST(InferencePluginTests, throwsOnUninitializedGetVersion) {
     InferencePlugin plg;
     ASSERT_THROW(plg.GetVersion(), Exception);

@@ -550,7 +550,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     this->SetPointerToPlugin(_heteroPlugin->shared_from_this());
 }
 
-void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
+void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     pugi::xml_document doc;
     auto heteroNode = doc.append_child("hetero");
     heteroNode.append_attribute("name").set_value(_name.c_str());

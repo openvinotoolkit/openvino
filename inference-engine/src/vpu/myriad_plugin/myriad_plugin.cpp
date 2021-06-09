@@ -151,20 +151,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
     return executableNetwork;
 }
 
-InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
-        const std::string& modelFileName,
-        const std::map<std::string, std::string>& config) {
-    VPU_PROFILE(ImportNetwork);
-
-    std::ifstream blobFile(modelFileName, std::ios::binary);
-
-    if (!blobFile.is_open()) {
-        IE_THROW(NetworkNotRead);
-    }
-
-    return ImportNetwork(blobFile, config);
-}
-
 InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
                                      const std::map<std::string, InferenceEngine::Parameter> & options) const {
     const auto mvnc = _mvnc;

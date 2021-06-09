@@ -35,13 +35,13 @@ public:
                 const std::map<std::string, std::string> &config) override;
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    ImportNetworkImpl(std::istream& networkModel,
+    ImportNetwork(std::istream& networkModel,
         const std::map<std::string, std::string>& config) override;
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    ImportNetworkImpl(std::istream& networkModel,
-                      const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-                      const std::map<std::string, std::string>& config) override;
+    ImportNetwork(std::istream& networkModel,
+        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+        const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::Parameter GetMetric(const std::string& name,
                         const std::map<std::string, InferenceEngine::Parameter>& options) const override;

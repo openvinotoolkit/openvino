@@ -30,7 +30,7 @@ public:
 
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 
-    void ExportImpl(std::ostream& model) override;
+    void Export(std::ostream& model) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;

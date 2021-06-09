@@ -140,14 +140,6 @@ protected:
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                           OutputsDataMap networkOutputs);
 
-    /**
-     * @brief Exports an internal hardware-dependent model to a stream.
-     * @note The function is called from IExecutableNetworkInternal::Export(std::ostream&),
-     * which performs common export first and calls this plugin-dependent implementation after.
-     * @param networkModel A stream to export network to.
-     */
-    virtual void ExportImpl(std::ostream& networkModel);
-
     InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
 
