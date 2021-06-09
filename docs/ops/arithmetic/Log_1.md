@@ -18,11 +18,11 @@ a_{i} = log(a_{i})
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type T and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise log operation. A tensor of type T.
+* **1**: The result of element-wise log operation. A tensor of type T and the same shape as input.
 
 **Types**
 
