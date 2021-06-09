@@ -311,7 +311,7 @@ TEST_F(InferRequestTests, throwsIfGetBlobReturnNotOK) {
 }
 
 // SetShape
-TEST_F(InferRequestTests, canForwardSetBlob) {
+TEST_F(InferRequestTests, canForwardSetShape) {
     SizeVector shape;
     std::string name = "blob1";
 
