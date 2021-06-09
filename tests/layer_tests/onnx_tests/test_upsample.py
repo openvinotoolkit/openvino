@@ -169,7 +169,6 @@ class TestPytorchUpsample(PytorchLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("mode", [None, 'nearest'])
-    @pytest.mark.precommit
     def test_pytorch_upsample_precommit(self, params, mode, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip('Linear upsampling not supported on GPU')
