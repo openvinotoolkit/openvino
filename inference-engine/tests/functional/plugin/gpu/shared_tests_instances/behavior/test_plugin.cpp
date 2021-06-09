@@ -3,7 +3,7 @@
 //
 
 #include "behavior/test_plugin.hpp"
-#include "cldnn/cldnn_config.hpp"
+#include "gpu/gpu_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
