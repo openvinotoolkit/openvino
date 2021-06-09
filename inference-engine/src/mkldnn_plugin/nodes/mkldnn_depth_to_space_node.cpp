@@ -58,6 +58,8 @@ MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Nod
         if (blockSize == 0)
             THROW_ERROR << "has incorrect block_size parameter is zero!";
 
+        size_t nSpatialDims = inDims[0].ndims() - 2;
+        blockStep = static_cast<size_t>(std::pow(blockSize, nSpatialDims));
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
@@ -74,14 +76,13 @@ void MKLDNNDepthToSpaceNode::getSupportedDescriptors() {
     if (srcDims.size() != dstDims.size())
         THROW_ERROR << "has incorrect number of input/output dimensions";
 
-    size_t nSpatialDims = srcDims.size() - 2;
-    blockStep = static_cast<size_t>(std::pow(blockSize, nSpatialDims));
     if (srcDims[1] % blockStep)
         THROW_ERROR << "has block_size parameter which is incompatible with input tensor channels dimension size";
 
     if (srcDims[1] / blockStep != dstDims[1])
         THROW_ERROR << "has incompatible input/output channels";
 
+    size_t nSpatialDims = srcDims.size() - 2;
     for (size_t i = 0; i < nSpatialDims; ++i) {
         if (srcDims[i + 2] * blockSize != dstDims[i + 2])
             THROW_ERROR << "has incompatible spatial dims";
