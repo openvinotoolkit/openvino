@@ -66,13 +66,13 @@ const std::vector<std::vector<size_t>> inputShapesW1 = {{1, 1, 32, 1},
 const std::vector<size_t> numOutCannels = {4, 8, 12};
 
 const std::vector<std::vector<size_t >> kernels2D = {
+                                                          {5, 1},
                                                           {4, 1},
-                                                          {1, 4},
+                                                          {1, 3},
+                                                          {1, 2},
                                                           {2, 2},
-                                                          {2, 3},
-                                                          {3, 2},
-                                                          // {4, 2}, TODO: fix sporadic accuracy failures, see issue 45303
-                                                          // {3, 3}, TODO: fix sporadic accuracy failures, see issue 45303
+                                                          {7, 1},
+                                                          {3, 3},
 };
 const std::vector<std::vector<size_t >> strides2D = {
                                                           {1, 1},
@@ -83,9 +83,9 @@ const std::vector<std::vector<ptrdiff_t>> padEnds2D = { {0, 0},
 };
 const std::vector<std::vector<size_t >> dilations2D = { {1, 1},
 };
-const std::vector<size_t> numOutCannels2D = { 1, 2, 5 };
+const std::vector<size_t> numOutCannels2D = { 8, 16, 32};
 
-const std::vector<size_t> input2DNCHW = { 1, 2, 20, 15 };
+const std::vector<size_t> input2DNCHW = { 1, 8, 20, 16 };
 
 const std::vector<std::vector<size_t>> inputShapesMapTo1d = {{1, 1, 56, 5},
                                                              {1, 32, 56, 5},

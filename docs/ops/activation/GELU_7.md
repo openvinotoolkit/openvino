@@ -2,52 +2,62 @@
 
 **Versioned name**: *Gelu-7*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
-**Short description**: Calculates Gaussian error linear.
+**Short description**: Gaussian error linear unit element-wise activation function.
 
-**Detailed description**: `Gelu(x) = x * Φ(x)`, where `Φ(x)` is the Cumulative Distribution Function for Gaussian Distribution.
-The Gelu operation is introduced in the [paper](https://arxiv.org/abs/1606.08415).
+**Detailed description**:
+
+*Gelu* operation is introduced in this [article](https://arxiv.org/abs/1606.08415).
+It performs element-wise activation function on a given input tensor, based on the following mathematical formula:
+
+\f[
+    Gelu(x) = x\cdot\Phi(x)
+\f]
+
+where `Φ(x)` is the Cumulative Distribution Function for Gaussian Distribution.
+
+The *Gelu* function may be approximated in two different ways based on *approximation_mode* attribute.
+
+For `erf` approximation mode, *Gelu* function is represented as:
+
+\f[
+    Gelu(x) = x\cdot\Phi(x) = x\cdot\frac{1}{2}\cdot\left[1 + erf\left(x/\sqrt{2}\right)\right]
+\f]
+
+For `tanh` approximation mode, *Gelu* function is represented as:
+
+\f[
+    Gelu(x) \approx x\cdot\frac{1}{2}\cdot \left(1 + \tanh\left[\sqrt{2/\pi} \cdot (x + 0.044715 \cdot x^3)\right]\right)
+\f]
 
 **Attributes**
 
 * *approximation_mode*
 
-  * **Description**: Specifies the formulae to calculate the output.
+  * **Description**: Specifies the formulae to calculate the *Gelu* function.
   * **Range of values**:
-    * `erf` -- calculate output using the Gauss error function.
-    * `tanh` -- calculate output using tanh approximation
+    * `erf` - calculate output using the Gauss error function
+    * `tanh` - calculate output using tanh approximation
   * **Type**: `string`
   * **Default value**: `erf`
   * **Required**: *no*
 
-
-**Mathematical Formulation**
-
-For the `erf` approximation mode:
-\f[
-    Gelu(x) = 0.5 \cdot x \cdot (1.0 + erf((x) / \sqrt{2})
-\f]
-
-For the `tanh` approximation mode:
-
-\f[
-    Gelu(x) \approx 0.5 \cdot x \cdot (1.0 + tanh(\sqrt{2.0/pi} \cdot (x + 0.044715 \cdot x ^ 3))
-\f]
-
 **Inputs**:
 
-*   **1**: Multidimensional input tensor of type *T*. Required.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
 
 **Outputs**:
 
-*   **1**: Floating point tensor with shape and type *T* matching the input tensor.
+*   **1**: The result of element-wise *Gelu* function applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: arbitrary supported floating-point type.
 
 **Examples**
+
+*Example: `tanh` approximation mode*
 
 ```xml
 <layer ... type="Gelu">
@@ -66,6 +76,8 @@ For the `tanh` approximation mode:
     </output>
 </layer>
 ```
+
+*Example: `erf` approximation mode*
 
 ```xml
 <layer ... type="Gelu">

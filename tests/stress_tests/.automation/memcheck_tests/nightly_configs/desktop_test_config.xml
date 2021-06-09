@@ -84,5 +84,33 @@
         <model name="mtcnn-r" precision="FP16" source="omz" />
         <model name="se-resnet-50" precision="FP16" source="omz" />
         <model name="densenet-121" precision="FP16" source="omz" />
+        <!--Models with FP16-INT8 precision-->
+        <model name="vehicle-attributes-recognition-barrier-0039" precision="FP16-INT8" source="omz" />
+        <model name="person-detection-action-recognition-0006" precision="FP16-INT8" source="omz" />
+        <model name="person-vehicle-bike-detection-crossroad-1016" precision="FP16-INT8" source="omz" />
+        <model name="age-gender-recognition-retail-0013" precision="FP16-INT8" source="omz" />
+        <model name="vehicle-detection-adas-0002" precision="FP16-INT8" source="omz" />
+        <model name="image-retrieval-0001" precision="FP16-INT8" source="omz" />
+        <model name="person-detection-retail-0002" precision="FP16-INT8" source="omz" />
+        <model name="person-attributes-recognition-crossroad-0230" precision="FP16-INT8" source="omz" />
+        <model name="action-recognition-0001-decoder" precision="FP16-INT8" source="omz" />
+        <model name="person-detection-action-recognition-teacher-0002" precision="FP16-INT8" source="omz" />
+        <model name="person-vehicle-bike-detection-crossroad-0078" precision="FP16-INT8" source="omz" />
+        <model name="face-detection-adas-0001" precision="FP16-INT8" source="omz" />
+        <model name="unet-camvid-onnx-0001" precision="FP16-INT8" source="omz" />
+        <model name="human-pose-estimation-0001" precision="FP16-INT8" source="omz" />
+        <model name="faster-rcnn-resnet101-coco-sparse-60-0001" precision="FP16-INT8" source="omz" />
+        <model name="action-recognition-0001-encoder" precision="FP16-INT8" source="omz" />
+        <model name="yolo-v2-ava-sparse-35-0001" precision="FP16-INT8" source="omz" />
+        <model name="person-detection-raisinghand-recognition-0001" precision="FP16-INT8" source="omz" />
+        <model name="person-detection-asl-0001" precision="FP16-INT8" source="omz" />
+        <model name="yolo-v2-tiny-ava-0001" precision="FP16-INT8" source="omz" />
+        <model name="license-plate-recognition-barrier-0001" precision="FP16-INT8" source="omz" />
+        <model name="person-detection-retail-0013" precision="FP16-INT8" source="omz" />
+        <model name="single-image-super-resolution-1032" precision="FP16-INT8" source="omz" />
+        <model name="landmarks-regression-retail-0009" precision="FP16-INT8" source="omz" />
+        <model name="driver-action-recognition-adas-0002-decoder" precision="FP16-INT8" source="omz" />
+        <model name="yolo-v2-ava-0001" precision="FP16-INT8" source="omz" />
+        <model name="person-detection-action-recognition-0005" precision="FP16-INT8" source="omz" />
     </models>
 </attributes>

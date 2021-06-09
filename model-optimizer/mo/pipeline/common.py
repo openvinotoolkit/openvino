@@ -172,7 +172,8 @@ def convert_inputs_of_specific_ops(graph: Graph):
 
 
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
-                    mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None):
+                    mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None,
+                    use_temporary_path=False):
     if input_names is None:
         input_names = []
     if meta_info is None:
@@ -206,7 +207,9 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
 
     tensor_names.propagate_op_name_to_tensor(graph)
 
-    bin_file = os.path.join(output_dir, '{}.bin'.format(output_model_name))
+    ir_path_suffix = "_tmp" if use_temporary_path else ""
+
+    bin_file = os.path.join(output_dir, '{}{}.bin'.format(output_model_name, ir_path_suffix))
     serialize_constants(graph, bin_file)
 
     mean_offset = None
@@ -215,12 +218,12 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
         mean_offset, mean_size = serialize_mean_image(bin_file, mean_data=mean_data)
 
     generate_ie_ir(graph=graph,
-                   file_name=os.path.join(output_dir, '{}.xml'.format(output_model_name)),
+                   file_name=os.path.join(output_dir, '{}{}.xml'.format(output_model_name, ir_path_suffix)),
                    input_names=input_names,
                    mean_offset=mean_offset,
                    mean_size=mean_size,
                    meta_info=meta_info)
-    tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}.mapping'.format(output_model_name)))
+    tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}{}.mapping'.format(output_model_name, ir_path_suffix)))
 
 
 def get_ir_version(argv: argparse.Namespace):

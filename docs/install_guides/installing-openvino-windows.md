@@ -31,7 +31,7 @@ Your installation is complete when these are all completed:
 
     - <a href="#hddl-myriad">Install the drivers and software for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs</a>
 
-    - <a href="#Update-Path">Update Windows* environment variables</a>
+    - <a href="#Update-Path">Update Windows* environment variables</a> (necessary if you didn't choose the option to add Python to the path when you installed Python)
 
 Also, the following steps will be covered in the guide:
 - <a href="#get-started">Get Started with Code Samples and Demo Applications</a>
@@ -246,10 +246,10 @@ Or proceed to the <a href="#get-started">Get Started</a> to get started with run
 
 ###  <a name="Install-GPU"></a>Optional: Additional Installation Steps for Intel® Processor Graphics (GPU)
 
-> **NOTE**: These steps are required only if you want to use a GPU.
+> **NOTE**: These steps are required only if you want to use an Intel® integrated GPU.
 
-If your applications offload computation to **Intel® Integrated Graphics**, you must have the latest version of Intel Graphics Driver for Windows installed for your hardware. 
-[Download and install a higher version](http://downloadcenter.intel.com/product/80939/Graphics-Drivers). 
+If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed for your hardware. 
+[Download and install the recommended version](https://downloadcenter.intel.com/download/30079/Intel-Graphics-Windows-10-DCH-Drivers). 
 
 To check if you have this driver installed:
 
@@ -265,8 +265,6 @@ To check if you have this driver installed:
 
    ![](../img/DeviceDriverVersion.PNG)
 
-> **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Drivers & Software](https://downloadcenter.intel.com/download/29993/Intel-Iris-Xe-MAX-Dedicated-Graphics-Drivers?product=80939) page for driver downloads and installation instructions.  
-
 You are done updating your device driver and are ready to use your GPU. Proceed to the <a href="#get-started">Get Started</a> to get started with running code samples and demo applications.
 
 ### <a name="hddl-myriad"></a> Optional: Additional Installation Steps for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
@@ -277,7 +275,7 @@ To perform inference on Intel® Vision Accelerator Design with Intel® Movidius�
 
   1. Download and install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable for Visual Studio 2017</a>
   2. Check with a support engineer if your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs card requires SMBUS connection to PCIe slot (most unlikely). Install the SMBUS driver only if confirmed (by default, it's not required):
-      1. Go to the `<INSTALL_DIR>\deployment_tools\inference-engine\external\hddl\SMBusDriver` directory, where `<INSTALL_DIR>` is the directory in which the Intel Distribution of OpenVINO toolkit is installed.
+      1. Go to the `<INSTALL_DIR>\deployment_tools\inference-engine\external\hddl\drivers\SMBusDriver` directory, where `<INSTALL_DIR>` is the directory in which the Intel Distribution of OpenVINO toolkit is installed.
       2. Right click on the `hddlsmbus.inf` file and choose **Install** from the pop up menu.
 
 You are done installing your device driver and are ready to use your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
@@ -313,7 +311,7 @@ Use these steps to update your Windows `PATH` if a command you execute returns a
 
 7. Click **OK** repeatedly to close each screen.
 
-Your `PATH` environment variable is updated.
+Your `PATH` environment variable is updated. If the changes don't take effect immediately, you may need to reboot.
 
 ## <a name="get-started"></a>Get Started
 

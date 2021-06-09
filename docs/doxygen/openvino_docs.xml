@@ -163,25 +163,26 @@ limitations under the License.
             </xi:include>
             <!-- IE Code Samples -->
             <tab type="usergroup" title="Inference Engine Code Samples" url="@ref openvino_docs_IE_DG_Samples_Overview">
-                <tab type="user" title="Image Classification C++ Sample Async" url="@ref openvino_inference_engine_samples_classification_sample_async_README"/>
-                <tab type="user" title="Image Classification Python* Sample Async" url="@ref openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README"/>
+                <tab type="user" title="Image Classification Async C++ Sample" url="@ref openvino_inference_engine_samples_classification_sample_async_README"/>
+                <tab type="user" title="Image Classification Async Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README"/>
                 <tab type="user" title="Hello Classification C++ Sample" url="@ref openvino_inference_engine_samples_hello_classification_README"/>
                 <tab type="user" title="Hello Classification C Sample" url="@ref openvino_inference_engine_ie_bridges_c_samples_hello_classification_README"/>
-                <tab type="user" title="Image Classification Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_classification_sample_README"/>
+                <tab type="user" title="Hello Classification Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_hello_classification_README"/>
                 <tab type="user" title="Hello Reshape SSD C++ Sample" url="@ref openvino_inference_engine_samples_hello_reshape_ssd_README"/>
-                <tab type="user" title="Hello Reshape SSD Python Sample" url="@ref openvino_inference_engine_samples_python_hello_reshape_ssd_README"/>
+                <tab type="user" title="Hello Reshape SSD Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README"/>
                 <tab type="user" title="Hello NV12 Input Classification C++ Sample" url="@ref openvino_inference_engine_samples_hello_nv12_input_classification_README"/>
                 <tab type="user" title="Hello NV12 Input Classification C Sample" url="@ref openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README"/>
                 <tab type="user" title="Hello Query Device C++ Sample" url="@ref openvino_inference_engine_samples_hello_query_device_README"/>
                 <tab type="user" title="Hello Query Device Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README"/>
-                <tab type="user" title="nGraph Function C++ Sample" url="@ref openvino_inference_engine_samples_ngraph_function_creation_sample_README"/>
-                <tab type="user" title="nGraph Function Python Sample" url="@ref openvino_inference_engine_ie_bridges_python_samples_ngraph_function_creation_sample_README"/>
-                <tab type="user" title="Object Detection C++ Sample SSD" url="@ref openvino_inference_engine_samples_object_detection_sample_ssd_README"/>
-                <tab type="user" title="Object Detection Python* Sample SSD" url="@ref openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README"/>
-                <tab type="user" title="Object Detection C Sample SSD" url="@ref openvino_inference_engine_ie_bridges_c_samples_object_detection_sample_ssd_README"/>
+                <tab type="user" title="nGraph Function Creation C++ Sample" url="@ref openvino_inference_engine_samples_ngraph_function_creation_sample_README"/>
+                <tab type="user" title="nGraph Function Creation Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README"/>
+                <tab type="user" title="Object Detection SSD C++ Sample" url="@ref openvino_inference_engine_samples_object_detection_sample_ssd_README"/>
+                <tab type="user" title="Object Detection SSD Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README"/>
+                <tab type="user" title="Object Detection SSD C Sample" url="@ref openvino_inference_engine_ie_bridges_c_samples_object_detection_sample_ssd_README"/>
                 <tab type="user" title="Automatic Speech Recognition C++ Sample" url="@ref openvino_inference_engine_samples_speech_sample_README"/>
-                <tab type="user" title="Neural Style Transfer C++ Sample" url="@ref openvino_inference_engine_samples_style_transfer_sample_README"/>
-                <tab type="user" title="Neural Style Transfer Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_style_transfer_sample_README"/>
+                <tab type="user" title="Automatic Speech Recognition Python Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_speech_sample_README"/>
+                <tab type="user" title="Style Transfer C++ Sample" url="@ref openvino_inference_engine_samples_style_transfer_sample_README"/>
+                <tab type="user" title="Style Transfer Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_style_transfer_sample_README"/>
                 <tab type="user" title="Benchmark C++ Tool" url="@ref openvino_inference_engine_samples_benchmark_app_README"/>
                 <tab type="user" title="Benchmark Python* Tool" url="@ref openvino_inference_engine_tools_benchmark_tool_README"/>
             </tab>

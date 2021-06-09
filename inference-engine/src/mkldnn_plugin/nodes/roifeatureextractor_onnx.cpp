@@ -15,6 +15,9 @@
 #include <algorithm>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
+#include <ngraph/opsets/opset6.hpp>
+
+using MKLDNNPlugin::TensorDescCreatorTypes;
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -318,19 +321,40 @@ private:
     const int OUTPUT_ROI_FEATURES {0};
     const int OUTPUT_ROIS {1};
 
-public:
-    explicit ExperimentalDetectronROIFeatureExtractorImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            output_dim_ = layer->GetParamAsInt("output_size");
-            pyramid_scales_ = layer->GetParamAsInts("pyramid_scales");
-            sampling_ratio_ = layer->GetParamAsInt("sampling_ratio");
-            aligned_ = layer->GetParamAsBool("aligned", false);
+            const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+            if (!roiFeatureExtractor) {
+                errorMessage = "Only opset6 ExperimentalDetectronROIFeatureExtractor operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
+
+public:
+    explicit ExperimentalDetectronROIFeatureExtractorImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+            const auto &attr = roiFeatureExtractor->get_attrs();
+            output_dim_ = attr.output_size;
+            pyramid_scales_ = attr.pyramid_scales;
+            sampling_ratio_ = attr.sampling_ratio;
+            aligned_ = attr.aligned;
             pooled_height_ = output_dim_;
             pooled_width_ = output_dim_;
 
-            std::vector<DataConfigurator> inputs_layouts(layer->insData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
-            std::vector<DataConfigurator> outputs_layouts(layer->outData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
-            addConfig(layer, inputs_layouts, outputs_layouts);
+            std::vector<DataConfigurator> inDataConfigurators(op->get_input_size(), DataConfigurator{TensorDescCreatorTypes::ncsp, Precision::FP32});
+            addConfig(op, inDataConfigurators,
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                           {TensorDescCreatorTypes::ncsp, Precision::FP32}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
@@ -397,7 +421,7 @@ private:
     int output_dim_ = 0;
     int pooled_height_ = 0;
     int pooled_width_ = 0;
-    std::vector<int> pyramid_scales_;
+    std::vector<int64_t> pyramid_scales_;
     int sampling_ratio_ = 0;
     bool aligned_ = false;
 };

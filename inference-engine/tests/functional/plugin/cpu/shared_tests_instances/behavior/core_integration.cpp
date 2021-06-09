@@ -31,11 +31,11 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("CPU", "MULTI", "HETERO"));
+        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("CPU", "MULTI", "HETERO"));
+        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_AVAILABLE_DEVICES,
@@ -43,11 +43,11 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::Values("CPU", "MULTI", "HETERO"));
+        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::Values("CPU"));
+        ::testing::Values("CPU", "AUTO"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
@@ -59,11 +59,11 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_ThrowUnsupported,
-        ::testing::Values("CPU", "MULTI", "HETERO"));
+        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest_ThrowUnsupported,
-        ::testing::Values("CPU", "MULTI", "HETERO"));
+        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetAvailableDevices, IEClassGetAvailableDevices,
@@ -83,23 +83,23 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU"));
+        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU"));
+        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU"));
+        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU"));
+        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU"));
+        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
 
 //
 // Executable Network GetConfig / SetConfig

@@ -13,6 +13,8 @@
 #include <ngraph/variant.hpp>
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph_ops/framework_node.hpp"
 #include "pugixml.hpp"
 #include "transformations/serialize.hpp"
 
@@ -78,7 +80,7 @@ class ConstantWriter {
 public:
     using FilePosition = int64_t;
     using HashValue = size_t;
-    using ConstWritePositions = std::unordered_map<HashValue, FilePosition>;
+    using ConstWritePositions = std::unordered_map<HashValue, std::pair<FilePosition, void const *>>;
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data)
@@ -91,18 +93,19 @@ public:
             m_binary_output.write(ptr, size);
             return offset;
         }
-        // The biggest supported models have at maximum 1-2 thousand constant nodes,
-        // with 64 bit hash that gives a probability around 1 in 10 trillion that a
-        // hash collision will appear. Because of this, a choice has been made to
-        // not perform collision detection and keep the hashing quick and seamless.
+        // This hash is weak (but efficient) and must be replace with some other
+        // more stable hash algorithm. For example current hash algorithms gives
+        // the same hash for {2, 2} and {0, 128} arrays. So we have to compare
+        // values when finding a match in hash map.
         const HashValue hash = hash_combine(ptr, size);
         const auto found = m_hash_to_file_positions.find(hash);
-        if (found != end(m_hash_to_file_positions)) {
-            return found->second;
+        if (found != end(m_hash_to_file_positions) &&
+            memcmp(static_cast<void const*>(ptr), found->second.second, size) == 0) {
+            return found->second.first;
         }
 
         m_binary_output.write(ptr, size);
-        m_hash_to_file_positions.insert({hash, offset});
+        m_hash_to_file_positions.insert({hash, {offset, static_cast<void const *>(ptr)}});
 
         return offset;
     }
@@ -171,7 +174,7 @@ private:
 
 class XmlSerializer : public ngraph::AttributeVisitor {
     pugi::xml_node& m_xml_node;
-    std::string& m_node_type_name;
+    const std::string& m_node_type_name;
     const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
     ConstantWriter& m_constant_write_handler;
 
@@ -279,7 +282,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
 public:
     XmlSerializer(pugi::xml_node& data,
-                  std::string& node_type_name,
+                  const std::string& node_type_name,
                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
                   ConstantWriter& constant_write_handler)
         : m_xml_node(data)
@@ -318,6 +321,29 @@ public:
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
             }
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<op::FrameworkNodeAttrs>>(&adapter)) {
+            const auto & attrs = a->get();
+
+            // Update type and version attributes
+            pugi::xml_node layer = m_xml_node.parent();
+
+            auto type_attr = layer.attribute("type");
+            auto version_attr = layer.attribute("version");
+
+            type_attr.set_value(attrs.get_type_name().c_str());
+
+            if (!attrs.get_opset_name().empty()) {
+                version_attr.set_value(attrs.get_opset_name().c_str());
+            } else {
+                layer.remove_attribute("version");
+            }
+
+            // Update node attributes in data field
+            for (const auto & attr : attrs) {
+                m_xml_node.append_attribute(attr.first.c_str()).set_value(attr.second.c_str());
+            }
+        } else {
+            throw ngraph_error("Unsupported attribute type for serialization: " + name);
         }
     }
 
@@ -386,23 +412,6 @@ public:
         }
     }
 };
-
-void visit_exec_graph_node(pugi::xml_node& data, std::string& node_type_name,
-                           const ngraph::Node* n) {
-    for (const auto& param : n->get_rt_info()) {
-        if (auto variant =
-                std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(param.second)) {
-            std::string name = param.first;
-            std::string value = variant->get();
-
-            if (name == "layerType") {
-                node_type_name = value;
-            } else {
-                data.append_attribute(name.c_str()).set_value(value.c_str());
-            }
-        }
-    }
-}
 
 const std::unordered_map<ngraph::Node*, int> create_layer_ids(
     const ngraph::Function& f) {
@@ -479,8 +488,7 @@ std::string get_opset_name(
     return "experimental";
 }
 
-std::string get_output_precision_name(ngraph::Output<Node>& o) {
-    auto elem_type = o.get_element_type();
+std::string get_precision_name(const ngraph::element::Type & elem_type) {
     switch (elem_type) {
     case ::ngraph::element::Type_t::undefined:
         return "UNSPECIFIED";
@@ -517,8 +525,9 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
     case ::ngraph::element::Type_t::boolean:
         return "BOOL";
     default:
-        NGRAPH_CHECK(false, "Unsupported precision in ", o);
-        return "";
+        std::stringstream msg;
+        msg << "Unsupported precision: " << elem_type;
+        throw ngraph_error(msg.str());
     }
 }
 
@@ -554,6 +563,23 @@ std::string get_node_unique_name(std::unordered_set<std::string>& unique_names,
     }
     unique_names.insert(name);
     return name;
+}
+
+void visit_exec_graph_node(pugi::xml_node& layer, const ngraph::Node* n) {
+    auto data = layer.child("data");
+    for (const auto& param : n->get_rt_info()) {
+        if (auto variant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(param.second)) {
+            const std::string & name = param.first;
+            const std::string & value = variant->get();
+
+            if (name == "layerType") {
+                layer.attribute("type").set_value(value.c_str());
+                continue;
+            }
+
+            data.append_attribute(name.c_str()).set_value(value.c_str());
+        }
+    }
 }
 
 bool is_exec_graph(const ngraph::Function& f) {
@@ -646,8 +672,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                         const ngraph::Function& f,
                         const std::map<std::string, ngraph::OpSet>& custom_opsets,
                         ConstantWriter& constant_node_write_handler) {
-    const bool exec_graph = is_exec_graph(f);
-
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     netXml.append_attribute("version").set_value("10");
     pugi::xml_node layers = netXml.append_child("layers");
@@ -658,36 +682,31 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
 
     bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
+    const bool exec_graph = is_exec_graph(f);
+
     for (const auto& n : f.get_ordered_ops()) {
         ngraph::Node* node = n.get();
+        const std::string & node_type_name{node->get_type_name()};
 
         NGRAPH_CHECK(layer_ids.find(node) != layer_ids.end(), "Internal error");
         // <layers>
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
-        layer.append_attribute("name").set_value(
-            get_node_unique_name(unique_names, node).c_str());
-        auto layer_type_attribute = layer.append_attribute("type");
+        layer.append_attribute("name").set_value(get_node_unique_name(unique_names, node).c_str());
+        layer.append_attribute("type").set_value(translate_type_name(node_type_name).c_str());
         if (!exec_graph) {
-            layer.append_attribute("version").set_value(
-                get_opset_name(node, custom_opsets).c_str());
+            layer.append_attribute("version").set_value(get_opset_name(node, custom_opsets).c_str());
         }
-
-        // <layers/data>
-        pugi::xml_node data = layer.append_child("data");
-        std::string node_type_name{node->get_type_name()};
 
         // <layers/data> general attributes
+        pugi::xml_node data = layer.append_child("data");
+        XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler);
+        NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
+        rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
+
         if (exec_graph) {
-            visit_exec_graph_node(data, node_type_name, node);
-        } else {
-            XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler);
-            NGRAPH_CHECK(node->visit_attributes(visitor),
-                         "Visitor API is not supported in ", node);
-            rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
+            visit_exec_graph_node(layer, node);
         }
-        layer_type_attribute.set_value(
-            translate_type_name(node_type_name).c_str());
 
         const bool data_attr_size =
             data.attributes().begin() == data.attributes().end();
@@ -699,21 +718,20 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         // <layers/input>
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
-            for (auto i : node->inputs()) {
+            for (const auto & i : node->inputs()) {
                 NGRAPH_CHECK(i.get_partial_shape().is_static(),
                              "Unsupported dynamic input shape in ", node);
 
                 // WA for LSTMCellv0, peephole input shall not be serialized
-                if (i.get_index() == 6) {
-                    auto type_info = node->get_type_info();
-                    if (!strcmp(type_info.name, "LSTMCell") && type_info.version == 0) {
-                        port_id++;
-                        continue;
-                    }
+                if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell *>(node)) {
+                    port_id++;
+                    continue;
                 }
 
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
+                port.append_attribute("precision")
+                        .set_value(get_precision_name(i.get_element_type()).c_str());
                 for (auto d : i.get_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)
@@ -728,23 +746,30 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         // <layers/output>
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
-            for (auto o : node->outputs()) {
+            for (const auto & o : node->outputs()) {
                 NGRAPH_CHECK(o.get_partial_shape().is_static(),
                              "Unsupported dynamic output shape in ", node);
 
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
-                    .set_value(get_output_precision_name(o).c_str());
+                    .set_value(get_precision_name(o.get_element_type()).c_str());
+
+                // Sort tensor names
+                const auto & tensor_names = o.get_tensor().get_names();
+                std::vector<std::string> vector_names(tensor_names.begin(), tensor_names.end());
+                sort(vector_names.begin(), vector_names.end());
+
                 std::string names;
-                for (const auto& name : o.get_tensor().get_names()) {
+                for (const auto& name : vector_names) {
                     if (!names.empty())
-                        names += ", ";
+                        names += ",";
                     names += escape_delim(name);
                 }
                 if (!names.empty()) {
                     port.append_attribute("names").set_value(names.c_str());
                 }
+
                 for (auto d : o.get_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)
@@ -817,7 +842,18 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
         std::ofstream xml_file(m_xmlPath, std::ios::out);
         NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
-        serializeFunc(xml_file, bin_file);
+        try {
+            serializeFunc(xml_file, bin_file);
+        } catch (const ngraph::CheckFailure& e) {
+            // optimization decission was made to create .bin file upfront and
+            // write to it directly instead of buffering its content in memory,
+            // hence we need to delete it here in case of failure
+            xml_file.close();
+            bin_file.close();
+            std::remove(m_xmlPath.c_str());
+            std::remove(m_binPath.c_str());
+            throw;
+        }
     }
 
     // Return false because we didn't change nGraph Function

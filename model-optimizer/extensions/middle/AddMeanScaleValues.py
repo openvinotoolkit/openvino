@@ -7,10 +7,11 @@ import numpy as np
 
 from extensions.ops.elementwise import Add, Mul
 from mo.front.common.layout import get_features_dim
-from mo.front.extractor import split_node_in_port, get_node_id_with_ports
+from mo.front.extractor import get_node_id_with_ports
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.utils.cli_parser import get_node_name_with_port_from_input_value
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
@@ -91,6 +92,7 @@ class AddMeanScaleValues(MiddleReplacementPattern):
 
         for node_name, node_mean_scale_values in values.items():
             node_id = None
+            node_name = get_node_name_with_port_from_input_value(node_name)
             try:
                 node_id, direction, port = get_node_id_with_ports(graph, node_name, skip_if_no_port=False)
                 assert direction != 'out', 'Only input port can be specified for mean/scale application'

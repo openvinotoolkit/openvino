@@ -8,7 +8,8 @@ from mo.ops.op import Op
 
 
 class Roll(Op):
-    """ Roll operation that shifts elements of a tensor along specified axes.
+    """
+    Roll operation that shifts elements of a tensor along specified axes.
     """
     op = 'Roll'
     enabled = False
@@ -26,7 +27,6 @@ class Roll(Op):
 
 class AttributedRoll(Op):
     """ Roll operation that shifts elements of a tensor along specified axes.
-
         This operation uses the same semantics as Roll but with shift and axes specified as attributes.
         Shift and axes are specified as attributes in MxNet.
     """

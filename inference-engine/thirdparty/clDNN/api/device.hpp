@@ -23,6 +23,12 @@ enum class device_type {
     discrete_gpu = 1
 };
 
+struct gfx_version {
+    uint16_t major;
+    uint8_t minor;
+    uint8_t revision;
+};
+
 /// @brief Information about the device properties and capabilities.
 struct device_info {
     uint32_t cores_count;     ///< Number of available HW cores.
@@ -53,6 +59,13 @@ struct device_info {
     std::string driver_version;  ///< Version of OpenCL driver
 
     device_type dev_type;  ///< Defines type of current GPU device (integrated or discrete)
+
+    gfx_version gfx_ver;
+    uint32_t device_id;
+    uint32_t num_slices;
+    uint32_t num_sub_slices_per_slice;
+    uint32_t num_eus_per_sub_slice;
+    uint32_t num_threads_per_eu;
 };
 
 struct device_impl;

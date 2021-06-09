@@ -4,11 +4,26 @@
 
 #include <gtest/gtest.h>
 #include <cpp/ie_executable_network.hpp>
+#include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+
+IE_SUPPRESS_DEPRECATED_START
+
+TEST(ExecutableNetworkTests, throwsOnUninitialized) {
+    std::shared_ptr<IExecutableNetwork> ptr;
+    ASSERT_THROW(ExecutableNetwork req(ptr), InferenceEngine::NotAllocated);
+}
+
+TEST(ExecutableNetworkTests, nothrowOnInitialized) {
+    std::shared_ptr<IExecutableNetwork> ptr = std::make_shared<MockIExecutableNetwork>();
+    ASSERT_NO_THROW(ExecutableNetwork req(ptr));
+}
+
+IE_SUPPRESS_DEPRECATED_END
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetOutputsInfo) {
     ExecutableNetwork exec;

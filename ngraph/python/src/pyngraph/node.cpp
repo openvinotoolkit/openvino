@@ -72,26 +72,182 @@ void regclass_pyngraph_Node(py::module m)
         return "<" + type_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 
-    node.def("get_element_type", &ngraph::Node::get_element_type);
-    node.def("get_output_size", &ngraph::Node::get_output_size);
-    node.def("get_output_element_type", &ngraph::Node::get_output_element_type);
-    node.def("get_output_shape", &ngraph::Node::get_output_shape);
-    node.def("get_output_partial_shape", &ngraph::Node::get_output_partial_shape);
-    node.def("get_type_name", &ngraph::Node::get_type_name);
-    node.def("get_name", &ngraph::Node::get_name);
-    node.def("get_friendly_name", &ngraph::Node::get_friendly_name);
-    node.def("set_friendly_name", &ngraph::Node::set_friendly_name);
-    node.def("input", (ngraph::Input<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::input);
+    node.def("get_element_type",
+             &ngraph::Node::get_element_type,
+             R"(
+                Checks that there is exactly one output and returns it's element type.
+
+                Returns
+                ----------
+                get_element_type : Type
+                    Type of the output.
+             )");
+    node.def("get_output_size",
+             &ngraph::Node::get_output_size,
+             R"(
+                Returns the number of outputs from the node.
+
+                Returns
+                ----------
+                get_element_type : int
+                    Number of outputs.
+             )");
+    node.def("get_output_element_type",
+             &ngraph::Node::get_output_element_type,
+             py::arg("i"),
+             R"(
+                Returns the element type for output i
+
+                Parameters
+                ----------
+                i : int
+                    Index of the output.
+
+                Returns
+                ----------
+                get_output_element_type : Type
+                    Type of the output i
+             )");
+    node.def("get_output_shape",
+             &ngraph::Node::get_output_shape,
+             py::arg("i"),
+             R"(
+                Returns the shape for output i
+
+                Parameters
+                ----------
+                i : int
+                    Index of the output.
+
+                Returns
+                ----------
+                get_output_shape : Shape
+                    Shape of the output i
+             )");
+    node.def("get_output_partial_shape",
+             &ngraph::Node::get_output_partial_shape,
+             py::arg("i"),
+             R"(
+                Returns the partial shape for output i
+
+                Parameters
+                ----------
+                i : int
+                    Index of the output.
+
+                Returns
+                ----------
+                get_output_partial_shape : PartialShape
+                    PartialShape of the output i
+             )");
+    node.def("get_type_name",
+             &ngraph::Node::get_type_name,
+             R"(
+                Returns Type's name from the node.
+
+                Returns
+                ----------
+                get_type_name : str
+                    String repesenting Type's name. 
+             )");
+    node.def("get_name",
+             &ngraph::Node::get_name,
+             R"(
+                Get the unique name of the node
+
+                Returns
+                ----------
+                get_name : str
+                    Unique name of the node.
+             )");
+    node.def("get_friendly_name",
+             &ngraph::Node::get_friendly_name,
+             R"(
+                Gets the friendly name for a node. If no friendly name has 
+                been set via set_friendly_name then the node's unique name
+                is returned.
+
+                Returns
+                ----------
+                get_name : str
+                    Friendly name of the node.
+             )");
+    node.def("set_friendly_name",
+             &ngraph::Node::set_friendly_name,
+             py::arg("name"),
+             R"(
+                Sets a friendly name for a node. This does not overwrite the unique name
+                of the node and is retrieved via get_friendly_name(). Used mainly for 
+                debugging. The friendly name may be set exactly once.
+
+                Parameters
+                ----------
+                name : str
+                    Friendly name to set.
+             )");
+    node.def("input",
+             (ngraph::Input<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::input,
+             py::arg("input_index"),
+             R"(
+                A handle to the input_index input of this node.
+
+                Parameters
+                ----------
+                input_index : int
+                    Index of Input.
+
+                Returns
+                ----------
+                input : Input
+                    Input of this node.
+             )");
     node.def("inputs",
-             (std::vector<ngraph::Input<ngraph::Node>>(ngraph::Node::*)()) & ngraph::Node::inputs);
+             (std::vector<ngraph::Input<ngraph::Node>>(ngraph::Node::*)()) & ngraph::Node::inputs,
+             R"(
+                A list containing a handle for each of this node's inputs, in order.
+
+                Returns
+                ----------
+                inputs : List[Input]
+                    List of node's inputs.
+             )");
     node.def("output",
-             (ngraph::Output<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::output);
+             (ngraph::Output<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::output,
+             py::arg("output_index"),
+             R"(
+                A handle to the output_index output of this node.
+
+                Parameters
+                ----------
+                output_index : int
+                    Index of Output.
+
+                Returns
+                ----------
+                input : Output
+                    Output of this node.
+             )");
     node.def("outputs",
-             (std::vector<ngraph::Output<ngraph::Node>>(ngraph::Node::*)()) &
-                 ngraph::Node::outputs);
+             (std::vector<ngraph::Output<ngraph::Node>>(ngraph::Node::*)()) & ngraph::Node::outputs,
+             R"(
+                A list containing a handle for each of this node's outputs, in order.
+
+                Returns
+                ----------
+                inputs : List[Output]
+                    List of node's outputs.
+             )");
     node.def("get_rt_info",
              (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info,
-             py::return_value_policy::reference_internal);
+             py::return_value_policy::reference_internal,
+             R"(
+                Returns PyRTMap which is a dictionary of user defined runtime info.
+
+                Returns
+                ----------
+                get_rt_info : PyRTMap
+                    A dictionary of user defined data.
+             )");
 
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);

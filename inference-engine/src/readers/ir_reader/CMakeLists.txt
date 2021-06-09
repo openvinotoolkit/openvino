@@ -33,6 +33,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES}
                                              inference_engine_reader_api
                                              inference_engine_plugin_api
                                              inference_engine
+                                             inference_engine_transformations
                                              pugixml
                                              openvino::itt)
 
@@ -48,5 +49,4 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)

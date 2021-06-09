@@ -142,6 +142,7 @@ std::vector<test::Mat> to_test(std::vector<cv::Mat>& mats)
 }
 
 test::Rect to_test(cv::Rect& rect) { return {rect.x, rect.y, rect.width, rect.height}; }
+test::Scalar to_test(cv::Scalar const& sc) { return {sc[0], sc[1], sc[2], sc[3]}; }
 
 cv::ColorConversionCodes toCvtColorCode(InferenceEngine::ColorFormat in,
                                      InferenceEngine::ColorFormat out) {
@@ -678,6 +679,61 @@ TEST_P(ConvertDepthTestGAPI, AccuracyTest)
         EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
     }
 }
+
+TEST_P(DivCTestGAPI, AccuracyTest)
+{
+    const auto params       = GetParam();
+    const int in_depth      = std::get<0>(params);
+    const int in_channels   = std::get<1>(params);
+    const cv::Size sz       = std::get<2>(params);
+    const cv::Scalar C      = std::get<3>(params);
+    double tolerance        = std::get<4>(params);
+
+    const int in_type = CV_MAKETYPE(in_depth,in_channels);
+
+    initMatrixRandU(in_type, sz, in_type);
+
+    // G-API code
+    DivCComputation cc(to_test(in_mat1), to_test(out_mat_gapi), to_test(C));
+    cc.warmUp();
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_mat_ocv = in_mat1 / C;
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
+    }
+}
+
+TEST_P(SubCTestGAPI, AccuracyTest)
+{
+    const auto params       = GetParam();
+    const int in_depth      = std::get<0>(params);
+    const int in_channels   = std::get<1>(params);
+    const cv::Size sz       = std::get<2>(params);
+    const cv::Scalar C      = std::get<3>(params);
+    const double tolerance  = std::get<4>(params);
+
+    const int in_type = CV_MAKETYPE(in_depth,in_channels);
+
+    initMatrixRandU(in_type, sz, in_type);
+
+    // G-API code
+    SubCComputation cc(to_test(in_mat1), to_test(out_mat_gapi), to_test(C));
+    cc.warmUp();
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_mat_ocv = in_mat1 - C;
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
+    }
+}
+
 //----------------------------------------------------------------------
 
 TEST_P(ResizeTestIE, AccuracyTest)
@@ -1268,5 +1324,31 @@ TEST_P(PreprocTest, Performance)
             out_layout_str.c_str(), out_size.width, out_size.height,
             colorFormatToString(in_fmt).c_str(), colorFormatToString(out_fmt).c_str());
 #endif // PERF_TEST
+}
+
+TEST_P(MeanValueGAPI, AccuracyTest)
+{
+    const auto params = GetParam();
+    cv::Size sz       = std::get<0>(params);
+    double tolerance  = std::get<1>(params);
+
+    initMatrixRandU(CV_32FC1, sz, CV_32FC1);
+
+    const cv::Scalar mean = { 0.485, 0.456, 0.406 };
+    const cv::Scalar std  = { 0.229, 0.224, 0.225 };
+
+    // G-API code
+    MeanValueSubtractComputation cc(to_test(in_mat1), to_test(out_mat_gapi), to_test(mean), to_test(std));
+    cc.warmUp();
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_mat_ocv = (in_mat1 - mean) / std;
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
+    }
 
 }
+

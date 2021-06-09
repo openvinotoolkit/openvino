@@ -16,7 +16,9 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ShuffleChannels::type_info;
+NGRAPH_SUPPRESS_DEPRECATED_START
+
+NGRAPH_RTTI_DEFINITION(op::v0::ShuffleChannels, "ShuffleChannels", 0);
 
 op::ShuffleChannels::ShuffleChannels(const Output<Node>& data,
                                      const int64_t axis,
@@ -178,4 +180,10 @@ bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v0_ShuffleChannels_evaluate);
     return evaluate_shuffle_channels(outputs, inputs);
+}
+
+bool op::ShuffleChannels::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_has_evaluate);
+    return true;
 }

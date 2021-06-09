@@ -142,9 +142,6 @@ def run(args):
                         logger.warning(f"Turn off threads pinning for {device} " +
                                        "device since multi-scenario with GPU device is used.")
                         config[device]['CPU_BIND_THREAD'] = 'NO'
-                    else:
-                        ## set to default value
-                        config[device]['CPU_BIND_THREAD'] = args.infer_threads_pinning
 
                 ## for CPU execution, more throughput-oriented execution via streams
                 set_throughput_streams()
@@ -155,7 +152,7 @@ def run(args):
                 if MULTI_DEVICE_NAME in device_name and CPU_DEVICE_NAME in device_name:
                     logger.warning("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " +
                                    "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
-                    config[device]['CLDNN_PLUGIN_THROTTLE'] = '1'
+                    config[device]['GPU_PLUGIN_THROTTLE'] = '1'
             elif device == MYRIAD_DEVICE_NAME:
                 set_throughput_streams()
                 config[device]['LOG_LEVEL'] = 'LOG_INFO'
@@ -179,12 +176,41 @@ def run(args):
 
         benchmark.set_config(config)
         batch_size = args.batch_size
-        if not is_network_compiled:
+        if args.cache_dir:
+            benchmark.set_cache_dir(args.cache_dir)
+
+        topology_name = ""
+        load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')
+        if load_from_file_enabled and not is_network_compiled:
+            next_step()
+            print("Skipping the step for loading network from file")
+            next_step()
+            print("Skipping the step for loading network from file")
+            next_step()
+            print("Skipping the step for loading network from file")
+
+            # --------------------- 7. Loading the model to the device -------------------------------------------------
+            next_step()
+
+            start_time = datetime.utcnow()
+            exe_network = benchmark.load_network(args.path_to_model)
+            duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            logger.info(f"Load network took {duration_ms} ms")
+            if statistics:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ('load network time (ms)', duration_ms)
+                                          ])
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, exe_network.input_info)
+            if batch_size == 0:
+                batch_size = 1
+        elif not is_network_compiled:
             # --------------------- 4. Read the Intermediate Representation of the network -----------------------------
             next_step()
 
             start_time = datetime.utcnow()
             ie_network = benchmark.read_network(args.path_to_model)
+            topology_name = ie_network.name
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Read network took {duration_ms} ms")
             if statistics:
@@ -284,7 +310,7 @@ def run(args):
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
                                       [
-                                          ('topology', ie_network.name),
+                                          ('topology', topology_name),
                                           ('target device', device_name),
                                           ('API', args.api_type),
                                           ('precision', "UNSPECIFIED"),
@@ -311,7 +337,7 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
-        duration_ms =  f"{benchmark.first_infer(exe_network):.2f}"
+        duration_ms = f"{benchmark.first_infer(exe_network):.2f}"
         logger.info(f"First inference took {duration_ms} ms")
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,

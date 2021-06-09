@@ -12,7 +12,6 @@
 #include <vpu/compile_env.hpp>
 
 #include <precision_utils.h>
-#include <ie_parallel.hpp>
 
 #include <array>
 #include <algorithm>

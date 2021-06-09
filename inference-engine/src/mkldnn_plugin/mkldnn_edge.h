@@ -6,7 +6,6 @@
 
 #include <ie_blob.h>
 #include <memory>
-#include <details/ie_no_copy.hpp>
 #include "mkldnn_memory.h"
 #include "mkldnn_dims.h"
 #include "mkldnn_weights_cache.hpp"
@@ -24,7 +23,7 @@ class MKLDNNEdge;
 using MKLDNNEdgePtr = std::shared_ptr<MKLDNNEdge>;
 using MKLDNNEdgeWeakPtr = std::weak_ptr<MKLDNNEdge>;
 
-class MKLDNNEdge : public InferenceEngine::details::no_copy {
+class MKLDNNEdge {
 public:
     MKLDNNEdge(const std::shared_ptr<MKLDNNNode>& parent,
                const std::shared_ptr<MKLDNNNode>& child,
@@ -47,6 +46,7 @@ public:
     void init();
     void allocate(const void* mem_ptr = nullptr);
     void externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache);
+    void reuse(MKLDNNMemoryPtr ptr);
     void validate();
     void drop();
 
@@ -61,20 +61,24 @@ public:
     MKLDNNMemoryPtr& getMemoryPtr();
 
     bool needReorder();
-    bool isDropped();
+    bool isDropped() const;
     bool isUseExternalMemory() const;
 
-    int getInputNum();
-    int getOutputNum();
+    int getInputNum() const;
+    int getOutputNum() const;
+
+    void setChildPort(const size_t port) { child_port = port; }
 
     void sharedMemFrom(const MKLDNNEdgePtr& edge);
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
+    const InferenceEngine::TensorDesc& getInputDescRO() const;
+    const InferenceEngine::TensorDesc& getOutputDescRO() const;
+
 private:
     std::string name();
 
-private:
     std::weak_ptr<MKLDNNNode> parent;
     std::weak_ptr<MKLDNNNode> child;
     int parent_port;

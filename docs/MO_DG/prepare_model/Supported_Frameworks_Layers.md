@@ -128,6 +128,7 @@ Standard TensorFlow\* operations:
 | AddV2 | No |
 | AddN | No |
 | ArgMax | No |
+| ArgMin | No |
 | Asinh | No |
 | Atanh | No |
 | AvgPool | No |
@@ -159,6 +160,9 @@ Standard TensorFlow\* operations:
 | EuclideanNorm | No |
 | FakeQuantWithMinMaxVars | No |
 | FakeQuantWithMinMaxVarsPerChannel | No |
+| FFT | Supported only when it is part of a sub-graph of the special form |
+| FFT2D | Supported only when it is part of a sub-graph of the special form |
+| FFT3D | Supported only when it is part of a sub-graph of the special form |
 | Fill | No |
 | Floor | No |
 | FloorDiv | No |
@@ -171,6 +175,9 @@ Standard TensorFlow\* operations:
 | Greater | No |
 | GreaterEqual | No |
 | Identity | Not needed for shape inference |
+| IFFT | Supported only when it is part of a sub-graph of the special form |
+| IFFT2D | Supported only when it is part of a sub-graph of the special form |
+| IFFT3D | Supported only when it is part of a sub-graph of the special form |
 | LRN | No |
 | Less | No |
 | Log | No |
@@ -383,6 +390,7 @@ Standard Kaldi\* Layers:
 | splicecomponent | No |
 | tanhcomponent | No |
 | tdnncomponent | No |
+| timeheightconvolutioncomponent | No |
 
 
 ## ONNX\* Supported Operators
@@ -397,6 +405,7 @@ Standard ONNX\* operators:
 | Add | No |
 | Affine | No |
 | ArgMax | No |
+| ArgMin | No |
 | Asin | No |
 | Asinh | No |
 | Atan | No |
@@ -491,6 +500,7 @@ Standard ONNX\* operators:
 | Sigmoid | No |
 | Sign | No |
 | Sin | No |
+| Size | No |
 | Slice | No |
 | Softmax | No |
 | Softplus | No |

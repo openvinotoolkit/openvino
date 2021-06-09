@@ -19,8 +19,8 @@ namespace ngraph
             class NGRAPH_API ShuffleChannels : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ShuffleChannels", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 ShuffleChannels() = default;
                 /// \brief Constructs a ShuffleChannels node.
                 ///
@@ -48,6 +48,7 @@ namespace ngraph
                 int64_t get_group() const { return m_group; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 /// \brief Generates a shape required to permute the data

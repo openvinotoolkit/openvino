@@ -255,10 +255,4 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
 
     Core reader;
     auto cnn = reader.ReadNetwork(model, weights);
-
-    IE_SUPPRESS_DEPRECATED_START
-    // convert to old representation
-    auto convertedNetwork = std::make_shared<details::CNNNetworkImpl>(cnn);
-    (void)convertedNetwork;
-    IE_SUPPRESS_DEPRECATED_END
 }

@@ -46,6 +46,9 @@ class Benchmark:
         for device in config.keys():
             self.ie.set_config(config[device], device)
 
+    def set_cache_dir(self, cache_dir: str):
+        self.ie.set_config({'CACHE_DIR': cache_dir}, '')
+
     def read_network(self, path_to_model: str):
         model_filename = os.path.abspath(path_to_model)
         head, ext = os.path.splitext(model_filename)
@@ -55,6 +58,16 @@ class Benchmark:
 
     def load_network(self, ie_network: IENetwork, config = {}):
         exe_network = self.ie.load_network(ie_network,
+                                           self.device,
+                                           config=config,
+                                           num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
+        # Number of requests
+        self.nireq = len(exe_network.requests)
+
+        return exe_network
+
+    def load_network_from_file(self, path_to_model: str, config = {}):
+        exe_network = self.ie.load_network(path_to_model,
                                            self.device,
                                            config=config,
                                            num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
@@ -80,7 +93,7 @@ class Benchmark:
             infer_request.infer()
         else:
             infer_request.async_infer()
-            status = exe_network.wait()
+            status = infer_request.wait()
             if status != StatusCode.OK:
                 raise Exception(f"Wait for all requests is failed with status code {status}!")
         return infer_request.latency

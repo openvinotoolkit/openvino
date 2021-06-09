@@ -113,7 +113,7 @@ TEST_F(MvncOpenUSBDevice, OpenAvailableDeviceByName) {
         GTEST_SKIP();
 
     char dev_addr_open[NC_MAX_NAME_SIZE];
-    unsigned int data_lenght = NC_MAX_NAME_SIZE;
+    unsigned int data_length = NC_MAX_NAME_SIZE;
 
     auto availableDevices = getDevicesList();
 
@@ -122,7 +122,7 @@ TEST_F(MvncOpenUSBDevice, OpenAvailableDeviceByName) {
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME,
-                                      dev_addr_open, &data_lenght));
+                                      dev_addr_open, &data_length));
 
     ASSERT_TRUE(strncmp(dev_addr_open, deviceDesc_.name, NC_MAX_NAME_SIZE) == 0);
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
@@ -147,10 +147,10 @@ TEST_F(MvncOpenUSBDevice, OpenTwiceSameHandlerByName) {
         GTEST_SKIP();
 
     char dev_addr_first_open[MAX_DEV_NAME];
-    unsigned int data_lenght_first = MAX_DEV_NAME;
+    unsigned int data_length_first = MAX_DEV_NAME;
 
     char dev_addr_second_open[MAX_DEV_NAME];
-    unsigned int data_lenght_second = MAX_DEV_NAME;
+    unsigned int data_length_second = MAX_DEV_NAME;
 
     auto availableDevices = getDevicesList();
 
@@ -159,12 +159,12 @@ TEST_F(MvncOpenUSBDevice, OpenTwiceSameHandlerByName) {
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME,
-                                      dev_addr_first_open, &data_lenght_first));
+                                      dev_addr_first_open, &data_length_first));
 
     // Second open, get device name
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME,
-                                      dev_addr_second_open, &data_lenght_second));
+                                      dev_addr_second_open, &data_length_second));
 
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
     // Should be the same device

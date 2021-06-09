@@ -9,23 +9,22 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_tra
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_transformations)
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_transformations)
 
-file(GLOB SOURCE
-        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.cpp)
+set(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl_defs.pxd
+            ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api.pyx
+            ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.hpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.cpp)
 
-set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api.pyx
+                            PROPERTIES CYTHON_IS_CXX ON)
 
 # create target
 
-cython_add_module(${TARGET_NAME} ${SOURCE})
-set(INSTALLED_TARGETS ${TARGET_NAME})
+cython_add_module(${TARGET_NAME} ${SOURCES})
 add_dependencies(${TARGET_NAME} ie_api)
 
 if(COMMAND ie_add_vs_version_file)
-    foreach(target IN LISTS INSTALLED_TARGETS)
-        ie_add_vs_version_file(NAME ${target}
-                               FILEDESCRIPTION "Offline Transformatoins Python library")
-    endforeach()
+    ie_add_vs_version_file(NAME ${TARGET_NAME}
+                           FILEDESCRIPTION "Offline Transformatoins Python library")
 endif()
 
 if(TARGET offline_transformations)
@@ -34,13 +33,17 @@ else()
     list(APPEND InferenceEngine_LIBRARIES IE::offline_transformations)
 endif()
 
-target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
+target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(${TARGET_NAME} PRIVATE "-Wno-error=register")
 endif()
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
+                        EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")
 
 # perform copy
 add_custom_command(TARGET ${TARGET_NAME}
@@ -50,9 +53,11 @@ add_custom_command(TARGET ${TARGET_NAME}
 
 # install
 
-install(TARGETS ${INSTALLED_TARGETS}
+# TODO: use ${PYTHON_VERSION}_dev component below
+# ie_cpack_add_component(${PYTHON_VERSION}_dev DEPENDS ${PYTHON_VERSION})
+
+install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}
-        ARCHIVE DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}
         LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION})
 
 install(PROGRAMS __init__.py

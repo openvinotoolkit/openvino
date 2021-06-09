@@ -41,48 +41,6 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, elu)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{3, 2});
-    auto elu = make_shared<op::Elu>(A, 0.5f);
-    auto function = make_shared<Function>(NodeVector{elu}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input(vector<float>{-2.f, 3.f, -2.f, 1.f, -1.f, 0.f});
-    test_case.add_expected_output(
-        vector<float>{-0.432332358f, 3.f, -0.432332358f, 1.f, -0.316060279f, 0.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, elu_negative_alpha)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{3, 2});
-    auto elu = make_shared<op::Elu>(A, -1.f);
-    auto function = make_shared<Function>(NodeVector{elu}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input(vector<float>{-2.f, 3.f, -2.f, 1.f, -1.f, 0.f});
-    test_case.add_expected_output(
-        vector<float>{0.864664717f, 3.f, 0.864664717f, 1.f, 0.632120559f, 0.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, prelu)
-{
-    Shape shape{3, 2};
-    Shape rshape{3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
-    auto prelu = make_shared<op::PRelu>(A, B);
-    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
-    std::vector<float> a{-2, 3, -2, 1, -1, 0};
-    std::vector<float> b{0, 0.5, 1};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(vector<float>{0, 3, -1, 1, -1, 0});
-    test_case.run();
-}
 
 NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
 {
@@ -120,39 +78,6 @@ NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, prelu_shared_slope)
-{
-    Shape shape{3, 2};
-    Shape rshape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
-    auto prelu = make_shared<op::PRelu>(A, B);
-    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
-    std::vector<float> a{-2, 3, -2, 1, -1, 0};
-    std::vector<float> b{0.5};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(vector<float>{-1, 3, -1, 1, -0.5, 0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope)
-{
-    Shape shape{3, 2};
-    Shape rshape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
-    auto prelu = make_shared<op::PRelu>(A, B);
-    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
-    std::vector<float> a{-2, 3, -2, 1, -1, 0};
-    std::vector<float> b{-0.5};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(vector<float>{1, 3, 1, 1, 0.5, 0});
-    test_case.run();
-}
 
 NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_block_first)
 {
@@ -643,21 +568,6 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_grn_2d_with_bias)
                                           0.9908301f,
                                           0.99227786f});
     test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, unsqueeze)
-{
-    auto data_node = make_shared<op::Parameter>(element::f32, Shape{4, 2});
-    auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
-    auto squeeze = make_shared<op::v0::Unsqueeze>(data_node, axes_node);
-
-    auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    auto data = vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
-    test_case.add_input(data);
-    test_case.add_expected_output<float>(Shape{4, 1, 1, 2}, data);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_simple)

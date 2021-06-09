@@ -10,6 +10,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/util/variable_context.hpp"
 
 namespace ngraph
 {
@@ -35,6 +36,14 @@ namespace ngraph
                                                        bool is_window_all_in_padding_allowed,
                                                        bool ceil_mode = false);
 
+    void validate_conv_params_spatial_dimensions(const Node* node,
+                                                 const size_t num_spatial_dims,
+                                                 const op::PadType auto_pad,
+                                                 Strides& strides,
+                                                 Strides& dilations,
+                                                 CoordinateDiff& pads_begin,
+                                                 CoordinateDiff& pads_end);
+
     /// \brief      Validates input shape ranks and infers convolution forward output shape.
     ///
     /// \param[in] node              Node with convolution operation.
@@ -49,6 +58,7 @@ namespace ngraph
     /// \return Partial shape of the output.
     PartialShape
         validate_and_infer_convolution_forward_output_shape(const Node* node,
+                                                            const Rank& result_ps_rank,
                                                             const PartialShape& data_batch_pshape,
                                                             const PartialShape& filters_pshape,
                                                             const op::PadType auto_pad,
@@ -232,9 +242,13 @@ namespace ngraph
     /// function.
     /// \param output_tensor_map Tensors to use for particular outputs
     /// \param outputs Root set of values to try to compute
-    NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
-                                   std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                                   const OutputVector& outputs);
+    /// \param evaluation_context Storage of additional settings and attributes that can be used
+    /// when evaluating the function. This additional information can be shared across nodes.
+    NGRAPH_API void
+        evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
+                       std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
+                       const OutputVector& outputs,
+                       const EvaluationContext& evaluation_context = EvaluationContext());
 
     /// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
     /// estimation through it.

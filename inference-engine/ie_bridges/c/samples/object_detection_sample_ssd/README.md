@@ -1,8 +1,8 @@
-# Object Detection C Sample SSD {#openvino_inference_engine_ie_bridges_c_samples_object_detection_sample_ssd_README}
+# Object Detection SSD C Sample {#openvino_inference_engine_ie_bridges_c_samples_object_detection_sample_ssd_README}
 
 This sample demonstrates how to execute an inference of object detection networks like SSD-VGG using Asynchronous Inference Request API and [input reshape feature](../../../../../docs/IE_DG/ShapeInference.md).
 
-Object Detection C sample SSD application demonstrates how to use the following Inference Engine C API in applications:
+Object Detection SSD C sample application demonstrates how to use the following Inference Engine C API in applications:
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
@@ -76,7 +76,7 @@ Options:
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-For example, to do inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
+For example, to perform inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
 
 - with one image and [person-detection-retail-0013](https://docs.openvinotoolkit.org/latest/omz_models_intel_person_detection_retail_0013_description_person_detection_retail_0013.html) model
 

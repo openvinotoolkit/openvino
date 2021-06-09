@@ -15,7 +15,6 @@
 #include <utility>
 
 #include <ie_icore.hpp>
-#include <ie_icnn_network.hpp>
 #include <caseless.hpp>
 
 #include <vpu/utils/enums.hpp>

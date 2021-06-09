@@ -27,19 +27,19 @@ namespace InferenceEngine {
 struct CPUStreamsExecutor::Impl {
     struct Stream {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-        struct Observer: public tbb::task_scheduler_observer {
+        struct Observer: public custom::task_scheduler_observer {
             CpuSet  _mask;
             int     _ncpus                  = 0;
             int     _threadBindingStep      = 0;
             int     _offset                 = 0;
-            Observer(tbb::task_arena&    arena,
+            Observer(custom::task_arena&    arena,
                      CpuSet              mask,
                      int                 ncpus,
                      const int           streamId,
                      const int           threadsPerStream,
                      const int           threadBindingStep,
                      const int           threadBindingOffset) :
-                tbb::task_scheduler_observer(arena),
+                custom::task_scheduler_observer(arena),
                 _mask{std::move(mask)},
                 _ncpus(ncpus),
                 _threadBindingStep(threadBindingStep),
@@ -71,19 +71,30 @@ struct CPUStreamsExecutor::Impl {
                     ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1)/_impl->_usedNumaNodes.size()))
                 : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic : _impl->_config._threadsPerStream;
+            const auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic : _impl->_config._threadsPerStream;
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
-                _taskArena.reset(new custom::task_arena{
-                    custom::task_arena::constraints{}
-                        .set_core_type(custom::info::core_types().back())
-                        .set_max_concurrency(concurrency)
-                });
+                if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
+                   if (Config::PreferredCoreType::ANY == _impl->_config._threadPreferredCoreType) {
+                       _taskArena.reset(new custom::task_arena{concurrency});
+                   } else {
+                       const auto selected_core_type = Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
+                           ? custom::info::core_types().back() // running on Big cores only
+                           : custom::info::core_types().front(); // running on Little cores only
+                       _taskArena.reset(new custom::task_arena{
+                           custom::task_arena::constraints{}.set_core_type(selected_core_type).set_max_concurrency(concurrency)});
+                   }
+                } else {
+                    // assigning the stream to the core type in the round-robin fashion
+                    // wrapping around total_streams (i.e. how many streams all different core types can handle together)
+                    const auto total_streams = _impl->total_streams_on_core_types.back().second;
+                    const auto streamId_wrapped = _streamId % total_streams;
+                    const auto& selected_core_type = std::find_if(_impl->total_streams_on_core_types.cbegin(), _impl->total_streams_on_core_types.cend(),
+                        [streamId_wrapped](const decltype(_impl->total_streams_on_core_types)::value_type & p) { return p.second > streamId_wrapped; })->first;
+                    _taskArena.reset(new custom::task_arena{
+                        custom::task_arena::constraints{}.set_core_type(selected_core_type).set_max_concurrency(concurrency)});
+                }
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-                _taskArena.reset(new custom::task_arena{
-                    custom::task_arena::constraints{}
-                        .set_numa_id(_numaNodeId)
-                        .set_max_concurrency(concurrency)
-                });
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
@@ -164,6 +175,25 @@ struct CPUStreamsExecutor::Impl {
         } else {
             _usedNumaNodes = numaNodes;
         }
+        #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+        if (ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
+            const auto core_types = custom::info::core_types();
+            const int threadsPerStream = (0 == config._threadsPerStream) ? std::thread::hardware_concurrency() : config._threadsPerStream;
+            int sum = 0;
+            // reversed order, so BIG cores are first
+            for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++) {
+                const auto& type = *iter;
+                // calculating the #streams per core type
+                const int num_streams_for_core_type = std::max(1,
+                        custom::info::default_concurrency(
+                                custom::task_arena::constraints{}.set_core_type(type)) / threadsPerStream);
+                sum += num_streams_for_core_type;
+                // prefix sum, so the core type for a given stream id will be deduced just as a upper_bound
+                // (notice that the map keeps the elements in the descending order, so the big cores are populated first)
+                total_streams_on_core_types.push_back({type, sum});
+            }
+        }
+        #endif
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
@@ -232,6 +262,14 @@ struct CPUStreamsExecutor::Impl {
     bool                                    _isStopped = false;
     std::vector<int>                        _usedNumaNodes;
     ThreadLocal<std::shared_ptr<Stream>>    _streams;
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+    // stream id mapping to the core type
+    // stored in the reversed order (so the big cores, with the highest core_type_id value, are populated first)
+    // every entry is the core type and #streams that this AND ALL EARLIER entries can handle (prefix sum)
+    // (so mapping is actually just an upper_bound: core type is deduced from the entry for which the id < #streams)
+    using StreamIdToCoreTypes = std::vector<std::pair<custom::core_type_id, int>>;
+    StreamIdToCoreTypes total_streams_on_core_types;
+    #endif
 };
 
 

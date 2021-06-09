@@ -20,8 +20,6 @@ file (GLOB HDR
 # Create library file from sources.
 add_executable(${TARGET_NAME} ${HDR} ${SRC})
 
-find_package(gflags REQUIRED)
-
 target_link_libraries(${TARGET_NAME}
         IE::gtest
         IE::gtest_main

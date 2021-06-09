@@ -5,7 +5,6 @@
 #pragma once
 
 #include <ie_layouts.h>
-#include <cpp_interfaces/exception2status.hpp>
 #include <api/layout.hpp>
 
 #include "ngraph/type/element_type.hpp"

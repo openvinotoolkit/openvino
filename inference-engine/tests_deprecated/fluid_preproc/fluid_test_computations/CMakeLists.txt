@@ -18,3 +18,5 @@ target_include_directories(fluid_test_computations PUBLIC "${CMAKE_CURRENT_SOURC
 target_link_libraries(fluid_test_computations PRIVATE inference_engine_preproc_s inference_engine fluid)
 
 target_compile_definitions(fluid_test_computations PRIVATE IMPLEMENT_FLUID_COMPUTATION_API)
+
+add_dependencies(fluid_test_computations inference_engine_preproc)

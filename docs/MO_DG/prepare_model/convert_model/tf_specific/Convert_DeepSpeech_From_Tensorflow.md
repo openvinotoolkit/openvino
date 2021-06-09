@@ -34,20 +34,15 @@ Pre-trained frozen model file is `output_graph.pb`.
 As you can see, the frozen model still has two variables: `previous_state_c` and
 `previous_state_h`. It means that the model keeps training those variables at each inference.
 
-At the first inference of this graph, the variables are initialized by zero tensors. After executing the
-`lstm_fused_cell` nodes, cell state and hidden state, which are the results of the `BlockLSTM` execution,
-are assigned to these two variables.
+At the first inference of this graph, the variables are initialized by zero tensors. After executing the `lstm_fused_cell` nodes, cell state and hidden state, which are the results of the `BlockLSTM` execution, are assigned to these two variables.
 
-With each inference of the DeepSpeech graph, initial cell state and hidden state data for `BlockLSTM` is taken
-from previous inference from variables. Outputs (cell state and hidden state) of `BlockLSTM` are reassigned
-to the same variables.
+With each inference of the DeepSpeech graph, initial cell state and hidden state data for `BlockLSTM` is taken from previous inference from variables. Outputs (cell state and hidden state) of `BlockLSTM` are reassigned to the same variables.
 
 It helps the model to remember the context of the words that it takes as input.
 
 ## Convert the TensorFlow* DeepSpeech Model to IR
 
-The Model Optimizer assumes that the output model is for inference only. That is why you should cut those variables off and
-resolve keeping cell and hidden states on the application level.
+The Model Optimizer assumes that the output model is for inference only. That is why you should cut those variables off and resolve keeping cell and hidden states on the application level.
 
 There are certain limitations for the model conversion:
 - Time length (`time_len`) and sequence length (`seq_len`) are equal.
@@ -55,11 +50,11 @@ There are certain limitations for the model conversion:
 
 To generate the DeepSpeech Intermediate Representation (IR), provide the TensorFlow DeepSpeech model to the Model Optimizer with the following parameters:
 ```sh
-python3 ./mo_tf.py
---input_model path_to_model/output_graph.pb                         \
---freeze_placeholder_with_value input_lengths->[16]                 \
---input input_node,previous_state_h/read,previous_state_c/read      \
---input_shape [1,16,19,26],[1,2048],[1,2048]                        \
+python3 ./mo_tf.py                                                      \
+--input_model path_to_model/output_graph.pb                             \
+--freeze_placeholder_with_value input_lengths->[16]                     \
+--input input_node,previous_state_h/read,previous_state_c/read          \
+--input_shape [1,16,19,26],[1,2048],[1,2048]                            \
 --output raw_logits,lstm_fused_cell/GatherNd,lstm_fused_cell/GatherNd_1 \
 --disable_nhwc_to_nchw
 ```

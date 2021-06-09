@@ -2,35 +2,71 @@
 
 **Versioned name**: *Sqrt-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
-**Short description**: *Sqrt* performs element-wise square root operation with given tensor.
+**Short description**: Square root element-wise operation.
 
-**Attributes**:
+**Detailed description**: *Sqrt* performs element-wise square root operation on a given input tensor `a`, as in the following mathematical formula, where `o` is the output tensor:
 
-    No attributes available.
+\f[
+o_{i} = \sqrt{a_{i}}
+\f]
+
+* If the input value is negative, then the result is undefined.
+* For integer element type the result is rounded (half up) to the nearest integer value.
+
+**Attributes**: *Sqrt* operation has no attributes.
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise sqrt operation. A tensor of type T.
+* **1**: The result of element-wise *Sqrt* operation. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 
 * *T*: any numeric type.
 
-*Sqrt* does the following with the input tensor *a*:
-
-\f[
-a_{i} = sqrt(a_{i})
-\f]
 
 **Examples**
 
 *Example 1*
+
+```xml
+<layer ... type="Sqrt">
+    <input>
+        <port id="0">
+            <dim>4</dim> <!-- float input values: [4.0, 7.0, 9.0, 10.0] -->
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>4</dim> <!-- float output values: [2.0, 2.6457512, 3.0, 3.1622777] -->
+        </port>
+    </output>
+</layer>
+```
+
+*Example 2*
+
+```xml
+<layer ... type="Sqrt">
+    <input>
+        <port id="0">
+            <dim>4</dim> <!-- int input values: [4, 7, 9, 10] -->
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>4</dim> <!-- int output values: [2, 3, 3, 3] -->
+        </port>
+    </output>
+</layer>
+```
+
+*Example 3*
 
 ```xml
 <layer ... type="Sqrt">

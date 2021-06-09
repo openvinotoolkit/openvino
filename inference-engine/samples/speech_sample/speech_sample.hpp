@@ -14,7 +14,7 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for images argument
-static const char input_message[] = "Required. Paths to .ark files. Example of usage: <file1.ark,file2.ark> or <file.ark>.";
+static const char input_message[] = "Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
@@ -27,6 +27,20 @@ static const char target_device_message[] = "Optional. Specify a target device t
                                             "below. "
                                             "The sample will look for a suitable plugin for device specified.";
 
+/// @brief message for execution target
+static const char execution_target_message[] = "Optional. Specify GNA execution target generation. "
+                                               "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
+                                               "By default, generation corresponds to the GNA HW available in the system "
+                                               "or the latest fully supported generation by the software. "
+                                               "See the GNA Plugin's GNA_EXEC_TARGET config option description.";
+
+/// @brief message for execution target
+static const char compile_target_message[] = "Optional. Specify GNA compile target generation. "
+                                             "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
+                                             "By default, generation corresponds to the GNA HW available in the system "
+                                             "or the latest fully supported generation by the software. "
+                                             "See the GNA Plugin's GNA_COMPILE_TARGET config option description.";
+
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
 
@@ -35,10 +49,10 @@ static const char custom_cpu_library_message[] = "Required for CPU plugin custom
                                                  "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for score output argument
-static const char output_message[] = "Optional. Output file name to save ark scores.";
+static const char output_message[] = "Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>";
 
 /// @brief message for reference score file argument
-static const char reference_score_message[] = "Optional. Read reference score .ark file and compare scores.";
+static const char reference_score_message[] = "Optional. Read reference score file and compare scores. Example of usage: <reference.ark> or <reference.npz>";
 
 /// @brief message for read GNA model argument
 static const char read_gna_model_message[] = "Read GNA model from file using path/filename provided (required if -m is missing).";
@@ -109,12 +123,14 @@ DEFINE_string(m, "", model_message);
 /// \brief device the target device to infer on (default CPU) <br>
 DEFINE_string(d, "CPU", target_device_message);
 
+/// \brief GNA execution target <br>
+DEFINE_string(exec_target, "", execution_target_message);
+
+/// \brief GNA compile target <br>
+DEFINE_string(compile_target, "", compile_target_message);
+
 /// \brief Enable per-layer performance report
 DEFINE_bool(pc, false, performance_counter_message);
-
-/// @brief Absolute path to CPU library with user layers <br>
-/// It is an optional parameter
-DEFINE_string(l, "", custom_cpu_library_message);
 
 /// @brief Write output file to save ark scores
 DEFINE_string(o, "", output_message);
@@ -131,7 +147,7 @@ DEFINE_string(wg, "", write_gna_model_message);
 /// @brief Write GNA embedded model to file (model.bin)
 DEFINE_string(we, "", write_embedded_model_message);
 
-/// @brief Optional GNA embedded device generation (default GNA1 aka Sue Creek)
+/// @brief Optional GNA embedded device generation (default GNA1 aka Sue Creek) - hide option
 DEFINE_string(we_gen, "GNA1", write_embedded_model_generation_message);
 
 /// @brief Input quantization mode (default static)
@@ -176,7 +192,6 @@ static void showUsage() {
     std::cout << "    -i \"<path>\"             " << input_message << std::endl;
     std::cout << "    -m \"<path>\"             " << model_message << std::endl;
     std::cout << "    -o \"<path>\"             " << output_message << std::endl;
-    std::cout << "    -l \"<absolute_path>\"    " << custom_cpu_library_message << std::endl;
     std::cout << "    -d \"<device>\"           " << target_device_message << std::endl;
     std::cout << "    -pc                     " << performance_counter_message << std::endl;
     std::cout << "    -q \"<mode>\"             " << quantization_message << std::endl;
@@ -187,7 +202,6 @@ static void showUsage() {
     std::cout << "    -rg \"<path>\"            " << read_gna_model_message << std::endl;
     std::cout << "    -wg \"<path>\"            " << write_gna_model_message << std::endl;
     std::cout << "    -we \"<path>\"            " << write_embedded_model_message << std::endl;
-    std::cout << "    -we_gen \"<generation>\"  " << write_embedded_model_generation_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
     std::cout << "    -cw_l \"<integer>\"       " << context_window_message_l << std::endl;
     std::cout << "    -cw_r \"<integer>\"       " << context_window_message_r << std::endl;

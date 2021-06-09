@@ -30,7 +30,7 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 
 # remove file with exported developer targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
     unset(${component} CACHE)
@@ -52,7 +52,6 @@ function(build_ngraph)
     else ()
         ngraph_set(NGRAPH_ADDRESS_SANITIZER OFF)
     endif ()
-    ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
 
     if(ENABLE_TESTS AND NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)
@@ -85,6 +84,12 @@ function(build_ngraph)
         ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE OFF)
     endif()
 
+    if(ENABLE_PYTHON)
+        ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE ON)
+    else()
+        ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
     elseif(UNIX)
@@ -103,6 +108,7 @@ function(build_ngraph)
     endif()
 
     ie_cpack_add_component(ngraph REQUIRED)
+    ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
     set(SDL_cmake_included ON)
     add_subdirectory(ngraph)
@@ -148,6 +154,7 @@ build_ngraph()
 add_subdirectory(inference-engine)
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
+add_subdirectory(tools)
 
 #
 # Shellcheck

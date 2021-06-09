@@ -75,7 +75,16 @@ function(add_common_utils ADD_TARGET_NAME)
                 PUBLIC
                     ${PUGI}
                     ${NGRAPH_LIBRARIES}
+                    ${EXPORT_DEPENDENCIES}
+                    inference_engine_transformations
     )
+
+    # USE_STATIC_IE is passed
+    if(ARGN)
+        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
+    else()
+        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_legacy)
+    endif()
 
     ie_faster_build(${ADD_TARGET_NAME}
         UNITY
@@ -102,18 +111,14 @@ function(add_common_utils ADD_TARGET_NAME)
         PUBLIC
             ${IE_TESTS_ROOT}/ie_test_utils
             $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
+            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-        )
+            $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+            )
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
-
-    target_link_libraries(${ADD_TARGET_NAME}
-        PUBLIC
-            ${EXPORT_DEPENDENCIES}
-        )
 endfunction()
 
 add_common_utils(${TARGET_NAME})

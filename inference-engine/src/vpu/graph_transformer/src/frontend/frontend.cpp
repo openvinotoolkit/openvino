@@ -192,14 +192,17 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     // ConvertPrecision must be executed before ConvertOpSet1ToLegacy due to this pass works with operations from opsets only
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32, myriadTypeToFuseMap);
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u64, ngraph::element::i32, myriadTypeToFuseMap);
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u32, ngraph::element::i32, myriadTypeToFuseMap);
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::i32, myriadTypeToFuseMap);
+    static const precisions_array precisions = {
+        { ngraph::element::i64, ngraph::element::i32 },
+        { ngraph::element::u64, ngraph::element::i32 },
+        { ngraph::element::u32, ngraph::element::i32 },
+        { ngraph::element::boolean, ngraph::element::i32 }
+    };
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions, myriadTypeToFuseMap);
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     //  ConvertOpSet1ToLegacy can produce constants with I64 precision
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32, myriadTypeToFuseMap);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }}, myriadTypeToFuseMap);
     manager.register_pass<vpu::MergeSubsequentDSROperations>();
 
     auto pass_config = manager.get_pass_config();
@@ -218,7 +221,9 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
                               ngraph::pass::ConvertStridedSliceToCropMatcher>(transformationPredicate);
 
     manager.run_passes(nGraphFunc);
+    IE_SUPPRESS_DEPRECATED_START
     return ie::CNNNetwork(ie::details::convertFunctionToICNNNetwork(nGraphFunc, network));
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 std::set<std::string> FrontEnd::checkSupportedLayers(const ie::CNNNetwork& network) {

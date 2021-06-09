@@ -18,7 +18,7 @@ std::string SqueezeUnsqueezeLayerTest::getTestCaseName(testing::TestParamInfo<sq
     const char separator = '_';
     result << "OpType=" << opType << separator;
     result << "IS=" << CommonTestUtils::vec2str(shapeItem.first) << separator;
-    result << "Axes=" << CommonTestUtils::vec2str(shapeItem.second) << separator;
+    result << "Axes=" << (shapeItem.second.empty() ? "default" : CommonTestUtils::vec2str(shapeItem.second)) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "inPRC=" << inPrc.name() << separator;
     result << "outPRC=" << outPrc.name() << separator;
@@ -37,9 +37,17 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     std::tie(shapeItem, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
     std::tie(inputShapes, axesVector) = shapeItem;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
-    auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(params.front(), ngraph::element::i64, axesVector, opType);
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(squeeze)};
+    std::shared_ptr<ngraph::Node> op;
+
+    if (axesVector.empty() && opType == ngraph::helpers::SqueezeOpType::SQUEEZE) {
+        op = std::make_shared<ngraph::opset1::Squeeze>(params.front());
+    } else {
+        op = ngraph::builder::makeSqueezeUnsqueeze(params.front(), ngraph::element::i64, axesVector, opType);
+    }
+
+    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(op)};
     function = std::make_shared<ngraph::Function>(results, params, "Squeeze");
 }
 } // namespace LayerTestsDefinitions

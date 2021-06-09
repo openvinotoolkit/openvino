@@ -69,7 +69,7 @@ namespace ngraph
                     return {result};
                 }
             } // namespace set_1
-            namespace set_7
+            namespace set_11
             {
                 OutputVector softmax(const Node& node)
                 {
@@ -109,7 +109,20 @@ namespace ngraph
 
                     return {result};
                 }
-            } // namespace set_7
+            } // namespace set_11
+            namespace set_13
+            {
+                OutputVector softmax(const Node& node)
+                {
+                    const auto data = node.get_ng_inputs().at(0);
+
+                    const auto axis = node.get_attribute_value<int64_t>("axis", -1);
+                    const auto normalized_axis = ngraph::normalize_axis(
+                        node.get_description(), axis, data.get_partial_shape().rank());
+
+                    return {std::make_shared<default_opset::Softmax>(data, normalized_axis)};
+                }
+            } // namespace set_13
         }     // namespace op
     }         // namespace onnx_import
 } // namespace ngraph

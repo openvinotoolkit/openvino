@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include "ie_parallel.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "config.h"
 #include "mkldnn_memory.h"
-#include "mean_image.h"
+#include "normalize_preprocess.h"
 #include "mkldnn_node.h"
 #include "mkldnn_edge.h"
-#include "threading/ie_thread_local.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -41,6 +39,8 @@ public:
     }
 
     void setConfig(const Config &cfg);
+    const Config& getConfig() const;
+
     void setProperty(const std::map<std::string, std::string> &properties);
     Config getProperty() const;
 
@@ -48,18 +48,22 @@ public:
     void getOutputBlobs(InferenceEngine::BlobMap &out_map);
 
     template<typename NET>
-    void CreateGraph(const NET &network,
+    void CreateGraph(NET &network,
                      const MKLDNNExtensionManager::Ptr& extMgr,
                      MKLDNNWeightsSharing::Ptr &w_cache);
 
     bool hasMeanImageFor(const std::string& name) {
-        return _meanImages.find(name) != _meanImages.end();
+        return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
     }
 
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
-    void PullOutputData(InferenceEngine::BlobMap &out);
+    void PullOutputData(const InferenceEngine::BlobMap &out);
 
     void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
+
+    const std::vector<MKLDNNNodePtr>& GetNodes() const {
+        return graphNodes;
+    }
 
     std::vector<MKLDNNNodePtr>& GetNodes() {
         return graphNodes;
@@ -73,14 +77,21 @@ public:
         return graphEdges;
     }
 
-    std::vector<MKLDNNNodePtr>& GetOutputNodes() {
-        return outputNodes;
+    std::map<std::string, MKLDNNNodePtr>& GetInputNodesMap() {
+        return inputNodesMap;
     }
 
-    std::map<std::string, MKLDNNNodePtr>& GetInputNodes() {
-        return inputNodes;
+    std::map<std::string, MKLDNNNodePtr>& GetOutputNodesMap() {
+        return outputNodesMap;
     }
 
+    bool hasInputWithName(const std::string& name) const {
+        return inputNodesMap.count(name);
+    }
+
+    bool hasOutputWithName(const std::string& name) const {
+        return outputNodesMap.count(name);
+    }
 
     mkldnn::engine getEngine() const {
         return eng;
@@ -152,12 +163,13 @@ public:
 
     InferenceEngine::CNNNetwork dump() const;
 
-    template<typename NET>
-    static void ApplyUnrollPasses(NET &net);
-
     void ResetInferCount() { infer_count = 0; }
 
     void SortTopologically();
+
+    bool isQuantized() const {
+        return isQuantizedFlag;
+    }
 
 protected:
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
@@ -166,11 +178,11 @@ protected:
         status = NotReady;
         eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0);
 
-        inputNodes.clear();
-        outputNodes.clear();
+        inputNodesMap.clear();
+        outputNodesMap.clear();
         graphNodes.clear();
         graphEdges.clear();
-        _meanImages.clear();
+        _normalizePreprocMap.clear();
     }
     Status status { NotReady };
     Config config;
@@ -183,18 +195,20 @@ protected:
 
     MKLDNNMemoryPtr memWorkspace;
 
-    std::map<std::string, MKLDNNNodePtr> inputNodes;
-    std::vector<MKLDNNNodePtr> outputNodes;
+    std::map<std::string, MKLDNNNodePtr> inputNodesMap;
+    std::map<std::string, MKLDNNNodePtr> outputNodesMap;
     std::vector<MKLDNNNodePtr> graphNodes;
     std::vector<MKLDNNEdgePtr> graphEdges;
 
-    std::map<std::string, MeanImage> _meanImages;
+    std::map<std::string, NormalizePreprocess> _normalizePreprocMap;
     std::string _name;
+
+    bool isQuantizedFlag = false;
 
     static mkldnn::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
-    void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const std::shared_ptr<const ngraph::Function> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
@@ -204,23 +218,13 @@ protected:
     void AllocateWithReuse();
     void CreatePrimitives();
     void ExecuteConstantNodesOnly();
-    void SetOriginalLayerNames();
-
-    void do_before(const std::string &dir, const MKLDNNNodePtr &node);
-    void do_after(const std::string &dir, const MKLDNNNodePtr &node);
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);
     friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
-    void dumpToDotFile(std::string file) const;
-    struct ParsedLayer {
-        MKLDNNNodePtr parent;
-        InferenceEngine::CNNLayerPtr cnnLayer;
-        size_t outIdx;
-    };
+    void EnforceBF16();
 };
 
 }  // namespace MKLDNNPlugin
