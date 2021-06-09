@@ -702,6 +702,9 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
             layer.append_attribute("version").set_value(get_opset_name(node, custom_opsets).c_str());
         }
 
+        // <layers/data> general attributes
+        pugi::xml_node data = layer.append_child("data");
+
         int port_id = 0;
         // <layers/input>
         if (node->get_input_size() > 0) {
@@ -769,8 +772,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
             }
         }
 
-        // <layers/data> general attributes
-        pugi::xml_node data = layer.append_child("data");
+        // fill <data> general attributes
         XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler);
         NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
         rt_info::XmlSerializer{data}.serialize(node->get_rt_info());

@@ -86,7 +86,7 @@ TEST_F(SerializationTensorIteratorTest, TiNegativeStride) {
     serialize_and_compare(model_path, weights);
 }
 
-TEST_F(SerializationTensorIteratorTest, SerialzationExternalPortIdInXmlFile) {
+TEST_F(SerializationTensorIteratorTest, SerializationExternalPortIdInXmlFile) {
     const std::string model_path = IR_SERIALIZATION_MODELS_PATH "loop_2d_add.xml";
     const std::string binary_path = IR_SERIALIZATION_MODELS_PATH "loop_2d_add.bin";
 
