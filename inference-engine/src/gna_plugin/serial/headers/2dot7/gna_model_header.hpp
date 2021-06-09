@@ -134,7 +134,7 @@ struct RuntimeEndPoint {
     /**
      * Specifying dimensions
      */
-    struct Gna2Shape shape = {0, {0}};
+    Gna2Shape shape = {0, {0}};
     /**
      * Blob layout
      */
