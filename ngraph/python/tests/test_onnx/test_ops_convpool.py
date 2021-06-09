@@ -281,7 +281,8 @@ def test_pad_opset_1():
 
     # no paddings arttribute
     model = get_node_model("Pad", x)
-    with pytest.raises(RuntimeError):
+    from onnx.onnx_cpp2py_export.checker import ValidationError
+    with pytest.raises(ValidationError):
         import_onnx_model(model)
 
 
