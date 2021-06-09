@@ -16,7 +16,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                
+
                 ExtractImagePatches() = default;
                 /// \brief Constructs a ExtractImagePatches operation
                 ///
