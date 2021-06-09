@@ -276,6 +276,7 @@ set(SRC
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     visitors/op/unsqueeze.cpp
+    visitors/op/variadic_split.cpp
     uint4.cpp
     util.cpp
 )
