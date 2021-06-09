@@ -471,11 +471,11 @@ endif()
 # SOURCE FOR FRONTEND TESTING
 
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
-# set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
 file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
 file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
-# set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
 # ---- PaddlePaddle FrontEnd testing ------
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
@@ -501,7 +501,7 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
 
     if (PDPD_PYTHON_OK)
         file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
-        # set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+        set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
         set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
         add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
     endif()
@@ -604,7 +604,7 @@ target_link_libraries(unit-test PRIVATE frontend_manager)
 add_subdirectory(frontend)
 ### END FRONTEND ###
 
-#PaddlePaddle
+#PaddlePaddle - test models generator
 if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
     set(OUT_FILES "")
