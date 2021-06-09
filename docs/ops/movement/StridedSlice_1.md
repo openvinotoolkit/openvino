@@ -65,7 +65,69 @@
 * *T*: any supported floating point type.
 * *T_IND*: any supported integer type.
 
-**Example**
+**Example**  
+Example of `begin_mask` & `end_mask` usage.  
+```xml
+<layer ... type="StridedSlice" ...>
+    <data begin_mask="0,1,1" ellipsis_mask="0,0,0" end_mask="1,1,0" new_axis_mask="0,0,0" shrink_axis_mask="0,0,0"/>
+    <input>
+        <port id="0">
+            <dim>2</dim>
+            <dim>3</dim>
+            <dim>4</dim>
+        </port>
+        <port id="1">
+            <dim>2</dim> <!-- begin: [1, 0, 0] -->
+        </port>
+        <port id="2">
+            <dim>2</dim> <!-- end: [0, 0, 2] -->
+        </port>
+        <port id="3">
+            <dim>2</dim> <!-- stride: [1, 1, 1] -->
+        </port>
+    </input>
+    <output>
+        <port id="4">            
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
+
+Example of `new_axis_mask` usage.
+```xml
+<layer ... type="StridedSlice" ...>
+    <data begin_mask="0,1,1" ellipsis_mask="0,0,0" end_mask="0,1,1" new_axis_mask="1,0,0" shrink_axis_mask="0,0,0"/>
+    <input>
+        <port id="0">
+            <dim>2</dim>
+            <dim>3</dim>
+            <dim>4</dim>
+        </port>
+        <port id="1">
+            <dim>2</dim>
+        </port>
+        <port id="2">
+            <dim>2</dim>
+        </port>
+        <port id="3">
+            <dim>2</dim>
+        </port>
+    </input>
+    <output>
+        <port id="4">
+            <dim>1</dim>
+            <dim>2</dim>
+            <dim>3</dim>
+            <dim>4</dim>
+        </port>
+    </output>
+</layer>
+```
+
+Example of `shrink_axis_mask` usage.
 ```xml
 <layer ... type="StridedSlice" ...>
     <data begin_mask="1,0,1,1,1" ellipsis_mask="0,0,0,0,0" end_mask="1,0,1,1,1" new_axis_mask="0,0,0,0,0" shrink_axis_mask="0,1,0,0,0"/>
