@@ -75,19 +75,16 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto detect_out = new detection_output_gpu(arg, best_kernels[0]);
+        auto detection_output = new detection_output_gpu(arg, best_kernels[0]);
 
-        return detect_out;
+        return detection_output;
     }
 };
 
 namespace detail {
 
-attach_detection_output_gpu::attach_detection_output_gpu() {
-    implementation_map<detection_output>::add({
-        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), detection_output_gpu::create},
-        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), detection_output_gpu::create}
-    });
+primitive_impl* create_detection_output_gpu(const detection_output_node& arg) {
+    return detection_output_gpu::create(arg);
 }
 
 }  // namespace detail
