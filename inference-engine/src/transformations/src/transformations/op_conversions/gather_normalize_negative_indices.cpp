@@ -27,7 +27,7 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
         auto axis_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(axis_input).get_node_shared_ptr());
         auto indices_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(indices_input).get_node_shared_ptr());
 
-        if (!gather || !indices_constant) {
+        if (!gather || !axis_constant || !indices_constant) {
             return false;
         }
 
