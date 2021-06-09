@@ -25,7 +25,8 @@ if not "%1"=="" (
         echo %~n0%~x0 is security barrier camera demo that showcases three models coming with the product
         echo.
         echo Options:
-        echo -d name     Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified
+        echo -d DEVICE  Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified
+        echo -sample-options OPTIONS    Specify command line arguments for the sample
         exit /b
     )
     shift
