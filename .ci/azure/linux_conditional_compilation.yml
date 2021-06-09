@@ -71,7 +71,6 @@ jobs:
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_PROFILING_ITT=ON
         -DSELECTIVE_BUILD=COLLECT
-        -DENABLE_STRICT_DEPENDENCIES=ON
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
