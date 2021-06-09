@@ -88,29 +88,27 @@ NGRAPH_TEST(${BACKEND_NAME}, space_to_batch_5D)
                      pads_ends, pads_shape, outputs, outputs_shape);    
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, space_to_batch_5x5)
+NGRAPH_TEST(${BACKEND_NAME}, space_to_batch_4x4)
 {   
-    const Shape inputs_shape{1, 1, 5, 5};
-    const std::vector<float> inputs{1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                                    0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-                                    0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                                    0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-                                    0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    const Shape inputs_shape{1, 1, 4, 4};
+    const std::vector<float> inputs{1.0f, 0.0f, 0.0f, 0.0f,
+                                    0.0f, 1.0f, 0.0f, 0.0f,
+                                    0.0f, 0.0f, 1.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 1.0f};
 
-    const Shape blocks_shape{5};
-    const std::vector<int64_t> block_shapes{1, 1, 1, 1, 1};
+    const Shape blocks_shape{4};
+    const std::vector<int64_t> block_shapes{1, 1, 1, 1};
 
-    const Shape pads_shape{5};
-    const std::vector<int64_t> pads_begins{0, 0, 1, 0, 0};
-    const std::vector<int64_t> pads_ends{0, 0, 0, 0, 0};
+    const Shape pads_shape{4};
+    const std::vector<int64_t> pads_begins{0, 0, 1, 0};
+    const std::vector<int64_t> pads_ends{0, 0, 0, 0};
 
-    const Shape outputs_shape{1, 1, 6, 5};
-    const std::vector<float> outputs{0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                                     1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                                     0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-                                     0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                                     0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-                                     0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    const Shape outputs_shape{1, 1, 5, 4};
+    const std::vector<float> outputs{0.0f, 0.0f, 0.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 0.0f,
+                                     0.0f, 1.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 1.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f, 1.0f};
 
     SpaceToBatchTest(inputs, inputs_shape, block_shapes, blocks_shape, pads_begins, 
                      pads_ends, pads_shape, outputs, outputs_shape);    
