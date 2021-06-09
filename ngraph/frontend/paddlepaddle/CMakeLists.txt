@@ -28,6 +28,14 @@ set(PROTO_HDRS)
 # Generate protobuf file on build time for each '.proto' file in src/proto
 file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
 
+if(CMAKE_CROSSCOMPILING)
+    set(PDPD_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
+else()
+    set(PDPD_PROTOC_EXECUTABLE $<TARGET_FILE:protoc>)
+endif()
+
+message("PDPD_PROTOC_EXECUTABLE is [${PDPD_PROTOC_EXECUTABLE}]")
+
 foreach(INFILE ${proto_files})
     get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
     get_filename_component(FILE_WE ${INFILE} NAME_WE)
@@ -36,9 +44,9 @@ foreach(INFILE ${proto_files})
     set(GENERATED_PROTO ${INFILE})
     add_custom_command(
             OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
-            COMMAND protobuf::protoc ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
-            DEPENDS protobuf::protoc ${GENERATED_PROTO}
-            COMMENT "Running C++ protocol buffer compiler on ${GENERATED_PROTO}"
+            COMMAND ${PDPD_PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
+            DEPENDS ${PDPD_PROTOC_EXECUTABLE} ${GENERATED_PROTO}
+            COMMENT "Running C++ protocol buffer compiler (${PDPD_PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
             VERBATIM)
     list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
     list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
