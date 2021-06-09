@@ -1,6 +1,6 @@
-## MaxPool <a name="MaxPool"></a> {#openvino_docs_ops_pooling_MaxPool_1}
+## MaxPool <a name="MaxPool"></a> {#openvino_docs_ops_pooling_MaxPool_8}
 
-**Versioned name**: *MaxPool-1*
+**Versioned name**: *MaxPool-8*
 
 **Category**: *Pooling*
 
@@ -17,6 +17,22 @@
   * **Type**: int[]
   * **Default value**: None
   * **Required**: *yes*
+
+* *dilations*
+
+    * **Description**: *dilations* specify the index of the next pixel to select then pooling. If not present, the dilation defaults to 1, meaning the very next pixel is chosen. A value of 2 indicates that one pixel is skipped and every other pixel is considered. Dilations specify one value for each spatial axis of the kernel: `(z, y, x)` for 3D poolings and `(y, x)`  for 2D poolings.
+    * **Range of values**: integer values starting from 0
+    * **Type**: int[]
+    * **Default value**: [1,1,...]
+    * **Required**: *no*
+
+* *pads_value*
+
+    * **Description**: *pads_value* will be used to fill pixels added during padding. If not specified, the new pixels will be filled in with minimum value for the type.
+    * **Range of values**: floating point values
+    * **Type**: float
+    * **Default value**: *-infinity*
+    * **Required**: *no*
 
 * *pads_begin*
 
@@ -65,6 +81,15 @@
   * **Required**: *no*
   * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is not equal to explicit.
 
+* *index_element_type*
+
+    * **Description**: the type of output tensor with indices
+    * **Range of values**: "i64" or "i32"
+    * **Type**: string
+    * **Default value**: "i32"
+    * **Required**: *No*
+
+
 **Inputs**:
 
 *   **1**: 3D, 4D or 5D input tensor of type T. Required.
@@ -72,9 +97,20 @@
 **Outputs**:
   * **1**: Input shape can be either `[N, C, H]`, `[N, C, H, W]` or `[N, C, H, W, D]`. Then the corresponding output shape will be `[N, C, H_out]`, `[N, C, H_out, W_out]` or `[N, C, H_out, W_out, D_out]`. Output tensor has the same data type as input tensor.
 
+  * **2**: Output tensor of type *T_IND* with indices of values selected by the pooling operation.
+    Shape of this output matches the first output.
+    The type of this output can be specified using the `index_element_type` attribute.
+    Values are computed as indices in a tensor flattened to 1-D, not considering padding,
+    so the values are in the range `[0, N * C * H * W * D)`.
+    Note: the values of this output can only be calculated correctly if `pads_value` is set to `-infinity`.
+
+
 **Types**
 
 * *T*: floating point or integer type.
+
+* *T_IND*: `int64` or `int32`.
+
 
 **Mathematical Formulation**
 Output shape calculation based on `auto_pad` and `rounding_type`:  
