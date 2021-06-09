@@ -99,20 +99,20 @@ Where
 * *bilinear_interpolation_padding*
 
   * **Description**: *bilinear_interpolation_padding* is the number of pixels outside of the feature map boundary to apply bilinear interpolation.
-  * **Range of values**: [0, 1]
+  * **Range of values**: non-negative integer value
   * **Type**: `int`
   * **Default value**: `0`
   * **Required**: *no*
   
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). Required.
+*   **1**: Input tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). **Required.**
 
-*   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X \* 2, spatial axes Y and X). Required.
+*   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X \* 2, spatial axes Y and X). **Required.**
 
-*   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). Required.
+*   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). **Required.**
 
-*   **4**: ModulationScalars tensor of type *T2* and rank 4, the values are within [0, 1]. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). If the input is not provided, the values are assumed to be equal to 1. Optional.
+*   **4**: ModulationScalars tensor of type *T2* and rank 4, the values are within [0, 1]. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). If the input is not provided, the values are assumed to be equal to 1. **Optional.**
 
 
 **Outputs**:
@@ -129,7 +129,7 @@ Where
 2D DeformableConvolution (deformable_group=1)
 ```xml
 <layer type="DeformableConvolution" ...>
-    <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="1,1" auto_pad="explicit"  group="1" deformable_group="1"/>
+    <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="1,1" auto_pad="explicit" group="1" deformable_group="1"/>
     <input>
         <port id="0">
             <dim>1</dim>
@@ -166,4 +166,3 @@ Where
     </output>
 </layer>
 ```
-
