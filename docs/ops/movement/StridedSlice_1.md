@@ -4,8 +4,7 @@
 
 **Category**: Data movement operation
 
-**Short description**: *StridedSlice* extracts a strided slice of a tensor.
- It is similar to generalized array indexing in Python.
+**Short description**: *StridedSlice* extracts a strided slice of a tensor. 
 
 **Attributes**
 
