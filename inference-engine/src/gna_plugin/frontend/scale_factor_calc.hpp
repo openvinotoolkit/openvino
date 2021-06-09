@@ -370,14 +370,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             auto minOutValue = quantizedParams->_dst_quant.GetMinValues().front();
             auto maxOutValue = quantizedParams->_dst_quant.GetMaxValues().front();
             auto absMax = std::max(std::abs(minOutValue), std::abs(maxOutValue));
-            auto absMin = std::min(std::abs(minOutValue), std::abs(maxOutValue));
 
             result = (quantizedParams->_dst_quant.GetLevels() - 1) / (maxOutValue - minOutValue);
-            if (0 && fp32eq(absMin, 0.0f) && !fp32eq(absMax, 0.0f)) {
-                result = (quantizedParams->_dst_quant.GetLevels() - 1) / (2 * absMax);
-            }
-            //
-            //result = MAX_VAL_2B_FEAT / absMax;
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
                 result = max_activation_scale_factor;
             }
@@ -401,6 +395,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                 (layer.isIdentity() || layer.isFakeQuantize()) && LayerInfo(prevLayer).isWeightableIdentity()) {
                 auto prevLayerQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
                 if (!fp32eq(prevLayerQuant->_src_quant.GetScale(), 1.0f) &&
+                    prevLayerQuant->_src_quant.IsStatsSet() &&
                     (prevLayer2 == nullptr || LayerInfo(prevLayer2).has8BOr16BOutput())) {
                     result = prevLayerQuant->_src_quant.GetScale();
                     usePrevScaleFactor = true;
