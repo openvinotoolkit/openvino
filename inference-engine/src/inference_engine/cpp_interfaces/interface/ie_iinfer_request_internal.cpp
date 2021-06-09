@@ -169,6 +169,10 @@ void IInferRequestInternal::SetBatch(int batch) {
     IE_THROW(NotImplemented);
 }
 
+void IInferRequestInternal::SetShape(const std::string &name, const SizeVector &dims) {
+    IE_THROW(NotImplemented);
+}
+
 std::vector<std::shared_ptr<IVariableStateInternal>> IInferRequestInternal::QueryState() {
     IE_THROW(NotImplemented);
 }

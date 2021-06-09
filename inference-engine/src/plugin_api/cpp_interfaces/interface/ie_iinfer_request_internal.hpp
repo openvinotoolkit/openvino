@@ -141,6 +141,8 @@ public:
      */
     virtual StatusCode Wait(int64_t millis_timeout);
 
+    virtual void SetShape(const std::string& name, const SizeVector& dims);
+
     /**
      * @brief Alias for callback type
      */

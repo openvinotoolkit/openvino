@@ -92,6 +92,10 @@ StatusCode InferRequest::Wait(int64_t millis_timeout) {
     INFER_REQ_CALL_STATEMENT(return _impl->Wait(millis_timeout);)
 }
 
+void InferRequest::SetShape(const std::string &name, const SizeVector &dims) {
+    INFER_REQ_CALL_STATEMENT(_impl->SetShape(name, dims);)
+}
+
 void InferRequest::SetCompletionCallbackImpl(std::function<void()> callbackToSet) {
     INFER_REQ_CALL_STATEMENT(
         _impl->SetCallback([callbackToSet] (std::exception_ptr) {

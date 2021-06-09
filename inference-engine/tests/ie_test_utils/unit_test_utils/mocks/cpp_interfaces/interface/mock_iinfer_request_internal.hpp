@@ -26,6 +26,7 @@ public:
     MOCK_CONST_METHOD1(GetPreProcess, const InferenceEngine::PreProcessInfo&(const std::string&));
     MOCK_METHOD1(SetCallback, void(std::function<void(std::exception_ptr)>));
     MOCK_METHOD1(SetBatch, void(int));
+    MOCK_METHOD2(SetShape, void(const std::string&, const SizeVector&));
     MOCK_METHOD0(QueryState, std::vector<InferenceEngine::IVariableStateInternal::Ptr>());
     MOCK_METHOD0(Cancel, void());
     MOCK_METHOD0(StartAsyncImpl, void());

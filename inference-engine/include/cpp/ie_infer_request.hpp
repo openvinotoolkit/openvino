@@ -169,6 +169,8 @@ public:
      */
     StatusCode Wait(int64_t millis_timeout = RESULT_READY);
 
+    void SetShape(const std::string &name, const SizeVector& dims);
+
 private:
     void SetCompletionCallbackImpl(std::function<void()>);
     void SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)>);
