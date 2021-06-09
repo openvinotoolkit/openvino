@@ -3,6 +3,7 @@
 //
 
 #include <vector>
+#include <tuple>
 
 #include "single_layer_tests/matrix_nms.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -17,25 +18,28 @@ const std::vector<InputShapeParams> inShapeParams = {
     InputShapeParams{2, 50, 50}
 };
 
-const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
-const std::vector<float> threshold = {0.3f, 0.7f};
-const std::vector<float> sigmaThreshold = {0.0f, 0.5f};
-const std::vector<op::v8::MatrixNms::BoxEncodingType> encodType = {op::v8::MatrixNms::BoxEncodingType::CENTER,
-                                                                       op::v8::MatrixNms::BoxEncodingType::CORNER};
-const std::vector<bool> sortResDesc = {true, false};
+const std::vector<op::v8::MatrixNms::SortResultType> sortResultType = {op::v8::MatrixNms::SortResultType::CLASSID,
+                                                                       op::v8::MatrixNms::SortResultType::SCORE,
+                                                                       op::v8::MatrixNms::SortResultType::NONE};
+const std::vector<bool> sortResultAcrossBatch = {true, false};
 const std::vector<element::Type> outType = {element::i32, element::i64};
+const std::vector<int> nmsTopK = {10, 100};
+const std::vector<int> keepTopK = {10, 5};
+const std::vector<int> backgroudClass = {-1, 0};
+const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::MatrixNms::DecayFunction::GAUSSIAN,
+                                                op::v8::MatrixNms::DecayFunction::LINEAR};
 
 const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                           ::testing::Combine(::testing::Values(Precision::FP32),
                                                              ::testing::Values(Precision::I32),
                                                              ::testing::Values(Precision::FP32)),
-                                          ::testing::ValuesIn(maxOutBoxPerClass),
-                                          ::testing::ValuesIn(threshold),
-                                          ::testing::ValuesIn(threshold),
-                                          ::testing::ValuesIn(sigmaThreshold),
-                                          ::testing::ValuesIn(encodType),
-                                          ::testing::ValuesIn(sortResDesc),
+                                          ::testing::ValuesIn(sortResultType),
+                                          ::testing::ValuesIn(sortResultAcrossBatch),
                                           ::testing::ValuesIn(outType),
+                                          ::testing::ValuesIn(nmsTopK),
+                                          ::testing::ValuesIn(keepTopK),
+                                          ::testing::ValuesIn(backgroudClass),
+                                          ::testing::ValuesIn(decayFunction),
                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 

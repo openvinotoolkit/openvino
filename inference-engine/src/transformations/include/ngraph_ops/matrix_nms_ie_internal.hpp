@@ -22,23 +22,17 @@ public:
     const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     MatrixNmsIEInternal(const Output<Node>& boxes,
-                            const Output<Node>& scores,
-                            const Output<Node>& max_output_boxes_per_class,
-                            const Output<Node>& iou_threshold,
-                            const Output<Node>& score_threshold,
-                            int center_point_box,
-                            bool sort_result_descending,
-                            const ngraph::element::Type& output_type = ngraph::element::i64);
-
-    MatrixNmsIEInternal(const Output<Node>& boxes,
-                            const Output<Node>& scores,
-                            const Output<Node>& max_output_boxes_per_class,
-                            const Output<Node>& iou_threshold,
-                            const Output<Node>& score_threshold,
-                            const Output<Node>& soft_nms_sigma,
-                            int center_point_box,
-                            bool sort_result_descending,
-                            const ngraph::element::Type& output_type = ngraph::element::i64);
+                        const Output<Node>& scores,
+                        const int32_t sort_result_type = 2,
+                        const bool sort_result_across_batch = true,
+                        const ngraph::element::Type& output_type = ngraph::element::i32,
+                        const float score_threshold = 0.0f,
+                        const int nms_top_k = -1,
+                        const int keep_top_k = -1,
+                        const int background_class = -1,
+                        const int32_t decay_function = 1,
+                        const float gaussian_sigma = 2.0f,
+                        const float post_threshold = 0.0f);
 
     void validate_and_infer_types() override;
 
@@ -51,12 +45,16 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 
-    int m_center_point_box;
-    bool m_sort_result_descending = true;
-    element::Type m_output_type;
-
-private:
-    int64_t max_boxes_output_from_input() const;
+    int32_t m_sort_result_type;
+    bool m_sort_result_across_batch;
+    ngraph::element::Type m_output_type;
+    float m_score_threshold;
+    int m_nms_top_k;
+    int m_keep_top_k;
+    int m_background_class;
+    int32_t m_decay_function;
+    float m_gaussian_sigma;
+    float m_post_threshold;
 };
 
 }  // namespace internal

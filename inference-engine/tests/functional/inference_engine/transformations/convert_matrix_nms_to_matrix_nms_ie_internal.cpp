@@ -30,12 +30,8 @@ TEST(TransformationTests, ConvertMatrixNmsToMatrixNmsIEInternal) {
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset1::Constant::create(element::i32, Shape{}, {10});
-        auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = opset1::Constant::create(element::f32, Shape{}, {0.5});
-        auto nms = std::make_shared<opset7::MatrixNms>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, soft_nms_sigma, opset7::MatrixNms::BoxEncodingType::CORNER, true, element::i32);
+
+        auto nms = std::make_shared<opset7::MatrixNms>(boxes, scores);
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
@@ -55,8 +51,7 @@ TEST(TransformationTests, ConvertMatrixNmsToMatrixNmsIEInternal) {
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
         auto soft_nms_sigma = opset1::Constant::create(element::f32, Shape{1}, {0.5});
-        auto nms = std::make_shared<op::internal::MatrixNmsIEInternal>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, soft_nms_sigma, 0, true, element::i32);
+        auto nms = std::make_shared<op::internal::MatrixNmsIEInternal>(boxes, scores);
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         ASSERT_TRUE(f_ref->get_output_partial_shape(0).is_static()) << "Shape " << f_ref->get_output_partial_shape(0) << " should be static";

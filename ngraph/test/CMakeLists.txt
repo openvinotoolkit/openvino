@@ -287,7 +287,9 @@ set (SRC
     op.cpp
     util.cpp
     type_prop/multiclass_nms.cpp
-    visitors/op/multiclass_nms.cpp)
+    visitors/op/multiclass_nms.cpp
+    type_prop/matrix_nms.cpp
+    visitors/op/matrix_nms.cpp)
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
@@ -455,7 +457,9 @@ set(MULTI_TEST_SRC
 
 # // TODO: test usage only
 set (MULTI_TEST_SRC 
-    backend/multiclass_nms.in.cpp)
+    backend/multiclass_nms.in.cpp
+    backend/matrix_nms.in.cpp
+    )
 
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND MULTI_TEST_SRC

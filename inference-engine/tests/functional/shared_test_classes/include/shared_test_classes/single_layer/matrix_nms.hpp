@@ -22,13 +22,13 @@ using InputPrecisions = std::tuple<InferenceEngine::Precision,  // boxes and sco
 
 using NmsParams = std::tuple<InputShapeParams,                                   // Params using to create 1st and 2nd inputs
                              InputPrecisions,                                    // Input precisions
-                             int32_t,                                            // Max output boxes per class
-                             float,                                              // IOU threshold
-                             float,                                              // Score threshold
-                             float,                                              // Soft NMS sigma
-                             ngraph::op::v8::MatrixNms::BoxEncodingType,     // Box encoding
-                             bool,                                               // Sort result descending
+                             ngraph::op::v8::MatrixNms::SortResultType,          // Order of output elements
+                             bool,                                               // Sort selected boxes across batches or not
                              ngraph::element::Type,                              // Output type
+                             int,                                                // Maximum number of boxes to be selected per class
+                             int,                                                // Maximum number of boxes to be selected per batch element
+                             int,                                                // Background class id
+                             ngraph::op::v8::MatrixNms::DecayFunction,           // Decay function
                              std::string>;                                       // Device name
 
 class MatrixNmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {

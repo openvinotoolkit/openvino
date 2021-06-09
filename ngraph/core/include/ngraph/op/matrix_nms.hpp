@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "ngraph/op/util/nms_base.hpp"
 
 namespace ngraph
 {
@@ -14,171 +14,119 @@ namespace ngraph
         {
             /// \brief MatrixNms operation
             ///
-            class NGRAPH_API MatrixNms : public Op
+            class NGRAPH_API MatrixNms : public util::NmsBase
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                enum class BoxEncodingType
+
+                enum class DecayFunction
                 {
-                    CORNER,
-                    CENTER
+                    GAUSSIAN,
+                    LINEAR
                 };
 
                 MatrixNms() = default;
 
-                /// \brief Constructs a MatrixNms operation with default values in the last
-                ///        4 inputs.
+                /// \brief Constructs a MatrixNms operation
                 ///
                 /// \param boxes Node producing the box coordinates
                 /// \param scores Node producing the box scores
-                /// \param box_encoding Specifies the format of boxes data encoding
-                /// \param sort_result_descending Specifies whether it is necessary to sort selected
-                /// boxes across batches
+                /// \param sort_result Specifies order of output elements
+                /// \param sort_result_across_batch Specifies whenever it is necessary to
+                /// sort selected boxes across batches or not
                 /// \param output_type Specifies the output tensor type
+                /// \param score_threshold Specifies minimum score to consider box for the
+                /// processing
+                /// \param nms_top_k Specifies maximum number of boxes to be selected per
+                /// class, -1 meaning to keep all boxes
+                /// \param keep_top_k Specifies maximum number of boxes to be selected per
+                /// batch element, -1 meaning to keep all boxes
+                /// \param background_class Specifies the background class id, -1 meaning to keep
+                /// all classes
+                /// \param decay_function Specifies decay function used to decay scores
+                /// \param gaussian_sigma Specifies gaussian_sigma parameter for gaussian
+                /// decay_function \param post_threshold Specifies threshold to filter out boxes
+                /// with low confidence score after decaying
                 MatrixNms(const Output<Node>& boxes,
-                              const Output<Node>& scores,
-                              const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
-                              const bool sort_result_descending = true,
-                              const ngraph::element::Type& output_type = ngraph::element::i64);
-
-                /// \brief Constructs a MatrixNms operation with default values in the last.
-                ///        3 inputs.
-                ///
-                /// \param boxes Node producing the box coordinates
-                /// \param scores Node producing the box scores
-                /// \param max_output_boxes_per_class Node producing maximum number of boxes to be
-                /// selected per class
-                /// \param box_encoding Specifies the format of boxes data encoding
-                /// \param sort_result_descending Specifies whether it is necessary to sort selected
-                /// boxes across batches
-                /// \param output_type Specifies the output tensor type
-                MatrixNms(const Output<Node>& boxes,
-                              const Output<Node>& scores,
-                              const Output<Node>& max_output_boxes_per_class,
-                              const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
-                              const bool sort_result_descending = true,
-                              const ngraph::element::Type& output_type = ngraph::element::i64);
-
-                /// \brief Constructs a MatrixNms operation with default values in the last.
-                ///        2 inputs.
-                ///
-                /// \param boxes Node producing the box coordinates
-                /// \param scores Node producing the box scores
-                /// \param max_output_boxes_per_class Node producing maximum number of boxes to be
-                /// selected per class
-                /// \param iou_threshold Node producing intersection over union threshold
-                /// \param box_encoding Specifies the format of boxes data encoding
-                /// \param sort_result_descending Specifies whether it is necessary to sort selected
-                /// boxes across batches
-                /// \param output_type Specifies the output tensor type
-                MatrixNms(const Output<Node>& boxes,
-                              const Output<Node>& scores,
-                              const Output<Node>& max_output_boxes_per_class,
-                              const Output<Node>& iou_threshold,
-                              const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
-                              const bool sort_result_descending = true,
-                              const ngraph::element::Type& output_type = ngraph::element::i64);
-
-                /// \brief Constructs a MatrixNms operation with default value in the last.
-                ///        input.
-                ///
-                /// \param boxes Node producing the box coordinates
-                /// \param scores Node producing the box scores
-                /// \param max_output_boxes_per_class Node producing maximum number of boxes to be
-                /// selected per class
-                /// \param iou_threshold Node producing intersection over union threshold
-                /// \param score_threshold Node producing minimum score threshold
-                /// \param box_encoding Specifies the format of boxes data encoding
-                /// \param sort_result_descending Specifies whether it is necessary to sort selected
-                /// boxes across batches
-                /// \param output_type Specifies the output tensor type
-                MatrixNms(const Output<Node>& boxes,
-                              const Output<Node>& scores,
-                              const Output<Node>& max_output_boxes_per_class,
-                              const Output<Node>& iou_threshold,
-                              const Output<Node>& score_threshold,
-                              const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
-                              const bool sort_result_descending = true,
-                              const ngraph::element::Type& output_type = ngraph::element::i64);
-
-                /// \brief Constructs a MatrixNms operation.
-                ///
-                /// \param boxes Node producing the box coordinates
-                /// \param scores Node producing the box scores
-                /// \param max_output_boxes_per_class Node producing maximum number of boxes to be
-                /// selected per class
-                /// \param iou_threshold Node producing intersection over union threshold
-                /// \param score_threshold Node producing minimum score threshold
-                /// \param soft_nms_sigma Node specifying the sigma parameter for Soft-NMS
-                /// \param box_encoding Specifies the format of boxes data encoding
-                /// \param sort_result_descending Specifies whether it is necessary to sort selected
-                /// boxes across batches
-                /// \param output_type Specifies the output tensor type
-                MatrixNms(const Output<Node>& boxes,
-                              const Output<Node>& scores,
-                              const Output<Node>& max_output_boxes_per_class,
-                              const Output<Node>& iou_threshold,
-                              const Output<Node>& score_threshold,
-                              const Output<Node>& soft_nms_sigma,
-                              const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
-                              const bool sort_result_descending = true,
-                              const ngraph::element::Type& output_type = ngraph::element::i64);
+                          const Output<Node>& scores,
+                          const SortResultType sort_result_type = SortResultType::NONE,
+                          const bool sort_result_across_batch = true,
+                          const ngraph::element::Type& output_type = ngraph::element::i32,
+                          const float score_threshold = 0.0f,
+                          const int nms_top_k = -1,
+                          const int keep_top_k = -1,
+                          const int background_class = -1,
+                          const DecayFunction decay_function = DecayFunction::LINEAR,
+                          const float gaussian_sigma = 2.0f,
+                          const float post_threshold = 0.0f);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                void validate_and_infer_types() override;
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                BoxEncodingType get_box_encoding() const { return m_box_encoding; }
-                void set_box_encoding(const BoxEncodingType box_encoding)
+                bool get_sort_result_across_batch() const { return m_sort_result_across_batch; }
+                void set_sort_result_across_batch(const bool sort_result_across_batch)
                 {
-                    m_box_encoding = box_encoding;
-                }
-                bool get_sort_result_descending() const { return m_sort_result_descending; }
-                void set_sort_result_descending(const bool sort_result_descending)
-                {
-                    m_sort_result_descending = sort_result_descending;
+                    m_sort_result_across_batch = sort_result_across_batch;
                 }
 
-                element::Type get_output_type() const { return m_output_type; }
-                void set_output_type(const element::Type& output_type)
+                float get_score_threshold() const { return m_score_threshold; }
+                void set_score_threshold(const float score_threshold)
                 {
-                    m_output_type = output_type;
+                    m_score_threshold = score_threshold;
                 }
-                using Node::set_output_type;
 
-                int64_t max_boxes_output_from_input() const;
-                float iou_threshold_from_input() const;
-                float score_threshold_from_input() const;
-                float soft_nms_sigma_from_input() const;
-                bool is_soft_nms_sigma_constant_and_default() const;
+                int get_background_class() const { return m_background_class; }
+                void set_background_class(const int background_class)
+                {
+                    m_background_class = background_class;
+                }
+
+                DecayFunction get_decay_function() const { return m_decay_function; }
+                void set_decay_function(const DecayFunction decay_function)
+                {
+                    m_decay_function = decay_function;
+                }
+
+                float get_gaussian_sigma() const { return m_gaussian_sigma; }
+                void set_gaussian_sigma(const float gaussian_sigma)
+                {
+                    m_gaussian_sigma = gaussian_sigma;
+                }
+
+                float get_post_threshold() const { return m_post_threshold; }
+                void set_post_threshold(const float post_threshold)
+                {
+                    m_post_threshold = post_threshold;
+                }
 
             protected:
-                BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
-                bool m_sort_result_descending = true;
-                ngraph::element::Type m_output_type = ngraph::element::i64;
-                void validate();
+                bool m_sort_result_across_batch;
+                float m_score_threshold;
+                int m_background_class;
+                DecayFunction m_decay_function;
+                float m_gaussian_sigma;
+                float m_post_threshold;
+                void validate() override;
             };
         } // namespace v8
     }     // namespace op
-
     NGRAPH_API
-    std::ostream& operator<<(std::ostream& s,
-                             const op::v8::MatrixNms::BoxEncodingType& type);
+    std::ostream& operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type);
 
     template <>
-    class NGRAPH_API AttributeAdapter<op::v8::MatrixNms::BoxEncodingType>
-        : public EnumAttributeAdapterBase<op::v8::MatrixNms::BoxEncodingType>
+    class NGRAPH_API AttributeAdapter<op::v8::MatrixNms::DecayFunction>
+        : public EnumAttributeAdapterBase<op::v8::MatrixNms::DecayFunction>
     {
     public:
-        AttributeAdapter(op::v8::MatrixNms::BoxEncodingType& value)
-            : EnumAttributeAdapterBase<op::v8::MatrixNms::BoxEncodingType>(value)
+        AttributeAdapter(op::v8::MatrixNms::DecayFunction& value)
+            : EnumAttributeAdapterBase<op::v8::MatrixNms::DecayFunction>(value)
         {
         }
 
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<op::v8::MatrixNms::BoxEncodingType>", 1};
+            "AttributeAdapter<op::v8::MatrixNms::DecayFunction>", 1};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 } // namespace ngraph
