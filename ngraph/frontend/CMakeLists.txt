@@ -37,6 +37,7 @@ if(NOT WIN32)
                     -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
                     -DCMAKE_CXX_VISIBILITY_PRESET=${CMAKE_CXX_VISIBILITY_PRESET}
                     -DNGRAPH_INSTALL_LIB=${NGRAPH_INSTALL_LIB}
+                    -DSYSTEM_PROTOC=${SYSTEM_PROTOC}
                      ${NGRAPH_FORWARD_CMAKE_ARGS}
             COMMAND ${CMAKE_COMMAND} --build . --target libprotobuf
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libprotobuf_static
