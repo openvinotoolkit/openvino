@@ -32,7 +32,7 @@ bool MKLDNNEdge::isUseExternalMemory() const {
     return externalMemoryPtr;
 }
 
-bool MKLDNNEdge::isDropped() {
+bool MKLDNNEdge::isDropped() const {
     bool not_in_parent = true;
     bool not_in_child = true;
 
@@ -124,11 +124,19 @@ void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
     status = Status::Allocated;
 }
 
+const InferenceEngine::TensorDesc& MKLDNNEdge::getInputDescRO() const {
+    return inputDesc;
+}
+
 InferenceEngine::TensorDesc MKLDNNEdge::getInputDesc() {
     if (inputDesc.getLayout() == InferenceEngine::Layout::ANY) {
         inputDesc = getSpecifiedInputDesc({});
     }
     return inputDesc;
+}
+
+const InferenceEngine::TensorDesc& MKLDNNEdge::getOutputDescRO() const {
+    return outputDesc;
 }
 
 InferenceEngine::TensorDesc MKLDNNEdge::getOutputDesc() {
@@ -145,11 +153,11 @@ InferenceEngine::TensorDesc MKLDNNEdge::getDesc() {
     return getInputDesc();
 }
 
-int MKLDNNEdge::getInputNum() {
+int MKLDNNEdge::getInputNum() const {
     return parent_port;
 }
 
-int MKLDNNEdge::getOutputNum() {
+int MKLDNNEdge::getOutputNum() const {
     return child_port;
 }
 
