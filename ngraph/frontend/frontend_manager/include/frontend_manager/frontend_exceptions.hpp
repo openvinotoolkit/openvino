@@ -6,8 +6,8 @@
 
 #include <memory>
 #include <string>
-#include "ngraph/check.hpp"
 #include "frontend_manager_defs.hpp"
+#include "ngraph/check.hpp"
 
 namespace ngraph
 {
