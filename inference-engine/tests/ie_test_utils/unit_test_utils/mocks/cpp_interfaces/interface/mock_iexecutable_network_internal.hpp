@@ -34,8 +34,4 @@ public:
     void WrapOstreamExport(std::ostream& networkModel) {
         IExecutableNetworkInternal::Export(networkModel);
     }
-    const std::string exportString = "MockExecutableNetworkInternal";
-    void ExportImpl(std::ostream& networkModel) override {
-        networkModel << exportString << std::endl;
-    }
 };
