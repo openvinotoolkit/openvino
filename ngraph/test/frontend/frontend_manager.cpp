@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
 #include <frontend_manager/frontend_exceptions.hpp>
 #include <frontend_manager/frontend_manager.hpp>
+#include <memory>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -211,13 +211,18 @@ TEST(FrontEndExceptionTest, frontend_op_conversion_error_throw_no_info)
 TEST(FrontEndExceptionTest, frontend_assert_throw_check_info)
 {
     std::string msg("msg example");
-    try {
+    try
+    {
         FRONT_END_THROW(msg);
-    } catch (const ngraph::frontend::GeneralFailure &ex) {
+    }
+    catch (const ngraph::frontend::GeneralFailure& ex)
+    {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
-    } catch (...) {
+    }
+    catch (...)
+    {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
@@ -225,14 +230,21 @@ TEST(FrontEndExceptionTest, frontend_assert_throw_check_info)
 
 TEST(FrontEndExceptionTest, frontend_not_implemented_throw_check_info)
 {
-    struct TestClass {};
-    try {
+    struct TestClass
+    {
+    };
+    try
+    {
         FRONT_END_NOT_IMPLEMENTED(TestClass);
-    } catch (const ngraph::frontend::NotImplementedFailure &ex) {
+    }
+    catch (const ngraph::frontend::NotImplementedFailure& ex)
+    {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find("TestClass"), std::string::npos);
         return;
-    } catch (...) {
+    }
+    catch (...)
+    {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
@@ -241,13 +253,18 @@ TEST(FrontEndExceptionTest, frontend_not_implemented_throw_check_info)
 TEST(FrontEndExceptionTest, frontend_general_error_throw_info)
 {
     std::string msg("msg example");
-    try {
+    try
+    {
         FRONT_END_GENERAL_CHECK(false, msg);
-    } catch (const ngraph::frontend::GeneralFailure &ex) {
+    }
+    catch (const ngraph::frontend::GeneralFailure& ex)
+    {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
-    } catch (...) {
+    }
+    catch (...)
+    {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
@@ -256,13 +273,18 @@ TEST(FrontEndExceptionTest, frontend_general_error_throw_info)
 TEST(FrontEndExceptionTest, frontend_op_conversion_error_throw_info)
 {
     std::string msg("msg example");
-    try {
+    try
+    {
         FRONT_END_OP_CONVERSION_CHECK(false, msg);
-    } catch (const ngraph::frontend::OpConversionFailure &ex) {
+    }
+    catch (const ngraph::frontend::OpConversionFailure& ex)
+    {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
-    } catch (...) {
+    }
+    catch (...)
+    {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
@@ -271,13 +293,18 @@ TEST(FrontEndExceptionTest, frontend_op_conversion_error_throw_info)
 TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info)
 {
     std::string msg("msg example");
-    try {
+    try
+    {
         FRONT_END_INITIALIZATION_CHECK(false, msg);
-    } catch (const ngraph::frontend::InitializationFailure &ex) {
+    }
+    catch (const ngraph::frontend::InitializationFailure& ex)
+    {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
-    } catch (...) {
+    }
+    catch (...)
+    {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
