@@ -89,8 +89,9 @@ protected:
         auto pattern = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
             ngraph::Shape{ inputShape.size() }, inputShape);
         auto reshape = std::make_shared<ngraph::opset7::Reshape>(matmul, pattern, false);
+        auto relu = std::make_shared<ngraph::opset7::Relu>(reshape);
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(reshape)};
+        ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(relu)};
         function = std::make_shared<ngraph::Function>(results, params, "ConvertMatmulToPointwiseConv");
     }
 };
@@ -172,7 +173,9 @@ protected:
             ngraph::Shape{ inputShape.size() }, inputShape);
         auto reshape = std::make_shared<ngraph::opset7::Reshape>(outputFQ, pattern, false);
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(reshape)};
+        auto relu = std::make_shared<ngraph::opset7::Relu>(reshape);
+
+        ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(relu)};
         function = std::make_shared<ngraph::Function>(results, params, "ConvertMatmulToPointwiseConv");
     }
 };
@@ -191,9 +194,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
-    },
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
     }
@@ -217,6 +217,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulToP
         ::testing::ValuesIn(inputShape)),
     ConvertMatmulToPointwiseConv::getTestCaseName);
 
+// Issue 55662
 INSTANTIATE_TEST_CASE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulToPointwiseConvWithFq,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),

@@ -54,6 +54,7 @@
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "transformations/remove_extra_reshapes.hpp"
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
@@ -661,17 +662,6 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 }
 #endif
 
-static bool HasConvolutions(std::shared_ptr<ngraph::Function> f) {
-    /* Currently this transformation is supported only for networks without convolutions.
-     */
-    for (auto& node : f->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<ngraph::opset7::Convolution>(node) != nullptr) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
@@ -683,9 +673,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         // TODO enable this transformation for networks with convolutions
-        if (!HasConvolutions(graph)) {
+        if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
+            manager.register_pass<ConvertMatmulWithFqToPointWiseConvolution>();
+            manager.register_pass<ConvertMatmulWithBiasToPointWiseConvolution>();
             manager.register_pass<ConvertMatmulToPointWiseConvolution>();
         }
+        manager.register_pass<SplitConvolutionWithFq>();
+        manager.register_pass<SplitConvolutionWithBias>();
         manager.register_pass<SplitConvolution>();
         manager.register_pass<InsertTransposeBeforeMatmul>();
         manager.register_pass<SwapInputMatMul>();
