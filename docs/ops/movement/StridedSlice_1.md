@@ -62,7 +62,7 @@
 *   **4**: `stride` - 1D tensor of type `T_IND` with strides. **Optional.**
 
 **Types**
-* *T*: any supported floating point type.
+* *T*: any supported type.
 * *T_IND*: any supported integer type.
 
 **Example**  
