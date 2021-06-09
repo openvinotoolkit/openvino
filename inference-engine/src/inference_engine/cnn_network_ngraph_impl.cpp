@@ -66,8 +66,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
         }
     };
     auto shape = output.get_partial_shape();
-    if (shape.rank().is_dynamic())
-        IE_THROW() << outName << " has dynamic rank which is not supported";
+    auto rank = shape.rank().is_static() ? shape.rank().get_length() : 0;
     for (const auto& dim : shape) {
         if (dim.is_static() && dim.get_length() == 0)
             IE_THROW() << outName << " has zero dimension which is not allowed";
@@ -75,11 +74,11 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
 
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
-        const auto layout = isCompatible(shape.rank().get_length(), origLayout) ? origLayout
-            : TensorDesc::getLayoutByDims(SizeVector(shape.rank().get_length()));
+        const auto layout = isCompatible(rank, origLayout) ? origLayout
+            : TensorDesc::getLayoutByDims(SizeVector(rank));
         ptr->reshape(shape, layout);
     } else {
-        const auto layout = TensorDesc::getLayoutByDims(SizeVector(shape.rank().get_length()));
+        const auto layout = TensorDesc::getLayoutByDims(SizeVector(rank));
         const auto precision = details::convertPrecision(output.get_element_type());
         ptr.reset(new Data(outName, precision, shape, layout));
     }
