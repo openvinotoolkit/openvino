@@ -79,7 +79,7 @@ if not "%python_ver%"=="okay" (
 )
 
 :: install yaml python modules required for downloader.py
-pip3 install --user -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requirements.in"
+python -m pip install --user -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requirements.in"
 if ERRORLEVEL 1 GOTO errorHandling
 
 
