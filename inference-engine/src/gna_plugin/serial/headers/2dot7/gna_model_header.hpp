@@ -19,6 +19,11 @@ namespace GNAPluginNS {
 namespace Header2dot7 {
 
 /**
+ Maximal number of supported shape dimensions.
+ */
+#define GNA_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS 8
+
+/**
  * @brief Header version 2.7
  */
 struct ModelHeader {
@@ -144,7 +149,7 @@ struct RuntimeEndPoint {
          array specifying value of each dimension.
         Set all zeros for scalars.
         */
-        uint32_t Dimensions[GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS] = {0};
+        uint32_t Dimensions[GNA_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS] = {0};
     } shape;
     /**
      * Blob layout
