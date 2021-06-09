@@ -70,13 +70,15 @@ TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
     }
 
     CNNNetwork cnnNetwork(ngraph);
-    ASSERT_EQ(Layout::SCALAR, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    ASSERT_TRUE(cnnNetwork.getInputsInfo()["A"]->getInputData()->isDynamic());
 
     ICNNNetwork::InputShapes new_shape;
     new_shape["A"] = ngraph::Shape{1, 3, 22, 22};
     cnnNetwork.reshape(new_shape);
 
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    ASSERT_FALSE(cnnNetwork.getInputsInfo()["A"]->getInputData()->isDynamic());
 }
 
 TEST_F(NGraphReshapeTests, ReshapeBatchReLU) {
@@ -298,18 +300,8 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToFullyDynamic) {
     std::map<std::string, ngraph::PartialShape> shapes;
     shapes["data"] = refShape;
 
-    ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
-
-    auto changedFunction = cnnNetwork.getFunction();
-    ASSERT_NE(nullptr, changedFunction);
-    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(changedFunction->get_results()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(ngraph->get_parameters()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(ngraph->get_results()[0]->get_partial_shape().is_dynamic());
-    ASSERT_EQ(changedFunction->get_parameters()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(changedFunction->get_results()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(ngraph->get_results()[0]->get_partial_shape(), refShape);
+    // We don't support dynamic rank in IR v10
+    ASSERT_THROW(cnnNetwork.reshape(shapes), InferenceEngine::Exception);
 }
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUDynamicToDynamic) {

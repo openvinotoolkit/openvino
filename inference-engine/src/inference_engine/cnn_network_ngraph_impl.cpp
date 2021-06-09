@@ -65,24 +65,23 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
             return false;
         }
     };
-    // query shape from ngraph::Parameter output shape and check there are no zeros in it
-    SizeVector dims;
-    if (output.get_partial_shape().is_static()) {
-        dims = output.get_shape();
-    }
-    for (const auto& dim : dims) {
-        if (!dim)
+    auto shape = output.get_partial_shape();
+    if (shape.rank().is_dynamic())
+        IE_THROW() << outName << " has dynamic rank which is not supported";
+    for (const auto& dim : shape) {
+        if (dim.is_static() && dim.get_length() == 0)
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
-        const auto layout = isCompatible(dims.size(), origLayout) ? origLayout : TensorDesc::getLayoutByDims(dims);
-        ptr->reshape(dims, layout);
+        const auto layout = isCompatible(shape.rank().get_length(), origLayout) ? origLayout
+            : TensorDesc::getLayoutByDims(SizeVector(shape.rank().get_length()));
+        ptr->reshape(shape, layout);
     } else {
-        const auto layout = TensorDesc::getLayoutByDims(dims);
+        const auto layout = TensorDesc::getLayoutByDims(SizeVector(shape.rank().get_length()));
         const auto precision = details::convertPrecision(output.get_element_type());
-        ptr.reset(new Data(outName, {precision, dims, layout}));
+        ptr.reset(new Data(outName, precision, shape, layout));
     }
 }
 
