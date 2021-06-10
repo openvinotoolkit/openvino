@@ -101,6 +101,4 @@ void AutoInferRequest::SetBlobsToDeviceRequest() {
                 _inferRequest->SetBlob(name, blob);
         }
     }
-
-
 }  // namespace AutoPlugin

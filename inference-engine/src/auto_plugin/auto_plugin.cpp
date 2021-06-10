@@ -80,7 +80,7 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
     CheckConfig(fullConfig);
     auto metaDevices = GetDeviceList(fullConfig);
     auto LoadNetworkAsync =
-        [=](const std::string& device)
+        [&](const std::string& device)
             -> IE::SoExecutableNetworkInternal {
             IE::SoExecutableNetworkInternal executableNetwork;
             std::cout << "!!! DEBUG: Starting Async loading to the " << device <<  " !!!" << std::endl;
@@ -102,19 +102,19 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
                                       [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
     if (CPUIter != metaDevices.end()) {
         // not use std::launch::async, so let OS decide delay or async.
-        cpuFuture = std::async(LoadNetworkAsync, *CPUIter);
+        cpuFuture = std::async(std::launch::async, LoadNetworkAsync, *CPUIter);
     }
 
     // start accelerator task, like GPU
-    NetworkTaskSharedPtr acceleratorTask {};
     const auto accelerator = SelectDevice(metaDevices, networkPrecision);
     bool isAccelerator = accelerator.find("CPU") == std::string::npos;
     if (isAccelerator) {
         // not use std::launch::async, so let OS decide delay or async.
-        acceleratorFuture = std::async(LoadNetworkAsync, accelerator);
+        acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, accelerator);
     }
 
     // TODO: FIXME: revert the exception handling logic back to gracefully handle LoadNetwork failures
+
     bool enablePerfCount = fullConfig.find(IE::PluginConfigParams::KEY_PERF_COUNT) != fullConfig.end();
 
     return std::make_shared<AutoExecutableNetwork>(std::move(cpuFuture), std::move(acceleratorFuture), enablePerfCount);

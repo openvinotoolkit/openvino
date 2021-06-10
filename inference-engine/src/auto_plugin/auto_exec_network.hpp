@@ -18,10 +18,7 @@
 namespace AutoPlugin {
 
 using DeviceName = std::string;
-
-typedef std::future<InferenceEngine::SoExecutableNetworkInternal> NetworkFuture;
-typedef std::shared_future<InferenceEngine::SoExecutableNetworkInternal> NetworkSharedFuture;
-typedef std::shared_ptr<std::packaged_task<InferenceEngine::SoExecutableNetworkInternal()>> NetworkTaskSharedPtr;
+using NetworkFuture = std::future<InferenceEngine::SoExecutableNetworkInternal>;
 
 class AutoExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
 public:
@@ -44,13 +41,16 @@ public:
     ~AutoExecutableNetwork();
 
 private:
-    NetworkFuture _cpuFuture;
-    NetworkFuture _acceleratorFuture;
-    bool _enablePerfCount;
+    void WaitForActualDevice() const;
 
+private:
     InferenceEngine::SoExecutableNetworkInternal _networkFirstReady;
-    InferenceEngine::SoExecutableNetworkInternal _networkActualNeeded;
-    bool _alreadyActualNetwork = {false};
+    mutable InferenceEngine::SoExecutableNetworkInternal _networkActualNeeded;
+    NetworkFuture _cpuFuture;
+    mutable NetworkFuture _acceleratorFuture;
+    bool _enablePerfCount;
+    mutable std::atomic<bool> _alreadyActualNetwork = {false};
+    std::map<std::string, InferenceEngine::Parameter> _cacheConfig;
 };
 
 }  // namespace AutoPlugin

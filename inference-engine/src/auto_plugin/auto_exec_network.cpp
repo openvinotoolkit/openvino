@@ -19,11 +19,15 @@ AutoExecutableNetwork::AutoExecutableNetwork(NetworkFuture cpuFuture,
                                              : _cpuFuture(std::move(cpuFuture))
                                              , _acceleratorFuture(std::move(acceleratorFuture))
                                              , _enablePerfCount(enablePerfCount) {
-    // we wait for any network to become ready (maybe this will already an actual device)
-    if (_cpuFuture.valid()) {
+    // both are valid, like AUTO:CPU,GPU
+    if (_cpuFuture.valid() && _acceleratorFuture.valid()) {
         _networkFirstReady = _cpuFuture.get();
-    } else if (_acceleratorFuture.valid()) {
+        _alreadyActualNetwork = false;
+    } else if (_acceleratorFuture.valid()) {  // only accelerator is valid, like AUTO:GPU
         _networkActualNeeded = _acceleratorFuture.get();
+        _alreadyActualNetwork = true;
+    } else if (_cpuFuture.valid()) {  // only CPU is valid, like AUTO:CPU
+        _networkActualNeeded = _cpuFuture.get();
         _alreadyActualNetwork = true;
     } else {
         IE_THROW() << "No device task available";
@@ -52,6 +56,8 @@ bool AutoExecutableNetwork::TryGetActualNetwork(InferenceEngine::SoExecutableNet
         soExecNetwork = _acceleratorFuture.get();
         _alreadyActualNetwork = true;
         _networkActualNeeded = soExecNetwork;
+        // reapply config to actual network
+        _networkActualNeeded->SetConfig(_cacheConfig);
         return true;
     }
     if (_alreadyActualNetwork) {
@@ -61,37 +67,59 @@ bool AutoExecutableNetwork::TryGetActualNetwork(InferenceEngine::SoExecutableNet
     return false;
 }
 
+void AutoExecutableNetwork::WaitForActualDevice() const {
+    if (_alreadyActualNetwork) {
+        return;
+    }
+
+    if (_acceleratorFuture.valid()) {
+        _networkActualNeeded = _acceleratorFuture.get();
+        _alreadyActualNetwork = true;
+    } else {
+        IE_THROW() << "Export failed due to no valid executable network";
+    }
+}
+
 void AutoExecutableNetwork::Export(std::ostream& networkModel) {
     //fixme: the Export  should work with actual device, so we have to wait!!!
-//    wait_for_actual_device();
-//    _networkActualNeeded->Export(networkModel);
+    WaitForActualDevice();
+    _networkActualNeeded->Export(networkModel);
 }
 
 RemoteContext::Ptr AutoExecutableNetwork::GetContext() const {
     // fixme: the GetContext  should work with actual device, so we have to wait!!!
-//   wait_for_actual_device();
-//   return (_networkActualNeeded) ? _networkActualNeeded->GetContext() : RemoteContext::Ptr{};
-     return RemoteContext::Ptr{};
+    WaitForActualDevice();
+    return _networkActualNeeded->GetContext();
 }
 
 InferenceEngine::CNNNetwork AutoExecutableNetwork::GetExecGraphInfo() {
-    // fixme: still not safe - shoujiang
-    return _alreadyActualNetwork ? _networkActualNeeded->GetExecGraphInfo() : _networkFirstReady->GetExecGraphInfo();
+    WaitForActualDevice();
+    return _networkActualNeeded->GetExecGraphInfo();
 }
 
 Parameter AutoExecutableNetwork::GetMetric(const std::string &name) const {
-    //fixme: check this logic
-    return _alreadyActualNetwork ? _networkActualNeeded->GetMetric(name) : _networkFirstReady->GetMetric(name);
+    // fixme: should we wait actual device? meanwhile it will block inference, how to fix?
+//    WaitForActualDevice();
+    if (_alreadyActualNetwork) {
+        return _networkActualNeeded->GetMetric(name);
+    } else {
+        return _networkFirstReady->GetMetric(name);
+    }
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
-     //fixme: have to store the config and reapply when the networks swapped
-    _networkFirstReady->SetConfig(config);
+    //fixme: have to store the config and reapply when the networks swapped
+    _cacheConfig = config;
+    if (_alreadyActualNetwork) {
+        _networkActualNeeded->SetConfig(config);
+    } else {
+        _networkFirstReady->SetConfig(config);
+    }
 }
 
 Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
     //fixme: carefuly select between FirstLoaded and ActuallyNeeded
-    return _networkFirstReady->GetConfig(name);
+    return _cacheConfig;
 }
 
 }  // namespace AutoPlugin
