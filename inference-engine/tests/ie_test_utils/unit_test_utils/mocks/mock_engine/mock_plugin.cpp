@@ -17,8 +17,11 @@ MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
     _target = target;
 }
 
-void MockPlugin::SetConfig(const std::map<std::string, std::string>& config) {
-    this->config = config;
+void MockPlugin::SetConfig(const std::map<std::string, std::string>& _config) {
+    this->config = _config;
+    if (_target) {
+        _target->SetConfig(config);
+    }
 }
 
 Parameter MockPlugin::GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const {
@@ -67,8 +70,8 @@ MockPlugin::LoadExeNetworkImpl(const CNNNetwork& network,
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-MockPlugin::ImportNetworkImpl(std::istream& networkModel,
-                              const std::map<std::string, std::string>& config) {
+MockPlugin::ImportNetwork(std::istream& networkModel,
+                          const std::map<std::string, std::string>& config) {
     if (_target) {
         return _target->ImportNetwork(networkModel, config);
     } else {
@@ -77,9 +80,9 @@ MockPlugin::ImportNetworkImpl(std::istream& networkModel,
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-MockPlugin::ImportNetworkImpl(std::istream& networkModel,
-                              const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-                              const std::map<std::string, std::string>& config) {
+MockPlugin::ImportNetwork(std::istream& networkModel,
+                         const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+                         const std::map<std::string, std::string>& config) {
     if (_target) {
         return _target->ImportNetwork(networkModel, context, config);
     } else {

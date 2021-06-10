@@ -62,8 +62,6 @@ op::Constant::Constant(const element::Type& type,
                           shape_size(m_shape),
                           ".");
 
-    constructor_validate_and_infer_types();
-
     using Type_t = element::Type_t;
 
     if (values.size() == 1 && shape_size(m_shape) != 1)
@@ -138,7 +136,6 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const void
 {
     size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
     std::memcpy(get_data_ptr_nc(), data, size);
-    constructor_validate_and_infer_types();
     m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
 }
 
@@ -390,13 +387,11 @@ shared_ptr<Node> op::Constant::clone_with_new_inputs(const OutputVector& new_arg
 }
 
 template <typename T>
-static bool test_bitwise_identical(const op::Constant* constant)
+static bool test_bitwise_identical(const T* data, const size_t size)
 {
-    const size_t size = shape_size(constant->get_shape());
     bool data_is_constant = true;
     if (size > 0)
     {
-        const T* data = constant->get_data_ptr<T>();
         const T compare = data[0];
         for (size_t i = 1; i < size; i++)
         {
@@ -418,13 +413,13 @@ bool op::Constant::are_all_data_elements_bitwise_identical() const
 #pragma GCC diagnostic error "-Wswitch"
 #pragma GCC diagnostic error "-Wswitch-enum"
 #endif
-    switch (get_element_type())
+    switch (m_element_type)
     {
     case element::Type_t::boolean:
     case element::Type_t::i8:
     case element::Type_t::u8:
     {
-        rc = test_bitwise_identical<uint8_t>(this);
+        rc = test_bitwise_identical<uint8_t>(get_data_ptr<uint8_t>(), shape_size(m_shape));
         break;
     }
     case element::Type_t::bf16:
@@ -432,21 +427,21 @@ bool op::Constant::are_all_data_elements_bitwise_identical() const
     case element::Type_t::i16:
     case element::Type_t::u16:
     {
-        rc = test_bitwise_identical<uint16_t>(this);
+        rc = test_bitwise_identical<uint16_t>(get_data_ptr<uint16_t>(), shape_size(m_shape));
         break;
     }
     case element::Type_t::f32:
     case element::Type_t::i32:
     case element::Type_t::u32:
     {
-        rc = test_bitwise_identical<uint32_t>(this);
+        rc = test_bitwise_identical<uint32_t>(get_data_ptr<uint32_t>(), shape_size(m_shape));
         break;
     }
     case element::Type_t::f64:
     case element::Type_t::i64:
     case element::Type_t::u64:
     {
-        rc = test_bitwise_identical<uint64_t>(this);
+        rc = test_bitwise_identical<uint64_t>(get_data_ptr<uint64_t>(), shape_size(m_shape));
         break;
     }
     case element::Type_t::i4:
@@ -476,6 +471,7 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
         allocate_buffer();
     }
     visitor.on_attribute("value", m_data);
+    m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     return true;
 }
 
