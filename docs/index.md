@@ -67,7 +67,7 @@ OpenVINO™ toolkit includes a set of [inference code samples](IE_DG/Samples_Ove
 
 OpenVINO also makes use of open-source and Intel™ tools for traditional graphics processing and performance management. Intel® Media SDK supports accelerated rich-media processing, including transcoding. OpenVINO™ optimizes calls to the rich OpenCV and OpenVX libraries for processing computer vision workloads. And the new DL Streamer integration further accelerates video pipelining and performance.
 
-TBD: NNCF
+Besides of the [Post-training Optimization Tool](@ref pot_README) which can be used to quantize the model, [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) can be used for model fine-tuning improving INT8 quantization or even applying more aggressive compression methods such as filter pruning, sparsity and binarization to further speedup model inference and reduce its footprint.
 
 For a full browser-based studio integrating these other key tuning utilities, try the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction).
 
@@ -79,6 +79,7 @@ Useful documents for inference tuning:
 * [Inference Code Samples](IE_DG/Samples_Overview.md)
 * [Application Demos](@ref omz_demos)
 * [Low Precision Optimization Guide] (@ref pot_docs_LowPrecisionOptimizationGuide)
+* [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf)
 * [Intel Media SDK](https://github.com/Intel-Media-SDK/MediaSDK)
 * [DL Streamer Samples](@ref gst_samples_README)
 * [OpenCV](https://docs.opencv.org/master/)
