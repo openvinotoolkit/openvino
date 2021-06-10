@@ -6,7 +6,7 @@ ie_dependent_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON "X8
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
-ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" OFF)
+ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
