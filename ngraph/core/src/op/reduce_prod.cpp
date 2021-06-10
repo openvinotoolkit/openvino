@@ -9,6 +9,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/shape_util.hpp"
+#include "util/evaluate_helpers.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -75,8 +76,11 @@ bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v1_ReduceProd_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    return reduce_prod::evaluate_product(
-        inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+
+    const auto reduction_axes = get_normalized_axes_from_tensor(
+        inputs[1], get_input_partial_shape(0).rank(), get_friendly_name());
+
+    return reduce_prod::evaluate_product(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
 
 bool op::v1::ReduceProd::has_evaluate() const
