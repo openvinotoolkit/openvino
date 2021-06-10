@@ -495,6 +495,12 @@ TEST(type_prop, logic_arith_compare_partial_et)
         return std::make_shared<op::v1::LogicalNot>(param);
     };
 
+    auto test_not_equal = [](element::Type et0, element::Type et1) -> std::shared_ptr<Node> {
+        auto param0 = std::make_shared<op::Parameter>(et0, Shape{1, 2, 3});
+        auto param1 = std::make_shared<op::Parameter>(et1, Shape{1, 2, 3});
+        return std::make_shared<op::v1::NotEqual>(param0, param1);
+    };
+
     // Arith ops:
     //
     // int int -> int
@@ -555,4 +561,29 @@ TEST(type_prop, logic_arith_compare_partial_et)
     ASSERT_EQ(test_logical_not(element::i32)->get_element_type(), element::i32);
     ASSERT_EQ(test_logical_not(element::boolean)->get_element_type(), element::boolean);
     ASSERT_EQ(test_logical_not(element::dynamic)->get_element_type(), element::dynamic);
+    ASSERT_EQ(test_logical_not(element::dynamic)->get_element_type(), element::dynamic);
+
+    // Comparison Not Equal operation
+    // int int -> boo
+    // int boo -> !
+    // int dyn -> boo
+    // boo int -> !
+    // boo boo -> boo
+    // boo dyn -> boo
+    // dyn int -> boo
+    // dyn boo -> boo
+    // dyn dyn -> boo
+    ASSERT_EQ(test_not_equal(element::i32, element::i32)->get_element_type(), element::boolean);
+    ASSERT_ANY_THROW({ test_not_equal(element::i32, element::boolean); });
+    ASSERT_EQ(test_not_equal(element::i32, element::dynamic)->get_element_type(), element::boolean);
+    ASSERT_ANY_THROW({ test_not_equal(element::boolean, element::i32); });
+    ASSERT_EQ(test_not_equal(element::boolean, element::boolean)->get_element_type(),
+              element::boolean);
+    ASSERT_EQ(test_not_equal(element::boolean, element::dynamic)->get_element_type(),
+              element::boolean);
+    ASSERT_EQ(test_not_equal(element::dynamic, element::i32)->get_element_type(), element::boolean);
+    ASSERT_EQ(test_not_equal(element::dynamic, element::boolean)->get_element_type(),
+              element::boolean);
+    ASSERT_EQ(test_not_equal(element::dynamic, element::dynamic)->get_element_type(),
+              element::boolean);
 }
