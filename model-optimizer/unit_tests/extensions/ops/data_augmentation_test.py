@@ -13,12 +13,12 @@ nodes_attributes = {
     'node_1': {'type': 'Identity', 'kind': 'op'},
     'da': {'type': 'DataAugmentation', 'kind': 'op'},
     'node_3': {'type': 'Identity', 'kind': 'op'},
-    'op_output': { 'kind': 'op', 'op': 'Result'}
+    'op_output': {'kind': 'op', 'op': 'Result'}
 }
 
 
-class TestConcatPartialInfer(unittest.TestCase):
-    def test_tf_concat_infer(self):
+class TestDataAugmentationPartialInfer(unittest.TestCase):
+    def test_data_augmentation_infer(self):
         graph = build_graph(nodes_attributes,
                             [
                                 ('node_1', 'da'),

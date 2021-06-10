@@ -17,8 +17,8 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     }
 
 
-class TestConcatPartialInfer(unittest.TestCase):
-    def test_tf_concat_infer(self):
+class TestCorrelationPartialInfer(unittest.TestCase):
+    def test_correlation_infer(self):
         graph = build_graph(nodes_attributes,
                             [
                                 ('node_1', 'corr'),

@@ -18,13 +18,13 @@ def concat_infer(node):
             node['axis'] = axis_input.value.item()
             node.graph.remove_edge(axis_input.node, node.node)  # TODO add skip attribute instead of deleting
         else:
-            return
+            raise Error('Input with value is not specified for node "{}"'.format(node_name))
     else:
         N = len(node.in_nodes())
 
     shapes = [node.in_node(i).shape for i in range(N)]
     if any(s is None for s in shapes):
-        return
+        raise Error('One of the input shapes is not defined for node "{}"'.format(node_name))
 
     shape = shape_array(shapes[0])
 
