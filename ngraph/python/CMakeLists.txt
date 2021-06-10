@@ -29,9 +29,23 @@ if(NOT pybind11_POPULATED)
     add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
 endif()
 
-# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
-set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-message("Python version=${PYTHON_VERSION}")
+function(ngraph_get_python_version)
+    set(patchlevel_header "${PYTHON_INCLUDE_DIR}/patchlevel.h")
+    if(PYTHON_INCLUDE_DIR AND EXISTS ${patchlevel_header})
+        file(STRINGS "${patchlevel_header}"
+            PYTHON_VERSION_PARTS REGEX "#define[ ]+PY_[A-Z]+_VERSION[ ]+.*" )
+        string(REGEX REPLACE ".+PY_MAJOR_VERSION[ ]+([0-9]+).*" "\\1"
+            PY_MAJOR_VERSION "${PYTHON_VERSION_PARTS}")
+        string(REGEX REPLACE ".+PY_MINOR_VERSION[ ]+([0-9]+).*" "\\1"
+            PY_MINOR_VERSION "${PYTHON_VERSION_PARTS}")
+
+        set(PYTHON_VERSION python${PY_MAJOR_VERSION}.${PY_MINOR_VERSION} PARENT_SCOPE)
+    else()
+        message(FATAL_ERROR "Failed to extract Python version")
+    endif()
+endfunction()
+
+ngraph_get_python_version()
 
 if(OpenVINO_MAIN_SOURCE_DIR)
     if(WIN32)
