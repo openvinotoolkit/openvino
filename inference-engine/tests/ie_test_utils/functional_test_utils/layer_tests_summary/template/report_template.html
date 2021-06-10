@@ -43,11 +43,11 @@
     </thead>
 </table>
 <table class="table table-hover" id="report">
-    <thead style="position: sticky; top: 0">
+    <thead>
     <tr>
-        <th class="table-primary" scope="col">Operation</th>
+        <th class="table-primary" scope="col" style="position: sticky; top: 0">Operation</th>
         {% for d in devices -%}
-        <th class="table-primary">{{ d }}</th>
+        <th class="table-primary" style="position: sticky; top: 0">{{ d }}</th>
         {% endfor %}
     </tr>
     </thead>
