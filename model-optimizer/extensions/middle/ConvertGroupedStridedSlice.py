@@ -103,12 +103,16 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             for out_id, node in enumerate(out_nodes):
                 # Check that StridedSlice op has stride eq 1 and splits only feature channel
                 for id, s in enumerate(node.slices):
-                    l, r, stride = s.start, s.stop, s.step
-                    # We don't support StridedSlice with stride != 1
-                    if stride != 1:
+                    if isinstance(s, slice):
+                        l, r, stride = s.start, s.stop, s.step
+                        # We don't support StridedSlice with stride != 1
+                        if stride != 1:
+                            valid_for_replacement = False
+                        if id == split_channel_dim:
+                            split_dims.append((s.start, s.stop, node.out_node()))
+                    else:
+                        # this is a slice with dynamic dimension. Such operation is not valid for replacement
                         valid_for_replacement = False
-                    if id == split_channel_dim:
-                        split_dims.append((s.start, s.stop, node.out_node()))
 
             if not valid_for_replacement:
                 continue

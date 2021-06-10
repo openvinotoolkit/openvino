@@ -151,7 +151,8 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
 
     in_idx = 0
     for i, s in enumerate(slices):
-        if s is dynamic_dimension:
+        # TODO this looks like a hack that we check dynamic_dimension_value
+        if s is dynamic_dimension or s == dynamic_dimension_value:
             output_shape.append(dynamic_dimension_value)
             in_idx += 1
         elif isinstance(s, slice):

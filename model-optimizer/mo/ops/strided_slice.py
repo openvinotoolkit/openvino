@@ -43,15 +43,13 @@ class StridedSlice(Op):
 
     @staticmethod
     def infer(node: Node):
-        begin, end, strides = StridedSlice.validate_inputs_and_get_args(node)
-
-        StridedSlice.align_mask_with_slice_rank(node, len(begin))
+        StridedSlice.align_mask_with_slice_rank(node, node.in_port(1).data.get_shape()[0])
 
         data_shape = node.in_port(0).data.get_shape()
         data_value = node.in_port(0).data.get_value()
-        slices = StridedSlice.get_slices(node, data_shape, begin, end, strides)
+        slices = StridedSlice.get_slices(node, data_shape)
 
-        if data_value is not None:
+        if data_value is not None:  # TODO need to check that there is no dynamic_dimension in slices
             node.out_port(0).data.set_value(data_value[tuple(slices)])
         else:
             node.out_port(0).data.set_shape(get_shape_from_slice(data_shape, slices))
@@ -65,9 +63,14 @@ class StridedSlice(Op):
         # Therefore PermuteInputs will be set after StridedSliceNormalizer.
 
     @staticmethod
-    def get_slices(node: Node, data_shape: Tuple, begin: np.array, end: np.array, strides: np.array) -> List:
+    def get_slices(node: Node, data_shape: Tuple) -> List:
         input_rank = len(data_shape)
-        slice_rank = len(begin)
+        slice_rank = node.in_port(1).data.get_shape()[0]
+        begin = node.in_port(1).data.get_value()
+        end = node.in_port(2).data.get_value()
+        strides = node.in_port(3).data.get_value() if node.is_in_port_connected(3) else \
+            np.ones([slice_rank], dtype=np.int64)
+
         # from now slices are without ellipsis
         slices = [[]] * slice_rank
         in_idx = 0  # index along input tensor shapes, note that input_rank not necessary is equal to slice_rank
@@ -75,9 +78,12 @@ class StridedSlice(Op):
             if node.new_axis_mask[i]:
                 slices[i] = np.newaxis
             elif node.shrink_axis_mask[i]:
-                slices[i] = int(begin[i])
-                if slices[i] < 0 and data_shape[in_idx] is not dynamic_dimension:  # need for ConvertGroupedStridedSlice
-                    slices[i] += int(data_shape[in_idx])
+                if begin is not None and begin[i] is not dynamic_dimension:
+                    slices[i] = int(begin[i])
+                    if slices[i] < 0 and data_shape[in_idx] is not dynamic_dimension:  # need for ConvertGroupedStridedSlice
+                        slices[i] += int(data_shape[in_idx])
+                else:
+                    slices[i] = dynamic_dimension_value
             elif node.ellipsis_mask[i]:
                 slices[i] = ...
                 in_idx += input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
@@ -102,16 +108,3 @@ class StridedSlice(Op):
             val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end
             node[mask_name] = np.append(node[mask_name], [val] * num_insertations).astype(int)
 
-    @staticmethod
-    def validate_inputs_and_get_args(node: Node) -> (np.ndarray, np.ndarray, np.ndarray):
-        begin = node.in_port(1).data.get_value()
-        end = node.in_port(2).data.get_value()
-
-        if node.is_in_port_connected(3):
-            strides = node.in_port(3).data.get_value()
-        else:
-            if begin is not None:
-                strides = np.ones_like(begin)
-            else:
-                strides = None
-        return begin, end, strides
