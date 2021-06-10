@@ -38,15 +38,14 @@ Useful documents for model preparation:
 ### Model Conversion and Optimization
 #### Components: [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), [Post-training Optimization Tool](@ref pot_README)
 
-One of the core component of the OpenVINO™ toolkit is the [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) a cross-platform command-line
+[Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) is a cross-platform command-line
 tool that converts a trained neural network from its source framework to an open-source, nGraph-compatible [Intermediate Representation (IR)](MO_DG/IR_and_opsets.md) for use in inference operations. The Model Optimizer imports models trained in popular frameworks such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX* and performs a few optimizations to remove excess layers and group operations when possible into simpler, faster graphs.
 
 If your neural network model contains layers that are not in the list of known layers for supported frameworks, you can adjust the conversion and optimization process through use of  [Custom Layers](HOWTO/Custom_Layers_Guide.md).
 
-Use the [Post-training Optimization Tool](@ref pot_README) to accelerate the inference of a deep learning model by quantizing it to INT8.
-TBD: add more info about optimizations
+Use the [Post-training Optimization Tool](@ref pot_README) to accelerate the inference of a deep learning model by quantizing it to INT8. Models from Open Model Zoo can be quantized using [Model Quantizer utility](https://github.com/openvinotoolkit/open_model_zoo/tree/master/tools/downloader#model-quantizer-usage). 
 
-Run the [Accuracy Checker utility](@ref omz_tools_accuracy_checker) either against source topologies or against the output representation to evaluate the accuracy of inference. 
+Run the [Accuracy Checker utility](@ref omz_tools_accuracy_checker) either against source topologies or against the output representation to evaluate the accuracy of inference. The Accuracy Checker is also part of the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), an integrated web-based performance analysis studio. 
 
 ![](img/OV-diagram-step2.png)
 
