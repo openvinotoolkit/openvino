@@ -36,28 +36,27 @@ def infer_data(data: dict, exec_net: ExecutableNetwork, input_blobs: list, outpu
     slice_begin = 0
     slice_end = batch_size
 
-    while True:
+    while slice_begin < matrix_shape[0]:
         vectors = {blob_name: data[blob_name][slice_begin:slice_end] for blob_name in input_blobs}
-        vector_shape = next(iter(vectors.values())).shape
+        num_of_vectors = next(iter(vectors.values())).shape[0]
 
-        if vector_shape[0] < batch_size:
-            temp = {blob_name: np.zeros((batch_size, vector_shape[1])) for blob_name in input_blobs}
+        if num_of_vectors < batch_size:
+            temp = {blob_name: np.zeros((batch_size, vectors[blob_name].shape[1])) for blob_name in input_blobs}
 
             for blob_name in input_blobs:
-                temp[blob_name][:vector_shape[0]] = vectors[blob_name]
+                temp[blob_name][:num_of_vectors] = vectors[blob_name]
 
             vectors = temp
 
         vector_results = exec_net.infer(vectors)
 
         for blob_name in output_blobs:
-            result[blob_name][slice_begin:slice_end] = vector_results[blob_name][:vector_shape[0]]
+            result[blob_name][slice_begin:slice_end] = vector_results[blob_name][:num_of_vectors]
 
         slice_begin += batch_size
         slice_end += batch_size
 
-        if slice_begin >= matrix_shape[0]:
-            return result
+    return result
 
 
 def compare_with_reference(result: np.ndarray, reference: np.ndarray):

@@ -219,7 +219,7 @@ export(TARGETS ${TARGET_NAME} NAMESPACE IE::
 
 # Export for developer package
 
-ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api)
+ie_developer_export_targets(${TARGET_NAME}_plugin_api)
 
 # install TBB
 
@@ -280,8 +280,6 @@ install(EXPORT InferenceEngineTargets
         NAMESPACE IE::
         DESTINATION ${IE_CPACK_IE_DIR}/share
         COMPONENT core_dev)
-
-include(CMakePackageConfigHelpers)
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}")

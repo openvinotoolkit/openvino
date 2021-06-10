@@ -24,13 +24,16 @@ def parse_arguments():
     out_help = "Path where to save html report"
     report_tag = "Report tag"
     output_filename_help = "Output report filename"
+    conformance_mode_help = "Allow to align test number"
 
     parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
     parser.add_argument("--out", help=out_help, default="")
     parser.add_argument("--output_filename", help=output_filename_help, default="report")
     parser.add_argument("--report_tag", help=report_tag, default="")
+    parser.add_argument("--conformance_mode", help=conformance_mode_help, default=False)
 
     return parser.parse_args()
+
 
 def merge_xmls(xml_paths: list):
     logger.info("Merging XML files is started")
@@ -85,7 +88,7 @@ def merge_xmls(xml_paths: list):
     return summary
 
 
-def collect_statistic(root: ET.Element):
+def collect_statistic(root: ET.Element, is_conformance_mode: bool):
     logger.info("Statistic collecting is started")
     trusted_ops = dict()
     pass_rate_avg = dict()
@@ -128,12 +131,16 @@ def collect_statistic(root: ET.Element):
     for op in op_res:
         op_counter = None
         is_not_printed = True
+        max_test_cnt = 0
         for dev in op_res[op]:
             if op_counter is None:
                 op_counter = op_res[op][dev]
-            elif op_counter != op_res[op][dev] and is_not_printed:
-                is_not_printed = False
-                logger.warning(f'{op} : {op_res[op]}')
+            elif op_counter != op_res[op][dev]:
+                max_test_cnt = max(max_test_cnt, op_res[op][dev])
+                if is_not_printed:
+                    is_not_printed = False
+                    logger.warning(f'{op} : {op_res[op]}')
+
     logger.info("Test number comparison between devices is completed")
 
     devices = results.keys()
@@ -141,9 +148,12 @@ def collect_statistic(root: ET.Element):
     return devices, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops
 
 
-def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag: str, output_filename='report'):
+def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag: str, is_conformance_mode: bool,
+                   output_filename='report'):
+    if is_conformance_mode:
+        utils.update_conformance_test_counters(summary_root, logger)
     device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops = \
-        collect_statistic(summary_root)
+        collect_statistic(summary_root, is_conformance_mode)
 
     timestamp = summary_root.attrib["timestamp"]
 
@@ -172,4 +182,4 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag:
 if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
-    create_summary(summary_root, args.out, args.report_tag, args.output_filename)
+    create_summary(summary_root, args.out, args.report_tag, args.conformance_mode, args.output_filename)

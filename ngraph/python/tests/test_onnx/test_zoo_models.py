@@ -25,7 +25,8 @@ from tests import (
     xfail_issue_47430,
     xfail_issue_47495,
     xfail_issue_48145,
-    xfail_issue_48190)
+    xfail_issue_48190,
+    xfail_issue_onnx_models_140)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
@@ -170,6 +171,7 @@ if len(zoo_models) > 0:
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet101_11_fcn_resnet101_11_model_cpu"),
             (xfail_issue_48145, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
             (xfail_issue_48190, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
+            (xfail_issue_onnx_models_140, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_ResNet101_DUC_HDC_cpu"),
 
             # Model MSFT
             (xfail_issue_37973, "test_MSFT_opset7_tf_inception_v2_model_cpu"),
