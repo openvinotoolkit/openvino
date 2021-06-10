@@ -24,7 +24,7 @@ class TestNormalize(unittest.TestCase):
                              ('node_3', 'op_output')
                              ],
                             {'node_3': {'shape': None},
-                             'node_1': {'shape': np.array([1, 3, 227, 227])},
+                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'value': None},
                              'norm': {}
                              })
 
