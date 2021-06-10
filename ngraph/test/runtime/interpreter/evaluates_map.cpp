@@ -905,8 +905,7 @@ namespace
                                                 &valid_outputs,
                                                 info.sort_result_descending);
 
-        auto selected_scores_type =
-            (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
+        auto selected_scores_type = element::f32; // FIXME
 
         runtime::reference::nms5_postprocessing(outputs,
                                                 info.output_type,
@@ -962,7 +961,7 @@ namespace
                         max_output_boxes_per_batch =
                             std::min(max_output_boxes_per_batch, (int64_t)keep_top_k);
 
-                    result[0] = Dimension(0, max_output_boxes_per_batch * scores_ps[0].get_length());
+                    result[0] = max_output_boxes_per_batch * scores_ps[0].get_length();
                 }
             }
 
@@ -1015,7 +1014,7 @@ namespace
 
         std::vector<float> selected_outputs(info.selected_outputs_shape_size);
         std::vector<int64_t> selected_indices(info.selected_indices_shape_size);
-        int64_t valid_outputs = 0;
+        std::vector<int64_t> valid_outputs(inputs[0]->get_shape()[0]);
 
         runtime::reference::multiclass_nms(info.boxes_data.data(),
                                                 info.boxes_shape,
@@ -1032,13 +1031,17 @@ namespace
                                                 info.selected_outputs_shape,
                                                 selected_indices.data(),
                                                 info.selected_indices_shape,
-                                                &valid_outputs);
+                                                valid_outputs.data());                                                  
+
+        auto selected_scores_type = element::f32; // FIXME
 
         runtime::reference::multiclass_nms_postprocessing(outputs,
                                                 op->get_output_type(),
                                                 selected_outputs,
                                                 selected_indices,
-                                                valid_outputs);
+                                                valid_outputs,
+                                                selected_scores_type);
+
         return true;
     }
 
@@ -2607,10 +2610,6 @@ namespace
                  is_type<op::v6::ExperimentalDetectronDetectionOutput>(node)) && i == 1)
             {
                 continue;
-            }
-            if (element_type != node->get_output_element_type(i))
-            {
-                throw std::logic_error("Output node element types is not equal");
             }
         }
         switch (element_type)
