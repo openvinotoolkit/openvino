@@ -71,6 +71,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_SetBlobOfKindAUTO.*SetBlobOfKindTest.CompareWithRefs.*)",
         // reference doesn't cover I8, U8 cases. Issue: 55842
         R"(.*Gather7LayerTest.*netPRC=I8.*)",
+        // need to implement Export / Import
+        R"(.*IEClassImportExportTestP.*)"
     };
 #ifdef __APPLE__
         // TODO: Issue 55717
