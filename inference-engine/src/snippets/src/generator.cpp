@@ -7,20 +7,15 @@
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/pass/insert_load_store.hpp"
+#include "snippets/op/tile.hpp"
+#include "snippets/op/kernel.hpp"
 
 #include <ngraph/pass/manager.hpp>
 
 auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo {
     auto rt = n->get_rt_info();
 
-    // std::vector<reg_t> rout;
-    // if (auto rinfo = rt["reginfo"]) {
-    //     auto reginfo = ngraph::as_type_ptr<ngraph::VariantWrapper<std::vector<size_t>>>(rinfo)->get();
-    //     for (auto reg : reginfo) {
-    //         rout.push_back(reg_t{reg, kind::Vec});
-    //     }
-    // }
-
+    // ToDo: change to reg_t
     std::vector<size_t> rout;
     if (auto rinfo = rt["reginfo"]) {
         auto reginfo = ngraph::as_type_ptr<ngraph::VariantWrapper<std::vector<size_t>>>(rinfo)->get();

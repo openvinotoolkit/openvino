@@ -11,7 +11,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/op/loop.hpp>
-#include <transformations/serialize.hpp>
 
 #include <memory>
 #include <vector>
@@ -511,13 +510,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
                     << " inputs and " << subgraph->outputs().size()
                     << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
 
-        // std::stringstream xmlFile, binFile;
-        // ngraph::pass::Serialize serializer(xmlFile, xmlFile,
-        //     ngraph::pass::Serialize::Version::IR_V10);
-        // serializer.run_on_function(subgraph->get_body());
-        // auto m_constants = binFile.str();
-        // auto m_model = xmlFile.str();
-        // std::cout << m_model << std::endl;
+        // subgraph->serialize();
         return true;
     };
 

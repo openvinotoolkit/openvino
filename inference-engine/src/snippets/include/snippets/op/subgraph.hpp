@@ -105,6 +105,8 @@ public:
     void print() const;
     void print_statistics(bool verbose);
 
+    void serialize() const;
+
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
 
 private:
