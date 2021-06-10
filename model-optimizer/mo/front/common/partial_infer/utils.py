@@ -112,24 +112,24 @@ def convert_deconv_tf_padding_to_str(padding):
 # TODO eliminate this dependency and pass necessary function as an argument
 def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
     if input is None or window is None or stride is None or auto_pad is None:
-        return (None, None)
+        return None, None
 
     normalized_stride = stride
     if is_deconv:
         normalized_stride = 1 / stride
 
     if auto_pad in ['same_lower', 'same_upper']:
-        output = np.int64(np.ceil(input / normalized_stride))
+        output = shape_array(np.ma.ceil(input / normalized_stride))
         residual = input % stride
         mask = residual == 0
         full_pad = window.copy()
         full_pad[mask] -= stride[mask]
         mask = np.logical_not(mask)  # pylint: disable=assignment-from-no-return
         full_pad[mask] -= input[mask] % stride[mask]
-        full_pad = np.maximum(full_pad, 0)  # pylint: disable=assignment-from-no-return
+        full_pad = np.ma.maximum(full_pad, 0)  # pylint: disable=assignment-from-no-return
         low_pad = np.int64(full_pad / 2)
         high_pad = full_pad - low_pad
-        pad = np.array([low_pad, high_pad]).transpose()
+        pad = shape_array([low_pad, high_pad]).transpose()
     elif auto_pad == 'valid':
         output = np.int64(np.ceil((input - window + 1) / normalized_stride))
         pad = np.zeros((len(output), 2), dtype=np.int64)
@@ -137,7 +137,7 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
         log.error("Unsupported padding scheme: {}".format(auto_pad))
         pad = None
         output = None
-    return (pad, output)
+    return pad, output
 
 
 def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
