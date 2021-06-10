@@ -25,8 +25,6 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "MaxUnpool")
-xfail_issue_33512 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "Einsum")
 xfail_issue_33535 = xfail_test(reason="nGraph does not support the following ONNX operations:"
                                       "DynamicQuantizeLinear")
 xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -148,3 +146,4 @@ xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadca
                                       "Not equal to tolerance")
 xfail_issue_45432 = xfail_test(reason="Einsum is not implemented in CPU plugin.")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
+xfail_issue_57791 = xfail_test(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")

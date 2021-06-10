@@ -9,7 +9,6 @@ from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
 from tests import (BACKEND_NAME,
                    xfail_issue_33488,
-                   xfail_issue_33512,
                    xfail_issue_33535,
                    xfail_issue_33538,
                    xfail_issue_33581,
@@ -49,6 +48,7 @@ from tests import (BACKEND_NAME,
                    xfail_issue_44976,
                    xfail_issue_45180,
                    xfail_issue_45344,
+                   xfail_issue_45432,
                    xfail_issue_46762,
                    xfail_issue_47323,
                    xfail_issue_47337,
@@ -59,7 +59,9 @@ from tests import (BACKEND_NAME,
                    xfail_issue_49753,
                    xfail_issue_49754,
                    xfail_issue_52463,
-                   xfail_issue_55760)
+                   xfail_issue_55760,
+                   xfail_issue_57791,
+                   )
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -285,8 +287,9 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_qlinearconv_cpu"),
     (xfail_issue_38724,
      "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_cpu"),
-    (xfail_issue_33512,
-     "OnnxBackendNodeModelTest.test_einsum_batch_diagonal_cpu",
+    (xfail_issue_45432,
+     "OnnxBackendNodeModelTest.test_einsum_batch_diagonal_cpu"),
+    (xfail_issue_57791,
      "OnnxBackendNodeModelTest.test_einsum_inner_prod_cpu"),
     (xfail_issue_33606,
      "OnnxBackendNodeModelTest.test_det_2d_cpu",
