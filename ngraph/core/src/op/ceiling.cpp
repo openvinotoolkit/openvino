@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Negative, "Negative", 0, util::UnaryElementwiseArithmetic);
+NGRAPH_RTTI_DEFINITION(op::v0::Ceiling, "Ceiling", 0, util::UnaryElementwiseArithmetic);
 
 op::Ceiling::Ceiling(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
