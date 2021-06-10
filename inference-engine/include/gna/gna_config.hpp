@@ -137,6 +137,10 @@ namespace Metrics {
     DECLARE_METRIC_KEY(GNA_LIBRARY_FULL_VERSION, std::string);
 }  // namespace Metrics
 
+namespace GNASpecialPerfCounters {
+    DECLARE_GNA_CONFIG_VALUE(RUN_ON_HW);
+}
+
 namespace PluginConfigParams {
 
 /**

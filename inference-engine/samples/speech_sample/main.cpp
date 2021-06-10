@@ -305,29 +305,37 @@ void printPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEn
     stream << std::setw(46) << "(ms)";
     stream << std::setw(24) << "(us per call)";
     stream << std::endl;
-
+    // if GNA HW counters
+    // get frequency of GNA module
+    float freq = getGnaFrequencyMHz();
+    const InferenceEngine::InferenceEngineProfileInfo* framesRunOnGnaHw = nullptr;
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
-        float current_units = static_cast<float>(it.second.realTime_uSec);
-        float call_units = current_units / callsNum;
-        // if GNA HW counters
-        // get frequency of GNA module
-        float freq = getGnaFrequencyMHz();
-        current_units /= freq * 1000;
-        call_units /= freq;
+        if (counter_name == GNASpecialPerfCounters::GNA_RUN_ON_HW) {
+            framesRunOnGnaHw = &it.second;
+            continue;
+        }
+        float current_units_us = static_cast<float>(it.second.realTime_uSec) / freq;
+        float call_units_us = current_units_us / callsNum;
         if (FLAGS_d.find("GNA") != std::string::npos) {
             stream << std::setw(30) << std::left << counter_name.substr(4, counter_name.size() - 1);
         } else {
             stream << std::setw(30) << std::left << counter_name;
         }
-        stream << std::setw(16) << std::right << current_units;
-        stream << std::setw(21) << std::right << call_units;
+        stream << std::setw(16) << std::right << current_units_us / 1000;
+        stream << std::setw(21) << std::right << call_units_us;
         stream << std::endl;
     }
     stream << std::endl;
     std::cout << std::endl;
     std::cout << "Full device name: " << fullDeviceName << std::endl;
     std::cout << std::endl;
+
+    if (framesRunOnGnaHw != nullptr) {
+        stream << "Number of frames delivered to GNA HW: " << framesRunOnGnaHw->realTime_uSec;
+        stream << "/" << callsNum;
+        stream << std::endl;
+    }
 #endif
 }
 
