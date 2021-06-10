@@ -139,7 +139,7 @@ def update_labels(gh_api, pull, non_org_intel_pr_users, non_org_pr_users):
 
 def get_wrong_commits(pull):
     """Returns commits with incorrect user and email"""
-    pr_author_email = pull.user.email.lower()
+    pr_author_email = (pull.user.email or "").lower()
     print("GitHub PR author email:", pr_author_email)
     print("Check commits:")
     wrong_commits = set()
@@ -147,7 +147,7 @@ def get_wrong_commits(pull):
         # import pprint; pprint.pprint(commit.raw_data)
         print("Commit SHA:", commit.sha)
         # Use raw data because commit author can be non GitHub user
-        commit_email = commit.raw_data["commit"]["author"]["email"].lower()
+        commit_email = (commit.raw_data["commit"]["author"]["email"] or "").lower()
         print("    Commit email:", commit_email)
         if not github_api.is_valid_user(commit.author):
             print(
