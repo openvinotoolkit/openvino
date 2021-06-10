@@ -40,7 +40,7 @@ namespace ngraph
                     const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
                     const auto data_rank = std::make_shared<default_opset::ShapeOf>(data_shape);
                     const auto data_rank_as_scalar =
-                        std::make_shared<default_opset::Squeeze>(data_shape);
+                        std::make_shared<default_opset::Squeeze>(data_rank);
 
                     const auto reduce_axes = std::make_shared<default_opset::Range>(
                         two_node, data_rank_as_scalar, one_node, element::i64);
