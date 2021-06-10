@@ -6,14 +6,16 @@ import unittest
 import numpy as np
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
+from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'value': 2, 'kind': 'data'},
                     'node_2': {'value': 3, 'kind': 'data'},
                     'eltw_1': {'kind': 'op'},
                     'node_3': {'value': None, 'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'Result'},
+                    'op_output': {'kind': 'op', 'op': 'Result'},
                     }
 
 
@@ -26,9 +28,8 @@ class TestEltwiseInfer(unittest.TestCase):
                              ('node_3', 'op_output')
                              ],
                             {'node_3': {'shape': None},
-                             'node_1': {'shape': np.array([1, 3, 256, 256])},
-                             'node_2': {'shape': np.array([1, 3, 256, 256])},
-                             'eltw_1': {}
+                             'node_1': {'shape': int64_array([])},
+                             'node_2': {'shape': int64_array([])},
                              })
 
         graph.graph['layout'] = 'NCHW'
@@ -36,7 +37,7 @@ class TestEltwiseInfer(unittest.TestCase):
         eltwise_node = Node(graph, 'eltw_1')
 
         eltwise_infer(eltwise_node, lambda a, b: np.maximum(a, b))
-        exp_shape = np.array([1, 3, 256, 256])
+        exp_shape = int64_array([])
         exp_value = 3
         res_shape = graph.node['node_3']['shape']
         res_value = eltwise_node.out_node().value
@@ -53,14 +54,14 @@ class TestEltwiseInfer(unittest.TestCase):
                              ('node_3', 'op_output')
                              ],
                             {'node_3': {'shape': None},
-                             'node_1': {'shape': np.array([1, 3, 256, 256])},
-                             'node_2': {'shape': np.array([1, 3, 256, 256])}
+                             'node_1': {'shape': int64_array([])},
+                             'node_2': {'shape': int64_array([])}
                              })
         graph.graph['layout'] = 'NCHW'
         eltwise_node = Node(graph, 'eltw_1')
 
-        eltwise_infer(eltwise_node, lambda a, b: a + b)
-        exp_shape = np.array([1, 3, 256, 256])
+        eltwise_infer(eltwise_node, lambda a, b: np.add(a, b))
+        exp_shape = int64_array([])
         exp_value = 5
         res_shape = graph.node['node_3']['shape']
         res_value = eltwise_node.out_node().value
@@ -77,14 +78,14 @@ class TestEltwiseInfer(unittest.TestCase):
                              ('node_3', 'op_output')
                              ],
                             {'node_3': {'shape': None},
-                             'node_1': {'shape': np.array([1, 3, 256, 256])},
-                             'node_2': {'shape': np.array([1, 3, 256, 256])}
+                             'node_1': {'shape': int64_array([])},
+                             'node_2': {'shape': int64_array([])}
                              })
         graph.graph['layout'] = 'NCHW'
         eltwise_node = Node(graph, 'eltw_1')
 
-        eltwise_infer(eltwise_node, lambda a, b: a * b)
-        exp_shape = np.array([1, 3, 256, 256])
+        eltwise_infer(eltwise_node, lambda a, b: np.multiply(a, b))
+        exp_shape = int64_array([])
         exp_value = 6
         res_shape = graph.node['node_3']['shape']
         res_value = eltwise_node.out_node().value
@@ -130,8 +131,5 @@ class TestEltwiseInfer(unittest.TestCase):
         graph.graph['layout'] = 'NCHW'
         eltwise_node = Node(graph, 'eltw_1')
 
-        eltwise_infer(eltwise_node)
-        exp_shape = np.array([1, 3, -1, -1])
-        res_shape = graph.node['node_3']['shape']
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
+        with self.assertRaisesRegex(Error, 'Input shapes mismatch*'):
+            eltwise_infer(eltwise_node)
