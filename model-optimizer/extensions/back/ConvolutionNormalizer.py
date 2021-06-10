@@ -24,7 +24,6 @@ def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
     assert len(weights_shape) in [3, 4, 5]
     assert weights_shape[0] % group == 0
 
-    assert shape_array(node.output).ndim == 0
     if ir_version == 'V7':
         if weights_shape[0] == node.output:
             # weights are already is in [G*O I X Y] format
