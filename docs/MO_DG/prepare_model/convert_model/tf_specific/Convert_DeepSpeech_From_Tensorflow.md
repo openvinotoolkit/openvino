@@ -29,6 +29,7 @@ TensorFlow* version 1 which is not available under python 3.8, so you will need 
 Before freezing deploy a virtual environment and install required packages:
 ```
 virtualenv --python=python3.7 venv-deep-speech
+source venv-deep-speech/bin/activate
 cd DeepSpeech-0.8.2
 pip3 install -e .
 ```
@@ -71,6 +72,3 @@ Where:
 `--input_shape "[1,16,19,26],[1,2048],[1,2048]"` replace the variables with a placeholder
 * `--output ".../GatherNd_1,.../GatherNd,logits" ` gets data for the next model
 execution.
-
-The model contains 2 unconnected components. One part performs conversion of input spectrogram into a form that's useful for speech recognition (mel). This part of the model contains 2 unsupported operations AudioSpectrogram and Mfcc. The second part of the model actually converts the input preprocessed audio to text.
-The model contains an input with sequence length. So for now we can convert the model with a fixed input length shape, thus the model is not reshape-able.
