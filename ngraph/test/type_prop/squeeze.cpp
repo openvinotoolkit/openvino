@@ -182,3 +182,21 @@ TEST(type_prop, squeeze_incorrect_negative_axes)
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
+
+TEST(type_prop, squeeze_scalar_axes)
+{
+    auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
+    auto axes_node =
+            make_shared<ngraph::op::Constant>(element::i64, Shape{}, vector<int64_t>{2});
+    auto squeeze = make_shared<op::Squeeze>(param, axes_node);
+
+    ASSERT_EQ(squeeze->get_element_type(), element::f32);
+    ASSERT_EQ(squeeze->get_shape(), (Shape{1, 4, 4, 1, 8}));
+
+    int squeeze_index = 0;
+    axes_node = make_shared<ngraph::op::Constant>(element::i64, Shape{}, squeeze_index);
+    squeeze = make_shared<op::Squeeze>(param, axes_node);
+
+    ASSERT_EQ(squeeze->get_element_type(), element::f32);
+    ASSERT_EQ(squeeze->get_shape(), (Shape{4, 1, 4, 1, 8}));
+}

@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-disable_deprecated_warnings()
-
 function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
     file(GLOB SOURCES *.cpp)
 

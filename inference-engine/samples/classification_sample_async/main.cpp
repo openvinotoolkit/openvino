@@ -149,7 +149,7 @@ int main(int argc, char* argv[]) {
                 validImageNames.push_back(i);
             }
         }
-        if (imagesData.empty())
+        if (imagesData.empty() || validImageNames.empty())
             throw std::logic_error("Valid input images were not found!");
 
         /** Setting batch size using image count **/

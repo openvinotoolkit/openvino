@@ -72,3 +72,16 @@ bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs,
     return reduce_l2::evaluate_reduce_l2(
         inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }
+
+bool op::v4::ReduceL2::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v4_ReduceL2_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}

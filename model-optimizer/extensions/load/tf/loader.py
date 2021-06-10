@@ -25,6 +25,7 @@ from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph
 from mo.utils import tensorboard_util
 from mo.utils.error import Error
+from mo.utils.telemetry_utils import send_op_names_info, send_shapes_info, send_framework_info
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -40,13 +41,14 @@ class TFLoader(Loader):
                 log.info('Loading library "{}" with custom operations'.format(library))
                 tf_v1.load_op_library(library)
 
-        graph_def, variables_values = load_tf_graph_def(graph_file_name=argv.input_model,
+        graph_def, variables_values, framework = load_tf_graph_def(graph_file_name=argv.input_model,
                                                         is_binary=not argv.input_model_is_text,
                                                         checkpoint=argv.input_checkpoint,
                                                         user_output_node_names_list=argv.output,
                                                         model_dir=argv.saved_model_dir,
                                                         meta_graph_file=argv.input_meta_graph,
                                                         saved_model_tags=argv.saved_model_tags)
+        send_framework_info(framework)
 
         try:
             tf_v1.import_graph_def(graph_def, name='')
@@ -98,3 +100,5 @@ class TFLoader(Loader):
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
         extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
+        send_op_names_info(framework, graph)
+        send_shapes_info(framework, graph)

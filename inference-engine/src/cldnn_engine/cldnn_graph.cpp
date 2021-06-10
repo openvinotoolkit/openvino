@@ -16,7 +16,6 @@
 #include "cldnn_graph.h"
 #include "simple_math.h"
 #include <description_buffer.hpp>
-#include <cldnn/cldnn_config.hpp>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
 #include <fstream>
@@ -336,7 +335,7 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
             return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
                 get_inputs(prim_info), output_size);
 
-            if (is_output) {    // create additinal result node
+            if (is_output) {    // create additional result node
                 nodes.push_back(return_node);
                 node2layer[prim_info.original_id] = return_node;
                 return_node->set_output_type(0,
