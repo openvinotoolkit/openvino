@@ -30,7 +30,7 @@ class TestUpsampleOp(unittest.TestCase):
                              ('upsample', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': input_shape},
                              'upsample': {'mode': 'linear',
                                           'height_scale': scales[2],
@@ -57,7 +57,7 @@ class TestUpsampleOp(unittest.TestCase):
                              ('upsample', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': input_shape},
                              'upsample': {'mode': 'linear',
                                           'height_scale': None,

@@ -30,8 +30,9 @@ class UpsampleOp(Op):
 
     @staticmethod
     def upsample_infer(node: Node):
+        node_name = node.soft_get('name', node.id)
         layout = node.graph.graph['layout']
-        assert len(layout) == 4
+        assert len(layout) == 4, 'Input tensor rank must be equal to 4 for node "{}"'.format(node_name)
 
         input_shape = node.in_port(0).data.get_shape()
 
@@ -53,13 +54,14 @@ class UpsampleOp(Op):
                                                              height=out_height,
                                                              width=out_width))
         else:
-            assert node.in_node(1).value is not None
+            scales = node.in_port(1).data.get_value()
+            assert scales is not None, 'The input with scales for node "{}" is not constant'.format(node_name)
             eps = 1e-5  # This is to make rounding in case of very close number to round to closest instead of down
             # generic output shape calculation to support 5D input shape case
             output_shape = shape_array([dynamic_dimension for _ in range(len(input_shape))])
             for idx in range(len(output_shape)):
                 if input_shape[idx] is not dynamic_dimension:
-                    output_shape[idx] = int((input_shape[idx] + eps) * node.in_node(1).value)
+                    output_shape[idx] = int((input_shape[idx] + eps) * scales[idx])
                 else:
                     output_shape[idx] = dynamic_dimension_value
             node.out_port(0).data.set_shape(output_shape)
