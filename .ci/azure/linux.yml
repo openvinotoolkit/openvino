@@ -138,7 +138,7 @@ jobs:
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
 
-  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
     continueOnError: false
 

@@ -105,11 +105,11 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
-  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_output=xml:TEST-NGraphUT.xml
+  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
     continueOnError: false
 
-  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_filter=-MKLDNNGraphStructureTests.TestNoRedundantReordersBeforeDWConvolution:TestConvolution/MKLDNNGraphConvolutionTests.TestsConvolution/0:TestConvolutionDefaultPrimitivesPriority/MKLDNNGraphConvolutionTests.TestsConvolution/0 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
+  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: false
 
@@ -133,7 +133,7 @@ jobs:
     displayName: 'IE FuncTests'
     continueOnError: false
 
-  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke*:-smoke_LPT/ReduceMinTransformation.CompareWithRefImpl/f32_Shape* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
+  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
     enabled: false
