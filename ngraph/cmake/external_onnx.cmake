@@ -18,6 +18,7 @@ set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
 set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 set(ONNX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/onnx_patch.diff")
+set(FETCHCONTENT_UPDATES_DISCONNECTED_EXT_ONNX ON CACHE BOOL "Update ext_onnx only during first cmake run" FORCE)
 
 FetchContent_Declare(
     ext_onnx
