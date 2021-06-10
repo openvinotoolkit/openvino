@@ -30,21 +30,24 @@ class Select(Op):
 
     @staticmethod
     def infer(node: Node):
+        node_name = node.soft_get('name', node.id)
         assert len([port for port in node.in_ports().values() if not port.disconnected()]) == 3, \
-            "Select operation must have 3 inputs: 'condition', 'then' and 'else' tensors"
+            "Select operation must have 3 inputs: 'condition', 'then' and 'else' tensors for node {}".format(node_name)
 
         condition_value = node.in_port(0).data.get_value()
         resulting_tensors = [node.in_port(1).data.get_value(), node.in_port(2).data.get_value()]
 
         a_shape = node.in_port(1).data.get_shape()
         b_shape = node.in_port(2).data.get_shape()
-        node.out_port(0).data.set_shape(bi_directional_shape_broadcasting(a_shape, b_shape))
+        output_shape = bi_directional_shape_broadcasting(a_shape, b_shape)
+        assert output_shape is not None, 'Input shapes for node {} are not broadcast-able'.format(node_name)
+        node.out_port(0).data.set_shape(output_shape)
         # Case with unknown condition
         if condition_value is not None and is_fully_defined(condition_value):
             fully_defined_values = is_fully_defined(resulting_tensors[0]) and is_fully_defined(resulting_tensors[1])
             output_value = np.where(condition_value, resulting_tensors[0], resulting_tensors[1])
             if condition_value.size != 1:
-                if np.any(output_value is None):
+                if np.any(output_value == None):
                     # If any element of output value is None that means that we use the value from the 'then' or the
                     # 'else' tensor which is not defined, this means that we cannot perform value propagation.
                     output_value = None
