@@ -90,6 +90,8 @@ class Convolution(Op):
             node: graph convolution node
         """
         input_shape = node.in_port(0).data.get_shape()
+        if input_shape is None:
+            raise Error('Input data shape is None for node {}'.format(node.soft_get('name', node.id)))
 
         # bias_term cannot be deduced earlier for frameworks that represent
         # convolution weights/biases as regular inputs; so the number of inputs

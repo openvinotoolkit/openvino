@@ -7,6 +7,7 @@ import numpy as np
 
 from mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
 from mo.graph.graph import Node
+from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
@@ -113,4 +114,5 @@ class TestMultiBoxDetectionInfer(unittest.TestCase):
 
         multi_box_detection_node = Node(graph, 'detection_output_1')
 
-        self.assertIsNone(multi_box_detection_infer(multi_box_detection_node))
+        with self.assertRaisesRegex(Error, 'The "-2" dimension of the prior boxes must be 2 but it is "3" for node*'):
+            multi_box_detection_infer(multi_box_detection_node)
