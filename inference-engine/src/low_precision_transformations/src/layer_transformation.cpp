@@ -139,9 +139,19 @@ bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationC
         return false;
     }
 
+    if (NetworkHelper::isDQByDynamicDimension(layer)) {
+        return false;
+    }
+
     for (const auto& output : layer->outputs()) {
-        const size_t size = output.get_shape().size();
-        if ((size < 2ul) || (size > 5ul)) {
+        const auto outPShape = output.get_partial_shape();
+        const auto rank = outPShape.rank();
+        if (rank.is_dynamic()) {
+            return false;
+        }
+
+        const auto size = rank.get_length();
+        if ((size < 2) || (size > 5)) {
             return false;
         }
     }
