@@ -139,14 +139,15 @@ def update_labels(gh_api, pull, non_org_intel_pr_users, non_org_pr_users):
 
 def get_wrong_commits(pull):
     """Returns commits with incorrect user and email"""
-    print("GitHub PR user email:", pull.user.email)
+    pr_author_email = (pull.user.email or "").lower()
+    print("GitHub PR author email:", pr_author_email)
     print("Check commits:")
     wrong_commits = set()
     for commit in pull.get_commits():
         # import pprint; pprint.pprint(commit.raw_data)
         print("Commit SHA:", commit.sha)
         # Use raw data because commit author can be non GitHub user
-        commit_email = commit.raw_data["commit"]["author"]["email"]
+        commit_email = (commit.raw_data["commit"]["author"]["email"] or "").lower()
         print("    Commit email:", commit_email)
         if not github_api.is_valid_user(commit.author):
             print(
@@ -159,9 +160,8 @@ def get_wrong_commits(pull):
                 "    WARNING: The commit is not verified. Reason:",
                 commit.raw_data["commit"]["verification"]["reason"],
             )
-            if pull.user.email != commit_email:
-                print("    ERROR: Commit email and GitHub user public email are differnt")
-                wrong_commits.add(commit.sha)
+            if pr_author_email != commit_email:
+                print("    WARNING: Commit email and GitHub PR author public email are differnt")
     return wrong_commits
 
 
@@ -229,7 +229,7 @@ def main():
     if wrong_pulls:
         for pull_number, wrong_commits in wrong_pulls.items():
             print(
-                f"\nERROR: Remove or replace wrong commits in the PR {pull_number}:\n    ",
+                f"\nERROR: Remove or replace wrong commits in the PR {pull_number}:\n   ",
                 "\n    ".join(wrong_commits),
             )
         print(

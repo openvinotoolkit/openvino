@@ -64,7 +64,13 @@ int main(int argc, char *argv[]) {
             inferRequest.Infer();
             // check states
             auto states = inferRequest.QueryState();
+            if (states.empty()) {
+                throw std::runtime_error("Queried states are empty");
+            }
             auto mstate = as<MemoryBlob>(states[0].GetState());
+            if (mstate == nullptr) {
+                throw std::runtime_error("Can't cast state to MemoryBlob");
+            }
             auto state_buf = mstate->rmap();
             float * state =state_buf.as<float*>(); 
             std::cout << state[0] << "\n";
