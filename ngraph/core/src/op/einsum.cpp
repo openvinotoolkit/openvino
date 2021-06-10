@@ -70,7 +70,7 @@ bool is_subscript_correct(const std::string& subscript, bool& is_ellipsis_met)
 /// \return     true - met, false - otherwise
 ///
 bool is_label_elsewhere(const std::vector<std::string>& input_subscripts,
-                        const std::string label_to_check,
+                        const std::string& label_to_check,
                         const std::vector<size_t>& excluded_indices)
 {
     for (size_t input_ind = 0; input_ind < input_subscripts.size(); ++input_ind)
@@ -124,11 +124,13 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
     {
         // equation is in implicit mode so recover output subscript
         output_subscript = "";
-        for (size_t ind = 0; ind < input_subscripts.size(); ++ind) {
+        for (size_t ind = 0; ind < input_subscripts.size(); ++ind)
+        {
             auto const& input_subscript = input_subscripts[ind];
             for (auto const& label : extract_labels(input_subscript))
             {
-                if (label != ellipsis && (is_label_elsewhere(input_subscripts, label, {ind}) == false))
+                if (label != ellipsis &&
+                    (is_label_elsewhere(input_subscripts, label, {ind}) == false))
                 {
                     output_subscript += label;
                 }
