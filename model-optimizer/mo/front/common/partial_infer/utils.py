@@ -146,7 +146,7 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
     Is introduced to prevent potentially large memory consumption.
     """
     output_shape = []
-    num_new_axes = np.count_nonzero(list(map(lambda x: x is not None and x is np.newaxis, slices)))
+    num_new_axes = np.count_nonzero(list(map(lambda x: x is np.newaxis, slices)))
     num_ellipsis_inserts = len(input_shape) - len(slices) + num_new_axes + 1
 
     in_idx = 0
