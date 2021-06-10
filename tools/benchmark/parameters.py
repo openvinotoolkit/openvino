@@ -95,7 +95,7 @@ def parse_args():
                       help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
                            'threads->(NUMA)nodes (\'NUMA\'), '
                            'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs)'
-                           'or completely disable (\'NO\')' 
+                           'or completely disable (\'NO\')'
                            'CPU threads pinning for CPU-involved inference.')
     args.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')
@@ -118,9 +118,9 @@ def parse_args():
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
     args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
                       help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
-    args.add_argument('-ip', '--input_precision', type=str, required=False, default='U8', choices=['U8', 'FP16', 'FP32'],
+    args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['U8', 'FP16', 'FP32'],
                       help='Optional. Specifies precision for all input layers of the network.')
-    args.add_argument('-op', '--output_precision', type=str, required=False, default='FP32', choices=['U8', 'FP16', 'FP32'],
+    args.add_argument('-op', '--output_precision', type=str, required=False, choices=['U8', 'FP16', 'FP32'],
                       help='Optional. Specifies precision for all output layers of the network.')
     args.add_argument('-iop', '--input_output_precision', type=str, required=False,
                       help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')

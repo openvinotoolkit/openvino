@@ -157,16 +157,17 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessSetBlob) {
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
     preProcess.init(3);
     for (size_t i = 0; i < 3; i++) {
-        preProcess[i]->meanData = make_blob_with_precision(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
-                                                                                       {10, 10},
-                                                                                       InferenceEngine::Layout::HW));
-        preProcess[i]->meanData->allocate();
-        auto lockedMem = preProcess[i]->meanData->buffer();
+        auto meanData = make_blob_with_precision(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,  {10, 10},
+            InferenceEngine::Layout::HW));
+        meanData->allocate();
+        auto lockedMem = meanData->buffer();
         auto* data = lockedMem.as<float *>();
         for (size_t j = 0; j < 100; j++) {
             data[j] = 0;
             data[j] -= i * 100 + j;
         }
+        ASSERT_NO_THROW(preProcess.setMeanImageForChannel(meanData, i));
     }
     preProcess.setVariant(InferenceEngine::MEAN_IMAGE);
     // Load CNNNetwork to target plugins
@@ -323,10 +324,9 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessSetBlob) {
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
         for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]+5, outData[i]);
+            ASSERT_EQ(inData[i] + 5, outData[i]);
     }
 }
-
 
 TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -390,7 +390,6 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
             }
     }
 }
-
 
 TEST_P(PreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -515,11 +514,10 @@ TEST_P(PreprocessTest, SetScalePreProcessGetBlob) {
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
         for (size_t i = 0; i < inBlob->size(); i++) {
-            ASSERT_EQ(inData[i]*2, outData[i]);
+            ASSERT_EQ(inData[i] / 2, outData[i]);
         }
     }
 }
-
 
 TEST_P(PreprocessTest, SetScalePreProcessSetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -581,7 +579,7 @@ TEST_P(PreprocessTest, SetScalePreProcessSetBlob) {
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
         for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]*2, outData[i]);
+            ASSERT_EQ(inData[i] / 2, outData[i]);
     }
 }
 

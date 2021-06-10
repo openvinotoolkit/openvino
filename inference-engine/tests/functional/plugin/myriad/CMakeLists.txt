@@ -4,8 +4,6 @@
 
 set(TARGET_NAME myriadFuncTests)
 
-disable_deprecated_warnings()
-
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}

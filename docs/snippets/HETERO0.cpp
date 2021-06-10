@@ -1,6 +1,6 @@
-#include <inference_engine.hpp>
-#include <ngraph/ngraph.hpp>
-#include "hetero/hetero_plugin_config.hpp"
+#include <ie_core.hpp>
+#include <ngraph/function.hpp>
+#include <ngraph/variant.hpp>
 
 int main() {
 InferenceEngine::Core core;

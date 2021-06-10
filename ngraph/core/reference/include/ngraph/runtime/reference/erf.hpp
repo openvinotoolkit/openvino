@@ -17,9 +17,9 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T>
-            typename std::enable_if<!std::is_integral<T>::value>::type
-                erf(const T* arg, T* out, size_t count)
+            template <typename T,
+                      typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
+            void erf(const T* arg, T* out, size_t count)
             {
                 for (size_t i = 0; i < count; i++)
                 {
@@ -27,9 +27,9 @@ namespace ngraph
                 }
             }
 
-            template <typename T>
-            typename std::enable_if<std::is_integral<T>::value>::type
-                erf(const T* arg, T* out, size_t count)
+            template <typename T,
+                      typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+            void erf(const T* arg, T* out, size_t count)
             {
                 for (size_t i = 0; i < count; i++)
                 {

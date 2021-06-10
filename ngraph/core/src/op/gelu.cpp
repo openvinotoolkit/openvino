@@ -190,3 +190,15 @@ bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVec
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return gelu::evaluate_gelu(inputs[0], outputs[0], m_approximation_mode);
 }
+
+bool op::v7::Gelu::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v7_Gelu_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}
