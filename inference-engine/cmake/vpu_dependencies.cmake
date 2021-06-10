@@ -157,8 +157,6 @@ function(add_vpu_compile_custom_kernels)
     set(SRC_DIR "${IE_MAIN_SOURCE_DIR}/src/vpu/custom_kernels")
     set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu_custom_kernels")
 
-    file(MAKE_DIRECTORY "${DST_DIR}")
-
     file(GLOB XML_FILES "${SRC_DIR}/*.xml")
     file(GLOB CL_FILES "${SRC_DIR}/*.cl")
 
