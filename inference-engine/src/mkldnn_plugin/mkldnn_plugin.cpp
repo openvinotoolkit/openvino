@@ -71,6 +71,7 @@
 #include <ngraph/graph_util.hpp>
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
@@ -275,6 +276,23 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_partial_shape().rank().get_length() > 5;
+            });
+
+    pass_config->set_callback<ngraph::pass::TransposeReduction>(
+            [](const_node_ptr &node) -> bool {
+                if (std::dynamic_pointer_cast<const ngraph::opset1::ReduceMean>(node) != nullptr ||
+                    std::dynamic_pointer_cast<const ngraph::opset1::ReduceMax>(node) != nullptr ||
+                        std::dynamic_pointer_cast<const ngraph::opset1::ReduceSum>(node) != nullptr) {
+                    if (const auto axesNode = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1))) {
+                        const auto axes = axesNode->cast_vector<int64_t>();
+                        for (size_t i = 1; i < axes.size(); ++i) {
+                            if (axes[i] - axes[i-1] != 1) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
             });
 
     // List of enabled/disabled transformations
