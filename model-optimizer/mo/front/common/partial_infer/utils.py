@@ -10,13 +10,11 @@ dynamic_dimension = np.ma.masked
 dynamic_dimension_value = -1000000007
 
 
-def shape_array(value, dtype=np.int64):
+def shape_array(value, dtype=np.int64, dyn_value=dynamic_dimension_value):
     # if the input already have masked values then we need to explicitly convert to dynamic_dimension_value and create
     # masked array from scratch, because otherwise method masked_equal will convert masked elements to "nan" value
-#    if not isinstance(value, np.ma.masked_array):
     new_value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
     return np.ma.masked_equal(new_value, dynamic_dimension_value).astype(dtype=dtype)
-#    return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)
 
 
 def compare_dimensions(dim1, dim2):
