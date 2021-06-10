@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <regex>
 #include <string>
 #include <map>
 #include <vector>
@@ -1209,8 +1210,54 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
 void MKLDNNGraph::EnforceBF16() {
     // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
     // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
+    auto getNodeId = [](const MKLDNNNodePtr& node) {
+        const std::regex rx("^[a-zA-Z]*_*([0-9]+).*");
+        std::smatch match;
+
+        std::string name = node->getName();
+        if (std::regex_search(name, match, rx))
+            return std::stoi(match.str(1));
+        else
+            return 0;
+    };
+
+    auto compareById = [&](const MKLDNNNodePtr& nodeLhs, const MKLDNNNodePtr& nodeRhs) {
+        return getNodeId(nodeLhs) < getNodeId(nodeRhs);
+    };
+
+    auto findLastSignificantNode = [&]() {
+        static std::unordered_set<Type> significantNodes {
+            Convolution,
+            FullyConnected,
+            RNNCell,
+            RNNSeq,
+            MatMul,
+            ROIPooling,
+        };
+
+        auto resultId = graphNodes[0];
+
+        for (const auto &node : graphNodes) {
+            if (!significantNodes.count(node->getType()))
+                continue;
+
+            resultId = std::max(node, resultId, compareById);
+        }
+
+        return resultId;
+    };
+
+    const auto& lsNode = findLastSignificantNode();
+
+    std::cout << "EnforceBF16: Last significant node is " << NameFromType(lsNode->getType()) << " " << lsNode->getName() << "\n";
+
     if (implication(isQuantized(), config.manualEnforceBF16)) {
         for (auto &node : graphNodes) {
+            if (getNodeId(node) > getNodeId(lsNode)) {
+                // std::cout << "### Skipping node - " << node->getName() << "\n";
+                continue;
+            }
+
             if (node->getType() != Input && node->getType() != Output) {
                 for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
                     auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
