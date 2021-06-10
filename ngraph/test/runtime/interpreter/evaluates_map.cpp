@@ -23,10 +23,14 @@
 #include <ngraph/runtime/reference/deformable_convolution.hpp>
 #include <ngraph/runtime/reference/deformable_psroi_pooling.hpp>
 #include <ngraph/runtime/reference/detection_output.hpp>
+#include <ngraph/runtime/reference/einsum.hpp>
 #include <ngraph/runtime/reference/elu.hpp>
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
 #include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
+#include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
+#include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
+#include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/fft.hpp>
@@ -586,53 +590,42 @@ namespace
         return true;
     }
 
-    namespace nms_v5
+    namespace
     {
-        using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
-
-        struct InfoForNMS5
+        std::vector<float> get_floats(const std::shared_ptr<HostTensor>& input, const Shape& shape)
         {
-            int64_t max_output_boxes_per_class;
-            float iou_threshold;
-            float score_threshold;
-            float soft_nms_sigma;
-            Shape out_shape;
-            Shape boxes_shape;
-            Shape scores_shape;
-            std::vector<float> boxes_data;
-            std::vector<float> scores_data;
-            size_t out_shape_size;
-            bool sort_result_descending;
-            ngraph::element::Type output_type;
-        };
+            size_t input_size = shape_size(shape);
+            std::vector<float> result(input_size);
 
-        constexpr size_t boxes_port = 0;
-        constexpr size_t scores_port = 1;
-
-        PartialShape
-            infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
-                                         int64_t max_output_boxes_per_class)
-        {
-            const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
-            const auto scores_ps = inputs[scores_port]->get_partial_shape();
-
-            // NonMaxSuppression produces triplets
-            // that have the following format: [batch_index, class_index, box_index]
-            PartialShape result = {Dimension::dynamic(), 3};
-
-            if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
+            switch (input->get_element_type())
             {
-                const auto num_boxes_boxes = boxes_ps[1];
-                if (num_boxes_boxes.is_static() && scores_ps[0].is_static() &&
-                    scores_ps[1].is_static())
+            case element::Type_t::bf16:
+            {
+                bfloat16* p = input->get_data_ptr<bfloat16>();
+                for (size_t i = 0; i < input_size; ++i)
                 {
-                    const auto num_boxes = num_boxes_boxes.get_length();
-                    const auto num_classes = scores_ps[1].get_length();
-
-                    result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
-                                scores_ps[0].get_length();
+                    result[i] = float(p[i]);
                 }
             }
+            break;
+            case element::Type_t::f16:
+            {
+                float16* p = input->get_data_ptr<float16>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = float(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::f32:
+            {
+                float* p = input->get_data_ptr<float>();
+                memcpy(result.data(), p, input_size * sizeof(float));
+            }
+            break;
+            default: throw std::runtime_error("Unsupported data type."); break;
+            }
+
             return result;
         }
 
@@ -723,43 +716,55 @@ namespace
 
             return result;
         }
+    } // namespace
 
-        std::vector<float> get_floats(const std::shared_ptr<HostTensor>& input, const Shape& shape)
+    namespace nms_v5
+    {
+        using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
+
+        struct InfoForNMS5
         {
-            size_t input_size = shape_size(shape);
-            std::vector<float> result(input_size);
+            int64_t max_output_boxes_per_class;
+            float iou_threshold;
+            float score_threshold;
+            float soft_nms_sigma;
+            Shape out_shape;
+            Shape boxes_shape;
+            Shape scores_shape;
+            std::vector<float> boxes_data;
+            std::vector<float> scores_data;
+            size_t out_shape_size;
+            bool sort_result_descending;
+            ngraph::element::Type output_type;
+        };
 
-            switch (input->get_element_type())
+        constexpr size_t boxes_port = 0;
+        constexpr size_t scores_port = 1;
+
+        PartialShape
+            infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                         int64_t max_output_boxes_per_class)
+        {
+            const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
+            const auto scores_ps = inputs[scores_port]->get_partial_shape();
+
+            // NonMaxSuppression produces triplets
+            // that have the following format: [batch_index, class_index, box_index]
+            PartialShape result = {Dimension::dynamic(), 3};
+
+            if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
             {
-            case element::Type_t::bf16:
-            {
-                bfloat16* p = input->get_data_ptr<bfloat16>();
-                for (size_t i = 0; i < input_size; ++i)
+                const auto num_boxes_boxes = boxes_ps[1];
+                if (num_boxes_boxes.is_static() && scores_ps[0].is_static() &&
+                    scores_ps[1].is_static())
                 {
-                    result[i] = float(p[i]);
+                    const auto num_boxes = num_boxes_boxes.get_length();
+                    const auto num_classes = scores_ps[1].get_length();
+
+                    result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                                scores_ps[0].get_length();
                 }
             }
-            break;
-            case element::Type_t::f16:
-            {
-                float16* p = input->get_data_ptr<float16>();
-                for (size_t i = 0; i < input_size; ++i)
-                {
-                    result[i] = float(p[i]);
-                }
-            }
-            break;
-            case element::Type_t::f32:
-            {
-                float* p = input->get_data_ptr<float>();
-                memcpy(result.data(), p, input_size * sizeof(float));
-            }
-            break;
-            default:
-                throw std::runtime_error("Unsupported data type in op NonMaxSuppression-5");
-                break;
-            }
-
             return result;
         }
 
@@ -912,6 +917,152 @@ namespace
         return true;
     }
 
+    namespace experimental_prior_grid
+    {
+        struct InfoForEDPriorGrid
+        {
+            Shape output_shape;
+            int64_t grid_h;
+            int64_t grid_w;
+            float stride_h;
+            float stride_w;
+        };
+
+        constexpr size_t priors_port = 0;
+        constexpr size_t feature_map_port = 1;
+
+        PartialShape infer_output_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                        bool flatten)
+        {
+            PartialShape out_shape = {
+                Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
+
+            if (flatten)
+            {
+                out_shape = PartialShape{Dimension::dynamic(), 4};
+            }
+
+            const auto priors_shape = inputs[priors_port]->get_partial_shape();
+            const auto feature_map_shape = inputs[feature_map_port]->get_partial_shape();
+
+            if (priors_shape.rank().is_dynamic() || feature_map_shape.rank().is_dynamic())
+            {
+                return out_shape;
+            }
+
+            auto num_priors = priors_shape[0];
+            auto featmap_height = feature_map_shape[2];
+            auto featmap_width = feature_map_shape[3];
+
+            if (flatten)
+            {
+                out_shape = PartialShape{featmap_height * featmap_width * num_priors, 4};
+            }
+            else
+            {
+                out_shape = PartialShape{featmap_height, featmap_width, num_priors, 4};
+            }
+
+            return out_shape;
+        }
+
+        InfoForEDPriorGrid get_info_for_ed_prior_grid_eval(
+            const std::shared_ptr<op::v6::ExperimentalDetectronPriorGridGenerator>& prior_grid,
+            const std::vector<std::shared_ptr<HostTensor>>& inputs)
+        {
+            InfoForEDPriorGrid result;
+
+            auto attrs = prior_grid->get_attrs();
+
+            result.grid_h = attrs.h;
+            result.grid_w = attrs.w;
+            result.stride_h = attrs.stride_y;
+            result.stride_w = attrs.stride_x;
+
+            auto output_rois_shape = infer_output_shape(inputs, attrs.flatten);
+            result.output_shape = output_rois_shape.to_shape();
+
+            return result;
+        }
+    } // namespace experimental_prior_grid
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronPriorGridGenerator>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        auto info = experimental_prior_grid::get_info_for_ed_prior_grid_eval(op, inputs);
+
+        using T = typename element_type_traits<ET>::value_type;
+        outputs[0]->set_shape(info.output_shape);
+        runtime::reference::experimental_detectron_prior_grid_generator<T>(
+            inputs[0]->get_data_ptr<const T>(),
+            inputs[0]->get_shape(),
+            inputs[1]->get_shape(),
+            inputs[2]->get_shape(),
+            outputs[0]->get_data_ptr<T>(),
+            info.grid_h,
+            info.grid_w,
+            info.stride_h,
+            info.stride_w);
+
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto attrs = op->get_attrs();
+        size_t rois_num = attrs.max_detections_per_image;
+
+        const Shape output_boxes_shape = Shape{rois_num, 4};
+        const Shape output_classes_shape = Shape{rois_num};
+        const Shape output_scores_shape = Shape{rois_num};
+
+        const auto output_type = op->get_input_element_type(0);
+
+        const auto boxes_data = get_floats(inputs[0], inputs[0]->get_shape());
+        const auto input_deltas_data = get_floats(inputs[1], inputs[1]->get_shape());
+        const auto input_scores_data = get_floats(inputs[2], inputs[2]->get_shape());
+        const auto input_im_info_data = get_floats(inputs[3], inputs[3]->get_shape());
+
+        std::vector<float> output_boxes(shape_size(output_boxes_shape));
+        std::vector<int32_t> output_classes(shape_size(output_classes_shape));
+        std::vector<float> output_scores(shape_size(output_scores_shape));
+
+        outputs[0]->set_element_type(output_type);
+        outputs[0]->set_shape(output_boxes_shape);
+        outputs[1]->set_element_type(element::Type_t::i32);
+        outputs[1]->set_shape(output_classes_shape);
+        outputs[2]->set_element_type(output_type);
+        outputs[2]->set_shape(output_scores_shape);
+
+        runtime::reference::experimental_detectron_detection_output(boxes_data.data(),
+                                                                    input_deltas_data.data(),
+                                                                    input_scores_data.data(),
+                                                                    input_im_info_data.data(),
+                                                                    attrs,
+                                                                    output_boxes.data(),
+                                                                    output_scores.data(),
+                                                                    output_classes.data());
+
+        runtime::reference::experimental_detectron_detection_output_postprocessing(
+            outputs[0]->get_data_ptr(),
+            outputs[1]->get_data_ptr(),
+            outputs[2]->get_data_ptr(),
+            output_type,
+            output_boxes,
+            output_classes,
+            output_scores,
+            output_boxes_shape,
+            output_classes_shape,
+            output_scores_shape);
+
+        return true;
+    }
+
     namespace fft_v7
     {
         struct InfoForFFT7
@@ -928,7 +1079,7 @@ namespace
         {
             if (inputs.size() == 3)
             {
-                return nms_v5::get_integers(inputs[2], inputs[2]->get_shape());
+                return get_integers(inputs[2], inputs[2]->get_shape());
             }
 
             return std::vector<int64_t>(num_of_axes, static_cast<int64_t>(-1));
@@ -940,8 +1091,8 @@ namespace
 
             result.input_data_shape = inputs[0]->get_shape();
             result.axes_data_shape = inputs[1]->get_shape();
-            result.input_data = nms_v5::get_floats(inputs[0], result.input_data_shape);
-            result.axes_data = nms_v5::get_integers(inputs[1], result.axes_data_shape);
+            result.input_data = get_floats(inputs[0], result.input_data_shape);
+            result.axes_data = get_integers(inputs[1], result.axes_data_shape);
 
             auto output_shape = result.input_data_shape;
 
@@ -975,6 +1126,7 @@ namespace
                   const HostTensorVector& inputs)
     {
         auto info = fft_v7::get_info_for_fft7_eval(inputs);
+        outputs[0]->set_shape(info.output_shape);
 
         std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
         runtime::reference::fft(info.input_data.data(),
@@ -996,6 +1148,7 @@ namespace
                   const HostTensorVector& inputs)
     {
         auto info = fft_v7::get_info_for_fft7_eval(inputs);
+        outputs[0]->set_shape(info.output_shape);
 
         std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
         runtime::reference::fft(info.input_data.data(),
@@ -1470,7 +1623,6 @@ namespace
             break;
         default: return false;
         }
-#undef REF_CALL
         return true;
     }
 
@@ -1485,72 +1637,6 @@ namespace
                                                      outputs[0]->get_data_ptr<T>(),
                                                      inputs[0]->get_shape(),
                                                      outputs[0]->get_shape());
-        return true;
-    }
-
-    namespace convert_v0
-    {
-        template <element::Type_t ti, element::Type_t to>
-        inline void evaluate(const shared_ptr<op::v0::Convert>& op,
-                             const HostTensorVector& outputs,
-                             const HostTensorVector& inputs)
-        {
-            using TI = typename element_type_traits<ti>::value_type;
-            using TO = typename element_type_traits<to>::value_type;
-            runtime::reference::convert<TI, TO>(inputs[0]->get_data_ptr<TI>(),
-                                                outputs[0]->get_data_ptr<TO>(),
-                                                shape_size(inputs[0]->get_shape()));
-        }
-    } // namespace convert_v0
-
-    template <element::Type_t OUT_ET>
-    bool evaluate(const shared_ptr<op::v0::Convert>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        switch (inputs[0]->get_element_type())
-        {
-        case element::Type_t::boolean:
-            convert_v0::evaluate<element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::i8:
-            convert_v0::evaluate<element::Type_t::i8, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::i16:
-            convert_v0::evaluate<element::Type_t::i16, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::i32:
-            convert_v0::evaluate<element::Type_t::i32, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::i64:
-            convert_v0::evaluate<element::Type_t::i64, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::u8:
-            convert_v0::evaluate<element::Type_t::u8, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::u16:
-            convert_v0::evaluate<element::Type_t::u16, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::u32:
-            convert_v0::evaluate<element::Type_t::u32, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::u64:
-            convert_v0::evaluate<element::Type_t::u64, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::f16:
-            convert_v0::evaluate<element::Type_t::f16, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::f32:
-            convert_v0::evaluate<element::Type_t::f32, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::f64:
-            convert_v0::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
-            break;
-        case element::Type_t::bf16:
-            convert_v0::evaluate<element::Type_t::bf16, OUT_ET>(op, outputs, inputs);
-            break;
-        default: return false;
-        }
         return true;
     }
 
@@ -2066,12 +2152,17 @@ namespace
             using TF = typename element_type_traits<T1>::value_type;
             using TI = typename element_type_traits<T2>::value_type;
             using TIND1 = typename element_type_traits<TOUT>::value_type;
+            TI blank_index_val = inputs[0]->get_shape().back() - 1;
+            const TI *blank_index = &blank_index_val;
+            if (inputs.size() == 3) {
+                blank_index = inputs[2]->get_data_ptr<const TI>();
+            }
             if (op->get_sequence_length_type() == element::i32)
             {
                 runtime::reference::ctc_greedy_decoder_seq_len<TF>(
                     inputs[0]->get_data_ptr<const TF>(),
                     inputs[1]->get_data_ptr<const TI>(),
-                    inputs[2]->get_data_ptr<const TI>(),
+                    blank_index,
                     outputs[0]->get_data_ptr<TIND1>(),
                     outputs[1]->get_data_ptr<int32_t>(),
                     inputs[0]->get_shape(),
@@ -2083,7 +2174,7 @@ namespace
                 runtime::reference::ctc_greedy_decoder_seq_len<TF>(
                     inputs[0]->get_data_ptr<const TF>(),
                     inputs[1]->get_data_ptr<const TI>(),
-                    inputs[2]->get_data_ptr<const TI>(),
+                    blank_index,
                     outputs[0]->get_data_ptr<TIND1>(),
                     outputs[1]->get_data_ptr<int64_t>(),
                     inputs[0]->get_shape(),
@@ -2133,6 +2224,23 @@ namespace
         {
             return false;
         }
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronTopKROIs>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        size_t max_rois = op->get_max_rois();
+        outputs[0]->set_shape(Shape{max_rois, 4});
+        runtime::reference::experimental_detectron_topk_rois<T>(inputs[0]->get_data_ptr<const T>(),
+                                                                inputs[1]->get_data_ptr<const T>(),
+                                                                inputs[0]->get_shape(),
+                                                                inputs[1]->get_shape(),
+                                                                max_rois,
+                                                                outputs[0]->get_data_ptr<T>());
         return true;
     }
 
@@ -2269,13 +2377,13 @@ namespace
         NGRAPH_CHECK(inputs.size() > 1 && inputs[1]->get_shape().size() == 2,
                         "2D tensor must be provided as second input. ");
         outputs[0]->set_shape({inputs[1]->get_shape()[0],
-                               static_cast<size_t>(op->get_output_dim()), 
-                               static_cast<size_t>(op->get_group_size()), 
+                               static_cast<size_t>(op->get_output_dim()),
+                               static_cast<size_t>(op->get_group_size()),
                                static_cast<size_t>(op->get_group_size())});
 
         const bool has_offset_intput = inputs.size() == 3;
         if (has_offset_intput)
-        {   
+        {
             runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
                                                 inputs[0]->get_shape(),
                                                 inputs[1]->get_data_ptr<T>(),
@@ -2292,7 +2400,7 @@ namespace
                                                 op->get_part_size());
         }
         else
-        {   
+        {
            runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
                                                 inputs[0]->get_shape(),
                                                 inputs[1]->get_data_ptr<T>(),
@@ -2353,6 +2461,16 @@ namespace
         return true;
     }
 
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v7::Einsum>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto equation = op->get_equation();
+        runtime::reference::einsum(outputs, inputs, equation);
+        return true;
+    }
+
     template <typename T>
     bool evaluate_node(std::shared_ptr<Node> node,
                        const HostTensorVector& outputs,
@@ -2369,7 +2487,8 @@ namespace
         }
         for (size_t i = 1; i < node->outputs().size(); i++)
         {
-            if (is_type<op::v5::NonMaxSuppression>(node) && i == 1)
+            if ((is_type<op::v5::NonMaxSuppression>(node) ||
+                 is_type<op::v6::ExperimentalDetectronDetectionOutput>(node)) && i == 1)
             {
                 continue;
             }

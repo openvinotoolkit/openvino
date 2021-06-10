@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
-
+#include "ie_plugin_config.hpp"
 #include "behavior/config.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -43,7 +42,7 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> AutoConfigs = {
-            {}
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}}
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigTests,
@@ -80,6 +79,11 @@ namespace {
                     {InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, "OFF"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                     {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "NAN"}}
+    };
+
+    const std::vector<std::map<std::string, std::string>> autoinconfigs = {
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU},
+            {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "OFF"}}
     };
 
     const std::vector<std::map<std::string, std::string>> multiconf = {
@@ -121,13 +125,6 @@ namespace {
             ::testing::ValuesIn(multiinconfigs)),
             IncorrectConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
-            ::testing::Combine(
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-            ::testing::ValuesIn(inconfigs)),
-            IncorrectConfigTests::getTestCaseName);
-
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
@@ -143,10 +140,10 @@ namespace {
             IncorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
-            ::testing::Combine(
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-            ::testing::ValuesIn(inconfigs)),
-            IncorrectConfigAPITests::getTestCaseName);
+                            ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(autoinconfigs)),
+                            IncorrectConfigAPITests::getTestCaseName);
 
 } // namespace

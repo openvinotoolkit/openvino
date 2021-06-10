@@ -19,8 +19,7 @@ namespace ngraph
                 OutputVector compress(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
-                    auto condition = std::make_shared<default_opset::Convert>(
-                        node.get_ng_inputs().at(1), element::u8);
+                    auto condition = node.get_ng_inputs().at(1);
 
                     int64_t axis = 0;
                     if (node.has_attribute("axis"))

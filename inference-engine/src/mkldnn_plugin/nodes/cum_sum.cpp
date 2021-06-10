@@ -159,7 +159,7 @@ private:
             for (size_t iwork = start; iwork < end; ++iwork) {
                 std::vector<size_t> forStartOffset(numOfDims);
                 forStartOffset[axis] = 0;
-                for (int64_t offsetIdx = 0, countersIdx = 0; offsetIdx < numOfDims; ++offsetIdx) {
+                for (size_t offsetIdx = 0, countersIdx = 0; offsetIdx < numOfDims; ++offsetIdx) {
                     if (offsetIdx == axis) {
                         continue;
                     }

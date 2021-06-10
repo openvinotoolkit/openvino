@@ -88,7 +88,7 @@ REGISTER_FACTORY(v0, Unsqueeze);
 // REGISTER_FACTORY(v0, Range);
 // REGISTER_FACTORY(v0, RNNCell);
 // REGISTER_FACTORY(v0, ShapeOf);
-// REGISTER_FACTORY(v0, TensorIterator);
+REGISTER_FACTORY(v0, TensorIterator);
 
 // ------------------------------ Supported v1 ops ------------------------------ //
 REGISTER_FACTORY(v1, Add);
@@ -204,6 +204,9 @@ REGISTER_FACTORY(v5, GatherND);
 // ------------------------------ Supported v6 ops ------------------------------ //
 REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
 REGISTER_FACTORY(v6, MVN);
+
+// ------------------------------ Supported v7 ops ------------------------------ //
+REGISTER_FACTORY(v7, Gather);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

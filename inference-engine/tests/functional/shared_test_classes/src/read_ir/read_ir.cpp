@@ -99,7 +99,7 @@ void ReadIRTest::GenerateInputs() {
     }
 }
 
-void ReadIRTest::Compare(const std::vector<std::vector<std::uint8_t>> &expected,
+void ReadIRTest::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                          const std::vector<InferenceEngine::Blob::Ptr> &actual) {
     auto compareMap = getCompareMap();
     for (const auto &result : function->get_results()) {

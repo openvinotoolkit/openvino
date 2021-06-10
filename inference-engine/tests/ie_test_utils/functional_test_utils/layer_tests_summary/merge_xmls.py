@@ -16,10 +16,11 @@ def parse_arguments():
 
     input_folders_help = "Paths to folders with reports to merge"
     output_folders_help = "Path to folder to save report"
+    output_filename_help = "Output report filename"
 
     parser.add_argument("-i", "--input_folders", help=input_folders_help, nargs="*", required=True)
     parser.add_argument("-o", "--output_folder", help=output_folders_help, default="")
-    parser.add_argument("-f", "--output_filename", help=output_folders_help, default="report")
+    parser.add_argument("-f", "--output_filename", help=output_filename_help, default="report")
 
     return parser.parse_args()
 

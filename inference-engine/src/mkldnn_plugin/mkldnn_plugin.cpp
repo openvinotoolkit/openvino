@@ -31,6 +31,8 @@
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
+#include <transformations/op_conversions/convert_gather_v7_to_gather_v1.hpp>
+#include <transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp>
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
@@ -83,8 +85,6 @@
 #include <low_precision/network_helper.hpp>
 
 #include <ie_algorithm.hpp>
-
-#include <ngraph/pass/visualize_tree.hpp>
 
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
@@ -309,8 +309,10 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
     pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+    pass_config->disable<ngraph::pass::ConvertGather7ToGather1>();
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
+    pass_config->enable<ngraph::pass::ConvertGather1ToGather7>();
 
     if (useLpt) {
         pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
@@ -348,7 +350,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
             .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }))
-            .remove<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>());
+            .add<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>(
+                    LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
 
         transformer.transform(nGraphFunc);
     }
@@ -384,7 +387,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
-InferenceEngine::ExecutableNetworkInternal::Ptr
+InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
@@ -515,7 +518,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     }
 }
 
-void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
+void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
     extensionManager->AddExtension(extension);
 }
 

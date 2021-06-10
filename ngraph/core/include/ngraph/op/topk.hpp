@@ -86,6 +86,7 @@ namespace ngraph
                 size_t get_default_output_index() const override { return no_default_index(); }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             protected:
                 int64_t m_axis;
@@ -149,6 +150,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             protected:
                 virtual size_t

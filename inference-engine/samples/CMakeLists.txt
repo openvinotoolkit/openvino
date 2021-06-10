@@ -129,11 +129,17 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
     add_gflags()
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
+    add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
+    add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
+endif()
+
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
-
-find_package(InferenceEngine 2.1.0 EXACT REQUIRED)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     add_subdirectory(common/utils)
@@ -219,6 +225,14 @@ macro(ie_add_sample)
         set(c_sample ON)
         set(folder_name c_samples)
     endif()
+
+    if(c_sample)
+        set(ie_component inference_engine_c_api)
+    else()
+        set(ie_component inference_engine)
+    endif()
+
+    find_package(InferenceEngine REQUIRED COMPONENTS ${ie_component})
 
     set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
                                                        COMPILE_PDB_NAME ${IE_SAMPLE_NAME})

@@ -71,6 +71,7 @@ onnx_top_k_opset_11_const_k_smallest_negative_axis
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
+onnx_constant_sparse_tensor_boolean_3x4
 
 # Layer <name> input port 1 is not connected to any data
 onnx_model_conv_transpose_w_groups
@@ -122,6 +123,9 @@ onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
 onnx_dyn_shapes_slice_10_3d_input_12_axes
 onnx_top_k_opset_10
 onnx_model_scatterND_param_i64_indices
+IE_CPU.onnx_constant_sparse_tensor_int64_3x4
+IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
+
 
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
@@ -131,6 +135,8 @@ arg_max_dyn_shape
 # Result mismatch
 onnx_model_argmax_float
 onnx_model_argmin_float
+onnx_model_argmax_select_last_index
+onnx_model_argmin_select_last_index
 
 # Constant has zero dimension that is not allowable
 onnx_dyn_shapes_transpose
@@ -752,9 +758,6 @@ lrn_2d_across_outermost_axis
 dyn_group_convolution_backprop_filters
 
 # Layer <op_name> input port 1 is not connected to any data
-prelu
-prelu_shared_slope
-prelu_negative_slope
 convolution_simple_padding
 
 # Cannot cast ngraph node Stack to CNNLayer!
@@ -1048,21 +1051,89 @@ roll_3d_input_negative_shift
 roll_negative_axes
 
 # convert operation
-IE_CPU.convert_f16_to_f32
+IE_CPU.convert_u8_to_boolean
+IE_CPU.convert_i32_to_boolean
+IE_CPU.convert_f32_to_boolean
 IE_CPU.convert_u8_to_f16
 IE_CPU.convert_u8_to_i16
 IE_CPU.convert_u8_to_i64
 IE_CPU.convert_u8_to_u16
 IE_CPU.convert_u8_to_u32
 IE_CPU.convert_u8_to_u64
-IE_CPU.convert_u8_to_boolean
-IE_CPU.convert_i32_to_boolean
-IE_CPU.convert_f32_to_boolean
-IE_CPU.convert_u32_to_f32 # NOT_IMPLEMENTED
-IE_CPU.convert_i4_to_f32 # NOT_IMPLEMENTED
-IE_CPU.convert_u1_to_f32 # NOT_IMPLEMENTED
-IE_CPU.convert_u4_to_f32 # NOT_IMPLEMENTED
+IE_CPU.convert_f16_to_f32
+IE_CPU.convert_u32_to_f32
+IE_CPU.convert_i4_to_f32
+IE_CPU.convert_u1_to_f32
+IE_CPU.convert_u4_to_f32
 
+IE_CPU.convert_u1_to_u1
+IE_CPU.convert_u4_to_u1
+IE_CPU.convert_u8_to_u1
+IE_CPU.convert_u16_to_u1
+IE_CPU.convert_u32_to_u1
+IE_CPU.convert_u64_to_u1
+IE_CPU.convert_i4_to_u1
+IE_CPU.convert_i8_to_u1
+IE_CPU.convert_i16_to_u1
+IE_CPU.convert_i32_to_u1
+IE_CPU.convert_i64_to_u1
+IE_CPU.convert_f16_to_u1
+IE_CPU.convert_bf16_to_u1
+IE_CPU.convert_f32_to_u1
+
+IE_CPU.convert_u1_to_i4
+IE_CPU.convert_u4_to_i4
+IE_CPU.convert_u8_to_i4
+IE_CPU.convert_u16_to_i4
+IE_CPU.convert_u32_to_i4
+IE_CPU.convert_u64_to_i4
+IE_CPU.convert_i8_to_i4
+IE_CPU.convert_i16_to_i4
+IE_CPU.convert_i32_to_i4
+IE_CPU.convert_i64_to_i4
+IE_CPU.convert_f16_to_i4
+IE_CPU.convert_bf16_to_i4
+IE_CPU.convert_f32_to_i4
+
+IE_CPU.convert_u1_to_u4
+IE_CPU.convert_u4_to_u4
+IE_CPU.convert_u8_to_u4
+IE_CPU.convert_u16_to_u4
+IE_CPU.convert_u32_to_u4
+IE_CPU.convert_u64_to_u4
+IE_CPU.convert_i4_to_u4
+IE_CPU.convert_i8_to_u4
+IE_CPU.convert_i16_to_u4
+IE_CPU.convert_i32_to_u4
+IE_CPU.convert_i64_to_u4
+IE_CPU.convert_f16_to_u4
+IE_CPU.convert_bf16_to_u4
+IE_CPU.convert_f32_to_u4
+
+IE_CPU.convert_u1_to_i8
+IE_CPU.convert_u4_to_i8
+IE_CPU.convert_i4_to_i8
+IE_CPU.convert_u1_to_i16
+IE_CPU.convert_u4_to_i16
+IE_CPU.convert_i4_to_i16
+IE_CPU.convert_u1_to_i32
+IE_CPU.convert_u4_to_i32
+IE_CPU.convert_i4_to_i32
+IE_CPU.convert_u1_to_i64
+IE_CPU.convert_u4_to_i64
+IE_CPU.convert_i4_to_i64
+IE_CPU.convert_u1_to_u8
+IE_CPU.convert_u4_to_u8
+IE_CPU.convert_i4_to_u8
+IE_CPU.convert_u1_to_u16
+IE_CPU.convert_u4_to_u16
+IE_CPU.convert_i4_to_u16
+IE_CPU.convert_u1_to_u32
+IE_CPU.convert_u4_to_u32
+IE_CPU.convert_i4_to_u32
+IE_CPU.convert_u1_to_u64
+IE_CPU.convert_u4_to_u64
+IE_CPU.convert_i4_to_u64
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine CPU plugin excludes
@@ -1160,40 +1231,31 @@ IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
 # output mismatch
 IE_CPU.gather_nd_batch_1d_from_3d_negative
 
-# DFT is not implemented yet in plugins
-IE_CPU.dft1d_eval
-IE_CPU.dft2d_eval
-IE_CPU.dft3d_eval
-IE_CPU.dft1d_eval_i32
-IE_CPU.dft2d_eval_i32
-IE_CPU.dft3d_eval_i32
-IE_CPU.dft1d_signal_size_eval
+# nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
 IE_CPU.dft1d_eval_bfloat16
 IE_CPU.dft2d_eval_bfloat16
 IE_CPU.dft3d_eval_bfloat16
 IE_CPU.dft1d_eval_float16
 IE_CPU.dft2d_eval_float16
 IE_CPU.dft3d_eval_float16
-IE_CPU.dft1d_eval_1
-IE_CPU.dft2d_eval_1
-IE_CPU.dft3d_eval_1
+IE_CPU.onnx_constant_sparse_tensor_float16_3x4
 
-# IDFT is not implemented yet in plugins
-IE_CPU.idft1d_eval
-IE_CPU.idft2d_eval
-IE_CPU.idft3d_eval
-IE_CPU.idft1d_eval_i32
-IE_CPU.idft2d_eval_i32
-IE_CPU.idft3d_eval_i32
+
+# nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
 IE_CPU.idft1d_eval_bfloat16
 IE_CPU.idft2d_eval_bfloat16
 IE_CPU.idft3d_eval_bfloat16
 IE_CPU.idft1d_eval_float16
 IE_CPU.idft2d_eval_float16
 IE_CPU.idft3d_eval_float16
-IE_CPU.idft1d_eval_1
-IE_CPU.idft2d_eval_1
-IE_CPU.idft3d_eval_1
+
+# The plugin does not support UNSPECIFIED
+IE_CPU.onnx_constant_sparse_tensor_uint32_3x4
+IE_CPU.onnx_constant_sparse_tensor_double_3x4
+
+# Sparse tensor with (u)i16 type tests
+IE_CPU.onnx_constant_sparse_tensor_int16_3x4
+IE_CPU.onnx_constant_sparse_tensor_uint16_3x4
 
 #-------------------------------------------------------------------------------
 #

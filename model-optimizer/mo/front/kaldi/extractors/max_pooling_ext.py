@@ -36,7 +36,7 @@ class MaxPoolingComponentFrontExtractor(FrontExtractorOp):
 
         mapping_rule = {
             'window': np.array([1, 1, 1, kernel], dtype=np.int64),
-            'stride': np.array([1, 1, stride, stride], dtype=np.int64),
+            'stride': np.array([1, 1, 1, stride], dtype=np.int64),
             'pool_stride': pool_stride,
             'pool_step': pool_step,
             'pad': np.array([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=np.int64),
