@@ -27,7 +27,7 @@ a_{i} = -a_{i}
 
 **Types**
 
-* *T*: any numeric type.
+* *T*: any numeric signed type.
 
 **Examples**
 
