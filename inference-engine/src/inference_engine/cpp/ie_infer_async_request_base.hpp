@@ -14,7 +14,6 @@
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
-
 namespace InferenceEngine {
 
 #define CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(StatusCode, ExceptionType) catch (const ExceptionType& ex) {       \
@@ -142,7 +141,8 @@ public:
     }
 
     StatusCode SetCompletionCallback(CompletionCallback callback) noexcept override {
-        TO_STATUS_NO_RESP(_impl->SetCallback([callback, this] (std::exception_ptr exceptionPtr) {
+        auto weakImpl = std::shared_ptr<IInferRequestInternal>(_impl.get(), [](IInferRequestInternal*){});
+        TO_STATUS_NO_RESP(_impl->SetCallback([callback, weakImpl] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = [&] ()-> StatusCode {
                 if (exceptionPtr) {
                     TO_STATUS_NO_RESP(std::rethrow_exception(exceptionPtr));
@@ -150,22 +150,20 @@ public:
                     return OK;
                 }
             } ();
-            callback(std::shared_ptr<InferRequestBase>{this, [](InferRequestBase*){}}, statusCode);
+            callback(std::make_shared<InferRequestBase>(weakImpl), statusCode);
         }));
     }
 
-    StatusCode GetUserData(void** data, ResponseDesc*) noexcept override {
+    StatusCode GetUserData(void** data, ResponseDesc* resp) noexcept override {
         if (data != nullptr) {
-            *data = _data;
-            return OK;
+            TO_STATUS(*data = _impl->GetUserData());
         } else {
             return GENERAL_ERROR;
         }
     }
 
-    StatusCode SetUserData(void* data, ResponseDesc*) noexcept override {
-        _data = data;
-        return OK;
+    StatusCode SetUserData(void* data, ResponseDesc* resp) noexcept override {
+        TO_STATUS(_impl->SetUserData(data));
     }
 
     StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept override {
@@ -188,8 +186,6 @@ public:
         }
     }
     IE_SUPPRESS_DEPRECATED_END
-
-    void* _data = nullptr;
 };
 
 IE_SUPPRESS_DEPRECATED_END

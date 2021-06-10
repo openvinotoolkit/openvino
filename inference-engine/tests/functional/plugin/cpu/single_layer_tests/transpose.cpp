@@ -42,8 +42,6 @@ public:
     }
 protected:
     void SetUp() override {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
-
         Precision netPrecision;
         std::vector<size_t> inputShape, inputOrder;
         CPUSpecificParams cpuParams;

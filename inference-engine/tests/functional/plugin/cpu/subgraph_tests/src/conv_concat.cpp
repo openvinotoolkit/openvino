@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_utils/convolution_params.hpp"
 #include "subgraph_tests/include/conv_concat.hpp"
 
 using namespace InferenceEngine;

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
-
 #include "behavior/set_preprocess.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -76,5 +74,19 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessConversionTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         PreprocessConversionTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::ValuesIn(netLayouts),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::ValuesIn(configs)),
+                        PreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
 }  // namespace

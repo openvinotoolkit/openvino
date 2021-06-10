@@ -497,29 +497,20 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_epsilon)
         {inputs_et, PartialShape{100}, "variance"}
     };
 
-    double eps_zero = 0.0;
     double eps_neg = -1.0;
-
-    const std::vector<BatchNormInferParams> bn_tests{
-        BatchNormInferParams{inputs_et, data_batch_shape, ch_inputs, eps_zero},
-        BatchNormInferParams{inputs_et, data_batch_shape, ch_inputs, eps_neg}
-    };
-
-    for(const auto& params : bn_tests)
+    const BatchNormInferParams params{inputs_et, data_batch_shape, ch_inputs, eps_neg};
+    try
     {
-        try
-        {
-            auto bn = makeBatchNormOp<TypeParam>(params);
-            FAIL() << "Invalid 'epsilon' attribute value not detected";
-        }
-        catch (const NodeValidationFailure& error)
-        {
-            EXPECT_HAS_SUBSTRING(error.what(), "Attribute 'epsilon' must have non-zero positive floating-point value.");
-        }
-        catch (...)
-        {
-            FAIL() << "Positive 'epsilon' attribute value check failed for unexpected reason";
-        }
+        auto bn = makeBatchNormOp<TypeParam>(params);
+        FAIL() << "Invalid 'epsilon' attribute value not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "Attribute 'epsilon' must be a floating-point value greater than or equal to zero.");
+    }
+    catch (...)
+    {
+        FAIL() << "Non-negative 'epsilon' attribute value check failed for unexpected reason";
     }
 }
 
@@ -542,4 +533,4 @@ REGISTER_TYPED_TEST_CASE_P(
     batch_norm_inference_invalid_epsilon);
 
 using Types = ::testing::Types<op::v0::BatchNormInference, op::v5::BatchNormInference>;
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop, BatchNormTest, Types, );
+INSTANTIATE_TYPED_TEST_CASE_P(type_prop, BatchNormTest, Types);

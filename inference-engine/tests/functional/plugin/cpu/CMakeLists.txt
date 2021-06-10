@@ -9,7 +9,7 @@ add_library(cpuSpecificRtInfo STATIC ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin/uti
 target_link_libraries(cpuSpecificRtInfo PRIVATE ${NGRAPH_LIBRARIES})
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin)
-set(DEPENDENCIES MKLDNNPlugin)
+set(DEPENDENCIES MKLDNNPlugin AutoPlugin)
 set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo)
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND INCLUDES "${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op")
@@ -30,8 +30,3 @@ addIeTargetTest(
         LABELS
             CPU
 )
-
-# CVS-55352
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/bfloat16/memory_conv.cpp"
-    PROPERTIES INCLUDE_DIRECTORIES
-    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)

@@ -10,7 +10,7 @@ import logging
 import subprocess
 
 
-def cmd_exec(args, env=None, log=None, verbose=True):
+def cmd_exec(args, env=None, log=None, verbose=True, shell=False):
     """ Run cmd using subprocess with logging and other improvements
     """
     if log is None:
@@ -28,6 +28,7 @@ def cmd_exec(args, env=None, log=None, verbose=True):
         stderr=subprocess.STDOUT,
         encoding="utf-8",
         universal_newlines=True,
+        shell=shell,
     )
     output = []
     for line in iter(proc.stdout.readline, ""):

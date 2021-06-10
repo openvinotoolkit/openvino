@@ -11,11 +11,10 @@
 #include <thread>
 #include <file_utils.h>
 #include "vpu_test_data.hpp"
-#include "functional_test_utils/test_model/test_model.hpp"
 
 #include "helpers/myriad_devices.hpp"
 
-#include <ie_plugin_ptr.hpp>
+#include <cpp/ie_plugin.hpp>
 
 using namespace std;
 using namespace ::testing;
@@ -191,7 +190,7 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        auto model = convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
 
         ExecutableNetwork ret;
@@ -229,7 +228,7 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        auto model = convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
 
         ExecutableNetwork ret;

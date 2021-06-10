@@ -286,6 +286,14 @@ namespace ngraph
         }
 
         template <>
+        SparseTensor Node::get_attribute_value(const std::string& name,
+                                               SparseTensor default_value) const
+        {
+            return m_pimpl->template get_attribute_value<SparseTensor>(name,
+                                                                       std::move(default_value));
+        }
+
+        template <>
         Graph Node::get_attribute_value(const std::string& name, Graph default_value) const
         {
             return m_pimpl->template get_attribute_value<Graph>(name, std::move(default_value));
@@ -343,6 +351,15 @@ namespace ngraph
         }
 
         template <>
+        std::vector<SparseTensor>
+            Node::get_attribute_value(const std::string& name,
+                                      std::vector<SparseTensor> default_value) const
+        {
+            return m_pimpl->template get_attribute_value<std::vector<SparseTensor>>(
+                name, std::move(default_value));
+        }
+
+        template <>
         std::vector<Graph> Node::get_attribute_value(const std::string& name,
                                                      std::vector<Graph> default_value) const
         {
@@ -387,6 +404,12 @@ namespace ngraph
         }
 
         template <>
+        SparseTensor Node::get_attribute_value(const std::string& name) const
+        {
+            return m_pimpl->template get_attribute_value<SparseTensor>(name);
+        }
+
+        template <>
         Subgraph Node::get_attribute_value(const std::string& name) const
         {
             return m_pimpl->template get_attribute_value<Subgraph>(name);
@@ -426,6 +449,12 @@ namespace ngraph
         std::vector<Tensor> Node::get_attribute_value(const std::string& name) const
         {
             return m_pimpl->template get_attribute_value<std::vector<Tensor>>(name);
+        }
+
+        template <>
+        std::vector<SparseTensor> Node::get_attribute_value(const std::string& name) const
+        {
+            return m_pimpl->template get_attribute_value<std::vector<SparseTensor>>(name);
         }
 
         template <>

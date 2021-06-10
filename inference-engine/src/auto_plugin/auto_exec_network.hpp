@@ -19,18 +19,11 @@ namespace AutoPlugin {
 
 using DeviceName = std::string;
 
-struct DeviceInformation {
-    DeviceName deviceName;
-    std::map<std::string, std::string> config;
-};
-
-class AutoExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
+class AutoExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
-    AutoExecutableNetwork(const InferenceEngine::ExecutableNetwork&                             network,
-                          const DeviceInformation&                                              deviceInfo,
-                          const bool                                                            needPerfCounters = false);
+    explicit AutoExecutableNetwork(const InferenceEngine::SoExecutableNetworkInternal& network, bool enablePerfCount);
 
     void Export(std::ostream& networkModel) override;
     InferenceEngine::RemoteContext::Ptr GetContext() const override;
@@ -40,12 +33,12 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string& name) const override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
-    ~AutoExecutableNetwork() override;
 
-    DeviceInformation                                            _deviceInfo;
-    InferenceEngine::ExecutableNetwork                           _network;
-    std::unordered_map<std::string, InferenceEngine::Parameter>  _config;
-    bool                                                         _needPerfCounters = false;
+    ~AutoExecutableNetwork();
+
+private:
+    InferenceEngine::SoExecutableNetworkInternal _network;
+    bool _enablePerfCount;
 };
 
 }  // namespace AutoPlugin

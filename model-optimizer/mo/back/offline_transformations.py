@@ -11,7 +11,7 @@ def get_available_transformations():
     try:
         from openvino.offline_transformations import ApplyLowLatencyTransformation  # pylint: disable=import-error,no-name-in-module
         return {
-            'LowLatency': ApplyLowLatencyTransformation,
+            'LowLatency2': ApplyLowLatencyTransformation,
         }
     except Exception as e:
         return {}
@@ -35,6 +35,7 @@ def apply_offline_transformations(input_model: str, framework: str, transforms: 
 
         available_transformations[name](net, **args)
 
+    ApplyMOCTransformations(net, False)
     net.serialize(input_model + ".xml", input_model + ".bin")
     path_to_mapping = input_model + ".mapping"
     GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)

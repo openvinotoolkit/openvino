@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
 #include "behavior/perf_counters.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -13,10 +12,6 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> Multiconfigs = {
             {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
-    };
-
-    const std::vector<std::map<std::string, std::string>> Autoconfigs = {
-            {}
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PerfCountersTest,
@@ -31,13 +26,6 @@ namespace {
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(Multiconfigs)),
-                            PerfCountersTest::getTestCaseName);
-
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, PerfCountersTest,
-                            ::testing::Combine(
-                                    ::testing::Values(InferenceEngine::Precision::FP32),
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(Autoconfigs)),
                             PerfCountersTest::getTestCaseName);
 
 }  // namespace

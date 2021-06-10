@@ -70,6 +70,7 @@ namespace ngraph
                 std::pair<bool, AxisSet> get_broadcast_axes() const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 bool broadcast_evaluate(const HostTensorVector& outputs,
@@ -132,6 +133,7 @@ namespace ngraph
                 void validate_and_infer_types() override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             protected:
                 AutoBroadcastSpec m_broadcast_spec;

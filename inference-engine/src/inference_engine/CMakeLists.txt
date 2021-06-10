@@ -219,7 +219,7 @@ export(TARGETS ${TARGET_NAME} NAMESPACE IE::
 
 # Export for developer package
 
-ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api)
+ie_developer_export_targets(${TARGET_NAME}_plugin_api)
 
 # install TBB
 
@@ -259,9 +259,10 @@ endif()
 # Install Inference Engine
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
+ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
 install(DIRECTORY "${IE_MAIN_SOURCE_DIR}/include" DESTINATION ${IE_CPACK_IE_DIR}
-        COMPONENT core)
+        COMPONENT core_dev)
 
 install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
@@ -278,9 +279,7 @@ install(EXPORT InferenceEngineTargets
         FILE InferenceEngineTargets.cmake
         NAMESPACE IE::
         DESTINATION ${IE_CPACK_IE_DIR}/share
-        COMPONENT core)
-
-include(CMakePackageConfigHelpers)
+        COMPONENT core_dev)
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}")
@@ -303,17 +302,10 @@ configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/Inf
 
 configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
                "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-               COPYONLY)
-
-# WA for CI
-configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
-               COPYONLY)
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
-       APPEND FILE "${CMAKE_BINARY_DIR}/share/InferenceEngineTargets.cmake")
+               @ONLY)
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
               "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake"
         DESTINATION ${IE_CPACK_IE_DIR}/share
-        COMPONENT core)
+        COMPONENT core_dev)

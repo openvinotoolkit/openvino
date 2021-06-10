@@ -26,6 +26,15 @@ set(NGRAPH_INCLUDE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/core/include
 )
 
+set(FRONTEND_INCLUDE_PATH
+    ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager/include
+)
+
+# Will be used by frontends to construct frontend-specific source location paths
+set(FRONTEND_BASE_PATH
+    ${CMAKE_CURRENT_SOURCE_DIR}/frontend
+)
+
 if (APPLE)
     # Enable MACOS_RPATH by default.
     cmake_policy(SET CMP0042 NEW)
@@ -92,7 +101,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" OFF)
 endif()
 if(NGRAPH_ONNX_EDITOR_ENABLE AND NOT NGRAPH_ONNX_IMPORT_ENABLE)
-    message(FATAL_ERROR "ONNX Editor compotent requires ONNX Importer. Set NGRAPH_ONNX_IMPORT_ENABLE=ON.")
+    message(FATAL_ERROR "ONNX Editor component requires ONNX Importer. Set NGRAPH_ONNX_IMPORT_ENABLE=ON.")
 endif()
 
 message(STATUS "NGRAPH_ADDRESS_SANITIZER_ENABLE:      ${NGRAPH_ADDRESS_SANITIZER_ENABLE}")
@@ -179,16 +188,6 @@ set(NGRAPH_INSTALL_INCLUDE "deployment_tools/ngraph/${CMAKE_INSTALL_INCLUDEDIR}"
 set(NGRAPH_INSTALL_DOC "deployment_tools/ngraph/${CMAKE_INSTALL_DOCDIR}")
 set(NGRAPH_INSTALL_BIN "deployment_tools/ngraph/${CMAKE_INSTALL_BINDIR}")
 
-if (LINUX)
-    if (DEFINED NGRAPH_RPATH)
-        set(CMAKE_BUILD_RPATH "$ORIGIN:${NGRAPH_RPATH}")
-        set(CMAKE_INSTALL_RPATH "$ORIGIN:${NGRAPH_RPATH}")
-    else()
-        set(CMAKE_BUILD_RPATH "$ORIGIN")
-        set(CMAKE_INSTALL_RPATH "$ORIGIN")
-    endif()
-endif()
-
 #-----------------------------------------------------------------------------------------------
 # Compile Flags for nGraph...
 #-----------------------------------------------------------------------------------------------
@@ -266,7 +265,6 @@ endif()
 add_subdirectory(core)
 
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
-    include(CMakePackageConfigHelpers)
     set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
     export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
 
@@ -275,7 +273,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
             FILE ngraphTargets.cmake
             NAMESPACE ngraph::
             DESTINATION "deployment_tools/ngraph/cmake"
-            COMPONENT ngraph)
+            COMPONENT ngraph_dev)
     endif()
 
     configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/share/ngraphConfig.cmake.in
@@ -289,7 +287,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION "deployment_tools/ngraph/cmake"
-        COMPONENT ngraph)
+        COMPONENT ngraph_dev)
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
