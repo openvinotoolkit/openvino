@@ -17,7 +17,7 @@ The following diagram illustrates the typical OpenVINO™ workflow (click to see
 ![](img/OpenVINO-diagram.png)
 
 ### Model Preparation
-#### Components: Open Model Zoo, Deep Learning Workbench, OpenVINO Training Extentions
+#### Components: [Open Model Zoo](https://github.com/opencv/open_model_zoo), [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), [OpenVINO Training Extentions](https://github.com/openvinotoolkit/training_extensions)
 
 You can use your framework of choice to prepare and train a deep learning model or just download a pre-trained model from the Open Model Zoo. The Open Model Zoo includes deep learning solutions to a variety of vision problems, including object recognition, face recognition, pose estimation, text detection, and action recognition, at a range of measured complexities.
 Several of these pre-trained models are used also in the [code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos_README). To download models from the Open Model Zoo, the [Model Downloader](@ref omz_tools_downloader_README) tool is used.
@@ -36,7 +36,7 @@ Useful documents for model preparation:
 * TBD: OTE
 
 ### Model Conversion and Optimization
-#### Components: Model Optimizer, Post-training Optimization Tool
+#### Components: [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), [Post-training Optimization Tool](@ref pot_README)
 
 One of the core component of the OpenVINO™ toolkit is the [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) a cross-platform command-line
 tool that converts a trained neural network from its source framework to an open-source, nGraph-compatible [Intermediate Representation (IR)](MO_DG/IR_and_opsets.md) for use in inference operations. The Model Optimizer imports models trained in popular frameworks such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX* and performs a few optimizations to remove excess layers and group operations when possible into simpler, faster graphs.
@@ -58,7 +58,7 @@ Useful documents for model conversion and optimization:
 * [Post-training Optimization Tool](@ref pot_README)
 
 ### Running and Tuning Inference
-#### Components: Inference Ingine, Neural Network Compression Framework 
+#### Components: [Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md), [Neural Network Compression Framework](https://github.com/openvinotoolkit/nncf)
 
 The other core component of OpenVINO™ is the [Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md), which manages the loading and compiling of the optimized neural network model, runs inference operations on input data, and outputs the results. Inference Engine can execute synchronously or asynchronously, and its plugin architecture manages the appropriate compilations for execution on multiple Intel® devices, including both workhorse CPUs and specialized graphics and video processing platforms (see below, Packaging and Deployment).
 
