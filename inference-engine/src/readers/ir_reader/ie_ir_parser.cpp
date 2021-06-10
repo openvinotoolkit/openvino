@@ -1011,8 +1011,6 @@ void V10Parser::parsePreProcess(
     if (!meanSegmentPrecision || meanSegmentPrecision == Precision::MIXED)
         IE_THROW() << "mean blob defined without specifying precision.";
 
-    InferenceEngine::PreProcessChannel::Ptr preProcessChannel;
-
     int lastChanNo = -1;
     std::unordered_set<int> idsForMeanImage;
 
@@ -1022,7 +1020,6 @@ void V10Parser::parsePreProcess(
             IE_THROW() << "Pre-process channel id invalid: " << chanNo;
         }
         lastChanNo = chanNo;
-        preProcessChannel = pp[chanNo];
 
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
@@ -1038,13 +1035,15 @@ void V10Parser::parsePreProcess(
                                        << " extpecting " << width << " x " << height << " x "
                                        << meanSegmentPrecision.size();
                 }
-                preProcessChannel->meanData = make_blob_with_precision(
+                auto meanData = make_blob_with_precision(
                     TensorDesc(meanSegmentPrecision, {height, width}, Layout::HW));
-                preProcessChannel->meanData->allocate();
-                auto lockedMem = preProcessChannel->meanData->buffer();
+                meanData->allocate();
+                auto lockedMem = meanData->buffer();
                 char* data = lockedMem.as<char*>();
                 uint8_t* src_data = weights->cbuffer().as<uint8_t*>() + offset;
                 memcpy(data, src_data, size);
+
+                pp.setMeanImageForChannel(meanData, chanNo);
             }
         }
     }
