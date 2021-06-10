@@ -263,6 +263,13 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch);
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_evaluate);
     return evaluate_space_to_batch(outputs, inputs);
+}
+
+bool ngraph::op::v1::SpaceToBatch::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_has_evaluate);
+    return !get_input_partial_shape(0).is_dynamic() &&
+           (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5);
 }

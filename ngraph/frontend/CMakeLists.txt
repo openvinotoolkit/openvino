@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+add_subdirectory(frontend_manager)
+
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     add_subdirectory(onnx_common)
     add_subdirectory(onnx_import)

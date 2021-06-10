@@ -49,11 +49,26 @@ public:
     Expected expected;
 };
 
+typedef std::tuple<size_t, FuseSubtractToFakeQuantizeTransformationTestValues> FuseSubtractToFakeQuantizeTransformationTestParams;
+
 class FuseSubtractToFakeQuantizeTransformation : public LayerTransformation,
-    public testing::WithParamInterface<FuseSubtractToFakeQuantizeTransformationTestValues> {
+    public testing::WithParamInterface<FuseSubtractToFakeQuantizeTransformationTestParams> {
 public:
     void SetUp() override {
-        const FuseSubtractToFakeQuantizeTransformationTestValues testValues = GetParam();
+        const size_t quantizationLevel = get<0>(GetParam());
+        FuseSubtractToFakeQuantizeTransformationTestValues testValues = get<1>(GetParam());
+        if (!testValues.actual.fakeQuantizeOnData.empty()) {
+            testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
+        }
+        if (!testValues.actual.fakeQuantizeOnData2.empty()) {
+            testValues.actual.fakeQuantizeOnData2.quantizationLevel = quantizationLevel;
+        }
+        if (!testValues.expected.fakeQuantizeOnData.empty()) {
+            testValues.expected.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
+        }
+        if (!testValues.expected.fakeQuantizeOnData2.empty()) {
+            testValues.expected.fakeQuantizeOnData2.quantizationLevel = quantizationLevel;
+        }
 
         actualFunction = testValues.actual.fakeQuantizeOnData2.empty() ?
             ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
@@ -84,8 +99,21 @@ public:
                 testValues.expected.dequantization2);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationTestValues> obj) {
-        const FuseSubtractToFakeQuantizeTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationTestParams> obj) {
+        const size_t quantizationLevel = get<0>(obj.param);
+        FuseSubtractToFakeQuantizeTransformationTestValues testValues = get<1>(obj.param);
+        if (!testValues.actual.fakeQuantizeOnData.empty()) {
+            testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
+        }
+        if (!testValues.actual.fakeQuantizeOnData2.empty()) {
+            testValues.actual.fakeQuantizeOnData2.quantizationLevel = quantizationLevel;
+        }
+        if (!testValues.expected.fakeQuantizeOnData.empty()) {
+            testValues.expected.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
+        }
+        if (!testValues.expected.fakeQuantizeOnData2.empty()) {
+            testValues.expected.fakeQuantizeOnData2.quantizationLevel = quantizationLevel;
+        }
 
         std::ostringstream result;
         result << testValues.params.updatePrecisions << "_" <<
@@ -103,6 +131,8 @@ TEST_P(FuseSubtractToFakeQuantizeTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+std::vector<size_t> quantizationLevels = { 256ul, 128ul };
 
 const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
     {
@@ -190,7 +220,9 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FuseSubtractToFakeQuantizeTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::Combine(
+        ::testing::ValuesIn(quantizationLevels),
+        ::testing::ValuesIn(testValues)),
     FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
 
 } // namespace

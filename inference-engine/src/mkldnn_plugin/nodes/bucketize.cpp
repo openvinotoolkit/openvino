@@ -84,7 +84,7 @@ public:
             }
             num_bin_values = input_bin_dims[0];
 
-            num_values = std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), 1, std::multiplies<size_t>());
+            num_values = std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
 
             addConfig(op, {{TensorDescCreatorTypes::ncsp, input_precision},
                            {TensorDescCreatorTypes::ncsp, boundaries_precision}},

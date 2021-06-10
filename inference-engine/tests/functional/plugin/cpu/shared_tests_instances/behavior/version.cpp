@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
 #include "behavior/version.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -14,6 +12,10 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> Multiconfigs = {
             {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
+    };
+
+    const std::vector<std::map<std::string, std::string>> Autoconfigs = {
+            {{ AUTO_CONFIG_KEY(DEVICE_LIST) , CommonTestUtils::DEVICE_CPU}}
     };
 
     const std::vector<std::map<std::string, std::string>> Heteroconfigs = {
@@ -32,6 +34,13 @@ namespace {
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(Multiconfigs)),
+                            VersionTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, VersionTest,
+                            ::testing::Combine(
+                                    ::testing::Values(InferenceEngine::Precision::FP32),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(Autoconfigs)),
                             VersionTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Hetero_BehaviorTests, VersionTest,

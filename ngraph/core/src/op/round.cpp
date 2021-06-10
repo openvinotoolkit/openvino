@@ -101,6 +101,28 @@ bool op::v5::Round::evaluate(const HostTensorVector& outputs, const HostTensorVe
         inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
 }
 
+bool op::v5::Round::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v5_Round_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::boolean:
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::bf16: return true;
+    default: break;
+    }
+    return false;
+}
+
 namespace ngraph
 {
     template <>

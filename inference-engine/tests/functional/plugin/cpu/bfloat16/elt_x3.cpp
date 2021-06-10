@@ -171,10 +171,10 @@ protected:
         // threshold = 0.6f;  // Max in fp32 network by output: 12.0983
 
         // 3 channels, 4 x 4 size
-        threshold = 20.6f;  // Max in fp32 network by output: 879.077
+        threshold = 30.6f;  // Max in fp32 network by output: 879.077
 
         // STAGE3:
-        // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
+        // filling of expected precision of layer execution defined by precision of input tensor to the primitive and reflected in
         // performance counters
         expectedPrecisions["Convolution_1"] = "BF16";
         expectedPrecisions["Convolution_2"] = "BF16";

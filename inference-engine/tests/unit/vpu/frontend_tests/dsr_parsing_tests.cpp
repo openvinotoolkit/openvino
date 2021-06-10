@@ -10,6 +10,8 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset3.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
+
 namespace vpu {
 
 namespace ie = InferenceEngine;

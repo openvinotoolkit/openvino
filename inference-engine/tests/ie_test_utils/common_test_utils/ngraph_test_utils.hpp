@@ -15,6 +15,8 @@
 #include <ngraph/opsets/opset6.hpp>
 
 #include "ie_common.h"
+#include <ngraph_ops/framework_node.hpp>
+
 #include "test_common.hpp"
 
 #define DYN ngraph::Dimension::dynamic()
@@ -319,7 +321,8 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<std::vector<std::string>>,
                 private AttributeStorage<std::shared_ptr<ngraph::Function>>,
                 private AttributeStorage<SubGraphOpInputDescription>,
-                private AttributeStorage<SubGraphOpOutputDescription> {
+                private AttributeStorage<SubGraphOpOutputDescription>,
+                private AttributeStorage<ngraph::op::FrameworkNodeAttrs> {
 public:
     template <typename AttrValue>
     const AttributeStorage<AttrValue>& storage() const {
@@ -357,7 +360,8 @@ public:
                storage<std::vector<std::string>>().get_attributes_number() +
                storage<std::shared_ptr<ngraph::Function>>().get_attributes_number() +
                storage<SubGraphOpInputDescription>().get_attributes_number() +
-               storage<SubGraphOpOutputDescription>().get_attributes_number();
+               storage<SubGraphOpOutputDescription>().get_attributes_number() +
+               storage<ngraph::op::FrameworkNodeAttrs>().get_attributes_number();
     }
 };
 
@@ -684,6 +688,23 @@ struct Get<
         return "[" + join(v) + "]";
     }
 };
+
+template <>
+struct Get<ngraph::op::FrameworkNodeAttrs, void> {
+    static std::string value(const ngraph::op::FrameworkNodeAttrs& attrs) {
+        std::stringstream oss;
+        const auto & a = attrs;
+        oss << "version=" << attrs.get_opset_name() << ", ";
+        oss << "type=" << attrs.get_type_name() << ", ";
+        oss << "attrs[";
+        for (const auto & item : a) {
+            oss << item.first << "=" << item.second << " ";
+        }
+        oss << "]";
+        return "[" + oss.str() + "]";
+    }
+};
+
 
 }  // namespace str
 

@@ -127,6 +127,7 @@ public:
     void PWLPrimitive(InferenceEngine::CNNLayerPtr);
     void FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr);
     void CopyPrimitive(InferenceEngine::CNNLayerPtr);
+    void GemmPrimitive(InferenceEngine::CNNLayerPtr);
 
     void finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_width,
