@@ -24,7 +24,7 @@ Several of these pre-trained models are used also in the [code samples](IE_DG/Sa
 
 [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) provides a we-based interface to download a pre-trained model and work with it. 
 
-If you cannot find a needed model in Open Model Zoo or want to train your own model, use [OpenVINO Training Extentions](https://github.com/openvinotoolkit/training_extensions) which provide a convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
+If you cannot find a needed model in Open Model Zoo or want to train your own model, use [OpenVINO Training Extentions](https://github.com/openvinotoolkit/training_extensions) which provide a convenient environment to train Deep Learning models.
 
 ![](img/OV-diagram-step1.png)
 
@@ -38,12 +38,12 @@ Useful documents for model preparation:
 ### Model Conversion and Optimization
 #### Components: [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), [Post-training Optimization Tool](@ref pot_README)
 
-[Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) is a cross-platform command-line
+The [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) is a cross-platform command-line
 tool that converts a trained neural network from its source framework to an open-source, nGraph-compatible [Intermediate Representation (IR)](MO_DG/IR_and_opsets.md) for use in inference operations. The Model Optimizer imports models trained in popular frameworks such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX* and performs a few optimizations to remove excess layers and group operations when possible into simpler, faster graphs.
 
 If your neural network contains layers that are not in the list of known layers for supported frameworks, you can adjust the conversion and optimization process through use of  [Custom Layers](HOWTO/Custom_Layers_Guide.md).
 
-Use the [Post-training Optimization Tool](@ref pot_README) to accelerate the inference of a deep learning model by quantizing it to INT8. Models from Open Model Zoo can be quantized using [Model Quantizer utility](https://github.com/openvinotoolkit/open_model_zoo/tree/master/tools/downloader#model-quantizer-usage). 
+Use the [Post-training Optimization Tool](@ref pot_README) to accelerate the inference of a deep learning model by quantizing it to INT8. Models from Open Model Zoo can be quantized using the [Model Quantizer utility](https://github.com/openvinotoolkit/open_model_zoo/tree/master/tools/downloader#model-quantizer-usage). 
 
 Run the [Accuracy Checker utility](@ref omz_tools_accuracy_checker) either against source topologies or against the output representation to evaluate the accuracy of inference. The Accuracy Checker is also part of the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), an integrated web-based performance analysis studio. 
 
@@ -67,7 +67,7 @@ OpenVINO™ toolkit includes a set of [inference code samples](IE_DG/Samples_Ove
 
 OpenVINO also makes use of open-source and Intel™ tools for traditional graphics processing and performance management. Intel® Media SDK supports accelerated rich-media processing, including transcoding. OpenVINO™ optimizes calls to the rich OpenCV and OpenVX libraries for processing computer vision workloads. And the new DL Streamer integration further accelerates video pipelining and performance.
 
-Besides of the [Post-training Optimization Tool](@ref pot_README) which can be used to quantize the model, [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) can be used for model fine-tuning improving INT8 quantization or even applying more aggressive compression methods such as filter pruning, sparsity and binarization to further speedup model inference and reduce its footprint.
+Besides of the [Post-training Optimization Tool](@ref pot_README) which can be used to quantize the model, the [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) can be used for model fine-tuning improving INT8 quantization or even applying more aggressive compression methods such as filter pruning, sparsity and binarization to further speedup model inference and reduce its footprint.
 
 For a full browser-based studio integrating these other key tuning utilities, try the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction).
 
