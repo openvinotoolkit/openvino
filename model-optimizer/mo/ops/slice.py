@@ -121,23 +121,19 @@ class Slice(Op):
 
         starts = node.in_port(1).data.get_value()
         ends = node.in_port(2).data.get_value()
-        if starts is None or ends is None:
-            node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value] * len(input_shape)))
-            return
+        if node.is_in_port_connected(4):
+            steps = node.in_port(4).data.get_value()
+        else:
+            steps = np.ones(len(starts), dtype=np.int64)
 
         if node.is_in_port_connected(3):
             axes = node.in_port(3).data.get_value()
-            if axes is None:
-                raise Error('The non-constant axes values for Slice operation "{}" is not supported'.format(node.name))
         else:
             axes = [x for x in range(len(starts))]
 
-        if node.is_in_port_connected(4):
-            steps = node.in_port(4).data.get_value()
-            if steps is None:
-                raise Error('The non-constant steps values for Slice operation "{}" is not supported'.format(node.name))
-        else:
-            steps = np.ones(len(starts), dtype=np.int64)
+        if starts is None or ends is None or steps is None or axes is None:
+            node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value] * len(input_shape)))
+            return
 
         slice_idx = [slice(0, in_shape, 1) for in_shape in input_shape]
         for i in range(len(axes)):
@@ -145,6 +141,8 @@ class Slice(Op):
             slice_idx[axes[i]] = slice(starts[i], ends[i], steps[i])
         if input_value is None:
             output_shape = get_shape_from_slice(input_shape, slice_idx)
+            if np.ma.any(output_shape <= 0):
+                raise Error('Output shape: {} of node "{}" contains non-positive values'.format(output_shape, node.name))
             node.out_port(0).data.set_shape(output_shape)
         else:
             node.out_port(0).data.set_value(input_value[tuple(slice_idx)])

@@ -117,6 +117,8 @@ def serialize_mean_image(bin_file_name: str, mean_data=[]):
 
 def xml_shape(shape: np.ndarray, element: Element):
     for d in unmask_shape(shape):
+        if d < -1:
+            raise Error('The value "{}" for shape is not valid value.'.format(d))
         dim = SubElement(element, 'dim')
         if int(d) != d:
             raise Error('The value "{}" for shape is not integer.'.format(d))
