@@ -72,12 +72,12 @@ static void AllocateImplSingle(BlobMap& blobMap, BlobMap& networkBlobMap, BlobDa
     blob->allocate();
     blobMap[blobData.first] = blob;
 
-    auto networkPresion = GetNetworkPrecision(blobData.first);
+    auto networkPresion = InferenceEngine::details::convertPrecision(GetNetworkPrecision(blobData.first));
     Blob::Ptr networkBlob;
-    if (InferenceEngine::details::convertPrecision(precision) == networkPresion) {
+    if (precision == networkPresion) {
         networkBlob = blob;
     } else {
-        networkBlob = make_blob_with_precision({InferenceEngine::details::convertPrecision(networkPresion), dims, layout});
+        networkBlob = make_blob_with_precision({networkPresion, dims, layout});
         networkBlob->allocate();
     }
     networkBlobMap[blobData.first] = networkBlob;
@@ -238,8 +238,17 @@ void TemplateInferRequest::inferPreprocess() {
             parameterType, parameterShape, InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second)->rmap().as<void*>());
     }
     for (auto&& output : _outputs) {
+        auto outputBlob = output.second;
+        auto networkOutput = _networkOutputBlobs[output.first];
         auto index = _executableNetwork->_outputIndex[output.first];
-        _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor();
+        if (outputBlob->getTensorDesc().getPrecision() == networkOutput->getTensorDesc().getPrecision()) {
+            networkOutput = outputBlob;
+        }
+        const auto& result = _results[index];
+        const auto& resultShape = result->get_shape();
+        const auto& resultType = result->get_element_type();
+        _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
+            resultType, resultShape, InferenceEngine::as<InferenceEngine::MemoryBlob>(networkOutput)->wmap().as<void*>());
     }
     _durations[Preprocess] = Time::now() - start;
 }
