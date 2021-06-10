@@ -5,10 +5,10 @@ import numpy as np
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
+from onnx.onnx_cpp2py_export.checker import ValidationError
 
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
-from tests import xfail_issue_35911
 
 
 @pytest.fixture
@@ -257,7 +257,6 @@ def test_2d_conv_transpose():
     )
 
 
-@xfail_issue_35911
 def test_pad_opset_1():
     x = np.ones((2, 2), dtype=np.float32)
     y = np.pad(x, pad_width=1, mode="constant")
@@ -281,7 +280,7 @@ def test_pad_opset_1():
 
     # no paddings arttribute
     model = get_node_model("Pad", x)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValidationError):
         import_onnx_model(model)
 
 
