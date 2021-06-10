@@ -10,12 +10,17 @@
 namespace GNAPluginNS {
 namespace GNALimitations {
 
+constexpr uint32_t bufferMaxSize = 65528;
+
 constexpr uint32_t convMinFiltersNum = 4;
 constexpr uint32_t convMaxFiltersNum = 65532;
 constexpr uint32_t convFiltersNumDivider = 4;
+constexpr uint32_t convFilterMaxSize = 768;
 constexpr uint32_t convEachKernelByteAlignment = 16;
 constexpr uint32_t noOfInputsDivisor = 8;
 constexpr uint32_t noOfInputsLowPrecDivisor = 16;
+
+constexpr uint32_t affineMaxBatchSize = 8;
 
 namespace Cnn2D {
 struct RangeLimit {
