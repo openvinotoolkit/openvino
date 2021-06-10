@@ -49,20 +49,15 @@ The function accepts a const shared pointer to `ngraph::Function` object and per
 
 This constructor creates a backend specific graph by importing from a stream object:
 
-> **NOTE**: The export of backend specific graph is done in the `ExportImpl` method, and data formats must be the same for both import and export.
+> **NOTE**: The export of backend specific graph is done in the `Export` method, and data formats must be the same for both import and export.
 
 @snippet src/template_executable_network.cpp executable_network:ctor_import_stream
 
-### `ExportImpl()`
-
-**Implementation details:**   
-Base InferenceEngine::ExecutableNetworkThreadSafeDefault class implements the public InferenceEngine::ExecutableNetworkThreadSafeDefault::Export method as following:
-- Writes `_plugin->GetName()` to the `model` stream.
-- Calls the `ExportImpl` method defined in a derived class to dump a backend specific graph.
+### `Export()`
 
 The implementation of the method should write all data to the `model` stream, which is required to import a backend specific graph later in the `Plugin::Import` method:
 
-@snippet src/template_executable_network.cpp executable_network:export_impl
+@snippet src/template_executable_network.cpp executable_network:export
 
 ### `CreateInferRequest()`
 
