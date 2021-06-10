@@ -85,6 +85,7 @@ Useful documents for inference tuning:
 * [OpenVX](https://software.intel.com/en-us/openvino-ovx-guide)
 
 ### Packaging and Deployment
+#### Components: [Deployment Manager](./install_guides/deployment-manager-tool.md)
 
 The Intel Distribution of OpenVINO™ toolkit outputs optimized inference runtimes for the following devices:
 * Intel® CPUs
@@ -94,7 +95,7 @@ The Intel Distribution of OpenVINO™ toolkit outputs optimized inference runtim
 
 The Inference Engine's plug-in architecture can be extended to meet other specialized needs. [Deployment Manager](./install_guides/deployment-manager-tool.md) is a Python* command-line tool that assembles the tuned model, IR files, your application, and required dependencies into a runtime package for your target device. It outputs packages for CPU, GPU, and VPU on Linux* and Windows*, and Neural Compute Stick-optimized packages with Linux.
 
-TBD: diagram step 4
+![](img/OV-diagram-step4.png)
 
 * [Inference Engine Integration Workflow](IE_DG/Integrate_with_customer_application_new_API.md)
 * [Inference Engine API References](./api_references.html)
