@@ -300,8 +300,18 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToFullyDynamic) {
     std::map<std::string, ngraph::PartialShape> shapes;
     shapes["data"] = refShape;
 
-    // We don't support dynamic rank in IR v10
-    ASSERT_THROW(cnnNetwork.reshape(shapes), InferenceEngine::Exception);
+    ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+
+    auto changedFunction = cnnNetwork.getFunction();
+    ASSERT_NE(nullptr, changedFunction);
+    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(changedFunction->get_results()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(ngraph->get_parameters()[0]->get_partial_shape().is_dynamic());
+    ASSERT_TRUE(ngraph->get_results()[0]->get_partial_shape().is_dynamic());
+    ASSERT_EQ(changedFunction->get_parameters()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(changedFunction->get_results()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_partial_shape(), refShape);
+    ASSERT_EQ(ngraph->get_results()[0]->get_partial_shape(), refShape);
 }
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUDynamicToDynamic) {
