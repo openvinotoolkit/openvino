@@ -157,16 +157,17 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessSetBlob) {
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
     preProcess.init(3);
     for (size_t i = 0; i < 3; i++) {
-        preProcess[i]->meanData = make_blob_with_precision(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
-                                                                                       {10, 10},
-                                                                                       InferenceEngine::Layout::HW));
-        preProcess[i]->meanData->allocate();
-        auto lockedMem = preProcess[i]->meanData->buffer();
+        auto meanData = make_blob_with_precision(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,  {10, 10},
+            InferenceEngine::Layout::HW));
+        meanData->allocate();
+        auto lockedMem = meanData->buffer();
         auto* data = lockedMem.as<float *>();
         for (size_t j = 0; j < 100; j++) {
             data[j] = 0;
             data[j] -= i * 100 + j;
         }
+        ASSERT_NO_THROW(preProcess.setMeanImageForChannel(meanData, i));
     }
     preProcess.setVariant(InferenceEngine::MEAN_IMAGE);
     // Load CNNNetwork to target plugins
