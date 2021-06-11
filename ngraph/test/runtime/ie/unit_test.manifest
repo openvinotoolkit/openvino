@@ -758,9 +758,6 @@ lrn_2d_across_outermost_axis
 dyn_group_convolution_backprop_filters
 
 # Layer <op_name> input port 1 is not connected to any data
-prelu
-prelu_shared_slope
-prelu_negative_slope
 convolution_simple_padding
 
 # Cannot cast ngraph node Stack to CNNLayer!
@@ -1669,14 +1666,6 @@ IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
 # incorrect result for Minimum if u16 type is used
 minimum_u16
 IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
-
-# not implemented in CPU and GPU
-evaluate_mvn_6_no_variance
-evaluate_mvn_6
-evaluate_mvn_6_inside_sqrt
-evaluate_mvn_6_across_chanells
-evaluate_mvn_6_across_batch
-IE_CPU.onnx_mvn_v6
 
 # not yet implemented on CPU/GPU Gather 7
 gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims

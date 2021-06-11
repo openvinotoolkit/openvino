@@ -6,6 +6,8 @@ ie_dependent_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON "X8
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
+ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
+
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
@@ -17,8 +19,6 @@ Supported values:\
                ALLOWED_VALUES ALL FIRST_INFERENCE)
 
 ie_option (ENABLE_PROFILING_FIRST_INFERENCE "Build with ITT tracing of first inference time." ON)
-
-ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
 ie_option(ENABLE_TEMPLATE_PLUGIN "Register template plugin into plugins.xml" OFF)
 
@@ -32,6 +32,9 @@ ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile t
 # Try to find python3
 find_package(PythonLibs 3 QUIET)
 ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" OFF "PYTHONLIBS_FOUND" OFF)
+
+find_package(PythonInterp 3 QUIET)
+ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FOUND" OFF)
 
 #
 # enable or disable output from NGRAPH_DEBUG statements
