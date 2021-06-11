@@ -152,7 +152,7 @@ TEST(type_prop, space_to_batch_invalid_element_type_pads_begin)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "crops_begin must be an integral number but got");
+        EXPECT_HAS_SUBSTRING(error.what(), "pads_begin must be an integral number but got");
     }
     catch(...)
     {
@@ -177,7 +177,7 @@ TEST(type_prop, space_to_batch_invalid_element_type_pads_end)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "crops_end must be an integral number but got");
+        EXPECT_HAS_SUBSTRING(error.what(), "pads_end must be an integral number but got");
     }
     catch(...)
     {
