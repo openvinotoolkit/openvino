@@ -73,6 +73,7 @@ set(SRC
     op_eval/non_zero.cpp
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
+    op_eval/reduce_sum.cpp
     op_eval/roi_align.cpp
     op_eval/roi_pooling.cpp
     op_eval/round.cpp
@@ -172,6 +173,13 @@ set(SRC
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
+    type_prop/reduce_logical_and.cpp
+    type_prop/reduce_logical_or.cpp
+    type_prop/reduce_max.cpp
+    type_prop/reduce_mean.cpp
+    type_prop/reduce_min.cpp
+    type_prop/reduce_prod.cpp
+    type_prop/reduce_sum.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
     type_prop/result.cpp
@@ -198,9 +206,6 @@ set(SRC
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/swish.cpp
-    type_prop/reduce_mean.cpp
-    type_prop/reduce_prod.cpp
-    type_prop/reduce_sum.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
@@ -232,6 +237,7 @@ set(SRC
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
+    visitors/op/log.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
     visitors/op/lstm_cell.cpp
@@ -287,7 +293,7 @@ set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
 if (ENABLE_MKL_DNN)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
-    if (NOT ENABLE_STRICT_DEPENDENCIES)
+    if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
         list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
@@ -297,7 +303,7 @@ endif()
 if (ENABLE_CLDNN)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
-    if (NOT ENABLE_STRICT_DEPENDENCIES)
+    if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
         list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)

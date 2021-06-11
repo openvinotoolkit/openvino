@@ -18,19 +18,21 @@
 typedef std::tuple<
         InferenceEngine::Precision,         // Network Precision
         std::string,                        // Target Device
-        std::map<std::string, std::string>  //Configuration
+        std::map<std::string, std::string>, // Configuration
+        std::vector<size_t>                 // Input Shape
 > EltwiseSplitOverChannelsPassParams;
 
 namespace LayerTestsDefinitions {
 
 class EltwiseSplitOverChannelsPassTest : public testing::WithParamInterface<EltwiseSplitOverChannelsPassParams>,
-                                             public LayerTestsUtils::LayerTestsCommon {
+                                         public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<EltwiseSplitOverChannelsPassParams> obj) {
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
-        std::tie(netPrecision, targetDevice, configuration) = obj.param;
+        std::vector<size_t> inputShape;
+        std::tie(netPrecision, targetDevice, configuration, inputShape) = obj.param;
 
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
@@ -38,20 +40,22 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
+        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
         return result.str();
     }
 
 protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
-        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+        std::vector<size_t> inputShape;
+        std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, { {1, 67000} });
-        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, {1, 67000}, {-1.0f});
+        auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, {-1.0f});
 
         auto sum = ngraph::builder::makeEltwise(params[0], const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
-        function = std::make_shared<ngraph::Function>(sum, params, "RemovePermutationPass");
+        function = std::make_shared<ngraph::Function>(sum, params, "EltwiseSplitOverChannelsPassTest");
     }
 };
 
@@ -71,11 +75,17 @@ const std::vector<std::map<std::string, std::string>> configs = {
         }
 };
 
+const std::vector<std::vector<size_t>> inputShape = {
+    {1, 67000},
+    {1, 500000}
+};
+
 INSTANTIATE_TEST_CASE_P(smoke_EltwiseSplitOverChennels, EltwiseSplitOverChannelsPassTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(configs),
+                                ::testing::ValuesIn(inputShape)),
                         EltwiseSplitOverChannelsPassTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
