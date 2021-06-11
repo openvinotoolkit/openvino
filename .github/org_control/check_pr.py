@@ -147,12 +147,20 @@ def get_wrong_commits(pull):
         # import pprint; pprint.pprint(commit.raw_data)
         print("Commit SHA:", commit.sha)
         # Use raw data because commit author can be non GitHub user
-        commit_email = (commit.raw_data["commit"]["author"]["email"] or "").lower()
-        print("    Commit email:", commit_email)
+        commit_author_email = (commit.raw_data["commit"]["author"]["email"] or "").lower()
+        commit_committer_email = (commit.raw_data["commit"]["committer"]["email"] or "").lower()
+        print("    Commit author email:", commit_author_email)
+        print("    Commit committer email:", commit_committer_email)
         if not github_api.is_valid_user(commit.author):
             print(
-                "    ERROR: User with the commit email is absent in GitHub:",
+                "    ERROR: User with the commit author email is absent in GitHub:",
                 commit.raw_data["commit"]["author"]["name"],
+            )
+            wrong_commits.add(commit.sha)
+        if not github_api.is_valid_user(commit.committer):
+            print(
+                "    ERROR: User with the commit committer email is absent in GitHub:",
+                commit.raw_data["commit"]["committer"]["name"],
             )
             wrong_commits.add(commit.sha)
         if not commit.raw_data["commit"]["verification"]["verified"]:
@@ -160,8 +168,8 @@ def get_wrong_commits(pull):
                 "    WARNING: The commit is not verified. Reason:",
                 commit.raw_data["commit"]["verification"]["reason"],
             )
-            if pr_author_email != commit_email:
-                print("    WARNING: Commit email and GitHub PR author public email are differnt")
+            if pr_author_email != commit_author_email or pr_author_email != commit_committer_email:
+                print("    WARNING: Commit emails and GitHub PR author public email are differnt")
     return wrong_commits
 
 
