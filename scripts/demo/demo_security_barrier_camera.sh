@@ -11,9 +11,12 @@ ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
 usage() {
     echo "Security barrier camera demo that showcases three models coming with the product"
-    echo "-d name     specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified"
-    echo "-help            print help message"
-    echo "-sample-options   specify command line arguments for the sample"
+    echo
+    echo "Options:"
+    echo "  -help                     Print help message"
+    echo "  -d DEVICE                 Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified"
+    echo "  -sample-options OPTIONS   Specify command line arguments for the sample"
+    echo
     exit 1
 }
 
