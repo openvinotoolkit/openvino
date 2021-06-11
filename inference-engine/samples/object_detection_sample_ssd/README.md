@@ -87,6 +87,10 @@ To run the sample successfully, find a still image with the following attributes
 * JPEG, BMP, PNG, TIFF, or JP2
 * Contains vehicles and pedestrians
 
+### Building the sample application
+
+If you have not yet compiled the sample applications, instructions are in the [Building the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section of the Inference Engine Samples guide.
+
 ## Running
 
 Running the application with the <code>-h</code> option yields the following usage message:
