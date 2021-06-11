@@ -84,7 +84,9 @@ public:
 
     void reset() override {
         ocl_base_event::reset();
-        _events.clear();
+        for (auto event : _events) {
+            event->reset();
+        }
     }
 
 private:
