@@ -30,7 +30,7 @@ TEST(TransformationTests, MVNFusionTestOutside) {
         auto sub2 = std::make_shared<ngraph::opset6::Subtract>(input, mean2);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub2, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto const_0_5 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 0.5 });
         auto power_sqrt = std::make_shared<ngraph::opset6::Power>(mean3, const_0_5);
@@ -70,7 +70,7 @@ TEST(TransformationTests, MVNFusionTestReuseSub) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto const_0_5 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 0.5 });
         auto power_sqrt = std::make_shared<ngraph::opset6::Power>(mean3, const_0_5);
@@ -111,7 +111,7 @@ TEST(TransformationTests, MVNFusionTestWithConvert) {
         auto cast = std::make_shared<ngraph::opset6::Convert>(sub1, ngraph::element::f32);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(cast, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto const_0_5 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 0.5 });
         auto power_sqrt = std::make_shared<ngraph::opset6::Power>(mean3, const_0_5);
@@ -151,7 +151,7 @@ TEST(TransformationTests, MVNFusionTestSqrt) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto power_sqrt = std::make_shared<ngraph::opset6::Sqrt>(mean3);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
@@ -190,7 +190,7 @@ TEST(TransformationTests, MVNFusionTestAltDiv) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto const_0_5 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 0.5 });
         auto power_sqrt = std::make_shared<ngraph::opset6::Power>(mean3, const_0_5);
@@ -231,7 +231,7 @@ TEST(TransformationTests, MVNFusionTestInsideSqrt) {
         auto sub2 = std::make_shared<ngraph::opset6::Subtract>(input, mean2);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub2, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
         auto add_eps = std::make_shared<ngraph::opset6::Add>(mean3, eps);
@@ -271,7 +271,7 @@ TEST(TransformationTests, MVNFusionTestReuseSubInsideSqrt) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
         auto add_eps = std::make_shared<ngraph::opset6::Add>(mean3, eps);
@@ -312,7 +312,7 @@ TEST(TransformationTests, MVNFusionTestWithConvertInsideSqrt) {
         auto cast = std::make_shared<ngraph::opset6::Convert>(sub1, ngraph::element::f32);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(cast, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
         auto add_eps = std::make_shared<ngraph::opset6::Add>(mean3, eps);
@@ -352,7 +352,7 @@ TEST(TransformationTests, MVNFusionTestSqrtInsideSqrt) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
         auto add_eps = std::make_shared<ngraph::opset6::Add>(mean3, eps);
@@ -391,7 +391,7 @@ TEST(TransformationTests, MVNFusionTestAltDivInsideSqrt) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
         auto add_eps = std::make_shared<ngraph::opset6::Add>(mean3, eps);

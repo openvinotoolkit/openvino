@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/util/reduction_base.hpp"
 
 namespace ngraph
 {
@@ -15,7 +16,7 @@ namespace ngraph
             /// \brief Abstract base class for logical reduction operations, i.e., operations where
             ///        chosen axes of the input tensors are eliminated (reduced out) by repeated
             ///        application of a particular binary logical operation.
-            class NGRAPH_API LogicalReduction : public Op
+            class NGRAPH_API LogicalReduction : public ReductionBase
             {
             protected:
                 /// \brief Constructs a logical reduction operation.
