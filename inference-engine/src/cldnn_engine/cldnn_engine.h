@@ -35,6 +35,9 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
     void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
 public:
     clDNNEngine();
+    ~clDNNEngine() {
+        printf("~clDNNEngine()\n");
+    }
 
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                         const std::map<std::string, std::string> &config) override;

@@ -138,7 +138,7 @@ public:
     /**
      * @brief Default virtual destructor
      */
-    virtual ~ICore() = default;
+    virtual ~ICore() { printf("~ICore()\n");}
 };
 
 /**

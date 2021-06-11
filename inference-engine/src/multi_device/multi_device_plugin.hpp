@@ -12,13 +12,16 @@
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "multi_device_exec_network.hpp"
+#include <iostream>
 
 namespace MultiDevicePlugin {
 
 class MultiDeviceInferencePlugin : public InferenceEngine::IInferencePlugin {
 public:
     MultiDeviceInferencePlugin();
-    ~MultiDeviceInferencePlugin() = default;
+    ~MultiDeviceInferencePlugin() {
+        std::cout << "~MultiDeviceInferencePlugin()" << std::endl;
+    }
 
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
                                                                        const std::map<std::string, std::string>& config) override;
