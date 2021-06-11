@@ -8,6 +8,8 @@
 #include <map>
 #include <memory>
 #include <ngraph/runtime/reference/convert.hpp>
+#include <ie_compound_blob.h>
+#include <debug.h>
 #include <string>
 #include <utility>
 
@@ -362,6 +364,91 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
     return data;
 }
 // ! [infer_request:get_blob]
+
+// ! [infer_request:set_blob]
+void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& userBlob) {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "SetBlob");
+    if (name.empty()) {
+        IE_THROW(NotFound) << "Failed to set blob with empty name";
+    }
+    if (!userBlob) IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
+    const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
+    const bool remoteBlobPassed   = userBlob->is<RemoteBlob>();
+    if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
+        IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
+    if (userBlob->size() == 0) {
+        IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
+    }
+
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    size_t dataSize = userBlob->size();
+    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+        // ilavreno: the condition below is obsolete, but we need an exact list of precisions
+        // which are supports by G-API preprocessing
+        if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
+            IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user input precision";
+        }
+
+        auto& devBlob = _deviceInputs[name];
+        auto usrDims = userBlob->getTensorDesc().getDims();
+        auto usrLayout = userBlob->getTensorDesc().getLayout();
+        auto devDims = devBlob->getTensorDesc().getDims();
+        auto devLayout = devBlob->getTensorDesc().getLayout();
+        auto devPrecision = devBlob->getTensorDesc().getPrecision();
+        if (foundInput->getInputData()->isDynamic() && (devDims != usrDims || devLayout != usrLayout)) {
+            m_realShapes[name] = usrDims;
+            devBlob = make_blob_with_precision({devPrecision, usrDims, TensorDesc::getLayoutByDims(usrDims)});
+            devBlob->allocate();
+            _deviceInputs[name] = devBlob;
+        }
+        const bool preProcRequired = preProcessingRequired(foundInput, userBlob, devBlob);
+        if (compoundBlobPassed && !preProcRequired) {
+            IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
+        }
+
+        if (preProcRequired) {
+            addInputPreProcessingFor(name, userBlob, devBlob ? devBlob : _inputs[name]);
+        } else {
+            size_t inputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+                ? InferenceEngine::details::product(devBlob->getTensorDesc().getDims())
+                : 1;
+            if (dataSize != inputSize) {
+                IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize << ").";
+            }
+            _inputs[name] = userBlob;
+            devBlob = userBlob;
+        }
+    } else {
+        if (compoundBlobPassed) {
+            IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
+        }
+        auto& devBlob = _networkOutputBlobs[name];
+        auto usrDims = userBlob->getTensorDesc().getDims();
+        auto usrLayout = userBlob->getTensorDesc().getLayout();
+        auto devDims = devBlob->getTensorDesc().getDims();
+        auto devLayout = devBlob->getTensorDesc().getLayout();
+        auto devPrecision = devBlob->getTensorDesc().getPrecision();
+        if (foundOutput->isDynamic() && (devDims != usrDims || devLayout != usrLayout)) {
+            m_realShapes[name] = usrDims;
+            devBlob = make_blob_with_precision({devPrecision, usrDims, TensorDesc::getLayoutByDims(usrDims)});
+            devBlob->allocate();
+            _networkOutputBlobs[name] = devBlob;
+        }
+        size_t outputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+            ? details::product(devBlob->getTensorDesc().getDims()) :
+            1;
+        if (dataSize != outputSize) {
+            IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize << ").";
+        }
+        if (foundOutput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
+            IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user output precision";
+        }
+        _outputs[name] = userBlob;
+    }
+}
+// ! [infer_request:set_blob]
+
 // ! [infer_request:set_shape]
 void TemplateInferRequest::SetShape(const std::string& name, const InferenceEngine::SizeVector& dims) {
     // Check partial shape compatibility
