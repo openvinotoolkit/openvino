@@ -436,8 +436,7 @@ namespace ngraph
                     ngraph::runtime::reference::sum<T>(input_ptr->get_data_ptr<T>(),
                                                        output_ptr->get_data_ptr<T>(),
                                                        input_shape,
-                                                       reduced_axes,
-                                                       false);
+                                                       reduced_axes);
 
                     // update a vector of inputs and input subscripts
                     inputs[input_ind] = output_ptr;
@@ -743,8 +742,7 @@ namespace ngraph
                     ngraph::runtime::reference::sum<T>(mul_output->get_data_ptr<T>(),
                                                        result->get_data_ptr<T>(),
                                                        mul_output->get_shape(),
-                                                       reduced_axes,
-                                                       false);
+                                                       reduced_axes);
                     inputs[input_ind] = result;
                     input_subscripts[input_ind] = resultant_subscript;
                 }
