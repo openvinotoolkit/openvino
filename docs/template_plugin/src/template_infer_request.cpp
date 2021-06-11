@@ -67,6 +67,7 @@ static void AllocateImplSingle(BlobMap& blobMap, BlobMap& networkBlobMap, BlobDa
     if (dims.size() > 0 && layout == InferenceEngine::Layout::SCALAR) {
         layout = InferenceEngine::Layout::ANY;
     }
+    const auto deviceLayout = TensorDesc::getLayoutByDims(dims);
     Blob::Ptr blob;
     blob = make_blob_with_precision({precision, dims, layout});
     blob->allocate();
@@ -74,10 +75,10 @@ static void AllocateImplSingle(BlobMap& blobMap, BlobMap& networkBlobMap, BlobDa
 
     auto networkPresion = InferenceEngine::details::convertPrecision(GetNetworkPrecision(blobData.first));
     Blob::Ptr networkBlob;
-    if (precision == networkPresion) {
+    if (precision == networkPresion && layout == deviceLayout) {
         networkBlob = blob;
     } else {
-        networkBlob = make_blob_with_precision({networkPresion, dims, layout});
+        networkBlob = make_blob_with_precision({networkPresion, dims, deviceLayout});
         networkBlob->allocate();
     }
     networkBlobMap[blobData.first] = networkBlob;
@@ -322,6 +323,11 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
                 data = _inputs[name];
             }
             checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
+            auto& devBlob = _deviceInputs[name];
+            if (preProcessingRequired(foundInput, data, devBlob)) {
+                // if no devBlob, performs inplace
+                addInputPreProcessingFor(name, data, devBlob ? devBlob : _inputs[name]);
+            }
         }
     } else {
         data = _outputs[name];
