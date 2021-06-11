@@ -22,9 +22,7 @@ AutoExecutableNetwork::AutoExecutableNetwork(NetworkFuture cpuFuture,
     // both are valid, like AUTO:CPU,GPU
     if (_cpuFuture.valid() && _acceleratorFuture.valid()) {
         _networkFirstReady = _cpuFuture.get();
-        // only to test sync mode
-        _networkActualNeeded = _acceleratorFuture.get();
-        _alreadyActualNetwork = true;
+        _alreadyActualNetwork = false;
     } else if (_acceleratorFuture.valid()) {  // only accelerator is valid, like AUTO:GPU
         _networkActualNeeded = _acceleratorFuture.get();
         _alreadyActualNetwork = true;
