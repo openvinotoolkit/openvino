@@ -133,8 +133,8 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
         };
         std::string data_type = fused_dep_codegen.GetInputTypeName(0, 1);
         std::string vec_data_type = fused_dep_codegen.GetInputTypeName(0, 2);
-        std::string sc = "sc" + std::to_string(op_id);
-        std::string sh = "sh" + std::to_string(op_id);
+        std::string sc = "sc" + toCodeString(op_id);
+        std::string sh = "sh" + toCodeString(op_id);
         switch (fused_dep.GetType()) {
             case KernelType::SCALE: {
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
@@ -221,7 +221,7 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
                 auto p = fused_dep.GetOpParams<activation_fuse_params>();
                 base_activation_params activation = p->param;
                 if (activation.function != ActivationFunction::NONE) {
-                    auto suffix = "_FUSED_OP" + std::to_string(op_id);
+                    auto suffix = "_FUSED_OP" + toCodeString(op_id);
 
                     jit.Merge(MakeActivationJitConstants(activation, fused_dep.output_tensor.GetDType(), suffix));
                     eltwise_fused_ops += "\\\n\tres = ACTIVATION" + suffix + "((OUTPUT_TYPE)res, ACTIVATION_PARAMS" + suffix + ");";

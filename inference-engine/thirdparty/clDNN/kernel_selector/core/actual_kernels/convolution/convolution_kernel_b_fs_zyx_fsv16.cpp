@@ -27,13 +27,13 @@ static const size_t feature_block_size = 16;
 FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::string input_name, Datatype dt,
                                                         bool is_vector) {
     std::vector<std::string> idx_order;
-    std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + std::to_string(conf_id);
-    std::string input_var_name = input_name + std::to_string(conf_id) + (is_vector ? "" : "[i]");
+    std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + toCodeString(conf_id);
+    std::string input_var_name = input_name + toCodeString(conf_id) + (is_vector ? "" : "[i]");
     size_t vec_size = is_vector ? 8 : 1;
     if (is_vector)
-        idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC)", "od", "oh", "(ow + " + std::to_string(conf_id * 8) + ")"};
+        idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC)", "od", "oh", "(ow + " + toCodeString(conf_id * 8) + ")"};
     else
-        idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC + local_id)", "od", "oh", "(ow + " + std::to_string(conf_id * 8) + " + i)"};
+        idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC + local_id)", "od", "oh", "(ow + " + toCodeString(conf_id * 8) + " + i)"};
 
     return { suffix,
              idx_order,
@@ -50,13 +50,13 @@ FusedOpsConfiguration GenerateFusedOpsConfiguration_bsv16_fsv16(size_t conf_id, 
                                                                 size_t dims) {
     std::vector<std::string> idx_order;
     if (dims == 5)
-        idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "od", "oh", "ow"};
+        idx_order = {"(mb + " + toCodeString(conf_id * 8) + ")", "(oc*16)", "od", "oh", "ow"};
     else
-        idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "oh", "ow"};
+        idx_order = {"(mb + " + toCodeString(conf_id * 8) + ")", "(oc*16)", "oh", "ow"};
 
-    return { "_VEC" + std::to_string(conf_id),
+    return { "_VEC" + toCodeString(conf_id),
              idx_order,
-             input_name + std::to_string(conf_id),
+             input_name + toCodeString(conf_id),
              dt,
              8,
              FusedOpsConfiguration::LoadType::LT_ALIGNED_READ,

@@ -132,7 +132,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
         }
 
         inputs_decls +=
-            const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + std::to_string(i) + ", ";
+            const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + toCodeString(i) + ", ";
     }
 
     jit.AddConstant(MakeJitConstant("INPUTS_DECLS", inputs_decls));
@@ -144,20 +144,20 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
     auto& coefficients = params.coefficients;
 
     for (size_t op_num = 0; op_num < operations.size(); op_num++) {
-        const std::string op_num_str = std::to_string(op_num);
+        const std::string op_num_str = toCodeString(op_num);
         const auto& ew = operations[op_num];
 
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
             const auto& input = ew.inputs[input_idx];
-            const std::string name = "INPUT_" + op_num_str + "_" + std::to_string(input_idx);
+            const std::string name = "INPUT_" + op_num_str + "_" + toCodeString(input_idx);
             switch (input.mode) {
                 case EltwiseInputMode::SCALAR:
                     jit.AddConstant(MakeJitConstant(name, input.scalar));
                     break;
                 case EltwiseInputMode::INPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(name,
-                                                    "GET_INPUT(input" + std::to_string(input.index) + ", INPUT" +
-                                                        std::to_string(input.index) + ")"));
+                                                    "GET_INPUT(input" + toCodeString(input.index) + ", INPUT" +
+                                                        toCodeString(input.index) + ")"));
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(name, "output[GET_INDEX(OUTPUT, )]"));
@@ -165,10 +165,10 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
                 case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(
                         name,
-                        "input" + std::to_string(input.index) + "[(size_t)tmp" + std::to_string(input.tmpIndex) + "]"));
+                        "input" + toCodeString(input.index) + "[(size_t)tmp" + toCodeString(input.tmpIndex) + "]"));
                     break;
                 case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
-                    jit.AddConstant(MakeJitConstant(name, "tmp" + std::to_string(input.tmpIndex)));
+                    jit.AddConstant(MakeJitConstant(name, "tmp" + toCodeString(input.tmpIndex)));
                     break;
                 default:
                     break;
@@ -189,7 +189,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
                 if (input.mode == EltwiseInputMode::INPUT_BUFFER && input.index < coefficients.size()) {
                     const float c = coefficients[input.index];
                     if (c != 1.0f)
-                        coeff_strings[input_idx] = cast_type + "(" + std::to_string(c) + ")*";
+                        coeff_strings[input_idx] = cast_type + "(" + toCodeString(c) + ")*";
                 }
             }
 
@@ -262,11 +262,11 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
     }
 
     for (size_t update_input_idx = 0; update_input_idx < updateInputs.size(); update_input_idx++)
-        do_eltwise += "\\\n\tinput" + std::to_string(updateInputs[update_input_idx].inputId) + "[GET_INDEX(INPUT, " +
-                      std::to_string(updateInputs[update_input_idx].inputId) + ")] = tmp" +
-                      std::to_string(updateInputs[update_input_idx].tmpId) + ";";
+        do_eltwise += "\\\n\tinput" + toCodeString(updateInputs[update_input_idx].inputId) + "[GET_INDEX(INPUT, " +
+                      toCodeString(updateInputs[update_input_idx].inputId) + ")] = tmp" +
+                      toCodeString(updateInputs[update_input_idx].tmpId) + ";";
 
-    do_eltwise += "\\\n\tres = tmp" + std::to_string(operations.size() - 1) + ";";
+    do_eltwise += "\\\n\tres = tmp" + toCodeString(operations.size() - 1) + ";";
 
     jit.AddConstant(MakeJitConstant("DO_ELTWISE", do_eltwise));
 
