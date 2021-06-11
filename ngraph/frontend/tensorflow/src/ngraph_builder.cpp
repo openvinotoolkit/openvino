@@ -26,6 +26,7 @@
 #include "ngraph_builder.h"
 #include "ngraph_conversions.h"
 #include "default_opset.h"
+#include "graph.hpp"
 
 
 using namespace std;
@@ -1662,7 +1663,7 @@ static Status TranslateMatMulOp(const TFNodeDecoder* op,
 
 template <unsigned int N>
 static OutputVector TranslateMaxPoolOp(const NodeContext& node) {
-    auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1);
+    auto ng_input = node.get_ng_input(0);
 
     auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
     auto tf_ksize = node.get_attribute<std::vector<int32_t>>("ksize");
@@ -2330,6 +2331,67 @@ static OutputVector TranslateSqueezeOp(const NodeContext& node) {
   return { ConstructNgNode<opset::Squeeze>(node.get_name(), ng_input, ng_const) };
 }
 
+static OutputVector PlaceholderOp(const NodeContext& node) {
+    auto ng_et = node.get_attribute<ngraph::element::Type>("dtype");
+    auto overridden_shape = node.get_overridden_shapes().find(node.get_name());
+    auto ng_shape = overridden_shape == node.get_overridden_shapes().end() ?
+            node.get_attribute<ngraph::PartialShape>("shape", ngraph::PartialShape()) :
+            overridden_shape->second;
+    return { ConstructNgNode<opset::Parameter>(node.get_name(), ng_et, ng_shape) };
+
+#if 0 // Old code
+    // TODO: Remove this section completely when all code is absorbed to main flow
+    DataType dtype;
+    // TODO: replace dtype by T when converting Arg
+    if (GetNodeAttr(parm->attrs(), "dtype", &dtype) != Status::OK()) {
+      throw errors::InvalidArgument("No data type defined for _Arg");
+    }
+
+    // TODO: use this code for Arg
+    //if (GetNodeAttr(parm->attrs(), "index", &index) != Status::OK()) {
+    //  return errors::InvalidArgument("No index defined for _Arg");
+    //}
+
+    ng::element::Type ng_et;
+    TFDataTypeToNGraphElementType(dtype, &ng_et);
+
+    ng::PartialShape ng_shape;
+    auto overridenInputShape = inputs.find(parm->name());
+    if(overridenInputShape == inputs.end()) {
+        try {
+            GetNodeAttr(parm->attrs(), "shape", &ng_shape);
+        }
+        catch (google::protobuf::FatalException) {
+            // suppose there is no shape
+            // TODO: do it in a good way
+        }
+    } else {
+        ng_shape = overridenInputShape->second;
+    }
+
+#if 0
+    string prov_tag;
+    GetNodeAttr(parm->attrs(), "_prov_tag", &prov_tag);
+#endif
+    auto ng_param =
+        ConstructNgNode<opset::Parameter>(parm->name(), ng_et, ng_shape);
+    SaveNgOp(ng_op_map, parm->name(), ng_param);
+#endif
+}
+
+static OutputVector RetvalOp(const NodeContext& node) {
+    // Make sure that this _Retval only has one input node.
+    if (node.get_ng_input_size() != 1) {
+        throw errors::InvalidArgument("_Retval has " + to_string(node.get_ng_input_size()) +
+                                      " inputs, should have 1");
+    }
+
+    // auto ret_val_index = node.get_attribute<int>("index");
+    // TODO: Put ret_val_index to RT info that should be later utilized to order outpus by indices
+
+    return { ConstructNgNode<opset::Result>(node.get_name(), node.get_ng_input(0)) };
+}
+
 #if 0
 
 static OutputVector TranslateStridedSliceOp(
@@ -2628,6 +2690,7 @@ const static std::map<
         //{"Pack", TranslatePackOp},
         {"Pad", TranslatePadOp},
         {"PadV2", TranslatePadOp},
+        {"Placeholder", PlaceholderOp},
         {"Pow", TranslateBinaryOp<opset::Power>},
         // PreventGradient is just Identity in dataflow terms, so reuse that.
         {"PreventGradient", TranslateIdentityOp},
@@ -2639,6 +2702,7 @@ const static std::map<
         {"Relu", TranslateUnaryOp<opset::Relu>},
         //{"Relu6", TranslateRelu6Op},
         //{"Reshape", TranslateReshapeOp},
+        {"_Retval", RetvalOp},
         //{"Rsqrt", TranslateRsqrtOp},
         //{"Select", TranslateSelectOp},
         //{"SelectV2", TranslateSelectOp},
@@ -2678,11 +2742,10 @@ class NodeProtoWrapper : public TFNodeDecoder
 {
     const NodeDef* node_def;
     const GraphDef* graph_def;
-    std::vector<TFNodeDecoder*>* nodes;
 public:
 
-    NodeProtoWrapper(const NodeDef* _node_def, const GraphDef* _graph_def, std::vector<TFNodeDecoder*>* _nodes) :
-        node_def(_node_def), graph_def(_graph_def), nodes(_nodes) {}
+    NodeProtoWrapper(const NodeDef* _node_def, const GraphDef* _graph_def):
+        node_def(_node_def), graph_def(_graph_def) {}
 
 #define GET_ATTR_VALUE(TYPE, FIELD) virtual void getAttrValue (const char* name, TYPE* x) const override \
     { *x = node_def->attr().at(name).FIELD(); }
@@ -2758,25 +2821,20 @@ public:
         return node_def->op();
     }
 
-    virtual Status input_node (size_t index, TFNodeDecoder const * *) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    Status input_node (size_t index, std::string* name) const { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
 
-    virtual Status input_node (size_t index, TFNodeDecoder const * * retnode, size_t* outputPortIndex) const override
+    Status input_node (size_t index, std::string* name, size_t* outputPortIndex) const
     {
         std::string input_name = node_def->input(index);
-        if(input_name.find(':') != std::string::npos) {
-            NGRAPH_TF_FE_NOT_IMPLEMENTED;
+        // TODO: Implement full logic to detect only the last : as a separator, consult with TF
+        auto portDelimPos = input_name.find(':');
+        if(portDelimPos != std::string::npos) {
+            *name = input_name.substr(0, portDelimPos);
+            *outputPortIndex = std::stoi(input_name.substr(portDelimPos));
         }
-        // TODO: don't search linearly every time!!!
-        for(auto node: *nodes)
-        {
-            if(node->name() == input_name)
-            {
-                *retnode = node;
-                *outputPortIndex = 0;
-                return Status::OK();
-            }
-        }
-        return Status("Node is not found " + input_name + " when searched as an input for node " + name());
+        *name = input_name;
+        *outputPortIndex = 0;
+        return Status::OK();
     }
 
     virtual DataType input_type (size_t index) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
@@ -2818,6 +2876,7 @@ public:
     }
 };
 
+#if 0
 void PopulateNodesTopologicallySorted (const GraphDef* input_graph, std::vector<TFNodeDecoder*>* result)
 {
     // WARNING! We suppose that input_graph contains nodes in topologically sorted order
@@ -2829,110 +2888,82 @@ void PopulateNodesTopologicallySorted (const GraphDef* input_graph, std::vector<
         result->push_back(new NodeProtoWrapper(&input_graph->node(i), input_graph, result));
     }
 }
+#endif
+
+class GraphIteratorProto : public ng::frontend::tensorflow::GraphIterator
+{
+    const GraphDef* graph;
+    size_t node_index = 0;
+
+public:
+
+    GraphIteratorProto (const GraphDef* _graph) :
+        graph(_graph)
+    {
+    }
+
+    /// Set iterator to the start position
+    virtual void reset ()
+    {
+        node_index = 0;
+    }
+
+    virtual size_t size () const
+    {
+        return graph->node_size();
+    }
+
+    /// Moves to the next node in the graph
+    virtual void next ()
+    {
+        node_index++;
+    }
+
+    virtual bool is_end () const
+    {
+        return node_index >= graph->node_size();
+    }
+
+    /// Return NodeContext for the current node that iterator points to
+    virtual std::shared_ptr<ng::frontend::tensorflow::detail::TFNodeDecoder> get () const
+    {
+        return std::make_shared<NodeProtoWrapper>(&graph->node(node_index), graph);
+
+    }
+
+};
 
 void Builder::TranslateGraph(
         const std::map<std::string, ngraph::PartialShape>& inputs,
         const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map, const GraphDef* input_graph,
         const std::string name, std::shared_ptr<ngraph::Function>& ng_function) {
   //
-  // We will visit ops in topological order.
-  //
-  // ought to be `const TFNodeDecoder*`, but GetReversePostOrder doesn't use `const`
-
-  std::vector<ngraph::frontend::tensorflow::detail::TFNodeDecoder*> ordered;
-  //GetReversePostOrder(*input_graph, &ordered, NodeComparatorName());
-  PopulateNodesTopologicallySorted(input_graph, &ordered);
-
-  //
-  // Split ops into params, retvals, and all others.
-  //
-  vector<const ngraph::frontend::tensorflow::detail::TFNodeDecoder*> tf_params;
-  vector<const ngraph::frontend::tensorflow::detail::TFNodeDecoder*> tf_ret_vals;
-  vector<const ngraph::frontend::tensorflow::detail::TFNodeDecoder*> tf_ops;
-
-  for (const auto n : ordered) {
-#if 0
-      // TODO: Investigate why do we need it
-      if (n->IsSink() || n->IsSource()) {
-      continue;
-    }
-#endif
-
-    if (n->IsControlFlow()) {
-      throw errors::Unimplemented(
-          "Encountered a control flow op in the nGraph bridge: " +
-          n->DebugString());
-    }
-
-    if (n->IsArg()) {
-      tf_params.push_back(n);
-    } else if (n->IsRetval()) {
-      tf_ret_vals.push_back(n);
-    } else {
-      tf_ops.push_back(n);
-    }
-  }
-
-  //
   // The op map holds a mapping from TensorFlow op names (strings) to
   // vector of generated nGraph Output<TFNodeDecoder>.
   //
   Builder::OpMap ng_op_map;
 
-  //
-  // Populate the parameter list, and also put parameters into the op map.
-  //
-  std::cout << "[ INFO ] Detected " << tf_params.size() << " parameters\n";
-  ng::ParameterVector ng_parameter_list(tf_params.size());
-  // enumerate placeholders in some random order, count them and use counter as an index
-  int index = 0;
-
-  for (auto parm : tf_params) {
-    DataType dtype;
-    // TODO: replace dtype by T when converting Arg
-    if (GetNodeAttr(parm->attrs(), "dtype", &dtype) != Status::OK()) {
-      throw errors::InvalidArgument("No data type defined for _Arg");
-    }
-
-    // TODO: use this code for Arg
-    //if (GetNodeAttr(parm->attrs(), "index", &index) != Status::OK()) {
-    //  return errors::InvalidArgument("No index defined for _Arg");
-    //}
-
-    ng::element::Type ng_et;
-    TFDataTypeToNGraphElementType(dtype, &ng_et);
-
-    ng::PartialShape ng_shape;
-    auto overridenInputShape = inputs.find(parm->name());
-    if(overridenInputShape == inputs.end()) {
-        try {
-            GetNodeAttr(parm->attrs(), "shape", &ng_shape);
-        }
-        catch (google::protobuf::FatalException) {
-            // suppose there is no shape
-            // TODO: do it in a good way
-        }
-    } else {
-        ng_shape = overridenInputShape->second;
-    }
-
-#if 0
-    string prov_tag;
-    GetNodeAttr(parm->attrs(), "_prov_tag", &prov_tag);
-#endif
-    auto ng_param =
-        ConstructNgNode<opset::Parameter>(parm->name(), ng_et, ng_shape);
-    SaveNgOp(ng_op_map, parm->name(), ng_param);
-    ng_parameter_list[index] =
-        ngraph::as_type_ptr<opset::Parameter>(ng_param.get_node_shared_ptr());
-
-    index++;
-  }
+    ngraph::ParameterVector params;
+    ngraph::ResultVector results;
 
   //
   // Now create the nGraph ops from TensorFlow ops.
   //
-  for (auto op : tf_ops) {
+    for (GraphIteratorProto op_iter(input_graph); !op_iter.is_end(); op_iter.next()) {
+    #if 0
+    // TODO: Investigate why do we need it
+      if (n->IsSink() || n->IsSource()) {
+      continue;
+    }
+    #endif
+
+    auto op = op_iter.get();
+    if (op->IsControlFlow()) {
+        throw errors::Unimplemented(
+            "Encountered a control flow op in the nGraph bridge: " +
+            op->DebugString());
+    }
+
     NGRAPH_VLOG(2) << "Constructing op " << op->name() << " which is "
                    << op->type_string() << "\n";
 
@@ -2960,20 +2991,33 @@ void Builder::TranslateGraph(
         ngraph::OutputVector ng_inputs;
         for(size_t i = 0; i < op->num_inputs(); ++i)
         {
-            TFNodeDecoder const* input_tf_node;
+            std::string input_name;
             size_t port_idx;
-            op->input_node(i, &input_tf_node, &port_idx);
-            ng_inputs.push_back(ng_op_map.at(input_tf_node->name()).at(port_idx));
+            op->input_node(i, &input_name, &port_idx);
+            ng_inputs.push_back(ng_op_map.at(input_name).at(port_idx));
         }
-        NodeContext node_context(ng_inputs, op);
+        NodeContext node_context(ng_inputs, op, inputs);
 
+        // Next line does the conversion for a node by means of calling specific conversion rule
         auto outputs = (*op_fun)(node_context);
 
-        // Post-processing: register outputs to the map
+        // Post-processing: register outputs to the map and detect the edge ops
         auto& node_record = ng_op_map[op->name()];
         for(auto output: outputs)
         {
-            node_record.push_back(output);
+            if(auto result = std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr()))
+            {
+                results.push_back(result);
+                // Do not add to ng_op_map
+            }
+            else
+            {
+                if(auto param = std::dynamic_pointer_cast<opset::Parameter>(output.get_node_shared_ptr()))
+                {
+                    params.push_back(param);
+                }
+                node_record.push_back(output);
+            }
         }
     } catch (const std::exception& e) {
       throw errors::Internal("Unhandled exception in op handler: " + op->name() +
@@ -2983,74 +3027,31 @@ void Builder::TranslateGraph(
     }
   }
 
-  //
-  // Populate the result list.
-  //
-  ng::ResultVector ng_result_list(tf_ret_vals.size());
-
-  for (auto n : tf_ret_vals) {
-    // Make sure that this _Retval only has one input node.
-    if (n->num_inputs() != 1) {
-      throw errors::InvalidArgument("_Retval has " + to_string(n->num_inputs()) +
-                                     " inputs, should have 1");
-    }
-
-    int ret_val_index;
-    if (GetNodeAttr(n->attrs(), "index", &ret_val_index) != Status::OK()) {
-      throw errors::InvalidArgument("No index defined for _Retval");
-    }
-
-    ng::Output<ng::Node> result;
-    TFNodeDecoder const* decoder_for_prev_node;
-    size_t out_index;
-    n->input_node(0, &decoder_for_prev_node, &out_index);
-    auto ng_result = ConstructNgNode<opset::Result>(n->name(), ng_op_map[decoder_for_prev_node->name()][out_index]);
-    ng_result_list[ret_val_index] =
-        ngraph::as_type_ptr<opset::Result>(ng_result.get_node_shared_ptr());
-  }
-
   // Find all terminal nodes in ngraph graph to complete list of results
-  for(auto op: tf_ops)
+  for(const auto& p: ng_op_map)
   {
-      auto p = ng_op_map.find(op->name());
-      if(p != ng_op_map.end())
+      for(auto output: p.second)
       {
-          for(auto output: p->second)
-          {
-              if(output.get_target_inputs().empty())
-                  ng_result_list.push_back(std::make_shared<default_opset::Result>(output));
-          }
+          if(output.get_target_inputs().empty() &&
+            !std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) // Exclude existing Results
+              results.push_back(std::make_shared<default_opset::Result>(output));
       }
   }
+
+  // TODO: Reorder results and params according to indices given in RT info (if any)
 
   //
   // Create the nGraph function.
   //
   ng_function =
-      make_shared<ng::Function>(ng_result_list, ng_parameter_list, name);
-
-  //
-  // Apply additional passes on the nGraph function here.
-  //
-  {
-#if 0
-    ngraph::pass::Manager passes;
-    if (util::GetEnv("NGRAPH_TF_CONSTANT_FOLDING") == "1") {
-      passes.register_pass<ngraph::pass::ConstantFolding>();
-    }
-    if (util::GetEnv("NGRAPH_TF_TRANSPOSE_SINKING") != "0") {
-      passes.register_pass<pass::TransposeSinking>();
-    }
-    passes.run_passes(ng_function);
-#endif
-  }
-  NGRAPH_VLOG(5) << "Done with passes";
+      make_shared<ng::Function>(results, params, name);
   //
   // Request row-major layout on results.
   //
-  for (auto result : ng_function->get_results()) {
-    result->set_needs_default_layout(true);
-  }
+  // TODO: Why do we need this?
+  //for (auto result : ng_function->get_results()) {
+  //  result->set_needs_default_layout(true);
+  //}
   NGRAPH_VLOG(5) << "Done with translations";
 }
 

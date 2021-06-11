@@ -337,7 +337,7 @@ int main(int argc, char *argv[]) {
             slog::info << "Loading network files" << slog::endl;
 
             auto startTime = Time::now();
-#if 1
+#if 0
             CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
 #else
             ngraph::frontend::FrontEndManager manager;
@@ -348,7 +348,7 @@ int main(int argc, char *argv[]) {
             CNNNetwork cnnNetwork(ngFunc);
 #endif
             cnnNetwork.serialize("benchmark_app_loaded_network.xml");
-            ngraph::output_dynamic_statistics(cnnNetwork.getFunction(), std::cerr);
+            ngraph::output_dynamic_statistics(cnnNetwork.getFunction(), std::cerr, true);
             return 1;
 
             auto duration_ms = double_to_string(get_total_ms_time(startTime));

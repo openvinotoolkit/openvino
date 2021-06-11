@@ -857,12 +857,12 @@ namespace ngraph {
     }
 
 
-    void output_dynamic_statistics(std::shared_ptr<Function> func, std::ostream &out) {
+    void output_dynamic_statistics(std::shared_ptr<Function> func, std::ostream &out, bool output_pure_static = false) {
         std::set<OperationDescription> operations;
         for (auto &node : func->get_ops()) {
             OperationDescription od(node);
             // allops << od << '\n';
-            if (od.is_dynamic())
+            if (od.is_dynamic() || output_pure_static)
                 operations.insert(od);
         }
         for (const auto &x : operations) {

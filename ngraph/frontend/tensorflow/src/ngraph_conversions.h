@@ -123,6 +123,7 @@ void NHWCtoHW(bool is_nhwc, const std::vector<T>& src,
   }
 }
 
+
 }  // namespace ngraph_bridge
 }  // namespace tensorflow
 

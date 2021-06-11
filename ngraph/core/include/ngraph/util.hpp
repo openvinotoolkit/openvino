@@ -51,7 +51,7 @@ namespace ngraph
         class Tensor;
     } // namespace runtime
 
-    NGRAPH_API void output_dynamic_statistics(std::shared_ptr<Function> func, std::ostream &out);
+    NGRAPH_API void output_dynamic_statistics(std::shared_ptr<Function> func, std::ostream &out, bool output_pure_static);
 
     template <typename T>
     std::string join(const T& v, const std::string& sep = ", ")

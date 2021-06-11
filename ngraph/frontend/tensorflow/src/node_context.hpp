@@ -110,13 +110,15 @@ namespace tensorflow {
             // a way to read Const value as a tensor
             virtual void getAttrValue (const char* name, TensorWrapper** x) const = 0;
 
+            virtual Status input_node (size_t index, std::string* name) const = 0;
+
+            virtual Status input_node (size_t index, std::string* name, size_t* outputPortIndex) const = 0;
+
             virtual unsigned int num_inputs () const = 0;
             virtual std::string name () const = 0;
             virtual bool IsArg () const = 0;
             virtual std::string type_string () const = 0;
 
-            virtual Status input_node (size_t index, TFNodeDecoder const * *) const = 0;
-            virtual Status input_node (size_t index, TFNodeDecoder const * *, size_t* outputPortIndex) const = 0;
             virtual DataType input_type (size_t index) const = 0;
             virtual DataType output_type (size_t index) const = 0;
 
@@ -162,13 +164,18 @@ namespace tensorflow {
 class NodeContext
 {
     OutputVector m_ng_inputs;
-    const detail::TFNodeDecoder* m_decoder;
+    std::shared_ptr<detail::TFNodeDecoder> m_decoder;
+    const std::map<std::string, ngraph::PartialShape>& m_overridden_shapes;
 
 public:
 
-    NodeContext (const OutputVector& _ng_inputs, const detail::TFNodeDecoder* _decoder) :
+    NodeContext (
+            const OutputVector& _ng_inputs,
+            std::shared_ptr<detail::TFNodeDecoder> _decoder,
+            const std::map<std::string, ngraph::PartialShape>& overridden_shapes) :
         m_ng_inputs(_ng_inputs),
-        m_decoder(_decoder)
+        m_decoder(_decoder),
+        m_overridden_shapes(overridden_shapes)
     {}
 
     size_t get_ng_input_size() const
@@ -214,7 +221,7 @@ public:
     // TODO: Remove this method and port all dependent code to the remaining methods
     const detail::TFNodeDecoder* _get_decoder() const
     {
-        return m_decoder;
+        return m_decoder.get();
     }
 
     template <typename T>
@@ -237,6 +244,10 @@ public:
             result = default_value;
         }
         return result;
+    }
+
+    const std::map<std::string, ngraph::PartialShape>& get_overridden_shapes () const {
+        return m_overridden_shapes;
     }
 };
 
