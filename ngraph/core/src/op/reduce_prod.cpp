@@ -78,7 +78,7 @@ bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs,
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     const auto reduction_axes = get_normalized_axes_from_tensor(
-        inputs[1], get_input_partial_shape(0).rank(), get_friendly_name());
+        inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
 
     return reduce_prod::evaluate_product(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
