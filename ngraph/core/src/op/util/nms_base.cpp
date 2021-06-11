@@ -154,7 +154,7 @@ void op::util::NmsBase::validate_and_infer_types()
     set_output_type(0, element::f32, {first_dim_shape, 6});
     // 'selected_indices' have the following format:
     //      [number of selected boxes, ]
-    set_output_type(1, m_output_type, {first_dim_shape});
+    set_output_type(1, m_output_type, {first_dim_shape, 1});
     // 'selected_num' have the following format:
     //      [num_batches, ]
     if (boxes_ps.rank().is_static() && boxes_ps.rank().get_length() > 0)

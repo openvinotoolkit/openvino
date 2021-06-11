@@ -48,7 +48,7 @@ namespace ngraph
                                            const ngraph::element::Type output_type,
                                            const std::vector<float>& selected_outputs,
                                            const std::vector<int64_t>& selected_indices,
-                                           int64_t valid_outputs);
+                                           const std::vector<int64_t>& valid_outputs);
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
