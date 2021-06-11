@@ -4,12 +4,13 @@
 
 #include "template_infer_request.hpp"
 
+#include <debug.h>
+#include <ie_compound_blob.h>
+
 #include <algorithm>
 #include <map>
 #include <memory>
 #include <ngraph/runtime/reference/convert.hpp>
-#include <ie_compound_blob.h>
-#include <debug.h>
 #include <string>
 #include <utility>
 
@@ -371,9 +372,10 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
     if (name.empty()) {
         IE_THROW(NotFound) << "Failed to set blob with empty name";
     }
-    if (!userBlob) IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
+    if (!userBlob)
+        IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
-    const bool remoteBlobPassed   = userBlob->is<RemoteBlob>();
+    const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
     if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
     if (userBlob->size() == 0) {
@@ -411,8 +413,8 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
             addInputPreProcessingFor(name, userBlob, devBlob ? devBlob : _inputs[name]);
         } else {
             size_t inputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-                ? InferenceEngine::details::product(devBlob->getTensorDesc().getDims())
-                : 1;
+                                   ? InferenceEngine::details::product(devBlob->getTensorDesc().getDims())
+                                   : 1;
             if (dataSize != inputSize) {
                 IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize << ").";
             }
@@ -435,9 +437,7 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
             devBlob->allocate();
             _networkOutputBlobs[name] = devBlob;
         }
-        size_t outputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-            ? details::product(devBlob->getTensorDesc().getDims()) :
-            1;
+        size_t outputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR ? details::product(devBlob->getTensorDesc().getDims()) : 1;
         if (dataSize != outputSize) {
             IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize << ").";
         }
