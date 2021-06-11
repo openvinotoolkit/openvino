@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/reduce_sum.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/broadcast.hpp"
@@ -47,7 +48,7 @@ namespace reduce_sum
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::sum(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
         return true;
     }
 
@@ -75,10 +76,8 @@ bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceSum_evaluate);
-
-    NGRAPH_CHECK(inputs.size() == 2,
-                 "The ReduceSum operation expects 2 input tensors. Got: ",
-                 inputs.size());
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     const auto reduction_axes = get_normalized_axes_from_tensor(
         inputs[1], get_input_partial_shape(0).rank(), get_friendly_name());

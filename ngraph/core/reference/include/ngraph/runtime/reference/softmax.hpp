@@ -34,7 +34,7 @@ namespace ngraph
                         arg[transform.index(coord)] - temp_ptr[temp_transform.index(temp_coord)]);
                 }
 
-                sum(out, temp_ptr, shape, axes, true);
+                sum(out, temp_ptr, shape, axes);
 
                 for (const Coordinate& coord : transform)
                 {

@@ -3,6 +3,7 @@ fake_quantize_pdpd
 INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
 
+# Failed in ubuntu18 i386
 reduce_sum_large_1d_to_scalar
 reduce_sum_keep_large_1d_to_scalar
 
@@ -31,11 +32,8 @@ INTERPRETER.onnx_model_matmul_integer_4d_no_zero_point
 # Disabled tests for disabled reference implementations
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
 INTERPRETER.sum_2d_to_scalar_int8
-INTERPRETER.sum_trivial_in_double
 INTERPRETER.reduce_sum_2d_to_scalar_int8
-INTERPRETER.reduce_sum_trivial_in_double
 INTERPRETER.reduce_sum_keep_2d_to_scalar_int8
-INTERPRETER.reduce_sum_keep_trivial_in_double
 INTERPRETER.reduce_product_to_scalar_int8
 INTERPRETER.reduce_product_keep_to_scalar_int8
 INTERPRETER.reduce_min_to_scalar_int8
