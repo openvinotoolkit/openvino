@@ -6,7 +6,9 @@
         "openvino-ci",
         "openvino-pushbot",
         "lab-nerval",
-        "lab-nerval-onnx-ci"
+        "lab-nerval-onnx-ci",
+        "onnx-watchdog-agent",
+        "dependabot"
     ],
     "EMAILS_FILE_PATH": "dev_emails-test.txt",
     "PROXIES": {

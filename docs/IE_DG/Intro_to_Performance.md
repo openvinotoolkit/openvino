@@ -1,24 +1,29 @@
 # Introduction to the Performance Topics {#openvino_docs_IE_DG_Intro_to_Performance}
 
 This section is a shorter version of the
-[Optimization Guide](supported_plugins/MULTI.md) for the Intel Deep Learning Deployment Toolkit.
+[Optimization Guide](../optimization_guide/dldt_optimization_guide.md) for the Intel® Distribution of OpenVINO™ Toolkit.
 
 ## Precision
 Inference precision directly affects the performance. 
 
-Model Optimizer can produce an IR with different precision. For example, float16 IR initially targets VPU and GPU devices, while, for example, the CPU can also execute regular float32.
-Also, further device-specific inference precision settings are available, for example, [8-bit integer](Int8Inference.md) or [bfloat16](Bfloat16Inference.md) inference on the CPU.
-Note that for [MULTI device](supported_plugins/MULTI.md) that supports automatic inference on multiple devices in parallel, you can use the FP16 IR.
+Model Optimizer can produce an IR with different precision. For example, an FP16 IR initially targets VPU and GPU devices, while, for example, for the CPU, an FP16 IR is    typically up-scaled to the regular FP32 automatically upon loading. But notice that further device-specific inference precision settings are available, 
+for example, [8-bit integer](Int8Inference.md) or [bfloat16](Bfloat16Inference.md), which is specific to the CPU inference, below.
+Note that for the [MULTI device](supported_plugins/MULTI.md) plugin that supports automatic inference on multiple devices in parallel, you can use an FP16 IR (no need for FP32).
 You can find more information, including preferred data types for specific devices, in the
-[Supported Devices](supported_plugins/Supported_Devices.md) section.
+[Supported Devices](supported_plugins/Supported_Devices.md) document.
 
-## Lowering Inference Precision
-Default optimization is used for CPU and implies that inference is made with lower precision if it is possible on a given platform to reach better performance with acceptable range of accuracy.
-This approach can be used for CPU devices where the platform supports the AVX512_BF16 instruction. In this case, a regular float32 model is converted to [bfloat16](Bfloat16Inference.md) internal representation and inference is provided with bfloat16 layers usage.
-Below is the example command line to disable this feature on the CPU device with the AVX512_BF16 instruction and execute regular float32.
+## Automatic Lowering of the Inference Precision
+By default, plugins enable the optimizations that allow lower precision if the acceptable range of accuracy is preserved.
+For example, for the CPU that supports the AVX512_BF16 instructions, an FP16/FP32 model is converted to a [bfloat16](Bfloat16Inference.md) IR to accelerate inference.
+To compare the associated speedup, run the example command below to disable this feature on the CPU device with the AVX512_BF16 support and get regular FP32 execution:
 ```
 $ benchmark_app -m <model.xml> -enforcebf16=false
  ```
+Notice that for quantized (e.g. INT8) models the bfloat16 calculations (of the layers that remain in FP32) is disabled by default.
+Refer to the [CPU Plugin documentation](supported_plugins/CPU.md) for more details.
+
+Similarly, the GPU device automatically executes FP16 for the layers that remain in FP16 in the quantized models (assuming that the FP16 model was quantized).
+Refer to the ENABLE_FP16_FOR_QUANTIZED_MODELS key in the [GPU Plugin documentation](supported_plugins/GPU.md).
 
 ## Latency vs. Throughput
 One way to increase computational efficiency is batching, which combines many (potentially tens) of
@@ -44,17 +49,17 @@ Below is the example command line that limits the execution to the single socket
 limited to the single socket).
 $ numactl -m 0 --physcpubind 0-27  benchmark_app -m <model.xml> -api sync -nthreads 28
  ```
-Note that if you have more than one input, running as many inference requests as you have NUMA nodes (or sockets)
+Note that if you have more than one input, running as many inference streams as you have NUMA nodes (or sockets)
 usually gives the same best latency as a single request on the single socket, but much higher throughput. Assuming two NUMA nodes machine:
 ```
 $ benchmark_app -m <model.xml> -nstreams 2
  ```
 Number of NUMA nodes on the machine can be queried via 'lscpu'.
-Please see more on the NUMA support in the [Optimization Guide](supported_plugins/MULTI.md).
+Please see more on the NUMA support in the [Optimization Guide](../optimization_guide/dldt_optimization_guide.md).
 
 ## Throughput Mode for CPU
 Unlike most accelerators, CPU is perceived as an inherently latency-oriented device. 
-Since 2018 R5 release, the Inference Engine introduced the "throughput" mode, which allows the Inference Engine to efficiently run multiple inference requests on the CPU simultaneously, greatly improving the throughput.
+OpenVINO™ toolkit provides a "throughput" mode that allows running multiple inference requests on the CPU simultaneously, which greatly improves the throughput.
 
 Internally, the execution resources are split/pinned into execution "streams".
 Using this feature gains much better performance for the networks that originally are not scaled well with a number of threads (for example, lightweight topologies). This is especially pronounced for the many-core server machines.
@@ -62,38 +67,26 @@ Using this feature gains much better performance for the networks that originall
 Run the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) and play with number of infer requests running in parallel, next section. 
 Try different values of the `-nstreams` argument from `1` to a number of CPU cores and find one that provides the best performance. 
 
-In addition to the number of streams, it is also possible to play with the batch size to find the throughput sweet-spot.
-
 The throughput mode relaxes the requirement to saturate the CPU by using a large batch: running multiple independent inference requests in parallel often gives much better performance, than using a batch only.
 This allows you to simplify the app-logic, as you don't need to combine multiple inputs into a batch to achieve good CPU performance.
 Instead, it is possible to keep a separate infer request per camera or another source of input and process the requests in parallel using Async API.
 
 ## Benchmark App
 [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample is the best performance reference.
-It has a lot of device-specific knobs, but the primary usage is as simple as: 
+It has a lot of device-specific knobs, but the primary usage is as simple as:
 ```bash
 $ ./benchmark_app –d GPU –m <model> -i <input>
 ```
-to measure the performance of the model on the GPU. 
+to measure the performance of the model on the GPU.
 Or
 ```bash
 $ ./benchmark_app –d CPU –m <model> -i <input>
 ```
 to execute on the CPU instead.
 
-For example, for the CPU throughput mode from the previous section, you can play with number of streams (`-nstreams` command-line param). 
-Try different values of the `-nstreams` argument from `1` to a number of CPU cores and find one that provides the best performance. For example, on a 8-core CPU, compare the `-nstreams 1` (which is a latency-oriented scenario) to the `2`, `4` and `8` streams. Notice that `benchmark_app` automatically queries/creates/runs number of requests required to saturate the given number of streams. 
+For example, for the CPU throughput mode from the previous section, you can play with number of streams (`-nstreams` command-line param).
+Try different values of the `-nstreams` argument from `1` to a number of CPU cores and find one that provides the best performance. For example, on a 8-core CPU, compare the `-nstreams 1` (which is a latency-oriented scenario) to the `2`, `4` and `8` streams. Notice that `benchmark_app` automatically queries/creates/runs number of requests required to saturate the given number of streams.
 
 Finally, notice that when you don't specify number of streams with `-nstreams`, "AUTO" value for the streams is used, e.g. for the CPU this is [CPU_THROUGHPUT_AUTO](supported_plugins/CPU.md). You can spot the actual value behind "AUTO" for your machine in the application output.
 Notice that the "AUTO" number is not necessarily most optimal, so it is generally recommended to play either with the benchmark_app's "-nstreams" as described above, or via  [new Workbench tool](@ref workbench_docs_Workbench_DG_Introduction).This allows you to simplify the app-logic, as you don't need to combine multiple inputs into a batch to achieve good CPU performance.
 Instead, it is possible to keep a separate infer request per camera or another source of input and process the requests in parallel using Async API.
-
-## Kernels Tuning for GPU
-
-GPU backend comes with a feature, that allows models tuning, so the workload is configured to fit better into hardware.
-
-Tuning is time consuming process, which internally execute every layer several (or even hundreds) times to find most performant configuration.
-
-This configuration is saved into json-formatted file, whose name can be passed as plugin param to network. GPU backend will process this data to configure kernels for the best performance.
-
-For more details about Kernels Tuning and How-To please refer to [GPU Kernels Tuning](GPU_Kernels_Tuning.md). 
