@@ -94,8 +94,8 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-"$python_binary" -m pip install -U pip
-"$python_binary" -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
+"$python_binary" -m pip install --user -U pip
+"$python_binary" -m pip install --user -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 
 if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
     setupvars_path="$ROOT_DIR/../../bin/setupvars.sh"
