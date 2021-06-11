@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "ngraph/axis_set.hpp"
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/util.hpp"
@@ -16,12 +18,7 @@ namespace ngraph
     /// \param node_description An identifier of the operator's node (used to report errors)
     ///
     /// \return Normalized (positive only) axes as an AxisSet object.
-    static AxisSet get_normalized_axes_from_tensor(const HostTensorPtr tensor,
-                                                   const ngraph::Rank& rank,
-                                                   const std::string& node_description)
-    {
-        const auto axes_vector = host_tensor_2_vector<int64_t>(tensor);
-        const auto normalized_axes = ngraph::normalize_axes(node_description, axes_vector, rank);
-        return AxisSet{normalized_axes};
-    }
+    AxisSet get_normalized_axes_from_tensor(const HostTensorPtr tensor,
+                                            const ngraph::Rank& rank,
+                                            const std::string& node_description);
 } // namespace ngraph

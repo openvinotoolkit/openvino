@@ -6,10 +6,10 @@
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/shape_util.hpp"
-#include "util/evaluate_helpers.hpp"
 
 using namespace std;
 using namespace ngraph;
