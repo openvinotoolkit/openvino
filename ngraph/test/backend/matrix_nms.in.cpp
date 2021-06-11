@@ -750,8 +750,8 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_reference)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_outputs = backend->create_tensor(element::f32, Shape{20, 6});
-    auto selected_indices = backend->create_tensor(element::i64, Shape{20, 1});
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape{{Dimension::dynamic(), 6}});
+    auto selected_indices = backend->create_dynamic_tensor(element::i64, PartialShape{Dimension::dynamic(), 1});
     auto valid_outputs = backend->create_tensor(element::i64, Shape{2});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
