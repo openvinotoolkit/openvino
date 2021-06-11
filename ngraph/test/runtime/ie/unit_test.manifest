@@ -373,6 +373,8 @@ all_dynamic
 # disabled reference implementation
 reduce_sum_keep_2d_to_scalar_int8
 reduce_sum_2d_to_scalar_int8
+reduce_product_to_scalar_int8
+reduce_product_keep_to_scalar_int8
 # accuracy
 reduce_sum_keep_stable_acc
 reduce_sum_keep_3d_to_scalar_int32
@@ -474,8 +476,6 @@ reduce_min_keep_matrix_columns_dynamic
 reduce_min_keep_matrix_rows_dynamic
 
 # zero dimension / result mismatch
-reduce_product_to_scalar_int8
-reduce_product_keep_to_scalar_int8
 reduce_min_to_scalar_int8
 reduce_min_matrix_rows_zero
 reduce_min_matrix_cols_zero
