@@ -401,53 +401,6 @@ TEST_P(InferRequestTests, CorrectOneAsyncInferWithGetInOutWithInfWait) {
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
 }
 
-TEST_P(InferRequestTests, InferDynamicNetworkWithoutSetShape) {
-    const std::string param_name = "Param_1";
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension::dynamic(), 1, 32, 32};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first), InferenceEngine::Exception);
-}
-
-TEST_P(InferRequestTests, InferDynamicNetworkWithGetBlob) {
-    const std::string param_name = "Param_1";
-    const InferenceEngine::SizeVector refShape = {1, 1, 32, 32};
-    const InferenceEngine::SizeVector refOutShape = {1, 116};
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension::dynamic(), 1, 32, 32};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(req.SetShape(param_name, {1, 1, 32, 32}));
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
-    req.Infer();
-    req.StartAsync();
-    InferenceEngine::StatusCode sts;
-    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
-}
-
 // Plugin correct infer request with allocating input and result BlobMaps inside plugin
 TEST_P(InferRequestTests, canStartAsyncInferWithGetInOutWithStatusOnlyWait) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
