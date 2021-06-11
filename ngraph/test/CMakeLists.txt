@@ -173,6 +173,13 @@ set(SRC
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
+    type_prop/reduce_logical_and.cpp
+    type_prop/reduce_logical_or.cpp
+    type_prop/reduce_max.cpp
+    type_prop/reduce_mean.cpp
+    type_prop/reduce_min.cpp
+    type_prop/reduce_prod.cpp
+    type_prop/reduce_sum.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
     type_prop/result.cpp
@@ -199,9 +206,6 @@ set(SRC
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/swish.cpp
-    type_prop/reduce_mean.cpp
-    type_prop/reduce_prod.cpp
-    type_prop/reduce_sum.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
