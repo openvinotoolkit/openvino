@@ -121,8 +121,8 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-"$python_binary" -m pip install -U pip
-"$python_binary" -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
+"$python_binary" -m pip install --user -U pip
+"$python_binary" -m pip install --user -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 
 downloader_dir="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/tools/downloader"
 
@@ -139,8 +139,8 @@ if [ ! -e "$ir_dir" ]; then
     # Step 2. Configure Model Optimizer
     printf "${dashes}"
     printf "Install Model Optimizer dependencies\n\n"
-    cd "${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer/install_prerequisites"
-    . ./install_prerequisites.sh caffe
+    cd "${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer"
+    "$python_binary" -m pip install --user -r requirements.txt
     cd "$cur_path"
 
     # Step 3. Convert a model with Model Optimizer
