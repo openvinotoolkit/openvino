@@ -38,10 +38,9 @@ AutoExecutableNetwork::~AutoExecutableNetwork() = default;
 
 InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                                           OutputsDataMap networkOutputs) {
-    TryGetActualNetwork(_networkActualNeeded);
-
+    InferenceEngine::SoExecutableNetworkInternal network;
     SoIInferRequestInternal inferRequest;
-    if (_alreadyActualNetwork) {
+    if (TryGetActualNetwork(network)) {
         inferRequest = {_networkActualNeeded, _networkActualNeeded->CreateInferRequest()};
     } else {
         inferRequest = {_networkFirstReady, _networkFirstReady->CreateInferRequest()};
@@ -52,6 +51,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRe
 }
 
 bool AutoExecutableNetwork::TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork) {
+    // try to get actual network
     if (_acceleratorFuture.valid() && _acceleratorFuture.wait_for(std::chrono::nanoseconds(0)) == std::future_status::ready) {
         soExecNetwork = _acceleratorFuture.get();
         _alreadyActualNetwork = true;
@@ -60,6 +60,7 @@ bool AutoExecutableNetwork::TryGetActualNetwork(InferenceEngine::SoExecutableNet
         _networkActualNeeded->SetConfig(_cacheConfig);
         return true;
     }
+    // if already get actual network
     if (_alreadyActualNetwork) {
         soExecNetwork = _networkActualNeeded;
         return true;
