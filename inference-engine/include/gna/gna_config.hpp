@@ -138,6 +138,14 @@ namespace Metrics {
 }  // namespace Metrics
 
 namespace GNASpecialPerfCounters {
+    /**
+    * @brief Preformance conter key carrying information whether request was ran on GNA HW or not.
+    *
+    * It is a key inside std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> map.
+    * The map can be obtained using InferenceEngine::InferRequest::GetPerformanceCounts() function.
+    * When this key's InferenceEngineProfileInfo::realTime_uSec field value is equal one that means
+    * request was run on GNA HW.
+    */
     DECLARE_GNA_CONFIG_VALUE(RUN_ON_HW);
 }
 
