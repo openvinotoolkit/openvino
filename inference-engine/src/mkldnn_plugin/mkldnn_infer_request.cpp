@@ -236,12 +236,25 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             _inputs[name] = make_blob_with_precision(desc);
             _inputs[name]->allocate();
             if (blobs[name]->getTensorDesc() == desc &&
-                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
+                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = _inputs[name]->buffer();
             }
         }
         data = _inputs[name];
         checkBlob(data, name, true);
+        // check if preprocess required, but still wasn't set
+        auto preProcessedInput = std::find_if(std::begin(_networkInputs), std::end(_networkInputs),
+            [&](const std::pair<std::string, InferenceEngine::InputInfo::Ptr>& pair)
+            {return pair.first == name;});
+        if (preProcessedInput!= std::end(_networkInputs)) {
+            auto preProcess = preProcessedInput->second->getPreProcess();
+            if (preProcess.getColorFormat() != InferenceEngine::ColorFormat::RAW ||
+                 preProcess.getResizeAlgorithm() != InferenceEngine::ResizeAlgorithm::NO_RESIZE) {
+                _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
+                _preProcData[name]->isApplicable(data, _inputs[name]);
+                _preProcData[name]->setRoiBlob(data);
+            }
+        }
     }
 
     if (graph->hasOutputWithName(name)) {
@@ -359,7 +372,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                 IE_THROW() << "MKLDNN graph doesn't contain input node with name: " << name;
 
             if (data->getTensorDesc() == blobs.at(name)->getTensorDesc() &&
-                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
+                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
                 externalPtr.erase(name);

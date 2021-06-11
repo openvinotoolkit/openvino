@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "auto_plugin/auto_config.hpp"
 #include "behavior/set_blob_of_kind.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "multi-device/multi_device_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 using namespace InferenceEngine;
@@ -17,7 +15,7 @@ const std::vector<FuncTestUtils::BlobKind> blobKinds = {
 };
 
 const SetBlobOfKindConfig cpuConfig{}; //nothing special
-const SetBlobOfKindConfig autoConfig{{ AUTO_CONFIG_KEY(DEVICE_LIST) , CommonTestUtils::DEVICE_CPU}};
+const SetBlobOfKindConfig autoConfig{};
 const SetBlobOfKindConfig multiConfig{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}};
 const SetBlobOfKindConfig heteroConfig{{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU }};
 
@@ -36,7 +34,7 @@ INSTANTIATE_TEST_CASE_P(smoke_SetBlobOfKindMULTI, SetBlobOfKindTest,
 
 INSTANTIATE_TEST_CASE_P(smoke_SetBlobOfKindAUTO, SetBlobOfKindTest,
     ::testing::Combine(::testing::ValuesIn(blobKinds),
-                       ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                       ::testing::Values(CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_CPU),
                        ::testing::Values(autoConfig)),
     SetBlobOfKindTest::getTestCaseName);
 

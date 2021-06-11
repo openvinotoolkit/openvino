@@ -1176,9 +1176,6 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
     size_t total_crop_layers = 0;
 
-    size_t weighted_sum_feature_size = 0;
-    size_t weight_sum = 0;
-
     for (auto& node : get_processing_order()) {
         auto &prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
@@ -1260,12 +1257,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             is_quantized_int8_model = true;
         }
 
-        // WA to keep fsv16 layout disabled for some topologies where it leads to regressions.
-        // For reshape bfy*x is preferred, as fsv16 introduces extra reorders
         if (prim.type() == cldnn::crop::type_id()) {
-            if (prim.get_dependencies()[0]->is_type<reshape>() || prim.get_dependencies()[0]->is_type<concatenation>()) {
-                can_use_fsv16 = false;
-            }
             total_crop_layers++;
         }
 
@@ -1329,35 +1321,4 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
     if (should_use_bs_fs_yx_bsv16_fsv16)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
-
-
-    // This is to avoid using fsv16 for shallow-feature networks.
-    // This may not be exactly same as real execution graph as layer fusing is not done yet,
-    // but it is a reasonable approximation.
-    // Check the expected network efficiency after setting layer optimization attributes.
-    // If network depth is shallow, it is faster with fsv4.
-    for (auto& node : get_processing_order()) {
-        auto &prim = *node;
-
-        if (prim.is_in_data_flow() && prim.type() == cldnn::convolution::type_id()) {
-            size_t num_feature = prim.get_output_layout().size.feature.vector()[0];
-            size_t num_spatial = 1;
-            for (auto s : prim.get_output_layout().size.spatial.vector())
-                num_spatial *= s;
-
-            if (lo.get_preferred_format(prim) != format::b_fs_yx_fsv4) {
-                weight_sum += num_spatial;
-                weighted_sum_feature_size += num_spatial * num_feature;
-            }
-        }
-    }
-
-    size_t weighted_average_feature_depth = weighted_sum_feature_size / std::max(weight_sum, static_cast<size_t>(1));
-
-    // Need to confirm that weighted_average_feature_depth > 1 to keep unittest behavior.
-    if (is_quantized_int8_model && weighted_average_feature_depth < 8 && weighted_average_feature_depth > 1) {
-        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::fs_b_yx_fsv32_network, 0);
-        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::b_fs_yx_fsv16_network, 0);
-        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 0);
-    }
 }

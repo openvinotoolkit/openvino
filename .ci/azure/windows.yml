@@ -29,6 +29,7 @@ jobs:
     MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: D:\build
+    BUILD_SAMPLES_DIR: D:\build_samples
     BIN_DIR: $(REPO_DIR)\bin\intel64
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
@@ -56,10 +57,11 @@ jobs:
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
+      rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
     displayName: 'Make dir'
 
   - script: |
-      certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
+      certutil -urlcache -split -f https://openvinoweb.z5.web.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
       call install_ib_console.bat
     workingDirectory: $(WORK_DIR)
     displayName: 'Install IncrediBuild'
@@ -90,7 +92,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && cmake -GNinja -DENABLE_FASTER_BUILD=ON -DENABLE_TEMPLATE_PLUGIN=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
+      call "$(MSVS_VARS_PATH)" && cmake -GNinja -DENABLE_FASTER_BUILD=ON -DENABLE_TEMPLATE_PLUGIN=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
@@ -101,11 +103,22 @@ jobs:
     displayName: 'Build Win'
 
   - script: dir $(REPO_DIR)\bin\ /s
-    displayName: 'List files'
+    displayName: 'List bin files'
 
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
+
+  - script: dir $(INSTALL_DIR) /s
+    displayName: 'List install files'
+
+  - script: $(INSTALL_DIR)\deployment_tools\inference_engine\samples\cpp\build_samples_msvc.bat
+    workingDirectory: $(BUILD_SAMPLES_DIR)
+    displayName: 'Build cpp samples'
+
+  - script: $(INSTALL_DIR)\deployment_tools\inference_engine\samples\c\build_samples_msvc.bat
+    workingDirectory: $(BUILD_SAMPLES_DIR)
+    displayName: 'Build c samples'
 
   - script: |
       set PATH=$(TEST_ENV_PATH)

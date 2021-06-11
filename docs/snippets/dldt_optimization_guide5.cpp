@@ -1,8 +1,5 @@
-#include <inference_engine.hpp>
 #include <opencv2/core/core.hpp>
-#include "ie_plugin_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
-
+#include <ie_core.hpp>
 
 int main() {
 InferenceEngine::InferRequest inferRequest;
