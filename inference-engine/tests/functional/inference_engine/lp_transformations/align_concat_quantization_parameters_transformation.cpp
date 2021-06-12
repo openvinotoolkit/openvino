@@ -12,6 +12,7 @@
 #include <transformations/init_node_info.hpp>
 
 #include <low_precision/align_quantization_intervals.hpp>
+#include <low_precision/markup_per_tensor_quantization.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/markup_precisions.hpp>
 #include <low_precision/markup_avg_pool_precision_preserved.hpp>
@@ -121,7 +122,7 @@ public:
 
         {
             ngraph::pass::Manager manager3;
-            manager3.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+            manager3.register_pass<ngraph::pass::low_precision::MarkupPerTensorQuantization>();
             manager3.run_passes(actualFunction);
             ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming3.svg").run_on_function(actualFunction);
             //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
@@ -129,18 +130,34 @@ public:
 
         {
             ngraph::pass::Manager manager4;
-            manager4.register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>();
+            manager4.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
             manager4.run_passes(actualFunction);
             ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming4.svg").run_on_function(actualFunction);
             //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming4").run_on_function(actualFunction);
         }
 
         {
+            ngraph::pass::Manager manager3;
+            manager3.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+            manager3.run_passes(actualFunction);
+            ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming5.svg").run_on_function(actualFunction);
+            //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming5").run_on_function(actualFunction);
+        }
+
+        {
+            ngraph::pass::Manager manager4;
+            manager4.register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>();
+            manager4.run_passes(actualFunction);
+            ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming6.svg").run_on_function(actualFunction);
+            //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming6").run_on_function(actualFunction);
+        }
+
+        {
             ngraph::pass::Manager manager5;
             manager5.register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>();
             manager5.run_passes(actualFunction);
-            ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming5.svg").run_on_function(actualFunction);
-            //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming5").run_on_function(actualFunction);
+            ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming7.svg").run_on_function(actualFunction);
+            //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming7").run_on_function(actualFunction);
         }
 
         {

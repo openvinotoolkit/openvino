@@ -259,9 +259,9 @@ DataPrecision LayerTransformation::getDataPrecision(
     printDequantizationInfo(layer);
 #endif
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
-    if (precisionDetailsAtOutputIntervals.precision == element::undefined) {
-        THROW_TRANSFORMATION_EXCEPTION << "unexpected results";
-    }
+    //if (precisionDetailsAtOutputIntervals.precision == element::undefined) {
+    //    THROW_TRANSFORMATION_EXCEPTION << "unexpected results";
+    //}
 
     if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
         // if supportedPrecisions is empty then use the first available, not supported layer will be in original precision
@@ -280,7 +280,11 @@ DataPrecision LayerTransformation::getDataPrecision(
             return dataPrecision;
         }
     }
-    return DataPrecision(element::undefined, 0.f, 0.f, false);
+    return DataPrecision(
+        precisionDetailsAtOutputIntervals.precision,
+        0.f,
+        0.f,
+        precisionDetailsAtOutputIntervals.hasZeroPoint);
 }
 
 std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(

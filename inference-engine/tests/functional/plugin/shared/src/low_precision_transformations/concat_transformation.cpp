@@ -37,8 +37,6 @@ InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEn
     ConcatTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
     return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
 }

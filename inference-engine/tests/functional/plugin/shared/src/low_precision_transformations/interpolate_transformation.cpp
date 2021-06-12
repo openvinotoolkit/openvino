@@ -53,7 +53,6 @@ void InterpolateTransformation::SetUp() {
     ngraph::element::Type precision;
     std::pair<ngraph::Shape, ngraph::Shape> shapes;
     interpAttributes attributes;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::tie(precision, shapes, targetDevice, attributes) = this->GetParam();
 
     ngraph::op::InterpolateAttrs interpAttrs;
