@@ -57,7 +57,6 @@ void DepthToSpaceTransformation::SetUp() {
     ngraph::Shape inputShape;
     DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = this->GetParam();
 
     if (inputShape.size() != 4ul) {

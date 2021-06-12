@@ -161,8 +161,6 @@ public:
                 ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::AvgPool>()
             });
 
-        const auto params = ngraph::pass::low_precision::LayerTransformation::Params(testValues.params.updatePrecisions);
-
 //#define VISUALIZE_TREE
 #ifndef VISUALIZE_TREE
 
@@ -227,6 +225,8 @@ public:
         manager5.run_passes(actualFunction);
         ngraph::pass::VisualizeTree("/Users/eshoguli/projects/temp/test.transforming7.svg").run_on_function(actualFunction);
         //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming7").run_on_function(actualFunction);
+
+        const auto params = ngraph::pass::low_precision::LayerTransformation::Params(testValues.params.updatePrecisions);
 
         {
             ngraph::pass::Manager manager;
@@ -331,9 +331,10 @@ const std::vector<ngraph::element::Type> precisions = {
 
 const std::vector<ConcatTransformationTestValues> testValues = {
     // U8: concat: levels less then threshold is ignored, function is not transformed
+    // U8: concat: per-channel quantization: function is transformed
     {
         LayerTransformation::createParamsU8I8(),
-        false,
+        true,
         1,
         {
             { 256ul, {}, {0.f}, {2550.f}, {0.f}, {2550.f} },
@@ -745,40 +746,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         false,
         false
     },
-    // U8: concat multi channels with subtract
-    {
-        LayerTransformation::createParamsU8I8(),
-        true,
-        1,
-        {
-            { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
-            {},
-            {},
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-            {},
-            {}
-        },
-        {
-            {
-                256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
-            },
-            {},
-            {},
-            {
-                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
-            },
-            {},
-            {},
-            ngraph::element::u8,
-            {
-                ngraph::element::f32,
-                {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
-                {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
-            }
-        }
-    },
     // I8
     {
         LayerTransformation::createParamsI8I8(),
@@ -967,6 +934,83 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
             {},
             {}
+        },
+    },
+    // U8: concat multi channels with subtract
+    // Features:
+    //  1. fakeQuantize1 defines precision
+    //  2. fakeQuantize2 has zero point (doesn't define precision)
+    //  3. FakeQuantize operations order is not important.
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            {
+                ngraph::element::f32,
+                {{ 0.f, 0.f, 0.f, -255.f, -255.f, -255.f }},
+                {{ 0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f }}
+            }
+        },
+    },
+    // U8: concat multi channels with subtract
+    // Features:
+    //  1. fakeQuantize2 has zero point (doesn't define precision)
+    //  2. fakeQuantize1 defines precision
+    //  3. FakeQuantize operations order is not important.
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            {
+                256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)
+            }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            {
+                ngraph::element::f32,
+                {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
+                {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
+            }
         },
     },
     // not update precisions

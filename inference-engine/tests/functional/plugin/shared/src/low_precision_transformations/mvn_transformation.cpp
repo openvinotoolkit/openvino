@@ -39,7 +39,6 @@ std::string MVNTransformation::getTestCaseName(testing::TestParamInfo<MVNTransfo
 void MVNTransformation::SetUp() {
     ngraph::Shape shape;
     ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ngraph::AxisSet reductionAxes;
     bool normalizeVariance;
     std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = this->GetParam();

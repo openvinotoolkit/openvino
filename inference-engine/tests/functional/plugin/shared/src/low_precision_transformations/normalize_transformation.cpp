@@ -47,7 +47,6 @@ void NormalizeL2Transformation::SetUp() {
     threshold = 3.e-3;
     std::pair<ngraph::Shape, ngraph::Shape> shapes;
     ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;

@@ -185,7 +185,9 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
     LayerTransformation::PrecisionDetails preferablePrecision = LayerTransformation::getPrecisionDetails(quantizationDetails);
-    attribute->get()->sharedValue->preferablePrecisions.insert(preferablePrecision.precision);
+    if (preferablePrecision.precision != element::undefined) {
+        attribute->get()->sharedValue->preferablePrecisions.insert(preferablePrecision.precision);
+    }
 
     attribute->get()->sharedValue->minLevelsOperation = node->get_friendly_name();
 
@@ -249,11 +251,21 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
 }
 
 std::string VariantWrapper<IntervalsAlignmentAttributePtr>::get_string() {
+    std::stringstream preferablePrecisions;
+    preferablePrecisions << "{";
+    size_t index = 0;
+    for (const auto& precision : m_value->sharedValue->preferablePrecisions) {
+        preferablePrecisions << (index > 0 ? ", " : "") << precision;
+        ++index;
+    }
+    preferablePrecisions << "}";
+
     std::stringstream ss;
     ss << m_value->get_string();
     ss << "levels: " + std::to_string(m_value->levels) << ", " <<
         "combined: { " << m_value->sharedValue->combinedInterval.low << ", " << m_value->sharedValue->combinedInterval.high << " }, " <<
         "min: { " << m_value->sharedValue->minInterval.low << ", " << m_value->sharedValue->minInterval.high << " }, "
-        "minLevels: " << m_value->sharedValue->minLevels << ", minLevelsOperation: " << m_value->sharedValue->minLevelsOperation;
+        "minLevels: " << m_value->sharedValue->minLevels << ", minLevelsOperation: " << m_value->sharedValue->minLevelsOperation << ", " <<
+        "preferablePrecisions: " << preferablePrecisions.str();
     return ss.str();
 }
