@@ -374,7 +374,7 @@ std::vector<VariableState> InferRequest::QueryState() {
 }
 
 bool InferRequest::operator!() const noexcept {
-    return !_impl || !actual;
+    return !_impl && !actual;
 }
 
 InferRequest::operator bool() const noexcept {

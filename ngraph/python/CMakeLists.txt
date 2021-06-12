@@ -31,7 +31,7 @@ endif()
 
 function(ngraph_get_python_version)
     set(patchlevel_header "${PYTHON_INCLUDE_DIR}/patchlevel.h")
-    if(PYTHON_INCLUDE_DIR AND EXISTS ${patchlevel_header})
+    if(EXISTS ${patchlevel_header})
         file(STRINGS "${patchlevel_header}"
             PYTHON_VERSION_PARTS REGEX "#define[ ]+PY_[A-Z]+_VERSION[ ]+.*" )
         string(REGEX REPLACE ".+PY_MAJOR_VERSION[ ]+([0-9]+).*" "\\1"
