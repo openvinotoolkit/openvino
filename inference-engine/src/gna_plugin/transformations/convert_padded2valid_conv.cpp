@@ -104,11 +104,11 @@ bool VerifyLayer<>(std::shared_ptr<opset1::MaxPool> max_pool) {
     if (layer_output_0.size() != 1)
         return false;
 
-    // Check if MaxPool vertical stride == pool size
     auto pool_strides = max_pool->get_strides();
     auto pool_kernel = max_pool->get_kernel();
-
-    // We support only VALID PADDING
+    
+    // Check if MaxPool vertical stride == pool size (TODO: remove when 50386 and 50379 are fixed)
+    // Check if padding is VALID
     if (max_pool->get_auto_pad() != PadType::VALID ||
         pool_kernel.size() != 2 || pool_strides.size() != 2 ||
         pool_kernel[0] != pool_strides[0] || pool_kernel[0] > 8)
@@ -248,11 +248,11 @@ bool DetectGraphSequence(GraphData& graph_data, const ConvData& conv_data) {
         return false;
     }
 
-    ////max pooling
+    // max pooling
     if (!DetectOptionalLayer<opset1::MaxPool>(graph_data, graph_data.max_pool))
         return false;
 
-    //and finally activation function
+    // and finally activation function
     if (!DetectOptionalLayer<op::util::UnaryElementwiseArithmetic>(graph_data, graph_data.af))
         return false;
 
@@ -284,11 +284,16 @@ bool CalculatePadding(const GraphData& graph_data, ConvData& conv_data) {
         output_height = conv_data.output_shape[2];
         output_width = conv_data.output_shape[3];
 
-        //TODO: check if this algo is good, see info text file
-        size_t pads_x = output_width * conv_data.filter_stride_x +
-            (conv_data.filter_width - 1) * conv_data.filter_dilation_x - conv_data.input_width;
-        size_t pads_y = output_height * conv_data.filter_stride_y +
-            (conv_data.filter_height - 1) * conv_data.filter_dilation_y - conv_data.input_height;
+        int32_t pads_x = (output_width - 1) * conv_data.filter_stride_x +
+            (conv_data.filter_width - 1) * conv_data.filter_dilation_x + 1 - conv_data.input_width;
+        int32_t pads_y = (output_height - 1) * conv_data.filter_stride_y +
+            (conv_data.filter_height - 1) * conv_data.filter_dilation_y + 1 - conv_data.input_height;
+
+        if (pads_x < 0)
+            pads_x = 0;
+
+        if (pads_y < 0)
+            pads_y = 0;
 
         conv_data.pads_begin_x = conv_data.pads_end_x = pads_x / 2;
         conv_data.pads_begin_y = conv_data.pads_end_y = pads_y / 2;

@@ -126,7 +126,7 @@ protected:
         auto transpose_in_order = op::Constant::create(element::i64, Shape{ 4 }, { 0, 3, 1, 2 });
         auto transpose_in = std::make_shared<Transpose>(input[0], transpose_in_order);
         auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
-        auto filter_weights = CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filter_size, -0.1f, 0.1f);
+        auto filter_weights = CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filter_size, -0.05f, 0.05f);
         auto conv = builder::makeConvolution(transpose_in, ngPrc, kernel, stride, padBegin,
             padEnd, dilation, padType, numOutChannels, false, filter_weights);
         auto transpose_out_order = op::Constant::create(element::i64, Shape{ 4 }, { 0, 2, 3, 1 });
@@ -146,9 +146,9 @@ protected:
         case modelType::TranspConvBcastAddMaxPoolTransp:
         {
             auto bcast_add = std::make_shared<Add>(conv, bias_const);
-            auto maxpool = std::make_shared<MaxPool>(bcast_add, maxpool_strides, Shape{ 0, 0 }, Shape{ 0, 0 }, maxpool_shape,
+            auto max_pool = std::make_shared<MaxPool>(bcast_add, maxpool_strides, Shape{ 0, 0 }, Shape{ 0, 0 }, maxpool_shape,
                 op::RoundingType::FLOOR, op::PadType::VALID);
-            last_op = std::make_shared<Transpose>(maxpool, transpose_out_order);
+            last_op = std::make_shared<Transpose>(max_pool, transpose_out_order);
         }
         break;
 
@@ -163,7 +163,7 @@ protected:
         case modelType::TranspConvBcastAddMaxPoolActTransp:
         {
             auto bcast_add = std::make_shared<Add>(conv, bias_const);
-            auto max_pool = std::make_shared<MaxPool>(bcast_add, Strides{ 1, 1 }, Shape{ 0, 0 }, Shape{ 0, 0 }, maxpool_shape,
+            auto max_pool = std::make_shared<MaxPool>(bcast_add, maxpool_strides, Shape{ 0, 0 }, Shape{ 0, 0 }, maxpool_shape,
                 op::RoundingType::FLOOR, op::PadType::VALID);
             auto activation = std::make_shared<Relu>(max_pool);
             last_op = std::make_shared<Transpose>(activation, transpose_out_order);
@@ -260,8 +260,8 @@ const std::vector<modelType> models = {
     modelType::TranspConvBcastAddTransp,
     modelType::TranspConvBcastAddActTransp,
     modelType::TranspConvTranspBcastAdd,
-    modelType::TranspConvTranspBcastAddAct
-    //TODO: these models fail for 1d conv even when not transformed (valid padding) and with SW_FP32 setting
+    modelType::TranspConvTranspBcastAddAct,
+    //TODO: enable when 50386 and 50379 are fixed
     //modelType::TranspConvBcastAddMaxPoolTransp,
     //modelType::TranspConvBcastAddMaxPoolActTransp,
 };
@@ -288,7 +288,7 @@ const std::vector<size_t> numOutChannels2D = { 32 };
 const std::vector<std::vector<size_t >> biases2D = { {1, 32, 1, 1} };
 const std::vector<std::vector<size_t >> transp_biases2D = { {1, 1, 1, 32} };
 const std::vector<std::vector<size_t >> maxpool2D_pools = { {2, 2} };
-const std::vector<std::vector<size_t >> maxpool2D_strides = { {1, 1} };
+const std::vector<std::vector<size_t >> maxpool2D_strides = { {2, 1} };
 
 const auto conv1DParams = ::testing::Combine(
     ::testing::ValuesIn(kernels1D),
