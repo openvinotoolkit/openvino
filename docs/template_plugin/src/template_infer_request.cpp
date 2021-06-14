@@ -239,11 +239,22 @@ void TemplateInferRequest::inferPreprocess() {
         _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
             parameterType, parameterShape, InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second)->rmap().as<void*>());
     }
-    // Go over all outputs in the model, not over all allocated blobs because for a part of the outputs
-    // blobs may not be yet allocated due to unknown dimensions
-    // TODO: should we really go over all results in the network, or it is better to go over _networkOutputs?
-    for (size_t index = 0; index < _executableNetwork->_function->get_results().size(); ++index) {
-        _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor();
+    for (auto&& output : _outputs) {
+        auto outputBlob = output.second;
+        auto networkOutput = _networkOutputBlobs[output.first];
+        auto index = _executableNetwork->_outputIndex[output.first];
+        if (outputBlob->getTensorDesc().getPrecision() == networkOutput->getTensorDesc().getPrecision()) {
+            networkOutput = outputBlob;
+        }
+        const auto& result = _executableNetwork->_function->get_results()[index];
+        if (result->get_partial_shape().is_dynamic()) {
+            _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor();
+            continue;
+        }
+        const auto& resultShape = result->get_shape();
+        const auto& resultType = result->get_element_type();
+        _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
+            resultType, resultShape, InferenceEngine::as<InferenceEngine::MemoryBlob>(networkOutput)->wmap().as<void*>());
     }
     _durations[Preprocess] = Time::now() - start;
 }
@@ -270,13 +281,21 @@ void TemplateInferRequest::waitPipeline() {
 void TemplateInferRequest::inferPostprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Postprocess]);
     auto start = Time::now();
-    for (auto&& output : _outputs) {
-        auto outputBlob = output.second;
+    for (auto&& output : _networkOutputs) {
+        auto index = _executableNetwork->_outputIndex[output.first];
+        const auto& result = _executableNetwork->_function->get_results()[index];
+        if (result->get_partial_shape().is_dynamic()) {
+            // Touch blob to allocate it
+            Blob::Ptr blob;
+            GetBlob(output.first);
+        }
+        auto outputBlob = _outputs.at(output.first);
         auto networkOutput = _networkOutputBlobs[output.first];
-        // perform precision conversion of network output's precision and computational
-        // graph output's precision are different
         if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
             blobCopy(networkOutput, outputBlob);
+        } else if (result->get_partial_shape().is_dynamic()) {
+            auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];
+            tensor->read(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<char*>(), tensor->get_size_in_bytes());
         }
     }
     _durations[Postprocess] = Time::now() - start;
