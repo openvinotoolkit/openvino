@@ -71,25 +71,13 @@ bool TransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<int
 }
 
 std::shared_ptr<opset1::StridedSlice> FlatCrop(Output<Node> input, size_t offset, size_t size) {
-    auto shape = input.get_shape();
-    if (shape.size() == 1) {
-        return std::make_shared<opset1::StridedSlice>(
-            input, // data
-            opset1::Constant::create(element::i64, Shape{ 1 }, { offset }), // begin slice index
-            opset1::Constant::create(element::i64, Shape{ 1 }, { offset + size }), // end slice index
-            opset1::Constant::create(element::i64, Shape{ 1 }, { 1 }), // strides
-            std::vector<int64_t>{0},  // begin mask
-            std::vector<int64_t>{0}); // end mask
-    } else if (shape.size() == 2) {
-        return std::make_shared<opset1::StridedSlice>(
-            input, // data
-            opset1::Constant::create(element::i64, Shape{ 2 }, { (size_t)0, offset }), // begin sice index
-            opset1::Constant::create(element::i64, Shape{ 2 }, { (size_t)0, offset + size }), // end slice index
-            opset1::Constant::create(element::i64, Shape{ 2 }, { (size_t)1, (size_t)1 }), // strides
-            std::vector<int64_t>{1, 0},  // begin mask
-            std::vector<int64_t>{1, 0}); // end mask
-        }
-    return nullptr;
+    return std::make_shared<opset1::StridedSlice>(
+        input, // data
+        opset1::Constant::create(element::i64, Shape{ 2 }, { (size_t)0, offset }), // begin sice index
+        opset1::Constant::create(element::i64, Shape{ 2 }, { (size_t)0, offset + size }), // end slice index
+        opset1::Constant::create(element::i64, Shape{ 2 }, { (size_t)1, (size_t)1 }), // strides
+        std::vector<int64_t>{1, 0},  // begin mask
+        std::vector<int64_t>{1, 0}); // end mask
 }
 
 template<class T>
@@ -331,14 +319,12 @@ bool CalculatePadding(const GraphData& graph_data, ConvData& conv_data) {
 }
 
 void InsertPadding(OutputVector& input_rows_to_concat, size_t size, const std::shared_ptr<opset1::Convolution>& conv,
-    size_t padded_row_size, size_t biggest_padding) {
-    // zero padding
-    auto padding_const = std::make_shared<opset1::Constant>(element::Type_t::f32, Shape{ 1, size }, 0);
+    const std::shared_ptr<opset1::Constant> padding_const, size_t biggest_padding) {
 
-    if (padded_row_size == biggest_padding) {
+    if (size == biggest_padding) {
         input_rows_to_concat.push_back(padding_const);
     } else {
-        auto slice = FlatCrop(padding_const, 0, padded_row_size);
+        auto slice = FlatCrop(padding_const, 0, size);
         copy_runtime_info(conv, slice);
         input_rows_to_concat.push_back(slice);
     }
@@ -368,7 +354,7 @@ std::shared_ptr<Node> CreatePaddedNet(const GraphData& graph_data, const ConvDat
 
     // Add top padding
     for (size_t p = 0; p < conv_data.pads_begin_y; p++) {
-        InsertPadding(input_rows_to_concat, padded_row_size, graph_data.conv, padded_row_size, biggest_padding);
+        InsertPadding(input_rows_to_concat, padded_row_size, graph_data.conv, const_holding_padding, biggest_padding);
     }
 
     // Pad every row of input plain if neccessary
@@ -386,11 +372,11 @@ std::shared_ptr<Node> CreatePaddedNet(const GraphData& graph_data, const ConvDat
         if (flat_left_padding || flat_right_padding) {
             OutputVector single_row_concat_inputs;
             if (flat_left_padding) {
-                InsertPadding(single_row_concat_inputs, flat_left_padding, graph_data.conv, padded_row_size, biggest_padding);
+                InsertPadding(single_row_concat_inputs, flat_left_padding, graph_data.conv, const_holding_padding, biggest_padding);
             }
             single_row_concat_inputs.push_back(original_row);
             if (flat_right_padding) {
-                InsertPadding(single_row_concat_inputs, flat_right_padding, graph_data.conv, padded_row_size, biggest_padding);
+                InsertPadding(single_row_concat_inputs, flat_right_padding, graph_data.conv, const_holding_padding, biggest_padding);
             }
             auto padded_row_concat = std::make_shared<opset1::Concat>(single_row_concat_inputs, 1);
             copy_runtime_info(graph_data.conv, padded_row_concat);
@@ -402,7 +388,7 @@ std::shared_ptr<Node> CreatePaddedNet(const GraphData& graph_data, const ConvDat
 
     // Bottom padding
     for (size_t p = 0; p < conv_data.pads_end_y; p++) {
-        InsertPadding(input_rows_to_concat, padded_row_size, graph_data.conv, padded_row_size, biggest_padding);
+        InsertPadding(input_rows_to_concat, padded_row_size, graph_data.conv, const_holding_padding, biggest_padding);
     }
 
     auto padded_input_plane = std::make_shared<opset1::Concat>(input_rows_to_concat, 1);
