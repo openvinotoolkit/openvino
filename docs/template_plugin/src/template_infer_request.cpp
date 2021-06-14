@@ -42,8 +42,6 @@ TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap&
     };
 
     _executable = _executableNetwork->_plugin->_backend->compile(_executableNetwork->_function);
-    _parameters = _executableNetwork->_function->get_parameters();
-    _results = _executableNetwork->_function->get_results();
 
     allocateDeviceBuffers();
     allocateBlobs();
@@ -234,25 +232,18 @@ void TemplateInferRequest::inferPreprocess() {
     IInferRequestInternal::execDataPreprocessing(_deviceInputs);
     for (auto&& networkInput : _deviceInputs) {
         auto index = _executableNetwork->_inputIndex[networkInput.first];
-        const auto& parameter = _parameters[index];
+        const auto& parameter = _executableNetwork->_function->get_parameters()[index];
         auto parameterShape =
             m_realShapes.find(networkInput.first) != m_realShapes.end() ? ngraph::Shape(m_realShapes.at(networkInput.first)) : parameter->get_shape();
         const auto& parameterType = parameter->get_element_type();
         _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
             parameterType, parameterShape, InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second)->rmap().as<void*>());
     }
-    for (auto&& output : _outputs) {
-        auto outputBlob = output.second;
-        auto networkOutput = _networkOutputBlobs[output.first];
-        auto index = _executableNetwork->_outputIndex[output.first];
-        if (outputBlob->getTensorDesc().getPrecision() == networkOutput->getTensorDesc().getPrecision()) {
-            networkOutput = outputBlob;
-        }
-        const auto& result = _results[index];
-        const auto& resultShape = result->get_shape();
-        const auto& resultType = result->get_element_type();
-        _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
-            resultType, resultShape, InferenceEngine::as<InferenceEngine::MemoryBlob>(networkOutput)->wmap().as<void*>());
+    // Go over all outputs in the model, not over all allocated blobs because for a part of the outputs
+    // blobs may not be yet allocated due to unknown dimensions
+    // TODO: should we really go over all results in the network, or it is better to go over _networkOutputs?
+    for (size_t index = 0; index < _executableNetwork->_function->get_results().size(); ++index) {
+        _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor();
     }
     _durations[Preprocess] = Time::now() - start;
 }
