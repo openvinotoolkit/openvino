@@ -110,3 +110,104 @@ TEST(type_prop, space_to_batch_dynamic_shape_dynamic_rank)
     ASSERT_EQ(space_to_batch->get_element_type(), element::f32);
     ASSERT_EQ(space_to_batch->get_output_partial_shape(0), PartialShape::dynamic());
 }
+
+TEST(type_prop, space_to_batch_invalid_element_type_block_shape)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 128});
+    auto block_shape = make_shared<op::Constant>(element::f32, Shape{2}, vector<int64_t>{1, 5});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{2}, vector<float>{0, 2});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 0});
+
+    try
+    {
+        auto space_to_batch =
+            make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+        // Input element type is float32
+        FAIL() << "Invalid f32 element type for block_shape not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "block_shape must be an integral number");
+    }
+    catch(...)
+    {
+        FAIL() << "Integral element type node validation check failed for unexpected reason";
+    }
+
+}
+
+TEST(type_prop, space_to_batch_invalid_element_type_pads_begin)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 128});
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 5});
+    auto pads_begin = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{0, 2});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 0});
+
+    try
+    {
+        auto space_to_batch =
+            make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+        // Input element type is float32
+        FAIL() << "Invalid f32 element type for pads_begin not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "pads_begin must be an integral number but got");
+    }
+    catch(...)
+    {
+        FAIL() << "Integral element type node validation check failed for unexpected reason";
+    }
+
+}
+
+TEST(type_prop, space_to_batch_invalid_element_type_pads_end)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 128});
+    auto block_shape = make_shared<op::Constant>(element::i16, Shape{2}, vector<int64_t>{1, 5});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
+    auto pads_end = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{0, 0});
+
+    try
+    {
+        auto space_to_batch =
+            make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+        // Input element type is float32
+        FAIL() << "Invalid f32 element type for pads_end not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "pads_end must be an integral number but got");
+    }
+    catch(...)
+    {
+        FAIL() << "Integral element type node validation check failed for unexpected reason";
+    }
+
+}
+
+TEST(type_prop, space_to_batch_invalid_value_block_shape)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 128});
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{-1, -5});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{2}, vector<float>{0, 0});
+
+    try
+    {
+        auto space_to_batch =
+            make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+        // Input element type is float32
+        FAIL() << "Invalid block_shape value not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "block_shape values must be greater than 0");
+    }
+    catch(...)
+    {
+        FAIL() << "block_shape value node validation check failed for unexpected reason";
+    }
+
+}
+

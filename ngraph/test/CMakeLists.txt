@@ -275,6 +275,7 @@ set(SRC
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/softmax.cpp
+    visitors/op/space_to_batch.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
@@ -445,6 +446,7 @@ set(MULTI_TEST_SRC
     backend/sin.in.cpp
     backend/sinh.in.cpp
     backend/softmax.in.cpp
+    backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/squared_difference.in.cpp
