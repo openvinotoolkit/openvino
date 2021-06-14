@@ -117,7 +117,11 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return true;
     }
 
-    const ngraph::PartialShape partialShape = dequantizationElementwise->get_input_partial_shape(0);
+    const auto partialShape = dequantizationElementwise->get_input_partial_shape(0);
+    if (partialShape.rank().is_dynamic()) {
+        return false;
+    }
+
     const auto channelsDimension = partialShape[1];
     if (channelsDimension.is_dynamic()) {
         return false;
