@@ -6,7 +6,7 @@ set(TARGET_NAME fuzz-testhelper)
 
 file(
     GLOB SRC_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/*-testhelper.cc)
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
 
 add_library(
     ${TARGET_NAME} STATIC
