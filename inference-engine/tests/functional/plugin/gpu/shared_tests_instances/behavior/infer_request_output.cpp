@@ -3,7 +3,7 @@
 //
 
 #include "behavior/infer_request_output.hpp"
-#include "cldnn/cldnn_config.hpp"
+#include "gpu/gpu_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -22,8 +22,7 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> autoConfigs = {
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
-                {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU}}
     };
 
     const std::vector<std::map<std::string, std::string>> auto_cpu_gpu_conf = {
