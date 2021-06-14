@@ -6,6 +6,7 @@
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/reduce_l2.hpp"
 #include "ngraph/shape_util.hpp"
@@ -72,8 +73,11 @@ bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v4_ReduceL2_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    return reduce_l2::evaluate_reduce_l2(
-        inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+
+    const auto reduction_axes = get_normalized_axes_from_tensor(
+        inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
+
+    return reduce_l2::evaluate_reduce_l2(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
 
 bool op::v4::ReduceL2::has_evaluate() const
