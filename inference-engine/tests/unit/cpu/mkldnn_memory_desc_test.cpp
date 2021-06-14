@@ -28,7 +28,33 @@ TEST(MemDescTest, Conversion) {
         { dnnl::memory::format_tag::nhwc,        {4, 2, 10, 7 } },  // permuted
         { dnnl::memory::format_tag::nchw,        {4, 2, 10, 7 } },  // plain
         { dnnl::memory::format_tag::NChw16n16c,  {4, 2, 10, 7 } },  // blocked for 2 dims
-        { dnnl::memory::format_tag::BAcd16a16b,  {4, 2, 10, 7 } }   // blocked and permuted outer dims
+        { dnnl::memory::format_tag::BAcd16a16b,  {4, 2, 10, 7 } },  // blocked and permuted outer dims
+        { dnnl::memory::format_tag::Acdb16a,     {96, 1, 7, 7 } },  // same strides but not default order
+    };
+
+    for (const auto &p : payload)
+        ASSERT_TRUE(converted_correctly(p.first, p.second));
+}
+
+TEST(MemDescTest, CompareWithTensorDescRecomputedStrides) {
+    auto converted_correctly = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
+        dnnl::memory::desc orig_tdesc {dims, dnnl::memory::data_type::u8, fmt};
+        MKLDNNMemoryDesc plg_tdesc {orig_tdesc};
+        TensorDesc ie_tdesc {plg_tdesc};
+
+        const BlockingDesc block_dess(ie_tdesc.getBlockingDesc().getBlockDims(), ie_tdesc.getBlockingDesc().getOrder());
+        TensorDesc recomputed_tdesc(ie_tdesc.getPrecision(), ie_tdesc.getDims(), block_dess);
+
+        return  ie_tdesc == recomputed_tdesc;
+    };
+
+    std::pair<dnnl::memory::format_tag, dnnl::memory::dims> payload[] {
+        { dnnl::memory::format_tag::nChw16c,     {1, 1, 10, 10} },  // auto blocked
+        { dnnl::memory::format_tag::nhwc,        {4, 2, 10, 7 } },  // permuted
+        { dnnl::memory::format_tag::nchw,        {4, 2, 10, 7 } },  // plain
+        { dnnl::memory::format_tag::NChw16n16c,  {4, 2, 10, 7 } },  // blocked for 2 dims
+        { dnnl::memory::format_tag::BAcd16a16b,  {4, 2, 10, 7 } },  // blocked and permuted outer dims
+        { dnnl::memory::format_tag::Acdb16a,     {96, 1, 7, 7 } },  // same strides but not default order
     };
 
     for (const auto &p : payload)
@@ -122,4 +148,19 @@ TEST(MemDescTest, BlockedConversion) {
 
 TEST(MemDescTest, ComaptibleWithFormat) {
     SKIP();
+}
+
+TEST(isSameMethodTest, CheckTensorWithSameStrides) {
+    auto isSameDataFormat = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
+        dnnl::memory::desc oneDnnDesc {dims, dnnl::memory::data_type::u8, fmt};
+        MKLDNNMemoryDesc pluginDesc {oneDnnDesc};
+        return pluginDesc.getFormat() == fmt;
+    };
+
+    std::pair<dnnl::memory::format_tag, dnnl::memory::dims> testCases[] {
+        { dnnl::memory::format_tag::ntc, {1, 10, 10} },
+    };
+
+    for (const auto &tc : testCases)
+        ASSERT_TRUE(isSameDataFormat(tc.first, tc.second));
 }

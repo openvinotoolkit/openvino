@@ -23,15 +23,12 @@
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/graph_util.hpp>
 
-#include <legacy/ie_util_internal.hpp>
 #include <ie_core.hpp>
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-
-IE_SUPPRESS_DEPRECATED_START
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -337,10 +334,6 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
     auto output = network.getOutputsInfo();
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
-    // Convert to CNNNetwork
-    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-    auto layer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedNetwork), "activation");
-    ASSERT_EQ("CustomTestLayer", layer->type);
 }
 
 TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
@@ -408,12 +401,6 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
     auto output = network.getOutputsInfo();
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
-    // Convert to CNNNetwork
-    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-    auto layer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedNetwork), "activation");
-    ASSERT_EQ("CustomTestLayer", layer->type);
-    ASSERT_EQ("false", layer->params["test1"]);
-    ASSERT_EQ("3", layer->params["test2"]);
 }
 
 class BadExtension : public InferenceEngine::IExtension {

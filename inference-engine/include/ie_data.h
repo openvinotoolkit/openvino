@@ -19,12 +19,12 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+
 /**
  * @brief This class represents the main Data representation node.
  *
  * The NN graphs are di-graphs consisting of data nodes and layer nodes.
  */
-
 class INFERENCE_ENGINE_API_CLASS(Data) {
     class Impl;
 public:

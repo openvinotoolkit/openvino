@@ -17,6 +17,7 @@ from mo.front.mxnet.extractor import mxnet_op_extractors, mxnet_op_extractor
 from mo.front.mxnet.loader import symbol2nx, load_symbol_def
 from mo.front.mxnet.nd_to_params import save_params_file
 from mo.graph.graph import Graph
+from mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
 
 
 class MxNetLoader(Loader):
@@ -51,3 +52,5 @@ class MxNetLoader(Loader):
         graph.graph['feature_dim'] = 1 if graph.graph['layout'] == 'NCHW' else 3
 
         extract_node_attrs(graph, mxnet_op_extractor)
+        send_op_names_info('mxnet', graph)
+        send_shapes_info('mxnet', graph)

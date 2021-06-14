@@ -36,8 +36,15 @@ void prepare_quantization::prepare_packed_quantize(program_impl& p) {
 
             auto levels = quantize_node.get_primitive()->levels;
 
-            auto &input_low = quantize_node.get_dependency(1).template as<data>();
-            auto &input_high = quantize_node.get_dependency(2).template as<data>();
+            program_node &input_low_node = quantize_node.get_dependency(1);
+            program_node &input_high_node = quantize_node.get_dependency(2);
+
+            if (!input_low_node.is_type<data>() || !input_high_node.is_type<data>()) {
+                return;
+            }
+
+            auto &input_low = input_low_node.as<data>();
+            auto &input_high = input_high_node.as<data>();
 
             auto &mem_input_low = input_low.get_attached_memory();
             auto &mem_input_high = input_high.get_attached_memory();
@@ -99,10 +106,20 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
             if (levels == 2 || levels > 256 || quantize_node.get_scale_shift_opt() || quantize_node.is_constant())
                 return;
 
-            auto &input_low = quantize_node.get_dependency(1).template as<data>();
-            auto &input_high = quantize_node.get_dependency(2).template as<data>();
-            auto &output_low = quantize_node.get_dependency(3).template as<data>();
-            auto &output_high = quantize_node.get_dependency(4).template as<data>();
+            program_node &input_low_node = quantize_node.get_dependency(1);
+            program_node &input_high_node = quantize_node.get_dependency(2);
+            program_node &output_low_node = quantize_node.get_dependency(3);
+            program_node &output_high_node = quantize_node.get_dependency(4);
+
+            if (!input_low_node.is_type<data>() || !input_high_node.is_type<data>() ||
+                !output_low_node.is_type<data>() || !output_high_node.is_type<data>()) {
+                return;
+            }
+
+            auto &input_low = input_low_node.as<data>();
+            auto &input_high = input_high_node.as<data>();
+            auto &output_low = output_low_node.as<data>();
+            auto &output_high = output_high_node.as<data>();
 
             auto &mem_input_low = input_low.get_attached_memory();
             auto &mem_input_high = input_high.get_attached_memory();

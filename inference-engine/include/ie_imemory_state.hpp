@@ -14,16 +14,15 @@
 
 #include "ie_blob.h"
 #include "ie_common.h"
-#include "details/ie_no_copy.hpp"
 
 namespace InferenceEngine {
 
 /**
- * @deprecated Use VariableState C++ wrapper instead
+ * @deprecated Use InferenceEngine::VariableState C++ wrapper instead
  * @interface IVariableState
  * @brief Manages data for reset operations
  */
-class IVariableState : public details::no_copy {
+class INFERENCE_ENGINE_DEPRECATED("InferenceEngine::") IVariableState {
 public:
     IE_SUPPRESS_DEPRECATED_START
     /**

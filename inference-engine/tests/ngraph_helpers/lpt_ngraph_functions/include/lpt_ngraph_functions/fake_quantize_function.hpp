@@ -23,6 +23,11 @@ public:
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData);
 
+    static std::shared_ptr<ngraph::Function> getOriginalWithMaxPool(
+            const ngraph::element::Type precision,
+            const ngraph::Shape& inputShape,
+            const FakeQuantizeOnData& fakeQuantizeOnData);
+
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,

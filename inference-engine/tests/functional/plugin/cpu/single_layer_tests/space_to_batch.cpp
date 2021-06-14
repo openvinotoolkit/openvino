@@ -48,9 +48,9 @@ protected:
         inPrc = outPrc = netPrecision;
 
         if (strcmp(netPrecision.name(), "U8") == 0)
-            selectedType = std::string("unknown_") + "I8";
+            selectedType = std::string("ref_any_") + "I8";
         else
-            selectedType = std::string("unknown_") + netPrecision.name();
+            selectedType = std::string("ref_any_") + netPrecision.name();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -80,15 +80,15 @@ const std::vector<Precision> precisions = {
         Precision::BF16
 };
 
-const std::vector<std::vector<int64_t>> blockShape4D1 = {{1, 2, 1, 2}, {1, 1, 2, 2}, {1, 2, 2, 1}, {1, 2, 2, 2}};
-const std::vector<std::vector<int64_t>> cropsBegin4D1 = {{0, 0, 0, 1}, {0, 0, 2, 1}, {0, 0, 4, 1}, {0, 0, 4, 3}};
-const std::vector<std::vector<int64_t>> cropsEnd4D1   = {{0, 0, 0, 1}, {0, 0, 2, 1}, {0, 0, 4, 1}, {0, 0, 2, 3}};
-const std::vector<std::vector<size_t>> inputShapes4D1 = {{1, 16, 8, 12}, {1, 32, 8, 8}, {1, 16, 4, 4}, {2, 32, 16, 8}};
+const std::vector<std::vector<int64_t>> blockShape4D1 = {{1, 2, 1, 2}, {1, 1, 2, 2}, {1, 2, 2, 2}};
+const std::vector<std::vector<int64_t>> cropsBegin4D1 = {{0, 0, 0, 1}, {0, 0, 2, 1}, {0, 0, 4, 3}};
+const std::vector<std::vector<int64_t>> cropsEnd4D1   = {{0, 0, 0, 1}, {0, 0, 4, 1}, {0, 0, 2, 3}};
+const std::vector<std::vector<size_t>> inputShapes4D1 = {{1, 16, 8, 12}, {1, 32, 8, 8}};
 
-const std::vector<std::vector<int64_t>> blockShape4D2 = {{1, 2, 4, 1}, {1, 2, 4, 3}, {1, 4, 4, 1}};
-const std::vector<std::vector<int64_t>> cropsBegin4D2 = {{0, 0, 0, 0}, {0, 0, 4, 3}, {0, 0, 0, 3}};
-const std::vector<std::vector<int64_t>> cropsEnd4D2   = {{0, 0, 0, 0}, {0, 0, 4, 0}, {0, 0, 4, 3} };
-const std::vector<std::vector<size_t>> inputShapes4D2 = {{1, 16, 8, 12}, {1, 16, 12, 15}, {1, 32, 4, 9} };
+const std::vector<std::vector<int64_t>> blockShape4D2 = { {1, 2, 4, 3}, {1, 4, 4, 1}};
+const std::vector<std::vector<int64_t>> cropsBegin4D2 = {{0, 0, 0, 0}, {0, 0, 4, 3}};
+const std::vector<std::vector<int64_t>> cropsEnd4D2   = {{0, 0, 4, 0}, {0, 0, 4, 3}};
+const std::vector<std::vector<size_t>> inputShapes4D2 = {{1, 16, 12, 12}, {1, 32, 12, 15}};
 
 const std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
@@ -131,10 +131,10 @@ INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTestCase1_4D, SpaceToBatchCPUL
 INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTestCase2_4D, SpaceToBatchCPULayerTest,
                         spaceToBatchParamsSet4D2, SpaceToBatchCPULayerTest::getTestCaseName);
 
-const std::vector<std::vector<int64_t>> blockShape5D = {{1, 1, 4, 3, 1}, {1, 1, 2, 1, 3}, {1, 2, 4, 1, 1}, {1, 2, 2, 3, 3}};
-const std::vector<std::vector<int64_t>> cropsBegin5D = {{0, 0, 1, 0, 0}, {0, 0, 1, 0, 3}, {0, 0, 5, 3, 3}, {0, 0, 5, 6, 3}};
-const std::vector<std::vector<int64_t>> cropsEnd5D   = {{0, 0, 1, 0, 0}, {0, 0, 1, 0, 3}, {0, 0, 5, 3, 3}, {0, 0, 5, 6, 3}};
-const std::vector<std::vector<size_t>> inputShapes5D = {{2, 16, 6, 6, 12}, {2, 16, 10, 9, 9}, {1, 32, 10, 6, 6}, {1, 32, 6, 9, 6}};
+const std::vector<std::vector<int64_t>> blockShape5D = {{1, 1, 2, 2, 1}, {1, 2, 4, 1, 3}};
+const std::vector<std::vector<int64_t>> cropsBegin5D = {{0, 0, 0, 0, 0}, {0, 0, 4, 0, 0}, {0, 0, 0, 2, 3}};
+const std::vector<std::vector<int64_t>> cropsEnd5D   = {{0, 0, 0, 0, 0}, {0, 0, 0, 4, 3}, {0, 0, 4, 2, 3}};
+const std::vector<std::vector<size_t>> inputShapes5D = {{2, 16, 4, 6, 12}, {1, 32, 8, 8, 6}, {1, 16, 4, 12, 12}};
 
 const std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
@@ -157,7 +157,7 @@ const auto spaceToBatchParamsSet5D = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(cpuParams_5D));
 
-INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTestCase1_5D, SpaceToBatchCPULayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTestCase_5D, SpaceToBatchCPULayerTest,
                         spaceToBatchParamsSet5D, SpaceToBatchCPULayerTest::getTestCaseName);
 
 } // namespace

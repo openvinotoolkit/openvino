@@ -8,23 +8,6 @@ ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE
 
 ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
 
-# "MKL-DNN library might use MKL-ML or OpenBLAS for gemm tasks: MKL|OPENBLAS|JIT"
-if (ENABLE_MKL_DNN)
-    if(AARCH64)
-        set(GEMM_DEFAULT "OPENBLAS")
-    else()
-        set(GEMM_DEFAULT "JIT")
-    endif()
-    set(GEMM "${GEMM_DEFAULT}" CACHE STRING "GEMM implementation")
-    set_property(CACHE GEMM PROPERTY STRINGS "MKL" "OPENBLAS" "JIT")
-    list (APPEND IE_OPTIONS GEMM)
-    if (NOT GEMM STREQUAL "MKL" AND
-        NOT GEMM STREQUAL "OPENBLAS" AND
-        NOT GEMM STREQUAL "JIT")
-        message(FATAL_ERROR "GEMM should be set to MKL, OPENBLAS or JIT. Default option is ${GEMM_DEFAULT}")
-    endif()
-endif()
-
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
@@ -83,8 +66,6 @@ ie_dependent_option (ENABLE_SPEECH_DEMO "enable speech demo integration" ON "NOT
 
 ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 
-ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
-
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
 
 set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
@@ -92,6 +73,8 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
 ie_option (USE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
+
+ie_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" OFF)
 
 #
 # Process featues

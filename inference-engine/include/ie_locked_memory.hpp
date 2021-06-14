@@ -9,7 +9,6 @@
  */
 #pragma once
 
-#include <iostream>
 #include <utility>
 
 #include "ie_allocator.hpp"

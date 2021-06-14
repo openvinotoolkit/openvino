@@ -31,14 +31,15 @@ typedef std::tuple<
 
 typedef std::tuple<
         InterpolateSpecificParams,
-        InferenceEngine::Precision,     // Net precision
-        InferenceEngine::Precision,     // Input precision
-        InferenceEngine::Precision,     // Output precision
-        InferenceEngine::Layout,        // Input layout
-        InferenceEngine::Layout,        // Output layout
-        InferenceEngine::SizeVector,    // Input shapes
-        InferenceEngine::SizeVector,    // Target shapes
-        LayerTestsUtils::TargetDevice   // Device name
+        InferenceEngine::Precision,        // Net precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
+        InferenceEngine::Layout,           // Output layout
+        InferenceEngine::SizeVector,       // Input shapes
+        InferenceEngine::SizeVector,       // Target shapes
+        LayerTestsUtils::TargetDevice,     // Device name
+        std::map<std::string, std::string> // Additional network configuration
 > InterpolateLayerTestParams;
 
 class InterpolateLayerTest : public testing::WithParamInterface<InterpolateLayerTestParams>,

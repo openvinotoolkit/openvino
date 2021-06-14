@@ -4,10 +4,10 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <vector>
+
 #include "threading/ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
-#include <iostream>
-#include <vector>
 
 # define XBYAK_NO_OP_NAMES
 # define XBYAK_UNDEF_JNL
@@ -110,10 +110,5 @@ std::vector<int> getAvailableCoresTypes() {
     return {-1};
 }
 #endif
-
-std::exception_ptr& CurrentException() {
-     static thread_local std::exception_ptr currentException = nullptr;
-    return currentException;
-}
 
 }  // namespace InferenceEngine

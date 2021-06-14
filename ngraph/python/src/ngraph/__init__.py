@@ -52,7 +52,9 @@ from ngraph.opset7 import deformable_convolution
 from ngraph.opset7 import deformable_psroi_pooling
 from ngraph.opset7 import depth_to_space
 from ngraph.opset7 import detection_output
+from ngraph.opset7 import dft
 from ngraph.opset7 import divide
+from ngraph.opset7 import einsum
 from ngraph.opset7 import elu
 from ngraph.opset7 import embedding_bag_offsets_sum
 from ngraph.opset7 import embedding_bag_packed_sum
@@ -79,6 +81,7 @@ from ngraph.opset7 import gru_sequence
 from ngraph.opset7 import hard_sigmoid
 from ngraph.opset7 import hsigmoid
 from ngraph.opset7 import hswish
+from ngraph.opset7 import idft
 from ngraph.opset7 import interpolate
 from ngraph.opset7 import less
 from ngraph.opset7 import less_equal

@@ -5,6 +5,7 @@
 
 import os
 import platform
+import subprocess
 import sys
 import distro
 import yaml
@@ -56,7 +57,8 @@ def metadata_from_manifest(manifest: Path):
         'commit_sha': repo_trigger['revision'],
         'commit_date': repo_trigger['commit_time'],
         'repo_url': repo_trigger['url'],
-        'target_branch': repo_trigger['branch'],
+        'branch': repo_trigger['branch'],
+        'target_branch': repo_trigger['target_branch'],
         'version': manifest['components'][PRODUCT_NAME]['version']
     }
 
@@ -150,3 +152,26 @@ def get_os_version():
     if os_type_is_darwin():
         return tuple(platform.mac_ver()[0].split(".")[:2])
     raise UnsupportedOsError()
+
+
+def get_cpu_info():
+    """
+    Check OS version and returns name and frequency of cpu
+
+    :return: CPU name and frequency
+    :rtype: str
+    """
+    model = ''
+    if os_type_is_linux():
+        command = r"lscpu | sed -n 's/Model name:[ \t]*//p'"
+        model = subprocess.check_output(command, shell=True)
+    elif os_type_is_windows():
+        command = 'wmic cpu get name | find /v "Name"'
+        model = subprocess.check_output(command, shell=True)
+    elif os_type_is_darwin():
+        command = ['/usr/sbin/sysctl', "-n", "machdep.cpu.brand_string"]
+        model = subprocess.check_output(command)
+    else:
+        raise UnsupportedOsError()
+    info = model.decode('utf-8').strip()
+    return info

@@ -30,6 +30,8 @@
 #include "ngraph/node_output.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
+#include "ngraph/op/util/variable.hpp"
+#include "ngraph/op/util/variable_value.hpp"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
@@ -55,6 +57,10 @@ namespace ngraph
     using HostTensor = runtime::HostTensor;
     using HostTensorPtr = std::shared_ptr<HostTensor>;
     using HostTensorVector = std::vector<HostTensorPtr>;
+
+    /// EvaluationContext stores and manages a context (additional parameters, values and
+    /// environment) for evaluating ngraph::function.
+    using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
     namespace op
     {
@@ -193,10 +199,26 @@ namespace ngraph
         virtual bool visit_attributes(AttributeVisitor&) { return false; }
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
+
+        /// \brief Allows to get information about availability of evaluate method for the current
+        /// operation
+        // \returns true if evaluate is available
+        virtual bool has_evaluate() const;
         /// \brief Evaluates the op on input_values putting results in output_values
+        /// \param output_values Tensors for the outputs to compute. One for each result
+        /// \param input_values Tensors for the inputs. One for each inputs.
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const;
+        /// \brief Evaluates the op on input_values putting results in output_values
+        /// \param output_values Tensors for the outputs to compute. One for each result
+        /// \param input_values Tensors for the inputs. One for each inputs.
+        /// \param evaluation_context Storage of additional settings and attributes that can be used
+        /// when evaluating the op.
+        /// \returns true if successful
+        virtual bool evaluate(const HostTensorVector& output_values,
+                              const HostTensorVector& input_values,
+                              const EvaluationContext& evaluationContext) const;
         virtual bool evaluate_lower(const HostTensorVector& output_values) const;
         virtual bool evaluate_upper(const HostTensorVector& output_values) const;
 

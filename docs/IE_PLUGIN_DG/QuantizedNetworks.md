@@ -35,7 +35,7 @@ Thus we can define:
 **Note**: During the quantization process the values `input_low`, `input_high`, `output_low`, `output_high` are selected so that to map a floating-point zero exactly to an integer value (zero-point) and vice versa.
 
 ## Quantization specifics and restrictions
-In general, OpenVINO can represent and execute quantized models from different sources. However, the Post-training Optimization Toolkit (POT)
+In general, OpenVINO can represent and execute quantized models from different sources. However, the Post-training Optimization Tool (POT)
 is considered the default way to get optimized models. Since the POT supports HW-aware quantization it means that specific rules can be implemented in it for 
 the particular HW. However, it is reasonable to have compatibility with general-purpose HW such as CPU and GPU and support their quantization schemes.
 Below we define these rules as follows:

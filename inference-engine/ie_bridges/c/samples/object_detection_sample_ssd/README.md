@@ -76,7 +76,7 @@ Options:
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-For example, to do inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
+For example, to perform inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
 
 - with one image and [person-detection-retail-0013](https://docs.openvinotoolkit.org/latest/omz_models_intel_person_detection_retail_0013_description_person_detection_retail_0013.html) model
 

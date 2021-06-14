@@ -9,10 +9,15 @@
 #include <vector>
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include <ie_ngraph_utils.hpp>
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
+
+using MKLDNNPlugin::TensorDescCreatorTypes;
 
 class CumSumImpl: public ExtLayerBase {
     enum { CUM_SUM_DATA, AXIS, numOfInputs };
@@ -22,71 +27,67 @@ class CumSumImpl: public ExtLayerBase {
     size_t axis = 0;
     std::vector<size_t> shape;
 
-public:
-    explicit CumSumImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            layerName = layer->name;
-            if ((layer->insData.size() != numOfInputs && layer->insData.size() != (numOfInputs - 1)) || layer->outData.size() != 1)
+            const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
+            if (!cumsum) {
+                errorMessage = "Only opset3 CumSum operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
+
+public:
+    explicit CumSumImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            layerName = op->get_friendly_name();
+            if ((op->get_input_size() != numOfInputs && op->get_input_size() != (numOfInputs - 1)) || op->get_output_size() != 1)
                 IE_THROW() << "CumSum layer with name '" << layerName << "' has incorrect number of input/output edges!";
 
-            const auto &dataTensor = layer->insData[CUM_SUM_DATA].lock()->getTensorDesc();
-            const auto &dataShape = dataTensor.getDims();
+            const auto &dataShape = op->get_input_shape(CUM_SUM_DATA);
             if (dataShape.size() < 1) {
                 IE_THROW() << "CumSum layer with name '" << layerName << "' doesn't support 'data' input tensor with rank: " << dataShape.size();
             }
             numOfDims = dataShape.size();
 
-            exclusive = layer->GetParamAsBool("exclusive", false);
-            reverse = layer->GetParamAsBool("reverse", false);
+            const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
+            exclusive = cumsum->is_exclusive();
+            reverse = cumsum->is_reverse();
 
-            const auto& dataPrecision = dataTensor.getPrecision();
+            auto dataPrecision = details::convertPrecision(cumsum->get_input_element_type(CUM_SUM_DATA));
             if (dataPrecision != Precision::I8 && dataPrecision != Precision::U8 && dataPrecision != Precision::I16 && dataPrecision != Precision::I32 &&
                 dataPrecision != Precision::FP32 && dataPrecision != Precision::I64 && dataPrecision != Precision::U64 && dataPrecision != Precision::BF16)
                 IE_THROW() << "CumSum layer with name '" << layerName << "' has unsupported 'data' input precision: " << dataPrecision.name();
 
-            if (layer->insData.size() == numOfInputs) {
-                const auto& axisTensor = layer->insData[AXIS].lock()->getTensorDesc();
-                const auto& axisTensorPrec = layer->insData[AXIS].lock()->getTensorDesc().getPrecision();
+            if (cumsum->get_input_size() == numOfInputs) {
+                const auto& axisTensorPrec = details::convertPrecision(cumsum->get_input_element_type(AXIS));
                 if (axisTensorPrec != Precision::I32 && axisTensorPrec != Precision::I64)
                     IE_THROW() << "CumSum layer with name '" << layerName << "' has unsupported 'axis' input precision: " << axisTensorPrec.name();
 
-                const auto axisTensorRank = axisTensor.getDims().size();
-                if (axisTensorRank != 0)
-                    IE_THROW() << "CumSum layer with name '" << layerName << "' doesn't support 'axis' input tensor with rank: " << axisTensorRank;
+                if (!ngraph::is_scalar(cumsum->get_input_shape(AXIS)))
+                    IE_THROW() << "CumSum layer with name '" << layerName << "' doesn't support 'axis' input tensor with non scalar rank";
             }
 
-            if (dataShape != layer->outData[0]->getTensorDesc().getDims())
+            if (dataShape != cumsum->get_output_shape(0))
                 IE_THROW() << "CumSum layer with name '" << layerName << "' has different 'data' input and output dimensions";
 
             shape = dataShape;
 
-            LayerConfig config;
-            for (size_t i = 0; i < layer->insData.size(); i++) {
-                DataConfig inConfig;
-                inConfig.inPlace = -1;
-                inConfig.constant = false;
-
-                Precision inPrecision = i == 1 ? Precision(Precision::I32) : layer->insData[i].lock()->getTensorDesc().getPrecision();
-                if (inPrecision == Precision::BF16)
-                    inPrecision = Precision::FP32;
-                const SizeVector& inDims = layer->insData[i].lock()->getTensorDesc().getDims();
-                inConfig.desc = TensorDesc(inPrecision, inDims, InferenceEngine::TensorDesc::getLayoutByDims(inDims));
-
-                config.inConfs.push_back(inConfig);
-            }
-            DataConfig outConfig;
-            outConfig.inPlace = -1;
-            outConfig.constant = false;
-            Precision outPrecision = layer->insData[CUM_SUM_DATA].lock()->getTensorDesc().getPrecision();
-            if (outPrecision == Precision::BF16)
-                outPrecision = Precision::FP32;
-            const SizeVector& outDims = layer->outData[0]->getTensorDesc().getDims();
-            outConfig.desc = TensorDesc(outPrecision, outDims, InferenceEngine::TensorDesc::getLayoutByDims(outDims));
-
-            config.outConfs.push_back(outConfig);
-
-            config.dynBatchSupport = false;
-            confs.push_back(config);
+            std::vector<DataConfigurator> inDataConfigurators;
+            if (dataPrecision == Precision::BF16)
+                dataPrecision = Precision::FP32;
+            inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, dataPrecision});
+            if (op->get_input_size() > 1)
+                inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, Precision::I32});
+            addConfig(op, inDataConfigurators, {{TensorDescCreatorTypes::ncsp, dataPrecision}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
@@ -158,7 +159,7 @@ private:
             for (size_t iwork = start; iwork < end; ++iwork) {
                 std::vector<size_t> forStartOffset(numOfDims);
                 forStartOffset[axis] = 0;
-                for (int64_t offsetIdx = 0, countersIdx = 0; offsetIdx < numOfDims; ++offsetIdx) {
+                for (size_t offsetIdx = 0, countersIdx = 0; offsetIdx < numOfDims; ++offsetIdx) {
                     if (offsetIdx == axis) {
                         continue;
                     }

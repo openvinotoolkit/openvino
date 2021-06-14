@@ -26,6 +26,10 @@ class ReplaceMemoryOffsetNodePattern(MiddleReplacementPattern):
         from extensions.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern
         return [RemoveMemoryDuplicationPattern]
 
+    def run_after(self):
+        from extensions.middle.split_tdnn_memoryoffset import SplitTdnnMemoryOffset
+        return [SplitTdnnMemoryOffset]
+
     @staticmethod
     def pattern():
         return dict(

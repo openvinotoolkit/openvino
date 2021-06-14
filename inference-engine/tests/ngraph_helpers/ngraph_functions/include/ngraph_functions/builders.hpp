@@ -13,6 +13,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -27,7 +28,7 @@ makeParams(const element::Type &type, const std::vector<std::pair<std::string, s
 template<typename T>
 std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
                                    const std::vector<T> &data, bool random = false,
-                                   uint32_t upTo = 10, uint32_t startFrom = 1, const int seed = 1) {
+                                   T upTo = 10, T startFrom = 1, const int seed = 1) {
     std::shared_ptr<ngraph::Node> weightsNode;
 
 #define makeNode(TYPE) \
@@ -504,5 +505,13 @@ std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
                                          const float& off_val,
                                          const int64_t& axis);
 
+std::shared_ptr<ngraph::Node> makeRoll(const ngraph::Output<Node>& dataNode,
+                                       const ngraph::Output<Node>& shiftNode,
+                                       const ngraph::Output<Node>& axesNode);
+
+std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
+                                      const std::vector<int64_t> &axes,
+                                      const std::vector<int64_t> &signalSize,
+                                      const ngraph::helpers::DFTOpType opType);
 }  // namespace builder
 }  // namespace ngraph

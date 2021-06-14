@@ -42,6 +42,7 @@ public:
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
+    bool addUnsupportedConcat;
 };
 
 inline std::ostream& operator<<(std::ostream& os,
@@ -57,37 +58,49 @@ inline std::ostream& operator<<(std::ostream& os,
     return os;
 }
 
-class SplitTransformation : public LayerTransformation, public testing::WithParamInterface<SplitTransformationTestValues> {
+typedef std::tuple <
+    ngraph::element::Type,
+    SplitTransformationTestValues
+> SplitTransformationParams;
+
+class SplitTransformation : public LayerTransformation, public testing::WithParamInterface<SplitTransformationParams> {
 public:
     void SetUp() override {
-        SplitTransformationTestValues testValues = GetParam();
+        ngraph::element::Type precision = std::get<0>(GetParam());
+        SplitTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::SplitFunction::getOriginal(
+            precision,
             testValues.inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
             testValues.splitedAxis,
-            testValues.numSplits);
+            testValues.numSplits,
+            testValues.addUnsupportedConcat);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params.setSupportAsymmetricQuantization(true));
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::SplitFunction::getReference(
+            precision,
             testValues.inputShape,
             testValues.expected.inputPrecision,
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
             testValues.expected.dequantizationAfter,
             testValues.splitedAxis,
-            testValues.numSplits);
+            testValues.numSplits,
+            testValues.addUnsupportedConcat);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<SplitTransformationTestValues> obj) {
-        const SplitTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<SplitTransformationParams> obj) {
+        ngraph::element::Type precision = std::get<0>(obj.param);
+        SplitTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result << toString(testValues.params) << "_" <<
+        result << precision << "_" <<
+            toString(testValues.params) << "_" <<
             testValues.inputShape << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
@@ -105,6 +118,11 @@ TEST_P(SplitTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
+};
 
 const std::vector<SplitTransformationTestValues> testValues = {
     // U8 per tensor quantization
@@ -414,6 +432,22 @@ const std::vector<SplitTransformationTestValues> testValues = {
             }
         }
     },
+    // issue #56781: unsupported Concat after Split
+    {
+        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{2}, size_t{3},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}},
+            ngraph::element::f32,
+            {}
+        },
+        true
+    },
     // no dequantization
     {
         ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, size_t{2},
@@ -425,6 +459,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     SplitTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::Combine(
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(testValues)),
     SplitTransformation::getTestCaseName);
 } // namespace

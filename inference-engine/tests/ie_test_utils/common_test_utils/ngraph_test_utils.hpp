@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <limits>
 #include <memory>
 #include <queue>
 
@@ -12,6 +13,9 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/opsets/opset6.hpp>
+
+#include "ie_common.h"
+#include <ngraph_ops/framework_node.hpp>
 
 #include "test_common.hpp"
 
@@ -317,7 +321,8 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<std::vector<std::string>>,
                 private AttributeStorage<std::shared_ptr<ngraph::Function>>,
                 private AttributeStorage<SubGraphOpInputDescription>,
-                private AttributeStorage<SubGraphOpOutputDescription> {
+                private AttributeStorage<SubGraphOpOutputDescription>,
+                private AttributeStorage<ngraph::op::FrameworkNodeAttrs> {
 public:
     template <typename AttrValue>
     const AttributeStorage<AttrValue>& storage() const {
@@ -355,7 +360,8 @@ public:
                storage<std::vector<std::string>>().get_attributes_number() +
                storage<std::shared_ptr<ngraph::Function>>().get_attributes_number() +
                storage<SubGraphOpInputDescription>().get_attributes_number() +
-               storage<SubGraphOpOutputDescription>().get_attributes_number();
+               storage<SubGraphOpOutputDescription>().get_attributes_number() +
+               storage<ngraph::op::FrameworkNodeAttrs>().get_attributes_number();
     }
 };
 
@@ -569,7 +575,11 @@ struct Equal<uint8_t*> {
         if (lhs_bit_size != rhs_bit_size) return false;
 
         for (size_t bit_idx = 0; bit_idx < lhs_bit_size; bit_idx++) {
-            const uint8_t byte_idx = bit_idx / BITS_IN_BYTE_COUNT;
+            const auto byte_idx_result(bit_idx / BITS_IN_BYTE_COUNT);
+            if (byte_idx_result > std::numeric_limits<uint8_t>::max())
+                IE_THROW() << "(bit_idx / BITS_IN_BYTE_COUNT) bigger than uint8_t::max_value";
+
+            const uint8_t byte_idx(static_cast<uint8_t>(byte_idx_result));
             const uint8_t bit_in_byte_idx = 7 - (bit_idx % BITS_IN_BYTE_COUNT);
 
             if (extract_bit(lhs[byte_idx], bit_in_byte_idx) !=
@@ -678,6 +688,23 @@ struct Get<
         return "[" + join(v) + "]";
     }
 };
+
+template <>
+struct Get<ngraph::op::FrameworkNodeAttrs, void> {
+    static std::string value(const ngraph::op::FrameworkNodeAttrs& attrs) {
+        std::stringstream oss;
+        const auto & a = attrs;
+        oss << "version=" << attrs.get_opset_name() << ", ";
+        oss << "type=" << attrs.get_type_name() << ", ";
+        oss << "attrs[";
+        for (const auto & item : a) {
+            oss << item.first << "=" << item.second << " ";
+        }
+        oss << "]";
+        return "[" + oss.str() + "]";
+    }
+};
+
 
 }  // namespace str
 

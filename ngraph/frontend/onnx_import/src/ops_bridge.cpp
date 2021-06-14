@@ -73,7 +73,6 @@
 #include "op/lrn.hpp"
 #include "op/lstm.hpp"
 #include "op/matmul.hpp"
-//#include "op/matmul_integer.hpp"
 #include "op/max.hpp"
 #include "op/max_pool.hpp"
 #include "op/mean.hpp"
@@ -90,7 +89,6 @@
 #include "op/pad.hpp"
 #include "op/pow.hpp"
 #include "op/prelu.hpp"
-//#include "op/qlinear_matmul.hpp"
 // #include "op/quant_conv.hpp"
 #include "op/quantize_linear.hpp"
 #include "op/range.hpp"
@@ -316,6 +314,7 @@ namespace ngraph
             REGISTER_OPERATOR("Atanh", 1, atanh);
             REGISTER_OPERATOR("AveragePool", 1, average_pool);
             REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
+            REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
             REGISTER_OPERATOR("BitShift", 1, bitshift);
             REGISTER_OPERATOR("Cast", 1, cast);
             REGISTER_OPERATOR("Ceil", 1, ceil);
@@ -323,6 +322,7 @@ namespace ngraph
             REGISTER_OPERATOR("Clip", 11, clip);
             REGISTER_OPERATOR("Concat", 1, concat);
             REGISTER_OPERATOR("Constant", 1, constant);
+            REGISTER_OPERATOR("Constant", 13, constant);
             REGISTER_OPERATOR("ConstantOfShape", 1, constant_of_shape);
             REGISTER_OPERATOR("Conv", 1, conv);
             // REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
@@ -359,6 +359,7 @@ namespace ngraph
             REGISTER_OPERATOR("Greater", 1, greater);
             REGISTER_OPERATOR("GRU", 1, gru);
             REGISTER_OPERATOR("Hardmax", 1, hardmax);
+            REGISTER_OPERATOR("Hardmax", 13, hardmax);
             REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
             REGISTER_OPERATOR("Identity", 1, identity);
             REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
@@ -373,7 +374,6 @@ namespace ngraph
             REGISTER_OPERATOR("LRN", 1, lrn);
             REGISTER_OPERATOR("LSTM", 1, lstm);
             REGISTER_OPERATOR("MatMul", 1, matmul);
-            // REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
             REGISTER_OPERATOR("MaxPool", 1, max_pool);
             REGISTER_OPERATOR("Max", 1, max);
             REGISTER_OPERATOR("Max", 8, max);
@@ -396,7 +396,6 @@ namespace ngraph
             REGISTER_OPERATOR("Pow", 1, pow);
             REGISTER_OPERATOR("PRelu", 1, prelu);
             // REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
-            // REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
             REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
             REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
             REGISTER_OPERATOR("Range", 1, range);
@@ -434,9 +433,8 @@ namespace ngraph
             REGISTER_OPERATOR("Slice", 1, slice);
             REGISTER_OPERATOR("Slice", 10, slice);
             REGISTER_OPERATOR("Softmax", 1, softmax);
-            // Softmax v7 should be in the 11th opset but,
-            // other frameworks(mxnet and onnxruntime) already use for older models.
-            REGISTER_OPERATOR("Softmax", 7, softmax);
+            REGISTER_OPERATOR("Softmax", 11, softmax);
+            REGISTER_OPERATOR("Softmax", 13, softmax);
             REGISTER_OPERATOR("Softplus", 1, softplus);
             REGISTER_OPERATOR("Softsign", 1, softsign);
             REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);

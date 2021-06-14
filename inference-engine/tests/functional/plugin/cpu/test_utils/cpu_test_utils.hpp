@@ -83,6 +83,29 @@ namespace CPUTestUtils {
         std::string                       // selected primitive type
     >;
 
+    enum class nodeType {
+        convolution,
+        convolutionBackpropData,
+        groupConvolution,
+        groupConvolutionBackpropData
+    };
+
+    inline std::string nodeType2PluginType(nodeType nt) {
+        if (nt == nodeType::convolution) return "Convolution";
+        if (nt == nodeType::convolutionBackpropData) return "Deconvolution";
+        if (nt == nodeType::groupConvolution) return "Convolution";
+        if (nt == nodeType::groupConvolutionBackpropData) return "Deconvolution";
+        throw std::runtime_error("Undefined node type to convert to plug-in type node!");
+    }
+
+    inline std::string nodeType2str(nodeType nt) {
+        if (nt == nodeType::convolution) return "Convolution";
+        if (nt == nodeType::convolutionBackpropData) return "ConvolutionBackpropData";
+        if (nt == nodeType::groupConvolution) return "GroupConvolution";
+        if (nt == nodeType::groupConvolutionBackpropData) return "GroupConvolutionBackpropData";
+        throw std::runtime_error("Undefined node type to convert to string!");
+    }
+
 class CPUTestsBase {
 public:
     typedef std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUInfo;
@@ -124,31 +147,6 @@ protected:
 };
 
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
-
-const auto conv_ref_2D = CPUSpecificParams{{nchw}, {nchw}, {"ref_any"}, "ref_any"};
-const auto conv_ref_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref_any"}, "ref_any"};
-
-const auto conv_gemm_2D = CPUSpecificParams{{nchw}, {nchw}, {"gemm_any"}, "jit_gemm"};
-const auto conv_gemm_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"gemm_any"}, "jit_gemm"};
-
-const auto conv_sse42_2D = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42"}, "jit_sse42"};
-const auto conv_sse42_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42"};
-const auto conv_sse42_dw_2D = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42_dw"}, "jit_sse42_dw"};
-const auto conv_sse42_dw_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_sse42_dw"}, "jit_sse42_dw"};
-
-const auto conv_avx2_2D = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2"}, "jit_avx2"};
-const auto conv_avx2_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2"};
-const auto conv_avx2_dw_2D = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2_dw"}, "jit_avx2_dw"};
-const auto conv_avx2_dw_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2_dw"}, "jit_avx2_dw"};
-
-const auto conv_avx512_2D = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512"}, "jit_avx512"};
-const auto conv_avx512_3D = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512"};
-const auto conv_avx512_dw_2D = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512_dw"}, "jit_avx512_dw"};
-const auto conv_avx512_dw_3D = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512_dw"}, "jit_avx512_dw"};
-
-const auto conv_sse42_2D_1x1 = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42_1x1"}, "jit_sse42_1x1"};
-const auto conv_avx2_2D_1x1 = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2_1x1"}, "jit_avx2_1x1"};
-const auto conv_avx512_2D_1x1 = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512_1x1"}, "jit_avx512_1x1"};
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector);

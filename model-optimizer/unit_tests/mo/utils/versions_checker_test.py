@@ -52,8 +52,9 @@ class TestingVersionsChecker(unittest.TestCase):
     def test_get_module_version_list_from_file3(self, mock_open):
         mock_open.return_value.__enter__ = mock_open
         mock_open.return_value.__iter__ = mock.Mock(
-            return_value=iter(['tensorflow>=1.15.2,<2.0; python_version < "3.8"',
-                               'tensorflow>=2.0; python_version >= "3.8"',
+            return_value=iter(['# Commented line',
+                               'tensorflow>=1.15.2,<2.0; python_version < "3.8"',
+                               'tensorflow>=2.0; python_version >= "3.8" # Comment after line',
                                'numpy==1.12.0',
                                'defusedxml<=0.5.0',
                                'networkx~=1.11']))
@@ -79,12 +80,71 @@ class TestingVersionsChecker(unittest.TestCase):
 
     def test_append_version_list(self):
         v1 = 'mxnet>=1.0.0,<=1.3.1'
-        req_list = list()
+        req_list = []
         parse_and_filter_versions_list(v1, req_list, {})
         ref_list = [('mxnet', '>=', '1.0.0'),
                     ('mxnet', '<=', '1.3.1')]
-        for i, v in enumerate(req_list):
-            self.assertEqual(v, ref_list[i])
+        for i, v in enumerate(ref_list):
+            self.assertEqual(v, req_list[i])
+
+    def test_append_version_list_sys_neg_1(self):
+        v1 = "mxnet>=1.7.0 ; sys_platform != 'win32'"
+        req_list = []
+        parse_and_filter_versions_list(v1, req_list, {'sys_platform': 'darwin'})
+        ref_list = [('mxnet', '>=', '1.7.0')]
+        for i, v in enumerate(ref_list):
+            self.assertEqual(v, req_list[i])
+
+    def test_append_version_list_sys_neg_2(self):
+        v1 = "mxnet>=1.7.0 ; sys_platform != 'win32'"
+        req_list = []
+        parse_and_filter_versions_list(v1, req_list, {'sys_platform': 'win32'})
+        ref_list = []
+        for i, v in enumerate(ref_list):
+            self.assertEqual(v, req_list[i])
+
+    def test_append_version_list_sys(self):
+        v1 = "mxnet>=1.7.0 ; sys_platform == 'linux'"
+        req_list = []
+
+        parse_and_filter_versions_list(v1, req_list, {'sys_platform': 'linux'})
+        ref_list = [('mxnet', '>=', '1.7.0')]
+        for i, v in enumerate(ref_list):
+            self.assertEqual(v, req_list[i])
+
+    def test_append_version_list_sys_double_quotes(self):
+        v1 = "mxnet>=1.7.0 ; sys_platform == \"linux\""
+        req_list = []
+
+        parse_and_filter_versions_list(v1, req_list, {'sys_platform': 'linux'})
+        ref_list = [('mxnet', '>=', '1.7.0')]
+        for i, v in enumerate(ref_list):
+            self.assertEqual(v, req_list[i])
+
+    def test_append_version_list_py_ver_single_quotes(self):
+        v1 = "mxnet>=1.7.0 ; python_version < '3.8'"
+        req_list = []
+
+        parse_and_filter_versions_list(v1, req_list, {'python_version': '3.7.1'})
+        ref_list = [('mxnet', '>=', '1.7.0')]
+        for i, v in enumerate(ref_list):
+            self.assertEqual(v, req_list[i])
+
+    def test_append_version_list_sys_python_ver_1(self):
+        v1 = "mxnet>=1.7.0 ; sys_platform == 'linux' or python_version >= \"3.8\""
+        req_list = []
+        parse_and_filter_versions_list(v1, req_list, {'python_version': '3.8.1', 'sys_platform': 'linux'})
+        ref_list = []
+        for i, v in enumerate(ref_list):
+            self.assertEqual(v, req_list[i])
+
+    def test_append_version_list_sys_python_ver_2(self):
+        v1 = "mxnet>=1.7.0 ; sys_platform == 'linux' and python_version >= \"3.8\""
+        req_list = []
+        parse_and_filter_versions_list(v1, req_list, {'python_version': '3.7.1', 'sys_platform': 'linux'})
+        ref_list = []
+        for i, v in enumerate(ref_list):
+            self.assertEqual(v, req_list[i])
 
     def test_version_check_equal(self):
         modules_versions_list = [('module_1', '==', '2.0', '2.0'),

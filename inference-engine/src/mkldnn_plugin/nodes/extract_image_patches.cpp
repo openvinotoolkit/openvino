@@ -10,6 +10,9 @@
 #include <cstring>
 #include <string>
 #include <cmath>
+#include <ngraph/opsets/opset3.hpp>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -267,41 +270,65 @@ private:
     }
 };
 
-ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
+bool ExtractImagePatchesImpl::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        std::string errorPrefix = std::string("Layer ") + layer->type + " with name '" + layer->name + "' ";
-        if (details::CaselessEq<std::string>()("ExtractImagePatchesLayer", layer->type))
-            IE_THROW() << errorPrefix << "is not an instance of ExtractImagePatchesLayer class";
+        const auto extImgPatcher = std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(op);
+        if (!extImgPatcher) {
+            errorMessage = "Only opset3 ExtractImagePatches operation is supported";
+            return false;
+        }
+        const auto padValue = extImgPatcher->get_auto_pad();
+        if (!one_of(padValue, ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER)) {
+            errorMessage = "Does not support pad type: " + ngraph::as_string(padValue);
+            return false;
+        }
+        if (!everyone_is(2, extImgPatcher->get_sizes().size(), extImgPatcher->get_strides().size(), extImgPatcher->get_rates().size())) {
+            errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
 
-        if (layer->insData.size() != 1 || layer->outData.size() != 1)
-            IE_THROW() << errorPrefix << "has incorrect number of input or output edges!"
-                << " Input: " << layer->insData.size() << "; Output: " << layer->outData.size();
+ExtractImagePatchesImpl::ExtractImagePatchesImpl(const std::shared_ptr<ngraph::Node>& op) {
+    try {
+        std::string errorMessage;
+        if (!isSupportedOperation(op, errorMessage)) {
+            IE_THROW(NotImplemented) << errorMessage;
+        }
 
-        auto inData = layer->insData[0].lock();
-        if (inData == nullptr)
-            IE_THROW() << errorPrefix << "has nullable input data";
+        errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
+        const auto extImgPatcher = std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(op);
 
-        if (inData->getTensorDesc().getDims().size() != 4)
-            IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << inData->getTensorDesc().getDims().size();
+        if (op->get_input_size() != 1 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << "has incorrect number of input or output edges!"
+                           << " Input: " << op->get_input_size() << "; Output: " << op->get_output_size();
 
-        if (layer->outData[0]->getTensorDesc().getDims().size() != 4)
-            IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << layer->outData[0]->getTensorDesc().getDims().size();
+        if (op->get_input_shape(0).size() != 4)
+                IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << op->get_input_shape(0).size();
 
-        if (inData->getLayout() != NCHW)
-            IE_THROW() << errorPrefix << "has unsupported layout: " << inData->getLayout();
+        if (op->get_output_shape(0).size() != 4)
+            IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << op->get_output_shape(0).size();
 
-        const auto precision = inData->getTensorDesc().getPrecision();
-        if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
-            IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
+        const auto precision = details::convertPrecision(op->get_input_element_type(0));
+            if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
+                IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
 
-        auto ksizes = layer->GetParamAsUInts("sizes");
-        auto strides = layer->GetParamAsUInts("strides");
-        auto rates = layer->GetParamAsUInts("rates");
-        std::string auto_pad = layer->GetParamAsString("auto_pad");
-        if (!CaselessEq<std::string>()(auto_pad, "valid")
-                && !CaselessEq<std::string>()(auto_pad, "same_upper")
-                && !CaselessEq<std::string>()(auto_pad, "same_lower"))
-            IE_THROW() <<  errorPrefix << "has unsupported auto_pad value: " << auto_pad;
+        auto ksizes = extImgPatcher->get_sizes();
+        auto strides = extImgPatcher->get_strides();
+        auto rates = extImgPatcher->get_rates();
+        if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::VALID) {
+            _auto_pad = ExtImgPatcherPadType::VALID;
+        } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_LOWER) {
+            _auto_pad = ExtImgPatcherPadType::SAME_LOWER;
+        } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_UPPER) {
+            _auto_pad = ExtImgPatcherPadType::SAME_UPPER;
+        } else {
+            IE_THROW() << errorPrefix << "has unsupported pad type: " << extImgPatcher->get_auto_pad();
+        }
+
         if (ksizes.size() != 2 || strides.size() != 2 || rates.size() != 2)
             IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
         _ksizes.clear();
@@ -323,12 +350,12 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             _rates.push_back(static_cast<size_t>(x));
         }
 
-        SizeVector in_dims = inData->getTensorDesc().getDims();
+        SizeVector in_dims = op->get_input_shape(0);
         _pad_left = 0;
         _pad_top = 0;
         jit_extract_image_patches_params jpp;
         jpp.need_padding = false;
-        if (!CaselessEq<std::string>()(auto_pad, "valid")) {
+        if (_auto_pad != ExtImgPatcherPadType::VALID) {
             const size_t iheight = in_dims[2];
             const size_t iwidth = in_dims[3];
             const int64_t ihStep = _ksizes[0] + (_rates[0] - 1) * (_ksizes[0] - 1);
@@ -338,9 +365,9 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             int64_t PH = (std::ceil(1.f * iheight/_strides[0]) - 1) * _strides[0] + ihStep - iheight;
 
             int64_t increment_sign = 0;
-            if (CaselessEq<std::string>()(auto_pad, "same_lower")) {
+            if (_auto_pad == ExtImgPatcherPadType::SAME_LOWER) {
                 increment_sign = 1;
-            } else if (CaselessEq<std::string>()(auto_pad, "same_upper")) {
+            } else if (_auto_pad == ExtImgPatcherPadType::SAME_UPPER) {
                 increment_sign = -1;
             }
 
@@ -355,14 +382,14 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
         }
 
         jpp.IW = in_dims[3];
-        SizeVector out_dims = layer->outData[0]->getTensorDesc().getDims();
+        SizeVector out_dims = op->get_output_shape(0);
         jpp.OH = out_dims[2];
         jpp.OW = out_dims[3];
         jpp.KH = _ksizes[0];
         jpp.KW = _ksizes[1];
         jpp.SH = _strides[0];
         jpp.SW = _strides[1];
-        jpp.dtype_size = layer->insData.front().lock()->getPrecision().size();
+        jpp.dtype_size = precision.size();
         jpp.block_size = 1;
 
         if (mayiuse(x64::avx512_common)) {
@@ -379,25 +406,12 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
         if (extract_image_patches_kernel)
             extract_image_patches_kernel->create_ker();
 
-        LayerConfig config;
-
-        DataConfig inConfig;
-        inConfig.desc = inData->getTensorDesc();
-        config.inConfs.push_back(inConfig);
-
-        DataConfig outConfig;
-        outConfig.desc = layer->outData[0]->getTensorDesc();
-        outConfig.desc.setPrecision(inConfig.desc.getPrecision());
-        outConfig.desc.setLayout(inConfig.desc.getLayout());
-        config.outConfs.push_back(outConfig);
-
-        config.dynBatchSupport = false;
-        confs.push_back(config);
+        addConfig(op, {{TensorDescCreatorTypes::ncsp, precision}},
+                      {{TensorDescCreatorTypes::ncsp, precision}});
     } catch (InferenceEngine::Exception &ex) {
         errorMsg = ex.what();
     }
 }
-
 
 StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept {
     const char *src_data = inputs[0]->cbuffer().as<const char *>() +
