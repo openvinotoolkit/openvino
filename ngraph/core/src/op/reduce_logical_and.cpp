@@ -6,8 +6,8 @@
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/log.hpp"
+#include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/eval_helpers.hpp"
 #include "ngraph/runtime/reference/logical_reduction.hpp"
 
 using namespace ngraph;
@@ -33,22 +33,16 @@ shared_ptr<Node> op::v1::ReduceLogicalAnd::clone_with_new_inputs(const OutputVec
     return make_shared<op::v1::ReduceLogicalAnd>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-namespace
+namespace reduce_and
 {
     bool evaluate_reduce_logical_and(const HostTensorPtr& data,
-                                     const HostTensorPtr& axes,
                                      const HostTensorPtr& out,
+                                     const AxisSet& reduction_axes,
                                      bool keep_dims)
     {
-        if (data->get_element_type() != element::boolean ||
-            !axes->get_element_type().is_integral_number())
-        {
-            return false;
-        }
+        out->set_shape(reduce(data->get_shape(), reduction_axes, keep_dims));
         try
         {
-            const AxisSet reduction_axes =
-                eval::extract_reduction_axes(data, axes, "ReduceLogicalAnd");
             runtime::reference::reduce_logical_and(data->get_data_ptr<char>(),
                                                    out->get_data_ptr<char>(),
                                                    data->get_shape(),
@@ -61,7 +55,7 @@ namespace
             return false;
         }
     }
-} // namespace
+} // namespace reduce_and
 
 bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
                                         const HostTensorVector& inputs) const
@@ -72,7 +66,14 @@ bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
     const auto& data = inputs[0];
     const auto& axes = inputs[1];
     const auto& out = outputs[0];
-    return evaluate_reduce_logical_and(data, axes, out, get_keep_dims());
+    if (data->get_element_type() != element::boolean ||
+        !axes->get_element_type().is_integral_number())
+    {
+        return false;
+    }
+    const auto reduction_axes = get_normalized_axes_from_tensor(
+        axes, data->get_partial_shape().rank(), get_friendly_name());
+    return reduce_and::evaluate_reduce_logical_and(data, out, reduction_axes, get_keep_dims());
 }
 
 bool op::v1::ReduceLogicalAnd::has_evaluate() const
