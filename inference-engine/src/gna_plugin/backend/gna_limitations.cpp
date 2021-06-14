@@ -31,7 +31,7 @@ bool RangeLimit2D::isValid(const uint32_t h, const uint32_t w) const {
 }
 
 std::string RangeLimit2D::GetErrorOrEmpty(const uint32_t h, const uint32_t w) const {
-    return hLimit.GetErrorOrEmpty(h) + wLimit.GetErrorOrEmpty(w);
+    return hLimit.GetErrorOrEmpty(h) + hLimit.GetErrorOrEmpty(w);
 }
 
 RangeMultipleLimit::RangeMultipleLimit(RangeLimit rlIn, uint32_t multiplierIn) : RangeLimit(rlIn), multiplier(multiplierIn) {
@@ -44,7 +44,7 @@ bool RangeMultipleLimit::isValid(const uint32_t val) const {
 std::string RangeMultipleLimit::GetErrorOrEmpty(const uint32_t val) const {
     auto e = RangeLimit::GetErrorOrEmpty(val);
     std::ostringstream out;
-    if (!isValid(val)) {
+    if (val % multiplier != 0) {
         out << "Unsupported " << what << ": " << val << ", must be multiple of " << multiplier << "\n";
     }
     return e + out.str();
@@ -95,7 +95,7 @@ std::string VectorOrSquareLimitByChannelsAndPrecision::GetErrorOrEmpty(const uin
 
 void Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
     const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-    OvGnaType inPrecision) const {
+    const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision) const {
     const std::string prefix = "Layer Convolution2D: " + name + ":";
     auto error = inputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
 
@@ -103,6 +103,7 @@ void Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const u
 
     error += inputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
     error += kernelLimit.GetErrorOrEmpty(kH, kW, inPrecision, inChannels, "kernel");
+    error += strideLimit.GetErrorOrEmpty(strideH, strideW, inPrecision, inChannels, "convolution stride");
     ThrowIfNotEmpty(prefix, error);
 }
 

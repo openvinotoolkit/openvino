@@ -202,19 +202,20 @@ TEST_F(VariableStateTests, VariableStateCanPropagateGetLastState) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-class VariableStateInternalMockImpl : public VariableStateInternal {
+class VariableStateInternalMockImpl : public IVariableStateInternal {
  public:
-    using VariableStateInternal::VariableStateInternal;
+    VariableStateInternalMockImpl(const char* name) : IVariableStateInternal(name) {}
     MOCK_METHOD0(Reset, void());
 };
 
+
 TEST_F(VariableStateTests, VariableStateInternalCanSaveName) {
-    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("name"));
-    ASSERT_STREQ(pState->GetName().c_str(), "name");
+    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
+    ASSERT_STREQ(pState->GetName().c_str(), "VariableStateInternalMockImpl");
 }
 
 TEST_F(VariableStateTests, VariableStateInternalCanSaveState) {
-    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("name"));
+    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 
@@ -228,7 +229,7 @@ TEST_F(VariableStateTests, VariableStateInternalCanSaveState) {
 
 
 TEST_F(VariableStateTests, VariableStateInternalCanSaveStateByReference) {
-    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("name"));
+    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 

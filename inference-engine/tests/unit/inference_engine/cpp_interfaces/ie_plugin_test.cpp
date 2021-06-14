@@ -15,6 +15,7 @@
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_thread_safe_default.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -25,7 +26,7 @@ class InferenceEnginePluginInternalTest : public ::testing::Test {
 protected:
     shared_ptr<IInferencePlugin> plugin;
     shared_ptr<MockInferencePluginInternal> mock_plugin_impl;
-    shared_ptr<MockExecutableNetworkInternal> mockExeNetworkInternal;
+    shared_ptr<MockIExecutableNetworkInternal> mockIExeNetworkInternal;
     shared_ptr<MockExecutableNetworkThreadSafe> mockExeNetworkTS;
     shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     std::shared_ptr<MockNotEmptyICNNNetwork> mockNotEmptyNet = std::make_shared<MockNotEmptyICNNNetwork>();
@@ -36,7 +37,7 @@ protected:
 
     virtual void TearDown() {
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mock_plugin_impl.get()));
-        EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockExeNetworkInternal.get()));
+        EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockIExeNetworkInternal.get()));
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockExeNetworkTS.get()));
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockInferRequestInternal.get()));
     }
@@ -46,8 +47,8 @@ protected:
         mock_plugin_impl.reset(new MockInferencePluginInternal());
         mock_plugin_impl->SetName(pluginId);
         plugin = std::static_pointer_cast<IInferencePlugin>(mock_plugin_impl);
-        mockExeNetworkInternal = make_shared<MockExecutableNetworkInternal>();
-        mockExeNetworkInternal->SetPointerToPlugin(mock_plugin_impl);
+        mockIExeNetworkInternal = make_shared<MockIExecutableNetworkInternal>();
+        mockIExeNetworkInternal->SetPointerToPlugin(mock_plugin_impl);
     }
 
     void getInferRequestWithMockImplInside(IInferRequestInternal::Ptr &request) {
@@ -147,29 +148,6 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetNotAllocatedBlob) {
             << "\n\tActual: " << ex.what();
     }
 }
-
-TEST_F(InferenceEnginePluginInternalTest, executableNetworkInternalExportsMagicAndName) {
-    std::stringstream strm;
-    ASSERT_NO_THROW(mockExeNetworkInternal->WrapOstreamExport(strm));
-    ExportMagic actualMagic = {};
-    strm.read(actualMagic.data(), actualMagic.size());
-    ASSERT_EQ(exportMagic, actualMagic);
-    std::string pluginName;
-    std::getline(strm, pluginName);
-    ASSERT_EQ(pluginId, pluginName);
-    std::string exportedString;
-    std::getline(strm, exportedString);
-    ASSERT_EQ(mockExeNetworkInternal->exportString, exportedString);
-}
-
-TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImports) {
-    std::stringstream strm;
-    ASSERT_NO_THROW(mockExeNetworkInternal->WrapOstreamExport(strm));
-    ASSERT_NO_THROW(mock_plugin_impl->ImportNetwork(strm, {}));
-    ASSERT_EQ(mockExeNetworkInternal->exportString, mock_plugin_impl->importedString);
-    mock_plugin_impl->importedString = {};
-}
-
 
 TEST(InferencePluginTests, throwsOnUninitializedGetVersion) {
     InferencePlugin plg;

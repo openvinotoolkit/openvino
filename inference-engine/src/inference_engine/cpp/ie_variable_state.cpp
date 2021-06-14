@@ -9,31 +9,31 @@
 #include "exception2status.hpp"
 
 #define VARIABLE_CALL_STATEMENT(...)                                                               \
-    if (_impl == nullptr) IE_THROW() << "VariableState was not initialized.";                       \
+    if (_impl == nullptr) IE_THROW(NotAllocated) << "VariableState was not initialized.";          \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
-    } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
-        IE_THROW() << ex.what();                                                                   \
-    } catch (...) {                                                                                \
-        IE_THROW(Unexpected);                                                                      \
-    }
+    } catch(...) {details::Rethrow();}
 
 namespace InferenceEngine {
 
 VariableState::VariableState(const details::SharedObjectLoader& so,
                              const IVariableStateInternal::Ptr& impl)
     : _so(so), _impl(impl) {
-    IE_ASSERT(_impl != nullptr);
+    if (_impl == nullptr) IE_THROW() << "VariableState was not initialized.";
 }
 
 IE_SUPPRESS_DEPRECATED_START
 
 VariableState::VariableState(std::shared_ptr<IVariableState> state,
                              std::shared_ptr<details::SharedObjectLoader> splg)
-    : _so(*splg), _impl(), actual(state) {
+    : _so(), _impl(), actual(state) {
+    if (splg) {
+        _so = *splg;
+    }
+
     //  plg can be null, but not the actual
     if (actual == nullptr)
-        IE_THROW() << "VariableState was not initialized.";
+        IE_THROW(NotAllocated) << "VariableState was not initialized.";
 }
 
 Blob::CPtr VariableState::GetLastState() const {

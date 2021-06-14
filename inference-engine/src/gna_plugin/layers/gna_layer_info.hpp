@@ -264,7 +264,7 @@ class LayerInfo {
                 return false;
             }
             // check dims in between
-            for (int j = permute.first + 1; j != permute.second; j++) {
+            for (int j = std::min(permute.first, permute.second) + 1; j < std::max(permute.first, permute.second); j++) {
                 if (inputsOrderTransformed[j] != 1) {
                     return false;
                 }

@@ -8,23 +8,34 @@ using namespace BehaviorTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16
+};
 
-const std::vector<std::map<std::string, std::string>> configs = {{}};
+const std::vector<std::map<std::string, std::string>> configs = {
+    {}
+};
 
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTests,
-                        ::testing::Combine(::testing::Values(InferenceEngine::Precision::FP32), ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-                                           ::testing::ValuesIn(configs)),
+                        ::testing::Combine(
+                                ::testing::Values(InferenceEngine::Precision::FP32),
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::ValuesIn(configs)),
                         BehaviorTests::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestInput,
-                        ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-                                           ::testing::ValuesIn(configs)),
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::ValuesIn(configs)),
                         BehaviorTestInput::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestOutput,
-                        ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-                                           ::testing::ValuesIn(configs)),
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::ValuesIn(configs)),
                         BehaviorTestOutput::getTestCaseName);
 
 }  // namespace

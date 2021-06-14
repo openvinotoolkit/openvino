@@ -10,13 +10,11 @@ add_library(${TARGET_NAME} STATIC ${SOURCES})
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "src")
 
 target_include_directories(${TARGET_NAME}
-    PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-target_link_libraries(${TARGET_NAME}
-    PUBLIC
-        IE::inference_engine
-        gflags)
+find_package(InferenceEngine REQUIRED COMPONENTS inference_engine)
+
+target_link_libraries(${TARGET_NAME} PUBLIC ${InferenceEngine_LIBRARIES} gflags)
 
 if(COMMAND add_clang_format_target)
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

@@ -106,3 +106,60 @@ INSTANTIATE_TEST_CASE_P(MemCheckTests, MemCheckTestSuite,
                         ::testing::ValuesIn(
                                 generateTestsParams({"devices", "models"})),
                         getTestCaseName);
+
+TEST_P(MemCheckTestSuite, inference_with_streams) {
+    const auto nstreams = 2;
+    log_info("Inference of InferRequest from network: \"" << model
+                                                          << "\" with precision: \"" << precision
+                                                          << "\" for device: \"" << device << "\""
+                                                          << "\" with streams: \"" << nstreams);
+    if ((device != "CPU") && (device != "GPU"))
+        throw std::invalid_argument("This device is not supported");
+
+    auto test_pipeline = [&] {
+        MemCheckPipeline memCheckPipeline;
+
+        std::map<std::string, std::string> config;
+        const std::string key = device + "_THROUGHPUT_STREAMS";
+        config[device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
+
+        Core ie;
+        ie.GetVersions(device);
+        ie.SetConfig(config, device);
+
+        InferRequest inferRequest;
+
+        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
+        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+        auto batchSize = cnnNetwork.getBatchSize();
+        batchSize = batchSize != 0 ? batchSize : 1;
+        const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+
+        unsigned int nireq = nstreams;
+        try {
+            nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+        } catch (const std::exception &ex) {
+            log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
+        }
+        for (int counter = 0; counter < nireq; counter++) {
+            inferRequest = exeNetwork.CreateInferRequest();
+            fillBlobs(inferRequest, inputsInfo, batchSize);
+
+            inferRequest.Infer();
+            OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
+            for (auto &output : output_info)
+                Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+        }
+
+        log_info("Memory consumption after Inference with streams: \"" << nstreams
+                                                                       << "\" with number of infer request: " << nireq);
+        memCheckPipeline.record_measures(test_name);
+
+        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
+        return memCheckPipeline.measure();
+
+    };
+
+    TestResult res = common_test_pipeline(test_pipeline, test_refs.references);
+    EXPECT_EQ(res.first, TestStatus::TEST_OK) << res.second;
+}

@@ -79,7 +79,7 @@
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
 #include "cldnn_itt.h"
-#include "cldnn/cldnn_config.hpp"
+#include "gpu/gpu_config.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -161,6 +161,13 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
+
+            if (!config.enable_loop_unrolling) {
+                manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+                manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+                manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+            }
+
             manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
             manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
             manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
@@ -173,9 +180,13 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
             manager.register_pass<ngraph::pass::GRUCellDecomposition>();
             manager.register_pass<ngraph::pass::RNNCellDecomposition>();
-            manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+
+            if (config.enable_loop_unrolling) {
+                manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+                manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+                manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+            }
+
             manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
@@ -348,6 +359,12 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
             pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
+            if (!config.enable_loop_unrolling) {
+                pass_config->disable<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+                pass_config->disable<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+                pass_config->disable<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+            }
+
             pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
             if (enableInt8) {
@@ -403,7 +420,19 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
             // TODO: check why we have these reshapes
             manager.register_pass<ngraph::pass::ConstantFolding>();
+
             manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+            auto pass_config = manager.get_pass_config();
+            pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
+                [config](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+                    auto sub_graph_op = std::dynamic_pointer_cast<const ngraph::op::util::SubGraphOp>(node);
+                    int64_t num_iter = sub_graph_op->get_num_iterations();
+                    if (num_iter == 1) {
+                        return false;
+                    }
+                    return !config.enable_loop_unrolling;
+                });
+
             manager.run_passes(nGraphFunc);
         }
     }
@@ -473,8 +502,8 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
     }
 }
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                               const std::map<std::string, std::string> &config) {
+IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
+                                                                const std::map<std::string, std::string> &config) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl");
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
@@ -503,7 +532,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
                context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
                context_config.device_id == current_config.device_id &&
-               context_config.n_threads == current_config.n_threads;
+               context_config.n_threads == current_config.n_threads &&
+               context_config.enable_loop_unrolling == current_config.enable_loop_unrolling;
     };
 
     {
@@ -523,9 +553,9 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     }
 }
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                               RemoteContext::Ptr context,
-                                                               const std::map<std::string, std::string> &config) {
+IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
+                                                                const RemoteContext::Ptr &context,
+                                                                const std::map<std::string, std::string> &config) {
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 

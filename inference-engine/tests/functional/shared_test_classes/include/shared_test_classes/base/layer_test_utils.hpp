@@ -72,6 +72,8 @@ public:
 
     virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
 
+    virtual void Compare(const InferenceEngine::TensorDesc &actualDesc, const InferenceEngine::TensorDesc &expectedDesc);
+
     virtual void SetRefMode(RefMode mode);
 
     std::shared_ptr<ngraph::Function> GetFunction();

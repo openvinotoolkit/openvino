@@ -46,6 +46,7 @@ namespace ngraph
                 int64_t get_group() const { return m_group; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 bool evaluate_shuffle_channels(const HostTensorVector& outputs,

@@ -8,6 +8,7 @@
 #include <description_buffer.hpp>
 #include <ie_layouts.h>
 #include <precision_utils.h>
+#include <blob_factory.hpp>
 
 #include <vpu/utils/error.hpp>
 #include <vpu/utils/perf_report.hpp>
