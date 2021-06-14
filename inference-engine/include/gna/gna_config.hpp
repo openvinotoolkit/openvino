@@ -147,7 +147,7 @@ namespace GNASpecialPerfCounters {
     * request was run on GNA HW.
     */
     DECLARE_GNA_CONFIG_VALUE(RUN_ON_HW);
-}
+} // namespace GNASpecialPerfCounters
 
 namespace PluginConfigParams {
 
