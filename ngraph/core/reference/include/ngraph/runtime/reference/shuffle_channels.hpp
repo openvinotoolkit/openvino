@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <cfenv>
 #include <cmath>
 #include <numeric>
 #include <vector>
