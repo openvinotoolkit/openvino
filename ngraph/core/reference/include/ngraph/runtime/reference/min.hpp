@@ -37,16 +37,16 @@ namespace ngraph
                 CoordinateTransformBasic input_transform(in_shape);
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord =
+                    const Coordinate output_coord =
                         reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
 
-                    size_t in_idx = std::inner_product(
+                    const size_t in_idx = std::inner_product(
                         input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
-                    size_t out_idx = std::inner_product(
+                    const size_t out_idx = std::inner_product(
                         output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
 
-                    T x = arg[in_idx];
-                    T min = out[out_idx];
+                    const T x = arg[in_idx];
+                    const T min = out[out_idx];
                     if (x < min)
                     {
                         out[out_idx] = x;
