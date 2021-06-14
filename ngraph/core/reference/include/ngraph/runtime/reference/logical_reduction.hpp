@@ -22,7 +22,7 @@ namespace ngraph
                                                   const AxisSet& reduction_axes)
             {
                 constexpr bool dont_keep_dims_in_output = false;
-                auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
+                const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
                 std::fill(out, out + shape_size(out_shape), 1);
 
                 const auto in_strides = row_major_strides(in_shape);
@@ -31,19 +31,19 @@ namespace ngraph
                 CoordinateTransformBasic input_transform(in_shape);
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord =
+                    const Coordinate output_coord =
                         reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
 
-                    size_t in_idx = std::inner_product(
+                    const size_t in_idx = std::inner_product(
                         input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
-                    size_t out_idx = std::inner_product(
+                    const size_t out_idx = std::inner_product(
                         output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
 
                     out[out_idx] = out[out_idx] && arg[in_idx];
                 }
             }
 
-            // DEPRECATED, can't be removed currently due to arm-plugin dependency
+            NGRAPH_DEPRECATED("Remove when arm plugin supports the new signature")
             static inline void reduce_logical_and(const char* arg,
                                                   char* out,
                                                   const Shape& input_shape,
@@ -58,7 +58,7 @@ namespace ngraph
                                                  const Shape& in_shape,
                                                  const AxisSet& reduction_axes)
             {
-                auto out_shape = reduce(in_shape, reduction_axes, false);
+                const auto out_shape = reduce(in_shape, reduction_axes, false);
                 std::fill(out, out + shape_size(out_shape), 0);
 
                 const auto in_strides = row_major_strides(in_shape);
@@ -67,18 +67,18 @@ namespace ngraph
                 CoordinateTransformBasic input_transform(in_shape);
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes, false);
+                    const Coordinate output_coord = reduce(input_coord, reduction_axes, false);
 
-                    size_t in_idx = std::inner_product(
+                    const size_t in_idx = std::inner_product(
                         input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
-                    size_t out_idx = std::inner_product(
+                    const size_t out_idx = std::inner_product(
                         output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
 
                     out[out_idx] = out[out_idx] || arg[in_idx];
                 }
             }
 
-            // DEPRECATED, can't be removed currently due to arm-plugin dependency
+            NGRAPH_DEPRECATED("Remove when arm plugin supports the new signature")
             static inline void reduce_logical_or(const char* arg,
                                                  char* out,
                                                  const Shape& input_shape,
