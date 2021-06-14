@@ -14,6 +14,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {
+
+//TODO: remove this alias when ticket 57975 is done - ticket: 57976
 typedef std::tuple<bool,                               // SpecialZero
                    InferenceEngine::Precision,         // Network precision
                    InferenceEngine::Precision,         // Input precision
@@ -27,6 +29,7 @@ typedef std::tuple<bool,                               // SpecialZero
                    >
     reshapeParams;
 
+//TODO: remove this class when ticket 57975 is done - ticket: 57976
 class ReshapeLayerTest : public testing::WithParamInterface<reshapeParams>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
@@ -37,6 +40,8 @@ protected:
     void SetUp() override;
 };
 
+
+//TODO: use this alias in all dependencies - ticket: 57975
 typedef std::tuple<bool,                               // SpecialZero
                    InferenceEngine::Precision,         // Network precision
                    InferenceEngine::Precision,         // Input precision
@@ -50,6 +55,7 @@ typedef std::tuple<bool,                               // SpecialZero
                    >
     reshapeParamsRevise;
 
+//TODO: use this class in all dependencies - ticket: 57975
 class ReshapeLayerTestRevise
     : public testing::WithParamInterface<reshapeParamsRevise>,
       virtual public LayerTestsUtils::LayerTestsCommon {
