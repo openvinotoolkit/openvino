@@ -105,6 +105,11 @@ bool FuseConvertTransformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
+    // issue #40611
+    if ((convert->get_input_element_type(0) == element::i32)) {
+        return false;
+    }
+
     return true;
 }
 
