@@ -178,23 +178,24 @@ namespace ngraph
                 const size_t group_out_size = shape_size(group_out_shape);
 
                 Strides in_dilation(in_shape.size(), 1);
+                const ngraph::CoordinateDiff output_padding(in_shape.size() - 2, 0);
                 for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx)
                 {
                     group_filter = f;
                     for (size_t group_idx = 0; group_idx < group_count; ++group_idx)
                     {
-                        runtime::reference::convolution_backprop_in<INPUT, FILTER, OUTPUT, ACCU>(
-                            group_batch,
-                            group_filter,
-                            group_out,
-                            group_batch_shape,
-                            group_filter_shape,
-                            group_out_shape,
-                            in_dilation,
-                            dilation,
-                            pads_begin,
-                            pads_end,
-                            strides);
+                        runtime::reference::convolution_backprop_in(group_batch,
+                                                                    group_filter,
+                                                                    group_out,
+                                                                    group_batch_shape,
+                                                                    group_filter_shape,
+                                                                    group_out_shape,
+                                                                    in_dilation,
+                                                                    dilation,
+                                                                    pads_begin,
+                                                                    pads_end,
+                                                                    strides,
+                                                                    output_padding);
                         group_batch += group_batch_size;
                         group_filter += group_filter_size;
                         group_out += group_out_size;

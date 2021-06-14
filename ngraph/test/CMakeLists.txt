@@ -356,6 +356,7 @@ set(MULTI_TEST_SRC
     backend/constant.in.cpp
     backend/convert.in.cpp
     backend/convert_like.in.cpp
+    backend/convolution_backprop.in.cpp
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
