@@ -7,11 +7,11 @@
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/broadcast.hpp"
+#include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/shape_util.hpp"
-#include "util/evaluate_helpers.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -80,7 +80,7 @@ bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs,
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     const auto reduction_axes = get_normalized_axes_from_tensor(
-        inputs[1], get_input_partial_shape(0).rank(), get_friendly_name());
+        inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
 
     return reduce_sum::evaluate_sum(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
