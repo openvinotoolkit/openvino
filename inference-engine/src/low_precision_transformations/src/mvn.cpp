@@ -71,8 +71,8 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
     }
 
     bool perTensor = true;
-    const auto rank = mvn->get_input_shape(0).size();
-    for (size_t i = 2; i < rank; ++i) {
+    const auto rank = mvn->get_input_partial_shape(0).rank().get_length();
+    for (int i = 2; i < rank; ++i) {
         if (reduction_axes.count(i) == 0) {
             perTensor = false;
             break;
