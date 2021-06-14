@@ -104,6 +104,7 @@ set(SRC
     type_prop/binary_elementwise.cpp
     type_prop/broadcast.cpp
     type_prop/bucketize.cpp
+    type_prop/ceiling.cpp
     type_prop/clamp.cpp
     type_prop/concat.cpp
     type_prop/constant.cpp
