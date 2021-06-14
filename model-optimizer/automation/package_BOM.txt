@@ -57,6 +57,7 @@ extensions/back/ReverseInputChannels.py
 extensions/back/RNNSequenceTypeRename.py
 extensions/back/ScalarConstNormalize.py
 extensions/back/SelectBroadcast.py
+extensions/back/ShapeOfConstFolding.py
 extensions/back/ShuffleChannelPatternOptimization.py
 extensions/back/ShufflenetReLUReorder.py
 extensions/back/SpecialNodesFinalization.py
