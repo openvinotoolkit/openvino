@@ -71,8 +71,6 @@ set(SRC
     op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
-    op_eval/reduce_l1.cpp
-    op_eval/reduce_l2.cpp
     op_eval/reduce_min.cpp
     op_eval/reduce_prod.cpp
     op_eval/reduce_sum.cpp
@@ -95,6 +93,7 @@ set(SRC
     pattern.cpp
     provenance.cpp
     replace_node.cpp
+    reshape_opt_kernel.cpp
     shape.cpp
     span.cpp
     specialize_function.cpp
@@ -424,6 +423,8 @@ set(MULTI_TEST_SRC
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
+    backend/reduce_l1.in.cpp
+    backend/reduce_l2.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
     backend/reduce_min.in.cpp
@@ -443,6 +444,7 @@ set(MULTI_TEST_SRC
     backend/select.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
+    backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
     backend/sign.in.cpp
     backend/sin.in.cpp

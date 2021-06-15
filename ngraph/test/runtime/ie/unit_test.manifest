@@ -728,11 +728,6 @@ gemm_broadcast_axes_1_input_C
 scale_shift_no_broadcast
 scale_shift
 
-# Cannot cast ngraph node ShuffleChannels to CNNLayer!
-shuffle_channels_simple
-shuffle_channels_negative_axis
-shuffle_channels_float
-
 # Detected op not belonging to opset1!
 onnx_model_quant_conv_linear
 onnx_model_quant_conv_linear_2d
