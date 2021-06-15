@@ -41,24 +41,30 @@
 #   error convolution_gpu_bfyx_f16.cl: unsupported filter type
 #endif
 
-#if OUTPUT_TYPE_SIZE == 1
-#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    BLOCK_WRITE_UC_1((__global uchar*)(ptr) + (offset), as_uchar(val))
-#   define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   BLOCK_WRITE_UC_2((__global uchar*)(ptr) + (offset), as_uchar2(val))
-#   define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   BLOCK_WRITE_UC_4((__global uchar*)(ptr) + (offset), as_uchar4(val))
-#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   BLOCK_WRITE_UC_8((__global uchar*)(ptr) + (offset), as_uchar8(val))
-#elif OUTPUT_TYPE_SIZE == 2
-#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write_us((__global ushort*)(ptr) + (offset), as_ushort(val))
-#   define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   intel_sub_group_block_write_us2((__global ushort*)(ptr) + (offset), as_ushort2(val))
-#   define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   intel_sub_group_block_write_us4((__global ushort*)(ptr) + (offset), as_ushort4(val))
-#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write_us8((__global ushort*)(ptr) + (offset), as_ushort8(val))
-#elif OUTPUT_TYPE_SIZE == 4
-#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write((__global uint*)(ptr) + (offset), as_uint(val))
-#   define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   intel_sub_group_block_write2((__global uint*)(ptr) + (offset), as_uint2(val))
-#   define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   intel_sub_group_block_write4((__global uint*)(ptr) + (offset), as_uint4(val))
-#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write8((__global uint*)(ptr) + (offset), as_uint8(val))
+#if OUTPUT_FORMAT_BFYX
+#   define OUTPUTVTYPE(n)       CAT(OUTPUT_TYPE, n)
+#   define TO_OUTPUTVTYPE       CAT(convert_, OUTPUTVTYPE(OUTPUT_X_BLOCK_SIZE))
+#   define VSTORE               CAT(vstore, OUTPUT_X_BLOCK_SIZE)
 #else
-#   error convolution_gpu_bfyx_f16.cl: unsupported output type
-#endif
+#   if OUTPUT_TYPE_SIZE == 1
+#       define OUTPUT_BLOCK_WRITE(ptr, offset, val)    BLOCK_WRITE_UC_1((__global uchar*)(ptr) + (offset), as_uchar(val))
+#       define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   BLOCK_WRITE_UC_2((__global uchar*)(ptr) + (offset), as_uchar2(val))
+#       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   BLOCK_WRITE_UC_4((__global uchar*)(ptr) + (offset), as_uchar4(val))
+#       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   BLOCK_WRITE_UC_8((__global uchar*)(ptr) + (offset), as_uchar8(val))
+#   elif OUTPUT_TYPE_SIZE == 2
+#       define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write_us((__global ushort*)(ptr) + (offset), as_ushort(val))
+#       define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   intel_sub_group_block_write_us2((__global ushort*)(ptr) + (offset), as_ushort2(val))
+#       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   intel_sub_group_block_write_us4((__global ushort*)(ptr) + (offset), as_ushort4(val))
+#       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write_us8((__global ushort*)(ptr) + (offset), as_ushort8(val))
+#   elif OUTPUT_TYPE_SIZE == 4
+#       define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write((__global uint*)(ptr) + (offset), as_uint(val))
+#       define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   intel_sub_group_block_write2((__global uint*)(ptr) + (offset), as_uint2(val))
+#       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   intel_sub_group_block_write4((__global uint*)(ptr) + (offset), as_uint4(val))
+#       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write8((__global uint*)(ptr) + (offset), as_uint8(val))
+#   else
+#       error convolution_gpu_bfyx_f16.cl: unsupported output type
+#   endif
+#endif  // OUTPUT_FORMAT_BFYX
 
 #if INPUT0_TYPE_SIZE == 2
 #   define AS_INPUT_SRC         CAT(as_, MAKE_VECTOR_TYPE(INPUT_TYPE, OUTPUT_X_BLOCK_SIZE))
@@ -129,18 +135,30 @@ KERNEL(convolution_bfyx_f16)(
                               (INPUT0_PAD_BEFORE_SIZE_X + input_x) * input_x_pitch;
 
     // Output offset calculations:
-    const uint output_x_pitch = FEATURE_SLICE_SIZE;
-    const uint output_y_pitch = output_x_pitch * (OUTPUT_PAD_BEFORE_SIZE_X +  OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X);
-    const uint output_total_f_size = OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM;
-    const uint output_fs_pitch = output_y_pitch * (OUTPUT_PAD_BEFORE_SIZE_Y +  OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y);
-    const uint output_b_pitch = output_fs_pitch * ((output_total_f_size + FEATURE_SLICE_SIZE - 1) / FEATURE_SLICE_SIZE);
 
+#if OUTPUT_FORMAT_BFYX
+    const uint output_y_pitch = (OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X);
+    const uint output_fs_pitch = output_y_pitch * (OUTPUT_PAD_BEFORE_SIZE_Y + OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y);
+    const uint output_b_pitch = output_fs_pitch * (OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM);
+
+    const uint output_offset = b * output_b_pitch +
+                               feature_block * (output_fs_pitch * FEATURE_SLICE_SIZE) +
+                               (sglid + OUTPUT_PAD_BEFORE_FEATURE_NUM) * output_fs_pitch +
+                               (y + OUTPUT_PAD_BEFORE_SIZE_Y) * output_y_pitch +
+                               (x + OUTPUT_PAD_BEFORE_SIZE_X);
+#else
+    const uint output_x_pitch = FEATURE_SLICE_SIZE;
+    const uint output_y_pitch = output_x_pitch * (OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X);
+    const uint output_total_f_size = OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM;
+    const uint output_fs_pitch = output_y_pitch * (OUTPUT_PAD_BEFORE_SIZE_Y + OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y);
+    const uint output_b_pitch = output_fs_pitch * ((output_total_f_size + FEATURE_SLICE_SIZE - 1) / FEATURE_SLICE_SIZE);
     const uint output_fs_pad_before = OUTPUT_PAD_BEFORE_FEATURE_NUM / FEATURE_SLICE_SIZE;
 
     const uint output_offset = b * output_b_pitch +
                                (feature_block + output_fs_pad_before) * output_fs_pitch +
                                (y + OUTPUT_PAD_BEFORE_SIZE_Y) * output_y_pitch +
                                (x + OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch;
+#endif
 
     // Filter offset calculations:
     const uint filter_isv_pitch = FEATURE_SLICE_SIZE;
@@ -383,15 +401,38 @@ KERNEL(convolution_bfyx_f16)(
 #if OUTPUT_LEFTOVERS
     if ((feature_block + 1) * FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM) {
         for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
+
 #if HAS_FUSED_OPS
             FUSED_OPS_SCALAR;
+#   if OUTPUT_FORMAT_BFYX
+#       if INPUT0_IS_FP && !OUTPUT_IS_FP
+            // Follow reorder_data.cl
+            res[i] = TO_OUTPUT_TYPE(round(FUSED_OPS_RESULT_SCALAR));
+#       else
+            res[i] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SCALAR);
+#       endif
+#   else
             res[i] = FUSED_OPS_RESULT_SCALAR;
+#   endif
 #else
+#   if OUTPUT_FORMAT_BFYX
+#       if INPUT0_IS_FP && !OUTPUT_IS_FP
+            // Follow reorder_data.cl
+            dst[i] = round(dst[i]);
+#       endif
+#   endif
             res[i] = TO_OUTPUT_TYPE(dst[i]);
 #endif
+
+#if OUTPUT_FORMAT_BFYX
+            if ((feature_block * FEATURE_SLICE_SIZE + sglid < OUTPUT_FEATURE_NUM) && (x + i) < OUTPUT_SIZE_X) {
+                output[output_offset + i] = res[i];
+            }
+#else
             if ((feature_block * FEATURE_SLICE_SIZE + sglid < OUTPUT_FEATURE_NUM) && (x + i) < OUTPUT_SIZE_X) {
                 output[output_offset + i * output_x_pitch + sglid] = res[i];
             }
+#endif
         }
     }
     else
@@ -400,35 +441,86 @@ KERNEL(convolution_bfyx_f16)(
         if (x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X || OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0) {
 #if HAS_FUSED_OPS
             FUSED_OPS_VEC;
+#   if OUTPUT_FORMAT_BFYX
+#       if INPUT0_IS_FP && !OUTPUT_IS_FP
+            dst = FUSED_OPS_RESULT_VEC;
+            // Follow reorder_data.cl
+            for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
+                res[i] = TO_OUTPUT_TYPE(round(dst[i]));
+            }
+#       else
+            res = TO_OUTPUTVTYPE(FUSED_OPS_RESULT_VEC);
+#       endif
+#   else
             res = FUSED_OPS_RESULT_VEC;
+#   endif
 #else
+#   if OUTPUT_FORMAT_BFYX
+#       if INPUT0_IS_FP && !OUTPUT_IS_FP
+            // Follow reorder_data.cl
+            for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
+                dst[i] = round(dst[i]);
+            }
+#       endif
+            res = TO_OUTPUTVTYPE(dst);
+#   else
             res = dst;
+#   endif
 #endif
             // TODO Generalize for other block sizes
-#if OUTPUT_X_BLOCK_SIZE == 8
-            OUTPUT_BLOCK_WRITE8(output, output_offset, res);
-#elif OUTPUT_X_BLOCK_SIZE == 4
-            OUTPUT_BLOCK_WRITE4(output, output_offset, res);
-#elif OUTPUT_X_BLOCK_SIZE == 2
-            OUTPUT_BLOCK_WRITE2(output, output_offset, res);
-#elif OUTPUT_X_BLOCK_SIZE == 1
-            OUTPUT_BLOCK_WRITE(output, output_offset, res);
+#if OUTPUT_FORMAT_BFYX
+    #if OUTPUT_X_BLOCK_SIZE == 2 || OUTPUT_X_BLOCK_SIZE == 4 || OUTPUT_X_BLOCK_SIZE == 8
+            VSTORE(res, 0, output + output_offset);
+    #elif OUTPUT_X_BLOCK_SIZE == 1
+            output[output_offset] = res[0];
+    #else
+    #   error convolution_gpu_bfyx_f16.cl: unsupported output x block size
+    #endif
 #else
-#   error convolution_gpu_bfyx_f16.cl: unsupported output x block size
-#endif
+    #if OUTPUT_X_BLOCK_SIZE == 8
+            OUTPUT_BLOCK_WRITE8(output, output_offset, res);
+    #elif OUTPUT_X_BLOCK_SIZE == 4
+            OUTPUT_BLOCK_WRITE4(output, output_offset, res);
+    #elif OUTPUT_X_BLOCK_SIZE == 2
+            OUTPUT_BLOCK_WRITE2(output, output_offset, res);
+    #elif OUTPUT_X_BLOCK_SIZE == 1
+            OUTPUT_BLOCK_WRITE(output, output_offset, res);
+    #else
+    #   error convolution_gpu_bfyx_f16.cl: unsupported output x block size
+    #endif
+#endif  // OUTPUT_FORMAT_BFYX
         } else {
             for (int i = 0; i < OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE; i++) {
 #if HAS_FUSED_OPS
                 FUSED_OPS_SCALAR;
+#   if OUTPUT_FORMAT_BFYX
+#       if INPUT0_IS_FP && !OUTPUT_IS_FP
+                // Follow reorder_data.cl
+                res[i] = TO_OUTPUT_TYPE(round(FUSED_OPS_RESULT_SCALAR));
+#       else
+                res[i] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SCALAR);
+#       endif
+#   else
                 res[i] = FUSED_OPS_RESULT_SCALAR;
+#   endif
 #else
+#   if OUTPUT_FORMAT_BFYX
+#       if INPUT0_IS_FP && !OUTPUT_IS_FP
+                // Follow reorder_data.cl
+                dst[i] = round(dst[i]);
+#       endif
+#   endif
                 res[i] = TO_OUTPUT_TYPE(dst[i]);
 #endif
+
+#if OUTPUT_FORMAT_BFYX
+                output[output_offset + i] = res[i];
+#else
                 OUTPUT_BLOCK_WRITE(output, output_offset + i * output_x_pitch, res[i]);
+#endif
             }
         }
     }
-
 #if SLM_DIV_FACTOR > 1
     }
 #endif
@@ -462,7 +554,13 @@ KERNEL(convolution_bfyx_f16)(
 
 #undef FILTER_BLOCK_READ8
 
-#undef OUTPUT_BLOCK_WRITE
-#undef OUTPUT_BLOCK_WRITE2
-#undef OUTPUT_BLOCK_WRITE4
-#undef OUTPUT_BLOCK_WRITE8
+#if OUTPUT_FORMAT_BFYX
+#   undef OUTPUTVTYPE
+#   undef TO_OUTPUTVTYPE
+#   undef VSTORE
+#else
+#   undef OUTPUT_BLOCK_WRITE
+#   undef OUTPUT_BLOCK_WRITE2
+#   undef OUTPUT_BLOCK_WRITE4
+#   undef OUTPUT_BLOCK_WRITE8
+#endif  // OUTPUT_FORMAT_BFYX

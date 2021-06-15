@@ -95,6 +95,8 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::bfyx);
+
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDilation();
@@ -176,6 +178,12 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_p
     if (input.Feature().pad.before % tuning_data.feature_block_size != 0 || output.Feature().pad.before % tuning_data.feature_block_size != 0)
         return false;
 
+    // Not supporting batch padding for different format (reorder-fused case)
+    if (input.GetLayout() == DataLayout::b_fs_yx_fsv16 && output.GetLayout() == DataLayout::bfyx) {
+        if (output.Batch().pad.before != 0 || output.Batch().pad.after != 0)
+            return false;
+    }
+
     if (!params.bias.empty() && params.bias[0].GetDType() != input.GetDType())
         return false;
 
@@ -189,6 +197,11 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
+
+    if (input.GetLayout() == DataLayout::b_fs_yx_fsv16 &&
+        output.GetLayout() == DataLayout::bfyx) {
+        jit.AddConstant(MakeJitConstant("OUTPUT_FORMAT_BFYX", 1));
+    }
 
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     if (!params.fused_ops.empty()) {

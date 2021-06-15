@@ -363,6 +363,49 @@ void remove_redundant_reorders::run(program& p) {
         p.remove_if_dangling(*node);
     }
 
+    // This pass removes reorder for Convolution b_fs_yx_fsv16 -> bfyx
+    if (enable_reorder_fusing) {
+        itr = p.get_processing_order().begin();
+        while (itr != p.get_processing_order().end()) {
+            auto& node_ptr = *itr++;
+            if (!node_ptr->is_type<reorder>() ||
+                !node_ptr->is_in_data_flow() ||
+                node_ptr->get_dependencies().size() != 1) {
+                continue;
+            }
+
+            auto& node = node_ptr->as<reorder>();
+            auto& input = node.input();
+
+            if (!(input.is_type<convolution>()) ||
+                !(input.get_output_layout().format == format::b_fs_yx_fsv16) ||
+                !(node.get_output_layout().format == format::bfyx))
+                continue;
+
+            if (input.as<convolution>().get_primitive()->groups != 1)
+                continue;
+
+            auto& input_dep = input.get_dependency(0);
+            if (input_dep.get_output_layout().data_type == data_types::u8 || input_dep.get_output_layout().data_type == data_types::i8)
+                continue;
+
+            auto output_layout = node.get_output_layout();
+            input.set_output_layout(output_layout, false);
+            if (input.type()->does_possible_implementation_exist(input)) {
+                if (node.is_output()) {
+                    input.set_output(true);
+                }
+                input.set_output_padding(node.get_output_layout().data_padding);
+
+                p.replace_all_usages(node, input);
+                p.get_processing_order().erase(&node);
+                p.add_optimized_primitive_info(node.id());
+                p.remove_all_connections(node);
+                p.remove_if_dangling(node);
+            }
+        }
+    }
+
     // Additional reshape chains shrink.
     // This step is needed to handle the cases when the plugin creates patterns like reshape -> reorder -> reshape
     // So these reshapes are not optimized in handle_reshape pass due to reorder between them,
