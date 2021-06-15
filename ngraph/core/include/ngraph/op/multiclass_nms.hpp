@@ -26,6 +26,8 @@ namespace ngraph
                 /// \param boxes Node producing the box coordinates
                 /// \param scores Node producing the box scores
                 /// \param sort_result Specifies order of output elements
+                /// \param sort_result_across_batch Specifies  whenever it is necessary to 
+                /// sort selected boxes across batches or not
                 /// \param output_type Specifies the output tensor type
                 /// \param iou_threshold Specifies intersection over union threshold
                 /// \param score_threshold Specifies minimum score to consider box for the
@@ -40,7 +42,8 @@ namespace ngraph
                 MulticlassNms(const Output<Node>& boxes,
                               const Output<Node>& scores,
                               const SortResultType sort_result_type = SortResultType::NONE,
-                              const ngraph::element::Type& output_type = ngraph::element::i32,
+                              bool sort_result_across_batch = true,
+                              const ngraph::element::Type& output_type = ngraph::element::i64,
                               const float iou_threshold = 0.0f,
                               const float score_threshold = 0.0f,
                               const int nms_top_k = -1,
@@ -52,6 +55,12 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                bool get_sort_result_across_batch() const { return m_sort_result_across_batch; }
+                void set_sort_result_across_batch(const bool sort_result_across_batch)
+                {
+                    m_sort_result_across_batch = sort_result_across_batch;
+                }
 
                 float get_iou_threshold() const { return m_iou_threshold; }
                 void set_iou_threshold(const float iou_threshold)
@@ -75,10 +84,11 @@ namespace ngraph
                 void set_nms_eta(const float nms_eta) { m_nms_eta = nms_eta; }
 
             protected:
-                float m_iou_threshold = 0.0f;
-                float m_score_threshold = 0.0f;
-                int m_background_class = -1;
-                float m_nms_eta = 1.0f;
+                bool m_sort_result_across_batch;
+                float m_iou_threshold;
+                float m_score_threshold;
+                int m_background_class;
+                float m_nms_eta;
                 void validate() override;
             };
         } // namespace v8

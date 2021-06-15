@@ -30,6 +30,7 @@ namespace ngraph
                                 const float* scores_data,
                                 const Shape& scores_data_shape,
                                 op::util::NmsBase::SortResultType sort_result_type,
+                                bool sort_result_across_batch,
                                 float iou_threshold,
                                 float score_threshold,
                                 int nms_top_k,
@@ -46,7 +47,8 @@ namespace ngraph
                                                const ngraph::element::Type output_type,
                                                const std::vector<float>& selected_outputs,
                                                const std::vector<int64_t>& selected_indices,
-                                               int64_t valid_outputs);
+                                               const std::vector<int64_t>& valid_outputs,
+                                               const ngraph::element::Type selected_scores_type);
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph

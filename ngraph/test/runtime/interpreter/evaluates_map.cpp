@@ -1090,7 +1090,7 @@ namespace
                         max_output_boxes_per_batch =
                             std::min(max_output_boxes_per_batch, (int64_t)keep_top_k);
 
-                    result[0] = Dimension(0, max_output_boxes_per_batch * scores_ps[0].get_length());
+                    result[0] = max_output_boxes_per_batch * scores_ps[0].get_length();
                 }
             }
 
@@ -1119,7 +1119,7 @@ namespace
             auto selected_outputs_shape =
                 infer_selected_outputs_shape(inputs, nms->get_nms_top_k(), nms->get_keep_top_k());
             result.selected_outputs_shape = selected_outputs_shape.to_shape();
-            result.selected_indices_shape = {result.selected_outputs_shape[0]};
+            result.selected_indices_shape = {result.selected_outputs_shape[0], 1};
 
             result.boxes_shape = inputs[boxes_port]->get_shape();
             result.scores_shape = inputs[scores_port]->get_shape();
@@ -1143,13 +1143,14 @@ namespace
 
         std::vector<float> selected_outputs(info.selected_outputs_shape_size);
         std::vector<int64_t> selected_indices(info.selected_indices_shape_size);
-        int64_t valid_outputs = 0;
+        std::vector<int64_t> valid_outputs(inputs[0]->get_shape()[0]);
 
         runtime::reference::multiclass_nms(info.boxes_data.data(),
                                                 info.boxes_shape,
                                                 info.scores_data.data(),
                                                 info.scores_shape,
                                                 op->get_sort_result_type(),
+                                                op->get_sort_result_across_batch(),
                                                 op->get_iou_threshold(),
                                                 op->get_score_threshold(),
                                                 op->get_nms_top_k(),
@@ -1160,13 +1161,17 @@ namespace
                                                 info.selected_outputs_shape,
                                                 selected_indices.data(),
                                                 info.selected_indices_shape,
-                                                &valid_outputs);
+                                                valid_outputs.data());                                                  
+
+        auto selected_scores_type = element::f32; // FIXME
 
         runtime::reference::multiclass_nms_postprocessing(outputs,
                                                 op->get_output_type(),
                                                 selected_outputs,
                                                 selected_indices,
-                                                valid_outputs);
+                                                valid_outputs,
+                                                selected_scores_type);
+
         return true;
     }
 
@@ -2737,10 +2742,10 @@ namespace
             {
                 continue;
             }
-//            if (element_type != node->get_output_element_type(i))
-//            {
-//                throw std::logic_error("Output node element types is not equal");
-//            }
+            //if (element_type != node->get_output_element_type(i))
+            //{
+            //    throw std::logic_error("Output node element types is not equal");
+            //}
         }
         switch (element_type)
         {

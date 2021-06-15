@@ -46,7 +46,7 @@ namespace ngraph
                 NmsBase(const Output<Node>& boxes,
                         const Output<Node>& scores,
                         const SortResultType sort_result_type = SortResultType::NONE,
-                        const ngraph::element::Type& output_type = ngraph::element::i32,
+                        const ngraph::element::Type& output_type = ngraph::element::i64,
                         const int nms_top_k = -1,
                         const int keep_top_k = -1);
 
@@ -73,10 +73,10 @@ namespace ngraph
                 void set_keep_top_k(const int keep_top_k) { m_keep_top_k = keep_top_k; }
 
             protected:
-                SortResultType m_sort_result_type = SortResultType::NONE;
-                ngraph::element::Type m_output_type = ngraph::element::i32;
-                int m_nms_top_k = -1;
-                int m_keep_top_k = -1;
+                SortResultType m_sort_result_type;
+                ngraph::element::Type m_output_type;
+                int m_nms_top_k;
+                int m_keep_top_k;
                 virtual void validate();
             };
         } // namespace util

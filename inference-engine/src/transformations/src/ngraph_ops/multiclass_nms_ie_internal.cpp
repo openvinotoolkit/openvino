@@ -18,6 +18,7 @@ constexpr NodeTypeInfo op::internal::MulticlassNmsIEInternal::type_info;
 op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
                                      const Output<Node>& scores,
                                      const int32_t sort_result_type,
+                                     const bool sort_result_across_batch,
                                      const ngraph::element::Type& output_type,
                                      const float iou_threshold,
                                      const float score_threshold,
@@ -27,6 +28,7 @@ op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node
                                      const float nms_eta)
     : Op({boxes, scores})
     , m_sort_result_type{sort_result_type}
+    , m_sort_result_across_batch{sort_result_across_batch}
     , m_output_type{output_type}
     , m_iou_threshold{iou_threshold}
     , m_score_threshold{score_threshold}
@@ -45,6 +47,7 @@ std::shared_ptr<Node> op::internal::MulticlassNmsIEInternal::clone_with_new_inpu
     return std::make_shared<MulticlassNmsIEInternal>(new_args.at(0),
                                                    new_args.at(1),
                                                    m_sort_result_type,
+                                                   m_sort_result_across_batch,
                                                    m_output_type,
                                                    m_iou_threshold,
                                                    m_score_threshold,
@@ -99,7 +102,7 @@ void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {
     set_output_type(0, element::f32, {first_dim_shape, 6});
     // 'selected_indices' have the following format:
     //      [number of selected boxes, ]
-    set_output_type(1, m_output_type, {first_dim_shape});
+    set_output_type(1, m_output_type, {first_dim_shape, 1});
     // 'selected_num' have the following format:
     //      [num_batches, ]
     if (boxes_ps.rank().is_static() && boxes_ps.rank().get_length() > 0) {

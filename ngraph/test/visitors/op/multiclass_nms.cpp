@@ -26,7 +26,8 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
     auto sort_result_type = opset7::MulticlassNms::SortResultType::SCORE;
-    auto output_type = ngraph::element::i64;
+    auto sort_result_across_batch = false;
+    auto output_type = ngraph::element::i32;
     int nms_top_k = 100;
     int keep_top_k = 10;
     float iou_threshold = 0.1f;
@@ -34,11 +35,12 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     int background_class = 2;
     float nms_eta = 0.3f;
 
-    auto nms = make_shared<opset7::MulticlassNms>(boxes, scores, sort_result_type, output_type, iou_threshold, score_threshold, nms_top_k, keep_top_k, background_class, nms_eta);
+    auto nms = make_shared<opset7::MulticlassNms>(boxes, scores, sort_result_type, sort_result_across_batch, output_type, iou_threshold, score_threshold, nms_top_k, keep_top_k, background_class, nms_eta);
     NodeBuilder builder(nms);
     auto g_nms = as_type_ptr<opset7::MulticlassNms>(builder.create());
 
     EXPECT_EQ(g_nms->get_sort_result_type(), nms->get_sort_result_type());
+    EXPECT_EQ(g_nms->get_sort_result_across_batch(), nms->get_sort_result_across_batch());
     EXPECT_EQ(g_nms->get_output_type(), nms->get_output_type());
     EXPECT_EQ(g_nms->get_nms_top_k(), nms->get_nms_top_k());
     EXPECT_EQ(g_nms->get_keep_top_k(), nms->get_keep_top_k());
@@ -47,6 +49,7 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     EXPECT_EQ(g_nms->get_background_class(), nms->get_background_class());
     EXPECT_EQ(g_nms->get_nms_eta(), nms->get_nms_eta());
     EXPECT_EQ(sort_result_type, nms->get_sort_result_type());
+    EXPECT_EQ(sort_result_across_batch, nms->get_sort_result_across_batch());
     EXPECT_EQ(output_type, nms->get_output_type());
     EXPECT_EQ(nms_top_k, nms->get_nms_top_k());
     EXPECT_EQ(keep_top_k, nms->get_keep_top_k());
@@ -67,6 +70,7 @@ TEST(attributes, multiclass_nms_v8_op_default_attributes)
     auto g_nms = as_type_ptr<opset7::MulticlassNms>(builder.create());
 
     EXPECT_EQ(g_nms->get_sort_result_type(), nms->get_sort_result_type());
+    EXPECT_EQ(g_nms->get_sort_result_across_batch(), nms->get_sort_result_across_batch());
     EXPECT_EQ(g_nms->get_output_type(), nms->get_output_type());
     EXPECT_EQ(g_nms->get_nms_top_k(), nms->get_nms_top_k());
     EXPECT_EQ(g_nms->get_keep_top_k(), nms->get_keep_top_k());
