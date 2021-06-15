@@ -167,8 +167,8 @@ namespace
                     const float y1 = std::min<float>(y1i, y1j);
 
                     // intersection area
-                    const float width = std::max<float>(0.0f,  x1 - x0 + coordinates_offset);
-                    const float height = std::max<float>(0.0f,  y1 - y0 + coordinates_offset);
+                    const float width = std::max<float>(0.0f, x1 - x0 + coordinates_offset);
+                    const float height = std::max<float>(0.0f, y1 - y0 + coordinates_offset);
                     const float area = width * height;
 
                     // area of A, B
