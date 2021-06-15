@@ -12,7 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/op/loop.hpp>
 
-
 #include <memory>
 #include <vector>
 #include <cassert>
@@ -65,10 +64,6 @@ auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph:
         while (stack.size() > 0) {
             ngraph::Node* curr = stack.front();
             visited.insert(curr);
-
-            if (ngraph::op::is_output(curr)) {
-                return false;
-            }
 
             stack.pop();
 
@@ -189,6 +184,14 @@ auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
         if (in.get_tensor().get_element_type() != ngraph::element::f32) {
             return false;
         }
+
+        if (in.get_partial_shape().is_dynamic()) {
+            return false;
+        }
+
+        if (in.get_partial_shape().is_static() && in.get_shape().size() > 6) {
+            return false;
+        }
     }
 
     for (auto out : n->outputs()) {
@@ -196,8 +199,20 @@ auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
             return false;
         }
 
+        if (out.get_partial_shape().is_dynamic()) {
+            return false;
+        }
+
+        if (out.get_partial_shape().is_static() && out.get_shape().size() > 6) {
+            return false;
+        }
+
         for (auto in_out : out.get_target_inputs()) {
             if (!!as_type_ptr<ngraph::op::v5::Loop>(in_out.get_node()->shared_from_this())) {
+                return false;
+            }
+
+            if (!!as_type_ptr<ngraph::op::v0::Result>(in_out.get_node()->shared_from_this())) {
                 return false;
             }
         }
