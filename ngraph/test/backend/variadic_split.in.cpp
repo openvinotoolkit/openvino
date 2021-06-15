@@ -295,7 +295,7 @@ NGRAPH_TEST(${BACKEND_NAME}, variadic_split_4d_axis_2_dynamic)
     const Shape axis_shape{1};
     const std::vector<int32_t> axis_value{2};
     const Shape split_lenghts_shape{3};
-    const std::vector<int32_t> split_lenghts{3, 1, 2};
+    const std::vector<int32_t> split_lenghts{-1, 1, 2}; // -1 means "all remaining items"
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(
         DynamicVariadicSplit(element::i32, data_shape, axis_shape, split_lenghts_shape));
@@ -320,7 +320,7 @@ NGRAPH_TEST(${BACKEND_NAME}, variadic_split_4d_axis_3_static)
     const Shape axis_shape{1};
     const std::vector<int32_t> axis_value{3};
     const Shape split_lenghts_shape{3};
-    const std::vector<int32_t> split_lenghts{1, 2, 3};
+    const std::vector<int32_t> split_lenghts{1, -1, 3}; // -1 means "all remaining items"
 
     auto test_case = test::TestCase<TestEngine>(StaticVariadicSplit(
         element::i32, data_shape, axis_shape, split_lenghts_shape, axis_value, split_lenghts));
@@ -343,7 +343,7 @@ NGRAPH_TEST(${BACKEND_NAME}, variadic_split_4d_axis_3_dynamic)
     const Shape axis_shape{1};
     const std::vector<int32_t> axis_value{3};
     const Shape split_lenghts_shape{3};
-    const std::vector<int32_t> split_lenghts{1, 2, 3};
+    const std::vector<int32_t> split_lenghts{1, 2, -1}; // -1 means "all remaining items"
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(
         DynamicVariadicSplit(element::i32, data_shape, axis_shape, split_lenghts_shape));
