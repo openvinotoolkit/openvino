@@ -27,7 +27,6 @@ mock_needed = pytest.mark.skipif(not mock_available,
 @mock_needed
 def test_load_by_framework_caps():
     frontEnds = fem.get_available_front_ends()
-    print("Frontends.{}".format(frontEnds))
     assert frontEnds is not None
     assert "mock_py" in frontEnds
     caps = [FrontEndCapabilities.DEFAULT,
