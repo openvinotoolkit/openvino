@@ -5,14 +5,14 @@ This tutorial explains how to convert the Attention OCR (AOCR) model from the [T
 ## Extract model from 'aocr' library
 
 The easiest way to get AOCR model is to download python library 'aocr':
-'''
+```
 pip install git+https://github.com/emedvedev/attention-ocr.git@master#egg=aocr
-'''
+```
 This library contains pretrain model and allows to train and run AOCR using command line. After installing 'aocr' you can extract model:
-'''
+```
 aocr export --format=frozengraph <model_path>
-'''
+```
 After this step you can find model in <model_path> folder.
 
-## Co0nvert the TensorFlow* AOCR Model to IR
+## Convert the TensorFlow* AOCR Model to IR
 
