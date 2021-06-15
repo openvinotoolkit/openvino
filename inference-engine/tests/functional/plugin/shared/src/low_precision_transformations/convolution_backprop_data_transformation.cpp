@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 std::string ConvolutionBackpropDataTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionBackpropDataTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    std::pair<ngraph::Shape, bool> inputShape;
     ngraph::Shape outputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -22,7 +22,7 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(testing::Test
     std::tie(netPrecision, inputShape, outputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
+    result << getTestCaseNameByParams(netPrecision, inputShape.first, targetDevice, params) << "_" <<
         outputShape << "_" <<
         param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights << "_" <<
@@ -34,14 +34,15 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    std::pair<ngraph::Shape, bool> inputShapeAndHandling;
     ngraph::Shape outputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionBackpropDataTransformationParam param;
-    std::tie(netPrecision, inputShape, outputShape, targetDevice, params, param) = this->GetParam();
+    std::tie(netPrecision, inputShapeAndHandling, outputShape, targetDevice, params, param) = this->GetParam();
 
     std::shared_ptr<ngraph::Node> weights;
 
+    const auto inputShape = inputShapeAndHandling.first;
     if (!param.fakeQuantizeOnWeights.empty()) {
         weights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
             ngraph::Shape{inputShape[1], inputShape[1] / 2, 1, 1},
@@ -65,9 +66,12 @@ void ConvolutionBackpropDataTransformation::SetUp() {
 void ConvolutionBackpropDataTransformation::Run() {
     LayerTestsCommon::Run();
 
-    const auto params = std::get<5>(GetParam());
-    const auto actualType = getRuntimePrecision(params.layerName);
-    EXPECT_EQ(actualType, params.expectedKernelType);
+    const auto inputShape = std::get<1>(GetParam());
+    if (inputShape.second) {
+        const auto params = std::get<5>(GetParam());
+        const auto actualType = getRuntimePrecision(params.layerName);
+        EXPECT_EQ(actualType, params.expectedKernelType);
+    }
 }
 
 TEST_P(ConvolutionBackpropDataTransformation, CompareWithRefImpl) {
