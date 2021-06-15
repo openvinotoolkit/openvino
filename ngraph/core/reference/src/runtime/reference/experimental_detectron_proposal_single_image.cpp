@@ -167,9 +167,9 @@ namespace
                     const float y1 = std::min<float>(y1i, y1j);
 
                     // intersection area
-                    const float width  = std::max<float>(0.0f,  x1 - x0 + coordinates_offset);
+                    const float width = std::max<float>(0.0f,  x1 - x0 + coordinates_offset);
                     const float height = std::max<float>(0.0f,  y1 - y0 + coordinates_offset);
-                    const float area   = width * height;
+                    const float area = width * height;
 
                     // area of A, B
                     const float A_area =
@@ -217,7 +217,8 @@ namespace
             {
                 rois[i] = 0.f;
             }
-            for (int64_t i = num_rois; i < post_nms_topn; i++) {
+            for (int64_t i = num_rois; i < post_nms_topn; i++)
+            {
                 scores[i] = 0.f;
             }
         }
