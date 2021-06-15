@@ -14,7 +14,7 @@ namespace cldnn {
 enum class allocation_type {
     unknown,     // Not specified (i.e simple_attached_memory class).
     cl_mem,      // Use standard OpenCL cl_mem allocations.
-    usm_host,    // Accessible only by host. Not Migratable
+    usm_host,    // Accessible by host and device. Not Migratable
     usm_shared,  // Accessible by host and device. Migrtable.
     usm_device,  // Accessible only by device. Not migratable.
 };
