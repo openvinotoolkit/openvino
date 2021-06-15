@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 
 from common.onnx_layer_test_class import Caffe2OnnxLayerTest

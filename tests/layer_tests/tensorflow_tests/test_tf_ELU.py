@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
