@@ -8,9 +8,7 @@
 
 **Detailed description**:
 
-The *ExtractImagePatches* operation is similar to the TensorFlow* operation [ExtractImagePatches](https://www.tensorflow.org/api_docs/python/tf/image/extract_patches).
-
-This op extracts patches of shape `sizes` which are `strides` apart in the input image. The output elements are taken from the input at intervals given by the `rate` argument, as in dilated convolutions.
+The *ExtractImagePatches* operation extracts patches of shape `sizes` which are `strides` apart in the input image. The output elements are taken from the input at intervals given by the `rate` argument, as in dilated convolutions.
 
 The result is a 4D tensor containing image patches with size `size[0] * size[1] * depth` vectorized in the "depth" dimension.
 
