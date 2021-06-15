@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include <ie_common.h>
+//#include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
 #include <memory>
 #include <vector>
+#include "kernels/gather_uni_kernel.hpp"
 
 namespace MKLDNNPlugin {
 
@@ -43,6 +44,7 @@ private:
     static const size_t GATHER_AXIS = 2;
 
     std::string errorPrefix_;
+    std::shared_ptr<jitGatherKernelBase> jitKernel;
 };
 
 }  // namespace MKLDNNPlugin
