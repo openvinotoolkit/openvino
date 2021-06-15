@@ -25,10 +25,13 @@ It is not a full list of models that can be converted to ONNX\* and to IR.
 * F3Net topology can be converted using [Convert PyTorch\* F3Net to the IR](pytorch_specific/Convert_F3Net.md) instruction.
 * QuartzNet topologies from [NeMo project](https://github.com/NVIDIA/NeMo) can be converted using [Convert PyTorch\* QuartzNet to the IR](pytorch_specific/Convert_QuartzNet.md) instruction.
 * YOLACT topology can be converted using [Convert PyTorch\* YOLACT to the IR](pytorch_specific/Convert_YOLACT.md) instruction.
+* [iSeeBetter](https://github.com/amanchadha/iSeeBetter) topology can be exported using regular instructions. Refer to
+  `iSeeBetterTest.py` for code to initialize the model.
 
 ## Export PyTorch\* Model to ONNX\* Format <a name="export-to-onnx"></a>
 
-PyTorch models are defined in a Python\* code, to export such models use `torch.onnx.export()` method.
+PyTorch models are defined in a Python\* code, to export such models use `torch.onnx.export()` method. Usually code to
+evaluate or test the model is provided with the model code and can be used to initialize and export model.
 Only the basics will be covered here, the step to export to ONNX\* is crucial but it is covered by PyTorch\* framework.
 For more information, please refer to [PyTorch\* documentation](https://pytorch.org/docs/stable/onnx.html).
 
