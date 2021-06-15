@@ -24,11 +24,10 @@ class Merge(Op):
         # we infer only through executable input nodes
         inferred_nodes = [n for n in node.in_nodes().values() if n['is_partial_inferred']]
         assert len(inferred_nodes) != 0
+        tensor = inferred_nodes[0]
 
         if len(inferred_nodes) < len(node.in_nodes()):
             node['is_not_fully_inferred'] = True
-            tensor = inferred_nodes[0]
-            node.out_port(0).data.set_shape(int64_array(tensor.shape))
         else:
             node['is_not_fully_inferred'] = False
             assert np.all(node.shape == inferred_nodes[0].shape for node in inferred_nodes)
@@ -37,9 +36,10 @@ class Merge(Op):
                                        'executable' in n and n['executable']]
             tensor = inferred_and_executable[0]
 
-            if all([np.all(tensor.value == n.value) for n in inferred_and_executable]) and tensor.has_valid('value'):
-                node.out_port(0).data.set_value(tensor.value.copy())
-            node.out_port(0).data.set_shape(int64_array(tensor.shape))
+            if all([np.all(tensor.value == n.value) for n in inferred_and_executable]):
+                node.out_node().value = tensor.value.copy() if tensor.has_valid('value') else None
+
+        node.out_node().shape = int64_array(tensor.shape)
 
     @staticmethod
     def control_flow_infer(node: Node, is_executable: bool, mark_executability: callable):
