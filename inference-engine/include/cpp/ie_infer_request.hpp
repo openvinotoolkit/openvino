@@ -169,6 +169,11 @@ public:
      */
     StatusCode Wait(int64_t millis_timeout = RESULT_READY);
 
+    /**
+     * Sets shape for specific input
+     * @param name the input name
+     * @param dims new dimensions
+     */
     void SetShape(const std::string &name, const SizeVector& dims);
 
 private:
