@@ -71,8 +71,6 @@ set(SRC
     op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
-    op_eval/reduce_l1.cpp
-    op_eval/reduce_l2.cpp
     op_eval/reduce_prod.cpp
     op_eval/reduce_sum.cpp
     op_eval/roi_align.cpp
@@ -423,6 +421,8 @@ set(MULTI_TEST_SRC
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
+    backend/reduce_l1.in.cpp
+    backend/reduce_l2.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
     backend/reduce_min.in.cpp
