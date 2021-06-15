@@ -12,10 +12,10 @@
 
 
 #include <ie_metric_helpers.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "multi_device_plugin.hpp"
 #include <ie_algorithm.hpp>
+#include <ie_icore.hpp>
 
 // ------------------------------MultiDeviceInferencePlugin----------------------------
 namespace MultiDevicePlugin {
@@ -142,13 +142,25 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     }
 }
 
-ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
+// Is called only when caching is enabled
+IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
+                                                                        const std::map<std::string, std::string>& config) {
+    return LoadExeNetworkImpl(modelPath, {}, config);
+}
+
+IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
+                                                                               const std::map<std::string, std::string>& config) {
+    return LoadExeNetworkImpl({}, network, config);
+}
+
+IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const std::string& modelPath,
+                                                                              CNNNetwork network,
                                                                               const std::map<std::string, std::string>& config) {
     if (GetCore() == nullptr) {
-        IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
+        IE_THROW() << "Please, work with MULTI device via InferenceEngine::Core object";
     }
 
-    if (network.getFunction() == nullptr) {
+    if (modelPath.empty() && network.getFunction() == nullptr) {
         IE_THROW() << "MULTI device supports just ngraph network representation";
     }
 
@@ -164,14 +176,25 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     multiNetworkConfig.insert(*priorities);
 
-    DeviceMap<ExecutableNetwork> executableNetworkPerDevice;
+    DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
     std::mutex load_mutex;
     std::vector<Task> loads;
+    std::once_flag readNetworkFlag;
     for (auto& p : metaDevices) {
         loads.push_back([&]() {
             const auto &deviceName = p.deviceName;
             const auto &deviceConfig = p.config;
-            auto exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            SoExecutableNetworkInternal exec_net;
+            if (modelPath.empty()) {
+                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
+                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
+            } else {
+                std::call_once(readNetworkFlag, [&]() {
+                    network = GetCore()->ReadNetwork(modelPath, std::string());
+                });
+                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            }
             std::unique_lock<std::mutex> lock{load_mutex};
             executableNetworkPerDevice.insert({deviceName, exec_net});
             multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
@@ -192,17 +215,23 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     for (auto n : executableNetworkPerDevice) {
             try {
                 num_plugins_supporting_perf_counters +=
-                        n.second.GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
+                        n.second->GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
                         PluginConfigParams::YES;
             } catch (...) {
             }
     }
     // MULTI can enable the perf counters only if all  devices support/enable that
     bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
-    return std::make_shared<MultiDeviceExecutableNetwork>(executableNetworkPerDevice,
-                                                          metaDevices,
-                                                          multiNetworkConfig,
-                                                          enablePerfCounters);
+    auto impl = std::make_shared<MultiDeviceExecutableNetwork>(executableNetworkPerDevice,
+                                                               metaDevices,
+                                                               multiNetworkConfig,
+                                                               enablePerfCounters);
+    if (!modelPath.empty()) {
+        SetExeNetworkInfo(impl,
+                          executableNetworkPerDevice.begin()->second->GetInputsInfo(),
+                          executableNetworkPerDevice.begin()->second->GetOutputsInfo());
+    }
+    return impl;
 }
 
 QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&                         network,

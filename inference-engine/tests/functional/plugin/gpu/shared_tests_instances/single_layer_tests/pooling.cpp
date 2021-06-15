@@ -93,16 +93,16 @@ const auto avgPoolExplicitPadCeilRoundingParams = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
-                        ::testing::Combine(
-                                avgPoolExplicitPadCeilRoundingParams,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                        PoolingLayerTest::getTestCaseName);
+                       ::testing::Combine(
+                               avgPoolExplicitPadCeilRoundingParams,
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                               ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                               ::testing::Values(InferenceEngine::Layout::ANY),
+                               ::testing::Values(InferenceEngine::Layout::ANY),
+                               ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                               ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                       PoolingLayerTest::getTestCaseName);
 
 /* +========== Explicit Pad Floor Rounding ========== */
 const auto avgPoolExplicitPadFloorRoundingParams = ::testing::Combine(

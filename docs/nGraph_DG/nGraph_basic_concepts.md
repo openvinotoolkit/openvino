@@ -4,8 +4,8 @@ The nGraph represents neural networks in uniform format. User can create differe
 
 ## nGraph Function and Graph Representation <a name="ngraph_function"></a>
 
-nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::Parameter`, `ngraph::op::Result` and  `ngraph::op::Sink` operations that are inputs, outputs and sinks of the graph.
-Sinks of the graph have no consumers and not included into results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result or Sink operation
+nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::Parameter`, `ngraph::op::Result` and `ngraph::op::Sink` operations that are inputs, outputs and sinks of the graph.
+Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result or Sink operation
 (shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` has a `std::shared_ptr<ngraph::Node>` type.
 
 For details on how to build an nGraph Function, see the [Build nGraph Function](./build_function.md) page.

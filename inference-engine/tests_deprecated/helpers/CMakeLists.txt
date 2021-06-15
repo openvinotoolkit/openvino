@@ -48,3 +48,8 @@ if (ENABLE_DATA)
     add_dependencies(${TARGET_NAME} data)
     add_dependencies(${TARGET_NAME}_s data)
 endif()
+
+# developer package
+
+openvino_developer_export_targets(COMPONENT inference_engine_tests
+                                  TARGETS ieTestHelpers ieTestHelpers_s)

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 #include <cmath>
+#include <iostream>
 #include <set>
 #include <string>
 #include <algorithm>
@@ -1735,8 +1736,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                                 outputTensor.Shape.Dimensions[beginOfHInNHWC + dimHW] =
                                     outputFromPooling(outFromConv, poolWindow->Dimensions[beginOfHInHW + dimHW], poolStride->Dimensions[beginOfHInHW + dimHW]);
                             }
-                            AdvanceOperationIfAllApplied(component, i, gnaOperation);
                         }
+                        AdvanceOperationIfAllApplied(component, i, gnaOperation);
                     }
 #else
                 } else if (pLayer->nLayerKind == INTEL_CONVOLUTIONAL) {

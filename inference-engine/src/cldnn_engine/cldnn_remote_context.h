@@ -9,7 +9,7 @@
 #include <memory>
 #include <atomic>
 #include <ie_parameter.hpp>
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include "cldnn_config.h"
 #include <api/memory.hpp>
 #include <api/engine.hpp>

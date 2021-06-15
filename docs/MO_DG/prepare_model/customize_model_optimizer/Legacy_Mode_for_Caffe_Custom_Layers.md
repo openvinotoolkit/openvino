@@ -1,6 +1,6 @@
-# Legacy Mode for Caffe* Custom Layers  {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers}
+# [DEPRECATED] Legacy Mode for Caffe* Custom Layers  {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers}
 
-> **NOTE**: This functionality is deprecated and will be removed in the future releases.
+> **NOTE: This functionality is deprecated and will be removed in future releases.**
 
 Model Optimizer can register custom layers in a way that the output shape is calculated by the Caffe\* framework
 installed on your system. This approach has several limitations:

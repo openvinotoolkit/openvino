@@ -6,20 +6,19 @@
 #include "mkldnn_reorder_node.h"
 #include "mkldnn_input_node.h"
 #include "mkldnn_eltwise_node.h"
-#include "mkldnn_quantize_node.h"
+#include "mkldnn_fake_quantize_node.h"
 #include "mkldnn_conv_node.h"
-#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
+#include <ngraph/opsets/opset1.hpp>
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -873,17 +872,52 @@ private:
     }
 };
 
-MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer,
+bool MKLDNNBinaryConvolutionNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
+        if (!binConv) {
+            errorMessage = "Only opset1 BinaryConvolution operation is supported";
+            return false;
+        }
+        if (binConv->get_mode() != ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT) {
+            errorMessage = "Doesn't support mode: " + ngraph::as_string(binConv->get_mode());
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
                                                          const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {
-    if (mayiuse(x64::avx512_common)) {
-        implType = impl_desc_type::jit_avx512;
-    } else if (mayiuse(x64::avx2)) {
-        implType = impl_desc_type::jit_avx2;
-    } else if (mayiuse(x64::sse41)) {
-        implType = impl_desc_type::jit_sse42;
+        : MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";
+        const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
+
+        pad_value = binConv->get_pad_value();
+        for (int i = 0; i < binConv->get_strides().size(); i++) {
+            stride.push_back(static_cast<ptrdiff_t>(binConv->get_strides()[i]));
+        }
+        for (int i = 0; i < binConv->get_dilations().size(); i++) {
+            dilation.push_back(static_cast<ptrdiff_t>(binConv->get_dilations()[i]) - 1);
+        }
+        paddingL = binConv->get_pads_begin();
+        paddingR = binConv->get_pads_end();
+
+        if (mayiuse(x64::avx512_common)) {
+            implType = impl_desc_type::jit_avx512;
+        } else if (mayiuse(x64::avx2)) {
+            implType = impl_desc_type::jit_avx2;
+        } else if (mayiuse(x64::sse41)) {
+            implType = impl_desc_type::jit_sse42;
+        } else {
+            implType = impl_desc_type::ref;
+        }
     } else {
-        implType = impl_desc_type::ref;
+        IE_THROW(NotImplemented) << errorMessage;
     }
 }
 
@@ -891,26 +925,15 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
-    auto* binConvLayer = dynamic_cast<BinaryConvolutionLayer*>(getCnnLayer().get());
-    if (binConvLayer == nullptr)
-        IE_THROW() << "Cannot convert convolution layer.";
-
-    std::string errorPrefix = "BinaryConvolution layer with name '" + getName() + "' ";
-
-    withBinarization = isFusedWith(Quantize);
+    withBinarization = isFusedWith(FakeQuantize);
     withSum = false;
     int expectedInputEdgesNum = 2;
     for (int i = 0; i < fusedWith.size(); i++) {
         auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
-        if (eltwiseNode && eltwiseNode->isSum()) {
+        if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
             withSum = true;
             expectedInputEdgesNum++;
         }
-    }
-
-    group = binConvLayer->_group;
-    if (group != 1) {
-        IE_THROW() << errorPrefix << "doesn't support parameter group != 1";
     }
 
     if (getParentEdges().size() != expectedInputEdgesNum)
@@ -930,21 +953,6 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
     if (getChildEdgeAt(0)->getDims().ndims() != 4) {
         IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
     }
-
-    if ((getParentEdgeAt(0)->getDims().ndims() < 4) || (getParentEdgeAt(0)->getDims().ndims() > 5)) {
-        IE_THROW() << "Convolution layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
-    }
-
-    pad_value = binConvLayer->_pad_value;
-
-    invertVectorCopyUtoI(binConvLayer->_stride, stride);
-    for (int i = 1; i <= binConvLayer->_dilation.size(); i++) {
-        dilation.push_back(static_cast<int>(binConvLayer->_dilation[binConvLayer->_dilation.size() - i]) - 1);
-    }
-
-    auto allPads = getPaddings(*binConvLayer);
-    invertVectorCopyUtoI(allPads.begin, paddingL);
-    invertVectorCopyUtoI(allPads.end, paddingR);
 }
 
 void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
@@ -1077,48 +1085,18 @@ void MKLDNNBinaryConvolutionNode::createPrimitive() {
 }
 
 bool MKLDNNBinaryConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
-    auto isOneOf = [](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
     if (implType == impl_desc_type::ref)
         return false;
 
     // Binarization have to be last operation in fusing chain
-    if (isFusedWith(Quantize))
+    if (isFusedWith(FakeQuantize))
         return false;
 
-    if (node->getType() == Quantize) {
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
-        if (quantizeNode == nullptr)
-            IE_THROW() << "Cannot get quantize node " << node->getName();
-        return quantizeNode->isBinarization();
-    } else if (node->getType() == Eltwise) {
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
-        if (eltwiseNode == nullptr)
-            IE_THROW() << "Cannot get eltwise node " << node->getName();
-
-        // Only one Add operation can be fused since it is implemented via output blob reuse
-        if (eltwiseNode->isSum()) {
-            for (auto& fusedNode : fusedWith) {
-                auto* fusedEltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(fusedNode.get());
-                if (fusedEltwiseNode->isSum()) {
-                    return false;
-                }
-            }
-        }
-
-        return eltwiseNode->isSum() ||
-               isOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu, Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp,
-                                                  Tanh, Swish, Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt});
+    if (node->getType() == FakeQuantize) {
+        return node->getAlgorithm() == FQBinarization;
+    } else {
+        return canFuseSimpleOperation(node);
     }
-
-    return false;
 }
 
 void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
@@ -1127,16 +1105,16 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     for (auto &node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            if (eltwiseNode->isSum())
+            if (eltwiseNode->isSpecialConvolutionAddFusing())
                 ops.append_sum(1.0);
             else
                 eltwiseNode->appendPostOps(ops);
             continue;
         }
 
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
-        if (quantizeNode) {
-            quantizeNode->appendPostOps(ops);
+        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        if (fakeQuantizeNode) {
+            fakeQuantizeNode->appendPostOps(ops);
             continue;
         }
 

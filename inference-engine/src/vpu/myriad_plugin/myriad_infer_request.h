@@ -10,7 +10,7 @@
 #include <memory>
 
 #include <ie_common.h>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/ie_helpers.hpp>

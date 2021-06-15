@@ -44,6 +44,7 @@ namespace ngraph
                 size_t get_default_output_index() const override { return no_default_index(); }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 bool evaluate_variadic_split(const HostTensorVector& outputs,

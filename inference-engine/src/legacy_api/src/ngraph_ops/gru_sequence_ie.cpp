@@ -16,7 +16,7 @@ NGRAPH_RTTI_DEFINITION(op::GRUSequenceIE, "GRUSequenceIE", 4);
 
 op::GRUSequenceIE::GRUSequenceIE(const Output<Node>& X,
                                  const Output<Node>& H_t,
-                                 const Output<Node>& seq_lenghts,
+                                 const Output<Node>& seq_lengths,
                                  const Output<Node>& WR,
                                  const Output<Node>& B,
                                  std::size_t hidden_size,
@@ -27,7 +27,7 @@ op::GRUSequenceIE::GRUSequenceIE(const Output<Node>& X,
                                  float clip,
                                  bool linear_before_reset,
                                  int64_t seq_axis)
-        : RNNCellBase({X, H_t, seq_lenghts, WR, B}, hidden_size, clip, activations, activations_alpha, activations_beta),
+        : RNNCellBase({X, H_t, seq_lengths, WR, B}, hidden_size, clip, activations, activations_alpha, activations_beta),
           m_direction(direction),
           m_linear_before_reset(linear_before_reset),
           m_seq_axis(seq_axis) {
@@ -50,7 +50,7 @@ void op::GRUSequenceIE::validate_and_infer_types() {
     auto b_pshape = get_input_partial_shape(4);
     std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
 
-    std::vector<std::string> in_names = {"X", "H", "seq_lenghts", "WR", "B"};
+    std::vector<std::string> in_names = {"X", "H", "seq_lengths", "WR", "B"};
     // num_direction dimension should be squeezed, we don't support bidirectional case
     std::vector<size_t> ranks = {3, 2, 1, 2, 1};
     for (size_t i = 0; i < pshapes.size(); ++i) {

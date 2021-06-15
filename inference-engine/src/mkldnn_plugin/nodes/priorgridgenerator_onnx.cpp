@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <cassert>
 #include <vector>
+#include <ngraph/opsets/opset6.hpp>
+
+using MKLDNNPlugin::TensorDescCreatorTypes;
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -26,27 +29,49 @@ private:
     // Outputs:
     //      priors_grid, shape [m, 4]
 
-public:
-    explicit ExperimentalDetectronPriorGridGeneratorImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() > 3 || layer->outData.empty())
-                IE_THROW() << "Incorrect number of input/output edges!";
+            const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+            if (!priorGridGen) {
+                errorMessage = "Only opset6 ExperimentalDetectronPriorGridGenerator operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            if (layer->insData[INPUT_PRIORS].lock()->getTensorDesc().getDims().size() != 2 ||
-                    (layer->insData.size() > INPUT_FEATUREMAP &&
-                     layer->insData[INPUT_FEATUREMAP].lock()->getTensorDesc().getDims().size() != 4) ||
-                    (layer->insData.size() > INPUT_IMAGE &&
-                     layer->insData[INPUT_IMAGE].lock()->getTensorDesc().getDims().size() != 4))
-                IE_THROW() << "Unsupported shape of input blobs!";
+    std::string errorPrefix;
 
-            grid_w_ = layer->GetParamAsInt("w", 0);
-            grid_h_ = layer->GetParamAsInt("h", 0);
-            stride_h_ = layer->GetParamAsFloat("stride_y", 0);
-            stride_w_ = layer->GetParamAsFloat("stride_x", 0);
+public:
+    explicit ExperimentalDetectronPriorGridGeneratorImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
 
-            addConfig(layer,
-                      {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::ANY), DataConfigurator(ConfLayout::ANY)},
-                      {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
+            errorPrefix = "ExperimentalDetectronPriorGridGenerator layer with name '" + op->get_friendly_name() + "'";
+            const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+            if (op->get_input_size() != 3 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+            if (op->get_input_shape(INPUT_PRIORS).size() != 2 ||
+                op->get_input_shape(INPUT_FEATUREMAP).size() != 4 ||
+                    op->get_input_shape(INPUT_IMAGE).size() != 4)
+                IE_THROW() << errorPrefix << " has unsupported input shape";
+
+            const auto &attr = priorGridGen->get_attrs();
+            grid_w_ = attr.w;
+            grid_h_ = attr.h;
+            stride_h_ = attr.stride_y;
+            stride_w_ = attr.stride_x;
+
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                           {TensorDescCreatorTypes::ncsp, Precision::FP32},
+                           {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }

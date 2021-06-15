@@ -11,7 +11,6 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
-#include <legacy/ngraph_ops/scaleshift.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "low_precision/network_helper.hpp"

@@ -22,16 +22,14 @@ ngraph::pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
         if (!gather_v7_node)
             return false;
 
-        int64_t batch_dims = 0;
-        if (gather_v7_node->is_axis_set())
-            batch_dims = gather_v7_node->get_batch_dims();
-        if (batch_dims != 0)
+        if (gather_v7_node->get_batch_dims() != 0)
             return false;
+
         auto data_input = gather_v7_node->input_value(0);
         auto indices_input = gather_v7_node->input_value(1);
         auto axis_input = gather_v7_node->input_value(2);
 
-        auto gather_v1  = std::make_shared<ngraph::opset1::Gather>(data_input, indices_input, axis_input);
+        auto gather_v1 = std::make_shared<ngraph::opset1::Gather>(data_input, indices_input, axis_input);
         gather_v1->set_friendly_name(gather_v7_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_v7_node, gather_v1);
         ngraph::replace_node(gather_v7_node, gather_v1);

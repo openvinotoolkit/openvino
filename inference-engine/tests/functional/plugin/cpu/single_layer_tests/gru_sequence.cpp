@@ -46,7 +46,7 @@ protected:
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
 
-        size_t seq_lenghts;
+        size_t seq_lengths;
         size_t batch;
         size_t hidden_size;
         size_t input_size = 10;
@@ -60,17 +60,23 @@ protected:
 
         std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        std::tie(m_mode, seq_lenghts, batch, hidden_size, activations, clip, linear_before_reset, direction, netPrecision, targetDevice) = basicParamsSet;
+        std::tie(m_mode, seq_lengths, batch, hidden_size, activations, clip, linear_before_reset, direction, netPrecision, targetDevice) = basicParamsSet;
 
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
         std::vector<std::vector<size_t>> inputShapes = {
-            {{batch, seq_lenghts, input_size},
+            {{batch, seq_lengths, input_size},
              {batch, num_directions, hidden_size},
              {batch},
              {num_directions, 3 * hidden_size, input_size},
              {num_directions, 3 * hidden_size, hidden_size},
              {num_directions, (linear_before_reset ? 4 : 3) * hidden_size}},
         };
+
+        // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
+        // returned output format always tnc
+        if (inFmts.size() == 2 && ngraph::shape_size(inputShapes[1]) == 1) {
+            inFmts[1] = tnc;
+        }
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -83,7 +89,7 @@ protected:
         selectedType += "_";
         selectedType += outPrc.name();
 
-        m_max_seq_len = seq_lenghts;
+        m_max_seq_len = seq_lengths;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::FP32);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
         if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM
@@ -104,6 +110,19 @@ protected:
                                                      true,
                                                      direction,
                                                      m_mode);
+
+        // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
+        // returned output format always tnc
+        if (ngraph::shape_size(gru_sequence->get_output_shape(0)) == 1) {
+            outFmts[0] = tnc;
+        } else if (ngraph::shape_size(gru_sequence->get_output_shape(1)) == 1) {
+            outFmts[1] = tnc;
+        }
+        // if output format equals for all outputs, runtime info return only one formats
+        if (outFmts[0] == outFmts[1]) {
+            outFmts.erase(outFmts.begin());
+        }
+
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_sequence->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(gru_sequence->output(1))};
 
@@ -151,11 +170,11 @@ namespace {
 std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-CPUSpecificParams cpuParams{{ntc, nc}, {ntc, nc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{tnc, nc}, {tnc, nc}, {"ref_any"}, "ref_any"};;
+CPUSpecificParams cpuParams{{ntc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsBatchSizeOne{{ntc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};;
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
-// output values increase rapidly without clip, so use only seq_lenghts = 2
+// output values increase rapidly without clip, so use only seq_lengths = 2
 std::vector<size_t> seq_lengths_zero_clip{2};
 std::vector<size_t> batch{10};
 std::vector<size_t> batch_size_one{1};

@@ -12,8 +12,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNTileNode : public MKLDNNNode {
 public:
-    MKLDNNTileNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNTileNode() override = default;
+    MKLDNNTileNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -21,9 +20,17 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
-    int axis = 0;
+    static const size_t TILE_INPUT = 0;
+    static const size_t TILE_REPEATS = 1;
+
+    int axis = -1;
     int tiles = 0;
+    bool noTiling = false;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

@@ -34,7 +34,7 @@ void test_tranpose_eval(shared_ptr<Function> fun)
     std::vector<std::vector<T>> expected_results{
         {1, 2, 3, 4, 5, 6}, {1, 4, 2, 5, 3, 6}, {1, 4, 2, 5, 3, 6}, {1, 4, 2, 5, 3, 6}, {1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12}};
     std::vector<Shape> expected_result_shapes{{2, 3}, {3, 2}, {3, 2}, {3, 1, 2}, {3, 2, 2}};
-        
+
     for (size_t i = 0; i < data_shapes.size(); i++)
     {
         auto result_tensor = make_shared<HostTensor>(element::dynamic, PartialShape::dynamic());
@@ -44,14 +44,6 @@ void test_tranpose_eval(shared_ptr<Function> fun)
 
         auto actual_results = read_vector<T>(result_tensor);
         ASSERT_EQ(actual_results, expected_results[i]);
-
-        { // Temporary test for legacy reference function template
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            std::vector<T> ref_results(input_data[i].size());
-            runtime::reference::transpose<T, T_AXIS>(input_data[i].data(), ref_results.data(), data_shapes[i],  axes_order[i].data());
-            ASSERT_EQ(ref_results, expected_results[i]);
-            NGRAPH_SUPPRESS_DEPRECATED_END
-        }
     }
 }
 
@@ -77,7 +69,7 @@ TEST(op_eval, eval_transpose)
         const auto input_floating = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
         const auto transpose_floating = make_shared<op::v1::Transpose>(input_floating, axis);
         const auto function_floating = make_shared<Function>(OutputVector{transpose_floating}, ParameterVector{input_floating, axis});
-    
+
         switch (axis->get_element_type())
         {
         case element::Type_t::i8:

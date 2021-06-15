@@ -39,6 +39,11 @@ addIeTarget(
             ${EXPORT_DEPENDENCIES}
 )
 
+# CVS-55376
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/low_precision_transformations/layer_transformation.cpp"
+    PROPERTIES INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )

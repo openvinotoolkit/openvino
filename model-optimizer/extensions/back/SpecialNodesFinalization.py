@@ -103,53 +103,6 @@ class CreateConstNodesReplacement(BackReplacementPattern):
                 )
 
 
-class RemoveConstToResult(BackReplacementPattern):
-    """
-    Transformation looks for a constant sub-graph followed by Result operation.
-    If sub-graph is Const->data->Result -- then all three nodes are removed.
-    If there is more complex constant sub-graph -- then only Result node is removed.
-    If Result node has keep_output_port attribute True the node will not to be removed from graph but
-    the Result node will not to be saved to IR. Only port will be kept in IR.
-
-    Currently IE is unable to handle such graph so this transformation is a work around for such case.
-    For instance, this case appears for Wide and Deep model.
-    """
-    enabled = True
-    force_clean_up = True
-    # TODO: remove this transformation once all plugins support constant value network.
-    # Do not run recursively since Const->Result sub-graph can be encountered in a body graph of Loop node
-    # and this sub-graph is needed to avoid dynamism created by Loop node
-    # in case using axis in output port map
-    run_not_recursively = True
-
-    @staticmethod
-    def pattern():
-        return dict(
-            nodes=[
-                ('const_data', {'kind': 'data', 'value': lambda value: value is not None}),
-                ('result_node', {'type': 'Result', 'kind': 'op',
-                                 'keep_output_port': lambda attr: not attr}),
-            ],
-            edges=[
-                ('const_data', 'result_node')
-            ]
-        )
-
-    @staticmethod
-    def replace_pattern(graph: Graph, match: dict):
-        const_data_node = match['const_data']
-        result_node = match['result_node']
-        nodes_to_remove = [result_node.id]
-
-        # in case only const data consumer that is the result node, remove the whole sub-graph
-        parent_node = result_node.in_port(0).get_source().node
-        if parent_node.soft_get('type') == 'Const' and len(parent_node.out_port(0).get_destinations()) == 1:
-            nodes_to_remove.append(parent_node.id)
-            nodes_to_remove.append(const_data_node.id)
-
-        graph.remove_nodes_from(nodes_to_remove)
-
-
 class NormalizeTI(BackReplacementPattern):
     """
     Transformation changes linking mechanism of TensorIterator outer graph with inner graph

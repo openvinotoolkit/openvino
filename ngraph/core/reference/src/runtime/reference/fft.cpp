@@ -482,6 +482,15 @@ namespace ngraph
 
                     return result;
                 }
+
+                std::vector<int64_t> lengths_except_given_axis(const std::vector<int64_t>& v,
+                                                               int64_t axis)
+                {
+                    auto result = v;
+                    if (axis >= 0 && axis < static_cast<int64_t>(v.size()))
+                        result.erase(result.begin() + axis);
+                    return result;
+                }
             } // namespace
 
             // Calculation of FFT
@@ -499,6 +508,7 @@ namespace ngraph
 
                 const auto info = get_info_for_calculation(
                     input_data_shape, axes_data, axes_data_shape, output_shape);
+
                 const auto& fft_axes = info.fft_axes;
                 const int64_t fft_rank = info.fft_rank;
                 const auto& fft_lengths = info.fft_lengths;
@@ -546,23 +556,14 @@ namespace ngraph
                         {
                             int64_t current_fft_stride = fft_strides[axis_idx];
                             int64_t current_fft_length = fft_lengths[axis_idx];
+                            auto outer_fft_lengths =
+                                lengths_except_given_axis(fft_lengths, axis_idx);
+                            auto outer_fft_axes = lengths_except_given_axis(fft_axes, axis_idx);
+                            int64_t outer_fft_size = fft_size / current_fft_length;
 
-                            int64_t outer_fft_size = 1;
-                            std::vector<int64_t> outer_fft_lengths;
-                            std::vector<int64_t> outer_fft_axes;
-                            for (int64_t i = 0; i < fft_rank; ++i)
-                            {
-                                if (i == axis_idx)
-                                {
-                                    continue;
-                                }
-                                outer_fft_size *= fft_lengths[i];
-                                outer_fft_lengths.push_back(fft_lengths[i]);
-                                outer_fft_axes.push_back(fft_axes[i]);
-                            }
                             auto outer_fft_strides = compute_strides(outer_fft_lengths);
                             auto fft_strides_for_outer_fft_axes =
-                                get_lengths(fft_strides, outer_fft_axes);
+                                lengths_except_given_axis(fft_strides, axis_idx);
 
                             // Loop along with all FFT axes, except the current one.
                             for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size;

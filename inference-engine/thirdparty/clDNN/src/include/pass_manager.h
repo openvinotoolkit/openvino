@@ -6,6 +6,9 @@
 
 #include "program_impl.h"
 #include "layout_optimizer.h"
+#include "split_inst.h"
+#include "lstm_inst.h"
+#include "lstm_dynamic_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -102,9 +105,9 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void replace_nodes(program_impl& p);
-    void handle_lstm(program_impl& p);
-    void handle_dynamic_lstm(program_impl& p);
+    void handle_split_node(program_impl& p, split_node& node);
+    void handle_lstm_node(program_impl& p, lstm_node& node);
+    void handle_dynamic_lstm_node(program_impl& p, lstm_dynamic_node& node);
     void set_outputs(program_impl& p);
 };
 
@@ -130,8 +133,6 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void mark_constants(program_impl& p);
-    void mark_data_flow(program_impl& p);
 };
 
 class prepare_buffer_fusing : public base_pass {
@@ -375,6 +376,14 @@ public:
 class oooq_memory_dependencies : public memory_dependency_pass {
 public:
     oooq_memory_dependencies() : memory_dependency_pass("oooq_memory_dependencies") {}
+    void run(program_impl& p) override;
+};
+
+class update_loop_primitive_map : public base_pass {
+public:
+    update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}
+
+private:
     void run(program_impl& p) override;
 };
 

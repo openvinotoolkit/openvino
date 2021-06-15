@@ -8,7 +8,6 @@
 #include <cstdio>
 #include <memory.h>
 #include <xmmintrin.h>
-#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <string>

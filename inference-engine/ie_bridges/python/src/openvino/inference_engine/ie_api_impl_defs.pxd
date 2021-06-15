@@ -6,8 +6,6 @@ from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.map cimport map
-from libcpp.set cimport set
-from libcpp.pair cimport pair
 from libcpp.memory cimport unique_ptr, shared_ptr, weak_ptr
 from libc.stdint cimport int64_t, uint8_t
 
@@ -15,6 +13,8 @@ from libc.stdint cimport int64_t, uint8_t
 cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
     ctypedef vector[size_t] SizeVector
 
+    cdef cppclass CExecutableNetwork "InferenceEngine::ExecutableNetwork"
+    
     cdef cppclass TBlob[T]:
         ctypedef shared_ptr[TBlob[T]] Ptr
 
@@ -132,6 +132,12 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
 
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
+    cdef cppclass CVariableState:
+        void reset() except +
+        string getName() except +
+        CBlob.Ptr getState() except +
+        void setState(CBlob.Ptr state) except +
+
     cdef cppclass ProfileInfo:
         string status
         string exec_type
@@ -156,6 +162,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         object getConfig(const string & metric_name) except +
         int wait(int num_requests, int64_t timeout)
         int getIdleRequestId()
+        shared_ptr[CExecutableNetwork] getPluginLink() except +
 
     cdef cppclass IENetwork:
         IENetwork() except +
@@ -183,16 +190,17 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef cppclass InferRequestWrap:
         double exec_time;
         int index;
-        void getBlobPtr(const string & blob_name, CBlob.Ptr & blob_ptr) except +
+        CBlob.Ptr getBlobPtr(const string & blob_name) except +
         void setBlob(const string & blob_name, const CBlob.Ptr & blob_ptr) except +
         void setBlob(const string &blob_name, const CBlob.Ptr &blob_ptr, CPreProcessInfo& info) except +
-        void getPreProcess(const string& blob_name, const CPreProcessInfo** info) except +
+        const CPreProcessInfo& getPreProcess(const string& blob_name) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() except +
         void infer_async() except +
         int wait(int64_t timeout) except +
         void setBatch(int size) except +
         void setCyCallback(void (*)(void*, int), void *) except +
+        vector[CVariableState] queryState() except +
 
     cdef cppclass IECore:
         IECore() except +
@@ -220,3 +228,5 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef T*get_buffer[T](CBlob &)
 
     cdef string get_version()
+
+    cdef IENetwork read_network(string path_to_xml, string path_to_bin)

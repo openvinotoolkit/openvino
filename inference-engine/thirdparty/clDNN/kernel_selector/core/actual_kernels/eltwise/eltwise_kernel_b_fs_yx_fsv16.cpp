@@ -246,6 +246,9 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
     if (count % 8 != 0)
         return false;
 
+    if (IsUnsupportedModeForVecCode(params))
+        return false;
+
     for (size_t i = 0; i < params.inputs.size(); i++) {
         if ((params.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16) &&
             (params.inputs[i].GetLayout() != DataLayout::b_fs_zyx_fsv16) &&

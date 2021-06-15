@@ -35,7 +35,7 @@ Detailed information on how to convert models from the <a href="https://github.c
 |VGG-16| [vgg_16_2016_08_28.tar.gz](http://download.tensorflow.org/models/vgg_16_2016_08_28.tar.gz)| [103.94,116.78,123.68] | 1 |
 |VGG-19| [vgg_19_2016_08_28.tar.gz](http://download.tensorflow.org/models/vgg_19_2016_08_28.tar.gz)| [103.94,116.78,123.68] | 1 |
 
-**Supported Pre-Trained Topologies from TensorFlow 1 Object Detection Models Zoo**
+**Supported Pre-Trained Topologies from TensorFlow 1 Detection Model Zoo**
 
 Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
 
@@ -68,7 +68,7 @@ Detailed information on how to convert models from the <a href="https://github.c
 |Faster R-CNN Inception ResNet V2 Low Proposals Open Images\*|  [faster_rcnn_inception_resnet_v2_atrous_lowproposals_oid_2018_01_28.tar.gz](http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_resnet_v2_atrous_lowproposals_oid_2018_01_28.tar.gz)|
 |Faster R-CNN ResNet 101 AVA v2.1\*|  [faster_rcnn_resnet101_ava_v2.1_2018_04_30.tar.gz](http://download.tensorflow.org/models/object_detection/faster_rcnn_resnet101_ava_v2.1_2018_04_30.tar.gz)|
 
-**Supported Pre-Trained Topologies from TensorFlow 2 Object Detection Models Zoo**
+**Supported Pre-Trained Topologies from TensorFlow 2 Detection Model Zoo**
 
 Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Detection Model Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
 
@@ -154,13 +154,13 @@ Where `HEIGHT` and `WIDTH` are the input images height and width for which the m
 | YOLOv4 | [Repo](https://github.com/Ma-Dan/keras-yolo4) |
 | STN | [Repo](https://github.com/oarriaga/STN.keras) |
 
-* YOLO topologies from DarkNet* can be converted using [instruction](tf_specific/Convert_YOLO_From_Tensorflow.md),
-* FaceNet topologies can be converted using [instruction](tf_specific/Convert_FaceNet_From_Tensorflow.md).
-* CRNN topologies can be converted using [instruction](tf_specific/Convert_CRNN_From_Tensorflow.md).
-* NCF topologies can be converted using [instruction](tf_specific/Convert_NCF_From_Tensorflow.md)
-* [GNMT](https://github.com/tensorflow/nmt) topology can be converted using [instruction](tf_specific/Convert_GNMT_From_Tensorflow.md)
-* [BERT](https://github.com/google-research/bert) topology can be converted using [this instruction](tf_specific/Convert_BERT_From_Tensorflow.md).
-* [XLNet](https://github.com/zihangdai/xlnet) topology can be converted using [this instruction](tf_specific/Convert_XLNet_From_Tensorflow.md).
+* YOLO topologies from DarkNet* can be converted using [these instructions](tf_specific/Convert_YOLO_From_Tensorflow.md).
+* FaceNet topologies can be converted using [these instructions](tf_specific/Convert_FaceNet_From_Tensorflow.md).
+* CRNN topologies can be converted using [these instructions](tf_specific/Convert_CRNN_From_Tensorflow.md).
+* NCF topologies can be converted using [these instructions](tf_specific/Convert_NCF_From_Tensorflow.md).
+* [GNMT](https://github.com/tensorflow/nmt) topology can be converted using [these instructions](tf_specific/Convert_GNMT_From_Tensorflow.md).
+* [BERT](https://github.com/google-research/bert) topology can be converted using [these instructions](tf_specific/Convert_BERT_From_Tensorflow.md).
+* [XLNet](https://github.com/zihangdai/xlnet) topology can be converted using [these instructions](tf_specific/Convert_XLNet_From_Tensorflow.md).
 
   
 
@@ -176,18 +176,18 @@ There are three ways to store non-frozen TensorFlow models and load them to the 
 
     If you do not have an inference graph file, refer to [Freezing Custom Models in Python](#freeze-the-tensorflow-model).
 
-    To convert such TensorFlow model:
+    To convert such a TensorFlow model:
 
     1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
-    2. Run the `mo_tf.py` script with the path to the checkpoint file to convert a model:
+    2. Run the `mo_tf.py` script with the path to the checkpoint file to convert a model and an output directory where you have write permissions:
 
     * If input model is in `.pb` format:<br>
 ```sh
-python3 mo_tf.py --input_model <INFERENCE_GRAPH>.pb --input_checkpoint <INPUT_CHECKPOINT>
+python3 mo_tf.py --input_model <INFERENCE_GRAPH>.pb --input_checkpoint <INPUT_CHECKPOINT> --output_dir <OUTPUT_MODEL_DIR>
 ```
     * If input model is in `.pbtxt` format:<br>
 ```sh
-python3 mo_tf.py --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT_CHECKPOINT> --input_model_is_text
+python3 mo_tf.py --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT_CHECKPOINT> --input_model_is_text --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 2. MetaGraph:
@@ -201,9 +201,9 @@ python3 mo_tf.py --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT
     To convert such TensorFlow model:
 
     1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
-    2. Run the `mo_tf.py` script with a path to the MetaGraph `.meta` file to convert a model:<br>
+    2. Run the `mo_tf.py` script with a path to the MetaGraph `.meta` file and a writable output directory to convert a model:<br>
 ```sh
-python3 mo_tf.py --input_meta_graph <INPUT_META_GRAPH>.meta
+python3 mo_tf.py --input_meta_graph <INPUT_META_GRAPH>.meta --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 3. SavedModel format of TensorFlow 1.x and 2.x versions:
@@ -213,9 +213,9 @@ python3 mo_tf.py --input_meta_graph <INPUT_META_GRAPH>.meta
     To convert such TensorFlow model:
 
     1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
-    2. Run the `mo_tf.py` script with a path to the SavedModel directory to convert a model:<br>
+    2. Run the `mo_tf.py` script with a path to the SavedModel directory and a writable output directory to convert a model:<br>
 ```sh
-python3 mo_tf.py --saved_model_dir <SAVED_MODEL_DIRECTORY>
+python3 mo_tf.py --saved_model_dir <SAVED_MODEL_DIRECTORY> --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 You can convert TensorFlow 1.x SavedModel format in the environment that has a 1.x or 2.x version of TensorFlow. However, TensorFlow 2.x SavedModel format strictly requires the 2.x version of TensorFlow.
@@ -252,9 +252,9 @@ Where:
 To convert a TensorFlow model:
 
 1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
-2. Use the `mo_tf.py` script to simply convert a model with the path to the input model `.pb` file:
+2. Use the `mo_tf.py` script to simply convert a model with the path to the input model `.pb` file and a writable output directory:
 ```sh
-python3 mo_tf.py --input_model <INPUT_MODEL>.pb
+python3 mo_tf.py --input_model <INPUT_MODEL>.pb --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Two groups of parameters are available to convert your model:
@@ -306,29 +306,29 @@ TensorFlow*-specific parameters:
 
 #### Command-Line Interface (CLI) Examples Using TensorFlow\*-Specific Parameters
 
-* Launching the Model Optimizer for Inception V1 frozen model when model file is a plain text protobuf:
+* Launching the Model Optimizer for Inception V1 frozen model when model file is a plain text protobuf, specifying a writable output directory:
 ```sh
-python3 mo_tf.py --input_model inception_v1.pbtxt --input_model_is_text -b 1
+python3 mo_tf.py --input_model inception_v1.pbtxt --input_model_is_text -b 1 --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-* Launching the Model Optimizer for Inception V1 frozen model and update custom sub-graph replacement file `transform.json` with information about input and output nodes of the matched sub-graph. For more information about this feature, refer to [Sub-Graph Replacement in the Model Optimizer](../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
+* Launching the Model Optimizer for Inception V1 frozen model and update custom sub-graph replacement file `transform.json` with information about input and output nodes of the matched sub-graph, specifying a writable output directory. For more information about this feature, refer to [Sub-Graph Replacement in the Model Optimizer](../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
 ```sh
-python3 mo_tf.py --input_model inception_v1.pb -b 1 --tensorflow_custom_operations_config_update transform.json
+python3 mo_tf.py --input_model inception_v1.pb -b 1 --tensorflow_custom_operations_config_update transform.json --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 * Launching the Model Optimizer for Inception V1 frozen model and use custom sub-graph replacement file `transform.json` for model conversion. For more information about this feature, refer to [Sub-Graph Replacement in the Model Optimizer](../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
 ```sh
-python3 mo_tf.py --input_model inception_v1.pb -b 1 --transformations_config transform.json
+python3 mo_tf.py --input_model inception_v1.pb -b 1 --transformations_config transform.json --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 * Launching the Model Optimizer for Inception V1 frozen model and dump information about the graph to TensorBoard log dir `/tmp/log_dir`
 ```sh
-python3 mo_tf.py --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir
+python3 mo_tf.py --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 * Launching the Model Optimizer for a model with custom TensorFlow operations (refer to the [TensorFlow* documentation](https://www.tensorflow.org/extend/adding_an_op)) implemented in C++ and compiled into the shared library `my_custom_op.so`. Model Optimizer falls back to TensorFlow to infer output shape of operations implemented in the library if a custom TensorFlow operation library is provided. If it is not provided, a custom operation with an inference function is needed. For more information about custom operations, refer to the [Extending the Model Optimizer with New Primitives](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
 ```sh
-python3 mo_tf.py --input_model custom_model.pb --tensorflow_custom_layer_libraries ./my_custom_op.so
+python3 mo_tf.py --input_model custom_model.pb --tensorflow_custom_layer_libraries ./my_custom_op.so --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 
@@ -343,9 +343,9 @@ Below are the instructions on how to convert each of them.
 A model in the SavedModel format consists of a directory with a `saved_model.pb` file and two subfolders: `variables` and `assets`. 
 To convert such a model:
 1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
-2. Run the `mo_tf.py` script with a path to the SavedModel directory:
+2. Run the `mo_tf.py` script with a path to the SavedModel directory and a writable output directory:
 ```sh
-python3 mo_tf.py --saved_model_dir <SAVED_MODEL_DIRECTORY>
+python3 mo_tf.py --saved_model_dir <SAVED_MODEL_DIRECTORY> --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 TensorFlow* 2 SavedModel format strictly requires the 2.x version of TensorFlow installed in the

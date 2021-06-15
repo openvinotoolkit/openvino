@@ -15,7 +15,6 @@
 #include "ngraph_functions/builders.hpp"
 #include <vpu/vpu_plugin_config.hpp>
 #include <gna/gna_config.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <ie_core.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <base/behavior_test_utils.hpp>
@@ -37,20 +36,23 @@ TEST_P(InferConfigTests, canSetExclusiveAsyncRequests) {
     // Load config
     std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)}};
     config.insert(configuration.begin(), configuration.end());
-    if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
     }
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-    execNet.CreateInferRequest();
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+        execNet.CreateInferRequest();
+    }
 
     if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-    } else if ((targetDevice == CommonTestUtils::DEVICE_FPGA) || (targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
+    } else if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
                (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
         ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-    } else if (targetDevice == CommonTestUtils::DEVICE_MULTI) {
+    } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) || (targetDevice == CommonTestUtils::DEVICE_MULTI)) {
     } else {
         ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
@@ -65,17 +67,20 @@ TEST_P(InferConfigTests, withoutExclusiveAsyncRequests) {
     // Load config
     std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)}};
     config.insert(configuration.begin(), configuration.end());
-    if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
     }
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-    execNet.CreateInferRequest();
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+        execNet.CreateInferRequest();
+    }
 
     if ((targetDevice == CommonTestUtils::DEVICE_GNA) || (targetDevice == CommonTestUtils::DEVICE_HDDL)) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-    } else if (targetDevice == CommonTestUtils::DEVICE_MULTI) {
+    } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) || (targetDevice == CommonTestUtils::DEVICE_MULTI)) {
     } else if (targetDevice == CommonTestUtils::DEVICE_MYRIAD) {
         ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     } else {

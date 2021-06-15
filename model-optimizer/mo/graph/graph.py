@@ -561,6 +561,7 @@ class Graph(nx.MultiDiGraph):
             self.node = self.nodes
 
     unique_id_count = 0
+    op_names_statistic = collections.Counter()
 
     # SAFE API DESCRIPTION
     # all provided methods below are designed to be more safe and convenient
