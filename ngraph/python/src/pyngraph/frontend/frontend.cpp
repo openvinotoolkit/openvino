@@ -19,7 +19,9 @@ void regclass_pyngraph_FrontEnd(py::module m)
         m, "FrontEnd", py::dynamic_attr());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
-    fem.def("load_from_file", &ngraph::frontend::FrontEnd::load_from_file, py::arg("path"),
+    fem.def("load_from_file",
+            &ngraph::frontend::FrontEnd::load_from_file,
+            py::arg("path"),
             R"(
                 Loads an input model by specified model file path
 
@@ -70,7 +72,9 @@ void regclass_pyngraph_FrontEnd(py::module m)
                     Fully converted nGraph function
              )");
 
-    fem.def("convert_partially", &ngraph::frontend::FrontEnd::convert_partially, py::arg("model"),
+    fem.def("convert_partially",
+            &ngraph::frontend::FrontEnd::convert_partially,
+            py::arg("model"),
             R"(
                 Convert only those parts of the model that can be converted leaving others as-is.
                 Converted parts are not normalized by additional transformations; normalize function or
@@ -87,7 +91,9 @@ void regclass_pyngraph_FrontEnd(py::module m)
                     Partially converted nGraph function
              )");
 
-    fem.def("decode", &ngraph::frontend::FrontEnd::decode, py::arg("model"),
+    fem.def("decode",
+            &ngraph::frontend::FrontEnd::decode,
+            py::arg("model"),
             R"(
                 Convert operations with one-to-one mapping with decoding nodes.
                 Each decoding node is an nGraph node representing a single FW operation node with
@@ -104,7 +110,9 @@ void regclass_pyngraph_FrontEnd(py::module m)
                     nGraph function after decoding
              )");
 
-    fem.def("normalize", &ngraph::frontend::FrontEnd::normalize, py::arg("function"),
+    fem.def("normalize",
+            &ngraph::frontend::FrontEnd::normalize,
+            py::arg("function"),
             R"(
                 Runs normalization passes on function that was loaded with partial conversion
 

@@ -19,7 +19,8 @@ void regclass_pyngraph_Place(py::module m)
         m, "Place", py::dynamic_attr());
     place.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
 
-    place.def("is_input", &ngraph::frontend::Place::is_input,
+    place.def("is_input",
+              &ngraph::frontend::Place::is_input,
               R"(
                 Returns true if this place is input for a model
 
@@ -29,7 +30,8 @@ void regclass_pyngraph_Place(py::module m)
                     True if this place is input for a model
              )");
 
-    place.def("is_output", &ngraph::frontend::Place::is_output,
+    place.def("is_output",
+              &ngraph::frontend::Place::is_output,
               R"(
                 Returns true if this place is output for a model
 
@@ -39,7 +41,8 @@ void regclass_pyngraph_Place(py::module m)
                     True if this place is output for a model
              )");
 
-    place.def("get_names", &ngraph::frontend::Place::get_names,
+    place.def("get_names",
+              &ngraph::frontend::Place::get_names,
               R"(
                 All associated names (synonyms) that identify this place in the graph in a framework specific way
 
@@ -50,7 +53,9 @@ void regclass_pyngraph_Place(py::module m)
                     Can be empty if there are no names associated with this place or name cannot be attached
              )");
 
-    place.def("is_equal", &ngraph::frontend::Place::is_equal, py::arg("other"),
+    place.def("is_equal",
+              &ngraph::frontend::Place::is_equal,
+              py::arg("other"),
               R"(
                 Returns true if another place is the same as this place.
 
@@ -65,7 +70,9 @@ void regclass_pyngraph_Place(py::module m)
                     True if another place is the same as this place
              )");
 
-    place.def("is_equal_data", &ngraph::frontend::Place::is_equal_data, py::arg("other"),
+    place.def("is_equal_data",
+              &ngraph::frontend::Place::is_equal_data,
+              py::arg("other"),
               R"(
                 Returns true if another place points to the same data
                 Note: The same data means all places on path:
@@ -178,7 +185,8 @@ void regclass_pyngraph_Place(py::module m)
                     An operation place that produces data for this place
              )");
 
-    place.def("get_producing_port", &ngraph::frontend::Place::get_producing_port,
+    place.def("get_producing_port",
+              &ngraph::frontend::Place::get_producing_port,
               R"(
                 Returns a port that produces data for this place
 
@@ -187,7 +195,6 @@ void regclass_pyngraph_Place(py::module m)
                 get_producing_port : Place
                     A port place that produces data for this place
              )");
-
 
     place.def("get_input_port",
               static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
@@ -201,7 +208,6 @@ void regclass_pyngraph_Place(py::module m)
                 get_input_port : Place
                     Input port place
              )");
-
 
     place.def("get_input_port",
               static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
@@ -335,7 +341,8 @@ void regclass_pyngraph_Place(py::module m)
                     Appropriate output port place
              )");
 
-    place.def("get_consuming_ports", &ngraph::frontend::Place::get_consuming_ports,
+    place.def("get_consuming_ports",
+              &ngraph::frontend::Place::get_consuming_ports,
               R"(
                 Returns all input ports that consume data flows through this place
 

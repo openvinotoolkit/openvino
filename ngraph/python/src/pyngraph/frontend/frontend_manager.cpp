@@ -52,7 +52,6 @@ void regclass_pyngraph_FrontEndManager(py::module m)
                 load_by_framework : FrontEnd
                     Frontend interface for further loading of models
              )");
-
 }
 
 void regclass_pyngraph_FEC(py::module m)

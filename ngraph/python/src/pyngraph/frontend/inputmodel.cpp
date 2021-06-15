@@ -223,7 +223,9 @@ void regclass_pyngraph_InputModel(py::module m)
                     Optional new name assigned to this output place
             )");
 
-    im.def("add_output", &ngraph::frontend::InputModel::add_output, py::arg("place"),
+    im.def("add_output",
+           &ngraph::frontend::InputModel::add_output,
+           py::arg("place"),
            R"(
                 Assign this place as new output or add necessary nodes to represent a new output
 
@@ -233,7 +235,9 @@ void regclass_pyngraph_InputModel(py::module m)
                     Anchor point to add an output
             )");
 
-    im.def("remove_output", &ngraph::frontend::InputModel::remove_output, py::arg("place"),
+    im.def("remove_output",
+           &ngraph::frontend::InputModel::remove_output,
+           py::arg("place"),
            R"(
                 Removes any sinks directly attached to this place with all inbound data flow
                 if it is not required by any other output
@@ -263,7 +267,8 @@ void regclass_pyngraph_InputModel(py::module m)
                     Partial shape for this place
             )");
 
-    im.def("get_partial_shape", &ngraph::frontend::InputModel::get_partial_shape,
+    im.def("get_partial_shape",
+           &ngraph::frontend::InputModel::get_partial_shape,
            py::arg("place"),
            R"(
                 Returns current partial shape used for this place
@@ -279,7 +284,8 @@ void regclass_pyngraph_InputModel(py::module m)
                     Partial shape for this place
             )");
 
-    im.def("get_inputs", &ngraph::frontend::InputModel::get_inputs,
+    im.def("get_inputs",
+           &ngraph::frontend::InputModel::get_inputs,
            R"(
                 Returns all inputs for a model
 
@@ -289,7 +295,8 @@ void regclass_pyngraph_InputModel(py::module m)
                     A list of input places
             )");
 
-    im.def("get_outputs", &ngraph::frontend::InputModel::get_outputs,
+    im.def("get_outputs",
+           &ngraph::frontend::InputModel::get_outputs,
            R"(
                 Returns all outputs for a model. An output is a terminal place in a graph where data escapes the flow
 
