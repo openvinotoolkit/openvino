@@ -24,7 +24,7 @@ namespace ngraph
                 auto temp_max = std::vector<T>(temp_elements, 0);
                 auto temp_sum = std::vector<T>(temp_elements, 0);
 
-                max(arg, temp_max.data(), shape, axes, true);
+                max(arg, temp_max.data(), shape, axes);
 
                 CoordinateTransform transform(shape);
                 CoordinateTransform temp_transform(temp_shape);

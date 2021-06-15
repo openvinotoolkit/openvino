@@ -23,7 +23,7 @@ namespace ngraph
                 auto temp_elements = shape_size(temp_shape);
                 auto temp_ptr = new T[temp_elements];
 
-                max(arg, temp_ptr, shape, axes, true);
+                max(arg, temp_ptr, shape, axes);
 
                 CoordinateTransform transform(shape);
                 CoordinateTransform temp_transform(temp_shape);
