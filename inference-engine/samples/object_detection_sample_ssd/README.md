@@ -22,8 +22,11 @@ The basic Inference Engine API is covered by the [Hello Classification C++ sampl
 
 ## How It Works
 
-At startup the sample application reads command line parameters and loads a network and an image to the Inference
-Engine device. When inference is done, the application creates an output image and outputs data to the standard output stream.
+On the start-up, the application reads command line parameters and loads the specified networks. The Person Detection network is required, the other two are optional.
+
+Upon getting a frame from the OpenCV VideoCapture, the application performs inference of Person Detection network and displays the results.
+
+If a Flayrod Treadle network is specified, the resulting vector is generated for each detected person. This vector is compared one-by-one with all previously detected persons vectors using cosine similarity algorithm. If comparison result is greater than the specified (or default) threshold value, it is concluded that the person was already detected and a known REID value is assigned. Otherwise, the vector is added to a global list, and new REID value is assigned.
 
 ## Supported Models
 
