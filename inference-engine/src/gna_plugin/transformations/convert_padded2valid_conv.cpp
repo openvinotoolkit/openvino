@@ -357,19 +357,20 @@ std::shared_ptr<Node> CreatePaddedNet(const GraphData& graph_data, const ConvDat
         InsertPadding(input_rows_to_concat, padded_row_size, graph_data.conv, const_holding_padding, biggest_padding);
     }
 
-    // Pad every row of input plain if neccessary
-    for (size_t h = 0; h < conv_data.input_height; h++) {
-        // left padding     input     right padding
-        //     |              |           |
-        //     +--------------+-----------+
-        //                    |
-        //                 concat
+    if (flat_left_padding || flat_right_padding) {
+        // Pad every row of input plain if neccessary
+        for (size_t h = 0; h < conv_data.input_height; h++) {
+            // left padding     input     right padding
+            //     |              |           |
+            //     +--------------+-----------+
+            //                    |
+            //                 concat
 
-        if (conv_data.input_height > 1)
-            original_row = FlatCrop(flat_input, h * conv_data.input_width * conv_data.input_channel_count,
-                conv_data.input_width * conv_data.input_channel_count);
-        copy_runtime_info(graph_data.conv, original_row);
-        if (flat_left_padding || flat_right_padding) {
+            if (conv_data.input_height > 1)
+                original_row = FlatCrop(flat_input, h * conv_data.input_width * conv_data.input_channel_count,
+                    conv_data.input_width * conv_data.input_channel_count);
+            copy_runtime_info(graph_data.conv, original_row);
+
             OutputVector single_row_concat_inputs;
             if (flat_left_padding) {
                 InsertPadding(single_row_concat_inputs, flat_left_padding, graph_data.conv, const_holding_padding, biggest_padding);
@@ -381,9 +382,10 @@ std::shared_ptr<Node> CreatePaddedNet(const GraphData& graph_data, const ConvDat
             auto padded_row_concat = std::make_shared<opset1::Concat>(single_row_concat_inputs, 1);
             copy_runtime_info(graph_data.conv, padded_row_concat);
             input_rows_to_concat.push_back(padded_row_concat);
-        } else {
-            input_rows_to_concat.push_back(original_row);
         }
+    } else {
+        copy_runtime_info(graph_data.conv, original_row);
+        input_rows_to_concat.push_back(original_row);
     }
 
     // Bottom padding
