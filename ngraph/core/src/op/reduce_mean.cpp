@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/broadcast.hpp"
+#include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/mean.hpp"
 #include "ngraph/shape_util.hpp"
@@ -71,7 +72,11 @@ bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v1_ReduceMean_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    return mean::evaluate_mean(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+
+    const auto reduction_axes = get_normalized_axes_from_tensor(
+        inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
+
+    return mean::evaluate_mean(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
 
 bool op::v1::ReduceMean::has_evaluate() const
