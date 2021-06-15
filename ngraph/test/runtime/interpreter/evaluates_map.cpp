@@ -2251,7 +2251,6 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
         const auto attrs = op->get_attrs();
         size_t post_nms_count = static_cast<size_t>(attrs.post_nms_count);
 
