@@ -272,7 +272,7 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
     if (node->get_output_size() == 1) {
         // issue #57985: remove fold_reshape & reuse nGraph implementation
         const auto values = as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<int64_t>();
-        if (std::any_of(values.begin(), values.end(), [](const float value) { return (value == 0ul) || (value == -1); })) {
+        if (std::any_of(values.begin(), values.end(), [](const int64_t value) { return (value == 0) || (value == -1); })) {
             return fold<opset1::Reshape>(std::forward<Args>(args)...);
         }
 
