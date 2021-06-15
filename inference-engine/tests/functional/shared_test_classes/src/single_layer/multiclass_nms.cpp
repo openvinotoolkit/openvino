@@ -13,14 +13,13 @@ using namespace FuncTestUtils::PrecisionUtils;
 std::string MulticlassNmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsParams> obj) {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
+    bool sort_result_across_batch;
     op::v8::MulticlassNms::SortResultType sortResultType;
     element::Type outType;
-    float iouThr, scoreThr, eta;
     int nmsTopK, keepTopK, backgroudClass;
     std::string targetDevice;
-    std::tie(inShapeParams, inPrecisions, sortResultType, outType, iouThr, nmsTopK, keepTopK, backgroudClass, eta, targetDevice) = obj.param;
-
-    scoreThr = iouThr;
+    std::tie(inShapeParams, inPrecisions, sortResultType, sort_result_across_batch, outType, nmsTopK,
+        keepTopK, backgroudClass, targetDevice) = obj.param;
 
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -31,10 +30,9 @@ std::string MulticlassNmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsPa
     std::ostringstream result;
     result << "numBatches=" << numBatches << "_numBoxes=" << numBoxes << "_numClasses=" << numClasses << "_";
     result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
-    result << "sortResultType=" << sortResultType << "_outType=" << outType << "_iouThr=" << iouThr << "_";
-    result << "scoreThr=" << scoreThr << "_nmsTopK=" << nmsTopK << "_keepTopK=" << keepTopK <<  "_";
-    result << "backgroudClass=" << backgroudClass << "_eta=" << eta << "_";
-    result << "TargetDevice=" << targetDevice;
+    result << "sort_result_across_batch=" << sort_result_across_batch << "_sortResultType=" << sortResultType << "_";
+    result << "outType=" << outType << "_nmsTopK=" << nmsTopK << "_keepTopK=" << keepTopK <<  "_";
+    result << "backgroudClass=" << backgroudClass << "_TargetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -133,14 +131,13 @@ void MulticlassNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element
 void MulticlassNmsLayerTest::SetUp() {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
+    bool sort_result_across_batch;
     op::v8::MulticlassNms::SortResultType sortResultType;
     element::Type outType;
     int nmsTopK, keepTopK, backgroudClass;
-    float iouThr, scoreThr, eta;
     std::string targetDevice;
-    std::tie(inShapeParams, inPrecisions, sortResultType, outType, iouThr, nmsTopK, keepTopK, backgroudClass, eta, targetDevice) = this->GetParam();
-
-    scoreThr = iouThr;
+    std::tie(inShapeParams, inPrecisions, sortResultType, sort_result_across_batch, outType, nmsTopK, keepTopK,
+        backgroudClass, targetDevice) = this->GetParam();
 
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -152,8 +149,8 @@ void MulticlassNmsLayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
-    auto nms = std::make_shared<opset7::MulticlassNms>(paramOuts[0], paramOuts[1], sortResultType, outType, iouThr, scoreThr,
-        nmsTopK, keepTopK, backgroudClass, eta);
+    auto nms = std::make_shared<opset7::MulticlassNms>(paramOuts[0], paramOuts[1], sortResultType, sort_result_across_batch, outType,
+        0.1f, 0.2f, nmsTopK, keepTopK, backgroudClass, 0.5f);
     auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(outType, Shape{1}, {1}));
     auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(ngPrc, Shape{1}, {1}));
     auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape{1}, {1}));

@@ -21,6 +21,7 @@ NGRAPH_RTTI_DEFINITION(op::v8::MulticlassNms, "MulticlassNms", 8);
 op::v8::MulticlassNms::MulticlassNms(const Output<Node>& boxes,
                                      const Output<Node>& scores,
                                      const SortResultType sort_result_type,
+                                     bool sort_result_across_batch,
                                      const ngraph::element::Type& output_type,
                                      const float iou_threshold,
                                      const float score_threshold,
@@ -29,6 +30,7 @@ op::v8::MulticlassNms::MulticlassNms(const Output<Node>& boxes,
                                      const int background_class,
                                      const float nms_eta)
     : NmsBase(boxes, scores, sort_result_type, output_type, nms_top_k, keep_top_k)
+    , m_sort_result_across_batch{sort_result_across_batch}
     , m_iou_threshold{iou_threshold}
     , m_score_threshold{score_threshold}
     , m_background_class{background_class}
@@ -47,6 +49,7 @@ std::shared_ptr<Node>
     return std::make_shared<op::v8::MulticlassNms>(new_args.at(0),
                                                    new_args.at(1),
                                                    m_sort_result_type,
+                                                   m_sort_result_across_batch,
                                                    m_output_type,
                                                    m_iou_threshold,
                                                    m_score_threshold,
@@ -76,6 +79,7 @@ bool ngraph::op::v8::MulticlassNms::visit_attributes(AttributeVisitor& visitor)
     NGRAPH_OP_SCOPE(v8_MulticlassNms_visit_attributes);
     NmsBase::visit_attributes(visitor);
 
+    visitor.on_attribute("sort_result_across_batch", m_sort_result_across_batch);
     visitor.on_attribute("iou_threshold", m_iou_threshold);
     visitor.on_attribute("score_threshold", m_score_threshold);
     visitor.on_attribute("background_class", m_background_class);

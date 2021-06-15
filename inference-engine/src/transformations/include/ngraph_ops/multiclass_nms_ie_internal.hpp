@@ -24,6 +24,7 @@ public:
     MulticlassNmsIEInternal(const Output<Node>& boxes,
                             const Output<Node>& scores,
                             const int32_t sort_result_type = 2,
+                            const bool sort_result_across_batch = true,
                             const ngraph::element::Type& output_type = ngraph::element::i32,
                             const float iou_threshold = 0.0f,
                             const float score_threshold = 0.0f,
@@ -43,14 +44,15 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 
-    int32_t m_sort_result_type = 2;
-    ngraph::element::Type m_output_type = ngraph::element::i32;
-    float m_iou_threshold = 0.0f;
-    float m_score_threshold = 0.0f;
-    int m_nms_top_k = -1;
-    int m_keep_top_k = -1;
-    int m_background_class = -1;
-    float m_nms_eta = 1.0f;
+    int32_t m_sort_result_type;
+    bool m_sort_result_across_batch;
+    ngraph::element::Type m_output_type;
+    float m_iou_threshold;
+    float m_score_threshold;
+    int m_nms_top_k;
+    int m_keep_top_k;
+    int m_background_class;
+    float m_nms_eta;
 };
 
 }  // namespace internal

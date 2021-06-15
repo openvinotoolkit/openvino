@@ -55,6 +55,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_SCORE_point_box_format)
     auto nms = make_shared<op::v8::MulticlassNms>(boxes,
                                                   scores,
                                                   sort_result_type,
+                                                  false,
                                                   element::i64,
                                                   iou_threshold,
                                                   score_threshold,
@@ -68,7 +69,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_SCORE_point_box_format)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     auto selected_outputs = backend->create_tensor(element::f32, Shape{3, 6}); // TODO: dynamic shape
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{3});  // TODO
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 1}); // TODO
     auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);

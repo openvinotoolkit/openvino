@@ -47,10 +47,6 @@ TEST(TransformationTests, ConvertMulticlassNmsToMulticlassNmsIEInternal) {
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset1::Constant::create(element::i32, Shape{1}, {10});
-        auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
-        auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
-        auto soft_nms_sigma = opset1::Constant::create(element::f32, Shape{1}, {0.5});
         auto nms = std::make_shared<op::internal::MulticlassNmsIEInternal>(boxes, scores);
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
