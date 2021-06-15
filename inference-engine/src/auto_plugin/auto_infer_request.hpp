@@ -24,7 +24,8 @@ public:
     using Ptr = std::shared_ptr<AutoInferRequest>;
     explicit AutoInferRequest(const InferenceEngine::InputsDataMap&             networkInputs,
                               const InferenceEngine::OutputsDataMap&            networkOutputs,
-                              const InferenceEngine::SoIInferRequestInternal&   inferRequest);
+                              const InferenceEngine::SoIInferRequestInternal&   inferRequest,
+                              bool                                              enablePerfCount);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
@@ -37,6 +38,7 @@ public:
 
 private:
     InferenceEngine::SoIInferRequestInternal _inferRequest;
+    bool                                     _enablePerfCount;
 };
 
 }  // namespace AutoPlugin

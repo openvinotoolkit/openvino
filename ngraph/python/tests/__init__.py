@@ -47,12 +47,10 @@ xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "GatherElements")
 xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
-xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
-xfail_issue_36487 = xfail_test(reason="Assertion error - mvn operator computation mismatch")
 xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)"
                                       "is_static() nGraph <value> operation with name: <value> cannot be"
                                       "converted to <value> layer with name: <value> because output"

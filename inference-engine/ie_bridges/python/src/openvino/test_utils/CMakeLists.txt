@@ -48,4 +48,5 @@ add_custom_command(TARGET ${TARGET_NAME}
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/test_utils/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
 )
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
+                        EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")
