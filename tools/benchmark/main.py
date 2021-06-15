@@ -150,9 +150,9 @@ def run(args):
                 set_throughput_streams()
 
                 if MULTI_DEVICE_NAME in device_name and CPU_DEVICE_NAME in device_name:
-                    logger.warning("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " +
+                    logger.warning("Turn on GPU throttling. Multi-device execution with the CPU + GPU performs best with GPU throttling hint, " +
                                    "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
-                    config[device]['CLDNN_PLUGIN_THROTTLE'] = '1'
+                    config[device]['GPU_PLUGIN_THROTTLE'] = '1'
             elif device == MYRIAD_DEVICE_NAME:
                 set_throughput_streams()
                 config[device]['LOG_LEVEL'] = 'LOG_INFO'
