@@ -15,10 +15,6 @@ source_group("include" FILES ${LIBRARY_HEADERS})
 # Create shared library
 add_library(${TARGET_FE_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
-# add_library(${TARGET_FE_NAME} SHARED ${SRC})
-
-# target_compile_definitions(${TARGET_FE_NAME} PRIVATE)
-
 target_include_directories(${TARGET_FE_NAME} PRIVATE ".")
 
 target_include_directories(${TARGET_FE_NAME} PRIVATE ${FRONTEND_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH})
