@@ -279,19 +279,20 @@ void make_gna_pwl(const DnnActivation  fun,
                 gnalog() << "=========================== LeakyReLU Segments ======================\n";
             int32_t x_lower = INT32_MIN;
             int32_t x_upper = INT32_MAX;
-            int16_t y_lower = y_min;
+            int32_t y_lower = y_min;
             int16_t y_upper = y_max;
             if (fun.fqParams.set) {
                 x_lower = std::max(FLOAT_TO_INT64(*fun.fqParams.input_low * 1.25 * in_scale), static_cast<int64_t>(x_lower));
                 x_upper = std::min(FLOAT_TO_INT64(*fun.fqParams.input_high * 1.25 * in_scale), static_cast<int64_t>(x_upper));
-                y_lower = std::max(FLOAT_TO_INT32(*fun.fqParams.input_low * 1.25 * out_scale), static_cast<int32_t>(y_lower));
+                // y_lower can be reduced with negative slope
+                y_lower = *fun.fqParams.input_low * 1.25 * out_scale;
                 y_upper = std::min(FLOAT_TO_INT32(*fun.fqParams.input_high * 1.25 * out_scale), static_cast<int32_t>(y_upper));
             } else {
                 if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
                 if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
             }
 
-            gna_pwl[0].yBase = y_lower * fun.args.lrelu.negative_slope;
+            gna_pwl[0].yBase = std::max(FLOAT_TO_INT32(y_lower * fun.args.lrelu.negative_slope), static_cast<int32_t>(y_min));
             s = gna_slope(fun.args.lrelu.negative_slope, in_scale, out_scale);
             gna_pwl[0].xBase = (x_lower & XBASEMASK) | s.slope_scale_index;  // zero out the 2 lsb
             gna_pwl[0].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
