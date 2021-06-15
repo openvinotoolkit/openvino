@@ -6,4 +6,4 @@
 
 using Type = ::testing::Types<ngraph::op::Ceiling>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop, UnaryOperator, Type);
+INSTANTIATE_TYPED_TEST_CASE_P(type_prop_ceiling, UnaryOperator, Type);
