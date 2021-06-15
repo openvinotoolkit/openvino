@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstring>
 #include <utility>
 #include "ngraph/op/experimental_detectron_generate_proposals.hpp"
 #include "ngraph/shape.hpp"
@@ -122,6 +123,104 @@ namespace
                  const int64_t max_num_out,
                  float coordinates_offset)
     {
+        const int64_t num_proposals = num_boxes;
+        int64_t count = 0;
+
+        const float* x0 = boxes + 0 * num_proposals;
+        const float* y0 = boxes + 1 * num_proposals;
+        const float* x1 = boxes + 2 * num_proposals;
+        const float* y1 = boxes + 3 * num_proposals;
+
+        std::memset(is_dead, 0, num_boxes * sizeof(int64_t));
+
+        for (int64_t box = 0; box < num_boxes; ++box)
+        {
+            if (is_dead[box])
+                continue;
+
+            index_out[count++] = base_index + box;
+            if (count == max_num_out)
+                break;
+
+            int64_t tail = box + 1;
+
+            for (; tail < num_boxes; ++tail)
+            {
+                float res = 0.0f;
+
+                const float x0i = x0[box];
+                const float y0i = y0[box];
+                const float x1i = x1[box];
+                const float y1i = y1[box];
+
+                const float x0j = x0[tail];
+                const float y0j = y0[tail];
+                const float x1j = x1[tail];
+                const float y1j = y1[tail];
+
+                if (x0i <= x1j && y0i <= y1j && x0j <= x1i && y0j <= y1i)
+                {
+                    // overlapped region (= box)
+                    const float x0 = std::max<float>(x0i, x0j);
+                    const float y0 = std::max<float>(y0i, y0j);
+                    const float x1 = std::min<float>(x1i, x1j);
+                    const float y1 = std::min<float>(y1i, y1j);
+
+                    // intersection area
+                    const float width  = std::max<float>(0.0f,  x1 - x0 + coordinates_offset);
+                    const float height = std::max<float>(0.0f,  y1 - y0 + coordinates_offset);
+                    const float area   = width * height;
+
+                    // area of A, B
+                    const float A_area =
+                        (x1i - x0i + coordinates_offset) * (y1i - y0i + coordinates_offset);
+                    const float B_area =
+                        (x1j - x0j + coordinates_offset) * (y1j - y0j + coordinates_offset);
+
+                    // IoU
+                    res = area / (A_area + B_area - area);
+                }
+
+                if (nms_thresh < res)
+                    is_dead[tail] = 1;
+            }
+        }
+    }
+
+    void fill_output_blobs(const float* proposals,
+                           const int* roi_indices,
+                           float* rois,
+                           float* scores,
+                           const int64_t num_proposals,
+                           const int64_t num_rois,
+                           const int64_t post_nms_topn)
+    {
+        const float* src_x0 = proposals + 0 * num_proposals;
+        const float* src_y0 = proposals + 1 * num_proposals;
+        const float* src_x1 = proposals + 2 * num_proposals;
+        const float* src_y1 = proposals + 3 * num_proposals;
+        const float* src_score = proposals + 4 * num_proposals;
+
+        for (int64_t i = 0; i < num_rois; ++i)
+        {
+            int index = roi_indices[i];
+            rois[i * 4 + 0] = src_x0[index];
+            rois[i * 4 + 1] = src_y0[index];
+            rois[i * 4 + 2] = src_x1[index];
+            rois[i * 4 + 3] = src_y1[index];
+            scores[i] = src_score[index];
+        }
+
+        if (num_rois < post_nms_topn)
+        {
+            for (int64_t i = 4 * num_rois; i < 4 * post_nms_topn; i++)
+            {
+                rois[i] = 0.f;
+            }
+            for (int64_t i = num_rois; i < post_nms_topn; i++) {
+                scores[i] = 0.f;
+            }
+        }
     }
 } // namespace
 
@@ -213,6 +312,13 @@ namespace ngraph
                             nms_thresh,
                             post_nms_topn,
                             coordinates_offset);
+                    fill_output_blobs(unpacked_boxes.data(),
+                                      roi_indices.data(),
+                                      output_rois,
+                                      output_scores,
+                                      pre_nms_topn,
+                                      num_rois,
+                                      post_nms_topn);
                 }
             }
 
