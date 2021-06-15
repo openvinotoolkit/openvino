@@ -188,7 +188,7 @@ namespace
     }
 
     void fill_output_blobs(const float* proposals,
-                           const int* roi_indices,
+                           const int64_t* roi_indices,
                            float* rois,
                            float* scores,
                            const int64_t num_proposals,
