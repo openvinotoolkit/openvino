@@ -130,11 +130,26 @@ namespace ngraph
                     float score = 0.0f;
                 };
 
+                inline std::ostream& operator<<(std::ostream& s, const Rectangle& b)
+                {
+                    s << "Rectangle{";
+                    s << b.x1 << ", ";
+                    s << b.y1 << ", ";
+                    s << b.x2 << ", ";
+                    s << b.y2;
+                    s << "}";
+                    return s;
+                }  
+
                 inline std::ostream& operator<<(std::ostream& s, const BoxInfo& b)
                 {
-                    //s << "BoxInfo{";
+                    s << "BoxInfo{";
+                    s << b.batch_index << ", ";
+                    s << b.class_index << ", ";
+                    s << b.index << ", ";
+                    s << b.box << ", ";
                     s << b.score;
-                    //s << "}";
+                    s << "}";
                     return s;
                 }                
             } // namespace
@@ -338,12 +353,12 @@ namespace ngraph
                         std::sort(filteredBoxes.begin(),
                               filteredBoxes.end(),
                               [](const BoxInfo& l, const BoxInfo& r) {
-                                  return (l.score > r.score) ||
-                                         (l.score == r.score && l.batch_index < r.batch_index) ||
-                                         (l.score == r.score && l.batch_index == r.batch_index &&
-                                          l.class_index < r.class_index) ||
-                                         (l.score == r.score && l.batch_index == r.batch_index &&
-                                          l.class_index == r.class_index && l.index < r.index);
+                                  return (l.class_index < r.class_index) ||
+                                         (l.class_index == r.class_index && l.batch_index < r.batch_index) ||
+                                         (l.class_index == r.class_index && l.batch_index == r.batch_index &&
+                                          l.score > r.score) ||
+                                         (l.class_index == r.class_index && l.batch_index == r.batch_index &&
+                                          l.score == r.score && l.index < r.index);
                               });
                     } 
                 }
@@ -356,9 +371,9 @@ namespace ngraph
                               filteredBoxes.end(),
                               [](const BoxInfo& l, const BoxInfo& r) {
                                   return ((l.batch_index == r.batch_index) &&
-                                          ((l.score >= r.score) ||
-                                           (l.score == r.score && l.class_index < r.class_index) ||
-                                           (l.score == r.score && l.class_index == r.class_index && l.index < r.index)));
+                                          ((l.score > r.score) ||
+                                           ((std::fabs(l.score - r.score) < 1e-6) && l.class_index < r.class_index) ||
+                                           ((std::fabs(l.score - r.score) < 1e-6) && l.class_index == r.class_index && l.index < r.index)));
                               });
                     }
                     // in case of "NONE" and "CLASSID", pass through
