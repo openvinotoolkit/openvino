@@ -57,7 +57,11 @@ bool AutoExecutableNetwork::TryGetActualNetwork(InferenceEngine::SoExecutableNet
         _alreadyActualNetwork = true;
         _networkActualNeeded = soExecNetwork;
         // reapply config to actual network
-        _networkActualNeeded->SetConfig(_cacheConfig);
+        // fixme: GPU doesn't support SetConfig and throw exception
+        try {
+            _networkActualNeeded->SetConfig(_cacheConfig);
+        } catch (...) {
+        }
         return true;
     }
     // if already get actual network
