@@ -185,6 +185,10 @@ auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
             return false;
         }
 
+        if (in.get_partial_shape().is_dynamic()) {
+            return false;
+        }
+
         if (in.get_partial_shape().is_static() && in.get_shape().size() > 6) {
             return false;
         }
@@ -192,6 +196,10 @@ auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
 
     for (auto out : n->outputs()) {
         if (out.get_tensor().get_element_type() != ngraph::element::f32) {
+            return false;
+        }
+
+        if (out.get_partial_shape().is_dynamic()) {
             return false;
         }
 
@@ -510,7 +518,6 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
                     << " inputs and " << subgraph->outputs().size()
                     << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
 
-        // subgraph->serialize();
         return true;
     };
 
