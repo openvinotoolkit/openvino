@@ -30,6 +30,18 @@ namespace {
     using bounding_box = cldnn::cpu::bounding_box;
 }  // namespace
 
+template <typename T>
+bool comp_score_descend(const std::pair<float, T>& pair1,
+                        const std::pair<float, T>& pair2) {
+    return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second < pair2.second);
+}
+
+template <>
+bool comp_score_descend<std::pair<int, int>>(const std::pair<float, std::pair<int, int>>& pair1,
+                                             const std::pair<float, std::pair<int, int>>& pair2) {
+    return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second.second < pair2.second.second);
+}
+
 /************************ Detection Output CPU ************************/
 struct detection_output_cpu : typed_primitive_impl<detection_output> {
     enum NMSType {CAFFE, MXNET};
@@ -188,9 +200,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                    std::vector<std::pair<float, std::pair<int, int>>>& scoreIndexPairs) {
         std::sort(scoreIndexPairs.begin(),
                   scoreIndexPairs.end(),
-                  [](const std::pair<float, std::pair<int, int>>& p1, const std::pair<float, std::pair<int, int>>& p2) {
-                      return (p1.first > p2.first) || (p1.first == p2.first && p1.second.second < p2.second.second);
-                  });
+                  comp_score_descend<std::pair<int, int>>);
 
         if (top_k != -1)
             if (scoreIndexPairs.size() > static_cast<size_t>(top_k))
@@ -246,12 +256,6 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                 indices.push_back(idx);
             }
         }
-    }
-
-    template <typename T>
-    static bool comp_score_descend(const std::pair<float, T>& pair1,
-                                   const std::pair<float, T>& pair2) {
-        return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second < pair2.second);
     }
 
     template <typename dtype>
@@ -317,9 +321,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
 
                 std::sort(score_index_pairs.begin(),
                           score_index_pairs.end(),
-                          [](const std::pair<float, std::pair<int, int>>& p1, const std::pair<float, std::pair<int, int>>& p2) {
-                              return (p1.first > p2.first) || (p1.first == p2.first && p1.second.second < p2.second.second);
-                          });
+                          comp_score_descend<std::pair<int, int>>);
                 score_index_pairs.resize(args.keep_top_k);
 
                 std::vector<std::vector<std::pair<float, int>>> new_indices(args.num_classes);
