@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// DEPRECATED, can't be removed currently due to arm and kmb-plugin dependency (#55568)
+
 #include "shared_test_classes/single_layer/convolution_backprop_data.hpp"
 
 namespace LayerTestsDefinitions {
@@ -54,7 +56,7 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
             ngraph::builder::makeConvolutionBackpropData(paramOuts[0], ngPrc, kernel, stride, padBegin,
-                                                         padEnd, dilation, padType, convOutChannels));
+                                                        padEnd, dilation, padType, convOutChannels));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "convolutionBackpropData");
 }
