@@ -130,6 +130,11 @@ namespace ngraph
                     auto pads_int64 = node.get_attribute_value<std::vector<int64_t>>("pads");
                     pads = CoordinateDiff{std::begin(pads_int64), std::end(pads_int64)};
                 }
+                else if (node.has_attribute("paddings"))
+                {
+                    auto pads_int64 = node.get_attribute_value<std::vector<int64_t>>("paddings");
+                    pads = CoordinateDiff{std::begin(pads_int64), std::end(pads_int64)};
+                }
 
                 if (pads.size() == kernel_rank * 2)
                 {
