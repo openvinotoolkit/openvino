@@ -57,13 +57,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
     return std::make_shared<HeteroExecutableNetwork>(network, mergeConfigs(_config, config), this);
 }
 
-InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& heteroModel, const Configs& config) {
-    if (GetCore() == nullptr) {
-        IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
-    }
-
-    return std::make_shared<HeteroExecutableNetwork>(heteroModel,
-        mergeConfigs(_config, config), this);
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& heteroModel, const std::map<std::string, std::string>& config) {
+    return std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, config), this);
 }
 
 Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const std::string & deviceName) const {

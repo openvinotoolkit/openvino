@@ -180,10 +180,11 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/temp"
                            # TODO fix and enable back:
-                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies"
-                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/demo"
-                           "${OpenVINO_MAIN_SOURCE_DIR}/ngraph"
-                           "${IE_MAIN_SOURCE_DIR}/scripts")
+                           "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/scripts/dependencies.sh"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies/install_NEO_OCL_driver.sh"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/ngraph/python/tests/test_onnx/model_zoo_preprocess.sh"
+                           )
 
 #
 # cpack
