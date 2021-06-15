@@ -33,6 +33,8 @@ TEST(attributes, extractimagepatches_op)
     NodeBuilder builder(extractimagepatches);
     auto g_extractimagepatches = as_type_ptr<opset3::ExtractImagePatches>(builder.create());
 
+    const auto expected_attr_count = 4;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     EXPECT_EQ(g_extractimagepatches->get_sizes(), sizes);
     EXPECT_EQ(g_extractimagepatches->get_strides(), strides);
     EXPECT_EQ(g_extractimagepatches->get_rates(), rates);
