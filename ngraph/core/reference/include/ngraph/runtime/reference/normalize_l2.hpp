@@ -42,7 +42,7 @@ namespace ngraph
                 }
 
                 std::vector<T> sum_data(shape_size(reduce_shape));
-                sum(sqr_data.data(), sum_data.data(), data_shape, axes, true);
+                sum(sqr_data.data(), sum_data.data(), data_shape, axes);
                 autobroadcast_binop(data,
                                     sum_data.data(),
                                     out,

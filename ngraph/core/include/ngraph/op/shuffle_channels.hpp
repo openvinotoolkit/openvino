@@ -24,14 +24,12 @@ namespace ngraph
                 ShuffleChannels() = default;
                 /// \brief Constructs a ShuffleChannels node.
                 ///
-                /// \param data - Node producing the input tensor
-                /// \param axis - channel dimension index in the data tensor. A negative value means
-                ///               that the index should be calculated from the back of the input
-                ///               data
-                ///               shape.
-                /// \param group - number of group the channel dimension specified by axis should
-                /// be
-                ///                 split into
+                /// \param data     Node producing the input tensor.
+                /// \param axis     Channel dimension index in the data tensor.
+                ///                 A negative value means that the index should be
+                ///                 calculated from the back of the input data shape.
+                /// \param group    Number of group the channel dimension should be split into.
+                ///
                 ShuffleChannels(const Output<Node>& data,
                                 const int64_t axis = 1,
                                 const int64_t group = 1);
@@ -51,11 +49,6 @@ namespace ngraph
                 bool has_evaluate() const override;
 
             private:
-                /// \brief Generates a shape required to permute the data
-                ///
-                /// \param data_shape - Shape of the original input data tensor
-                /// \return A 4D tensor to be used to reshape the input data before shuffling it
-                Shape get_pre_shuffle_shape(const Shape& data_shape) const;
                 bool evaluate_shuffle_channels(const HostTensorVector& outputs,
                                                const HostTensorVector& inputs) const;
 
