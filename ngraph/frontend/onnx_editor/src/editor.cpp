@@ -194,7 +194,7 @@ struct onnx_editor::ONNXModelEditor::Impl
     Impl() = delete;
 
     Impl(const std::string& model_path)
-        : m_model_proto{std::move(onnx_common::parse_from_file(model_path))}
+        : m_model_proto{onnx_common::parse_from_file(model_path)}
     {
     }
 

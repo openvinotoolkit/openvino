@@ -32,7 +32,7 @@ private:
     size_t dataTypeSize_;
     int strideAxDst_;
     int dstAxDim_;
-    int strideAx1Diff_;
+    int strideAx1Diff_ = 0;
     std::string errorPrefix_;
 
     template <typename dataType>

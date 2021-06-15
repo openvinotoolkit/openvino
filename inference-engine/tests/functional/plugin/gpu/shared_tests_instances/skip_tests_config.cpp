@@ -57,5 +57,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*LSTMSequence.*CompareWithRefs.*mode=CONVERT_TO_TI_RAND_SEQ_LEN_PARAM_seq.*direction=bidirectional_clip=0.7_netPRC=FP32.*)",
             // TODO: Issue: 54194
             R"(.*ActivationLayerTest.*SoftPlus.*)",
+            // need to implement Export / Import
+            R"(.*IEClassImportExportTestP.*)"
     };
 }

@@ -38,10 +38,6 @@ public:
     using ie::IInferencePlugin::ImportNetwork;
 
     ie::IExecutableNetworkInternal::Ptr ImportNetwork(
-            const std::string& modelFileName,
-            const std::map<std::string, std::string>& config) override;
-
-    ie::IExecutableNetworkInternal::Ptr ImportNetwork(
             std::istream& model,
             const std::map<std::string, std::string>& config) override;
 

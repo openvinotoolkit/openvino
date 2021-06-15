@@ -61,6 +61,7 @@ set(SRC
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
+    op_eval/einsum.cpp
     op_eval/floor_mod.cpp
     op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
@@ -70,8 +71,8 @@ set(SRC
     op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
-    op_eval/reduce_l1.cpp
-    op_eval/reduce_l2.cpp
+    op_eval/reduce_prod.cpp
+    op_eval/reduce_sum.cpp
     op_eval/roi_align.cpp
     op_eval/roi_pooling.cpp
     op_eval/round.cpp
@@ -91,6 +92,7 @@ set(SRC
     pattern.cpp
     provenance.cpp
     replace_node.cpp
+    reshape_opt_kernel.cpp
     shape.cpp
     span.cpp
     specialize_function.cpp
@@ -171,6 +173,13 @@ set(SRC
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
+    type_prop/reduce_logical_and.cpp
+    type_prop/reduce_logical_or.cpp
+    type_prop/reduce_max.cpp
+    type_prop/reduce_mean.cpp
+    type_prop/reduce_min.cpp
+    type_prop/reduce_prod.cpp
+    type_prop/reduce_sum.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
     type_prop/result.cpp
@@ -187,6 +196,7 @@ set(SRC
     type_prop/scatter_nd_update.cpp
     type_prop/scatter_update.cpp
     type_prop/select.cpp
+    type_prop/selu.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
     type_prop/softmax.cpp
@@ -197,9 +207,6 @@ set(SRC
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/swish.cpp
-    type_prop/reduce_mean.cpp
-    type_prop/reduce_prod.cpp
-    type_prop/reduce_sum.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
@@ -221,6 +228,7 @@ set(SRC
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/detection_output.cpp
+    visitors/op/einsum.cpp
     visitors/op/elu.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
@@ -230,6 +238,7 @@ set(SRC
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
+    visitors/op/log.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
     visitors/op/lstm_cell.cpp
@@ -262,8 +271,10 @@ set(SRC
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
+    visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/softmax.cpp
+    visitors/op/space_to_batch.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
@@ -284,13 +295,21 @@ set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
 if (ENABLE_MKL_DNN)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
-    list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+    if (ENABLE_STRICT_DEPENDENCIES)
+        # For convinience add a runtime dependency to build along with this target.
+        # Warning: Parallel build with -GNinja may not be efficient.
+        list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+    endif()
 endif()
 
 if (ENABLE_CLDNN)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
-    list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
+    if (ENABLE_STRICT_DEPENDENCIES)
+        # For convinience add a runtime dependency to build along with this target.
+        # Warning: Parallel build with -GNinja may not be efficient.
+        list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
+    endif()
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
@@ -336,6 +355,7 @@ set(MULTI_TEST_SRC
     backend/constant.in.cpp
     backend/convert.in.cpp
     backend/convert_like.in.cpp
+    backend/convolution_backprop.in.cpp
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
@@ -397,10 +417,13 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
+    backend/prelu.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
+    backend/reduce_l1.in.cpp
+    backend/reduce_l2.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
     backend/reduce_min.in.cpp
@@ -418,12 +441,15 @@ set(MULTI_TEST_SRC
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/select.in.cpp
+    backend/selu.in.cpp
     backend/shape_of.in.cpp
+    backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
     backend/sign.in.cpp
     backend/sin.in.cpp
     backend/sinh.in.cpp
     backend/softmax.in.cpp
+    backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/squared_difference.in.cpp
@@ -466,7 +492,15 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
         onnx/onnx_import_with_editor.in.cpp)
 endif()
 
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
+# SOURCE AND HEADERS FOR FRONTEND TESTING
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
+set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+
+file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
+file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
+set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+
+add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
@@ -554,3 +588,10 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
+
+############ FRONTEND ############
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
+target_link_libraries(unit-test PRIVATE frontend_manager)
+
+add_subdirectory(frontend)
+### END FRONTEND ###

@@ -23,6 +23,7 @@
 #include <ngraph/runtime/reference/deformable_convolution.hpp>
 #include <ngraph/runtime/reference/deformable_psroi_pooling.hpp>
 #include <ngraph/runtime/reference/detection_output.hpp>
+#include <ngraph/runtime/reference/einsum.hpp>
 #include <ngraph/runtime/reference/elu.hpp>
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
 #include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
@@ -282,7 +283,8 @@ namespace
             op->get_dilations(),
             op->get_pads_begin(),
             op->get_pads_end(),
-            op->get_strides());
+            op->get_strides(),
+            op->get_output_padding());
         return true;
     }
 
@@ -2457,6 +2459,16 @@ namespace
                                  inputs[1]->get_shape(),
                                  inputs[2]->get_shape(),
                                  inputs[0]->get_element_type().size());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v7::Einsum>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto equation = op->get_equation();
+        runtime::reference::einsum(outputs, inputs, equation);
         return true;
     }
 

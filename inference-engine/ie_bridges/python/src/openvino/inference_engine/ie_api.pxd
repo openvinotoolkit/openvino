@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from .cimport ie_api_impl_defs as C
-from .ie_api_impl_defs cimport CBlob, CTensorDesc, InputInfo, CPreProcessChannel, CPreProcessInfo
+from .ie_api_impl_defs cimport CBlob, CTensorDesc, InputInfo, CPreProcessChannel, CPreProcessInfo, CExecutableNetwork, CVariableState
 
 import os
 
@@ -43,6 +43,7 @@ cdef class InferRequest:
 
 cdef class IENetwork:
     cdef C.IENetwork impl
+    cdef shared_ptr[CExecutableNetwork] _ptr_plugin
 
 cdef class ExecutableNetwork:
     cdef unique_ptr[C.IEExecNetwork] impl
@@ -64,9 +65,11 @@ cdef class IECore:
 cdef class DataPtr:
     cdef C.DataPtr _ptr
     cdef C.IENetwork * _ptr_network
+    cdef shared_ptr[CExecutableNetwork] _ptr_plugin
 
 cdef class CDataPtr:
     cdef C.CDataPtr _ptr
+    cdef shared_ptr[CExecutableNetwork] _ptr_plugin
 
 cdef class TensorDesc:
     cdef C.CTensorDesc impl
@@ -77,6 +80,7 @@ cdef class InputInfoPtr:
 
 cdef class InputInfoCPtr:
     cdef InputInfo.CPtr _ptr
+    cdef shared_ptr[CExecutableNetwork] _ptr_plugin
 
 cdef class PreProcessInfo:
     cdef CPreProcessInfo* _ptr

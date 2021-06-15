@@ -158,25 +158,27 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
                 THROW_GNA_LAYER_EXCEPTION(layer) << " outData["<< i << "]" << " connected by " << j <<" connection doesnt connect to functional layer";
             }
 
-            auto dataOutput = outFunctionalLayer.first->insData[outFunctionalLayer.second].lock();
+            for (int idx : outFunctionalLayer.second) {
+                auto dataOutput = outFunctionalLayer.first->insData[idx].lock();
 
-            padding = std::max(padding, LayerInfo(outFunctionalLayer.first).paddingSize())
-                                                        * dataOutput->getPrecision().size();
-            output_layer_size =
-                    InferenceEngine::details::product(begin(dataOutput->getDims()),
-                                                     end(dataOutput->getDims())) * dataOutput->getPrecision().size();
+                padding = std::max(padding, LayerInfo(outFunctionalLayer.first).paddingSize())
+                                                            * dataOutput->getPrecision().size();
+                output_layer_size =
+                        InferenceEngine::details::product(begin(dataOutput->getDims()),
+                                                        end(dataOutput->getDims())) * dataOutput->getPrecision().size();
 
-            if (LayerInfo(outFunctionalLayer.first).isAffineFilter()) {
-                size_t aligned64_offset = outFunctionalLayer.first->GetParamAsInt("offset");
-                layerInfoItem.splitOutputLayers.emplace_back(
-                    outFunctionalLayer.first,
-                    outFunctionalLayer.second,
-                    aligned64_offset * dataOutput->getPrecision().size(),
-                    output_layer_size);
-            } else {
-                layerInfoItem.splitOutputLayers.emplace_back(
-                    outFunctionalLayer.first, outFunctionalLayer.second, split_size, output_layer_size);
-            }
+                if (LayerInfo(outFunctionalLayer.first).isAffineFilter()) {
+                    size_t aligned64_offset = outFunctionalLayer.first->GetParamAsInt("offset");
+                    layerInfoItem.splitOutputLayers.emplace_back(
+                        outFunctionalLayer.first,
+                        idx,
+                        aligned64_offset * dataOutput->getPrecision().size(),
+                        output_layer_size);
+                } else {
+                    layerInfoItem.splitOutputLayers.emplace_back(
+                        outFunctionalLayer.first, idx, split_size, output_layer_size);
+                }
+             }
         }
 
         // in case of unconnected split - we need properly increment size
@@ -1027,8 +1029,13 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto layerInfo = LayerInfo(concatParent);
         // auto layerInfo = LayerInfo(getCreatorLayer(concatLayerInput->insData[it].lock()).lock());
         if (layerInfo.isInput()) {
+            auto & bytesAllocated = inputDesc->bytes_allocated_for_input[((InferenceEngine::CNNLayerPtr)layerInfo)->name];
+
             connectInput(layer, &concatLayerInfo.gna_ptr,
-                inputLayer.tensorSize, inputLayer.offset, idx, false);
+                         concatLayerInfo.reserved_size, inputLayer.offset, idx, false);
+
+            // TODO: currently connectInput api accept only total size, for concat we need extension for allocated, and actual sizes
+            bytesAllocated = inputLayer.tensorSize;
 
             concatLayerInfo.input_allocated = true;
         } else if (layerInfo.isMemory()) {
