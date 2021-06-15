@@ -246,6 +246,9 @@ public:
             // To allow pruning on weights (allow reshape input Group (0) dim changing) replace Reshape Shape constant
             // [G, 1, 1, X, Y, Z] by [-1, 1, 1, X, Y, Z].
             auto old_shape_const = std::dynamic_pointer_cast<opset6::Constant>(m_shape.get_node_shared_ptr());
+			if (!old_shape_const) {
+				return false;
+			}
             auto shape_value = old_shape_const.get()->cast_vector<int64_t>();
             shape_value[0] = -1;
             auto new_const = opset6::Constant::create(old_shape_const->get_element_type(),
@@ -462,6 +465,9 @@ public:
             const auto & pattern_map = m.get_pattern_value_map();
             const auto & m_output = pattern_map.at(concat);
             auto concat_ptr = std::dynamic_pointer_cast<opset6::Concat>(m_output.get_node_shared_ptr());
+			if (!concat_ptr) {
+				return false;
+			}
             auto axis = concat_ptr->get_concatenation_axis();
 
             auto inputs = concat_ptr->inputs();
