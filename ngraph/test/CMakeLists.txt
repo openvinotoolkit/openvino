@@ -71,6 +71,7 @@ set(SRC
     op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
+    op_eval/reduce_max.cpp
     op_eval/reduce_min.cpp
     op_eval/reduce_prod.cpp
     op_eval/reduce_sum.cpp
