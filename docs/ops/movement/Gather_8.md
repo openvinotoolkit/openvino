@@ -1,6 +1,6 @@
-## Gather <a name="Gather"></a> {#openvino_docs_ops_movement_Gather_7}
+## Gather <a name="Gather"></a> {#openvino_docs_ops_movement_Gather_8}
 
-**Versioned name**: *Gather-7*
+**Versioned name**: *Gather-8*
 
 **Category**: Data movement operations
 
@@ -173,7 +173,7 @@ of the output tensor is `data.shape[:axis] + indices.shape[batch_dims:] + data.s
 **Example**
 
 ```xml
-<layer ... type="Gather" version="opset7">
+<layer ... type="Gather" version="opset8">
     <data batch_dims="1" />
     <input>
         <port id="0">
