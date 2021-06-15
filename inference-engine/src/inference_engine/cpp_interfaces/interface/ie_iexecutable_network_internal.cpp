@@ -49,19 +49,17 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
 }
 
 void IExecutableNetworkInternal::Export(const std::string& modelFileName) {
-    // we need to write to stringstream first
-    // because in case of exception in ExportImpl the file is not created
-    std::stringstream strm;
-    ExportImpl(strm);
-    std::ofstream(modelFileName.c_str()) << strm.rdbuf();
+    std::ofstream modelFile(modelFileName, std::ios::out | std::ios::binary);
+
+    if (modelFile.is_open()) {
+        Export(modelFile);
+    } else {
+        IE_THROW() << "The " << modelFileName << " file can not be opened for Export";
+    }
 }
 
 void IExecutableNetworkInternal::Export(std::ostream& networkModel) {
-    std::stringstream strm;
-    strm.write(exportMagic.data(), exportMagic.size());
-    strm << _plugin->GetName() << std::endl;
-    ExportImpl(strm);
-    networkModel << strm.rdbuf();
+    IE_THROW(NotImplemented);
 }
 
 CNNNetwork IExecutableNetworkInternal::GetExecGraphInfo() {
@@ -97,7 +95,4 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
     IE_THROW(NotImplemented);
 }
 
-void IExecutableNetworkInternal::ExportImpl(std::ostream&) {
-    IE_THROW(NotImplemented);
-}
 }  // namespace InferenceEngine

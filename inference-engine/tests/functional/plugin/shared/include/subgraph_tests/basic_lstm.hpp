@@ -39,7 +39,7 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
 
     // Apply LowLatency and UnrollTensorIterator transformations
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::LowLatency>(); // LowLatency enables UnrollTI
+    manager.register_pass<ngraph::pass::LowLatency2>(); // LowLatency enables UnrollTI
     manager.run_passes(function);
     LoadNetwork();
     IE_SUPPRESS_DEPRECATED_START
