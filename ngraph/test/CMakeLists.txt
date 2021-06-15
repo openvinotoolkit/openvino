@@ -71,8 +71,7 @@ set(SRC
     op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
-    op_eval/reduce_l1.cpp
-    op_eval/reduce_l2.cpp
+    op_eval/reduce_prod.cpp
     op_eval/reduce_sum.cpp
     op_eval/roi_align.cpp
     op_eval/roi_pooling.cpp
@@ -93,6 +92,7 @@ set(SRC
     pattern.cpp
     provenance.cpp
     replace_node.cpp
+    reshape_opt_kernel.cpp
     shape.cpp
     span.cpp
     specialize_function.cpp
@@ -274,6 +274,7 @@ set(SRC
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/softmax.cpp
+    visitors/op/space_to_batch.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
@@ -354,6 +355,7 @@ set(MULTI_TEST_SRC
     backend/constant.in.cpp
     backend/convert.in.cpp
     backend/convert_like.in.cpp
+    backend/convolution_backprop.in.cpp
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
@@ -420,6 +422,8 @@ set(MULTI_TEST_SRC
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
+    backend/reduce_l1.in.cpp
+    backend/reduce_l2.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
     backend/reduce_min.in.cpp
@@ -439,11 +443,13 @@ set(MULTI_TEST_SRC
     backend/select.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
+    backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
     backend/sign.in.cpp
     backend/sin.in.cpp
     backend/sinh.in.cpp
     backend/softmax.in.cpp
+    backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/squared_difference.in.cpp
