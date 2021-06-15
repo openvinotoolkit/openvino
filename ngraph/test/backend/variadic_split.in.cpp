@@ -89,7 +89,7 @@ NGRAPH_TEST(${BACKEND_NAME}, variadic_split_2d_axis_0_static)
 {
     const Shape data_shape{6, 2};
     const std::vector<int32_t> data{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
-    const Shape axis_shape{1};
+    const Shape axis_shape{}; // scalar
     const std::vector<int32_t> axis_value{0};
     const Shape split_lenghts_shape{2};
     const std::vector<int32_t> split_lenghts{4, 2};
@@ -107,7 +107,7 @@ NGRAPH_TEST(${BACKEND_NAME}, variadic_split_2d_axis_0_dynamic)
 {
     const Shape data_shape{6, 2};
     const std::vector<int32_t> data{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
-    const Shape axis_shape{1};
+    const Shape axis_shape{}; // scalar
     const std::vector<int32_t> axis_value{0};
     const Shape split_lenghts_shape{2};
     const std::vector<int32_t> split_lenghts{4, 2};
@@ -127,7 +127,7 @@ NGRAPH_TEST(${BACKEND_NAME}, variadic_split_2d_axis_1_static)
 {
     const Shape data_shape{4, 3};
     const std::vector<int32_t> data{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
-    const Shape axis_shape{1};
+    const Shape axis_shape{}; // scalar
     const std::vector<int32_t> axis_value{1};
     const Shape split_lenghts_shape{2};
     const std::vector<int32_t> split_lenghts{1, 2};
@@ -145,7 +145,7 @@ NGRAPH_TEST(${BACKEND_NAME}, variadic_split_2d_axis_1_dynamic)
 {
     const Shape data_shape{4, 3};
     const std::vector<int32_t> data{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
-    const Shape axis_shape{1};
+    const Shape axis_shape{}; // scalar
     const std::vector<int32_t> axis_value{1};
     const Shape split_lenghts_shape{2};
     const std::vector<int32_t> split_lenghts{1, 2};
