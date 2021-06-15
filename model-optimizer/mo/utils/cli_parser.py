@@ -1221,7 +1221,6 @@ def check_available_transforms(transforms: list):
     """
     This function check that transformations specified by user are available.
     :param transforms: list of user specified transformations
-    :param ie_is_available: True if IE Python API is available and False if it is not
     :return: raises an Error if transformation is not available
     """
     from mo.back.offline_transformations import get_available_transformations
