@@ -162,7 +162,7 @@ TEST(type_prop, matrix_nms_output_shape_1dim_dynamic)
     ASSERT_TRUE(
         nms->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 6}));
     ASSERT_TRUE(
-        nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic()}));
+        nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 1}));
 
     EXPECT_EQ(nms->get_output_shape(2), (Shape{5}));
 }
@@ -175,12 +175,12 @@ TEST(type_prop, matrix_nms_output_shape_1dim_max_out)
     const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
-    ASSERT_EQ(nms->get_output_element_type(1), element::i32);
-    ASSERT_EQ(nms->get_output_element_type(2), element::i32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
 
     // batch * class * box
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
-    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7)}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
@@ -190,14 +190,14 @@ TEST(type_prop, matrix_nms_output_shape_1dim_nms_topk)
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
 
     const auto nms = make_shared<op::v8::MatrixNms>(
-        boxes, scores, op::v8::MatrixNms::SortResultType::CLASSID, true, ngraph::element::i32, 0.0f, 3);
+        boxes, scores, op::v8::MatrixNms::SortResultType::CLASSID, true, ngraph::element::i64, 0.0f, 3);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
-    ASSERT_EQ(nms->get_output_element_type(1), element::i32);
-    ASSERT_EQ(nms->get_output_element_type(2), element::i32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
     // batch * class * min(nms_topk, box)
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 3), Dimension(6)}));
-    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 3)}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 3), 1}));
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
@@ -207,31 +207,31 @@ TEST(type_prop, matrix_nms_output_shape_1dim_keep_topk)
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
 
     const auto nms = make_shared<op::v8::MatrixNms>(
-        boxes, scores, op::v8::MatrixNms::SortResultType::CLASSID, true, ngraph::element::i32, 0.0f, 3, 8);
+        boxes, scores, op::v8::MatrixNms::SortResultType::CLASSID, true, ngraph::element::i64, 0.0f, 3, 8);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
-    ASSERT_EQ(nms->get_output_element_type(1), element::i32);
-    ASSERT_EQ(nms->get_output_element_type(2), element::i32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
     // batch * min(keep_topk, class * box))
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 8), Dimension(6)}));
-    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 8)}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 8), 1}));
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
-TEST(type_prop, matrix_nms_output_shape_i64)
+TEST(type_prop, matrix_nms_output_shape_i32)
 {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
 
     const auto nms = make_shared<op::v8::MatrixNms>(
-        boxes, scores, op::v8::MatrixNms::SortResultType::CLASSID, true, ngraph::element::i64);
+        boxes, scores, op::v8::MatrixNms::SortResultType::CLASSID, true, ngraph::element::i32);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
-    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
-    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i32);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i32);
     // batch * class * box
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
-    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7)}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
@@ -243,9 +243,9 @@ TEST(type_prop, matrix_nms_dynamic_boxes_and_scores)
     const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
-    ASSERT_EQ(nms->get_output_element_type(1), element::i32);
-    ASSERT_EQ(nms->get_output_element_type(2), element::i32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 6}));
-    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension::dynamic()}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension::dynamic(), 1}));
     EXPECT_EQ(nms->get_output_partial_shape(2), PartialShape({Dimension::dynamic()}));
 }

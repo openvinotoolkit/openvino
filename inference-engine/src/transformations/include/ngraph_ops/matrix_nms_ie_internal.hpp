@@ -25,7 +25,7 @@ public:
                         const Output<Node>& scores,
                         const int32_t sort_result_type = 2,
                         const bool sort_result_across_batch = true,
-                        const ngraph::element::Type& output_type = ngraph::element::i32,
+                        const ngraph::element::Type& output_type = ngraph::element::i64,
                         const float score_threshold = 0.0f,
                         const int nms_top_k = -1,
                         const int keep_top_k = -1,

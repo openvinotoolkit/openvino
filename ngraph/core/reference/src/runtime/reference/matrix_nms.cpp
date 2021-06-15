@@ -317,32 +317,38 @@ namespace ngraph
                 float* ptr = outputs[0]->get_data_ptr<float>();
                 memcpy(ptr, selected_outputs.data(), total_num * sizeof(float) * 6);
 
-                outputs[1]->set_shape(Shape{static_cast<size_t>(total_num), 1});
-                if (output_type == ngraph::element::i64)
+                if (outputs.size() >= 2)
                 {
-                    int64_t* indices_ptr = outputs[1]->get_data_ptr<int64_t>();
-                    memcpy(indices_ptr, selected_indices.data(), total_num * sizeof(int64_t));
-                }
-                else
-                {
-                    int32_t* indices_ptr = outputs[1]->get_data_ptr<int32_t>();
-                    for (size_t i = 0; i < (size_t)total_num; ++i)
+                    outputs[1]->set_shape(Shape{static_cast<size_t>(total_num), 1});
+                    if (output_type == ngraph::element::i64)
                     {
-                        indices_ptr[i] = static_cast<int32_t>(selected_indices[i]);
+                        int64_t* indices_ptr = outputs[1]->get_data_ptr<int64_t>();
+                        memcpy(indices_ptr, selected_indices.data(), total_num * sizeof(int64_t));
+                    }
+                    else
+                    {
+                        int32_t* indices_ptr = outputs[1]->get_data_ptr<int32_t>();
+                        for (size_t i = 0; i < (size_t)total_num; ++i)
+                        {
+                            indices_ptr[i] = static_cast<int32_t>(selected_indices[i]);
+                        }
                     }
                 }
 
-                if (output_type == ngraph::element::i64)
+                if (outputs.size() >= 3)
                 {
-                    int64_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int64_t>();
-                    std::copy(valid_outputs.begin(), valid_outputs.end(), valid_outputs_ptr);
-                }
-                else
-                {
-                    int32_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int32_t>();
-                    for (size_t i = 0; i < (size_t)valid_outputs.size(); ++i)
+                    if (output_type == ngraph::element::i64)
                     {
-                        valid_outputs_ptr[i] = static_cast<int32_t>(valid_outputs[i]);
+                        int64_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int64_t>();
+                        std::copy(valid_outputs.begin(), valid_outputs.end(), valid_outputs_ptr);
+                    }
+                    else
+                    {
+                        int32_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int32_t>();
+                        for (size_t i = 0; i < (size_t)valid_outputs.size(); ++i)
+                        {
+                            valid_outputs_ptr[i] = static_cast<int32_t>(valid_outputs[i]);
+                        }
                     }
                 }
             }
