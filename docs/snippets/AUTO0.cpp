@@ -4,8 +4,9 @@ int main() {
 //! [part0]
     InferenceEngine::Core ie;
     InferenceEngine::CNNNetwork network = ie.ReadNetwork("sample.xml");
-    //NEW IE-CENTRIC API, the "auto" plugin is (globally) pre-configured with the explicit option:
+    // these 2 lines below are equivalent
     InferenceEngine::ExecutableNetwork exec0 = ie.LoadNetwork(network, "AUTO");
+    InferenceEngine::ExecutableNetwork exec1 = ie.LoadNetwork(network, "");
 //! [part0]
 return 0;
 }
