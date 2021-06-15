@@ -31,4 +31,4 @@ python3 path/to/model_optimizer/mo_tf.py \
 
 Where:
 * `map/TensorArrayStack/TensorArrayGatherV3:0[1 32 86 1]` - result of data preprocessing that was cut.
-* `transpose_1,transpose_2' - predictions (int array) and their probabilities (float array).
+* `transpose_1,transpose_2` - predictions (int array) and their probabilities (float array).
