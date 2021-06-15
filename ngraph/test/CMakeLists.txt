@@ -92,6 +92,7 @@ set(SRC
     pattern.cpp
     provenance.cpp
     replace_node.cpp
+    reshape_opt_kernel.cpp
     shape.cpp
     span.cpp
     specialize_function.cpp
