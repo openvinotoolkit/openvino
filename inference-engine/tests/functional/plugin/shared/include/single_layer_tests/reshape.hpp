@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-TEST_P(ReshapeLayerTest, CompareWithRefsDynamicBath) {
+TEST_P(ReshapeLayerTestRevise, CompareWithRefsDynamicBath) {
     Run();
 }
 
