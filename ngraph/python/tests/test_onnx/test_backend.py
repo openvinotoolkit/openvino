@@ -48,7 +48,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_44976,
                    xfail_issue_45180,
                    xfail_issue_45344,
-                   xfail_issue_58033,
                    xfail_issue_46762,
                    xfail_issue_47323,
                    xfail_issue_47337,
@@ -61,6 +60,7 @@ from tests import (BACKEND_NAME,
                    xfail_issue_52463,
                    xfail_issue_55760,
                    xfail_issue_57791,
+                   xfail_issue_58033,
                    )
 
 
