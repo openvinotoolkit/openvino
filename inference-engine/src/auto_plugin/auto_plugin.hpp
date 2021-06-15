@@ -23,9 +23,7 @@ using ConfigType = std::map<std::string, std::string>;
 class AutoInferencePlugin : public IE::IInferencePlugin {
 public:
     AutoInferencePlugin();
-    ~AutoInferencePlugin() {
-        printf("Debug: ~AutoInferencePlugin()\n");
-    }
+    ~AutoInferencePlugin() = default;
     IE::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const IE::CNNNetwork& network, const ConfigType& config) override;
     IE::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& fileName, const ConfigType& config) override;
     IE::QueryNetworkResult QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const override;

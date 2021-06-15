@@ -107,7 +107,6 @@ Engine::Engine() {
 }
 
 Engine::~Engine() {
-    std::cout << "mkldnn ~Engine()\n";
     ExecutorManager::getInstance()->clear("CPU");
     ExecutorManager::getInstance()->clear("CPUStreamsExecutor");
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
