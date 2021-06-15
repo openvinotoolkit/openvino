@@ -184,6 +184,10 @@ public:
      */
     void reshape(const ICNNNetwork::InputShapes& inputShapes);
 
+    /**
+     * @brief Run shape inference with new input shapes for the network
+     * @param inputShapes A map of pairs: name of corresponding data and its dimension.
+     */
     void reshape(const std::initializer_list<ICNNNetwork::InputShapes::value_type>& inputShapes);
     IE_SUPPRESS_DEPRECATED_END
 

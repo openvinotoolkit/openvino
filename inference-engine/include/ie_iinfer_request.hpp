@@ -194,6 +194,14 @@ public:
      */
     virtual InferenceEngine::StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept = 0;
 
+    /**
+     * Sets shape for specific input
+     * @param name the input name
+     * @param shapes new shapes
+     * @param resp Optional: a pointer to an already allocated object to contain extra information of a failure (if
+     * occurred)
+     * @return Enumeration of the resulted action: InferenceEngine::OK (0) for success
+     */
     virtual InferenceEngine::StatusCode SetShape(const std::string& name, const SizeVector& shapes, ResponseDesc* resp) noexcept {
         (void) name;
         (void) shapes;
