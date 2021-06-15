@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-// DEPRECATED, can't be removed currently due to arm and kmb-plugin dependency (#55568)
 
 #pragma once
 
@@ -24,23 +22,25 @@ typedef std::tuple<
         std::vector<ptrdiff_t>,         // Pad end
         InferenceEngine::SizeVector,    // Dilation
         size_t,                         // Num out channels
-        ngraph::op::PadType             // Padding type
-> convBackpropDataSpecificParams;
+        ngraph::op::PadType,            // Padding type
+        std::vector<ptrdiff_t>          // Output padding
+> convBackpropSpecificParams;
 typedef std::tuple<
-        convBackpropDataSpecificParams,
+        convBackpropSpecificParams,
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
         InferenceEngine::Precision,     // Output precision
         InferenceEngine::Layout,        // Input layout
         InferenceEngine::Layout,        // Output layout
         InferenceEngine::SizeVector,    // Input shapes
+        InferenceEngine::SizeVector,    // Output shapes
         LayerTestsUtils::TargetDevice   // Device name
-> convBackpropDataLayerTestParamsSet;
+> convBackpropLayerTestParamsSet;
 
-class ConvolutionBackpropDataLayerTest : public testing::WithParamInterface<convBackpropDataLayerTestParamsSet>,
+class ConvolutionBackpropLayerTest : public testing::WithParamInterface<convBackpropLayerTestParamsSet>,
                                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<convBackpropDataLayerTestParamsSet> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<convBackpropLayerTestParamsSet> obj);
 
 protected:
     void SetUp() override;
