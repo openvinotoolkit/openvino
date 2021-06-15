@@ -56,27 +56,24 @@ pip3 install requirements.txt
 
 ### Downloading the models
 
-This sample application can run with several different models. Run one of the commands below for each model you select, replacing `~/models` with the base directory of your model directory tree.
+This sample application can run with several different models. The command below downloads all of them to a structure under the ~/models directory (which you can change).
 
 ```sh
-python3 $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader/downloader.py --name person-vehicle-bike-detection-crossroad-0078 -o ~/models
-python3 $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader/downloader.py --name person-vehicle-bike-detection-crossroad-1016 -o ~/models
-python3 $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader/downloader.py --name person-attributes-recognition-crossroad-0230 -o ~/models
-python3 $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader/downloader.py --name person-reidentification-retail-0031 -o ~/models
-python3 $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader/downloader.py --name person-reidentification-retail-0287 -o ~/models
+python3 $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader/downloader.py --list models.lst
 ```
 
-These models are listed in the `models.lst` file found in the sample application folder. You can download all the models at once by running any of the commands above after replacing `--name <model_name>` with `--list <path_to_models.lst_file>`.
+You can also download the models individually using the --name option of the [Model Downloader](https://github.com/openvinotoolkit/open_model_zoo/blob/develop/tools/downloader/README.md).
 
 ### Converting the models
 
-Some of the models above need to be converted with Model Optimizer for use with OpenVINO™. Run the commands below that include the models you selected. If the model isn't below, that means it is already provided in the format OpenVINO™ uses.
+Some of the models above may need to be converted with Model Optimizer for use with OpenVINO™. The command below converts all the models that need converting.
 
 ```sh
-python3 $INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/mo.py -i person-vehicle-bike-detection-crossroad-0078.pb -o ~/models
-python3 $INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/mo.py -i person-vehicle-bike-detection-crossroad-1016.onnx -o ~/models
-python3 $INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/mo.py -i person-reidentification-retail-0031.caffemodel -o ~/models
+python3 $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader/converter.py --list models.lst -o ~/models
 ```
+
+You can also convert the previously downloaded models individually using the --name option of the [Model Downloader](https://github.com/openvinotoolkit/open_model_zoo/blob/develop/tools/downloader/README.md), specifying the same base directory (~/models in the command above).
+
 
 ### Selecting sample media
 
