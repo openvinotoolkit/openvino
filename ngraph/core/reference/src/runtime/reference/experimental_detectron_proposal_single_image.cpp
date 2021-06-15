@@ -104,11 +104,11 @@ namespace
     {
         for (int64_t i = 0; i < pre_nms_topn; ++i)
         {
-            unpacked_boxes[0*pre_nms_topn + i] = p_proposals[i].x0;
-            unpacked_boxes[1*pre_nms_topn + i] = p_proposals[i].y0;
-            unpacked_boxes[2*pre_nms_topn + i] = p_proposals[i].x1;
-            unpacked_boxes[3*pre_nms_topn + i] = p_proposals[i].y1;
-            unpacked_boxes[4*pre_nms_topn + i] = p_proposals[i].score;
+            unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[i].x0;
+            unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[i].y0;
+            unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[i].x1;
+            unpacked_boxes[3 * pre_nms_topn + i] = p_proposals[i].y1;
+            unpacked_boxes[4 * pre_nms_topn + i] = p_proposals[i].score;
         };
     }
 
@@ -200,7 +200,7 @@ namespace ngraph
                                       proposals.begin() + pre_nms_topn,
                                       proposals.end(),
                                       [](const ProposalBox& struct1, const ProposalBox& struct2) {
-                                        return (struct1.score > struct2.score);
+                                          return (struct1.score > struct2.score);
                                       });
 
                     unpack_boxes(proposals.data(), unpacked_boxes.data(), pre_nms_topn);
