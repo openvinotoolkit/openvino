@@ -5,6 +5,7 @@
 #pragma once
 
 #include <mkldnn_node.h>
+#include "kernels/gather_uni_kernel.hpp"
 
 #include <memory>
 #include <string>
@@ -49,6 +50,8 @@ private:
     static constexpr size_t GATHER_AXIS = 2;
 
     std::string errorPrefix;
+
+    std::shared_ptr<jitGatherKernelBase> jitKernel;
 };
 
 }  // namespace MKLDNNPlugin
