@@ -52,7 +52,8 @@ private:
         BY_NAME,
     };
 
-    std::unordered_map<FILTER, std::string> dumpFilters;
+    // std::hash<int> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
+    std::unordered_map<FILTER, std::string, std::hash<int>> dumpFilters;
 };
 } // namespace MKLDNNPlugin
 #endif // CPU_DEBUG_CAPS

@@ -20,7 +20,7 @@ public:
         readParam(blobDumpDir, "OV_CPU_BLOB_DUMP_DIR");
         readParam(blobDumpFormat, "OV_CPU_BLOB_DUMP_FORMAT");
         readParam(blobDumpNodeExecId, "OV_CPU_BLOB_DUMP_NODE_EXEC_ID");
-        readParam(blobDumpNodeExecId, "OV_CPU_BLOB_DUMP_NODE_PORTS");
+        readParam(blobDumpNodePorts, "OV_CPU_BLOB_DUMP_NODE_PORTS");
         readParam(blobDumpNodeType, "OV_CPU_BLOB_DUMP_NODE_TYPE");
         readParam(blobDumpNodeName, "OV_CPU_BLOB_DUMP_NODE_NAME");
         readParam(execGraphPath, "OV_CPU_EXEC_GRAPH_PATH");
