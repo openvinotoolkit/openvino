@@ -160,6 +160,7 @@ limitations under the License.
                 <tab type="user" title="GatherTree-1" url="@ref openvino_docs_ops_movement_GatherTree_1"/>
                 <tab type="user" title="Gather-1" url="@ref openvino_docs_ops_movement_Gather_1"/>
                 <tab type="user" title="Gather-7" url="@ref openvino_docs_ops_movement_Gather_7"/>
+                <tab type="user" title="Gather-8" url="@ref openvino_docs_ops_movement_Gather_8"/>
                 <tab type="user" title="GatherElements-6" url="@ref openvino_docs_ops_movement_GatherElements_6"/>
                 <tab type="user" title="GatherND-5" url="@ref openvino_docs_ops_movement_GatherND_5"/>
                 <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>
