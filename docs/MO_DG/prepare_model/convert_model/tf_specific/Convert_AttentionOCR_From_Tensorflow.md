@@ -19,6 +19,7 @@ After this step you can find model in <model_path> folder.
 The original AOCR contains data preprocessing which consists of folowing steps:
 * Decoding input data to binary format where input data is image as string.
 * Resizing binary image to working resolution.
+
 After that resized image is sent to CNN. The Model Optimizer does not support decoding images so you should exclude preprocessing from model converting. 
 ```sh
 python3 path/to/model_optimizer/mo_tf.py \
@@ -29,5 +30,5 @@ python3 path/to/model_optimizer/mo_tf.py \
 ```
 
 Where:
-* `map/TensorArrayStack/TensorArrayGatherV3:0[1 32 86 1]` - result of data preprocessing that was cut
-* `transpose_1,transpose_2' - predictions (int array) and their probabilities (float array)
+* `map/TensorArrayStack/TensorArrayGatherV3:0[1 32 86 1]` - result of data preprocessing that was cut.
+* `transpose_1,transpose_2' - predictions (int array) and their probabilities (float array).
