@@ -73,6 +73,8 @@ set(SRC
     op_eval/non_zero.cpp
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
+    op_eval/reduce_prod.cpp
+    op_eval/reduce_sum.cpp
     op_eval/roi_align.cpp
     op_eval/roi_pooling.cpp
     op_eval/round.cpp
@@ -172,6 +174,13 @@ set(SRC
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
+    type_prop/reduce_logical_and.cpp
+    type_prop/reduce_logical_or.cpp
+    type_prop/reduce_max.cpp
+    type_prop/reduce_mean.cpp
+    type_prop/reduce_min.cpp
+    type_prop/reduce_prod.cpp
+    type_prop/reduce_sum.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
     type_prop/result.cpp
@@ -188,6 +197,7 @@ set(SRC
     type_prop/scatter_nd_update.cpp
     type_prop/scatter_update.cpp
     type_prop/select.cpp
+    type_prop/selu.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
     type_prop/softmax.cpp
@@ -198,9 +208,6 @@ set(SRC
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/swish.cpp
-    type_prop/reduce_mean.cpp
-    type_prop/reduce_prod.cpp
-    type_prop/reduce_sum.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
@@ -265,9 +272,11 @@ set(SRC
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
+    visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
+    visitors/op/space_to_batch.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
     visitors/op/squared_difference.cpp
@@ -348,6 +357,7 @@ set(MULTI_TEST_SRC
     backend/constant.in.cpp
     backend/convert.in.cpp
     backend/convert_like.in.cpp
+    backend/convolution_backprop.in.cpp
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
@@ -431,6 +441,7 @@ set(MULTI_TEST_SRC
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/select.in.cpp
+    backend/selu.in.cpp
     backend/shape_of.in.cpp
     backend/sigmoid.in.cpp
     backend/sign.in.cpp
@@ -438,6 +449,7 @@ set(MULTI_TEST_SRC
     backend/sinh.in.cpp
     backend/softmax.in.cpp
     backend/softplus.in.cpp
+    backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/squared_difference.in.cpp
