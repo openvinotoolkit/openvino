@@ -28,7 +28,7 @@ Following the OpenVINO notions of “devices”, the Auto-Device has a “AUTO�
 You can use name of the configuration directly as a string, or use `IE::KEY_AUTO_DEVICE_LIST` from the `ie_plugin_config.hpp`, 
 which defines the same string.
 
-Basically, to use Auto-Device, directly indicate device by “AUTO”:
+Basically, there are two ways to use Auto-Device, directly indicate device by “AUTO” or empty string:
 
 @snippet snippets/AUTO0.cpp part0
 
