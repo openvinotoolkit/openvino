@@ -14,7 +14,7 @@
     * **Range of values**: "i32", "i64", "f16", "f32", "f64".
     * **Type**: string
     * **Default value**: "f32"
-    * **Required**: *Yes*
+    * **Required**: *No*
 
 * *seed*
 
@@ -54,6 +54,8 @@
 
 *RandomUniform* operation generates random numbers from a uniform distribution in the range [*minval*, *maxval*). The generation algorithm is based on underlying random integer generator that uses Philox algorithm. Philox algorithm is counter based pseudo random generator, which produces unit32 values. Single invocation of Philox algorithm returns four result random values, depending on the given *key* and *counter* values. *Key* and *counter* are initialized with *seed* and *seed2* attributes respectively.
 
+Link to original paper: https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
+
 The result of Philox is calculated by applying a fixed number of *key* and *counter* updating, so-called "rounds". This implementation uses 4x32_10 version of Philox algorithm, where number of rounds = 10.
 
 Suppose we have *n* which determines *n*-th 4 elements of random sequence.
@@ -82,17 +84,25 @@ R += 0xBB67AE85
 \f]
 Values *L'_{n}*, *R'_{n}*, *L'_{counter}*, *R'_{counter}* are resulting four random numbers.
 
-All const values are obtained from original paper:
-https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
-
 Float values between [0..1) are obtained from 32-bit integers by the following rules.
 
-Float32 is formatted as follows: sign(1 bit) exponent(8 bits) mantissa(23 bits), so each element will have:
+Float32 is formatted as follows: *sign*(1 bit) *exponent*(8 bits) *mantissa*(23 bits). The value is interpreted using following formula:
+\f[
+(-1)^{sign} * 1, mantissa * 2 ^{exponent - 127}
+\f]
+
+so to obtain float values *sign*, *exponent* and *mantissa* are set as follows:
 ``` 
 sign = 0
 exponent = 127 - representation of a zero exponent.
-mantissa = 23 bits from generated uint32 random value.
+mantissa = 23 right bits from generated uint32 random value.
 ``` 
+
+So the resulting float value is:
+``` 
+val = ((exponent << 23) | x & 0x7fffffu) - 1,
+```
+where x is uint32 generated random value.
 
 Float16 and Double are obtained similar way, where exponent is set to zero and mantissa is formed from bits of generated uint32 random value (pair of uint32 values for double).    
 
