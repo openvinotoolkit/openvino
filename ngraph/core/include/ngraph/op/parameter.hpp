@@ -21,8 +21,7 @@ namespace ngraph
             class NGRAPH_API Parameter : public op::Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Parameter", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructions a tensor-typed parameter node.
                 Parameter() = default;
                 /// \brief Constructions a tensor-typed parameter node.
@@ -56,7 +55,7 @@ namespace ngraph
             protected:
                 PartialShape m_partial_shape;
                 element::Type m_element_type;
-                bool m_is_relevant_to_shapes;
+                bool m_is_relevant_to_shapes{false};
             };
         } // namespace v0
         using v0::Parameter;
