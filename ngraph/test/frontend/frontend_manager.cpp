@@ -141,12 +141,16 @@ TEST(FrontEndManagerTest, testDefaultPlace)
     ASSERT_ANY_THROW(place->get_names());
     ASSERT_ANY_THROW(place->get_consuming_operations());
     ASSERT_ANY_THROW(place->get_consuming_operations(0));
+    ASSERT_ANY_THROW(place->get_consuming_operations("", 0));
     ASSERT_ANY_THROW(place->get_target_tensor());
     ASSERT_ANY_THROW(place->get_target_tensor(0));
+    ASSERT_ANY_THROW(place->get_target_tensor("", 0));
     ASSERT_ANY_THROW(place->get_source_tensor());
     ASSERT_ANY_THROW(place->get_source_tensor(0));
+    ASSERT_ANY_THROW(place->get_source_tensor("", 0));
     ASSERT_ANY_THROW(place->get_producing_operation());
     ASSERT_ANY_THROW(place->get_producing_operation(0));
+    ASSERT_ANY_THROW(place->get_producing_operation("", 0));
     ASSERT_ANY_THROW(place->get_producing_port());
     ASSERT_ANY_THROW(place->get_input_port());
     ASSERT_ANY_THROW(place->get_input_port(0));

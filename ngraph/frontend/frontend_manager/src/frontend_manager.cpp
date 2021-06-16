@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <frontend_manager/place.hpp>
 #include <ngraph/env_util.hpp>
 #include <ngraph/except.hpp>
 
@@ -323,6 +324,12 @@ std::vector<Place::Ptr> Place::get_consuming_operations(int outputPortIndex) con
     FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
 }
 
+std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outputPortName,
+                                                        int outputPortIndex) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
+}
+
 Place::Ptr Place::get_target_tensor() const
 {
     FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
@@ -421,4 +428,39 @@ Place::Ptr Place::get_source_tensor() const
 Place::Ptr Place::get_source_tensor(int inputPortIndex) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_source_tensor);
+}
+
+Place::Ptr Place::get_source_tensor(const std::string& inputName, int inputPortIndex) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_source_tensor);
+}
+
+Place::Ptr Place::get_source_tensor(const std::string& inputName) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_source_tensor);
+}
+
+Place::Ptr Place::get_target_tensor(const std::string& outputPortName) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
+}
+
+Place::Ptr Place::get_target_tensor(const std::string& outputPortName, int outputPortIndex) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
+}
+
+Place::Ptr Place::get_producing_operation(const std::string& inputName) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_producing_operation);
+}
+
+Place::Ptr Place::get_producing_operation(const std::string& inputName, int inputPortIndex) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_producing_operation);
+}
+
+std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outputPortName) const
+{
+    FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
 }
