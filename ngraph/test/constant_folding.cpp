@@ -464,6 +464,16 @@ TEST(constant_folding, const_convert)
         vector<bool> expected{true, false, true, false, true, false, true};
         test_const_convert(in, expected);
     }
+    {
+        vector<int64_t> in{1, 2, 3, 4, 5};
+        vector<double> expected{1.0, 2.0, 3.0, 4.0, 5.0};
+        test_const_convert(in, expected);
+    }
+    {
+        vector<double> in{1.2, 2.1, 3.3, 4.45, 5.02};
+        vector<int64_t> expected{1, 2, 3, 4, 5};
+        test_const_convert(in, expected);
+    }
 }
 
 TEST(constant_folding, shape_of_v0)
