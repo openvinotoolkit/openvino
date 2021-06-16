@@ -403,15 +403,15 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
     auto parentDims = getParentEdgeAt(0)->getDims();
     auto format = mayiuse(avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
+//    if (mayiuse(cpu::x64::avx512_common)) {
+//        impl_type = impl_desc_type::jit_avx512;
+//    } else if (mayiuse(cpu::x64::avx2)) {
+//        impl_type = impl_desc_type::jit_avx2;
+//    } else if (mayiuse(cpu::x64::sse41)) {
+//        impl_type = impl_desc_type::jit_sse42;
+//    } else {
         impl_type = impl_desc_type::ref;
-    }
+//    }
 
     config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), dataType, format);
     config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), dataType, memory::format_tag::nc);
@@ -454,13 +454,13 @@ void MKLDNNROIPoolingNode::createPrimitive() {
 
     jpp.alg = getAlgorithm();
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_common>(jpp));
-    } else if (mayiuse(cpu::x64::avx2)) {
-        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>(jpp));
-    } else if (mayiuse(cpu::x64::sse41)) {
-        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>(jpp));
-    }
+//    if (mayiuse(cpu::x64::avx512_common)) {
+//        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_common>(jpp));
+//    } else if (mayiuse(cpu::x64::avx2)) {
+//        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>(jpp));
+//    } else if (mayiuse(cpu::x64::sse41)) {
+//        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>(jpp));
+//    }
 
     if (roi_pooling_kernel)
         roi_pooling_kernel->create_ker();
@@ -635,21 +635,29 @@ void MKLDNNROIPoolingNode::execute() {
 
                         arg.bin_area = 1;
                     } else {
-                        for (int c = 0; c < 1; c++) {
-                            const float top_left     = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                            const float top_right    = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
-                            const float bottom_left  = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                            const float bottom_right = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
+                        for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                            int ch_blk_cur = cbb * cb_num + cbb_cur;
+                            if (ch_blk_cur >= jpp.nb_c) {
+                                // current block work is done
+                                break;
+                            }
+                            for (int c = 0; c < c_block; c++) {
+                                // TODO: add checking of ended channels
+                                const float top_left     = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
+                                const float top_right    = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
+                                const float bottom_left  = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
+                                const float bottom_right = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
 
-                            const float top    = top_left + (top_right - top_left) * (in_x - left_x_index);
-                            const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
+                                const float top    = top_left + (top_right - top_left) * (in_x - left_x_index);
+                                const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
 
-                            dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] =
-                                    top + (bottom - top) * (in_y - top_y_index);
+                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] =
+                                        top + (bottom - top) * (in_y - top_y_index);
+                            }
                         }
                     }
                 }
