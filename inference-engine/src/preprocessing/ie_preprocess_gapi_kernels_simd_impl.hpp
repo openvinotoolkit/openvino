@@ -374,23 +374,6 @@ CV_ALWAYS_INLINE void splitRow_32FC4_Impl(const float in[], float out0[], float 
 
 //------------------------------------------------------------------------------
 
-static const int ITUR_BT_601_CY = 1220542;
-static const int ITUR_BT_601_CUB = 2116026;
-static const int ITUR_BT_601_CUG = -409993;
-static const int ITUR_BT_601_CVG = -852492;
-static const int ITUR_BT_601_CVR = 1673527;
-static const int ITUR_BT_601_SHIFT = 20;
-
-CV_ALWAYS_INLINE void uvToRGBuv(const uchar u, const uchar v, int& ruv, int& guv, int& buv) {
-    int uu, vv;
-    uu = static_cast<int>(u) - 128;
-    vv = static_cast<int>(v) - 128;
-
-    ruv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVR * vv;
-    guv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVG * vv + ITUR_BT_601_CUG * uu;
-    buv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CUB * uu;
-}
-
 CV_ALWAYS_INLINE void uvToRGBuv(const v_uint8& u, const v_uint8& v,
                                 v_int32 (&ruv)[4], v_int32 (&guv)[4],
                                 v_int32 (&buv)[4]) {
@@ -416,15 +399,6 @@ CV_ALWAYS_INLINE void uvToRGBuv(const v_uint8& u, const v_uint8& v,
         guv[k] = vshift + vg * vv[k] + ug * uu[k];
         buv[k] = vshift + ub * uu[k];
     }
-}
-
-CV_ALWAYS_INLINE void yRGBuvToRGB(const uchar vy, const int ruv, const int guv,
-                                  const int buv, uchar& r, uchar& g, uchar& b) {
-    int yy = static_cast<int>(vy);
-    int y = std::max(0, yy - 16) * ITUR_BT_601_CY;
-    r = saturate_cast<uchar>((y + ruv) >> ITUR_BT_601_SHIFT);
-    g = saturate_cast<uchar>((y + guv) >> ITUR_BT_601_SHIFT);
-    b = saturate_cast<uchar>((y + buv) >> ITUR_BT_601_SHIFT);
 }
 
 CV_ALWAYS_INLINE void yRGBuvToRGB(const v_uint8& vy,
@@ -464,16 +438,15 @@ CV_ALWAYS_INLINE void yRGBuvToRGB(const v_uint8& vy,
     bb = v_pack_u(b0, b1);
 }
 
-CV_ALWAYS_INLINE void calculate_nv12_to_rgb_impl(const  uchar **srcY,
-                                                 const  uchar *srcUV,
-                                                 uchar **dstRGBx,
-                                                 int width) {
+template<typename isa_tag_t>
+CV_ALWAYS_INLINE void nv12ToRgbRowImpl(isa_tag_t, const uchar** srcY, const uchar* srcUV,
+                                       uchar** dstRGBx, const int width) {
     int i = 0;
 
 #if MANUAL_SIMD
     constexpr int nlanes = v_uint8::nlanes;
 
-    for ( ; i <= width - 2*nlanes; i += 2*nlanes) {
+    for (; i <= width - 2 * nlanes; i += 2 * nlanes) {
         v_uint8 u, v;
         v_load_deinterleave(srcUV + i, u, v);
 
@@ -510,9 +483,7 @@ CV_ALWAYS_INLINE void calculate_nv12_to_rgb_impl(const  uchar **srcY,
         v_store_interleave(dstRGBx[1] + i * 3, b1_0, g1_0, r1_0);
         v_store_interleave(dstRGBx[1] + i * 3 + 3 * nlanes, b1_1, g1_1, r1_1);
     }
-
-    vx_cleanup();
-
+    //vx_cleanup();
 #endif
 
     for (; i < width; i += 2) {
@@ -527,25 +498,25 @@ CV_ALWAYS_INLINE void calculate_nv12_to_rgb_impl(const  uchar **srcY,
                 uchar r, g, b;
                 yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
 
-                dstRGBx[y][3*(i + x)]     = r;
-                dstRGBx[y][3*(i + x) + 1] = g;
-                dstRGBx[y][3*(i + x) + 2] = b;
+                dstRGBx[y][3 * (i + x)] = r;
+                dstRGBx[y][3 * (i + x) + 1] = g;
+                dstRGBx[y][3 * (i + x) + 2] = b;
             }
         }
     }
 }
 
-CV_ALWAYS_INLINE void calculate_i420_to_rgb_impl(const  uchar **srcY, const  uchar *srcU,
-                                                 const  uchar *srcV, uchar **dstRGBx,
-                                                 int width) {
+template<typename isa_tag_t>
+CV_ALWAYS_INLINE void i420ToRgbRowImpl(isa_tag_t, const uint8_t** srcY, const uint8_t* srcU,
+                                       const uint8_t* srcV, uint8_t** dstRGBx, const int width) {
     int i = 0;
 
 #if MANUAL_SIMD
     constexpr int nlanes = v_uint8::nlanes;
 
-    for ( ; i <= width - 2*nlanes; i += 2*nlanes) {
-        v_uint8 u = vx_load(srcU + i/2);
-        v_uint8 v = vx_load(srcV + i/2);
+    for (; i <= width - 2 * nlanes; i += 2 * nlanes) {
+        v_uint8 u = vx_load(srcU + i / 2);
+        v_uint8 v = vx_load(srcV + i / 2);
 
         v_uint8 vy[4];
         v_load_deinterleave(srcY[0] + i, vy[0], vy[1]);
@@ -580,14 +551,11 @@ CV_ALWAYS_INLINE void calculate_i420_to_rgb_impl(const  uchar **srcY, const  uch
         v_store_interleave(dstRGBx[1] + i * 3, b1_0, g1_0, r1_0);
         v_store_interleave(dstRGBx[1] + i * 3 + 3 * nlanes, b1_1, g1_1, r1_1);
     }
-
-    vx_cleanup();
-
-    #endif
-
+    //vx_cleanup();
+#endif
     for (; i < width; i += 2) {
-        uchar u = srcU[i/2];
-        uchar v = srcV[i/2];
+        uchar u = srcU[i / 2];
+        uchar v = srcV[i / 2];
         int ruv, guv, buv;
         uvToRGBuv(u, v, ruv, guv, buv);
 
@@ -597,9 +565,9 @@ CV_ALWAYS_INLINE void calculate_i420_to_rgb_impl(const  uchar **srcY, const  uch
                 uchar r, g, b;
                 yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
 
-                dstRGBx[y][3*(i + x)]     = r;
-                dstRGBx[y][3*(i + x) + 1] = g;
-                dstRGBx[y][3*(i + x) + 2] = b;
+                dstRGBx[y][3 * (i + x)] = r;
+                dstRGBx[y][3 * (i + x) + 1] = g;
+                dstRGBx[y][3 * (i + x) + 2] = b;
             }
         }
     }
@@ -737,48 +705,24 @@ CV_ALWAYS_INLINE void calcRowArea_impl(T dst[], const T *src[], const Size& inSz
 
 //------------------------------------------------------------------------------
 
-#if MANUAL_SIMD
 template <typename VecT, typename T>
-CV_ALWAYS_INLINE void copyRow_impl(const T in[], T out[], int l) {
-    VecT r;
-    r = vx_load(&in[l]);
-    vx_store(&out[l], r);
-}
-#endif
-
-CV_ALWAYS_INLINE void copyRow_8U_impl(const uint8_t in[], uint8_t out[], int length) {
+CV_ALWAYS_INLINE void copyRow_Impl(const T in[], T out[], int length) {
     int l = 0;
 
 #if MANUAL_SIMD
-    constexpr int nlanes = v_uint8::nlanes;
+    const int nlanes = VecT::nlanes;
+
+    auto copy_row = [](const T in[], T out[], int l) {
+        VecT r = vx_load(&in[l]);
+        vx_store(&out[l], r);
+    };
 
     for (; l <= length - nlanes; l += nlanes) {
-        copyRow_impl<v_uint8>(in, out, l);
+        copy_row(in, out, l);
     }
 
     if (l < length && length >= nlanes) {
-        copyRow_impl<v_uint8>(in, out, length - nlanes);
-        l = length;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out[l] = in[l];
-    }
-}
-
-CV_ALWAYS_INLINE void copyRow_32F_impl(const float in[], float out[], int length) {
-    int l = 0;
-
-#if MANUAL_SIMD
-    constexpr int nlanes = v_float32::nlanes;
-
-    for (; l <= length - nlanes; l += nlanes) {
-        copyRow_impl<v_float32>(in, out, l);
-    }
-
-    if (l < length && length >= nlanes) {
-        copyRow_impl<v_float32>(in, out, length - nlanes);
+        copy_row(in, out, length - nlanes);
         l = length;
     }
 #endif
@@ -916,6 +860,26 @@ CV_ALWAYS_INLINE void calcRowLinear_32FC1(float *dst[],
     }
 }
 
+template<typename isa_tag_t, typename scalar_t>
+struct vector_type_of;
+
+template<typename isa_tag_t, typename scalar_t>
+using vector_type_of_t = typename vector_type_of<isa_tag_t, scalar_t>::type;
+
+template<typename isa_tag_t> struct vector_type_of<isa_tag_t, uint8_t> { using type = v_uint8;  };
+template<typename isa_tag_t> struct vector_type_of<isa_tag_t, float>   { using type = v_float32;};
+
+template<typename isa_tag_t, typename T>
+CV_ALWAYS_INLINE void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan, const int chs, T* out, const int length) {
+    if (chs == 1) {
+        copyRow_Impl<vector_type_of_t<isa_tag_t, T>, T>(in, out, length);
+        return;
+    }
+
+    for (int x = 0; x < length; x++) {
+        out[x] = in[x*chs + chan];
+    }
+}
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
