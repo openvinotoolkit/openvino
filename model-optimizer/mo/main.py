@@ -261,8 +261,8 @@ def prepare_ir(argv: argparse.Namespace):
     graph = None
     ngraphFunction = None
 
-    # In future check of framework in new_front_ends and use_legacy_frontend options can be added here
-    if argv.feManager is None:
+    # In future check of use_legacy_frontend option can be added here
+    if argv.feManager is None or argv.framework not in new_front_ends:
         graph = unified_pipeline(argv)
     else:
         from mo.front_ng.pipeline import moc_pipeline
