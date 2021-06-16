@@ -49,7 +49,7 @@ Example:
 Options are:
 * IN
 * OUT
-* BOTH
+* ALL
 
 ### Filter by execution ID
 To dump blobs only for nodes with specified execution IDs:
@@ -93,7 +93,7 @@ Example:
 ```
     or
 ```sh
-    OV_CPU_BLOB_DUMP_NODE_PORTS=BOTH binary ...
+    OV_CPU_BLOB_DUMP_NODE_PORTS=ALL binary ...
 ```
 
 ## Graph serialization

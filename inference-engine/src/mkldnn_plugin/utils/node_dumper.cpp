@@ -151,7 +151,7 @@ bool NodeDumper::shouldBeDumped(const MKLDNNNodePtr& node, const std::string& po
         return false;
 
     if (dumpFilters.count(FILTER::BY_PORTS)) { // filter by ports configured
-        if (dumpFilters.at(FILTER::BY_PORTS) != "BOTH" &&
+        if (dumpFilters.at(FILTER::BY_PORTS) != "ALL" &&
             portsKind != dumpFilters.at(FILTER::BY_PORTS))
             return false;
     }
