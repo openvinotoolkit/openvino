@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "reorg_yolo/reorg_yolo_kernel_selector.h"
 #include "reorg_yolo/reorg_yolo_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -16,6 +16,10 @@ namespace gpu {
 struct reorg_yolo_gpu : typed_primitive_gpu_impl<reorg_yolo> {
     using parent = typed_primitive_gpu_impl<reorg_yolo>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<reorg_yolo_gpu>(*this);
+    }
 
     static primitive_impl* create(const reorg_yolo_node& arg) {
         auto ry_params = get_default_params<kernel_selector::reorg_yolo_params>(arg);

@@ -312,6 +312,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     struct Subgraph {
         ngraph::ResultVector    _results;
         ngraph::ParameterVector _parameters;
+        ngraph::SinkVector      _sinks;
         std::string             _affinity;
     };
     std::unordered_map<int, Subgraph> subgraphs;
@@ -325,6 +326,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         } else if (ngraph::op::is_parameter(node)) {
             subgraph._parameters.emplace_back(
                 std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node->shared_from_this()));
+        } else if (ngraph::op::is_sink(node)) {
+            subgraph._sinks.emplace_back(
+                    std::dynamic_pointer_cast<ngraph::op::Sink>(node->shared_from_this()));
         }
         auto itAffinity = affinities.find(node);
         if (itAffinity != affinities.end()) {
@@ -373,7 +377,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     for (auto&& subgraph : orderedSubgraphs) {
         _networks[id]._device = subgraph._affinity;
         subFunctions[id] =
-            std::make_shared<ngraph::Function>(subgraph._results, subgraph._parameters,
+            std::make_shared<ngraph::Function>(subgraph._results, subgraph._sinks, subgraph._parameters,
                                                      _name + '_' + std::to_string(id));
         _networks[id]._clonedNetwork = CNNNetwork{subFunctions[id]};
         // update of pre-processing info
