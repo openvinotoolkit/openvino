@@ -12,11 +12,11 @@
 #include "fully_connected/fully_connected_params.h"
 
 #include "network_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_runner.h"
 
-#include "api/reorder.hpp"
-#include "api/input_layout.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/input_layout.hpp"
 #include <memory>
 
 namespace cldnn {
@@ -26,13 +26,16 @@ struct fully_connected_gpu : typed_primitive_gpu_impl<fully_connected> {
     using parent = typed_primitive_gpu_impl<fully_connected>;
     using parent::parent;
 
-protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<fully_connected>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<fully_connected_gpu>(*this);
+    }
 
-        args.weights = (memory_impl::cptr) &instance.weights_memory();
-        args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory() : nullptr);
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<fully_connected>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+
+        args.weights = instance.weights_memory();
+        args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
 
         return args;
     }
