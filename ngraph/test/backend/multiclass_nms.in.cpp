@@ -168,46 +168,55 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_class_id)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-/*
-NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_flipped_coordinates)
+NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score)
 {
-    std::vector<float> boxes_data = {1.0, 1.0,  0.0, 0.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, 0.9,  1.0, -0.1, 0.0, 10.0,  1.0, 11.0,
-                                     1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0};
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
+                                     };
 
-    std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
+    std::vector<float> scores_data = {
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
+        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
+        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
+        };
 
-    const int64_t max_output_boxes_per_class_data = 3;
-    const float iou_threshold_data = 0.5f;
-    const float score_threshold_data = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto boxes_shape = Shape{1, 6, 4};
-    const auto scores_shape = Shape{1, 1, 6};
+    const int64_t nms_top_k = 3;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 0.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    const auto keep_top_k = -1;
+    const auto background_class = -1;
+    const auto nms_eta = 1.0f;
+
+    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
+
     auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                      scores,
-                                                      max_output_boxes_per_class,
-                                                      iou_threshold,
-                                                      score_threshold,
-                                                      soft_nms_sigma,
-                                                      sort_result_type,
-                                                      false);
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -216,15 +225,160 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_flipped_coordinates)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
                  {backend_boxes, backend_scores});
 
+    auto selected_scores_value = read_vector<float>(selected_outputs);
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_scores);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
-    std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 0, 5};
-    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3};
+    std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3,
+                                                      9, 6, 6, 9};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 0
+                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 1
+    std::vector<int64_t> expected_valid_outputs = {4, 4};
+
+    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
+    EXPECT_EQ(expected_selected_scores, selected_scores_value);
+    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_class_id)
+{
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
+                                     };
+
+    std::vector<float> scores_data = {
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
+        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
+        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
+        };
+
+    const int64_t nms_top_k = 3;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 0.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    const auto keep_top_k = -1;
+    const auto background_class = -1;
+    const auto nms_eta = 1.0f;
+
+    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto scores_shape = Shape{2, 2, 6};
+
+    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
+
+    auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+
+    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    copy_data(backend_boxes, boxes_data);
+    copy_data(backend_scores, scores_data);
+
+    auto handle = backend->compile(f);
+
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
+                 {backend_boxes, backend_scores});
+
+    auto selected_scores_value = read_vector<float>(selected_outputs);
+    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
+    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
+
+    std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3,
+                                                      9, 6, 6, 9};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 0
+                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 1
+    std::vector<int64_t> expected_valid_outputs = {4, 4};
+
+    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
+    EXPECT_EQ(expected_selected_scores, selected_scores_value);
+    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_flipped_coordinates)
+{
+    std::vector<float> boxes_data = {1.0, 1.0,  0.0, 0.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, 0.9,  1.0, -0.1, 0.0, 10.0,  1.0, 11.0,
+                                     1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0};
+
+    std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
+
+    const int64_t nms_top_k = 3;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 0.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    const auto keep_top_k = -1;
+    const auto background_class = -1;
+    const auto nms_eta = 1.0f;
+
+    const auto boxes_shape = Shape{1, 6, 4}; // N 1, C 1, M 6
+    const auto scores_shape = Shape{1, 1, 6};
+
+    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
+
+    auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+
+    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    copy_data(backend_boxes, boxes_data);
+    copy_data(backend_scores, scores_data);
+
+    auto handle = backend->compile(f);
+
+   handle->call({selected_outputs, selected_indeces, valid_outputs},
+                 {backend_boxes, backend_scores});
+
+    auto selected_scores_value = read_vector<float>(selected_outputs);
+    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
+    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);                 
+
+    std::vector<int64_t> expected_selected_indices = {3, 0, 1};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
+                                                   0.00, 0.90, 1.00, 1.00, 0.00, 0.00 ,
+                                                   0.00, 0.75, 0.00, 0.10, 1.00, 1.10};
     std::vector<int64_t> expected_valid_outputs = {3};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
@@ -241,37 +395,37 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_identical_boxes)
 
     std::vector<float> scores_data = {0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9};
 
-    const int64_t max_output_boxes_per_class_data = 3;
-    const float iou_threshold_data = 0.5f;
-    const float score_threshold_data = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto boxes_shape = Shape{1, 10, 4};
+    const int64_t nms_top_k = 3;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 0.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    const auto keep_top_k = -1;
+    const auto background_class = -1;
+    const auto nms_eta = 1.0f;
+
+    const auto boxes_shape = Shape{1, 10, 4}; // N 1, C 1, M 10
     const auto scores_shape = Shape{1, 1, 10};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                      scores,
-                                                      max_output_boxes_per_class,
-                                                      iou_threshold,
-                                                      score_threshold,
-                                                      soft_nms_sigma,
-                                                      sort_result_type,
-                                                      false);
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{1, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{1, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -280,15 +434,15 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_identical_boxes)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
                  {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_scores);
+    auto selected_scores_value = read_vector<float>(selected_outputs);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
-    std::vector<int64_t> expected_selected_indices = {0, 0, 0};
-    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.9};
+    std::vector<int64_t> expected_selected_indices = {0};
+    std::vector<float> expected_selected_scores = {0.00, 0.90, 0.00, 0.00, 1.00, 1.00};
     std::vector<int64_t> expected_valid_outputs = {1};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
@@ -304,37 +458,37 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_limit_output_size)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t max_output_boxes_per_class_data = 2;
-    const float iou_threshold_data = 0.5f;
-    const float score_threshold_data = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    const int64_t nms_top_k = 2;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 0.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    const auto keep_top_k = -1;
+    const auto background_class = -1;
+    const auto nms_eta = 1.0f;
+
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                      scores,
-                                                      max_output_boxes_per_class,
-                                                      iou_threshold,
-                                                      score_threshold,
-                                                      soft_nms_sigma,
-                                                      sort_result_type,
-                                                      false);
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{2, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{2, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -343,15 +497,16 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_limit_output_size)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
                  {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_scores);
+    auto selected_scores_value = read_vector<float>(selected_outputs);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
-    std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0};
-    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9};
+    std::vector<int64_t> expected_selected_indices = {3, 0};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
+                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00 };
     std::vector<int64_t> expected_valid_outputs = {2};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
@@ -365,37 +520,37 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_single_box)
 
     std::vector<float> scores_data = {0.9};
 
-    const int64_t max_output_boxes_per_class_data = 3;
-    const float iou_threshold_data = 0.5f;
-    const float score_threshold_data = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    const int64_t nms_top_k = 3;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 0.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    const auto keep_top_k = -1;
+    const auto background_class = -1;
+    const auto nms_eta = 1.0f;
+
     const auto boxes_shape = Shape{1, 1, 4};
     const auto scores_shape = Shape{1, 1, 1};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                      scores,
-                                                      max_output_boxes_per_class,
-                                                      iou_threshold,
-                                                      score_threshold,
-                                                      soft_nms_sigma,
-                                                      sort_result_type,
-                                                      false);
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{1, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{1, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -404,15 +559,15 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_single_box)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
                  {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_scores);
+    auto selected_scores_value = read_vector<float>(selected_outputs);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
-    std::vector<int64_t> expected_selected_indices = {0, 0, 0};
-    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.9};
+    std::vector<int64_t> expected_selected_indices = {0};
+    std::vector<float> expected_selected_scores = {0.00, 0.90, 0.00, 0.00, 1.00, 1.00};
     std::vector<int64_t> expected_valid_outputs = {1};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
@@ -428,37 +583,37 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_IOU)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t max_output_boxes_per_class_data = 3;
-    const float iou_threshold_data = 0.5f;
-    const float score_threshold_data = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    const int64_t nms_top_k = 3;
+    const float iou_threshold = 0.2f;
+    const float score_threshold = 0.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    const auto keep_top_k = -1;
+    const auto background_class = -1;
+    const auto nms_eta = 1.0f;
+
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                      scores,
-                                                      max_output_boxes_per_class,
-                                                      iou_threshold,
-                                                      score_threshold,
-                                                      soft_nms_sigma,
-                                                      sort_result_type,
-                                                      false);
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -467,16 +622,17 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_IOU)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
                  {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_scores);
+    auto selected_scores_value = read_vector<float>(selected_outputs);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
-    std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 0, 5};
-    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3};
-    std::vector<int64_t> expected_valid_outputs = {3};
+    std::vector<int64_t> expected_selected_indices = {3, 0};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
+                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00};
+    std::vector<int64_t> expected_valid_outputs = {2};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
     EXPECT_EQ(expected_selected_scores, selected_scores_value);
@@ -491,37 +647,37 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_IOU_and_scores)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t max_output_boxes_per_class_data = 3;
-    const float iou_threshold_data = 0.5f;
-    const float score_threshold_data = 0.4f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    const int64_t nms_top_k = 3;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 0.95f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    const auto keep_top_k = -1;
+    const auto background_class = -1;
+    const auto nms_eta = 1.0f;
+
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                      scores,
-                                                      max_output_boxes_per_class,
-                                                      iou_threshold,
-                                                      score_threshold,
-                                                      soft_nms_sigma,
-                                                      sort_result_type,
-                                                      false);
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{2, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{2, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -530,231 +686,306 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_IOU_and_scores)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
                  {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_scores);
+    auto selected_scores_value = read_vector<float>(selected_outputs);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
-    std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0};
-    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9};
-    std::vector<int64_t> expected_valid_outputs = {2};
-
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    EXPECT_EQ(expected_selected_scores, selected_scores_value);
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches)
-{
-    std::vector<float> boxes_data = {
-        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-        0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-        0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
-
-    std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
-
-    const int64_t max_output_boxes_per_class_data = 2;
-    const float iou_threshold_data = 0.5f;
-    const float score_threshold_data = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto boxes_shape = Shape{2, 6, 4};
-    const auto scores_shape = Shape{2, 1, 6};
-
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                      scores,
-                                                      max_output_boxes_per_class,
-                                                      iou_threshold,
-                                                      score_threshold,
-                                                      soft_nms_sigma,
-                                                      sort_result_type,
-                                                      false);
-
-    auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{4, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{4, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_scores);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
-    std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 1, 0, 3, 1, 0, 0};
-    std::vector<float> expected_selected_scores = {
-        0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 1.0, 0.0, 0.95, 1.0, 0.0, 0.9};
-    std::vector<int64_t> expected_valid_outputs = {4};
-
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    EXPECT_EQ(expected_selected_scores, selected_scores_value);
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_classes)
-{
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
-
-    std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
-
-    const int64_t max_output_boxes_per_class_data = 2;
-    const float iou_threshold_data = 0.5f;
-    const float score_threshold_data = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto boxes_shape = Shape{1, 6, 4};
-    const auto scores_shape = Shape{1, 2, 6};
-
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                      scores,
-                                                      max_output_boxes_per_class,
-                                                      iou_threshold,
-                                                      score_threshold,
-                                                      soft_nms_sigma,
-                                                      sort_result_type,
-                                                      false);
-
-    auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{4, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{4, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_scores);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
-    std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 1, 3, 0, 1, 0};
-    std::vector<float> expected_selected_scores = {
-        0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 1.0, 0.95, 0.0, 1.0, 0.9};
-    std::vector<int64_t> expected_valid_outputs = {4};
-
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    EXPECT_EQ(expected_selected_scores, selected_scores_value);
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_IOU_and_scores_without_constants)
-{
-    std::vector<float> boxes_data = {0.0f, 0.0f,  1.0f, 1.0f,  0.0f, 0.1f,   1.0f, 1.1f,
-                                     0.0f, -0.1f, 1.0f, 0.9f,  0.0f, 10.0f,  1.0f, 11.0f,
-                                     0.0f, 10.1f, 1.0f, 11.1f, 0.0f, 100.0f, 1.0f, 101.0f};
-
-    std::vector<float> scores_data = {0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f};
-
-    std::vector<int64_t> max_output_boxes_per_class_data = {1};
-    std::vector<float> iou_threshold_data = {0.4f};
-    std::vector<float> score_threshold_data = {0.2f};
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto boxes_shape = Shape{1, 6, 4};
-    const auto scores_shape = Shape{1, 1, 6};
-
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    const auto max_output_boxes_per_class = make_shared<op::Parameter>(element::i64, Shape{1});
-    const auto score_treshold = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto iou_threshold = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto soft_nms_sigma = make_shared<op::Parameter>(element::f32, Shape{1});
-
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                      scores,
-                                                      max_output_boxes_per_class,
-                                                      iou_threshold,
-                                                      score_treshold,
-                                                      soft_nms_sigma,
-                                                      sort_result_type,
-                                                      false);
-
-    auto f = make_shared<Function>(nms,
-                                   ParameterVector{boxes,
-                                                   scores,
-                                                   max_output_boxes_per_class,
-                                                   iou_threshold,
-                                                   score_treshold,
-                                                   soft_nms_sigma});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{1, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{1, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    auto backend_max_output_boxes_per_class = backend->create_tensor(element::i64, {1});
-    auto backend_iou_threshold = backend->create_tensor(element::f32, {1});
-    auto backend_score_threshold = backend->create_tensor(element::f32, {1});
-    auto backend_soft_nms_sigma = backend->create_tensor(element::f32, {1});
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-    copy_data(backend_max_output_boxes_per_class, max_output_boxes_per_class_data);
-    copy_data(backend_iou_threshold, iou_threshold_data);
-    copy_data(backend_score_threshold, score_threshold_data);
-    copy_data(backend_soft_nms_sigma, std::vector<float>(0.0));
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes,
-                  backend_scores,
-                  backend_max_output_boxes_per_class,
-                  backend_iou_threshold,
-                  backend_score_threshold,
-                  backend_soft_nms_sigma});
-
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_scores);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
-    std::vector<int64_t> expected_selected_indices = {0, 0, 3};
-    std::vector<float> expected_selected_scores = {0.0f, 0.0f, 0.95f};
+    std::vector<int64_t> expected_selected_indices = {3};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00};
     std::vector<int64_t> expected_valid_outputs = {1};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
     EXPECT_EQ(expected_selected_scores, selected_scores_value);
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
-*/
+
+NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_no_output)
+{
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+
+    std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
+
+    const int64_t nms_top_k = 3;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 2.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    const auto keep_top_k = -1;
+    const auto background_class = -1;
+    const auto nms_eta = 1.0f;
+
+    const auto boxes_shape = Shape{1, 6, 4};
+    const auto scores_shape = Shape{1, 1, 6};
+
+    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
+
+    auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+
+    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    copy_data(backend_boxes, boxes_data);
+    copy_data(backend_scores, scores_data);
+
+    auto handle = backend->compile(f);
+
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
+                 {backend_boxes, backend_scores});
+
+    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
+    auto selected_scores_value = read_vector<float>(selected_outputs);
+    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
+
+    std::vector<int64_t> expected_selected_indices = {};
+    std::vector<float> expected_selected_scores = {};
+    std::vector<int64_t> expected_valid_outputs = {0};
+
+    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
+    EXPECT_EQ(expected_selected_scores, selected_scores_value);
+    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_background)
+{
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
+                                     };
+
+    std::vector<float> scores_data = {
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
+        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
+        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
+        };
+
+    const int64_t nms_top_k = 3;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 0.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    const auto keep_top_k = -1;
+    const auto background_class = 0;
+    const auto nms_eta = 1.0f;
+
+    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto scores_shape = Shape{2, 2, 6};
+
+    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
+
+    auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+
+    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    copy_data(backend_boxes, boxes_data);
+    copy_data(backend_scores, scores_data);
+
+    auto handle = backend->compile(f);
+
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
+                 {backend_boxes, backend_scores});
+
+    auto selected_scores_value = read_vector<float>(selected_outputs);
+    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
+    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
+
+    std::vector<int64_t> expected_selected_indices = {0, 3, 6, 9};
+    std::vector<float> expected_selected_scores = {1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 0
+                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 1
+    std::vector<int64_t> expected_valid_outputs = {2, 2};
+
+    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
+    EXPECT_EQ(expected_selected_scores, selected_scores_value);
+    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_keep_top_k)
+{
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
+                                     };
+
+    std::vector<float> scores_data = {
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
+        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
+        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
+        };
+
+    const int64_t nms_top_k = 3;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 0.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    const auto keep_top_k = 3;
+    const auto background_class = -1;
+    const auto nms_eta = 1.0f;
+
+    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto scores_shape = Shape{2, 2, 6};
+
+    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
+
+    auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+
+    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    copy_data(backend_boxes, boxes_data);
+    copy_data(backend_scores, scores_data);
+
+    auto handle = backend->compile(f);
+
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
+                 {backend_boxes, backend_scores});
+
+    auto selected_scores_value = read_vector<float>(selected_outputs);
+    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
+    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
+
+    std::vector<int64_t> expected_selected_indices = {3, 0, 0,
+                                                      9, 6, 6};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     // 0
+                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00  };  // 1
+    std::vector<int64_t> expected_valid_outputs = {3, 3};
+
+    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
+    EXPECT_EQ(expected_selected_scores, selected_scores_value);
+    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_nms_eta)
+{
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
+                                     };
+
+    std::vector<float> scores_data = {
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
+        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
+        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
+        };
+
+    const int64_t nms_top_k = -1;
+    const float iou_threshold = 0.5f;
+    const float score_threshold = 0.0f;
+    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    const auto keep_top_k = -1;
+    const auto background_class = -1;
+    const auto nms_eta = 0.5f;
+
+    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto scores_shape = Shape{2, 2, 6};
+
+    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
+                                                  scores,
+                                                  sort_result_type,
+                                                  element::i64,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  nms_top_k,
+                                                  keep_top_k,
+                                                  background_class,
+                                                  nms_eta);
+
+    auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
+
+    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    copy_data(backend_boxes, boxes_data);
+    copy_data(backend_scores, scores_data);
+
+    auto handle = backend->compile(f);
+
+    handle->call({selected_outputs, selected_indeces, valid_outputs},
+                 {backend_boxes, backend_scores});
+
+    auto selected_scores_value = read_vector<float>(selected_outputs);
+    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
+    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
+
+    std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3,
+                                                      9, 6, 6, 9};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 0
+                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 1
+    std::vector<int64_t> expected_valid_outputs = {4, 4};
+
+    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
+    EXPECT_EQ(expected_selected_scores, selected_scores_value);
+    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+}
