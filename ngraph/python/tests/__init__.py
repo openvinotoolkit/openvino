@@ -47,13 +47,10 @@ xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "GatherElements")
 xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
-xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
-xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
-xfail_issue_36487 = xfail_test(reason="Assertion error - mvn operator computation mismatch")
 xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)"
                                       "is_static() nGraph <value> operation with name: <value> cannot be"
                                       "converted to <value> layer with name: <value> because output"
@@ -105,15 +102,12 @@ xfail_issue_44957 = xfail_test(reason="E   Unsupported dynamic op: NonZero")
 xfail_issue_44958 = xfail_test(reason="E   Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="E   RuntimeError: value info has no element")
 xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
-xfail_issue_44970 = xfail_test(reason="Assertion error")
 xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
                                       "FakeQuantize_xxx has non const input on 1 port")
 xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint data type is used")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
-xfail_issue_51993 = xfail_test(reason="PRelu supports only 1D tensor for 'slope' input broadcasted"
-                                      "by channel")
 xfail_issue_55760 = xfail_test(reason="RuntimeError: Reversed axis have axes above the source space shape")
 
 # Model MSFT issues:
@@ -151,5 +145,5 @@ xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1
 xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")
 xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadcast_cpu - "
                                       "Not equal to tolerance")
-
 xfail_issue_45432 = xfail_test(reason="Einsum is not implemented in CPU plugin.")
+xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")

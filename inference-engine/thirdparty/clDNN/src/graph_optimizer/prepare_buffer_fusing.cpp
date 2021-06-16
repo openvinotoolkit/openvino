@@ -4,8 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/eltwise.hpp"
-#include "api/pooling.hpp"
+#include "pooling_inst.h"
 #include "fused_conv_eltwise_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
@@ -16,6 +15,8 @@
 #include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
+#include "loop_inst.h"
+#include "non_max_suppression_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -277,9 +278,14 @@ void prepare_buffer_fusing::run(program_impl& p) {
             for (auto user : node.get_users()) {
                 if (user->is_type<concatenation>() && !user->is_output())
                     return;
+                if (user->is_type<loop>() || user->is_type<non_max_suppression>())
+                    return;
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
+                if (node.get_dependency(0).is_type<lstm_elt>()) {
+                    return;
+                }
                 // optimization is available for cropping across depth(features) only
                 // if output padding has defined padding across features already it wouldn't
                 // work because it expect to have zeros in the padded area.

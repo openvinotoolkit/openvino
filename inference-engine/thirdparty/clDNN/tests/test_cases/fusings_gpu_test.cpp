@@ -2,43 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include "api/input_layout.hpp"
-#include "api/convolution.hpp"
-#include "api/quantize.hpp"
-#include "api/topology.hpp"
-#include "api/tensor.hpp"
-#include "api/network.hpp"
-#include "api/eltwise.hpp"
-#include "api/fully_connected.hpp"
-#include "api/gemm.hpp"
-#include "api/binary_convolution.hpp"
-#include "api/engine.hpp"
-#include "api/data.hpp"
-#include "api/resample.hpp"
-#include "api/mvn.hpp"
-#include "api/deconvolution.hpp"
-#include "api/permute.hpp"
-#include "api/gather.hpp"
-#include "api/gather_nd.hpp"
-#include "api/scatter_update.hpp"
-#include "api/scatter_nd_update.hpp"
-#include "api/scatter_elements_update.hpp"
-#include "api/depth_to_space.hpp"
-#include "api/space_to_depth.hpp"
-#include "api/batch_to_space.hpp"
-#include "api/space_to_batch.hpp"
-#include "api/reduce.hpp"
+#include "test_utils.h"
 
-
-#include "test_utils/test_utils.h"
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/convolution.hpp>
+#include <cldnn/primitives/quantize.hpp>
+#include <cldnn/primitives/eltwise.hpp>
+#include <cldnn/primitives/fully_connected.hpp>
+#include <cldnn/primitives/gemm.hpp>
+#include <cldnn/primitives/binary_convolution.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/resample.hpp>
+#include <cldnn/primitives/mvn.hpp>
+#include <cldnn/primitives/deconvolution.hpp>
+#include <cldnn/primitives/permute.hpp>
+#include <cldnn/primitives/gather.hpp>
+#include <cldnn/primitives/gather_nd.hpp>
+#include <cldnn/primitives/scatter_update.hpp>
+#include <cldnn/primitives/scatter_nd_update.hpp>
+#include <cldnn/primitives/scatter_elements_update.hpp>
+#include <cldnn/primitives/depth_to_space.hpp>
+#include <cldnn/primitives/space_to_depth.hpp>
+#include <cldnn/primitives/batch_to_space.hpp>
+#include <cldnn/primitives/space_to_batch.hpp>
+#include <cldnn/primitives/reduce.hpp>
 
 #include <cmath>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 struct resample_test_params {
     tensor in_shape;
@@ -137,7 +129,7 @@ struct normalize_test_params {
 template<typename T>
 class BaseFusingTest : public ::testing::TestWithParam<T> {
 public:
-    cldnn::engine engine;
+    cldnn::engine& engine = get_test_engine();
     cldnn::topology topology_fused;
     cldnn::topology topology_non_fused;
     cldnn::build_options bo_fused;
@@ -162,7 +154,7 @@ public:
             for (auto& pi : net.get_primitives_info()) {
                 if (pi.type_id == "reorder") {
                     auto exec_prims = net.get_executed_primitives();
-                    auto it = std::find_if(exec_prims.begin(), exec_prims.end(), [&](const std::pair<primitive_id, event>& e) -> bool {
+                    auto it = std::find_if(exec_prims.begin(), exec_prims.end(), [&](const std::pair<primitive_id, event::ptr>& e) -> bool {
                         return e.first == pi.original_id;
                     });
                     // We count executed reorders only
@@ -194,23 +186,23 @@ public:
 
         auto output_not_fused_prim = outputs_ref.begin()->second.get_memory();
         auto output_fused_prim = outputs_fused.begin()->second.get_memory();
-        if (output_not_fused_prim.get_layout().data_type == data_types::f32) {
-            auto ref = output_not_fused_prim.pointer<float>();
-            auto output_ptr = output_fused_prim.pointer<float>();
-            for (size_t i = 0; i < output_fused_prim.get_layout().count(); i++) {
+        if (output_not_fused_prim->get_layout().data_type == data_types::f32) {
+            cldnn::mem_lock<float> ref(output_not_fused_prim, get_test_stream());
+            cldnn::mem_lock<float> output_ptr(output_fused_prim, get_test_stream());
+            for (size_t i = 0; i < output_fused_prim->get_layout().count(); i++) {
                 ASSERT_NEAR(ref[i], output_ptr[i], tolerance) << "i = " << i;
             }
         } else {
-            auto ref = output_not_fused_prim.pointer<int16_t>();
-            auto output_ptr = output_fused_prim.pointer<int16_t>();
-            for (size_t i = 0; i < output_fused_prim.get_layout().count(); i++) {
+            cldnn::mem_lock<int16_t> ref(output_not_fused_prim, get_test_stream());
+            cldnn::mem_lock<int16_t> output_ptr(output_fused_prim, get_test_stream());
+            for (size_t i = 0; i < output_fused_prim->get_layout().count(); i++) {
                 ASSERT_NEAR(float16_to_float32(ref[i]), float16_to_float32(output_ptr[i]), tolerance) << "i = " << i;
             }
         }
     }
 
-    cldnn::memory get_mem(cldnn::layout l) {
-        auto prim = memory::allocate(engine, l);
+    cldnn::memory::ptr get_mem(cldnn::layout l) {
+        auto prim = engine.allocate_memory(l);
         tensor s = l.size;
         if (l.data_type == data_types::bin) {
             VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
@@ -229,8 +221,8 @@ public:
         return prim;
     }
 
-    cldnn::memory get_mem(cldnn::layout l, float fill_value) {
-        auto prim = memory::allocate(engine, l);
+    cldnn::memory::ptr get_mem(cldnn::layout l, float fill_value) {
+        auto prim = engine.allocate_memory(l);
         tensor s = l.size;
         if (l.data_type == data_types::bin) {
             VF<int32_t> rnd_vec(s.count() / 32, static_cast<int32_t>(fill_value));
@@ -238,16 +230,18 @@ public:
         } else if (l.data_type == data_types::f16) {
             VF<uint16_t> rnd_vec(s.count(), float32_to_float16(fill_value));
             set_values(prim, rnd_vec);
-        } else {
+        } else if (l.data_type == data_types::f32) {
             VF<float> rnd_vec(s.count(), fill_value);
             set_values(prim, rnd_vec);
+        } else {
+            throw std::runtime_error("get_mem: Unsupported precision");
         }
 
         return prim;
     }
 
-    cldnn::memory get_repeatless_mem(cldnn::layout l, int min, int max) {
-        auto prim = memory::allocate(engine, l);
+    cldnn::memory::ptr get_repeatless_mem(cldnn::layout l, int min, int max) {
+        auto prim = engine.allocate_memory(l);
         tensor s = l.size;
         if (l.data_type == data_types::f32) {
             VF<float> rnd_vec = generate_random_norepetitions_1d<float>(s.count(), min, max);
@@ -267,8 +261,8 @@ public:
         return prim;
     }
 
-    cldnn::memory get_mem(cldnn::layout l, int min, int max) {
-        auto prim = memory::allocate(engine, l);
+    cldnn::memory::ptr get_mem(cldnn::layout l, int min, int max) {
+        auto prim = engine.allocate_memory(l);
         tensor s = l.size;
         if (l.data_type == data_types::f32) {
             VF<float> rnd_vec = generate_random_1d<float>(s.count(), min, max);
@@ -292,7 +286,7 @@ public:
         return layout{ p.data_type, p.input_format, p.out_shape };
     }
 
-    layout get_weights_layout(T& p, const int32_t split = 1) {
+    layout get_weights_layout(T& p, const int32_t /* split */ = 1) {
         cldnn::tensor weights_tensor;
         if (p.groups == 1) {
             weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.feature[0]),
@@ -304,7 +298,7 @@ public:
         return layout{p.weights_type, p.weights_format, weights_tensor};
     }
 
-    layout get_weights_layout(T& p, const int32_t split, cldnn::format f) {
+    layout get_weights_layout(T& p, const int32_t /* split */, cldnn::format f) {
         cldnn::tensor weights_tensor;
         weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(static_cast<int32_t>(p.in_shape.feature[0] / p.groups)),
                                        spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));
@@ -836,7 +830,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_prelu_eltwise,
 
 class conv_fp32_multi_eltwise_2 : public ConvFusingTest {};
 TEST_P(conv_fp32_multi_eltwise_2, basic) {
-    if (engine.get_info().supports_immad) {
+    if (engine.get_device_info().supports_immad) {
         return;
     }
 
@@ -871,7 +865,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_2,
 
 class conv_fp32_multi_eltwise_2_clamp : public ConvFusingTest {};
 TEST_P(conv_fp32_multi_eltwise_2_clamp, basic) {
-    if (engine.get_info().supports_immad) {
+    if (engine.get_device_info().supports_immad) {
         return;
     }
 
@@ -907,7 +901,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_2_clamp,
 
 class conv_fp32_multi_eltwise_4_clamp : public ConvFusingTest {};
 TEST_P(conv_fp32_multi_eltwise_4_clamp, basic) {
-    if (engine.get_info().supports_immad) {
+    if (engine.get_device_info().supports_immad) {
         return;
     }
 
@@ -947,7 +941,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_4_clamp,
 
 class conv_fp32_multi_eltwise_3_fusing : public ConvFusingTest {};
 TEST_P(conv_fp32_multi_eltwise_3_fusing, basic) {
-    if (engine.get_info().supports_immad) {
+    if (engine.get_device_info().supports_immad) {
         return;
     }
 
@@ -6660,21 +6654,21 @@ struct permute_reorder_params {
 
 #define CASE_PERMUTE_REORDER_F32_0 {1, 16, 32, 2},   {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv16,  format::bfyx
 #define CASE_PERMUTE_REORDER_F32_1 {2, 7, 9, 27},  {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
-#define CASE_PERMUTE_REORDER_F32_2 {1, 16, 4, 5, 16},{0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_F16_0 {1, 16, 2, 4},     {0, 2, 1, 3},    {0, 2, 1, 3},    data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  format::bfyx
-#define CASE_PERMUTE_REORDER_F16_1 {1, 16, 4, 5, 16}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_F16_2 {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F32_2 {1, 16, 4, 5, 16}, {0, 3, 2, 1, 4}, {0, 3, 2, 1, 4}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F16_0 {1, 16, 2, 4},     {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  format::bfyx
+#define CASE_PERMUTE_REORDER_F16_1 {1, 16, 4, 5, 16}, {0, 4, 2, 3, 1}, {0, 1, 2, 3, 4}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F16_2 {1, 5, 1, 2, 14},  {0, 3, 2, 1, 4}, {0, 3, 2, 1, 4}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
 
 // type change
-#define CASE_PERMUTE_REORDER_S8_TO_F32_0 {1, 15, 4, 5},    {0, 2, 3, 1},    {0, 3, 1, 2},    data_types::i8, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
-#define CASE_PERMUTE_REORDER_S8_TO_F32_1 {1, 2, 15, 4, 5}, {0, 2, 4, 1, 3}, {0, 3, 1, 4, 2}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_F32_TO_F16_0 {1, 5, 1, 2, 14}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
-#define CASE_PERMUTE_REORDER_U8_TO_F16_0 {1, 17, 1, 2, 7},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::u8, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_S8_TO_F32_0 {1, 15, 4, 5},    {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::i8, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
+#define CASE_PERMUTE_REORDER_S8_TO_F32_1 {1, 2, 15, 4, 5}, {0, 3, 2, 1, 4}, {0, 3, 2, 1, 4}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F32_TO_F16_0 {1, 5, 1, 2, 14}, {0, 4, 2, 3, 1}, {0, 1, 2, 3, 4}, data_types::f32, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_U8_TO_F16_0 {1, 17, 1, 2, 7},  {0, 4, 2, 3, 1}, {0, 1, 2, 3, 4}, data_types::u8, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
 
 // dim change
 #define CASE_PERMUTE_REORDER_4D_TO_5D_F32_0 {1, 16, 8, 16}, {1, 2, 0, 3}, {0, 3, 1, 4, 2}, data_types::f32, data_types::f32, format::bfyx, format::bfzyx
 #define CASE_PERMUTE_REORDER_4D_TO_6D_F32_1 {1, 16, 8, 16}, {0, 2, 3, 1}, {0, 3, 5, 4, 1, 2}, data_types::f32, data_types::f32, format::bfyx, format::bfwzyx
-#define CASE_PERMUTE_REORDER_5D_TO_4D_F32_0 {1, 16, 4, 5, 18},{0, 2, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_5D_TO_4D_F32_0 {1, 16, 4, 5, 18},{0, 4, 2, 3, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
 #define CASE_PERMUTE_REORDER_5D_TO_4D_F32_1 {1, 16, 4, 5, 16},{0, 2, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::bfzyx, format::bfyx
 #define CASE_PERMUTE_REORDER_5D_TO_6D_F32_2 {1, 16, 8, 4, 16}, {0, 4, 2, 3, 1}, {0, 3, 5, 4, 1, 2}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfwzyx
 #define CASE_PERMUTE_REORDER_6D_TO_4D_F32_0 {1, 16, 4, 5, 4, 16}, {0, 2, 5, 3, 4, 1}, {0, 3, 1, 2}, data_types::f32, data_types::f32, format::bfwzyx, format::bfyx
@@ -8419,4 +8413,3 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_nd_activation_scale_eltwise,
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_3, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_4, 2, 5 },
 }), );
-

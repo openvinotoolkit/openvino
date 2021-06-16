@@ -121,9 +121,7 @@ struct InferRequestWrap {
 
     void setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr);
 
-    void setBlob(const std::string& name,
-                 const InferenceEngine::Blob::Ptr& data,
-                 const InferenceEngine::PreProcessInfo& info);
+    void setBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data, const InferenceEngine::PreProcessInfo& info);
 
     void setBatch(int size);
 
@@ -135,7 +133,7 @@ struct InferRequestWrap {
 };
 
 struct IEExecNetwork {
-    InferenceEngine::ExecutableNetwork actual;
+    std::shared_ptr<InferenceEngine::ExecutableNetwork> actual;
     std::vector<InferRequestWrap> infer_requests;
     std::string name;
     IdleInferRequestQueue::Ptr request_queue_ptr;
@@ -158,6 +156,9 @@ struct IEExecNetwork {
     int getIdleRequestId();
 
     void createInferRequests(int num_requests);
+
+    // binds plugin to InputInfo and Data, so that they can be destroyed before plugin (ussue 28996)
+    std::shared_ptr<InferenceEngine::ExecutableNetwork> getPluginLink();
 };
 
 struct IECore {

@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
+
 from extensions.ops.topk import TopK
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, onnx_node_has_attr
@@ -18,7 +20,8 @@ class TopKExtractor(FrontExtractorOp):
         TopK-11 (k as input, sorting manipulations through `sorted` and `largest` attrs)
         """
         attrs = {
-            'axis': onnx_attr(node, 'axis', 'i', default=-1)
+            'axis': onnx_attr(node, 'axis', 'i', default=-1),
+            'index_element_type': np.int64
         }
         if onnx_node_has_attr(node, 'k'):
             attrs['k'] = onnx_attr(node, 'k', 'i')

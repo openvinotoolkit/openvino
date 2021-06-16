@@ -24,11 +24,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
         R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
         // TODO: Issue: 43793
-        R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
-        R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
         R"(.*PreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
         R"(.*PreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
         // TODO: Issue: 34348
@@ -40,8 +35,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReluShapeOfSubgraphTest.*)",
         // TODO: Issue: 34805
         R"(.*ActivationLayerTest.*Ceiling.*)",
-        // TODO: Issue: 32032
-        R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
@@ -52,9 +45,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BinaryConvolutionLayerTest.*)",
         R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
         R"(.*ClampLayerTest.*netPrc=U64.*)",
-        // TODO: 42538. Unexpected application crash
-        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)",
-        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetworkAccuracy.*AUTO.*)",
         // TODO: 53618. BF16 gemm ncsp convolution crash
         R"(.*_GroupConv.*_inPRC=BF16.*_inFmts=nc.*_primitive=jit_gemm.*)",
         // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
@@ -77,21 +67,13 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 55656 AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // TODO: 54718 Accuracy mismatch
-        R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
-        R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(2\.2\).*primitive=jit_avx512_dw.*)",
+        // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
+        R"(.*smoke_SetBlobOfKindAUTO.*SetBlobOfKindTest.CompareWithRefs.*)",
         // reference doesn't cover I8, U8 cases. Issue: 55842
         R"(.*Gather7LayerTest.*netPRC=I8.*)",
+        // need to implement Export / Import
+        R"(.*IEClassImportExportTestP.*)"
     };
-        // TODO: 54718 Accuracy mismatch
-#ifdef _WIN32
-        retVector.insert(retVector.end(), {
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(3\.3\.3\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(3\.3\.3\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-        });
-#endif
 #ifdef __APPLE__
         // TODO: Issue 55717
         //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");

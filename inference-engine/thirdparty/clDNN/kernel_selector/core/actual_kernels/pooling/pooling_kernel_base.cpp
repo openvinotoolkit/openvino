@@ -182,7 +182,7 @@ KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params,
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, DEFAULT, false, false, 1,
                      GetFusedPrimitiveInputsCount(params));
     if (orgParams.poolType == PoolType::MAX_WITH_ARGMAX)
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
 
 
     return {kd};

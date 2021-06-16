@@ -26,14 +26,40 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         ngraph::Shape{ 1, 6, 24, 24 },
         ngraph::Shape{ 1, 24, 18, 18 },
         3ul,
+        -1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        "Convolution",
+        "U8"
+    },
+    // group convolution, tensor quantization
+    {
+        ngraph::Shape{ 1, 6, 24, 24 },
+        ngraph::Shape{ 1, 24, 18, 18 },
+        3ul,
+        0,
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        "Convolution",
+        "U8"
+    },
+    // group convolution, tensor quantization
+    {
+        ngraph::Shape{ 1, 6, 24, 24 },
+        ngraph::Shape{ 1, 24, 18, 18 },
+        3ul,
+        1,
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        "Convolution",
+        "U8"
     },
     // group convolution, per-channel quantization
     {
         ngraph::Shape{ 1, 6, 24, 24 },
         ngraph::Shape{ 1, 24, 18, 18 },
         3ul,
+        -1,
         {
             256ul,
             ngraph::Shape { 6, 1, 1, 1 },
@@ -49,6 +75,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         ngraph::Shape{ 1, 6, 24, 24 },
         ngraph::Shape{ 1, 6, 18, 18 },
         6ul,
+        -1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
     },
@@ -57,6 +84,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         ngraph::Shape{ 1, 6, 24, 24 },
         ngraph::Shape{ 1, 6, 18, 18 },
         6ul,
+        -1,
         {
             256ul,
             ngraph::Shape { 6, 1, 1, 1 },

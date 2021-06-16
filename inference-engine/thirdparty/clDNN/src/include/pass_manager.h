@@ -265,7 +265,7 @@ public:
 
 private:
     void run(program_impl& p) override;
-    std::list<std::pair<primitive_id, memory_impl::ptr>> calculate(engine_impl& engine, build_options bo);
+    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine, build_options bo);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program_impl& prog, program_node& node);
     void add_constant(program_impl& prog, program_node& node);
@@ -376,6 +376,14 @@ public:
 class oooq_memory_dependencies : public memory_dependency_pass {
 public:
     oooq_memory_dependencies() : memory_dependency_pass("oooq_memory_dependencies") {}
+    void run(program_impl& p) override;
+};
+
+class update_loop_primitive_map : public base_pass {
+public:
+    update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}
+
+private:
     void run(program_impl& p) override;
 };
 

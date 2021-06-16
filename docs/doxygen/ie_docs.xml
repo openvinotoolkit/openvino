@@ -53,12 +53,12 @@ limitations under the License.
                             <tab type="user" title="Convert ONNX* Faster R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN"/>
                             <tab type="user" title="Convert ONNX* Mask R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN"/>
                             <tab type="user" title="Convert ONNX* GPT-2 Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2"/>
-                            <tab type="user" title="Convert DLRM ONNX* Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
+                            <tab type="user" title="[DEPRECATED] Convert DLRM ONNX* Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
                             <tab type="usergroup" title="Converting Your PyTorch* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch">
-                                <tab type="user" title="Convert PyTorch* QuartzNet Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet"/>
-                                <tab type="user" title="Convert PyTorch* RNN-T Model " url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RNNT"/>
-                                <tab type="user" title="Convert PyTorch* YOLACT Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT"/>
-                                <tab type="user" title="Convert PyTorch* F3Net Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net"/>
+                            <tab type="user" title="Convert PyTorch* QuartzNet Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet"/>
+                            <tab type="user" title="Convert PyTorch* RNN-T Model " url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RNNT"/>
+                            <tab type="user" title="Convert PyTorch* YOLACT Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT"/>
+                            <tab type="user" title="Convert PyTorch* F3Net Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net"/>
                             </tab>
                         </tab>
                         <tab type="user" title="Model Optimizations Techniques" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques"/>
@@ -88,6 +88,7 @@ limitations under the License.
         <!-- Intermediate Representation and Operations Sets -->
         <tab id="intermediate_representaton_and_operations_sets" type="usergroup" title="Intermediate Representation and Operations Sets" url="@ref openvino_docs_MO_DG_IR_and_opsets">
             <tab type="usergroup" title="Available Operations Sets" url="@ref openvino_docs_ops_opset">
+                <tab type="user" title="opset8 Specification" url="@ref openvino_docs_ops_opset8"/>
                 <tab type="user" title="opset7 Specification" url="@ref openvino_docs_ops_opset7"/>
                 <tab type="user" title="opset6 Specification" url="@ref openvino_docs_ops_opset6"/>
                 <tab type="user" title="opset5 Specification" url="@ref openvino_docs_ops_opset5"/>
@@ -100,6 +101,8 @@ limitations under the License.
                 <tab type="user" title="Abs-1" url="@ref openvino_docs_ops_arithmetic_Abs_1"/>
                 <tab type="user" title="Acos-1" url="@ref openvino_docs_ops_arithmetic_Acos_1"/>
                 <tab type="user" title="Acosh-3" url="@ref openvino_docs_ops_arithmetic_Acosh_3"/>
+                <tab type="user" title="AdaptiveAvgPool-8" url="@ref openvino_docs_ops_pooling_AdaptiveAvgPool_8"/>
+                <tab type="user" title="AdaptiveMaxPool-8" url="@ref openvino_docs_ops_pooling_AdaptiveMaxPool_8"/>
                 <tab type="user" title="Add-1" url="@ref openvino_docs_ops_arithmetic_Add_1"/>
                 <tab type="user" title="Asin-1" url="@ref openvino_docs_ops_arithmetic_Asin_1"/>
                 <tab type="user" title="Asinh-3" url="@ref openvino_docs_ops_arithmetic_Asinh_3"/>
@@ -293,7 +296,6 @@ limitations under the License.
                 <tab type="user" title="[DEPRECATED] Import an ONNX model" url="@ref openvino_docs_IE_DG_OnnxImporterTutorial"/>
                 <tab type="user" title="Using Dynamic Batching Feature" url="@ref openvino_docs_IE_DG_DynamicBatching"/>
                 <tab type="user" title="Using Static Shape Infer Feature" url="@ref openvino_docs_IE_DG_ShapeInference"/>
-                <tab type="user" title="Using GPU kernels tuning" url="@ref openvino_docs_IE_DG_GPU_Kernels_Tuning"/>
                 <tab type="usergroup" title="Using Bfloat16 Inference" url="@ref openvino_docs_IE_DG_Bfloat16Inference">
                 </tab>
                 <tab type="usergroup" title="Using Low-Precision 8-bit Integer Inference" url="@ref openvino_docs_IE_DG_Int8Inference">
@@ -303,7 +305,7 @@ limitations under the License.
                 </tab>
                 <tab type="user" title="Introduction to OpenVINO state API" url="@ref openvino_docs_IE_DG_network_state_intro"/>
                 <tab type="usergroup" title="Supported Devices" url="@ref openvino_docs_IE_DG_supported_plugins_Supported_Devices">
-                    <tab type="usergroup" title="GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CL_DNN">
+                    <tab type="usergroup" title="GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU">
                         <tab type="user" title="RemoteBlob API of GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API"/>
                     </tab>
                     <tab type="user" title="CPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CPU"/>

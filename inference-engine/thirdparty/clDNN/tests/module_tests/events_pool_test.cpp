@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "api/engine.hpp"
-#include "test_utils/test_utils.h"
-#include "api/input_layout.hpp"
-#include "api/network.hpp"
+#include "test_utils.h"
 
 using namespace tests;
 using namespace cldnn;
@@ -35,17 +31,16 @@ TEST(events_pool, DISABLED_basic_test)
 
     for (int i = 0; i < 20; i++)
     {
-        engine eng;// here we build new engine i times
-        auto input = memory::allocate(eng, { data_types::f32, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+        auto eng = engine::create(engine_types::ocl, runtime_types::ocl);// here we build new engine i times
+        auto input = eng->allocate_memory({ data_types::f32, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
         std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
         for (int j = 0; j < 20; j++) //then we build network j times
         {
-            network network(eng, topology, bo);
+            network network(*eng, topology, bo);
             network.set_input_data("input", input);
             for(int k = 0; k < 20; k++) //and execute that network k times
-                network.execute();  
+                network.execute();
         }
-        EXPECT_EQ(eng.get_max_used_device_memory_size(), (uint64_t)80);
-        eng.~engine();
+        EXPECT_EQ(eng->get_max_used_device_memory(), (uint64_t)80);
     }
 }
