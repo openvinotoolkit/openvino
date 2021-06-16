@@ -8,12 +8,12 @@
 #include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/op/lstm_sequence.hpp"
 
-#include "api/reshape.hpp"
-#include "api/reorder.hpp"
-#include "api/fully_connected.hpp"
-#include "api/lstm.hpp"
-#include "api/crop.hpp"
-#include "api/concatenation.hpp"
+#include "cldnn/primitives/reshape.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/fully_connected.hpp"
+#include "cldnn/primitives/lstm.hpp"
+#include "cldnn/primitives/crop.hpp"
+#include "cldnn/primitives/concatenation.hpp"
 
 namespace CLDNNPlugin {
 cldnn::activation_func GetActivationFunc(std::string name) {

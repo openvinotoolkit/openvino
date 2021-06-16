@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/reorg_yolo.hpp"
+#include "cldnn/primitives/reorg_yolo.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
