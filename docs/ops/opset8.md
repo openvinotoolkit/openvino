@@ -115,6 +115,7 @@ declared in `namespace opset8`.
 * [Proposal](detection/Proposal_4.md)
 * [PSROIPooling](detection/PSROIPooling_1.md)
 * [Range](generation/Range_4.md)
+* [RandomUniform](generation/RandomUniform_8.md)
 * [ReLU](activation/ReLU_1.md)
 * [ReadValue](infrastructure/ReadValue_3.md)
 * [ReduceL1](reduction/ReduceL1_4.md)
