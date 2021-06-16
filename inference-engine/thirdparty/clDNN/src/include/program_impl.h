@@ -138,7 +138,8 @@ public:
                  topology_impl const& topology,
                  build_options const& options,
                  bool is_internal,
-                 bool no_optimizations = false);
+                 bool no_optimizations = false,
+                 bool is_body_program = false);
     /* constructor used to build a program from subset of nodes of other program (used in propagate_constants) */
     program_impl(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
@@ -153,6 +154,7 @@ public:
     std::vector<program_node*>& get_outputs() {
         return outputs;
     }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
+    bool is_loop_body() const { return is_body_program; }
     bool is_debug_build() const { return options.get<build_option_type::debug>()->enabled(); }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
@@ -228,7 +230,8 @@ public:
                              const topology_impl& topology,
                              const build_options& options,
                              bool is_internal = false,
-                             bool no_optimizations = false);
+                             bool no_optimizations = false,
+                             bool is_body_program = false);
     static ptr build_program(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const build_options& options,
@@ -253,6 +256,7 @@ private:
     nodes_ordering processing_order;
     std::unique_ptr<pass_manager> pm;
     std::shared_ptr<kernel_selector::TuningCache> tuning_cache;
+    bool is_body_program;
 
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
