@@ -122,7 +122,7 @@ public:
         const float dequantizationMul,
         const float dequantizationSub,
         const ngraph::element::Type originalPrecision,
-        const ngraph::Shape dataNodeOutputShape,
+        const ngraph::PartialShape dataNodeOutputShape,
         element::Type precision,
         const element::Type deqPrecision = element::f32);
 

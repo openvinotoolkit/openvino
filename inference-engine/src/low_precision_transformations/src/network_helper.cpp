@@ -1000,7 +1000,7 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     const float dequantizationMul,
     const float dequantizationSub,
     const ngraph::element::Type originalPrecision,
-    const ngraph::Shape dataNodeOutputShape,
+    const ngraph::PartialShape dataNodeOutputShape,
     element::Type precision,
     const ngraph::element::Type deqPrecision) {
     // TODO: we create input here! we really need it here?
@@ -1079,7 +1079,7 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(
         updatePrecision ? precision : fq->get_output_element_type(0),
-        fq->get_output_shape(0));
+        fq->get_output_partial_shape(0));
     std::shared_ptr<ngraph::Node> parent = input;
 
     std::shared_ptr<ngraph::opset1::Convert> convert;
