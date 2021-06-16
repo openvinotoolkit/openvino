@@ -125,7 +125,8 @@ public:
                  topology_impl const& topology,
                  build_options const& options,
                  bool is_internal,
-                 bool no_optimizations = false);
+                 bool no_optimizations = false,
+                 bool is_body_program = false);
     /* constructor used to build a program from subset of nodes of other program (used in propagate_constants) */
     program_impl(engine_impl& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
@@ -140,6 +141,7 @@ public:
     std::vector<program_node*>& get_outputs() {
         return outputs;
     }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
+    bool is_loop_body() const { return is_body_program; }
     bool is_debug_build() const { return options.get<build_option_type::debug>()->enabled(); }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
@@ -218,6 +220,7 @@ private:
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;
+    bool is_body_program;
     std::unique_ptr<pass_manager> pm;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;

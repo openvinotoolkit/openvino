@@ -202,8 +202,9 @@ void engine_impl::release_pending_memory(uint32_t net_id) { get_context()->relea
 program_impl::ptr engine_impl::build_program(const topology_impl& topology,
                                             const build_options& options,
                                             bool is_internal,
-                                            bool no_optimizations) {
-    program_impl::ptr progr_impl{ new program_impl(*this, topology, options, is_internal, no_optimizations), false };
+                                            bool no_optimizations,
+                                            bool is_body_program) {
+    program_impl::ptr progr_impl{ new program_impl(*this, topology, options, is_internal, no_optimizations, is_body_program), false };
     return progr_impl;
 }
 
