@@ -192,8 +192,8 @@ namespace ngraph
                                 const Shape& selected_indices_shape,
                                 int64_t* valid_outputs)
             {
-                auto func = [iou_threshold](float iou) {
-                    return iou <= iou_threshold ? 1.0f : 0.0f;
+                auto func = [](float iou, float adaptive_threshold) {
+                    return iou <= adaptive_threshold ? 1.0f : 0.0f;
                 };
 
                 // boxes shape: {num_batches, num_boxes, 4}
@@ -218,9 +218,10 @@ namespace ngraph
                     std::vector<BoxInfo> selected_boxes; // container for a batch element
 
                     for (int64_t class_idx = 0; class_idx < num_classes; class_idx++)
-                    {
-                        //std::cout << "##############" << batch << ", " << class_idx << " bg:" << background_class << std::endl;                        
+                    {                      
                         if(class_idx == background_class) continue;
+
+                        auto adaptive_threshold = iou_threshold;
 
                         const float* scoresPtr =
                             scores_data + batch * (num_classes * num_boxes) + class_idx * num_boxes;
@@ -241,7 +242,6 @@ namespace ngraph
                         // threshold nms_top_k for each class
                         // NOTE: "nms_top_k" in PDPD not exactly equal to 
                         // "max_output_boxes_per_class" in ONNX.
-                        //std::cout << "##############" << batch << ", " << class_idx << " nms_top_k=" << nms_top_k << " candiate_size=" << candiate_size << std::endl;
                         if (nms_top_k > -1 && nms_top_k < candiate_size)
                         {
                             candiate_size = nms_top_k;
@@ -286,9 +286,9 @@ namespace ngraph
                             {
                                 float iou =
                                     intersectionOverUnion(next_candidate.box, selected[j].box);
-                                next_candidate.score *= func(iou);
+                                next_candidate.score *= func(iou, adaptive_threshold);
 
-                                if (iou >= iou_threshold)
+                                if (iou >= adaptive_threshold)
                                 {
                                     should_hard_suppress = true;
                                     break;
@@ -304,6 +304,10 @@ namespace ngraph
 
                             if (!should_hard_suppress)
                             {
+                                if(nms_eta < 1 && adaptive_threshold > 0.5)
+                                {
+                                    adaptive_threshold *= nms_eta;
+                                }
                                 if (next_candidate.score == original_score)
                                 {
                                     selected.push_back(next_candidate);

@@ -932,12 +932,12 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_nms_eta)
         };
 
     const int64_t nms_top_k = -1;
-    const float iou_threshold = 0.5f;
+    const float iou_threshold = 1.0f;
     const float score_threshold = 0.0f;
     const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
     const auto keep_top_k = -1;
     const auto background_class = -1;
-    const auto nms_eta = 0.5f;
+    const auto nms_eta = 0.1f;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
@@ -977,13 +977,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_nms_eta)
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
-    std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3,
-                                                      9, 6, 6, 9};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 0
-                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 1
-    std::vector<int64_t> expected_valid_outputs = {4, 4};
+    std::vector<int64_t> expected_selected_indices = {3, 0, 5, 0, 3, 5, 
+                                                      9, 6, 11, 6, 9, 11};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
+                                                    0.00, 0.90, 0.00, 0.00, 1.00, 1.00 ,
+                                                    0.00, 0.30, 0.00, 100.00, 1.00, 101.00 ,
+                                                    1.00, 0.95, 0.00, 0.00, 1.00, 1.00 ,
+                                                    1.00, 0.80, 0.00, 10.00, 1.00, 11.00 ,
+                                                    1.00, 0.30, 0.00, 100.00, 1.00, 101.00 ,
+                                                    0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
+                                                    0.00, 0.90, 0.00, 0.00, 1.00, 1.00 ,
+                                                    0.00, 0.30, 0.00, 100.00, 1.00, 101.00 ,
+                                                    1.00, 0.95, 0.00, 0.00, 1.00, 1.00 ,
+                                                    1.00, 0.80, 0.00, 10.00, 1.00, 11.00 ,
+                                                    1.00, 0.30, 0.00, 100.00, 1.00, 101.00 };
+    std::vector<int64_t> expected_valid_outputs = {6, 6};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
     EXPECT_EQ(expected_selected_scores, selected_scores_value);
