@@ -51,7 +51,13 @@ def import_core_modules(silent: bool, path_to_module: str):
         from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, \
             GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
 
+        # TODO: it is temporary import to check that nGraph python API is available. But in future
+        # we need to replace it with Frontend imports
+        from ngraph.impl.op import Parameter  # pylint: disable=import-error,no-name-in-module
+        from _pyngraph import PartialShape, Dimension  # pylint: disable=import-error,no-name-in-module
+
         import openvino  # pylint: disable=import-error,no-name-in-module
+        import ngraph  # pylint: disable=import-error,no-name-in-module
 
         if silent:
             return True
@@ -60,6 +66,8 @@ def import_core_modules(silent: bool, path_to_module: str):
         mo_version = str(v.get_version())  # pylint: disable=no-member,no-name-in-module
 
         print("\t- {}: \t{}".format("Inference Engine found in", os.path.dirname(openvino.__file__)))
+        # TODO: when nGraph version will be available we need to start compare it to IE and MO versions. Ticket: 58091
+        print("\t- {}: \t{}".format("nGraph found in", os.path.dirname(ngraph.__file__)))
         print("{}: \t{}".format("Inference Engine version", ie_version))
         print("{}: \t{}".format("Model Optimizer version", mo_version))
 
