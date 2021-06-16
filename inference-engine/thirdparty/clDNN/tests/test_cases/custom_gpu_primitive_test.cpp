@@ -2,18 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/eltwise.hpp"
-#include "api/reorder.hpp"
-#include "api/custom_gpu_primitive.hpp"
-#include <api/engine.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/eltwise.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/custom_gpu_primitive.hpp>
 
 namespace cldnn
 {
@@ -21,7 +15,7 @@ namespace cldnn
 }
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     //  Input2   : 2x2x2
@@ -29,28 +23,28 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     //  Output : 2x2x2x2
 
     //  Input:
-    //  f0: b0:  1    2  b1:   0    0       
-    //  f0: b0:  3    4  b1:   0.5 -0.5     
-    //  f1: b0:  5    6  b1:   1.5  5.2     
-    //  f1: b0:  7    8  b1:   12   8       
+    //  f0: b0:  1    2  b1:   0    0
+    //  f0: b0:  3    4  b1:   0.5 -0.5
+    //  f1: b0:  5    6  b1:   1.5  5.2
+    //  f1: b0:  7    8  b1:   12   8
     //
     //  Input2
-    //  f0: b0: 0.5  5   b1: 2.5  7 
+    //  f0: b0: 0.5  5   b1: 2.5  7
     //  f0: b0: 15  -2   b1: 17   6.5
     //  f1: b0: 0.5  2   b1: 2.5  4
     //  f1: b0: 8   -0.5 b1: 10   -2.5
     //
     //  Output:
-    //  f0: b0:   1.5  7    b1:  2.5   7      
-    //  f0: b0:   18   2    b1:  17.5  6     
-    //  f1: b0:   5.5  8    b1:   4    9.2     
-    //  f1: b0:   15  16.5  b1:  22    16.5     
+    //  f0: b0:   1.5  7    b1:  2.5   7
+    //  f0: b0:   18   2    b1:  17.5  6
+    //  f1: b0:   5.5  8    b1:   4    9.2
+    //  f1: b0:   15  16.5  b1:  22    16.5
     //
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
 
     std::string kernel_code =
         R"__krnl(
@@ -68,10 +62,10 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
-    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
     topology.add(custom_gpu_primitive(
-        "user_kernel", 
+        "user_kernel",
         { "input", "input2" },
         { kernel_code },
         entry_point,
@@ -109,10 +103,9 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
                           18.f,17.5f,   15.f,   22.f,
                           2.f,   6.f,   7.5f,  5.5f };
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    for (int i = 0; i < 16; i++)
-    {
+    for (int i = 0; i < 16; i++) {
         EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
@@ -125,28 +118,28 @@ void add_basic_in2x2x2x2_with_reorder()
     //  Output : 2x2x2x2
 
     //  Input:
-    //  f0: b0:  1    2  b1:   0    0       
-    //  f0: b0:  3    4  b1:   0.5 -0.5     
-    //  f1: b0:  5    6  b1:   1.5  5.2     
-    //  f1: b0:  7    8  b1:   12   8       
+    //  f0: b0:  1    2  b1:   0    0
+    //  f0: b0:  3    4  b1:   0.5 -0.5
+    //  f1: b0:  5    6  b1:   1.5  5.2
+    //  f1: b0:  7    8  b1:   12   8
     //
     //  Input2
-    //  f0: b0: 0.5  5   b1: 2.5  7 
+    //  f0: b0: 0.5  5   b1: 2.5  7
     //  f0: b0: 15  -2   b1: 17   6.5
     //  f1: b0: 0.5  2   b1: 2.5  4
     //  f1: b0: 8   -0.5 b1: 10   -2.5
     //
     //  Output:
-    //  f0: b0:   1.5  7    b1:  2.5   7      
-    //  f0: b0:   18   2    b1:  17.5  6     
-    //  f1: b0:   5.5  8    b1:   4    9.2     
-    //  f1: b0:   15  16.5  b1:  22    16.5     
+    //  f0: b0:   1.5  7    b1:  2.5   7
+    //  f0: b0:   18   2    b1:  17.5  6
+    //  f1: b0:   5.5  8    b1:   4    9.2
+    //  f1: b0:   15  16.5  b1:  22    16.5
     //
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
 
     std::string data_type_string = "float";
     switch (DType)
@@ -172,8 +165,8 @@ void add_basic_in2x2x2x2_with_reorder()
     layout output_layout = { DType, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
-    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
     topology.add(reorder("to_int1", "input", { DType, format::yxfb,{ 2,2,2,2 } }));
     topology.add(reorder("to_int2", "input2", { DType, format::yxfb,{ 2,2,2,2 } }));
     topology.add(custom_gpu_primitive(
@@ -216,7 +209,7 @@ void add_basic_in2x2x2x2_with_reorder()
         18.f,17.f,   15.f,   22.f,
         2.f,   6.f,   8.f,  6.f };
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -238,28 +231,28 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
     //  Output : 2x2x2x2
 
     //  Input:
-    //  f0: b0:  1    2  b1:   0    0       
-    //  f0: b0:  3    4  b1:   0.5 -0.5     
-    //  f1: b0:  5    6  b1:   1.5  5.2     
-    //  f1: b0:  7    8  b1:   12   8       
+    //  f0: b0:  1    2  b1:   0    0
+    //  f0: b0:  3    4  b1:   0.5 -0.5
+    //  f1: b0:  5    6  b1:   1.5  5.2
+    //  f1: b0:  7    8  b1:   12   8
     //
     //  Input2
-    //  f0: b0: 0.5  5   b1: 2.5  7 
+    //  f0: b0: 0.5  5   b1: 2.5  7
     //  f0: b0: 15  -2   b1: 17   6.5
     //  f1: b0: 0.5  2   b1: 2.5  4
     //  f1: b0: 8   -0.5 b1: 10   -2.5
     //
     //  Output:
-    //  f0: b0:   1.5  7    b1:  2.5   7      
-    //  f0: b0:   18   2    b1:  17.5  6     
-    //  f1: b0:   5.5  8    b1:   4    9.2     
-    //  f1: b0:   15  16.5  b1:  22    16.5     
+    //  f0: b0:   1.5  7    b1:  2.5   7
+    //  f0: b0:   18   2    b1:  17.5  6
+    //  f1: b0:   5.5  8    b1:   4    9.2
+    //  f1: b0:   15  16.5  b1:  22    16.5
     //
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
 
     std::string kernel_code =
         R"__krnl(
@@ -274,8 +267,8 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
     layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
-    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise("eltwise", {"input", "input2"}, eltwise_mode::sum));
     topology.add(custom_gpu_primitive(
         "user_kernel",
@@ -311,13 +304,13 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
 
     auto output = outputs.at("user_kernel").get_memory();
 
-    float answers[16] = 
+    float answers[16] =
       { 2.5f,  3.5f,  6.5f,   5.f,
          8.f,   8.f,   9.f, 10.2f,
         19.f, 18.5f,  16.f,  23.f,
          3.f,   7.f,  8.5f,  6.5f };
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -331,28 +324,28 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
     //  Output : 2x2x2x2
 
     //  Input:
-    //  f0: b0:  1    2  b1:   0    0       
-    //  f0: b0:  3    4  b1:   0.5 -0.5     
-    //  f1: b0:  5    6  b1:   1.5  5.2     
-    //  f1: b0:  7    8  b1:   12   8       
+    //  f0: b0:  1    2  b1:   0    0
+    //  f0: b0:  3    4  b1:   0.5 -0.5
+    //  f1: b0:  5    6  b1:   1.5  5.2
+    //  f1: b0:  7    8  b1:   12   8
     //
     //  Input2
-    //  f0: b0: 0.5  5   b1: 2.5  7 
+    //  f0: b0: 0.5  5   b1: 2.5  7
     //  f0: b0: 15  -2   b1: 17   6.5
     //  f1: b0: 0.5  2   b1: 2.5  4
     //  f1: b0: 8   -0.5 b1: 10   -2.5
     //
     //  Output:
-    //  f0: b0:   1.5  7    b1:  2.5   7      
-    //  f0: b0:   18   2    b1:  17.5  6     
-    //  f1: b0:   5.5  8    b1:   4    9.2     
-    //  f1: b0:   15  16.5  b1:  22    16.5     
+    //  f0: b0:   1.5  7    b1:  2.5   7
+    //  f0: b0:   18   2    b1:  17.5  6
+    //  f1: b0:   5.5  8    b1:   4    9.2
+    //  f1: b0:   15  16.5  b1:  22    16.5
     //
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
 
     std::string kernel_code =
         R"__krnl(
@@ -367,8 +360,8 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
     layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
-    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
     topology.add(custom_gpu_primitive(
         "user_kernel",
         { "input" },
@@ -410,7 +403,7 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
         19.f, 18.5f,  16.f,  23.f,
         3.f,   7.f,  8.5f,  6.5f };
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -424,27 +417,27 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
     //  Output : 2x2x2x2
 
     //  Input:
-    //  f0: b0:  1    2  b1:   0    0       
-    //  f0: b0:  3    4  b1:   0.5 -0.5     
-    //  f1: b0:  5    6  b1:   1.5  5.2     
-    //  f1: b0:  7    8  b1:   12   8       
+    //  f0: b0:  1    2  b1:   0    0
+    //  f0: b0:  3    4  b1:   0.5 -0.5
+    //  f1: b0:  5    6  b1:   1.5  5.2
+    //  f1: b0:  7    8  b1:   12   8
     //
     //  Input2
-    //  f0: b0: 0.5  5   b1: 2.5  7 
+    //  f0: b0: 0.5  5   b1: 2.5  7
     //  f0: b0: 15  -2   b1: 17   6.5
     //  f1: b0: 0.5  2   b1: 2.5  4
     //  f1: b0: 8   -0.5 b1: 10   -2.5
     //
     //  Output:
-    //  f0: b0:   1.5  7    b1:  2.5   7      
-    //  f0: b0:   18   2    b1:  17.5  6     
-    //  f1: b0:   5.5  8    b1:   4    9.2     
-    //  f1: b0:   15  16.5  b1:  22    16.5     
+    //  f0: b0:   1.5  7    b1:  2.5   7
+    //  f0: b0:   18   2    b1:  17.5  6
+    //  f1: b0:   5.5  8    b1:   4    9.2
+    //  f1: b0:   15  16.5  b1:  22    16.5
     //
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
 
     std::string kernel_code1 =
         R"__krnl(
@@ -454,7 +447,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
                 output[idx] = input0[idx] + SCALAR;
             }
         )__krnl";
-    
+
     std::string kernel_code2 =
         R"__krnl(
             __kernel void add_kernel(const __global float* input0, __global float* output)
@@ -468,7 +461,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
     layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(custom_gpu_primitive(
         "user_kernel1",
         { "input" },
@@ -505,20 +498,19 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
 
     auto output = outputs.at("user_kernel2").get_memory();
 
-    auto output_ptr = output.pointer<float>();
-    auto input_ptr = input.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    for (int i = 0; i < 16; i++)
-    {
+    for (int i = 0; i < 16; i++) {
         EXPECT_TRUE(are_equal(input_ptr[i] + 7, output_ptr[i]));
     }
 }
 
 TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = memory::allocate(engine, { data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
 
     std::string kernel_code =
         R"__krnl(
@@ -533,8 +525,8 @@ TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
     layout output_layout = { data_types::u8, format::yxfb,{ 2, 2, 2, 2 } };
     std::vector<size_t> gws = { output_layout.count() };
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
-    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
     topology.add(custom_gpu_primitive(
         "user_kernel",
         { "input", "input2" },
@@ -556,7 +548,7 @@ TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
          0,  2,  0,  2,
         55, 75, 20,  4,
         15, 17, 80, 10,
-         2, 60,  0, 20 
+         2, 60,  0, 20
     });
 
     network network(engine, topology);
@@ -577,10 +569,9 @@ TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
           6, 160,   8, 200
     };
 
-    auto output_ptr = output.pointer<unsigned char>();
+    cldnn::mem_lock<unsigned char> output_ptr(output, get_test_stream());
 
-    for (int i = 0; i < 16; i++)
-    {
+    for (int i = 0; i < 16; i++) {
         EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }

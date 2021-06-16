@@ -4,7 +4,7 @@
 
 #include "gather_tree_inst.h"
 
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
 #include <string>

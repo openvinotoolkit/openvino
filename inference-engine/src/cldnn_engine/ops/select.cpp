@@ -7,9 +7,9 @@
 
 #include "ngraph/op/select.hpp"
 
-#include "api/select.hpp"
-#include "api/reorder.hpp"
-#include "api/reshape.hpp"
+#include "cldnn/primitives/select.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 

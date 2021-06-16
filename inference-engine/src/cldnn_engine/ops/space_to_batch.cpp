@@ -8,7 +8,7 @@
 #include "ngraph/op/space_to_batch.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/space_to_batch.hpp"
+#include "cldnn/primitives/space_to_batch.hpp"
 
 namespace CLDNNPlugin {
 

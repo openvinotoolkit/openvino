@@ -33,7 +33,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
         ${CLDNN__OCL_ICD_INCDIRS}
-        ${CLDNN_TOP_FOLDER})
+        ${CLDNN_TOP_FOLDER}/api)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

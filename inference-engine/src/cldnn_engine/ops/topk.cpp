@@ -7,8 +7,8 @@
 
 #include "ngraph/op/topk.hpp"
 
-#include "api/arg_max_min.hpp"
-#include "api/mutable_data.hpp"
+#include "cldnn/primitives/arg_max_min.hpp"
+#include "cldnn/primitives/mutable_data.hpp"
 
 namespace CLDNNPlugin {
 
@@ -71,7 +71,7 @@ void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
                                                     DefaultFormatForDims(op->get_output_shape(1).size()),
                                                     CldnnTensorFromIEDims(op->get_output_shape(1)));
 
-        auto shared_memory = cldnn::memory::allocate(p.GetEngine(), mutableLayout);
+        auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
 
         cldnn::primitive_id argmax_mutable_id_w = layer_type_name_ID(op) + "_md_write";
         auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w, shared_memory);

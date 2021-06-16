@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/batch_to_space.hpp"
+#include "cldnn/primitives/batch_to_space.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

@@ -4,8 +4,8 @@
 
 #include "tile_inst.h"
 #include "primitive_type_base.h"
-#include "memory_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 

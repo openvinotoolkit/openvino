@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "space_to_depth/space_to_depth_kernel_selector.h"
 #include "space_to_depth/space_to_depth_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
@@ -17,6 +17,10 @@ namespace gpu {
 struct space_to_depth_gpu : typed_primitive_gpu_impl<space_to_depth> {
     using parent = typed_primitive_gpu_impl<space_to_depth>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<space_to_depth_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const space_to_depth_node& arg) {

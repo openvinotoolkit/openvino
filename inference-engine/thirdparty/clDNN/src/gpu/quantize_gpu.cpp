@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "quantize/quantize_kernel_selector.h"
 #include "quantize/quantize_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
@@ -19,23 +19,26 @@ struct quantize_gpu : typed_primitive_gpu_impl<quantize> {
     using parent = typed_primitive_gpu_impl<quantize>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<quantize_gpu>(*this);
+    }
+
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<quantize>& instance,
-                                                int32_t) const override {
-        kernel::kernel_arguments_data args;
+    kernel_arguments_data get_arguments(typed_primitive_inst<quantize>& instance, int32_t) const override {
+        kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
-            args.inputs.push_back((memory_impl::cptr) &instance.input_memory(i));
+            args.inputs.push_back(instance.input_memory_ptr(i));
         }
         if (instance.node.get_scale_shift_opt()) {
             if (instance.node.get_dependencies().size() == 9) {
-                args.inputs.push_back((memory_impl::cptr) &instance.dep_memory(5));
-                args.inputs.push_back((memory_impl::cptr) &instance.dep_memory(6));
-                args.inputs.push_back((memory_impl::cptr) &instance.dep_memory(7));
-                args.inputs.push_back((memory_impl::cptr) &instance.dep_memory(8));
+                args.inputs.push_back(instance.dep_memory_ptr(5));
+                args.inputs.push_back(instance.dep_memory_ptr(6));
+                args.inputs.push_back(instance.dep_memory_ptr(7));
+                args.inputs.push_back(instance.dep_memory_ptr(8));
             }
         }
-        args.output = (memory_impl::cptr) &instance.output_memory();
+        args.output = instance.output_memory_ptr();
         return args;
     }
 

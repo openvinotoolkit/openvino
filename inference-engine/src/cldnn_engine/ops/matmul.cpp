@@ -9,11 +9,11 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/fake_quantize.hpp"
 
-#include "api/gemm.hpp"
-#include "api/fully_connected.hpp"
-#include "api/reshape.hpp"
-#include "api/reorder.hpp"
-#include "api/permute.hpp"
+#include "cldnn/primitives/gemm.hpp"
+#include "cldnn/primitives/fully_connected.hpp"
+#include "cldnn/primitives/reshape.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/permute.hpp"
 
 namespace CLDNNPlugin {
 

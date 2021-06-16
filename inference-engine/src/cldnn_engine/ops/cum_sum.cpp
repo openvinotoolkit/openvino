@@ -8,7 +8,7 @@
 #include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/cum_sum.hpp"
+#include "cldnn/primitives/cum_sum.hpp"
 
 namespace CLDNNPlugin {
 

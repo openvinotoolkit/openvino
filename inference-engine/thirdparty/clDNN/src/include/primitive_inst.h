@@ -4,15 +4,15 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-
-#include "api/primitive.hpp"
-#include "api/concatenation.hpp"
-
-#include "event_impl.h"
-#include "memory_impl.h"
-#include "meta_utils.h"
+#include "cldnn/primitives/primitive.hpp"
+#include "cldnn/primitives/concatenation.hpp"
+#include "cldnn/runtime/error_handler.hpp"
+#include "cldnn/runtime/event.hpp"
+#include "cldnn/runtime/memory.hpp"
 #include "kernel_selector_helper.h"
+#include "meta_utils.h"
 #include "program_node.h"
+#include "primitive_type.h"
 
 #include <memory>
 #include <vector>
@@ -44,16 +44,17 @@ struct primitive_impl {
     virtual ~primitive_impl() = default;
 
     virtual void set_arguments(primitive_inst& instance) = 0;
-    virtual void cleanup(primitive_inst& instance) = 0;
-    virtual event_impl::ptr execute(const std::vector<event_impl::ptr>& events, primitive_inst& instance) = 0;
+    virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
     std::string get_kernel_name() const { return _kernel_name; }
     // TODO: added a derived class for weights reordering (maybe for all static data reordering)
     kernel_selector::weights_reorder_params _weights_reorder_params;
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
+    virtual void init_kernels() = 0;
+    virtual std::unique_ptr<primitive_impl> clone() const = 0;
 
-private:
+protected:
     std::string _kernel_name;
 };
 
@@ -74,8 +75,10 @@ public:
         return reinterpret_cast<std::vector<std::shared_ptr<const primitive_inst>> const&>(_deps);
     }
 
-    memory_impl& dep_memory(size_t index) const { return dependencies().at(index)->output_memory(); }
-    memory_impl& output_memory() const { return *_output; }
+    memory& dep_memory(size_t index) const { return dependencies().at(index)->output_memory(); }
+    memory::ptr dep_memory_ptr(size_t index) const { return dependencies().at(index)->output_memory_ptr(); }
+    memory& output_memory() const { return *_output; }
+    memory::ptr output_memory_ptr() const { return _output; }
     size_t inputs_memory_count() const { return _node.get_primitive()->input_size(); }
     primitive_type_id type() const { return _node.type(); }
     primitive_id id() const { return _node.id(); }
@@ -84,22 +87,28 @@ public:
     std::shared_ptr<const primitive> desc() const { return _node.get_primitive(); }
     network_impl& get_network() const { return _network; }
     uint32_t get_network_id() const;
-    void set_output_memory(memory_impl& mem);
-    void check_memory_to_set(const memory_impl& mem, const layout& layout) const;
+    void set_output_memory(memory::ptr mem);
+    void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node.get_users(); }
 
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
-    primitive_impl* get_impl() const { return _impl.get(); }
+    const primitive_impl* get_impl() const { return _impl.get(); }
 
-    memory_impl& input_memory(size_t index = 0) const {
+    memory& input_memory(size_t index = 0) const {
         if (index >= inputs_memory_count())
             throw std::range_error("input offset too big");
         return dep_memory(index);
     }
 
-    event_impl::ptr execute(const std::vector<event_impl::ptr>& events);
+    memory::ptr input_memory_ptr(size_t index = 0) const {
+        if (index >= inputs_memory_count())
+            throw std::range_error("input offset too big");
+        return dep_memory_ptr(index);
+    }
+
+    event::ptr execute(const std::vector<event::ptr>& events);
+    void init_kernels();
     void set_arguments();
-    void cleanup();
     bool validate() const {
         if (_impl == nullptr)
             throw std::invalid_argument("[Internal cldnn error].  Validation method for nullptr impl is not allowed.");
@@ -110,8 +119,8 @@ public:
 
     void build_deps();
 
-    memory_impl& fused_memory(size_t dep_id) const {
-        return dep_memory(get_fused_mem_offset() + dep_id);
+    memory::ptr fused_memory(size_t dep_id) const {
+        return dep_memory_ptr(get_fused_mem_offset() + dep_id);
     }
 
     bool has_fused_primitives() const { return !_node.get_fused_primitives().empty(); }
@@ -136,7 +145,7 @@ protected:
     network_impl& _network;
     program_node const& _node;
 
-    std::shared_ptr<primitive_impl> _impl;
+    std::unique_ptr<primitive_impl> _impl;
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
@@ -154,14 +163,14 @@ protected:
     // _output is optional because its initialization might be postponed (reshape_inst may either allocate it's own
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
-    memory_impl::ptr _output;
+    memory::ptr _output;
 
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
 
-    memory_impl::ptr allocate_output();
+    memory::ptr allocate_output();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
 
@@ -185,7 +194,7 @@ struct typed_primitive_impl : public primitive_impl {
     using primitive_impl::primitive_impl;
 
 private:
-    event_impl::ptr execute(const std::vector<refcounted_obj_ptr<event_impl>>& event,
+    event::ptr execute(const std::vector<event::ptr>& event,
                             primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
@@ -206,19 +215,9 @@ private:
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    void cleanup(primitive_inst& instance) override {
-        if (instance.type() != PType::type_id())
-            throw std::invalid_argument("Implementation type does not match primitive type");
-        if (instance.get_impl() != this)
-            throw std::invalid_argument(
-                "Trying to cleanup primitive implementation with mismatching primitive instance");
-
-        return cleanup_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
-    }
 
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
-    virtual void cleanup_impl(typed_primitive_inst<PType>& /*instance*/) {}
-    virtual event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& event,
+    virtual event::ptr execute_impl(const std::vector<event::ptr>& event,
                                          typed_primitive_inst<PType>& instance) = 0;
 
     bool validate(const primitive_inst& instance) const override {
@@ -233,13 +232,8 @@ private:
     virtual bool validate_impl(const typed_primitive_inst<PType>&) const { return true; }
 };
 
-namespace details {
 template <class PType>
-class api_typed_primitive_inst_base : public primitive_inst {
-    static_assert(meta::is_api_primitive<PType>::value,
-                  "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from "
-                  "cldnn::internal_primitive");
-
+class typed_primitive_inst_base : public primitive_inst {
 public:
     using typed_node = typed_program_node<PType>;
     using typed_impl = typed_primitive_impl<PType>;
@@ -247,16 +241,16 @@ public:
     const typed_node& node;
     const PType& argument;
 
-    api_typed_primitive_inst_base(network_impl& network, typed_node const& node)
-        : api_typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
+    typed_primitive_inst_base(network_impl& network, typed_node const& node)
+        : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
 protected:
-    api_typed_primitive_inst_base(network_impl& network, typed_node const& node, bool allocate_memory)
+    typed_primitive_inst_base(network_impl& network, typed_node const& node, bool allocate_memory)
         : primitive_inst(network, node, allocate_memory), node(_node), argument(*node.get_primitive()) {}
 
-    api_typed_primitive_inst_base(network_impl& network, typed_node const& node, memory_impl& buffer)
-        : api_typed_primitive_inst_base(network, node, false) {
-        _output = (memory_impl::ptr) &buffer;
+    typed_primitive_inst_base(network_impl& network, typed_node const& node, memory::ptr buffer)
+        : typed_primitive_inst_base(network, node, false) {
+        _output = buffer;
     }
 
 private:
@@ -268,48 +262,6 @@ private:
         return true;
     }
 };
-
-template <class PType>
-class internal_typed_primitive_inst_base : public primitive_inst {
-    static_assert(meta::is_internal_primitive<PType>::value,
-                  "PType should name a non-const, non-volatile type derived from cldnn::internal_primitive");
-
-public:
-    using typed_node = typed_program_node<PType>;
-    using typed_impl = typed_primitive_impl<PType>;
-
-    const typed_node& node;
-
-    internal_typed_primitive_inst_base(network_impl& network, typed_node const& node)
-        : internal_typed_primitive_inst_base(
-              network,
-              node,
-              false)  // by default, do not allocate output buffer automatically for internal primitives
-    {}
-
-    template <class... Guard>
-    [[noreturn]] void desc(Guard&&...) const {
-        static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
-    }
-
-protected:
-    internal_typed_primitive_inst_base(network_impl& network, typed_node const& node, bool allocate_memory)
-        : primitive_inst(network, node, allocate_memory), node(_node) {}
-
-    internal_typed_primitive_inst_base(network_impl& network, typed_node const& node, memory_impl::ptr buffer)
-        : internal_typed_primitive_inst_base(network, node, false) {
-        _output = buffer;
-    }
-};
-}  // namespace details
-
-/*
-    Base class for all concrete primitive instances.
-*/
-template <class PType>
-using typed_primitive_inst_base = typename std::conditional<meta::is_api_primitive<PType>::value,
-                                                            details::api_typed_primitive_inst_base<PType>,
-                                                            details::internal_typed_primitive_inst_base<PType>>::type;
 
 /*
     Template class which represents instance of primitive 'PType'.
@@ -329,15 +281,5 @@ template <class PType>
 class typed_primitive_inst : public typed_primitive_inst_base<PType> {
     static_assert(meta::always_false<PType>::value, "Missing typed_primitive_inst specialization");
 };
-
-#define CLDNN_DEFINE_SIMPLE_PRIM_INST(PType)                                       \
-    template <>                                                                    \
-    struct typed_primitive_inst<PType> : public typed_primitive_inst_base<PType> { \
-        using typed_primitive_inst_base<PType>::typed_primitive_inst_base;         \
-        static std::string to_string(PType##_node const& arg) {                    \
-            return primitive_inst::generic_to_string(arg, #PType);                 \
-        }                                                                          \
-    };                                                                             \
-    using PType##_inst = typed_primitive_inst<PType>;
 
 }  // namespace cldnn

@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/lstm.hpp"
+#include "cldnn/primitives/lstm.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <vector>
 
@@ -51,14 +52,14 @@ public:
 public:
     typed_primitive_inst(network_impl& network, lstm_node const& node);
 
-    memory_impl& weights_memory() const { return dep_memory(1); }
-    memory_impl& recurrent_memory() const { return dep_memory(2); }
-    memory_impl& bias_memory() const { return dep_memory(3); }
-    memory_impl& initial_hidden_memory() const { return dep_memory(bias_term() ? 4 : 3); }
-    memory_impl& initial_cell_memory() const {
+    memory& weights_memory() const { return dep_memory(1); }
+    memory& recurrent_memory() const { return dep_memory(2); }
+    memory& bias_memory() const { return dep_memory(3); }
+    memory& initial_hidden_memory() const { return dep_memory(bias_term() ? 4 : 3); }
+    memory& initial_cell_memory() const {
         return dep_memory(bias_term() ? (initial_hidden_term() ? 5 : 4) : (initial_hidden_term() ? 4 : 2));
     }
-    memory_impl& peepholes_memory() const { return dep_memory(6); }
+    memory& peepholes_memory() const { return dep_memory(6); }
     bool bias_term() const { return !argument.bias.empty(); }
     bool peepholes_term() const { return !argument.peepholes.empty(); }
     bool initial_hidden_term() const { return !argument.initial_hidden.empty(); }

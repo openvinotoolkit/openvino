@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/arg_max_min.hpp"
+#include "cldnn/primitives/arg_max_min.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

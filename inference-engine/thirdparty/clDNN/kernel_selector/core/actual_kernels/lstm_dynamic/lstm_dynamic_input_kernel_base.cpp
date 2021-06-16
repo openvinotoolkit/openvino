@@ -36,12 +36,12 @@ LSTM_DynamicInputKernelBase::DispatchData LSTM_DynamicInputKernelBase::SetDefaul
 }
 
 void kernel_selector::LSTM_DynamicInputKernelBase::SetKernelArguments(const lstm_dynamic_input_params& params, clKernelData& kernel) const {
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 0 });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::WEIGHTS, 0 });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 0 });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::WEIGHTS, 0 });
     if (!params.bias.empty()) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::BIAS, 0 });
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::BIAS, 0 });
     }
 }
 
@@ -61,8 +61,8 @@ KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& para
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    kernel.workGroups.global = dispatchData.gws;
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(orgParams, kernel);
 
     return {k_data};

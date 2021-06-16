@@ -4,15 +4,14 @@
 
 #pragma once
 
+#include "cldnn/primitives/primitive.hpp"
+#include "cldnn/primitives/activation.hpp"
+
+#include "kernel_selector_helper.h"
+#include "meta_utils.h"
+
 #include <set>
 #include <array>
-
-#include "api/primitive.hpp"
-#include "api/activation.hpp"
-#include "internal_primitive.h"
-#include "kernel_selector_helper.h"
-
-#include "meta_utils.h"
 #include <vector>
 #include <memory>
 #include <list>
@@ -21,6 +20,7 @@
 namespace cldnn {
 
 struct program_impl;
+struct primitive_impl;
 class reorder_inputs;
 class graph_initializations;
 class prepare_quantization;
@@ -28,9 +28,6 @@ class pre_replace_deconv;
 
 template <class T>
 struct typed_program_node;
-
-template <class PType>
-struct internal_primitive_type_base;
 
 class json_composite;
 class xml_composite;
@@ -92,10 +89,10 @@ public:
     }
 
     program_impl& get_program() { return myprog; }
-    program_impl const& get_program() const { return myprog; }
+    program_impl& get_program() const { return myprog; }
 
-    std::shared_ptr<primitive_impl> get_selected_impl() const { return selected_impl; }
-    void set_selected_impl(std::shared_ptr<primitive_impl> impl) { selected_impl = impl; }
+    primitive_impl* get_selected_impl() const { return selected_impl.get(); }
+    void set_selected_impl(std::unique_ptr<primitive_impl> impl);
 
     std::vector<program_node*> const& get_dependencies() const { return dependencies; }
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
@@ -312,7 +309,7 @@ protected:
     std::shared_ptr<primitive> desc;
     program_impl& myprog;
 
-    std::shared_ptr<primitive_impl> selected_impl;
+    std::unique_ptr<primitive_impl> selected_impl;
 
     bool valid_output_layout = false;
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
@@ -353,12 +350,16 @@ protected:
     void invalidate_users() const;
 };
 
-namespace details {
+/*
+Template class used to indicate that usage context requires 'program_node' to wrap primitive
+of type 'PType'. Successful conversion from 'program_node' to 'typed_program_node<PType>' means
+that this restriction in fact holds and functions/method/etc. may saftly use uderlaying primitive.
+
+This class shadows 'get_primitive' method from base class which now returns pointer to more specific
+type.
+*/
 template <class PType>
-struct api_typed_program_node_base : public program_node {
-    static_assert(meta::is_api_primitive<PType>::value,
-                  "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from "
-                  "cldnn::internal_primitive");
+struct typed_program_node_base : public program_node {
     friend class cldnn::graph_initializations;
     friend class cldnn::pre_replace_deconv;
     friend class cldnn::prepare_quantization;
@@ -375,57 +376,6 @@ public:
 protected:
     std::shared_ptr<PType> typed_desc() const { return std::static_pointer_cast<PType>(desc); }
 };
-
-struct internal_program_node_base : public program_node {
-    friend struct cldnn::program_impl;
-
-    explicit internal_program_node_base(program_impl& prog);
-
-    const primitive_id& id() const override { return internal_id; }
-
-    void set_implementation(std::unique_ptr<primitive_impl>&& impl);
-
-private:
-    primitive_id internal_id;
-
-    static primitive_id get_next_internal_id();
-};
-
-template <class PType>
-struct internal_typed_program_node_base : public internal_program_node_base {
-    static_assert(meta::is_internal_primitive<PType>::value,
-                  "PType should name a non-const, non-volatile type derived from cldnn::internal_primitive");
-
-public:
-    using internal_program_node_base::internal_program_node_base;
-
-    primitive_type_id type() const override { return PType::type_id(); }
-
-    template <class... Guard>
-    [[noreturn]] void get_primitive(Guard&&...) {
-        static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
-    }
-
-protected:
-    template <class... Guard>
-    [[noreturn]] void typed_desc(Guard&&...) {
-        static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
-    }
-};
-}  // namespace details
-
-/*
-Template class used to indicate that usage context requires 'program_node' to wrap primitive
-of type 'PType'. Successful conversion from 'program_node' to 'typed_program_node<PType>' means
-that this restriction in fact holds and functions/method/etc. may saftly use uderlaying primitive.
-
-This class shadows 'get_primitive' method from base class which now returns pointer to more specific
-type.
-*/
-template <class PType>
-using typed_program_node_base = typename std::conditional<meta::is_api_primitive<PType>::value,
-                                                          details::api_typed_program_node_base<PType>,
-                                                          details::internal_typed_program_node_base<PType>>::type;
 
 /*
     Actual template class used in context which requires 'program_node' to wrap

@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "scatter_update/scatter_update_kernel_selector.h"
 #include "scatter_update/scatter_update_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
@@ -37,6 +37,10 @@ kernel_selector::scatter_update_axis convert_axis(scatter_update::scatter_update
 struct scatter_update_gpu : typed_primitive_gpu_impl<scatter_update> {
     using parent = typed_primitive_gpu_impl<scatter_update>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<scatter_update_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const scatter_update_node& arg) {

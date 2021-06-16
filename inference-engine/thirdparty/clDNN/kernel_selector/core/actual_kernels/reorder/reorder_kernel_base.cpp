@@ -206,7 +206,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
-    kernel.arguments = GetArgsDesc(1, false, false);
+    kernel.params.arguments = GetArgsDesc(1, false, false);
 
     return {kd};
 }
@@ -230,9 +230,9 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
-    kernel.arguments = GetArgsDesc(1, false, false);
+    kernel.params.arguments = GetArgsDesc(1, false, false);
     if (newParams.mode == MeanSubtractMode::IN_BUFFER) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }
 
     return {kd};

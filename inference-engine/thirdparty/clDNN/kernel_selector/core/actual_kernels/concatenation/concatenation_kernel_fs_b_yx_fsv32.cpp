@@ -108,17 +108,17 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, optParams);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
-        kernel.workGroups.global = dispatchData.gws;
-        kernel.workGroups.local = dispatchData.lws;
-        kernel.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
+        kernel.params.workGroups.global = dispatchData.gws;
+        kernel.params.workGroups.local = dispatchData.lws;
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         ScalarDescriptor s;
         s.t = ScalarDescriptor::Types::UINT32;
         s.v.u32 = lastOffset;
-        kernel.scalars.push_back(s);
-        kernel.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        kernel.params.scalars.push_back(s);
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
     }

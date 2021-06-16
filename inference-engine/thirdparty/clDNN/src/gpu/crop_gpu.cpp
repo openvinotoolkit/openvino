@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -16,6 +16,10 @@ namespace gpu {
 struct crop_gpu : typed_primitive_gpu_impl<crop> {
     using parent = typed_primitive_gpu_impl<crop>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<crop_gpu>(*this);
+    }
 
 protected:
     bool optimized_out(crop_inst& instance) const override {

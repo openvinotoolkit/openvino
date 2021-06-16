@@ -5,7 +5,7 @@
 #include "average_unpooling_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "average_unpooling/average_unpooling_kernel_selector.h"
 #include "average_unpooling/average_unpooling_kernel_base.h"
@@ -17,10 +17,13 @@ struct average_unpooling_gpu : typed_primitive_gpu_impl<average_unpooling> {
     using parent = typed_primitive_gpu_impl<average_unpooling>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<average_unpooling_gpu>(*this);
+    }
+
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<average_unpooling>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<average_unpooling>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
         return args;
     }
 

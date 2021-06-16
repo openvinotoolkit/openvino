@@ -5,7 +5,7 @@
 #include "extract_image_patches_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 
 #include "extract_image_patches/extract_image_patches_kernel_selector.h"
@@ -17,6 +17,10 @@ namespace gpu {
 struct extract_image_patches_gpu : typed_primitive_gpu_impl<extract_image_patches> {
     using parent = typed_primitive_gpu_impl<extract_image_patches>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<extract_image_patches_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const extract_image_patches_node& arg) {

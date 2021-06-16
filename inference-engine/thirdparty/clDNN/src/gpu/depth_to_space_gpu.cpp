@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "depth_to_space/depth_to_space_kernel_selector.h"
 #include "depth_to_space/depth_to_space_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "common_types.h"
 
 using namespace cldnn;
@@ -18,6 +18,10 @@ namespace gpu {
 struct depth_to_space_gpu : typed_primitive_gpu_impl<depth_to_space> {
     using parent = typed_primitive_gpu_impl<depth_to_space>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<depth_to_space_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const depth_to_space_node& arg) {

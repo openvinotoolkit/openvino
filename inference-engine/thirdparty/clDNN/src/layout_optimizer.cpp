@@ -6,7 +6,7 @@
 #include "topology_impl.h"
 #include "network_impl.h"
 #include "primitive_inst.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 #include "data_inst.h"
 #include "reorder_inst.h"

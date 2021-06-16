@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/average_unpooling.hpp"
+#include "cldnn/primitives/average_unpooling.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

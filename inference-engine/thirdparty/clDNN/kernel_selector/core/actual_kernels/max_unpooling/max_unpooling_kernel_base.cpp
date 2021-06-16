@@ -70,7 +70,7 @@ KernelsData MaxUnpoolingKernelBase::GetCommonKernelsData(const Params& params,
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
-    kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
 
     return {kd};
 }

@@ -4,8 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/split.hpp"
+
+#include "cldnn/primitives/split.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

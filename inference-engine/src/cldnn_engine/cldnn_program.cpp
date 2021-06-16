@@ -92,7 +92,7 @@ bool Program::CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops,
     return true;
 }
 
-Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config, bool createTopologyOnly)
+Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, bool createTopologyOnly)
     : m_config(config)
     , m_engine(engine)
     , m_curBatch(-1)
@@ -128,11 +128,9 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
 
             ChangeInputBatch(1U << static_cast<unsigned>(b));
             m_programs.insert(m_programs.begin(), BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly));
-            m_engine->release_pending_memory(0);
         }
     } else {
         m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly));
-        m_engine->release_pending_memory(0);
     }
 }
 

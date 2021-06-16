@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "gather/gather_kernel_selector.h"
 #include "gather/gather_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
@@ -36,6 +36,10 @@ kernel_selector::gather_axis convert_axis(gather::gather_axis axis) {
 struct gather_gpu : typed_primitive_gpu_impl<gather> {
     using parent = typed_primitive_gpu_impl<gather>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<gather_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const gather_node& arg) {

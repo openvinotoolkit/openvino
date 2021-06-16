@@ -5,7 +5,7 @@
 #include "fused_conv_eltwise_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "fused_conv_eltwise/fused_conv_eltwise_kernel_selector.h"
@@ -19,6 +19,10 @@ namespace gpu {
 struct fused_conv_eltwise_gpu : typed_primitive_gpu_impl<fused_conv_eltwise> {
     using parent = typed_primitive_gpu_impl<fused_conv_eltwise>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<fused_conv_eltwise_gpu>(*this);
+    }
 
 protected:
     bool validate_impl(const typed_primitive_inst<fused_conv_eltwise>& instance) const override {
@@ -36,12 +40,11 @@ protected:
         return res;
     }
 
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<fused_conv_eltwise>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<fused_conv_eltwise>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
 
-        args.weights = (memory_impl::cptr) &instance.weights_memory(split);
-        args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory(split) : nullptr);
+        args.weights = instance.weights_memory(split);
+        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
         return args;
     }
 

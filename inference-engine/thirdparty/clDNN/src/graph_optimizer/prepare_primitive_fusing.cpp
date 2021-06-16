@@ -4,13 +4,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/pooling.hpp"
-#include "api/proposal.hpp"
-#include "api/roi_pooling.hpp"
-
 #include "program_helpers.h"
 #include "pass_manager.h"
 
+#include "pooling_inst.h"
+#include "proposal_inst.h"
+#include "roi_pooling_inst.h"
 #include "quantize_inst.h"
 #include "binary_convolution_inst.h"
 #include "activation_inst.h"
@@ -51,7 +50,7 @@
 #include <string>
 #include <utility>
 #include <deque>
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 void prepare_primitive_fusing::run(program_impl& p) {
     fuse_reorders(p);
@@ -1334,23 +1333,15 @@ void prepare_conv_eltw_read_write_opt::conv_eltwise_read_write_opt(program_impl&
     // buffer shared between primitives, if second input is mutable data, then we can reuse this memory
     auto shared_buffer_mem = second_input_node->is_type<mutable_data>()
                                  ? second_input_node->as<mutable_data>().get_attached_memory_ptr()
-                                 : p.get_engine().allocate_memory(node->get_output_layout(), 0);
-
-    float zero = 0.0f;
-    layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
+                                 : p.get_engine().allocate_memory(node->get_output_layout());
 
     // this one is the first one to write data to
-    auto rw_output_prim0 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_use",
-                                                          memory::attach(dummy_layout, &zero, 1));
+    auto rw_output_prim0 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_use", shared_buffer_mem);
     // this one already expects data to be inside
-    auto rw_output_prim1 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_reuse",
-                                                          memory::attach(dummy_layout, &zero, 1));
+    auto rw_output_prim1 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_reuse", shared_buffer_mem);
 
     auto& rw_output_node0 = p.get_or_create(rw_output_prim0);
     auto& rw_output_node1 = p.get_or_create(rw_output_prim1);
-
-    rw_output_node0.as<mutable_data>().attach_memory(*shared_buffer_mem, false);
-    rw_output_node1.as<mutable_data>().attach_memory(*shared_buffer_mem, false);
 
     // add connection between second input node -> rw_output_node0 -> node
     p.add_intermediate(rw_output_node0, *node, 1, true);

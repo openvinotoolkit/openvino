@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "reverse_sequence/reverse_sequence_kernel_selector.h"
 #include "reverse_sequence/reverse_sequence_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
@@ -17,6 +17,10 @@ namespace gpu {
 struct reverse_sequence_gpu : typed_primitive_gpu_impl<reverse_sequence> {
     using parent = typed_primitive_gpu_impl<reverse_sequence>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<reverse_sequence_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const reverse_sequence_node& arg) {

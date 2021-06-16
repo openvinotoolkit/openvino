@@ -9,7 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "border/border_kernel_selector.h"
 #include "border/border_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -17,6 +17,10 @@ namespace gpu {
 struct border_gpu : typed_primitive_gpu_impl<border> {
     using parent = typed_primitive_gpu_impl<border>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<border_gpu>(*this);
+    }
 
     static primitive_impl* create(const border_node& arg) {
         auto b_params = get_default_params<kernel_selector::border_params>(arg, 1);

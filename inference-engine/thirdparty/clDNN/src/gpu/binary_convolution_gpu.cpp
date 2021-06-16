@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <api/scale.hpp>
-#include <api/quantize.hpp>
+#include "cldnn/primitives/scale.hpp"
+#include "cldnn/primitives/quantize.hpp"
 #include "binary_convolution_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "kernel_selector/core/actual_kernels/binary_convolution/binary_convolution_kernel_selector.h"
@@ -21,6 +21,10 @@ namespace gpu {
 struct binary_convolution_gpu : typed_primitive_gpu_impl<binary_convolution> {
     using parent = typed_primitive_gpu_impl<binary_convolution>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<binary_convolution_gpu>(*this);
+    }
 
 protected:
     bool validate_impl(const typed_primitive_inst<binary_convolution>& instance) const override {
@@ -40,17 +44,16 @@ protected:
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.weights_memory(0).get_layout().data_type,
+                                                    instance.weights_memory(0)->get_layout().data_type,
                                                     "");
 
         return res;
     }
 
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<binary_convolution>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<binary_convolution>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
 
-        args.weights = (memory_impl::cptr) &instance.weights_memory(split);
+        args.weights = instance.weights_memory(split);
         return args;
     }
 

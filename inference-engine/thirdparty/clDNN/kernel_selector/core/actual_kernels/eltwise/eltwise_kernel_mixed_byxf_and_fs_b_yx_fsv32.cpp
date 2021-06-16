@@ -131,12 +131,12 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
 
     // in fs_b_yx_fsv32 format we will process 2 features per work item, so reads/writes are done in full writes for
     // fp16
-    kernel.workGroups.global = {x, y, (featuresRoundedUp * batches) / 2};
+    kernel.params.workGroups.global = {x, y, (featuresRoundedUp * batches) / 2};
 
-    kernel.workGroups.local = {1, 1, 16};
+    kernel.params.workGroups.local = {1, 1, 16};
 
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
     return {kd};
 }

@@ -3,12 +3,15 @@
 //
 
 #pragma once
+
+#include "cldnn/runtime/tensor.hpp"
+#include "cldnn/runtime/layout.hpp"
+#include "cldnn/runtime/device.hpp"
+#include "cldnn/primitives/primitive.hpp"
+
+
 #include <string>
 #include <sstream>
-#include "api/tensor.hpp"
-#include "api/layout.hpp"
-#include "api/primitive.hpp"
-#include "device_impl.h"
 #include <memory>
 
 namespace cldnn {

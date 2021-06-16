@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "cum_sum/cum_sum_kernel_selector.h"
 #include "cum_sum/cum_sum_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
@@ -39,6 +39,10 @@ kernel_selector::cum_sum_axis convert_axis(cum_sum::cum_sum_axis axis) {
 struct cum_sum_gpu : typed_primitive_gpu_impl<cum_sum> {
     using parent = typed_primitive_gpu_impl<cum_sum>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<cum_sum_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const cum_sum_node& arg) {

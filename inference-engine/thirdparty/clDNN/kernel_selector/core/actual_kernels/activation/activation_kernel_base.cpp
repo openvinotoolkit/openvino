@@ -81,7 +81,7 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     if (!newParams.inputActivationParams.empty()) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
     }
 
     return {kd};

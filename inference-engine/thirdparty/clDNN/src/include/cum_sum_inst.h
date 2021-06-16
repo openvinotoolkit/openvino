@@ -4,8 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/cum_sum.hpp"
-
+#include "cldnn/primitives/cum_sum.hpp"
 #include "primitive_inst.h"
 
 namespace cldnn {

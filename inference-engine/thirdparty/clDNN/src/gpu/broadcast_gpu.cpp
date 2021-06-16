@@ -9,7 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "broadcast/broadcast_kernel_selector.h"
 #include "broadcast/broadcast_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -17,6 +17,10 @@ namespace gpu {
 struct broadcast_gpu : typed_primitive_gpu_impl<broadcast> {
     using parent = typed_primitive_gpu_impl<broadcast>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<broadcast_gpu>(*this);
+    }
 
     static primitive_impl* create(const broadcast_node& arg) {
         auto bc_params = get_default_params<kernel_selector::broadcast_params>(arg, 1);

@@ -7,7 +7,7 @@
 #include "kernel_selector_helper.h"
 #include "pyramid_roi_align/pyramid_roi_align_kernel_selector.h"
 #include "pyramid_roi_align/pyramid_roi_align_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "pyramid_roi_align_inst.h"
 #include "network_impl.h"
 
@@ -19,6 +19,10 @@ namespace gpu {
 struct pyramid_roi_align_gpu : typed_primitive_gpu_impl<pyramid_roi_align> {
     using parent = typed_primitive_gpu_impl<pyramid_roi_align>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<pyramid_roi_align_gpu>(*this);
+    }
 
     static primitive_impl* create(const pyramid_roi_align_node& arg) {
         auto prim = arg.get_primitive();

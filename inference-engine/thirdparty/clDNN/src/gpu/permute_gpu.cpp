@@ -5,7 +5,7 @@
 #include "permute_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "permute/permute_kernel_selector.h"
 #include "permute/permute_kernel_ref.h"
@@ -18,6 +18,10 @@ namespace gpu {
 struct permute_gpu : typed_primitive_gpu_impl<permute> {
     using parent = typed_primitive_gpu_impl<permute>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<permute_gpu>(*this);
+    }
 
     static primitive_impl* create(const permute_node& arg) {
         auto permute_params = get_default_params<kernel_selector::permute_params>(arg);

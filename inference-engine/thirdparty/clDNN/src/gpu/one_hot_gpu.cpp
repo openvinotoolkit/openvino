@@ -9,7 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "one_hot/one_hot_kernel_selector.h"
 #include "one_hot/one_hot_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include <vector>
 
 namespace cldnn {
@@ -18,6 +18,10 @@ namespace gpu {
 struct one_hot_gpu : typed_primitive_gpu_impl<one_hot> {
     using parent = typed_primitive_gpu_impl<one_hot>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<one_hot_gpu>(*this);
+    }
 
     static primitive_impl* create(const one_hot_node& arg) {
         auto oh_params = get_default_params<kernel_selector::one_hot_params>(arg, 1);

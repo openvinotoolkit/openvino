@@ -7,7 +7,7 @@
 
 #include "ngraph/op/grn.hpp"
 
-#include "api/grn.hpp"
+#include "cldnn/primitives/grn.hpp"
 
 namespace CLDNNPlugin {
 

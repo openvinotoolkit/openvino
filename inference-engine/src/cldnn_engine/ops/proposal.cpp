@@ -7,8 +7,8 @@
 
 #include "ngraph/op/proposal.hpp"
 
-#include "api/proposal.hpp"
-#include "api/mutable_data.hpp"
+#include "cldnn/primitives/proposal.hpp"
+#include "cldnn/primitives/mutable_data.hpp"
 
 namespace CLDNNPlugin {
 
@@ -62,7 +62,7 @@ void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal
                                                     DefaultFormatForDims(op->get_output_shape(1).size()),
                                                     CldnnTensorFromIEDims(op->get_output_shape(1)));
 
-        auto shared_memory = cldnn::memory::allocate(p.GetEngine(), mutableLayout);
+        auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
 
         cldnn::primitive_id proposal_mutable_id_w = layer_type_name_ID(op) + "_md_write";
         auto argmax_mutable_prim = cldnn::mutable_data(proposal_mutable_id_w, shared_memory);

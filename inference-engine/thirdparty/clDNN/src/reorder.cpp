@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "reorder_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 
 #include <algorithm>
@@ -235,7 +235,7 @@ void reorder_inst::reuse_input() {
     if (node.requires_reinterpret()) {
         _output = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
     } else {
-        _output = (memory_impl::ptr) &input_memory();
+        _output = input_memory_ptr();
     }
 }
 

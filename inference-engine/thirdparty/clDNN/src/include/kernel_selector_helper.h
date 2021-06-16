@@ -4,17 +4,17 @@
 
 #pragma once
 
-#include "api/cldnn.hpp"
-#include "api/tensor.hpp"
-#include "api/eltwise.hpp"
-#include "api/scale.hpp"
-#include "api/quantize.hpp"
-#include "api/activation.hpp"
+#include "cldnn/runtime/utils.hpp"
+#include "cldnn/runtime/tensor.hpp"
+#include "cldnn/runtime/error_handler.hpp"
+#include "cldnn/primitives/eltwise.hpp"
+#include "cldnn/primitives/scale.hpp"
+#include "cldnn/primitives/quantize.hpp"
+#include "cldnn/primitives/activation.hpp"
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
-#include "error_handler.h"
 
 #include <cstdint>
 #include <string>

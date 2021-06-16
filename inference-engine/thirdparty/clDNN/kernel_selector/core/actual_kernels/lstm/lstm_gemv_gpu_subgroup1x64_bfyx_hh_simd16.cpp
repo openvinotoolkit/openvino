@@ -36,7 +36,7 @@ KernelsData LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::GetKernelsData(const Par
     const auto& out = orgParams.output;
 
     if ((input.Batch().v == 1) && (input.X().v >= 64) && (input.Y().v == 1))
-        kernel.workGroups.global = {16, out.X().v, out.Batch().v};
+        kernel.params.workGroups.global = {16, out.X().v, out.Batch().v};
 
     return kernelsData;
 }

@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/scatter_update.hpp"
+#include "cldnn/primitives/scatter_update.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

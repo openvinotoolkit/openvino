@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <list>
-#include <set>
-#include <unordered_set>
 
 #include "ie_metric_helpers.hpp"
-#include <api/cldnn.hpp>
-#include <api/data.hpp>
+#include <chrono>
+#include <cmath>
+#include <algorithm>
+
+#include "ie_metric_helpers.hpp"
 #include <chrono>
 #include <cmath>
 #include <algorithm>
@@ -26,7 +26,6 @@
 #include "cldnn_executable_network.h"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
-
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;

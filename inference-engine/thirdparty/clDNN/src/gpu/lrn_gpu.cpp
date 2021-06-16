@@ -5,7 +5,7 @@
 #include "lrn_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "lrn/lrn_kernel_selector.h"
 #include "lrn/lrn_kernel_base.h"
@@ -16,6 +16,10 @@ namespace gpu {
 struct lrn_gpu : typed_primitive_gpu_impl<lrn> {
     using parent = typed_primitive_gpu_impl<lrn>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<lrn_gpu>(*this);
+    }
 
     static primitive_impl* create(const lrn_node& arg) {
         auto lrn_params = get_default_params<kernel_selector::lrn_params>(arg);

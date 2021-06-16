@@ -4,8 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/tile.hpp"
+
+#include "cldnn/primitives/tile.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

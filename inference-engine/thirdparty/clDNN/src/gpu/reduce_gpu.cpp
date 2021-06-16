@@ -9,7 +9,7 @@
 #include "reduce/reduce_kernel_selector.h"
 #include "reduce/reduce_kernel_ref.h"
 #include "reduce/reduce_kernel_b_fs_yx_fsv16.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "data_inst.h"
 
 using namespace cldnn;
@@ -52,6 +52,10 @@ kernel_selector::reduce_mode cldnn_2_reduce_mode(reduce_mode mode) {
 struct reduce_gpu : typed_primitive_gpu_impl<reduce> {
     using parent = typed_primitive_gpu_impl<reduce>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<reduce_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const reduce_node& arg) {

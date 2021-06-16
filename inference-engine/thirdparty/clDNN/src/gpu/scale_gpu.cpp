@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
@@ -19,14 +19,18 @@ struct scale_gpu : typed_primitive_gpu_impl<scale> {
     using parent = typed_primitive_gpu_impl<scale>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<scale_gpu>(*this);
+    }
+
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
-        args.inputs = {(memory_impl::cptr) &instance.input_memory(), (memory_impl::cptr) &instance.scale_memory()};
-        args.output = (memory_impl::cptr) &instance.output_memory();
+    kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+        args.inputs = {instance.input_memory_ptr(), instance.scale_memory()};
+        args.output = instance.output_memory_ptr();
 
         if (_outer.bias_term()) {
-            args.inputs.push_back((memory_impl::cptr) &instance.bias_memory());
+            args.inputs.push_back(instance.bias_memory());
         }
         return args;
     }

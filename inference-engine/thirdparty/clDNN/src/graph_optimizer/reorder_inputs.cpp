@@ -4,13 +4,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/binary_convolution.hpp"
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
 #include "program_impl.h"
 #include "program_helpers.h"
+#include "binary_convolution_inst.h"
 #include "mvn_inst.h"
+
 #include <vector>
 #include <memory>
 #include <list>

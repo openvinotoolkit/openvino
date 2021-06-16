@@ -8,7 +8,7 @@
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/permute.hpp"
+#include "cldnn/primitives/permute.hpp"
 
 namespace CLDNNPlugin {
 

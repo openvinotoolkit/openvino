@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "tile/tile_kernel_selector.h"
 #include "tile/tile_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
@@ -18,6 +18,10 @@ namespace gpu {
 struct tile_gpu : typed_primitive_gpu_impl<tile> {
     using parent = typed_primitive_gpu_impl<tile>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<tile_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const tile_node& arg) {
