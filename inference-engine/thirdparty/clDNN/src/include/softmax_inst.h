@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/softmax.hpp"
+#include "cldnn/primitives/softmax.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
