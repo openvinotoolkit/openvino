@@ -89,7 +89,7 @@ private:
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 
     MKLDNNEdgePtr getBaseEdge(int look = LOOK_BOTH);
-    bool inPlace(LOOK look = LOOK_BOTH);
+    bool inPlace(LOOK look = LOOK_BOTH) const;
     friend class MKLDNNGraph;
 };
 
