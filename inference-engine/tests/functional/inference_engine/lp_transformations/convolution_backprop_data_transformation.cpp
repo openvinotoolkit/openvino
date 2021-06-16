@@ -19,6 +19,7 @@
 #include "simple_low_precision_transformer.hpp"
 #include "lpt_ngraph_functions/convolution_backprop_data_function.hpp"
 
+namespace {
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -71,7 +72,7 @@ public:
 
 typedef std::tuple<
         element::Type,
-        ngraph::Shape,
+        ngraph::PartialShape,
         ConvolutionBackpropDataTransformationTestValues> ConvolutionBackpropDataTransformationParams;
 
 class ConvolutionBackpropDataTransformation : public LayerTransformation, public testing::WithParamInterface<ConvolutionBackpropDataTransformationParams> {
@@ -79,18 +80,27 @@ public:
     void SetUp() override {
         const auto netPrecision = std::get<0>(GetParam());
         const auto inputShape = std::get<1>(GetParam());
-        auto outputShape = inputShape;
+        auto testValues = std::get<2>(GetParam());
+
+        ngraph::Shape outputShape;
+        if (inputShape.is_static()) {
+            outputShape = inputShape.to_shape();
+        } else {
+            outputShape = ngraph::Shape({ 1, 8, 16, 16 });
+        }
         outputShape[1] /= 4;
         outputShape[2] *= 2;
         outputShape[3] *= 2;
-        auto testValues = std::get<2>(GetParam());
+
+        bool channelsIsDynamic = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
+        const size_t inputChannels = channelsIsDynamic ? 8ul : static_cast<size_t>(inputShape[1].get_length());
 
         std::shared_ptr<Node> actualWeights = pass::low_precision::fold<opset1::Broadcast>(
                 testValues.actual.weights,
                 opset1::Constant::create(
                         element::i64,
-                        Shape{inputShape.size()},
-                        Shape{inputShape[1], outputShape[1], 1, 1}));
+                        Shape{ outputShape.size() },
+                        Shape{ inputChannels, outputShape[1], 1, 1 }));
         if (!testValues.actual.fakeQuantizeOnWeights.empty()) {
             actualWeights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
                     outputShape,
@@ -121,8 +131,8 @@ public:
                 testValues.expected.weights,
                 opset1::Constant::create(
                         element::i64,
-                        Shape{inputShape.size()},
-                        Shape{inputShape[1], outputShape[1], 1, 1}));
+                        Shape{ outputShape.size() },
+                        Shape{ inputChannels, outputShape[1], 1, 1 }));
 
         if (!testValues.expected.transformed) {
             refWeights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
@@ -174,12 +184,14 @@ TEST_P(ConvolutionBackpropDataTransformation, CompareFunctions) {
 }
 
 const std::vector<element::Type> netPrecisions = {
-        element::f32,
-        element::f16
+    element::f32,
+    element::f16
 };
 
-const std::vector<ngraph::Shape> shapes = {
-        ngraph::Shape({ 1, 8, 16, 16 })
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> shapes = {
+    { 1, 8, 16, 16 },
+    { Dimension::dynamic(), 8, Dimension::dynamic(), Dimension::dynamic() }
 };
 
 const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = {
@@ -453,3 +465,43 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(shapes),
     ::testing::ValuesIn(testValues)),
     ConvolutionBackpropDataTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
+    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+    PartialShape::dynamic()
+};
+
+const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            {{ngraph::element::f32}, {}, { 0.01f }},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            {},
+            {},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 0.02f }),
+            true
+        }
+    },
+};
+
+INSTANTIATE_TEST_CASE_P(
+    smoke_LPT,
+    ConvolutionBackpropDataTransformation,
+    ::testing::Combine(
+    ::testing::ValuesIn(netPrecisions),
+    ::testing::ValuesIn(shapesWithDynamicChannels),
+    ::testing::ValuesIn(testValues)),
+    ConvolutionBackpropDataTransformation::getTestCaseName);
+} // namespace testValues2
+} // namespace
