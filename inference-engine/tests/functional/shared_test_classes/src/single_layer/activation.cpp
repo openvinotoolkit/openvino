@@ -218,7 +218,7 @@ void ActivationDynamicLayerTest::Run() {
 
     // make each parameter dimension dynamic with range {1 .. prev_dim * 2}
     for (const auto& parameter : params) {
-        auto& dynamic_pshape = parameter->get_partial_shape();
+        auto dynamic_pshape = parameter->get_partial_shape();
         NGRAPH_CHECK(dynamic_pshape.rank().is_static(),
                      "tests are not prepared to work with dynamically ranked inputs");
         for (size_t i = 0; i < dynamic_pshape.rank().get_length(); ++i) {
