@@ -5,9 +5,9 @@
 #include "ngraph/op/multiclass_nms.hpp"
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <queue>
 #include <vector>
-#include <numeric>
 #include "ngraph/runtime/reference/multiclass_nms.hpp"
 #include "ngraph/shape.hpp"
 
@@ -76,7 +76,8 @@ namespace ngraph
 
                 struct SelectedOutput
                 {
-                    SelectedOutput(float class_idx, float score, float x1, float y1, float x2, float y2)
+                    SelectedOutput(
+                        float class_idx, float score, float x1, float y1, float x2, float y2)
                         : class_index{class_idx}
                         , box_score{score}
                         , xmin{x1}
@@ -269,12 +270,13 @@ namespace ngraph
                 for (idx = 0; idx < output_size; idx++)
                 {
                     const auto& box_info = filteredBoxes[idx];
-                    SelectedIndex selected_index{
-                        box_info.batch_index, box_info.index, num_boxes};
+                    SelectedIndex selected_index{box_info.batch_index, box_info.index, num_boxes};
                     SelectedOutput selected_score{static_cast<float>(box_info.class_index),
-                                                 box_info.score, 
-                                                 box_info.box.x1, box_info.box.y1, 
-                                                 box_info.box.x2, box_info.box.y2};
+                                                  box_info.score,
+                                                  box_info.box.x1,
+                                                  box_info.box.y1,
+                                                  box_info.box.x2,
+                                                  box_info.box.y2};
 
                     selected_indices_ptr[idx] = selected_index;
                     selected_scores_ptr[idx] = selected_score;
@@ -295,25 +297,25 @@ namespace ngraph
                                                const std::vector<int64_t>& selected_indices,
                                                const std::vector<int64_t>& valid_outputs,
                                                const ngraph::element::Type selected_scores_type)
-            {               
+            {
                 auto num_selected = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
 
                 /* shape & type */
 
-                outputs[0]->set_element_type(selected_scores_type);  // "selected_outputs"
+                outputs[0]->set_element_type(selected_scores_type); // "selected_outputs"
                 outputs[0]->set_shape(Shape{static_cast<size_t>(num_selected), 6});
 
                 size_t num_of_outputs = outputs.size();
 
                 if (num_of_outputs >= 2)
                 {
-                    outputs[1]->set_element_type(output_type);  // "selected_indices"
+                    outputs[1]->set_element_type(output_type); // "selected_indices"
                     outputs[1]->set_shape(Shape{static_cast<size_t>(num_selected), 1});
                 }
 
                 if (num_of_outputs >= 3)
                 {
-                    outputs[2]->set_element_type(output_type);  // "selected_num"
+                    outputs[2]->set_element_type(output_type); // "selected_num"
                     outputs[2]->set_shape(Shape{valid_outputs.size()});
                 }
 
@@ -343,7 +345,8 @@ namespace ngraph
                 case element::Type_t::f32:
                 {
                     float* scores_ptr = outputs[0]->get_data_ptr<float>();
-                    memcpy(scores_ptr, selected_outputs.data(), selected_outputs_size * sizeof(float));
+                    memcpy(
+                        scores_ptr, selected_outputs.data(), selected_outputs_size * sizeof(float));
                 }
                 break;
                 default:;
@@ -359,7 +362,9 @@ namespace ngraph
                 if (output_type == ngraph::element::i64)
                 {
                     int64_t* indices_ptr = outputs[1]->get_data_ptr<int64_t>();
-                    memcpy(indices_ptr, selected_indices.data(), selected_indices_size * sizeof(int64_t));
+                    memcpy(indices_ptr,
+                           selected_indices.data(),
+                           selected_indices_size * sizeof(int64_t));
                 }
                 else
                 {
@@ -378,7 +383,9 @@ namespace ngraph
                 if (output_type == ngraph::element::i64)
                 {
                     int64_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int64_t>();
-                    memcpy(valid_outputs_ptr, valid_outputs.data(), valid_outputs.size() * sizeof(int64_t));
+                    memcpy(valid_outputs_ptr,
+                           valid_outputs.data(),
+                           valid_outputs.size() * sizeof(int64_t));
                 }
                 else
                 {
@@ -386,7 +393,7 @@ namespace ngraph
                     for (size_t i = 0; i < valid_outputs.size(); ++i)
                     {
                         valid_outputs_ptr[i] = static_cast<int32_t>(valid_outputs[i]);
-                    }                    
+                    }
                 }
             }
         } // namespace reference

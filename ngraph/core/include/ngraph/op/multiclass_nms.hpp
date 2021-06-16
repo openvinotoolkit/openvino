@@ -26,7 +26,7 @@ namespace ngraph
                 /// \param boxes Node producing the box coordinates
                 /// \param scores Node producing the box scores
                 /// \param sort_result Specifies order of output elements
-                /// \param sort_result_across_batch Specifies  whenever it is necessary to 
+                /// \param sort_result_across_batch Specifies  whenever it is necessary to
                 /// sort selected boxes across batches or not
                 /// \param output_type Specifies the output tensor type
                 /// \param iou_threshold Specifies intersection over union threshold
