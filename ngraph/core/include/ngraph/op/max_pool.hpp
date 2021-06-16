@@ -41,7 +41,6 @@ namespace ngraph
                         const PadType& auto_pad = op::PadType::EXPLICIT);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                size_t get_version() const override { return 1; }
                 void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>

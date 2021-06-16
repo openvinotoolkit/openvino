@@ -49,7 +49,6 @@ namespace ngraph
                         op::RoundingType rounding_type = op::RoundingType::FLOOR,
                         const PadType& auto_pad = op::PadType::EXPLICIT);
 
-                size_t get_version() const override { return 1; }
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
 

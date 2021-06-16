@@ -30,7 +30,6 @@ namespace ngraph
                            const Output<Node>& reduction_axes,
                            bool keep_dims = false);
 
-                size_t get_version() const override { return 1; }
                 /// \return The default value for Product.
                 virtual std::shared_ptr<Node> get_default_value() const override;
 
