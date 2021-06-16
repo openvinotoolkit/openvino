@@ -18,7 +18,9 @@
 8.  For each input box `b_i` from `B` and the corresponding score `s_i`, set `s_i = 0` when `iou(b, b_i) > adaptive_threshold`, and go to step 3.
 9.  Return `D`, a collection of the corresponding scores `S`, and the number of elements in `D`.
 
-This algorithm is applied independently to each class of each batch element. The total number of output boxes for each class must not exceed `nms_top_k`. Boxes of `background_class` are skipped and thus eliminated. After NMS step, the operation selects at most `keep_top_k` scoring candidate boxes per batch element.
+This algorithm is applied independently to each class of each batch element. The operation feeds at most `nms_top_k` scoring candidate boxes to this algorithm.
+The total number of output boxes of each batch element must not exceed `keep_top_k`.
+Boxes of `background_class` are skipped and thus eliminated.
 
 **Attributes**:
 
