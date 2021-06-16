@@ -60,7 +60,7 @@ public:
 
 private:
     void prepareParams();
-    bool isPermutationsByDstStrides() const;
+    bool isPermutationsByDstStrides(const InferenceEngine::SizeVector& order) const;
 
     void optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
     void referenceExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);

@@ -8,11 +8,14 @@
 #include <string>
 #include <mkldnn_extension_utils.h>
 #include <mkldnn_selective_build.h>
-#include "ie_parallel.hpp"
+#include <cpu/x64/jit_generator.hpp>
+#include "common/tensor_desc_creator.h"
+#include <utils/general_utils.h>
 #include "utils/bfloat16.hpp"
 
 
 using namespace mkldnn;
+using namespace mkldnn::impl::cpu::x64;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
@@ -58,68 +61,41 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    prec = getOriginalInputPrecisionAtPort(0);
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(prec);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(prec);
-    auto inputOrderDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
+    auto dataPrecision = getOriginalInputPrecisionAtPort(0);
+    auto orderPrecision = getOriginalInputPrecisionAtPort(1);
 
-    InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = true;
-    config.inConfs.resize(2);
-    config.outConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.outConfs[0].inPlace = -1;
-    config.outConfs[0].constant = false;
-    config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), inputOrderDataType, memory::format_tag::x);
-    if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nchw);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nchw});
-
-        auto srcDims = getParentEdgeAt(0)->getDims();
-        if (srcDims[1] % 8 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nChw8c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nChw8c});
-        }
-
-        if (srcDims[1] % 16 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nChw16c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nChw16c});
-        }
-
-        if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nhwc);
-            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nhwc);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nhwc});
-        }
-    } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ncdhw);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::ncdhw});
-
-        auto srcDims = getParentEdgeAt(0)->getDims();
-        if (srcDims[1] % 8 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nCdhw8c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nCdhw8c});
-        }
-
-        if (srcDims[1] % 16 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nCdhw16c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nCdhw16c});
-        }
-
-        if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ndhwc);
-            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ndhwc);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::ndhwc});
-        }
+    impl_desc_type impl_type;
+    if (mayiuse(impl::cpu::x64::avx512_common)) {
+        impl_type = impl_desc_type::jit_avx512;
+    } else if (mayiuse(impl::cpu::x64::avx2)) {
+        impl_type = impl_desc_type::jit_avx2;
+    } else if (mayiuse(impl::cpu::x64::sse41)) {
+        impl_type = impl_desc_type::jit_sse42;
     } else {
-        // general plain case
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+        impl_type = impl_desc_type::ref;
     }
+
+    auto canUseBlocked = [=](const size_t block) {
+        return getParentEdgeAt(0)->getDims()[1] % block == 0;
+    };
+
+    DataConfigurator orderDC(TensorDescCreatorTypes::ncsp, orderPrecision);
+    addSupportedPrimDesc({{ TensorDescCreatorTypes::ncsp, dataPrecision}, orderDC},
+                         {{ TensorDescCreatorTypes::ncsp, dataPrecision}},
+                         impl_type, true);
+
+    if (canUseBlocked(16))
+        addSupportedPrimDesc({{TensorDescCreatorTypes::nCsp16c, dataPrecision}, orderDC},
+                             {{TensorDescCreatorTypes::ncsp, dataPrecision}},
+                             impl_type, true);
+    if (canUseBlocked(8))
+        addSupportedPrimDesc({{ TensorDescCreatorTypes::nCsp8c, dataPrecision}, orderDC},
+                             {{ TensorDescCreatorTypes::ncsp, dataPrecision}},
+                             impl_type, true);
+    if (one_of(dataPrecision, Precision::FP32, Precision::I8, Precision::U8))
+        addSupportedPrimDesc({{TensorDescCreatorTypes::nspc, dataPrecision}, orderDC},
+                             {{TensorDescCreatorTypes::nspc, dataPrecision}},
+                             impl_type, true);
 }
 
 void MKLDNNTransposeNode::createPrimitive() {

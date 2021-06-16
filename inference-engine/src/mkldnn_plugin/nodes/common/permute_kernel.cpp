@@ -150,7 +150,11 @@ void PermuteKernel::prepareParams() {
     for (int i = params.dst_block_dims.size() - 2; i >= 0; i--)
         dst_block_strides[i] = dst_block_strides[i + 1] * params.dst_block_dims[i + 1];
 
-    const bool byDst = isPermutationsByDstStrides();
+    SizeVector tmp_order;
+    for (size_t i = 0; i < params.dst_block_order.size(); i++)
+        tmp_order.push_back(params.order[params.dst_block_order[i]]);
+
+    const bool byDst = isPermutationsByDstStrides(tmp_order);
     SizeVector first_block_dims = byDst ? params.dst_block_dims : params.src_block_dims;
     SizeVector second_block_dims = byDst ? params.src_block_dims : params.dst_block_dims;
     SizeVector first_block_order = byDst ? params.dst_block_order : params.src_block_order;
@@ -166,12 +170,13 @@ void PermuteKernel::prepareParams() {
 
     const size_t n_dims = first_block_strides.size();
     SizeVector mask(n_dims, 0);
-    SizeVector tmp_order;
-    for (size_t i = 0; i < first_block_order.size(); i++) {
-        const size_t new_value = byDst ? params.order[first_block_order[i]] :
-                                 std::distance(params.order.begin(), std::find(
-                                         params.order.begin(), params.order.end(), first_block_order[i]));
-        tmp_order.push_back(new_value);
+    if (!byDst) {
+        tmp_order.clear();
+        for (size_t i = 0; i < first_block_order.size(); i++) {
+            const size_t new_value = std::distance(params.order.begin(), std::find(
+                                             params.order.begin(), params.order.end(), first_block_order[i]));
+            tmp_order.push_back(new_value);
+        }
     }
 
     for (int i = tmp_order.size() - 1; i >= 0; i--) {
@@ -262,16 +267,6 @@ void PermuteKernel::prepareParams() {
     jcp.n = std::min(n, n2);
     jcp.ndims = sorted_order.size();
     jcp.data_size = params.data_size;
-/*
-    for (auto v : jcp.src_strides)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : jcp.dst_strides)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : tmp_order)
-        std::cout << v << " ";
-    std::cout << std::endl;*/
 
     if (mayiuse(cpu::x64::avx512_common)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_common>(jcp));
@@ -285,30 +280,33 @@ void PermuteKernel::prepareParams() {
         permute_kernel->create_ker();
 }
 
-bool PermuteKernel::isPermutationsByDstStrides() const {
-    const size_t n_dims = params.order.size();
-    if (n_dims < 4)
+bool PermuteKernel::isPermutationsByDstStrides(const SizeVector& order) const {
+    const size_t n_dims = order.size();
+    if (n_dims < 4 || std::count(order.begin(), order.end(), 1) != 1)
         return true;
+    SizeVector default_order(n_dims);
+    std::iota(default_order.begin(), default_order.end(), 0);
 
-    // check order such as 0312, 04123
-    SizeVector order_last_to_channel(n_dims);
-    std::iota(order_last_to_channel.begin(), order_last_to_channel.end(), 0);
+    // check order such as 0312, 04123, etc
+    SizeVector order_last_to_channel(default_order);
     order_last_to_channel.insert(order_last_to_channel.begin() + 1, order_last_to_channel.back());
     order_last_to_channel.pop_back();
-    if (order_last_to_channel == params.order) {
-        const size_t before_last_dim = std::accumulate(params.src_block_dims.begin() + 1, params.src_block_dims.end() - 1, 1, std::multiplies<size_t>());
-        return before_last_dim <= params.src_block_dims.back();
-    }
+    const size_t dims_before_last = std::accumulate(params.src_block_dims.begin() + 1, params.src_block_dims.end() - 1, 1, std::multiplies<size_t>());
+    if (order_last_to_channel == order)
+        return dims_before_last <= params.src_block_dims.back();
 
-    // check order such as 0132, 01432
-    SizeVector order_spatial_reverse(n_dims);
-    std::iota(order_spatial_reverse.begin(), order_spatial_reverse.end(), 0);
+    // check order such as 0231, 02341, etc
+    SizeVector order_channel_to_last(default_order);
+    order_channel_to_last.push_back(1);
+    order_channel_to_last.erase(order_channel_to_last.begin() + 1);
+    const size_t dims_after_first = std::accumulate(params.src_block_dims.begin() + 2, params.src_block_dims.end(), 1, std::multiplies<size_t>());
+    if (order_channel_to_last == order)
+        return dims_after_first > params.dst_block_dims.back();
+
+    // check order such as 0132, 01432, etc
+    SizeVector order_spatial_reverse(default_order);
     std::reverse(order_spatial_reverse.begin() + 2, order_spatial_reverse.end());
-    if (order_spatial_reverse == params.order) {
-        return false;
-    }
-
-    return true;
+    return order_spatial_reverse != order;
 }
 
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
