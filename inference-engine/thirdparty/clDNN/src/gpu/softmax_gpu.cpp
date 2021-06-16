@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "softmax/softmax_kernel_selector.h"
 #include "softmax/softmax_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -16,6 +16,10 @@ namespace gpu {
 struct softmax_gpu : typed_primitive_gpu_impl<softmax> {
     using parent = typed_primitive_gpu_impl<softmax>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<softmax_gpu>(*this);
+    }
 
     static primitive_impl* create(const softmax_node& arg) {
         auto sm_params = get_default_params<kernel_selector::softmax_params>(arg);

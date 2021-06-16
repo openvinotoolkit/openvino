@@ -5,7 +5,7 @@
 #include "select_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "select/select_kernel_selector.h"
 #include "select/select_kernel_base.h"
@@ -16,6 +16,10 @@ namespace gpu {
 struct select_gpu : typed_primitive_gpu_impl<select> {
     using parent = typed_primitive_gpu_impl<select>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<select_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const select_node& arg) {
