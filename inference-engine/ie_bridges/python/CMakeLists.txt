@@ -68,6 +68,10 @@ if(ENABLE_WHEEL)
     add_subdirectory(wheel)
 endif()
 
+if (NGRAPH_PYTHON_BUILD_ENABLE)
+    add_dependencies(ie_api _pyngraph)
+endif()
+
 # install
 
 ie_cpack_add_component(${PYTHON_VERSION})

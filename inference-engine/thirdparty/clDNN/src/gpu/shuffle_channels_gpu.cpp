@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "shuffle_channels/shuffle_channels_kernel_selector.h"
 #include "shuffle_channels/shuffle_channels_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
@@ -18,6 +18,10 @@ namespace gpu {
 struct shuffle_channels_gpu : typed_primitive_gpu_impl<shuffle_channels> {
     using parent = typed_primitive_gpu_impl<shuffle_channels>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<shuffle_channels_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const shuffle_channels_node& arg) {

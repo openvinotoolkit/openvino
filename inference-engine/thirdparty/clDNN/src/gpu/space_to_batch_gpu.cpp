@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "space_to_batch/space_to_batch_kernel_selector.h"
 #include "space_to_batch/space_to_batch_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "data_inst.h"
 #include <vector>
 
@@ -19,6 +19,10 @@ namespace gpu {
 struct space_to_batch_gpu : typed_primitive_gpu_impl<space_to_batch> {
     using parent = typed_primitive_gpu_impl<space_to_batch>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<space_to_batch_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const space_to_batch_node& arg) {
