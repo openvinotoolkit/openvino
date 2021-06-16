@@ -102,7 +102,6 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
     const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
                                       [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
     if (CPUIter != metaDevices.end()) {
-        // not use std::launch::async, so let OS decide delay or async.
         cpuFuture = std::async(std::launch::async, LoadNetworkAsync, *CPUIter);
     }
 
@@ -110,7 +109,6 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
     const auto accelerator = SelectDevice(metaDevices, networkPrecision);
     bool isAccelerator = accelerator.find("CPU") == std::string::npos;
     if (isAccelerator) {
-        // not use std::launch::async, so let OS decide delay or async.
         acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, accelerator);
     }
 
