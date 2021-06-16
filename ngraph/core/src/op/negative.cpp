@@ -6,6 +6,7 @@
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
+#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -61,7 +62,10 @@ namespace negativeop
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Negative_evaluate);
-    return negativeop::evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    return negativeop::evaluate_negative(
+        inputs[0], outputs[0], shape_size(outputs[0]->get_shape()));
 }
 
 bool op::Negative::has_evaluate() const
