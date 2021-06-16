@@ -5,7 +5,7 @@
 #include "resample_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_selector/core/actual_kernels/resample/resample_kernel_selector.h"
 #include "kernel_selector/core/actual_kernels/resample/resample_kernel_base.h"
@@ -99,6 +99,10 @@ inline kernel_selector::interpolate_axis convert_axis(resample::resample_axis ax
 struct resample_gpu : typed_primitive_gpu_impl<resample> {
     using parent = typed_primitive_gpu_impl<resample>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<resample_gpu>(*this);
+    }
 
     static primitive_impl* create(const resample_node& arg) {
         auto us_params = get_default_params<kernel_selector::resample_params>(arg);
