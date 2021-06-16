@@ -266,7 +266,206 @@ bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
 
 bool op::v1::MaxPool::has_evaluate() const
 {
-    NGRAPH_OP_SCOPE(v0_Log_has_evaluate);
+    NGRAPH_OP_SCOPE(v1_MaxPool_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}
+
+// ------------------------------ V8 ------------------------------
+
+NGRAPH_RTTI_DEFINITION(op::v8::MaxPool, "MaxPool", 8);
+
+op::v8::MaxPool::MaxPool(const Output<Node>& arg,
+                         const Strides& strides,
+                         const Strides& dilations,
+                         const Shape& pads_begin,
+                         const Shape& pads_end,
+                         const Shape& kernel,
+                         const op::RoundingType rounding_type,
+                         const PadType& auto_pad,
+                         const element::Type_t index_element_type)
+    : Op({arg})
+    , m_strides(strides)
+    , m_dilations(dilations)
+    , m_pads_begin(pads_begin)
+    , m_pads_end(pads_end)
+    , m_kernel(kernel)
+    , m_rounding_type(rounding_type)
+    , m_auto_pad(auto_pad)
+    , m_index_element_type(index_element_type)
+{
+    constructor_validate_and_infer_types();
+}
+
+bool ngraph::op::v8::MaxPool::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v8_MaxPool_visit_attributes);
+    visitor.on_attribute("strides", m_strides);
+    visitor.on_attribute("dilations", m_dilations);
+    visitor.on_attribute("pads_begin", m_pads_begin);
+    visitor.on_attribute("pads_end", m_pads_end);
+    visitor.on_attribute("kernel", m_kernel);
+    visitor.on_attribute("rounding_type", m_rounding_type);
+    visitor.on_attribute("auto_pad", m_auto_pad);
+    visitor.on_attribute("index_element_type", m_index_element_type);
+    return true;
+}
+
+void op::v8::MaxPool::validate_and_infer_types()
+{
+    NGRAPH_OP_SCOPE(v8_MaxPool_validate_and_infer_types);
+    if (0 == m_strides.size())
+    {
+        m_strides = Strides(m_kernel.size(), 1);
+    }
+
+    if (0 == m_pads_begin.size())
+    {
+        m_pads_begin = Shape(m_kernel.size(), 0);
+    }
+
+    if (0 == m_pads_end.size())
+    {
+        m_pads_end = Shape(m_kernel.size(), 0);
+    }
+
+    const PartialShape& arg_shape = get_input_partial_shape(0);
+
+    NODE_VALIDATION_CHECK(this,
+                          arg_shape.rank().compatible(3) || arg_shape.rank().compatible(4) ||
+                              arg_shape.rank().compatible(5),
+                          "Expected a 3D, 4D or 5D tensor for the input. Got: ",
+                          arg_shape);
+
+    if (arg_shape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              static_cast<int64_t>(m_pads_end.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
+                              "Expected pads_end size to be equal to input size - 2. Got: ",
+                              m_pads_end.size());
+
+        NODE_VALIDATION_CHECK(this,
+                              static_cast<int64_t>(m_pads_begin.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
+                              "Expected pads_begin size to be equal to input size - 2. Got: ",
+                              m_pads_begin.size());
+        NODE_VALIDATION_CHECK(this,
+                              static_cast<int64_t>(m_kernel.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
+                              "Expected kernel size to be equal to input size - 2. Got: ",
+                              m_kernel.size());
+        NODE_VALIDATION_CHECK(this,
+                              static_cast<int64_t>(m_pads_end.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
+                              "Expected strides size to be equal to input size - 2. Got: ",
+                              m_strides.size());
+    }
+
+    auto output_shape = PartialShape::dynamic();
+    if (arg_shape.rank().is_static())
+    {
+        output_shape =
+            std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
+        if (arg_shape[0].is_static())
+        {
+            output_shape[0] = arg_shape[0]; // batch size
+        }
+        if (arg_shape[1].is_static())
+        {
+            output_shape[1] = arg_shape[1]; // channel size
+        }
+    }
+
+    bool update_auto_padding_succeed = true;
+    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
+    {
+        // update_auto_padding_succeed = update_auto_padding(arg_shape, m_pads_end, m_pads_begin);
+    }
+    if (m_auto_pad == PadType::VALID)
+    {
+        m_pads_end = Shape(m_pads_end.size(), 0);
+        m_pads_begin = Shape(m_pads_begin.size(), 0);
+    }
+    // infer_batched_forward_pooling wants CoordinateDiffs for these, while the pooling ops for
+    // now still take Shape (no negative padding).
+    CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
+    CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
+
+    set_output_type(0,
+                    get_input_element_type(0),
+                    update_auto_padding_succeed
+                        ? infer_batched_pooling_forward(this,
+                                                        arg_shape,
+                                                        pads_begin,
+                                                        pads_end,
+                                                        m_kernel,
+                                                        m_strides,
+                                                        true,
+                                                        m_rounding_type == op::RoundingType::CEIL)
+                        : output_shape);
+}
+
+shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    NGRAPH_OP_SCOPE(v8_MaxPool_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<v8::MaxPool>(new_args.at(0),
+                                    m_strides,
+                                    m_dilations,
+                                    m_pads_begin,
+                                    m_pads_end,
+                                    m_kernel,
+                                    m_rounding_type,
+                                    m_auto_pad,
+                                    m_index_element_type);
+}
+
+bool op::v8::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
+                                       const HostTensorVector& inputs) const
+{
+    auto arg_shape = inputs[0]->get_partial_shape();
+    auto pads_begin_s = get_pads_begin();
+    auto pads_end_s = get_pads_end();
+    // update_auto_padding(arg_shape, pads_begin_s, pads_end_s);
+    CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
+    CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
+    auto out_shape = infer_batched_pooling_forward(this,
+                                                   arg_shape,
+                                                   pads_begin,
+                                                   pads_end,
+                                                   get_kernel(),
+                                                   get_strides(),
+                                                   true,
+                                                   get_rounding_type() == op::RoundingType::CEIL);
+
+    return maxpool::evaluate_maxpool(inputs[0],
+                                     outputs[0],
+                                     out_shape.get_shape(),
+                                     get_kernel(),
+                                     get_strides(),
+                                     get_pads_begin(),
+                                     get_pads_end());
+}
+bool op::v8::MaxPool::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v8_MaxPool_evaluate);
+    return evaluate_maxpool(outputs, inputs);
+}
+
+bool op::v8::MaxPool::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v8_MaxPool_has_evaluate);
     switch (get_input_element_type(0))
     {
     case ngraph::element::i32:
