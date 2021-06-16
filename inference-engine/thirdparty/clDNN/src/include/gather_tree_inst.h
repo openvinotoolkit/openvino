@@ -3,10 +3,9 @@
 //
 
 #pragma once
-
-#include <api/gather_tree.hpp>
-
+#include "cldnn/primitives/gather_tree.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 

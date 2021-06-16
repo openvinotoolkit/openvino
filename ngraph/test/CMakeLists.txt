@@ -72,6 +72,7 @@ set(SRC
     op_eval/mish.cpp
     op_eval/non_zero.cpp
     op_eval/reduce_max.cpp
+    op_eval/reduce_min.cpp
     op_eval/reduce_prod.cpp
     op_eval/reduce_sum.cpp
     op_eval/roi_align.cpp
@@ -252,6 +253,7 @@ set(SRC
     visitors/op/normalize_l2.cpp
     visitors/op/one_hot.cpp
     visitors/op/pad.cpp
+    visitors/op/parameter.cpp
     visitors/op/prior_box.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp

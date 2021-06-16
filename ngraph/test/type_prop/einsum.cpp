@@ -186,6 +186,34 @@ TEST(type_prop, einsum_implicitmode_mixedcaseletters2)
     ASSERT_TRUE(O->get_output_partial_shape(0).same_scheme(out_shape));
 }
 
+TEST(type_prop, einsum_implicitmode_repeatedlabels)
+{
+    // the following equation is equivalent to "a...b,b...->...a"
+    std::string equation = "a...b,b...";
+    const auto input1_shape = PartialShape{Dimension(3, 5), 11, 1, 3};
+    const auto input2_shape = PartialShape{Dimension(1, 3), 3, 1, 7};
+    const auto out_shape = PartialShape{3, 11, 7, Dimension(3, 5)};
+    auto I1 = make_shared<op::Parameter>(element::f32, input1_shape);
+    auto I2 = make_shared<op::Parameter>(element::f32, input2_shape);
+    auto O = make_shared<op::v7::Einsum>(OutputVector{I1, I2}, equation);
+    ASSERT_EQ(O->get_element_type(), element::f32);
+    ASSERT_TRUE(O->get_output_partial_shape(0).same_scheme(out_shape));
+}
+
+TEST(type_prop, einsum_implicitmode_innerprod)
+{
+    // the following equation is equivalent to "i,i->"
+    std::string equation = "i,i";
+    const auto input1_shape = PartialShape{11};
+    const auto input2_shape = PartialShape{Dimension(1, 20)};
+    const auto out_shape = PartialShape{};
+    auto I1 = make_shared<op::Parameter>(element::f32, input1_shape);
+    auto I2 = make_shared<op::Parameter>(element::f32, input2_shape);
+    auto O = make_shared<op::v7::Einsum>(OutputVector{I1, I2}, equation);
+    ASSERT_EQ(O->get_element_type(), element::f32);
+    ASSERT_TRUE(O->get_output_partial_shape(0).same_scheme(out_shape));
+}
+
 TEST(type_prop, einsum_dynamicrank_multimatmul)
 {
     std::string equation = "ab,bcd,bc->ca";

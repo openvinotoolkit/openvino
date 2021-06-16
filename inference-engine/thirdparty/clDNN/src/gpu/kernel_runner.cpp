@@ -5,8 +5,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "kernel_runner.h"
-#include "kernel.h"
+#include "runtime/kernels_cache.hpp"
+#include "cldnn/runtime/stream.hpp"
 #include "weight_bias_params.h"
+#include "kernel_selector_helper.h"
 #include <chrono>
 #include <vector>
 #include <limits>
@@ -15,19 +17,18 @@
 namespace cldnn {
 namespace gpu {
 
-kernel_runner::kernel_runner(engine_impl& engine_ref, uint32_t program_id, bool weights_and_bias_exist, bool zero_points_exist)
-    : engine(&engine_ref), program_id(program_id), weights_and_bias_exist(weights_and_bias_exist), zero_points_exist(zero_points_exist) {}
+kernel_runner::kernel_runner(engine& engine_ref, uint32_t program_id, bool weights_and_bias_exist, bool zero_points_exist)
+    : _engine(engine_ref), program_id(program_id), weights_and_bias_exist(weights_and_bias_exist), zero_points_exist(zero_points_exist) {}
 
 void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kernels_data,
-                                        gpu::kernel::kernel_arguments_data& args) {
+                                        kernel_arguments_data& args) {
     const auto& base_params = *static_cast<kernel_selector::base_params*>(kernels_data[0].params.get());
     // Prepare input buffers
     if (input_buffers.empty()) {
         for (const auto& input : base_params.inputs) {
             int num_of_input_elements = static_cast<int>(input.PhysicalSize());
-            input_buffers.push_back(engine->allocate_memory(
-                {from_data_type(input.GetDType()), format::bfyx, tensor(1, 1, num_of_input_elements, 1)},
-                0));
+            input_buffers.push_back(_engine.allocate_memory(
+                {from_data_type(input.GetDType()), format::bfyx, tensor(1, 1, num_of_input_elements, 1)}));
         }
     }
     for (const auto& input : input_buffers) {
@@ -38,9 +39,8 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
         for (auto& fused_op : base_params.fused_ops) {
             for (auto& fused_ops_input : fused_op.tensors) {
                 auto num_of_elements = static_cast<int>(fused_ops_input.PhysicalSize());
-                fused_ops_buffers.push_back(engine->allocate_memory(
-                    { from_data_type(fused_ops_input.GetDType()), format::bfyx, tensor(1, 1, num_of_elements, 1) },
-                    0));
+                fused_ops_buffers.push_back(_engine.allocate_memory(
+                    { from_data_type(fused_ops_input.GetDType()), format::bfyx, tensor(1, 1, num_of_elements, 1) }));
             }
         }
     }
@@ -50,9 +50,8 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
     // Prepare output buffer
     if (output_buffers.empty()) {
         int num_of_output_elements = static_cast<int>(base_params.output.PhysicalSize());
-        output_buffers.push_back(engine->allocate_memory(
-            {from_data_type(base_params.output.GetDType()), format::bfyx, tensor(1, 1, num_of_output_elements, 1)},
-            0));
+        output_buffers.push_back(_engine.allocate_memory(
+            {from_data_type(base_params.output.GetDType()), format::bfyx, tensor(1, 1, num_of_output_elements, 1)}));
     }
 
     args.output = output_buffers[0];
@@ -72,17 +71,15 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
         if (!cldnn::format::is_image_2d(from_weights_layout(weights_bias_params.weights.GetLayout()))) {
             if (weight_buffers.empty())
                 weight_buffers.push_back(
-                    engine->allocate_memory({from_weights_type(weights_bias_params.weights.GetDType()),
+                    _engine.allocate_memory({from_weights_type(weights_bias_params.weights.GetDType()),
                                              fmt,
-                                             tensor(num_of_weight_elements_ofm, 1, num_of_weight_elements_spatial, 1)},
-                                            0));
+                                             tensor(num_of_weight_elements_ofm, 1, num_of_weight_elements_spatial, 1)}));
 
             if (weight_buffers[0]->get_layout().format != fmt)
                 weight_buffers[0] =
-                    engine->allocate_memory({from_weights_type(weights_bias_params.weights.GetDType()),
+                    _engine.allocate_memory({from_weights_type(weights_bias_params.weights.GetDType()),
                                              fmt,
-                                             tensor(num_of_weight_elements_ofm, 1, num_of_weight_elements_spatial, 1)},
-                                            0);
+                                             tensor(num_of_weight_elements_ofm, 1, num_of_weight_elements_spatial, 1)});
 
             while (weight_buffers[0]->get_layout().bytes_count() < weights_bias_params.weights.PhysicalSizeInBytes()) {
                 // Weights layout depends on the kernel. Multiply the buffer size by 2 until it is big enough
@@ -90,22 +87,20 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
                 weight_buffers.clear();
                 num_of_weight_elements_spatial *= 2;
                 weight_buffers.push_back(
-                    engine->allocate_memory({from_weights_type(weights_bias_params.weights.GetDType()),
+                    _engine.allocate_memory({from_weights_type(weights_bias_params.weights.GetDType()),
                                              fmt,
-                                             tensor(num_of_weight_elements_ofm, 1, num_of_weight_elements_spatial, 1)},
-                                            0));
+                                             tensor(num_of_weight_elements_ofm, 1, num_of_weight_elements_spatial, 1)}));
             }
         } else {
             weight_buffers.clear();
             fmt = from_weights_layout(weights_bias_params.weights.GetLayout());
             num_of_weight_elements_ofm = static_cast<int>(weights_bias_params.weights.OFM().v);
-            weight_buffers.push_back(engine->allocate_memory({from_weights_type(weights_bias_params.weights.GetDType()),
+            weight_buffers.push_back(_engine.allocate_memory({from_weights_type(weights_bias_params.weights.GetDType()),
                                                               fmt,
                                                               tensor(num_of_weight_elements_ofm,
                                                                      num_of_weight_elements_ifm,
                                                                      num_of_weight_elements_spatial_x,
-                                                                     num_of_weight_elements_spatial_y)},
-                                                             0));
+                                                                     num_of_weight_elements_spatial_y)}));
         }
         args.weights = weight_buffers[0];
 
@@ -113,10 +108,9 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
         if (!weights_bias_params.bias.empty()) {
             if (bias_buffers.empty()) {
                 int num_of_bias_elements = static_cast<int>(weights_bias_params.bias[0].PhysicalSize());
-                bias_buffers.push_back(engine->allocate_memory({from_data_type(weights_bias_params.bias[0].GetDType()),
+                bias_buffers.push_back(_engine.allocate_memory({from_data_type(weights_bias_params.bias[0].GetDType()),
                                                                 format::bfyx,
-                                                                tensor(1, num_of_bias_elements, 1, 1)},
-                                                               0));
+                                                                tensor(1, num_of_bias_elements, 1, 1)}));
             }
             args.bias = bias_buffers[0];
         }
@@ -128,11 +122,10 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
                     auto& weight_zero_point = zero_point_params.weights_zero_points[0];
                     auto num_of_elements = static_cast<int>(weight_zero_point.PhysicalSize());
                     weight_zero_point_buffers.push_back(
-                        engine->allocate_memory({
+                        _engine.allocate_memory({
                             from_data_type(weight_zero_point.GetDType()),
                             format::bfyx,
-                            tensor(1, num_of_elements, 1, 1) },
-                            0));
+                            tensor(1, num_of_elements, 1, 1) }));
                 }
                 args.weights_zero_points = weight_zero_point_buffers[0];
             }
@@ -141,11 +134,10 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
                     auto& activation_zero_point = zero_point_params.activations_zero_points[0];
                     auto num_of_elements = static_cast<int>(activation_zero_point.PhysicalSize());
                     activation_zero_point_buffers.push_back(
-                        engine->allocate_memory({
+                        _engine.allocate_memory({
                             from_data_type(activation_zero_point.GetDType()),
                             format::bfyx,
-                            tensor(1, num_of_elements, 1, 1) },
-                            0));
+                            tensor(1, num_of_elements, 1, 1) }));
                 }
                 args.activations_zero_points = activation_zero_point_buffers[0];
             }
@@ -154,11 +146,10 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
                     auto& compensation = zero_point_params.compensation[0];
                     auto num_of_elements = static_cast<int>(compensation.PhysicalSize());
                     compensation_buffers.push_back(
-                        engine->allocate_memory({
+                        _engine.allocate_memory({
                             from_data_type(compensation.GetDType()),
                             format::bfyx,
-                            tensor(1, num_of_elements, 1, 1) },
-                            0));
+                            tensor(1, num_of_elements, 1, 1) }));
                 }
                 args.compensation = compensation_buffers[0];
             }
@@ -169,9 +160,9 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
 }
 
 std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_selector::KernelsData& kernels_data) {
-    auto context = engine->get_context();
-
     std::vector<std::chrono::nanoseconds> run_times;
+
+    stream::ptr stream = _engine.create_stream();
 
     int num_of_kernels_to_run = static_cast<int>(kernels_data.size());
     int num_of_kernels_run = 0;
@@ -182,28 +173,31 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
         int current_compilation_batch = std::min(num_of_kernels_to_run, compilation_batch_size);
         batch_end = batch_start + current_compilation_batch;
 
-        std::vector<gpu::kernel> kernels;
+        std::vector<kernel::ptr> kernels;
+        kernels_cache cache(_engine);
 
         for (auto it = batch_start; it < batch_end; it++) {
-            kernels.push_back(kernel(context, it->kernels[0].kernelString, program_id, false, true));
+            auto kernel_id = cache.set_kernel_source(it->kernels[0].code.kernelString, false);
+
+            kernels.push_back(cache.get_kernel(kernel_id));
         }
 
-        gpu::kernel::kernel_arguments_data args;
+        kernel_arguments_data args;
 
         prepare_kernel_args(kernels_data, args);
-        context->queue(0).finish();
+        stream->finish();
 
         int i = 0;
         for (auto it = batch_start; it < batch_end; it++) {
-            std::vector<event_impl::ptr> events;
+            std::vector<event::ptr> events;
             auto kernel_run_time = std::chrono::nanoseconds::max();
             int num_of_runs = 0;
 
             for (int iteration = 0; iteration < runs_per_kernel; iteration++) {
-                event_impl::ptr event;
+                event::ptr event;
                 try {
-                    kernels[i].set_arguments(0, it->kernels[0], args);
-                    event = kernels[i].run(0, it->kernels[0], {});
+                    stream->set_arguments(*kernels[i], it->kernels[0].params, args);
+                    event = stream->enqueue_kernel(*kernels[i], it->kernels[0].params, args, {});
                 } catch (std::exception& e) {
                     std::cout << "[clDNN] Could not run kernel for auto-tune: " << it->kernelName
                               << " with auto-tune index " << it->autoTuneIndex << std::endl
@@ -215,7 +209,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
                 }
                 events.push_back(event);
             }
-            context->queue(0).finish();
+            stream->finish();
 
             for (auto& event : events) {
                 if (event.get() != NULL) {
