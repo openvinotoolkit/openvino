@@ -96,6 +96,9 @@ set(SRC
     span.cpp
     specialize_function.cpp
     tensor.cpp
+    type_prop/abs.cpp
+    type_prop/acos.cpp
+    type_prop/asin.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
@@ -121,6 +124,7 @@ set(SRC
     type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/einsum.cpp
+    type_prop/exp.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
     type_prop/experimental_detectron_topkrois.cpp
@@ -133,6 +137,7 @@ set(SRC
     type_prop/embeddingbag_packedsum.cpp
     type_prop/embedding_segments_sum.cpp
     type_prop/fake_quantize.cpp
+    type_prop/floor.cpp
     type_prop/floor_mod.cpp
     type_prop/gather.cpp
     type_prop/gather_elements.cpp
@@ -191,11 +196,13 @@ set(SRC
     type_prop/select.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/sin.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
     type_prop/split.cpp
+    type_prop/sqrt.cpp
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/swish.cpp
@@ -207,7 +214,6 @@ set(SRC
     type_prop/top_k.cpp
     type_prop/transpose.cpp
     type_prop/unary_elementwise.cpp
-    type_prop/unary_ops.cpp
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
