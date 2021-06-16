@@ -6,7 +6,7 @@
 
 #include "program_impl.h"
 #include "program_node.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include <vector>
 #include <map>
 #include <algorithm>

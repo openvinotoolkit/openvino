@@ -5,8 +5,7 @@
 #include "concatenation_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "events_waiter.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "concatenation/concatenation_kernel_selector.h"
 #include "concatenation/concatenation_kernel_base.h"
@@ -39,6 +38,10 @@ kernel_selector::concat_axis convert_axis(concatenation::concatenation_axis axis
 
 struct concatenation_gpu : typed_primitive_gpu_impl<concatenation> {
     using parent = typed_primitive_gpu_impl<concatenation>;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<concatenation_gpu>(*this);
+    }
 
     concatenation_gpu(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
         if (!_outer.can_be_optimized()) {

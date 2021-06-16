@@ -4,8 +4,8 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cldnn/cldnn_config.hpp>
 #include <gna/gna_config.hpp>
+#include <gpu/gpu_config.hpp>
 #include <inference_engine.hpp>
 #include <map>
 #include <memory>
@@ -277,12 +277,12 @@ int main(int argc, char* argv[]) {
                 setThroughputStreams();
 
                 if ((device_name.find("MULTI") != std::string::npos) && (device_name.find("CPU") != std::string::npos)) {
-                    slog::warn << "Turn on GPU trottling. Multi-device execution with "
-                                  "the CPU + GPU performs best with GPU trottling hint,"
+                    slog::warn << "Turn on GPU throttling. Multi-device execution with "
+                                  "the CPU + GPU performs best with GPU throttling hint, "
                                << "which releases another CPU thread (that is otherwise "
                                   "used by the GPU driver for active polling)"
                                << slog::endl;
-                    device_config[CLDNN_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
+                    device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
             } else if (device == "MYRIAD") {
                 device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);

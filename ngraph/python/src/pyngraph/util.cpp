@@ -4,8 +4,8 @@
 
 #include <pybind11/numpy.h>
 
-#include "pyngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "pyngraph/util.hpp"
 
 namespace py = pybind11;
 

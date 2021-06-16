@@ -17,7 +17,7 @@ addIeTargetTest(
             AutoPlugin
         LINK_LIBRARIES
             funcSharedTests
-            ${CLDNN__OCL_ICD_LIBPATH}
+            ${OpenCL_LIBRARY}
         ADD_CPPLINT
         LABELS
             GPU
