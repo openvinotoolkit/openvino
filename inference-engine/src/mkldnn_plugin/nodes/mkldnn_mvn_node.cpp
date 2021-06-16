@@ -306,8 +306,8 @@ private:
     inline void worker_tail_planar() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
         load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num, true, "zero"),
-                            {}, {load_pool_gpr_idxs});
+                                std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num, 0, true),
+                                {}, {load_pool_gpr_idxs});
 
         if (jcp_.normalize_variance) {
             if (!isFloatCompatible(jcp_.src_prc))
@@ -477,8 +477,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         this->postamble();
 
         load_emitter->emit_data();
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && store_emitter != nullptr && store_emitter->get_emu_vcvtneps2bf16() != nullptr)
-            store_emitter->get_emu_vcvtneps2bf16()->emit_data();
+        store_emitter->emit_data();
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
