@@ -156,6 +156,8 @@ std::string toString(KernelType kt) {
                                           return "FUSED_CONV_ELTWISE";
         case KernelType::BINARY_CONVOLUTION:
                                           return "BINARY_CONVOLUTION";
+        case KernelType::NON_MAX_SUPPRESSION:
+                                          return "NON_MAX_SUPPRESSION";
         default: return "";
     }
 }
