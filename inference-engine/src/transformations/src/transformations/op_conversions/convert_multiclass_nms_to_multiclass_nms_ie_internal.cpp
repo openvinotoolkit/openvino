@@ -54,6 +54,7 @@ ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIEInternal::ConvertMulticlassNm
                 new_args.at(0),
                 new_args.at(1),
                 sort_result_type,
+                nms->get_sort_result_across_batch(),
                 element::i32,
                 nms->get_iou_threshold(),
                 nms->get_score_threshold(),

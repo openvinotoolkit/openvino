@@ -905,7 +905,8 @@ namespace
                                                 &valid_outputs,
                                                 info.sort_result_descending);
 
-        auto selected_scores_type = element::f32; // FIXME
+        auto selected_scores_type =
+            (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
 
         runtime::reference::nms5_postprocessing(outputs,
                                                 info.output_type,
@@ -990,7 +991,7 @@ namespace
             auto selected_outputs_shape =
                 infer_selected_outputs_shape(inputs, nms->get_nms_top_k(), nms->get_keep_top_k());
             result.selected_outputs_shape = selected_outputs_shape.to_shape();
-            result.selected_indices_shape = {result.selected_outputs_shape[0]};
+            result.selected_indices_shape = {result.selected_outputs_shape[0], 1};
 
             result.boxes_shape = inputs[boxes_port]->get_shape();
             result.scores_shape = inputs[scores_port]->get_shape();
@@ -1021,6 +1022,7 @@ namespace
                                                 info.scores_data.data(),
                                                 info.scores_shape,
                                                 op->get_sort_result_type(),
+                                                op->get_sort_result_across_batch(),
                                                 op->get_iou_threshold(),
                                                 op->get_score_threshold(),
                                                 op->get_nms_top_k(),
@@ -2611,6 +2613,10 @@ namespace
             {
                 continue;
             }
+            //if (element_type != node->get_output_element_type(i))
+            //{
+            //    throw std::logic_error("Output node element types is not equal");
+            //}
         }
         switch (element_type)
         {

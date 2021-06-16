@@ -57,6 +57,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_score)
     auto nms = make_shared<op::v8::MulticlassNms>(boxes,
                                                   scores,
                                                   sort_result_type,
+                                                  false,
                                                   element::i64,
                                                   iou_threshold,
                                                   score_threshold,

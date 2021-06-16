@@ -30,6 +30,7 @@ namespace ngraph
                                 const float* scores_data,
                                 const Shape& scores_data_shape,
                                 op::util::NmsBase::SortResultType sort_result_type,
+                                bool sort_result_across_batch,
                                 float iou_threshold,
                                 float score_threshold,
                                 int nms_top_k,

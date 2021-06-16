@@ -180,6 +180,7 @@ namespace ngraph
                                 const float* scores_data,
                                 const Shape& scores_data_shape,
                                 op::util::NmsBase::SortResultType sort_result_type,
+                                bool sort_result_across_batch,
                                 float iou_threshold,
                                 float score_threshold,
                                 int nms_top_k,
@@ -355,9 +356,6 @@ namespace ngraph
                     }
                 } // for each batch element
 
-                /* sort */
-                bool sort_result_across_batch = false; // TODO
-
                 if (sort_result_across_batch)
                 {   /* sort across batch */
                     if (sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
@@ -436,7 +434,7 @@ namespace ngraph
                 if (num_of_outputs >= 2)
                 {
                     outputs[1]->set_element_type(output_type);  // "selected_indices"
-                    outputs[1]->set_shape(Shape{static_cast<size_t>(num_selected)});
+                    outputs[1]->set_shape(Shape{static_cast<size_t>(num_selected), 1});
                 }
 
                 if (num_of_outputs >= 3)
