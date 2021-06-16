@@ -42,6 +42,7 @@
 #include "op/dequantize_linear.hpp"
 #include "op/div.hpp"
 #include "op/dropout.hpp"
+#include "op/einsum.hpp"
 #include "op/elu.hpp"
 #include "op/equal.hpp"
 #include "op/erf.hpp"
@@ -340,6 +341,7 @@ namespace ngraph
             REGISTER_OPERATOR("Dropout", 1, dropout);
             REGISTER_OPERATOR("Dropout", 7, dropout);
             REGISTER_OPERATOR("Dropout", 12, dropout);
+            REGISTER_OPERATOR("Einsum", 1, einsum);
             REGISTER_OPERATOR("Elu", 1, elu);
             REGISTER_OPERATOR("Equal", 1, equal);
             REGISTER_OPERATOR("Erf", 1, erf);

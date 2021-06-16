@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from ngraph.utils.types import get_element_type
-from tests import xfail_issue_45432
+from tests import xfail_issue_58033
 from tests.runtime import get_runtime
 
 
@@ -86,13 +86,13 @@ def test_simple_ellipsis(data_type):
     einsum_op_exec([(5, 3, 4)], "a...->...", data_type)
 
 
-@xfail_issue_45432
+@xfail_issue_58033
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_multiple_ellipsis(data_type):
     einsum_op_exec([(3, 5), 1], "a...,...->a...", data_type, with_value=True)
 
 
-@xfail_issue_45432
+@xfail_issue_58033
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_broadcasting_ellipsis(data_type):
     einsum_op_exec([(9, 1, 4, 3), (3, 11, 7, 1)], "a...b,b...->a...", data_type, with_value=True)
