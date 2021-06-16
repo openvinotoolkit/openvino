@@ -207,7 +207,7 @@ namespace ngraph
                 SelectedOutput* selected_scores_ptr =
                     reinterpret_cast<SelectedOutput*>(selected_outputs);
 
-                std::vector<BoxInfo> filteredBoxes;
+                std::vector<BoxInfo> filteredBoxes; // container for the whole batch
 
                 for (int64_t batch = 0; batch < num_batches; batch++)
                 {
@@ -215,9 +215,13 @@ namespace ngraph
                     Rectangle* r = reinterpret_cast<Rectangle*>(const_cast<float*>(boxesPtr));
 
                     int64_t num_dets = 0;
+                    std::vector<BoxInfo> selected_boxes; // container for a batch element
 
                     for (int64_t class_idx = 0; class_idx < num_classes; class_idx++)
                     {
+                        //std::cout << "##############" << batch << ", " << class_idx << " bg:" << background_class << std::endl;                        
+                        if(class_idx == background_class) continue;
+
                         const float* scoresPtr =
                             scores_data + batch * (num_classes * num_boxes) + class_idx * num_boxes;
 
@@ -225,7 +229,7 @@ namespace ngraph
 
                         for (int64_t box_idx = 0; box_idx < num_boxes; box_idx++)
                         {
-                            if (scoresPtr[box_idx] > score_threshold)
+                            if (scoresPtr[box_idx] >= score_threshold) /* NOTE: ">=" instead of ">" used in PDPD */
                             {
                                 candidate_boxes.emplace_back(
                                     r[box_idx], box_idx, scoresPtr[box_idx], 0, batch, class_idx);
@@ -235,6 +239,9 @@ namespace ngraph
                         int candiate_size = candidate_boxes.size();
                         
                         // threshold nms_top_k for each class
+                        // NOTE: "nms_top_k" in PDPD not exactly equal to 
+                        // "max_output_boxes_per_class" in ONNX.
+                        //std::cout << "##############" << batch << ", " << class_idx << " nms_top_k=" << nms_top_k << " candiate_size=" << candiate_size << std::endl;
                         if (nms_top_k > -1 && nms_top_k < candiate_size)
                         {
                             candiate_size = nms_top_k;
@@ -260,7 +267,7 @@ namespace ngraph
 
                         print_queue(sorted_boxes);                                  
 
-                        std::vector<BoxInfo> selected;
+                        std::vector<BoxInfo> selected; // container for a class
                         // Get the next box with top score, filter by iou_threshold
 
                         BoxInfo next_candidate;
@@ -311,23 +318,37 @@ namespace ngraph
 
                         for (const auto& box_info : selected)
                         {
-                            filteredBoxes.push_back(box_info);
+                            selected_boxes.push_back(box_info);
                         }
                         num_dets += selected.size();
                     } // for each class
+
+                    /* sort inside batch element */
+                    if (sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
+                    {
+                        std::sort(selected_boxes.begin(),
+                              selected_boxes.end(),
+                              [](const BoxInfo& l, const BoxInfo& r) {
+                                  return ((l.batch_index == r.batch_index) &&
+                                          ((l.score > r.score) ||
+                                           ((std::fabs(l.score - r.score) < 1e-6) && l.class_index < r.class_index) ||
+                                           ((std::fabs(l.score - r.score) < 1e-6) && l.class_index == r.class_index && l.index < r.index)));
+                              });
+                    }
+                    // in case of "NONE" and "CLASSID", pass through
 
                     // threshold keep_top_k for each batch element
                     if (keep_top_k > -1 && keep_top_k < num_dets)
                     {
                         num_dets = nms_top_k;
+                        selected_boxes.resize(num_dets);
                     }
-
-                    if (num_dets <= 0) // early drop
-                    {
-                        continue;
-                    }
-                    
+                   
                     *valid_outputs++ = num_dets;
+                    for(auto& v:selected_boxes)
+                    {
+                        filteredBoxes.push_back(v);
+                    }
                 } // for each batch element
 
                 /* sort */
@@ -361,22 +382,6 @@ namespace ngraph
                                           l.score == r.score && l.index < r.index);
                               });
                     } 
-                }
-                else 
-                {
-                    /* sort inside batch element */
-                    if (sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
-                    {
-                        std::sort(filteredBoxes.begin(),
-                              filteredBoxes.end(),
-                              [](const BoxInfo& l, const BoxInfo& r) {
-                                  return ((l.batch_index == r.batch_index) &&
-                                          ((l.score > r.score) ||
-                                           ((std::fabs(l.score - r.score) < 1e-6) && l.class_index < r.class_index) ||
-                                           ((std::fabs(l.score - r.score) < 1e-6) && l.class_index == r.class_index && l.index < r.index)));
-                              });
-                    }
-                    // in case of "NONE" and "CLASSID", pass through
                 }
 
                 /* output */ 
