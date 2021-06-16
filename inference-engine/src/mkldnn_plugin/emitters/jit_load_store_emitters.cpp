@@ -106,7 +106,6 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, int offset_byte, In
                 break;
             case Precision::I32:
                 if ((src_prc == Precision::FP32) || (src_prc == Precision::BF16)) {
-                    h->uni_vroundps(Vmm(out_vec_idx), Vmm(out_vec_idx), 3); // rounding to zero
                     h->uni_vcvtps2dq(Vmm(out_vec_idx), Vmm(out_vec_idx));
                 }
                 break;
@@ -552,7 +551,6 @@ template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
             switch (src_prc) {
                 case Precision::FP32:
                     if ((dst_prc != Precision::FP32) && (dst_prc != Precision::BF16)) {
-                        h->uni_vroundps(Vmm(in_vec_idx), Vmm(in_vec_idx), 3); // rounding to zero
                         h->uni_vcvtps2dq(Vmm(in_vec_idx), Vmm(in_vec_idx));
                     }
                     break;
