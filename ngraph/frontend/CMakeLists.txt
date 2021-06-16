@@ -42,7 +42,6 @@ if(NOT WIN32)
             COMMAND ${CMAKE_COMMAND} --build . --target libprotobuf
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libprotobuf_static
             COMMENT "Build Protobuf Static Library"
-            # TODO: add DEPENDS - not clear what shall be the input for this command
     )
 
     add_custom_target(libprotobuf_static
