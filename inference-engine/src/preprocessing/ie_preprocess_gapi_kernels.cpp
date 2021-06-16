@@ -212,9 +212,12 @@ template<typename isa_tag_t, int chs>
 struct typed_merge_row {
     using p_f = void (*)(const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length);
 
-    template <typename type>
-    p_f operator()(type_to_type<type> ) {
-        return [](const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length) {
+    template <typename type, typename tag = isa_tag_t>
+    typename std::enable_if<std::is_same<tag, scalar_tag>::value ||
+            (!std::is_same<tag, scalar_tag>::value && !std::is_same<type, uint8_t>::value &&
+            !std::is_same<type, float>::value), p_f>
+            ::type operator()(type_to_type<type> ) {
+            return [](const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length) {
             const auto inT = reinterpret_cast<const std::array<const type*, chs>&>(ins);
             auto outT = reinterpret_cast<type*>(out);
             scalar_tag t;
@@ -222,14 +225,20 @@ struct typed_merge_row {
         };
     }
 #if MANUAL_SIMD
-    p_f operator()(type_to_type<uint8_t>) {
+    template<typename type, typename tag = isa_tag_t>
+    typename
+        std::enable_if<!std::is_same<tag, scalar_tag>::value&& std::is_same<type, uint8_t>::value, p_f>
+        ::type operator()(type_to_type<uint8_t>) {
         return [](const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length) {
             isa_tag_t t;
             mergeRowImpl<isa_tag_t, uint8_t, chs>(t, ins, out, length);
         };
     }
 
-    p_f operator()(type_to_type<float>) {
+    template<typename type, typename tag = isa_tag_t>
+    typename
+        std::enable_if<!std::is_same<tag, scalar_tag>::value&& std::is_same<type, float>::value, p_f>
+        ::type operator()(type_to_type<float>) {
         return [](const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length) {
             const auto inT = reinterpret_cast<const std::array<const float*, chs>&>(ins);
             auto outT = reinterpret_cast<float*>(out);
@@ -258,26 +267,35 @@ template<typename isa_tag_t, int chs>
 struct typed_split_row {
     using p_f = void (*)(const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length);
 
-    template <typename type>
-    p_f operator()(type_to_type<type> ) {
-        return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
-            const auto inT = reinterpret_cast<const type*>(in);
-            auto outT = reinterpret_cast<std::array<type*, chs>&>(outs);
-            scalar_tag t;
-            splitRowImpl<type, chs>(t, inT, outT, length);
+    template <typename type, typename tag = isa_tag_t>
+    typename std::enable_if<std::is_same<tag, scalar_tag>::value ||
+            (!std::is_same<tag, scalar_tag>::value && !std::is_same<type, uint8_t>::value &&
+            !std::is_same<type, float>::value), p_f>
+            ::type operator()(type_to_type<type> ) {
+                return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
+                const auto inT = reinterpret_cast<const type*>(in);
+                auto outT = reinterpret_cast<std::array<type*, chs>&>(outs);
+                scalar_tag t;
+                splitRowImpl<type, chs>(t, inT, outT, length);
         };
     }
 
 #if MANUAL_SIMD
-    p_f operator()(type_to_type<uint8_t>) {
+    template<typename type, typename tag = isa_tag_t>
+    typename
+        std::enable_if<!std::is_same<tag, scalar_tag>::value && std::is_same<type, uint8_t>::value, p_f>
+        ::type operator()(type_to_type<uint8_t>) {
         return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
             isa_tag_t t;
             splitRowImpl<isa_tag_t, uint8_t, chs>(t, in, outs, length);
         };
     }
 
-    p_f operator()(type_to_type<float>) {
-        return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
+    template<typename type, typename tag = isa_tag_t>
+    typename
+        std::enable_if<!std::is_same<tag, scalar_tag>::value&& std::is_same<type, float>::value, p_f>
+        ::type operator()(type_to_type<float>) {
+            return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
             const auto inT = reinterpret_cast<const float*>(in);
             auto outT = reinterpret_cast<std::array<float*, chs>&>(outs);
             isa_tag_t t;
