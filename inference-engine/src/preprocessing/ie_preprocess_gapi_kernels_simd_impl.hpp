@@ -25,10 +25,10 @@ CV_ALWAYS_INLINE void mergeRowC2_Impl(const T in0[], const T in1[],
 
 #if MANUAL_SIMD
     constexpr int nlanes = VecT::nlanes;
-    GAPI_Assert(length >= nlanes);
+    GAPI_DbgAssert(length >= nlanes);
 
     VecT r0, r1;
-    for (;;) {
+    for (; length >= nlanes;) {
         for (; x <= length - nlanes; x += nlanes) {
             r0 = vx_load(&in0[x]);
             r1 = vx_load(&in1[x]);
@@ -56,10 +56,10 @@ CV_ALWAYS_INLINE void mergeRowC3_Impl(const T in0[], const T in1[],
 
 #if MANUAL_SIMD
     constexpr int nlanes = VecT::nlanes;
-    GAPI_Assert(length >= nlanes);
+    GAPI_DbgAssert(length >= nlanes);
 
     VecT r0, r1, r2;
-    for (;;) {
+    for (; length >= nlanes;) {
         for (; x <= length - nlanes; x += nlanes) {
             r0 = vx_load(&in0[x]);
             r1 = vx_load(&in1[x]);
@@ -90,10 +90,10 @@ CV_ALWAYS_INLINE void mergeRowC4_Impl(const T in0[], const T in1[],
 
 #if MANUAL_SIMD
     constexpr int nlanes = VecT::nlanes;
-    GAPI_Assert(length >= nlanes);
+    GAPI_DbgAssert(length >= nlanes);
 
     VecT r0, r1, r2, r3;
-    for (;;) {
+    for (; length >= nlanes;) {
         for (; x <= length - nlanes; x += nlanes) {
             r0 = vx_load(&in0[x]);
             r1 = vx_load(&in1[x]);
@@ -125,10 +125,10 @@ CV_ALWAYS_INLINE void splitRowC2_Impl(const T in[], T out0[],
 
 #if MANUAL_SIMD
     constexpr int nlanes = VecT::nlanes;
-    GAPI_Assert(length >= nlanes);
+    GAPI_DbgAssert(length >= nlanes);
 
     VecT r0, r1;
-    for (;;) {
+    for (; length >= nlanes;) {
         for (; x <= length - nlanes; x += nlanes) {
             v_load_deinterleave(&in[2*x], r0, r1);
             vx_store(&out0[x], r0);
@@ -156,10 +156,10 @@ CV_ALWAYS_INLINE void splitRowC3_Impl(const T in[], T out0[],
 
 #if MANUAL_SIMD
     constexpr int nlanes = VecT::nlanes;
-    GAPI_Assert(length >= nlanes);
+    GAPI_DbgAssert(length >= nlanes);
 
     VecT r0, r1, r2;
-    for (;;) {
+    for (; length >= nlanes;) {
         for (; x <= length - nlanes; x += nlanes) {
              v_load_deinterleave(&in[3*x], r0, r1, r2);
              vx_store(&out0[x], r0);
@@ -189,10 +189,10 @@ CV_ALWAYS_INLINE void splitRowC4_Impl(const T in[], T out0[], T out1[],
 
 #if MANUAL_SIMD
     constexpr int nlanes = VecT::nlanes;
-    GAPI_Assert(length >= nlanes);
+    GAPI_DbgAssert(length >= nlanes);
 
     VecT r0, r1, r2, r3;
-    for (;;) {
+    for (; length >= nlanes;) {
         for (; x <= length - nlanes; x += nlanes) {
             v_load_deinterleave(&in[4*x], r0, r1, r2, r3);
             vx_store(&out0[x], r0);
