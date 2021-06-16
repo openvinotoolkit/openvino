@@ -91,10 +91,12 @@ program_impl::program_impl(engine_impl& engine_ref,
                            topology_impl const& topology,
                            build_options const& options,
                            bool is_internal,
-                           bool no_optimizations)
+                           bool no_optimizations,
+                           bool is_body_program)
     : engine(&engine_ref),
       options(options),
-      processing_order() {
+      processing_order(),
+      is_body_program(is_body_program) {
     kernel_selector::KernelBase::ResetCounter();
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
