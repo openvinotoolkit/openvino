@@ -353,9 +353,9 @@ namespace ngraph
                     // in case of "NONE" and "CLASSID", pass through
 
                     // threshold keep_top_k for each batch element
-                    if (keep_top_k > -1 && keep_top_k < num_dets && nms_top_k > -1)
+                    if (keep_top_k > -1 && keep_top_k < num_dets)
                     {
-                        num_dets = nms_top_k;
+                        num_dets = keep_top_k;
                         selected_boxes.resize(num_dets);
                     }
 
@@ -438,9 +438,6 @@ namespace ngraph
                                                const ngraph::element::Type selected_scores_type)
             {
                 auto num_selected = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
-                auto partial_shape_0 = outputs[0]->get_partial_shape();
-                num_selected =
-                    std::min(num_selected, static_cast<int>(partial_shape_0[0].get_max_length()));
 
                 /* shape & type */
 
