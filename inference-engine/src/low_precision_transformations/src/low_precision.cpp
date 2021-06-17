@@ -189,12 +189,9 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
             markupAndDecompose.register_pass<low_precision::PropagatePrecisions>();
             markupAndDecompose.register_pass<low_precision::AlignQuantizationIntervals>();
             markupAndDecompose.register_pass<low_precision::AlignQuantizationParameters>();
-            markupAndDecompose.run_passes(f);
-        }
 
-        {
-            ngraph::pass::Manager markupAndDecompose(passConfig);
             markupAndDecompose.register_pass<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>(params);
+
             markupAndDecompose.run_passes(f);
         }
 #else

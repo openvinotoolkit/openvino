@@ -75,24 +75,6 @@ void GroupConvolutionTransformation::Run() {
     }
 }
 
-void GroupConvolutionTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    GroupConvolutionTransformationParam param;
-
-    std::tie(netPrecision, targetDevice, params, param) = this->GetParam();
-
-    auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-    EXPECT_EQ(1ul, transformed->get_output_size());
-    std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
-
-    std::shared_ptr<ngraph::Node> parent = output->get_input_node_shared_ptr(0);
-    ASSERT_FALSE(parent == nullptr);
-    const std::string typeName = parent->get_type_name();
-
-    ASSERT_TRUE(typeName == "ScaleShiftIE" || typeName == "PowerIE" || typeName == "ConvolutionIE");
-}
-
 TEST_P(GroupConvolutionTransformation, CompareWithRefImpl) {
     Run();
 };
