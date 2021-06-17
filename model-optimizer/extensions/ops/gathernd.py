@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -57,13 +57,14 @@ class GatherND(Op):
             "Length of a tuple with indices must not exceed a rank of data tensor excluding batch dimensions"
 
         # compute output shape
-        number_batches = [np.prod(data_shape[:batch_dims]).tolist()] if batch_dims > 0 else list()
+        number_batches = [np.ma.prod(data_shape[:batch_dims]).tolist()] if batch_dims > 0 else list()
         slice_shape = list(data_shape[(batch_dims + indices_shape[-1]):])
         output_shape = number_batches + list(indices_shape[batch_dims:-1]) + slice_shape
-        node.out_port(0).data.set_shape(int64_array(output_shape))
+        node.out_port(0).data.set_shape(output_shape)
 
         # compute output value if all input values are defined
-        if data_value is not None and indices_value is not None:
+        if data_value is not None and indices_value is not None and is_fully_defined(indices_value) and \
+                is_fully_defined(data_value):
             output_value = np.zeros(output_shape, dtype=data_value.dtype)
             if batch_dims == 0:
                 output_indices_range = int64_array(indices_shape[:-1])
