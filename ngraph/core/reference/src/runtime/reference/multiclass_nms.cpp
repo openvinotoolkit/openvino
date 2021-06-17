@@ -5,9 +5,9 @@
 #include "ngraph/op/multiclass_nms.hpp"
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <queue>
 #include <vector>
-#include <numeric>
 #include "ngraph/runtime/reference/multiclass_nms.hpp"
 #include "ngraph/shape.hpp"
 
@@ -76,7 +76,8 @@ namespace ngraph
 
                 struct SelectedOutput
                 {
-                    SelectedOutput(float class_idx, float score, float x1, float y1, float x2, float y2)
+                    SelectedOutput(
+                        float class_idx, float score, float x1, float y1, float x2, float y2)
                         : class_index{class_idx}
                         , box_score{score}
                         , xmin{x1}
@@ -139,7 +140,7 @@ namespace ngraph
                     s << b.y2;
                     s << "}";
                     return s;
-                }  
+                }
 
                 inline std::ostream& operator<<(std::ostream& s, const BoxInfo& b)
                 {
@@ -151,24 +152,26 @@ namespace ngraph
                     s << b.score;
                     s << "}";
                     return s;
-                }                
+                }
             } // namespace
 
-            template<typename T>
-            void print_queue(T q) { // NB: pass by value so the print uses a copy
+            template <typename T>
+            void print_queue(T q)
+            { // NB: pass by value so the print uses a copy
                 std::cout << "\n{";
-                while(!q.empty()) 
+                while (!q.empty())
                 {
                     std::cout << q.top() << ", ";
                     q.pop();
                 }
                 std::cout << "}\n";
-            }           
+            }
 
-            template<typename T>
-            void print_list(T &q) {
+            template <typename T>
+            void print_list(T& q)
+            {
                 std::cout << "\n{";
-                for(auto& v : q)
+                for (auto& v : q)
                 {
                     std::cout << v << ", ";
                 }
@@ -219,8 +222,9 @@ namespace ngraph
                     std::vector<BoxInfo> selected_boxes; // container for a batch element
 
                     for (int64_t class_idx = 0; class_idx < num_classes; class_idx++)
-                    {                      
-                        if(class_idx == background_class) continue;
+                    {
+                        if (class_idx == background_class)
+                            continue;
 
                         auto adaptive_threshold = iou_threshold;
 
@@ -231,7 +235,8 @@ namespace ngraph
 
                         for (int64_t box_idx = 0; box_idx < num_boxes; box_idx++)
                         {
-                            if (scoresPtr[box_idx] >= score_threshold) /* NOTE: ">=" instead of ">" used in PDPD */
+                            if (scoresPtr[box_idx] >=
+                                score_threshold) /* NOTE: ">=" instead of ">" used in PDPD */
                             {
                                 candidate_boxes.emplace_back(
                                     r[box_idx], box_idx, scoresPtr[box_idx], 0, batch, class_idx);
@@ -239,14 +244,14 @@ namespace ngraph
                         }
 
                         int candiate_size = candidate_boxes.size();
-                        
+
                         // threshold nms_top_k for each class
-                        // NOTE: "nms_top_k" in PDPD not exactly equal to 
+                        // NOTE: "nms_top_k" in PDPD not exactly equal to
                         // "max_output_boxes_per_class" in ONNX.
                         if (nms_top_k > -1 && nms_top_k < candiate_size)
                         {
                             candiate_size = nms_top_k;
-                        } 
+                        }
 
                         if (candiate_size <= 0) // early drop
                         {
@@ -259,14 +264,16 @@ namespace ngraph
                                           candidate_boxes.end(),
                                           std::greater<BoxInfo>());
 
-                        print_list(candidate_boxes);                                                             
+                        // print_list(candidate_boxes);
 
                         std::priority_queue<BoxInfo> sorted_boxes(candidate_boxes.begin(),
-                                          candidate_boxes.begin() + candiate_size, std::less<BoxInfo>());
+                                                                  candidate_boxes.begin() +
+                                                                      candiate_size,
+                                                                  std::less<BoxInfo>());
 
-                        print_list(candidate_boxes);
+                        // print_list(candidate_boxes);
 
-                        print_queue(sorted_boxes);                                  
+                        // print_queue(sorted_boxes);
 
                         std::vector<BoxInfo> selected; // container for a class
                         // Get the next box with top score, filter by iou_threshold
@@ -305,7 +312,7 @@ namespace ngraph
 
                             if (!should_hard_suppress)
                             {
-                                if(nms_eta < 1 && adaptive_threshold > 0.5)
+                                if (nms_eta < 1 && adaptive_threshold > 0.5)
                                 {
                                     adaptive_threshold *= nms_eta;
                                 }
@@ -332,61 +339,68 @@ namespace ngraph
                     if (sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
                     {
                         std::sort(selected_boxes.begin(),
-                              selected_boxes.end(),
-                              [](const BoxInfo& l, const BoxInfo& r) {
-                                  return ((l.batch_index == r.batch_index) &&
+                                  selected_boxes.end(),
+                                  [](const BoxInfo& l, const BoxInfo& r) {
+                                      return (
+                                          (l.batch_index == r.batch_index) &&
                                           ((l.score > r.score) ||
-                                           ((std::fabs(l.score - r.score) < 1e-6) && l.class_index < r.class_index) ||
-                                           ((std::fabs(l.score - r.score) < 1e-6) && l.class_index == r.class_index && l.index < r.index)));
-                              });
+                                           ((std::fabs(l.score - r.score) < 1e-6) &&
+                                            l.class_index < r.class_index) ||
+                                           ((std::fabs(l.score - r.score) < 1e-6) &&
+                                            l.class_index == r.class_index && l.index < r.index)));
+                                  });
                     }
                     // in case of "NONE" and "CLASSID", pass through
 
                     // threshold keep_top_k for each batch element
-                    if (keep_top_k > -1 && keep_top_k < num_dets)
+                    if (keep_top_k > -1 && keep_top_k < num_dets && nms_top_k > -1)
                     {
                         num_dets = nms_top_k;
                         selected_boxes.resize(num_dets);
                     }
-                   
+
                     *valid_outputs++ = num_dets;
-                    for(auto& v:selected_boxes)
+                    for (auto& v : selected_boxes)
                     {
                         filteredBoxes.push_back(v);
                     }
                 } // for each batch element
 
                 if (sort_result_across_batch)
-                {   /* sort across batch */
+                { /* sort across batch */
                     if (sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
                     {
-                        std::sort(filteredBoxes.begin(),
-                              filteredBoxes.end(),
-                              [](const BoxInfo& l, const BoxInfo& r) {
-                                  return (l.score > r.score) ||
-                                         (l.score == r.score && l.batch_index < r.batch_index) ||
-                                         (l.score == r.score && l.batch_index == r.batch_index &&
-                                          l.class_index < r.class_index) ||
-                                         (l.score == r.score && l.batch_index == r.batch_index &&
-                                          l.class_index == r.class_index && l.index < r.index);
-                              });
+                        std::sort(
+                            filteredBoxes.begin(),
+                            filteredBoxes.end(),
+                            [](const BoxInfo& l, const BoxInfo& r) {
+                                return (l.score > r.score) ||
+                                       (l.score == r.score && l.batch_index < r.batch_index) ||
+                                       (l.score == r.score && l.batch_index == r.batch_index &&
+                                        l.class_index < r.class_index) ||
+                                       (l.score == r.score && l.batch_index == r.batch_index &&
+                                        l.class_index == r.class_index && l.index < r.index);
+                            });
                     }
-                    else if(sort_result_type == op::v8::MulticlassNms::SortResultType::CLASSID)
+                    else if (sort_result_type == op::v8::MulticlassNms::SortResultType::CLASSID)
                     {
                         std::sort(filteredBoxes.begin(),
-                              filteredBoxes.end(),
-                              [](const BoxInfo& l, const BoxInfo& r) {
-                                  return (l.class_index < r.class_index) ||
-                                         (l.class_index == r.class_index && l.batch_index < r.batch_index) ||
-                                         (l.class_index == r.class_index && l.batch_index == r.batch_index &&
-                                          l.score > r.score) ||
-                                         (l.class_index == r.class_index && l.batch_index == r.batch_index &&
-                                          l.score == r.score && l.index < r.index);
-                              });
-                    } 
+                                  filteredBoxes.end(),
+                                  [](const BoxInfo& l, const BoxInfo& r) {
+                                      return (l.class_index < r.class_index) ||
+                                             (l.class_index == r.class_index &&
+                                              l.batch_index < r.batch_index) ||
+                                             (l.class_index == r.class_index &&
+                                              l.batch_index == r.batch_index &&
+                                              l.score > r.score) ||
+                                             (l.class_index == r.class_index &&
+                                              l.batch_index == r.batch_index &&
+                                              l.score == r.score && l.index < r.index);
+                                  });
+                    }
                 }
 
-                /* output */ 
+                /* output */
 
                 size_t max_num_of_selected_indices = selected_indices_shape[0];
                 size_t output_size = std::min(filteredBoxes.size(), max_num_of_selected_indices);
@@ -395,12 +409,13 @@ namespace ngraph
                 for (idx = 0; idx < output_size; idx++)
                 {
                     const auto& box_info = filteredBoxes[idx];
-                    SelectedIndex selected_index{
-                        box_info.batch_index, box_info.index, num_boxes};
+                    SelectedIndex selected_index{box_info.batch_index, box_info.index, num_boxes};
                     SelectedOutput selected_score{static_cast<float>(box_info.class_index),
-                                                 box_info.score, 
-                                                 box_info.box.x1, box_info.box.y1, 
-                                                 box_info.box.x2, box_info.box.y2};
+                                                  box_info.score,
+                                                  box_info.box.x1,
+                                                  box_info.box.y1,
+                                                  box_info.box.x2,
+                                                  box_info.box.y2};
 
                     selected_indices_ptr[idx] = selected_index;
                     selected_scores_ptr[idx] = selected_score;
@@ -421,25 +436,28 @@ namespace ngraph
                                                const std::vector<int64_t>& selected_indices,
                                                const std::vector<int64_t>& valid_outputs,
                                                const ngraph::element::Type selected_scores_type)
-            {               
+            {
                 auto num_selected = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
+                auto partial_shape_0 = outputs[0]->get_partial_shape();
+                num_selected =
+                    std::min(num_selected, static_cast<int>(partial_shape_0[0].get_max_length()));
 
                 /* shape & type */
 
-                outputs[0]->set_element_type(selected_scores_type);  // "selected_outputs"
+                outputs[0]->set_element_type(selected_scores_type); // "selected_outputs"
                 outputs[0]->set_shape(Shape{static_cast<size_t>(num_selected), 6});
 
                 size_t num_of_outputs = outputs.size();
 
                 if (num_of_outputs >= 2)
                 {
-                    outputs[1]->set_element_type(output_type);  // "selected_indices"
+                    outputs[1]->set_element_type(output_type); // "selected_indices"
                     outputs[1]->set_shape(Shape{static_cast<size_t>(num_selected), 1});
                 }
 
                 if (num_of_outputs >= 3)
                 {
-                    outputs[2]->set_element_type(output_type);  // "selected_num"
+                    outputs[2]->set_element_type(output_type); // "selected_num"
                     outputs[2]->set_shape(Shape{valid_outputs.size()});
                 }
 
@@ -469,7 +487,8 @@ namespace ngraph
                 case element::Type_t::f32:
                 {
                     float* scores_ptr = outputs[0]->get_data_ptr<float>();
-                    memcpy(scores_ptr, selected_outputs.data(), selected_outputs_size * sizeof(float));
+                    memcpy(
+                        scores_ptr, selected_outputs.data(), selected_outputs_size * sizeof(float));
                 }
                 break;
                 default:;
@@ -485,7 +504,9 @@ namespace ngraph
                 if (output_type == ngraph::element::i64)
                 {
                     int64_t* indices_ptr = outputs[1]->get_data_ptr<int64_t>();
-                    memcpy(indices_ptr, selected_indices.data(), selected_indices_size * sizeof(int64_t));
+                    memcpy(indices_ptr,
+                           selected_indices.data(),
+                           selected_indices_size * sizeof(int64_t));
                 }
                 else
                 {
@@ -504,7 +525,9 @@ namespace ngraph
                 if (output_type == ngraph::element::i64)
                 {
                     int64_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int64_t>();
-                    memcpy(valid_outputs_ptr, valid_outputs.data(), valid_outputs.size() * sizeof(int64_t));
+                    memcpy(valid_outputs_ptr,
+                           valid_outputs.data(),
+                           valid_outputs.size() * sizeof(int64_t));
                 }
                 else
                 {
@@ -512,7 +535,7 @@ namespace ngraph
                     for (size_t i = 0; i < valid_outputs.size(); ++i)
                     {
                         valid_outputs_ptr[i] = static_cast<int32_t>(valid_outputs[i]);
-                    }                    
+                    }
                 }
             }
         } // namespace reference
