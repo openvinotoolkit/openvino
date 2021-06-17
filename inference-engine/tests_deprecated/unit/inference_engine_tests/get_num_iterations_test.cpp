@@ -10,6 +10,8 @@
 
 namespace {
 
+using InferenceEngine::details::operator<<;
+
 struct From {
     explicit From(int new_value) : value(new_value) {}
     int value;
