@@ -23,6 +23,7 @@
 #include "api/permute.hpp"
 #include "api/gather.hpp"
 #include "api/gather_nd.hpp"
+#include "api/gather_elements.hpp"
 #include "api/scatter_update.hpp"
 #include "api/scatter_nd_update.hpp"
 #include "api/scatter_elements_update.hpp"

@@ -33,6 +33,7 @@
 #include "space_to_depth_inst.h"
 #include "gather_inst.h"
 #include "gather_nd_inst.h"
+#include "gather_elements_inst.h"
 #include "scatter_update_inst.h"
 #include "scatter_nd_update_inst.h"
 #include "scatter_elements_update_inst.h"
@@ -201,6 +202,7 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                  !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<scatter_update>() && !input.is_type<shuffle_channels>() &&
                  !input.is_type<scatter_nd_update>() &&
                  !input.is_type<gather_nd>() &&
+                 !input.is_type<gather_elements>() &&
                  !input.is_type<strided_slice>() && !input.is_type<cum_sum>() && !input.is_type<reverse_sequence>() &&
                  !input.is_type<embedding_bag>() && !input.is_type<extract_image_patches>() &&
                  !input.is_type<fused_conv_eltwise>() && !input.is_type<activation>()))
@@ -610,6 +612,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gather_nd>();
 
+            should_fuse |= input_data.is_type<gather_elements>();
+
             should_fuse |= input_data.is_type<scatter_update>();
 
             should_fuse |= input_data.is_type<scatter_nd_update>();
@@ -677,6 +681,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<gather>();
 
             should_fuse |= input_data.is_type<gather_nd>();
+
+            should_fuse |= input_data.is_type<gather_elements>();
 
             should_fuse |= input_data.is_type<scatter_update>();
 
@@ -768,6 +774,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gather_nd>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<gather_elements>() && quantize_node.get_scale_shift_opt();
+
             should_fuse |= input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<scatter_nd_update>() && quantize_node.get_scale_shift_opt();
@@ -830,6 +838,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                                       (parents[i]->is_type<eltwise>() && eltwise_supports_fusings(parents[i]->as<eltwise>())) ||
                                       (parents[i]->is_type<scale>()) ||
                                       (parents[i]->is_type<gather_nd>()) ||
+                                      (parents[i]->is_type<gather_elements>()) ||
                                       (parents[i]->is_type<scatter_nd_update>()) ||
                                       (parents[i]->is_type<scatter_elements_update>()) ||
                                       (parents[i]->is_type<pooling>() && pooling_supports_fusings(parents[i]->as<pooling>())) ||

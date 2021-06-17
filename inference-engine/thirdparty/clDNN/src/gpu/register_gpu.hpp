@@ -25,6 +25,7 @@
 #include "api/fully_connected.hpp"
 #include "api/gather.hpp"
 #include "api/gather_nd.hpp"
+#include "api/gather_elements.hpp"
 #include "api/gemm.hpp"
 #include "api/input_layout.hpp"
 #include "api/lrn.hpp"
@@ -103,6 +104,7 @@ REGISTER_GPU(embed);
 REGISTER_GPU(fully_connected);
 REGISTER_GPU(gather);
 REGISTER_GPU(gather_nd);
+REGISTER_GPU(gather_elements);
 REGISTER_GPU(gemm);
 REGISTER_GPU(input_layout);
 REGISTER_GPU(lookup_table);
