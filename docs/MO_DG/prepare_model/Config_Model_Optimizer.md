@@ -153,7 +153,8 @@ pip3 install -r requirements_kaldi.txt
 pip3 install -r requirements_onnx.txt
 ```
 
-## Using the protobuf Library in the Model Optimizer for Caffe\*
+<details>
+    <summary><h2>Using the protobuf Library in the Model Optimizer for Caffe\*</h2></summary> 
 
 These procedures require:
 
@@ -261,6 +262,7 @@ python3 -m easy_install dist/protobuf-3.6.1-py3.6-win-amd64.egg
 ```shell
 set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 ```
+</details>
 
 ## See Also
 
