@@ -11,7 +11,7 @@ namespace ngraph
     {
         namespace reference
         {
-            bool depth_to_space(const char* data,
+            void depth_to_space(const char* data,
                                 const Shape& data_shape,
                                 char* out,
                                 const Shape& out_shape,

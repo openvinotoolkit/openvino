@@ -104,20 +104,21 @@ bool evaluate_depth_to_space(const HostTensorVector& outputs,
                              const std::size_t block_size,
                              const op::DepthToSpace::DepthToSpaceMode mode)
 {
-    const auto& data = inputs[0];
+    const auto& in = inputs[0];
     const auto& out = outputs[0];
-    const size_t elem_size = data->get_element_type().size();
-    if (data->get_partial_shape().is_dynamic())
+    const size_t elem_size = in->get_element_type().size();
+    if (in->get_partial_shape().is_dynamic())
     {
         return false;
     }
-    return runtime::reference::depth_to_space(data->get_data_ptr<char>(),
-                                              data->get_shape(),
-                                              out->get_data_ptr<char>(),
-                                              out->get_shape(),
-                                              block_size,
-                                              mode,
-                                              elem_size);
+    runtime::reference::depth_to_space(in->get_data_ptr<char>(),
+                                       in->get_shape(),
+                                       out->get_data_ptr<char>(),
+                                       out->get_shape(),
+                                       block_size,
+                                       mode,
+                                       elem_size);
+    return true;
 }
 
 bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
