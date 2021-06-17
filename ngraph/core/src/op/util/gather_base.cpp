@@ -236,6 +236,8 @@ namespace gather
         {
             NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis, batch_dims);
             NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis, batch_dims);
+            NGRAPH_TYPE_CASE(evaluate_gather, i8, arg0, arg1, out, axis, batch_dims);
+            NGRAPH_TYPE_CASE(evaluate_gather, u8, arg0, arg1, out, axis, batch_dims);
             NGRAPH_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis, batch_dims);
             NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis, batch_dims);
             NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis, batch_dims);
