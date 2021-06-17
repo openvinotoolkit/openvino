@@ -135,7 +135,7 @@ TEST_P(InferRequestOutputTests, canStartAsyncInferWithGetInOut) {
     InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
 }
 
-TEST_P(InferRequestOutputTests, canReallocateOutputGetBlob) {
+TEST_P(InferRequestOutputTests, canReallocateExternalBlobViaGet) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -161,7 +161,9 @@ TEST_P(InferRequestOutputTests, canReallocateOutputGetBlob) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
+    auto inBlob = req.GetBlob("param");
     auto outBlob = req.GetBlob("relu");
+    inBlob->allocate();
     outBlob->allocate();
 
     ASSERT_NO_THROW(req.Infer());
