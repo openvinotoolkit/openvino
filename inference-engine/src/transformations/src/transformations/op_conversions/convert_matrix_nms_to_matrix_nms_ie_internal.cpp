@@ -66,10 +66,12 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIEInternal::ConvertMatrixNmsToMatrixNms
         new_ops.emplace_back(nms_legacy);
 
         Output<Node> output_0 = nms_legacy->output(0);
-        if (nms->output(0).get_element_type() != output_0.get_element_type()) {
-            output_0 = std::make_shared<opset1::Convert>(output_0, nms->output(0).get_element_type());
-            output_0.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.0");
-            new_ops.emplace_back(output_0.get_node_shared_ptr());
+
+        Output<Node> output_1 = nms_legacy->output(1);
+        if (nms->output(1).get_element_type() != output_1.get_element_type()) {
+            output_1 = std::make_shared<opset1::Convert>(output_1, nms->output(1).get_element_type());
+            output_1.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.1");
+            new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
         Output<Node> output_2 = nms_legacy->output(2);
@@ -81,7 +83,7 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIEInternal::ConvertMatrixNmsToMatrixNms
 
         nms_legacy->set_friendly_name(nms->get_friendly_name());
         ngraph::copy_runtime_info(nms, new_ops);
-        ngraph::replace_node(nms, {output_0, nms_legacy->output(1), output_2});
+        ngraph::replace_node(nms, {output_0, output_1, output_2});
         return true;
     };
 

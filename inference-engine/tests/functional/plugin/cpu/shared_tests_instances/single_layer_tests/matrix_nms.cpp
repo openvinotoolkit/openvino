@@ -23,8 +23,8 @@ const std::vector<op::v8::MatrixNms::SortResultType> sortResultType = {op::v8::M
                                                                        op::v8::MatrixNms::SortResultType::NONE};
 const std::vector<bool> sortResultAcrossBatch = {true, false};
 const std::vector<element::Type> outType = {element::i32, element::i64};
-const std::vector<int> nmsTopK = {10, 100};
-const std::vector<int> keepTopK = {10, 5};
+const std::vector<int> nmsTopK = {-1, 100};
+const std::vector<int> keepTopK = {-1, 5};
 const std::vector<int> backgroudClass = {-1, 0};
 const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::MatrixNms::DecayFunction::GAUSSIAN,
                                                 op::v8::MatrixNms::DecayFunction::LINEAR};
