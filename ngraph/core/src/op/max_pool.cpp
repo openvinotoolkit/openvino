@@ -292,7 +292,7 @@ op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const Shape& kernel,
                          const op::RoundingType rounding_type,
                          const PadType& auto_pad,
-                         const element::Type_t index_element_type)
+                         const element::Type& index_element_type)
     : Op({arg})
     , m_strides(strides)
     , m_dilations(dilations)
