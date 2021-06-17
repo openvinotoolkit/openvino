@@ -10,11 +10,11 @@
 #include <string>
 
 #include <vpu/myriad_config.hpp>
+#include <vpu/configuration.hpp>
 #include <vpu/private_plugin_config.hpp>
 
 #include <vpu/parsed_config_base.hpp>
 
-#include <vpu/graph_transformer.hpp>
 #include <vpu/utils/perf_report.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/enums.hpp>
@@ -23,11 +23,21 @@ namespace vpu {
 
 class ParsedConfig : public ParsedConfigBase {
 public:
+    ParsedConfig() = default;
+    ParsedConfig(const ParsedConfig&) = default;
+    ParsedConfig& operator=(const ParsedConfig&) = default;
+    ParsedConfig(ParsedConfig&&) = delete;
+    ParsedConfig& operator=(ParsedConfig&&) = delete;
+
     const std::string& compilerLogFilePath() const {
         return _compilerLogFilePath;
     }
 
     const CompilationConfig& compileConfig() const {
+        return _compileConfig;
+    }
+
+    CompilationConfig& compileConfig() {
         return _compileConfig;
     }
 
