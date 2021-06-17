@@ -4,23 +4,17 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
-namespace pass {
-
-class ConvertPadded2ValidConv;
-
-}  // namespace pass
-}  // namespace ngraph
+namespace GNAPluginNS {
 
 /**
- * @ingroup ie_transformation_common_api
- * @brief ConvertPadded2ValidConv transformation breaks down padded convolutions into a set of unpadded ones.
+ * @brief ConvertPadded2ValidConv transformation breaks down padded convolutions into a set of unpadded ones
  */
-class ngraph::pass::ConvertPadded2ValidConv : public ngraph::pass::FunctionPass {
+class ConvertPadded2ValidConv : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+  NGRAPH_RTTI_DECLARATION;
+  bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
+
+} // namespace GNAPluginNS

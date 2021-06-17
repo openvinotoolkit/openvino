@@ -672,7 +672,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
-        manager.register_pass<ngraph::pass::ConvertPadded2ValidConv>();
+        manager.register_pass<ConvertPadded2ValidConv>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         // TODO enable this transformation for networks with convolutions
         if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
