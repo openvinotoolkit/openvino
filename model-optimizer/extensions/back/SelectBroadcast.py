@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.back.ReshapeMutation import ReshapeMutation
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
@@ -40,9 +38,6 @@ class SelectBroadcast(BackReplacementPattern):
         if select.has_valid('format') and select['format'] == 'tf':
             condition = select.in_node(0)
             input_1 = select.in_node(1)
-            input_2 = select.in_node(2)
-
-            assert np.array_equal(input_1.shape, input_2.shape)
 
             if len(condition.shape) == 1 and len(input_1.shape) > 1:
                 unsqueeze_op = create_op_node_with_second_input(
