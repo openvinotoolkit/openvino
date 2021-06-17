@@ -2,24 +2,25 @@
 
 ## Supported Topologies
 
-Here is the list of models that were tested and are guaranteed to be supported.
-These models can be converted using [regular instructions](#typical-pytorch).
-It is not a full list of models that can be converted to ONNX\* and to IR.
+Here is the list of models that are tested and guaranteed to be supported. However, you can also use these instructions to convert PyTorch\* models that are not presented in the list.
 
-|Package Name|Supported Models|
-|:----|:----|
-| [Torchvision Models](https://pytorch.org/docs/stable/torchvision/index.html) | alexnet, densenet121, densenet161, densenet169, densenet201, resnet101, resnet152, resnet18, resnet34, resnet50, vgg11, vgg13, vgg16, vgg19 |
-| [Pretrained Models](https://github.com/Cadene/pretrained-models.pytorch) | alexnet, fbresnet152, resnet101, resnet152, resnet18, resnet34, resnet152, resnet18, resnet34, resnet50, resnext101_32x4d, resnext101_64x4d, vgg11 |
-
-**Other supported topologies**
-
+* [Torchvision Models](https://pytorch.org/docs/stable/torchvision/index.html):  alexnet, densenet121, densenet161,
+  densenet169, densenet201, resnet101, resnet152, resnet18, resnet34, resnet50, vgg11, vgg13, vgg16, vgg19.
+  The models can be converted using [regular instructions](#typical-pytorch).
+* [Cadene Pretrained Models](https://github.com/Cadene/pretrained-models.pytorch): alexnet, fbresnet152, resnet101,
+  resnet152, resnet18, resnet34, resnet152, resnet18, resnet34, resnet50, resnext101_32x4d, resnext101_64x4d, vgg11.
+  The models can be converted using [regular instructions](#typical-pytorch).
 * [ESPNet Models](https://github.com/sacmehta/ESPNet/tree/master/pretrained) can be converted using [regular instructions](#typical-pytorch).
 * [MobileNetV3](https://github.com/d-li14/mobilenetv3.pytorch) can be converted using [regular instructions](#typical-pytorch).
 * [iSeeBetter](https://github.com/amanchadha/iSeeBetter) can be converted using [regular instructions](#typical-pytorch).
   Please refer to [`iSeeBetterTest.py`](https://github.com/amanchadha/iSeeBetter/blob/master/iSeeBetterTest.py) script for code to initialize the model.
-* F3Net topology can be converted using steps described in [Convert PyTorch\* F3Net to the IR](pytorch_specific/Convert_F3Net.md) instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
-* QuartzNet topologies from [NeMo project](https://github.com/NVIDIA/NeMo) can be converted using steps described in [Convert PyTorch\* QuartzNet to the IR](pytorch_specific/Convert_QuartzNet.md) instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
-* YOLACT topology can be converted using steps described in [Convert PyTorch\* YOLACT to the IR](pytorch_specific/Convert_YOLACT.md) instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
+* F3Net topology can be converted using steps described in [Convert PyTorch\* F3Net to the IR](pytorch_specific/Convert_F3Net.md)
+  instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
+* QuartzNet topologies from [NeMo project](https://github.com/NVIDIA/NeMo) can be converted using steps described in
+  [Convert PyTorch\* QuartzNet to the IR](pytorch_specific/Convert_QuartzNet.md) instruction which is used instead of
+  steps 2 and 3 of [regular instructions](#typical-pytorch).
+* YOLACT topology can be converted using steps described in [Convert PyTorch\* YOLACT to the IR](pytorch_specific/Convert_YOLACT.md)
+  instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
 
 ## Typical steps to convert PyTorch\* model <a name="typical-pytorch"></a>
 
