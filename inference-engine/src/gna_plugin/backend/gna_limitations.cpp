@@ -5,6 +5,11 @@
 #include "gna_limitations.hpp"
 
 #include <cstdint>
+#include <unordered_set>
+#include <legacy/ie_layers.h>
+#include <legacy/graph_tools.hpp>
+#include <layers/gna_layer_type.hpp>
+#include <layers/gna_layer_info.hpp>
 
 using GNAPluginNS::GNALimitations::Cnn2D::Validator;
 using GNAPluginNS::GNALimitations::Cnn2D::VectorOrSquareLimit;
@@ -126,4 +131,61 @@ void Validator::ThrowIfNotEmpty(const std::string prefix, const std::string erro
     if (!error.empty()) {
         THROW_GNA_EXCEPTION << prefix << error;
     }
+}
+
+bool Validator::AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
+    IE_SUPPRESS_DEPRECATED_START
+    InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
+    std::unordered_set<InferenceEngine::CNNLayer *> allLayers;
+    InferenceEngine::CNNLayerPtr startLayer;
+    if (inputs.empty()) {
+        auto outputs = network.getOutputsInfo();
+        IE_ASSERT(!outputs.empty());
+        // If there are no inputs start search from an output
+        startLayer = getCreatorLayer(outputs.begin()->second).lock();
+    } else {
+        auto network_input_precision = inputs.begin()->second->getPrecision();
+
+        if (network_input_precision != InferenceEngine::Precision::FP32 &&
+            network_input_precision != InferenceEngine::Precision::I16 &&
+            network_input_precision != InferenceEngine::Precision::U8) {
+            errMessage = "The plugin does not support input precision with " +
+                         std::string(network_input_precision.name()) +
+                         " format. Supported  input precisions FP32, I16, U8\n";
+            return false;
+        }
+
+        auto & secondLayers = getInputTo(inputs.begin()->second->getInputData());
+        if (secondLayers.empty()) {
+            errMessage = "Network consists of input layer only (GNA)\n";
+            return false;
+        }
+        startLayer = secondLayers.begin()->second;
+    }
+    auto batch_size = network.getBatchSize();
+
+    bool check_result = true;
+    InferenceEngine::details::UnorderedDFS(allLayers,
+                                           startLayer,
+                                           [&](const InferenceEngine::CNNLayerPtr layer) {
+                                               if (LayerTypeFromStr(layer->type) == LayerType::NO_TYPE) {
+                                                   errMessage = "The plugin does not support layer: " + layer->name + ":" + layer->type + "\n";
+                                                   check_result =  false;
+                                               }
+                                               if (batch_size != 1 && LayerInfo::isBatchSizeConstrained(layer->type)) {
+                                                   errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
+                                                                ", and batch size(" + std::to_string(batch_size) + ") != 1 not supported";
+                                                   check_result =  false;
+                                               }
+                                               if (LayerInfo(layer).isFullyConnected()) {
+                                                   size_t output_batch_size = LayerInfo(layer).getOutputBatchSize();
+                                                   if (output_batch_size > 8) {
+                                                        errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
+                                                                     ", and batch size(" + std::to_string(output_batch_size) + ") not supported";
+                                                        check_result =  false;
+                                                   }
+                                               }
+                                           }, false);
+    IE_SUPPRESS_DEPRECATED_END
+    return check_result;
 }

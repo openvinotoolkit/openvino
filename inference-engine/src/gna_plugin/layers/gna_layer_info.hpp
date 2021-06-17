@@ -90,9 +90,12 @@ class LayerInfo {
         static InferenceEngine::details::caseless_set<std::string> layersWithConstrains = {"memory", "convolution"};
         return layersWithConstrains.find(name) != layersWithConstrains.end();
     }
-    size_t getBatchSize() const {
-        if (!layer || !layer->outData[0]) {
-            THROW_GNA_EXCEPTION << "layer or output data is null";
+    size_t getOutputBatchSize() const {
+        if (!layer) {
+            THROW_GNA_EXCEPTION << "layer is null";
+        }
+        if (!layer->outData[0]) {
+            THROW_GNA_EXCEPTION << "output data of layer '" << layer->name << "' is null";
         }
         auto& dims = layer->outData[0]->getDims();
         auto layout = layer->outData[0]->getLayout();

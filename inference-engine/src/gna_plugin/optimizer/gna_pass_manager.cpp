@@ -1205,7 +1205,9 @@ void InsertConcatAligningFilterPass::run() {
 
                 if (concatInput->getLayout() == Layout::NC && dims[0] > 8 ||
                     concatInput->getLayout() == Layout::CN && dims[1] > 8) {
-                    THROW_GNA_EXCEPTION << "unsupported batch number: " << dims[0];
+                    THROW_GNA_EXCEPTION << "unsupported batch number '" <<
+                        (concatInput->getLayout() == Layout::NC ? dims[0] : dims[1]) <<
+                        "' in layer '" << concatLayer->name << "'";
                 }
 
                 auto outData = std::make_shared<Data>(filterName,
