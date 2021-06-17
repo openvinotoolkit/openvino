@@ -296,7 +296,7 @@ void printReferenceCompareResults(score_error_t const& totalError, size_t frames
  * @return none.
  */
 void printPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> const& utterancePerfMap, size_t numberOfFrames,
-    std::ostream& stream, std::string fullDeviceName, const uint64_t numberOfFramesOnHw) {
+                              std::ostream& stream, std::string fullDeviceName, const uint64_t numberOfFramesOnHw) {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << ""
@@ -356,8 +356,7 @@ void getPerformanceCounters(InferenceEngine::InferRequest& request, std::map<std
  * @return none.
  */
 void sumPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> const& perfCounters,
-                            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& totalPerfCounters,
-                            uint64_t& totalRunsOnHw) {
+                            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& totalPerfCounters, uint64_t& totalRunsOnHw) {
     auto runOnHw = false;
     for (const auto& pair : perfCounters) {
         totalPerfCounters[pair.first].realTime_uSec += pair.second.realTime_uSec;
