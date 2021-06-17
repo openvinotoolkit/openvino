@@ -9,21 +9,18 @@
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
-
 using namespace ngraph;
 
-static string s_manifest = "${MANIFEST}";
+static std::string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-
-
 NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_block_first)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
+    auto A = std::make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
     auto depth_to_space =
-        make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
-    auto function = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
+        std::make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
+    auto function = std::make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({
@@ -39,10 +36,10 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_block_first)
 
 NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_depth_first)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
+    auto A = std::make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
     auto depth_to_space =
-        make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
-    auto function = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
+        std::make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
+    auto function = std::make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({
