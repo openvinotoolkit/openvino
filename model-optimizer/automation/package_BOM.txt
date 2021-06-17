@@ -938,7 +938,6 @@ mo/front/tf/register_custom_ops.py
 mo/front/tf/replacement.py
 mo/front_ng/__init__.py
 mo/front_ng/extractor.py
-mo/front_ng/frontendmanager_wrapper.py
 mo/front_ng/pipeline.py
 mo/front_ng/serialize.py
 mo/graph/__init__.py

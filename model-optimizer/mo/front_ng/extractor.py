@@ -10,25 +10,27 @@ import numpy as np
 
 from mo.utils.error import Error
 
+from ngraph.frontend import InputModel
 
-def fe_decodeNameWithPort(inputModel, node_name: str):
+
+def decode_name_with_port(input_model: InputModel, node_name: str):
     """
     Decode name with optional port specification w/o traversing all the nodes in the graph
-    :param inputModel: Input Model
+    :param input_model: Input Model
     :param node_name:
     :return: decoded place in the graph
     """
     # Check exact match with one of the names in the graph first
-    node = inputModel.get_place_by_tensor_name(node_name)
+    node = input_model.get_place_by_tensor_name(node_name)
     if node:
         return node
     # TODO: not tested for available frontends
     regexpPost = r'(.*)(:(\d+))'
     matchPost = re.search(regexpPost, node_name)
-    nodePost = inputModel.get_place_by_tensor_name(matchPost.group(1)) if matchPost else None
+    nodePost = input_model.get_place_by_tensor_name(matchPost.group(1)) if matchPost else None
     regexpPre = r'((\d+):)(.*)'
     matchPre = re.search(regexpPre, node_name)
-    nodePre = inputModel.get_place_by_tensor_name(matchPre.group(3)) if matchPost else None
+    nodePre = input_model.get_place_by_tensor_name(matchPre.group(3)) if matchPost else None
     if nodePost and nodePre:
         raise Error('Name collision for {}'.format(node_name))
     if nodePost:
@@ -38,12 +40,12 @@ def fe_decodeNameWithPort(inputModel, node_name: str):
     raise Error('There is no node with name {}'.format(node_name))
 
 
-def fe_input_user_data_repack(inputModel, input_user_shapes: [None, list, dict, np.ndarray],
+def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None, list, dict, np.ndarray],
                               freeze_placeholder: dict, input_user_data_types=dict()):
     """
     Restructures user input cutting request. Splits ports out of node names.
         Transforms node names to node ids.
-    :param graph: graph to operate on
+    :param input_model: ngraph.frontend.InputModel - current model
     :param input_user_shapes: data structure representing user input cutting request. It may be:
     # None value if user did not provide neither --input nor --input_shape keys
     # list instance which contains input layer names with or without ports if user provided
@@ -78,11 +80,9 @@ def fe_input_user_data_repack(inputModel, input_user_shapes: [None, list, dict, 
     }
     """
     _input_shapes = []
-    # New version of FrontEnd is activated
-    print("Inside input_user_data_repack")
     if isinstance(input_user_shapes, list) or isinstance(input_user_shapes, dict):
         for input_name in input_user_shapes:
-            node = fe_decodeNameWithPort(inputModel, input_name)
+            node = decode_name_with_port(input_model, input_name)
             if node is None:
                 raise Error('Cannot find location {} in the input model'.format(input_name))
             shape = None if isinstance(input_user_shapes, list) else input_user_shapes[input_name]
@@ -92,7 +92,7 @@ def fe_input_user_data_repack(inputModel, input_user_shapes: [None, list, dict, 
             else:
                 _input_shapes.append({'node': node, 'shape': shape})
     elif isinstance(input_user_shapes, np.ndarray):
-        model_inputs = inputModel.get_inputs()
+        model_inputs = input_model.get_inputs()
         assert len(model_inputs) == 1
         _input_shapes.append({'node': model_inputs[0], 'shape': input_user_shapes})
     else:
@@ -101,10 +101,10 @@ def fe_input_user_data_repack(inputModel, input_user_shapes: [None, list, dict, 
     return _input_shapes, dict()
 
 
-def fe_output_user_data_repack(inputModel, outputs: list):
+def fe_output_user_data_repack(input_model: InputModel, outputs: list):
     """
 
-    :param inputModel: Input Model to operate on
+    :param input_model: Input Model to operate on
     :param outputs: list of node names provided by user
     :return: dictionary with node IDs as keys and list of port dictionaries as values
     Example of outputs dictionary:
@@ -126,29 +126,27 @@ def fe_output_user_data_repack(inputModel, outputs: list):
     }
     """
     _outputs = []
-    # New version of FrontEnd is activated
-    print("Frontend_ng - output_user_data_repack")
     if outputs is not None and len(outputs) > 0:
         for output in outputs:
-            node = fe_decodeNameWithPort(inputModel, output)
+            node = decode_name_with_port(input_model, output)
             if node is None:
                 raise Error('Cannot find location {} in the graph'.format(output))
             _outputs.append({'node': node})
     return _outputs
 
 
-def fe_user_data_repack(inputModel, input_user_shapes: [None, list, dict, np.array],
+def fe_user_data_repack(input_model: InputModel, input_user_shapes: [None, list, dict, np.array],
                         input_user_data_types: dict, outputs: list, freeze_placeholder: dict):
     """
-    :param inputModel: Input Model to operate on
+    :param input_model: Input Model to operate on
     :param input_user_shapes: data structure representing user input cutting request
     :param outputs: list of node names to treat as outputs
     :param freeze_placeholder: dictionary with placeholder names as keys and freezing value as values
     :return: restructured input, output and freeze placeholder dictionaries or None values
     """
     _input_shapes, _freeze_placeholder = fe_input_user_data_repack(
-        inputModel, input_user_shapes, freeze_placeholder, input_user_data_types=input_user_data_types)
-    _outputs = fe_output_user_data_repack(inputModel, outputs)
+        input_model, input_user_shapes, freeze_placeholder, input_user_data_types=input_user_data_types)
+    _outputs = fe_output_user_data_repack(input_model, outputs)
 
     print('---------- Inputs/outputs/freezePlaceholder -----------')
     print(_input_shapes)
