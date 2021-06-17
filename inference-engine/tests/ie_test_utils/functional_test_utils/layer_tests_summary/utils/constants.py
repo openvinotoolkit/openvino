@@ -66,7 +66,12 @@ VERIFIED_OP_REFERENCES = [
     'ReadValue-6',
     'ReduceL1-4',
     'ReduceL2-4',
+    'ReduceLogicalAnd-1',
+    'ReduceLogicalOr-1',
+    'ReduceMax-1',
     'ReduceMean-1',
+    'ReduceMin-1',
+    'ReduceProd-1',
     'ReduceSum-1',
     'RegionYOLO-1',
     'Relu-1',
@@ -89,5 +94,6 @@ VERIFIED_OP_REFERENCES = [
     'TopK-1',
     'TopK-3',
     'Transpose-1',
-    'Unsqueeze-1'
+    'Unsqueeze-1',
+    'VariadicSplit-1',
 ]

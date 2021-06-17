@@ -80,12 +80,12 @@ KernelsData LSTMEltKernelBase::GetCommonKernelsData(const Params& params, const 
     auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, options);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
-    kernel.workGroups.global = {out.X().v, out.Batch().v, 1};
-    kernel.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
-    kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-    kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+    kernel.params.workGroups.global = {out.X().v, out.Batch().v, 1};
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     if (orgParams.has_cell) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::CELL, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::CELL, 0});
     }
 
     return {kd};
