@@ -165,7 +165,7 @@ output  = [[65 70 56]
     * **Default value**: "f32"
     * **Required**: *No*
 
-* *seed*/home/apopova/Projects/git/openvino/model-optimizer/dist/openvino_mo-0.0.0-py3-none-any.whl
+* *seed*
 
     * **Description**: global seed value.
     * **Range of values**: positive integers
