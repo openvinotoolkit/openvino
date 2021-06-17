@@ -39,6 +39,8 @@ public:
     }
 
     void setConfig(const Config &cfg);
+    const Config& getConfig() const;
+
     void setProperty(const std::map<std::string, std::string> &properties);
     Config getProperty() const;
 
@@ -58,6 +60,10 @@ public:
     void PullOutputData(const InferenceEngine::BlobMap &out);
 
     void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
+
+    const std::vector<MKLDNNNodePtr>& GetNodes() const {
+        return graphNodes;
+    }
 
     std::vector<MKLDNNNodePtr>& GetNodes() {
         return graphNodes;
@@ -219,7 +225,6 @@ protected:
 
 private:
     void EnforceBF16();
-    void printGraphInfo() const;
 };
 
 }  // namespace MKLDNNPlugin

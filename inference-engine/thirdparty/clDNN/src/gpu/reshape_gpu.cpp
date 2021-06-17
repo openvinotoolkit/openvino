@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "reshape/reshape_kernel_ref.h"
 #include "reshape/reshape_kernel_selector.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -16,6 +16,10 @@ namespace gpu {
 struct reshape_gpu : public typed_primitive_gpu_impl<reshape> {
     using parent = typed_primitive_gpu_impl<reshape>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<reshape_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(reshape_node const& arg) {

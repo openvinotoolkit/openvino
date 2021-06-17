@@ -8,7 +8,7 @@
 
 #include "ngraph/op/one_hot.hpp"
 
-#include "api/one_hot.hpp"
+#include "cldnn/primitives/one_hot.hpp"
 
 namespace CLDNNPlugin {
 

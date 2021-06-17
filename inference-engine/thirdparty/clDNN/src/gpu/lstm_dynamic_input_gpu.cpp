@@ -11,7 +11,7 @@
 #include "lstm_dynamic/lstm_dynamic_input_kernel_selector.h"
 #include "lstm_dynamic/lstm_dynamic_input_kernel_base.h"
 #include "network_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -20,14 +20,17 @@ struct lstm_dynamic_input_gpu : typed_primitive_gpu_impl<lstm_dynamic_input> {
     using parent = typed_primitive_gpu_impl<lstm_dynamic_input>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<lstm_dynamic_input_gpu>(*this);
+    }
+
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_input>& instance,
-                                                        int32_t) const override {
-        kernel::kernel_arguments_data args;
-        args.inputs = { (memory_impl::cptr) &instance.input_memory(), (memory_impl::cptr) &instance.dyn_length_memory()};
-        args.output = (memory_impl::cptr) &instance.output_memory();
-        args.weights = (memory_impl::cptr) &instance.weights_memory();
-        args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory() : nullptr);
+    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_input>& instance, int32_t) const override {
+        kernel_arguments_data args;
+        args.inputs = { instance.input_memory_ptr(), instance.dyn_length_memory()};
+        args.output = instance.output_memory_ptr();
+        args.weights = instance.weights_memory();
+        args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
         return args;
     }
 

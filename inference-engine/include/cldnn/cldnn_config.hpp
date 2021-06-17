@@ -11,46 +11,10 @@
 #pragma once
 
 #include "ie_plugin_config.hpp"
+#include "ie_api.h"
+#include "gpu/gpu_config.hpp"
 
 namespace InferenceEngine {
-
-namespace Metrics {
-
-/**
- * @def GPU_METRIC_KEY(name)
- * @brief shortcut for defining GPU plugin metrics
- */
-#define GPU_METRIC_KEY(name) METRIC_KEY(GPU_##name)
-#define DECLARE_GPU_METRIC_KEY(name, ...) DECLARE_METRIC_KEY(GPU_##name, __VA_ARGS__)
-
-/**
- * @def DECLARE_GPU_METRIC_VALUE(name)
- * @brief shortcut for defining gpu metric values
- */
-#define DECLARE_GPU_METRIC_VALUE(name) DECLARE_METRIC_VALUE(GPU_##name)
-
-/**
- * @brief Metric which defines size of memory in bytes available for the device. For iGPU it returns host memory size, for dGPU - dedicated gpu memory size
- */
-DECLARE_GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE, uint64_t);
-
-/**
- * @brief Metric to get microarchitecture identifier in major.minor.revision format
- */
-DECLARE_GPU_METRIC_KEY(UARCH_VERSION, std::string);
-
-/**
- * @brief Metric to get count of execution units for current GPU
- */
-DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
-
-/**
- * @brief Possible return value for OPTIMIZATION_CAPABILITIES metric
- *  - "HW_MATMUL" - Defines if device has hardware block for matrix multiplication
- */
-DECLARE_GPU_METRIC_VALUE(HW_MATMUL);
-
-}  // namespace Metrics
 
 /**
  * @brief GPU plugin configuration
@@ -70,6 +34,7 @@ namespace CLDNNConfigParams {
  * this option should be used with an unsigned integer value (1 is lowest priority)
  * 0 means no priority hint is set and default queue is created.
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GPUConfigParams::GPU_PLUGIN_PRIORITY instead")
 DECLARE_CLDNN_CONFIG_KEY(PLUGIN_PRIORITY);
 
 /**
@@ -78,22 +43,26 @@ DECLARE_CLDNN_CONFIG_KEY(PLUGIN_PRIORITY);
  * chapter 9.19. This option should be used with an unsigned integer value (1 is lowest energy consumption)
  * 0 means no throttle hint is set and default queue created.
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GPUConfigParams::GPU_PLUGIN_THROTTLE instead")
 DECLARE_CLDNN_CONFIG_KEY(PLUGIN_THROTTLE);
 
 /**
  * @brief This key controls clDNN memory pool optimization.
  * Turned off by default.
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_CLDNN_CONFIG_KEY(MEM_POOL);
 
 /**
  * @brief This key defines the directory name to which clDNN graph visualization will be dumped.
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_CLDNN_CONFIG_KEY(GRAPH_DUMPS_DIR);
 
 /**
  * @brief This key defines the directory name to which full program sources will be dumped.
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_CLDNN_CONFIG_KEY(SOURCES_DUMPS_DIR);
 
 /**
@@ -108,43 +77,19 @@ DECLARE_CLDNN_CONFIG_KEY(ENABLE_FP16_FOR_QUANTIZED_MODELS);
  * @brief This key should be set to correctly handle NV12 input without pre-processing.
  * Turned off by default.
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GPUConfigParams::GPU_NV12_TWO_INPUTS instead")
 DECLARE_CLDNN_CONFIG_KEY(NV12_TWO_INPUTS);
-
-/**
- * @brief This key sets the max number of host threads that can be used by GPU plugin on model loading.
- * Default value is maximum number of threads available in the environment.
- */
-DECLARE_CLDNN_CONFIG_KEY(MAX_NUM_THREADS);
-
-/**
- * @brief Turning on this key enables to unroll recurrent layers such as TensorIterator or Loop with fixed iteration count.
- * This key is turned on by default. Turning this key on will achieve better inference performance for loops with not too many iteration counts (less than 16, as a rule of thumb).
- * Turning this key off will achieve better performance for both graph loading time and inference time with many iteration counts (greater than 16).
- * Note that turning this key on will increase the graph loading time in proportion to the iteration counts.
- * Thus, this key should be turned off if graph loading time is considered to be most important target to optimize.*/
-DECLARE_CLDNN_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
 
 }  // namespace CLDNNConfigParams
 
 namespace PluginConfigParams {
 
 /**
- * @brief Optimize GPU plugin execution to maximize throughput.
- *
- * It is passed to Core::SetConfig(), this option should be used with values:
- * - KEY_GPU_THROUGHPUT_AUTO creates bare minimum of streams that might improve performance in some cases,
- *   this option allows to enable throttle hint for opencl queue thus reduce CPU load without significant performance
- * drop
- * - a positive integer value creates the requested number of streams
- */
-DECLARE_CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-DECLARE_CONFIG_KEY(GPU_THROUGHPUT_STREAMS);
-
-/**
  * @brief This key enables dumping of the kernels used by the plugin for custom layers.
  *
  * This option should be used with values: PluginConfigParams::YES or PluginConfigParams::NO (default)
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_CONFIG_KEY(DUMP_KERNELS);
 
 /**
@@ -159,17 +104,24 @@ DECLARE_CONFIG_KEY(DUMP_KERNELS);
  *
  * For values TUNING_CREATE and TUNING_RETUNE the file will be created if it does not exist.
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_CONFIG_KEY(TUNING_MODE);
 
+INFERENCE_ENGINE_DEPRECATED("The config value will be removed")
 DECLARE_CONFIG_VALUE(TUNING_CREATE);
+INFERENCE_ENGINE_DEPRECATED("The config value will be removed")
 DECLARE_CONFIG_VALUE(TUNING_USE_EXISTING);
+INFERENCE_ENGINE_DEPRECATED("The config value will be removed")
 DECLARE_CONFIG_VALUE(TUNING_DISABLED);
+INFERENCE_ENGINE_DEPRECATED("The config value will be removed")
 DECLARE_CONFIG_VALUE(TUNING_UPDATE);
+INFERENCE_ENGINE_DEPRECATED("The config value will be removed")
 DECLARE_CONFIG_VALUE(TUNING_RETUNE);
 
 /**
  * @brief This key defines the tuning data filename to be created/used
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_CONFIG_KEY(TUNING_FILE);
 
 }  // namespace PluginConfigParams
