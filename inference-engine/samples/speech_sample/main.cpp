@@ -361,7 +361,7 @@ void sumPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngi
     auto runOnHw = false;
     for (const auto& pair : perfCounters) {
         totalPerfCounters[pair.first].realTime_uSec += pair.second.realTime_uSec;
-        runOnHw |= pair.second.realTime_uSec > 0; // if realTime is above zero, that means that a primitive was executed on the device
+        runOnHw |= pair.second.realTime_uSec > 0;  // if realTime is above zero, that means that a primitive was executed on the device
     }
     totalRunsOnHw += runOnHw;
 }
