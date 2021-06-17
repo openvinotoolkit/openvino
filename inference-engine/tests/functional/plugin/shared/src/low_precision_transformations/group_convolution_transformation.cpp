@@ -33,6 +33,7 @@ std::string GroupConvolutionTransformation::getTestCaseName(testing::TestParamIn
         param.inputShape << "_" <<
         param.outputShape << "_" <<
         param.group << "_" <<
+        param.groupCalculationDimention << "_" <<
         param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights;
     return result.str();
@@ -51,10 +52,25 @@ void GroupConvolutionTransformation::SetUp() {
         param.inputShape,
         param.outputShape,
         param.group,
+        param.groupCalculationDimention,
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
 
     validate();
+}
+
+void GroupConvolutionTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto param = std::get<3>(GetParam());
+    if (!param.layerName.empty()) {
+        const auto actualPrecision = getRuntimePrecisionByType(param.layerName);
+        auto expectedPrecision = param.expectedKernelType;
+        if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+            expectedPrecision = "FP16";
+        }
+        EXPECT_EQ(actualPrecision, expectedPrecision);
+    }
 }
 
 void GroupConvolutionTransformation::validate() {

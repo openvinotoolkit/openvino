@@ -12,6 +12,8 @@ declared in `namespace opset8`.
 * [Abs](arithmetic/Abs_1.md)
 * [Acos](arithmetic/Acos_1.md)
 * [Acosh](arithmetic/Acosh_3.md)
+* [AdaptiveAvgPool](pooling/AdaptiveAvgPool_8.md)
+* [AdaptiveMaxPool](pooling/AdaptiveMaxPool_8.md)
 * [Add](arithmetic/Add_1.md)
 * [Asin](arithmetic/Asin_1.md)
 * [Asinh](arithmetic/Asinh_3.md)
