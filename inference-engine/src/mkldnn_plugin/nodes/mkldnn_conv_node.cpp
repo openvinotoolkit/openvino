@@ -314,11 +314,11 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             out_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(outputDims, outputDataType, ncsp);
             createDescriptor({ in_candidate.get() }, { out_candidate.get() });
 
-            if (inputDataType != memory::data_type::bf16 && isNspcAvailable()) {
+//            if (inputDataType != memory::data_type::bf16 && isNspcAvailable()) {
                 in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(inputDims, inputDataType, nspc);
                 out_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(outputDims, outputDataType, nspc);
                 createDescriptor({ in_candidate.get() }, { out_candidate.get() });
-            }
+//            }
         }
     }
 }
