@@ -8,11 +8,12 @@ from mo.ops.op import Op
 
 class BlockLSTM(Op):
     op = 'BlockLSTM'
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': __class__.op,
-            'infer': __class__.infer,
+            'op': self.op,
+            'infer': self.infer,
             'type': None,
         }
         super().__init__(graph, mandatory_props, attrs)
