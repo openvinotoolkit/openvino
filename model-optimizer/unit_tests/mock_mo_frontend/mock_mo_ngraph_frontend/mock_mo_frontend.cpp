@@ -10,8 +10,11 @@
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-ModelStat InputModelMockPy::m_stat = {};
 FeStat FrontEndMockPy::m_stat = {};
+ModelStat InputModelMockPy::m_stat = {};
+PlaceStat PlaceMockPy::m_stat = {};
+
+PartialShape InputModelMockPy::m_returnShape = {};
 
 extern "C" MOCK_API FrontEndVersion GetAPIVersion()
 {

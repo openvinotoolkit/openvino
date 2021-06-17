@@ -4,6 +4,8 @@
 import argparse
 import os
 from mo.pipeline.common import get_ir_version
+from mo.back.ie_ir_ver_2.emitter import append_ir_info
+from mo.utils.cli_parser import get_meta_info
 
 
 def ngraph_emit_ir(nGraphFunction, argv: argparse.Namespace):
@@ -14,6 +16,15 @@ def ngraph_emit_ir(nGraphFunction, argv: argparse.Namespace):
 
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
     network.serialize(orig_model_name + ".xml", orig_model_name + ".bin")
+
+    del argv.feManager
+
+    # add meta information to IR
+    append_ir_info(file=orig_model_name,
+                   meta_info=get_meta_info(argv),
+                   mean_data=None,
+                   input_names=None)
+
     print('[ SUCCESS ] Converted with nGraph Serializer')
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))

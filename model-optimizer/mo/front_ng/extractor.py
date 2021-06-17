@@ -150,7 +150,7 @@ def fe_user_data_repack(inputModel, input_user_shapes: [None, list, dict, np.arr
         inputModel, input_user_shapes, freeze_placeholder, input_user_data_types=input_user_data_types)
     _outputs = fe_output_user_data_repack(inputModel, outputs)
 
-    print('---------- Inputs/outpus/freezePlaceholder -----------')
+    print('---------- Inputs/outputs/freezePlaceholder -----------')
     print(_input_shapes)
     print(_outputs)
     print(freeze_placeholder)

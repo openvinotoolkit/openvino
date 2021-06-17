@@ -52,7 +52,7 @@ struct MOCK_API PlaceStat
 
 class MOCK_API PlaceMockPy : public Place
 {
-    mutable PlaceStat m_stat;
+    static PlaceStat m_stat;
 
 public:
     std::vector<std::string> get_names() const override
@@ -141,7 +141,8 @@ public:
     }
 
     //---------------Stat--------------------
-    PlaceStat get_stat() const { return m_stat; }
+    static PlaceStat get_stat() { return m_stat; }
+    static void clear_stat() { m_stat = {}; }
 };
 
 ////////////////////////////////
@@ -192,6 +193,7 @@ struct MOCK_API ModelStat
 class MOCK_API InputModelMockPy : public InputModel
 {
     static ModelStat m_stat;
+    static PartialShape m_returnShape;
 
 public:
     std::vector<Place::Ptr> get_inputs() const override
@@ -245,7 +247,7 @@ public:
     {
         m_stat.m_get_partial_shape++;
         m_stat.m_lastArgPlace = place;
-        return {};
+        return m_returnShape;
     }
 
     void set_element_type(Place::Ptr place, const ngraph::element::Type& type) override
@@ -255,8 +257,11 @@ public:
         m_stat.m_lastArgElementType = type;
     }
 
+    static void mock_return_partial_shape(const PartialShape& shape) { m_returnShape = shape; }
+
     //---------------Stat--------------------
     static ModelStat get_stat() { return m_stat; }
+    static void clear_stat() { m_stat = {}; }
 };
 
 /////////////////////////////////////////////////////////
@@ -292,4 +297,5 @@ public:
     }
 
     static FeStat get_stat() { return m_stat; }
+    static void clear_stat() { m_stat = {}; }
 };
