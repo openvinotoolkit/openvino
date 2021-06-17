@@ -6,53 +6,14 @@
 
 **Short description**: *RandomUniform* operation generates a sequence of random values from a uniform distribution.
 
-**Attributes**:
-
-* *output_type*
-
-    * **Description**: the type of the output.
-    * **Range of values**: "i32", "i64", "f16", "f32", "f64".
-    * **Type**: string
-    * **Default value**: "f32"
-    * **Required**: *No*
-
-* *seed*
-
-    * **Description**: global seed value.
-    * **Range of values**: positive integers
-    * **Type**: `int`
-    * **Default value**: None
-    * **Required**: *Yes*
-
-* *seed2*
-
-    * **Description**: operational seed value.
-    * **Range of values**: positive integers
-    * **Type**: `int`
-    * **Default value**: None
-    * **Required**: *Yes*
-
-**Inputs**:
-
-*   **1**: `shape` - 1D tensor of type *T_SHAPE* describing output shape. **Required.**
-
-*   **2**: `minval` - Scalar with type specified by the attribute *output_type*, defines the lower bound on the range of random values to generate (inclusive). Default value = 0.
-
-*   **3**: `maxval` - Scalar with type specified by the attribute *output_type*, defines the upper bound on the range of random values to generate (exclusive). Required for int64 and int32. Default value = 1.
-
-
-**Outputs**:
-
-* **1**: A tensor with type specified by the attribute *output_type* and shape defined by `shape` input tensor.
-
-**Types**
-
-* *T_SHAPE*: any supported integer type.
-
-
 **Detailed description**:
 
 *RandomUniform* operation generates random numbers from a uniform distribution in the range [*minval*, *maxval*). The generation algorithm is based on underlying random integer generator that uses Philox algorithm. Philox algorithm is counter based pseudo random generator, which produces unit32 values. Single invocation of Philox algorithm returns four result random values, depending on the given *key* and *counter* values. *Key* and *counter* are initialized with *seed* and *seed2* attributes respectively.
+
+\f[
+key = seed\\
+counter = seed2
+\f]
 
 Link to original paper: https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
 
@@ -86,6 +47,25 @@ Values *L'_{n}*, *R'_{n}*, *L'_{counter}*, *R'_{counter}* are resulting four ran
 
 Float values between [0..1) are obtained from 32-bit integers by the following rules.
 
+Float16 is formatted as follows: *sign*(1 bit) *exponent*(5 bits) *mantissa*(10 bits). The value is interpreted using following formula:
+\f[
+(-1)^{sign} * 1, mantissa * 2 ^{exponent - 15}
+\f]
+
+so to obtain float16 values *sign*, *exponent* and *mantissa* are set as follows:
+``` 
+sign = 0
+exponent = 15 - representation of a zero exponent.
+mantissa = 10 right bits from generated uint32 random value.
+``` 
+
+So the resulting float16 value is:
+``` 
+x_uint16 = x // Truncate the upper 16 bits.
+val = ((exponent << 10) | x_uint16 & 0x3ffu) - 1.0,
+```
+where x is uint32 generated random value.
+
 Float32 is formatted as follows: *sign*(1 bit) *exponent*(8 bits) *mantissa*(23 bits). The value is interpreted using following formula:
 \f[
 (-1)^{sign} * 1, mantissa * 2 ^{exponent - 127}
@@ -100,11 +80,30 @@ mantissa = 23 right bits from generated uint32 random value.
 
 So the resulting float value is:
 ``` 
-val = ((exponent << 23) | x & 0x7fffffu) - 1,
+val = ((exponent << 23) | x & 0x7fffffu) - 1.0,
 ```
 where x is uint32 generated random value.
 
-Float16 and Double are obtained similar way, where exponent is set to zero and mantissa is formed from bits of generated uint32 random value (pair of uint32 values for double).    
+Double is formatted as follows: *sign*(1 bit) *exponent*(11 bits) *mantissa*(52 bits). The value is interpreted using following formula:
+\f[
+(-1)^{sign} * 1, mantissa * 2 ^{exponent - 1023}
+\f]
+
+so to obtain double values *sign*, *exponent* and *mantissa* are set as follows:
+``` 
+sign = 0
+exponent = 1023 - representation of a zero exponent.
+mantissa = 52 right bits from two concatinated uint32 values from random integer generator.
+``` 
+
+So the resulting double is obtained as follows:
+``` 
+mhi = x0 & 0xfffffu;  // upper 20 bits of mantissa
+mlo = x1;             // lower 32 bits of mantissa
+man = (mhi << 32) | mlo;  // mantissa
+val = ((exponent << 52) | man) - 1.0,
+```
+where x0, x1 are uint32 generated random values.
 
 To obtain a value in a specified range each value is processed with the following formulas:
 
@@ -156,8 +155,50 @@ output  = [[65 70 56]
           [59 82 92]]
 ```
 
+**Attributes**:
 
-*IR Example 1: "minval" and "maxval" are not specified.*
+* *output_type*
+
+    * **Description**: the type of the output.
+    * **Range of values**: "i32", "i64", "f16", "f32", "f64".
+    * **Type**: string
+    * **Default value**: "f32"
+    * **Required**: *No*
+
+* *seed*/home/apopova/Projects/git/openvino/model-optimizer/dist/openvino_mo-0.0.0-py3-none-any.whl
+
+    * **Description**: global seed value.
+    * **Range of values**: positive integers
+    * **Type**: `int`
+    * **Default value**: None
+    * **Required**: *Yes*
+
+* *seed2*
+
+    * **Description**: operational seed value.
+    * **Range of values**: positive integers
+    * **Type**: `int`
+    * **Default value**: None
+    * **Required**: *Yes*
+
+**Inputs**:
+
+*   **1**: `shape` - 1D tensor of type *T_SHAPE* describing output shape. **Required.**
+
+*   **2**: `minval` - Scalar with type specified by the attribute *output_type*, defines the lower bound on the range of random values to generate (inclusive). Default value = 0.
+
+*   **3**: `maxval` - Scalar with type specified by the attribute *output_type*, defines the upper bound on the range of random values to generate (exclusive). Required for int64 and int32. Default value = 1.
+
+
+**Outputs**:
+
+* **1**: A tensor with type specified by the attribute *output_type* and shape defined by `shape` input tensor.
+
+**Types**
+
+* *T_SHAPE*: any supported integer type.
+
+*Example 1: "minval" and "maxval" are not specified.*
 
 ```xml
 <layer ... type="RandomUniform">
@@ -177,7 +218,7 @@ output  = [[65 70 56]
 </layer>
 ```
 
-*IR Example 2: "minval" and "maxval" are specified.*
+*Example 2: "minval" and "maxval" are specified.*
 
 ```xml
 <layer ... type="RandomUniform">
