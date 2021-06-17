@@ -35,18 +35,22 @@ struct gather_elements : public primitive_base<gather_elements> {
     /// @param id This primitive id.
     /// @param data Input data primitive id.
     /// @param indices Input indexes primitive id.
-    /// @param indices_rank Rank of indices.
+    /// @param output_format Output format: bfyx, bfzyx, bfwzyx
+    /// @param output_shape Output shape: {2, 2, 3, 5}, {2, 2, 3, 3, 6}
     /// @param axis An attribute of GatherElements. Required.
     gather_elements(const primitive_id& id,
                    const primitive_id& data,
                    const primitive_id& indices,
-                   const uint8_t indices_rank,
+                   const format& output_format,
+                   const tensor& output_shape,
                    const uint8_t axis = 0,
                    const padding& output_padding = padding())
-        : primitive_base(id, {data, indices}, output_padding), indices_rank(indices_rank), axis(axis) {}
+        : primitive_base(id, {data, indices}, output_padding), output_format(output_format), output_shape(output_shape), axis(axis) {}
 
-    /// @brief indices_rank
-    uint8_t indices_rank;
+    /// @brief Gather Elements output format
+    format output_format;
+    /// @brief Gather Elements output shape
+    tensor output_shape;
 
     /// @brief Which axis to gather on.
     uint8_t axis;

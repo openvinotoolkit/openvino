@@ -23,11 +23,8 @@ namespace kernel_selector {
 // gather_elements_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct gather_elements_params : public base_params {
-    gather_elements_params() : base_params(KernelType::GATHER_ELEMENTS), indices_rank(0), batch_dims(0) {}
+    gather_elements_params() : base_params(KernelType::GATHER_ELEMENTS), axis(0) {}
 
-    uint8_t indices_rank;
-
-    uint8_t batch_dims;
     uint8_t axis;
 
     virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }

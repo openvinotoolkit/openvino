@@ -15,15 +15,10 @@
 #include "include/fetch.cl"
 
 #define GET_UPDATES_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
-#define GET_OUTPUT_INDEX(out_order) OUTPUT_GET_INDEX(out_order)
+#define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
 
-#if INPUT0_DIMS == 4
-    #define IN_ORDER in_b,in_f,in_y,in_x
-#elif INPUT0_DIMS == 5
-    #define IN_ORDER in_b,in_f,in_z,in_y,in_x
-#else
-    #define IN_ORDER in_b,in_f,in_w,in_z,in_y,in_x
-#endif
+#define ORDER b,f,y,x
+#define IN_ORDER in_b,in_f,in_y,in_x
 
 #if INPUT1_DIMS == 4
     #define IDX_ORDER idx_b,idx_f,idx_y,idx_x
@@ -33,194 +28,119 @@
     #define IDX_ORDER idx_b,idx_f,idx_w,idx_z,idx_y,idx_x
 #endif
 
-#if OUTPUT_DIMS == 4
-    #define OUT_ORDER out_b,out_f,out_y,out_x
-#elif OUTPUT_DIMS == 5
-    #define OUT_ORDER out_b,out_f,out_z,out_y,out_x
-#else
-    #define OUT_ORDER out_b,out_f,out_w,out_z,out_y,out_x
-#endif
+#define OUT_ORDER out_b,out_f,out_y,out_x
+#define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 
 #define INDICES_MAX_DIM 6
 
 KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
-                   __global OUTPUT_TYPE* output
-#if HAS_FUSED_OPS_DECLS
-                   , FUSED_OPS_DECLS
-#endif
-)
+                   __global OUTPUT_TYPE* output)
 {
-
     const uint dim0 = get_global_id(0);
     const uint dim1 = get_global_id(1);
     const uint dim2 = get_global_id(2);
 
     // Calculate indice index
-    const uint F_NUM = (INDICES_RANK == 2) ? 1 : INPUT1_FEATURE_NUM;
+    const uint F_NUM = INPUT1_FEATURE_NUM;
     const uint idx_f = dim2 % F_NUM;
     const uint idx_b = dim2 / F_NUM;
 
-    #if INPUT1_DIMS == 4
-        const uint idx_x = dim0;
-        const uint idx_y = dim1;
-        const uint idx_z = 0;
-        const uint idx_w = 0;
+#if INPUT1_DIMS == 4
+    // const uint idx_x = dim0; // y
+    // const uint idx_y = dim1; // x
+    // const uint idx_z = 0;
+    // const uint idx_w = 0;
+    const uint idx_x = dim0;
+    const uint idx_y = dim1;
+#elif INPUT1_DIMS == 5
+        // const uint idx_x = dim0 / INPUT1_SIZE_Y; // z
+        // const uint idx_y = dim0 % INPUT1_SIZE_Y; // y
+        // const uint idx_z = dim1; // x
+        // const uint idx_w = 0;
+    const uint idx_x = dim0 % OUTPUT_SIZE_X;
+    const uint idx_y = dim0 / OUTPUT_SIZE_X;
+    const uint idx_z = dim1;
 
-        const uint idx_arr[INPUT1_DIMS*2] = {idx_b, idx_f, idx_y, idx_x, 0, 0, 0, 0};
-        const uint idx_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X};
-    #elif INPUT1_DIMS == 5
-        const uint X_NUM = (INDICES_RANK == 5) ? 1 : INPUT1_SIZE_X;
+#else
+    // INPUT1_DIMS == 6
+    const uint idx_x = dim0 % OUTPUT_SIZE_X; // x
+    const uint idx_y = dim0 / OUTPUT_SIZE_X; // y
+    const uint idx_z = dim1 % OUTPUT_SIZE_Z; // z
+    const uint idx_w = dim1 / OUTPUT_SIZE_Z; // w
+#endif
 
-        const uint idx_x = dim0 % X_NUM;
-        const uint idx_y = dim0 / X_NUM;
-        const uint idx_z = dim1;
-        const uint idx_w = 0;
+    const int out_idx = GET_UPDATES_INDEX(INPUT1, IDX_ORDER);
+    // printf("%d\n", out_idx);
+    int axis = AXIS;
+    size_t rank = INPUT0_DIMS; // indices_shape.size(), data_shape.size()
+//     printf("rank and axis: %d %d\n", rank, axis);
 
-        const uint idx_arr[INPUT1_DIMS*2] = {idx_b, idx_f, idx_z, idx_y, idx_x, 0, 0, 0, 0, 0};
-        const uint idx_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Z, INPUT1_SIZE_Y, INPUT1_SIZE_X};
-    #else
-        const uint X_NUM = (INDICES_RANK == 6) ? 1 : INPUT1_SIZE_X;
-        const uint Z_NUM = (INDICES_RANK == 4) ? 1 : INPUT1_SIZE_Z;
+    size_t data_shape[10] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_X, INPUT0_SIZE_Y, INPUT0_SIZE_Z, INPUT0_SIZE_W};
+    size_t indices_shape[10] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_X, INPUT1_SIZE_Y, INPUT1_SIZE_Z, INPUT1_SIZE_W};
 
-        const uint idx_x = dim0 % X_NUM;
-        const uint idx_y = dim0 / X_NUM;
-        const uint idx_z = dim1 % Z_NUM;
-        const uint idx_w = dim1 / Z_NUM;
+    size_t max_inner_sum = 1, max_outer_sum = 1, outer_sum_inc_data = 1, outer_sum_inc_indices = 1;
+    for (size_t i = axis + 1; i < rank; i++)
+        max_inner_sum *= indices_shape[i];
 
-        const uint idx_arr[INPUT1_DIMS*2] = {idx_b, idx_f, idx_w, idx_z, idx_y, idx_x, 0, 0, 0, 0, 0, 0};
-        const uint idx_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_W, INPUT1_SIZE_Z, INPUT1_SIZE_Y, INPUT1_SIZE_X};
-    #endif
+    for (int i = 0; i < axis; i++)
+        max_outer_sum *= indices_shape[i];
 
-    const int idx = GET_UPDATES_INDEX(INPUT1, IDX_ORDER);
+    for (size_t i = axis; i < rank; i++) {
+        outer_sum_inc_data *= data_shape[i];
+    }
+    max_outer_sum *= outer_sum_inc_data;
 
-    // Calculate data index
-    uint indices_val[INDICES_MAX_DIM + BATCH_DIMS];
-    for (int i = 0; i < INDICES_MAX_DIM + BATCH_DIMS; i++) {
-        indices_val[i] = 0;
+    for (size_t i = axis; i < rank; i++) {
+        outer_sum_inc_indices *= indices_shape[i];
     }
 
-    for (int i = 0; i < BATCH_DIMS; i++) {
-        indices_val[i] = idx_arr[i];
+//     printf("max_inner_sum: %ld\n", max_inner_sum);
+//     printf("outer_sum_inc_data: %ld\n",outer_sum_inc_data);
+//     printf("max_inner_sum, max_outer_sum, outer_sum_inc_data: %d %d %d\n",max_inner_sum, max_outer_sum, outer_sum_inc);
+
+// ========================================================================================
+
+    size_t outer_sum = (out_idx / outer_sum_inc_indices) * outer_sum_inc_data;
+    size_t inner_sum = out_idx % max_inner_sum;
+    if (indices[out_idx] < 0 || indices[out_idx] >= data_shape[axis]) {
+        printf("indices values of GatherElement exceed data size.\n");
+        return;
     }
+    uint idx = outer_sum + max_inner_sum * indices[out_idx] + inner_sum;
+    uint tmp = outer_sum;
 
-    for (int i = 0; i < INDICES_LAST_DIM; i++) {
-        indices_val[i + BATCH_DIMS] = indices[idx+i];
-    }
+    INPUT0_TYPE val = data[idx];
+    output[out_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
 
-    #if INPUT0_DIMS == 4
-        const uint in_x = indices_val[3];
-        const uint in_y = indices_val[2];
-    #elif INPUT0_DIMS == 5
-        const uint in_x = indices_val[4];
-        const uint in_y = indices_val[3];
-        const uint in_z = indices_val[2];
-    #else
-        const uint in_x = indices_val[5];
-        const uint in_y = indices_val[4];
-        const uint in_z = indices_val[3];
-        const uint in_w = indices_val[2];
-    #endif
-    const uint in_f = indices_val[1];
-    const uint in_b = indices_val[0];
+    // output[out_idx] = TO_OUTPUT_TYPE(axis);
+    // output[out_idx] = axis;
+// ========================================================================================
 
-    const uint data_idx = GET_UPDATES_INDEX(INPUT0, IN_ORDER);
+    // output[out_idx] = TO_OUTPUT_TYPE(out_idx);
 
-    // Calculate output index
-    #if BATCH_DIMS <= 1
-        const uint out_x = idx_x;
-        const uint out_y = idx_y;
-        const uint out_z = idx_z;
-        const uint out_w = idx_w;
-        const uint out_f = idx_f;
-        const uint out_b = idx_b;
-    #else
-        uint pitch_acc = 1;
-        uint output_batch_size = 0;
-        for (int i = BATCH_DIMS - 1; i >= 0; i--) {
-            output_batch_size += (idx_arr[i] * pitch_acc);
-            pitch_acc *= idx_dim[i];
-        }
+// ========================================================================================
 
-        #if OUTPUT_DIMS == 4
-            const uint out_x = idx_arr[BATCH_DIMS+2];
-            const uint out_y = idx_arr[BATCH_DIMS+1];
-        #elif OUTPUT_DIMS == 5
-            const uint out_x = idx_arr[BATCH_DIMS+3];
-            const uint out_y = idx_arr[BATCH_DIMS+2];
-            const uint out_z = idx_arr[BATCH_DIMS+1];
-        #else
-            const uint out_x = idx_arr[BATCH_DIMS+4];
-            const uint out_y = idx_arr[BATCH_DIMS+3];
-            const uint out_z = idx_arr[BATCH_DIMS+2];
-            const uint out_w = idx_arr[BATCH_DIMS+1];
-        #endif
-        const uint out_f = idx_arr[BATCH_DIMS+0];
-        const uint out_b = output_batch_size;
-    #endif
+    // for (size_t outer_sum = 0, i = 0; outer_sum < max_outer_sum; outer_sum += outer_sum_inc_data) {
+    //     for (size_t k = 0; k < indices_shape[axis]; k++) {
+    //         for (size_t inner_sum = 0; inner_sum < max_inner_sum; inner_sum++) {
+    //             if (indices[i] < 0 || indices[i] >= data_shape[axis])
+    //             {
+    //                 printf("indices values of GatherElement exceed data size.\n");
+    //                 return;
+    //             }
 
-    const uint output_idx = GET_OUTPUT_INDEX(OUT_ORDER);
-
-    // Copy data to output as slice size
-    #if HAS_FUSED_OPS
-        #if OUTPUT_DIMS == 4
-            const uint y_pitch = OUTPUT_SIZE_X;
-            const uint f_pitch = y_pitch * OUTPUT_SIZE_Y;
-        #elif OUTPUT_DIMS == 5
-            const uint y_pitch = OUTPUT_SIZE_X;
-            const uint z_pitch = y_pitch * OUTPUT_SIZE_Y;
-            const uint f_pitch = z_pitch * OUTPUT_SIZE_Z;
-        #else
-            const uint y_pitch = OUTPUT_SIZE_X;
-            const uint z_pitch = y_pitch * OUTPUT_SIZE_Y;
-            const uint w_pitch = z_pitch * OUTPUT_SIZE_Z;
-            const uint f_pitch = w_pitch * OUTPUT_SIZE_W;
-        #endif
-        const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
-    #endif
-
-    for (int i = 0; i < WI_SLICE_SIZE; i++) {
-        uint dst_idx = output_idx + i;
-        INPUT0_TYPE val = data[data_idx + i];
-
-        #if HAS_FUSED_OPS
-            const uint b_remain = dst_idx % b_pitch;
-            const uint f_remain = b_remain % f_pitch;
-            #if OUTPUT_DIMS == 4
-                const uint y_remain = f_remain % y_pitch;
-
-                const uint y = f_remain / y_pitch;
-            #elif OUTPUT_DIMS == 5
-                const uint z_remain = f_remain % z_pitch;
-                const uint y_remain = z_remain % y_pitch;
-
-                const uint z = f_remain / z_pitch;
-                const uint y = z_remain / y_pitch;
-            #else
-                const uint w_remain = f_remain % w_pitch;
-                const uint z_remain = w_remain % z_pitch;
-                const uint y_remain = z_remain % y_pitch;
-
-                const uint w = f_remain / w_pitch;
-                const uint z = w_remain / z_pitch;
-                const uint y = z_remain / y_pitch;
-            #endif
-            const uint b = dst_idx / b_pitch;
-            const uint f = b_remain / f_pitch;
-            const uint x = y_remain;
-
-            #if FUSED_OPS_CAN_USE_PRELOAD
-                FUSED_OPS_PRELOAD;
-                FUSED_OPS_CALC;
-            #else
-                FUSED_OPS;
-            #endif
-
-            output[dst_idx] = FUSED_OPS_RESULT;
-        #else
-            output[dst_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
-        #endif
-    }
+    //             // uint idx = outer_sum + max_inner_sum * indices[i] + inner_sum;
+    //             uint idx = outer_sum;
+    //             // uint idx = max_inner_sum * indices[i];
+    //             // INPUT0_TYPE val = data[idx];
+    //             // output[i] = ACTIVATION(val, ACTIVATION_PARAMS);
+    //             output[i] = idx;
+    //             // output[output_idx] = TO_OUTPUT_TYPE(val);
+    //             i++;
+    //         }
+    //     }
+    // }
 }
 
 #undef INDICES_MAX_DIM

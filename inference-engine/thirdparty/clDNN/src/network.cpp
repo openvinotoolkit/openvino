@@ -30,7 +30,7 @@
 #include <utility>
 #include <map>
 
-// #define DEBUG_DUMP_PATH "cldnn_dump/"
+// #define DEBUG_DUMP_PATH "/home/yunji/gather_dump/"
 
 #ifdef DEBUG_DUMP_PATH
 #include <iomanip>
