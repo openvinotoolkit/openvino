@@ -367,16 +367,22 @@ cdef class IECore:
     cpdef ExecutableNetwork load_network(self, network: [IENetwork, str], str device_name, config=None, int num_requests=1):
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
+        cdef string c_device_name
+        cdef string c_network_path
         if num_requests < 0:
             raise ValueError(f"Incorrect number of requests specified: {num_requests}. Expected positive integer number "
                              "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
         exec_net.ie_core_impl = self.impl
+        c_device_name = device_name.encode()
         if isinstance(network, str):
-            exec_net.impl = move(self.impl.loadNetworkFromFile((<str>network).encode(), device_name.encode(), c_config, num_requests))
+            c_network_path = network.encode()
+            with nogil:
+                exec_net.impl = move(self.impl.loadNetworkFromFile(c_network_path, c_device_name, c_config, num_requests))
         else:
-            exec_net.impl = move(self.impl.loadNetwork((<IENetwork>network).impl, device_name.encode(), c_config, num_requests))
+            with nogil:
+                exec_net.impl = move(self.impl.loadNetwork((<IENetwork>network).impl, c_device_name, c_config, num_requests))
         return exec_net
 
     ## Creates an executable network from a previously exported network
