@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <openvino/cc/ngraph/itt.hpp>
+
 #include <memory>
 #include <vector>
 
@@ -19,6 +21,7 @@ using namespace GNAPluginNS;
 NGRAPH_RTTI_DEFINITION(SwapInputMatMul, "SwapInputMatMul", 0);
 
 SwapInputMatMul::SwapInputMatMul() {
+    MATCHER_SCOPE(SwapInputMatMul);
     auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({ngraph::pattern::any_input(
             ngraph::pattern::has_static_shape()), ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
                                                                      ngraph::pattern::has_static_shape());
@@ -95,6 +98,6 @@ SwapInputMatMul::SwapInputMatMul() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "SwapInputMatMul");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, matcher_name);
     this->register_matcher(m, callback);
 }
