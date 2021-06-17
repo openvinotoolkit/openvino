@@ -17,15 +17,14 @@ void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op::v6::Ga
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    // 아마도 필요 없을 듯
-    int32_t indices_rank = static_cast<int32_t>(op->get_input_shape(1).size());
-
     auto axis = op->get_axis();
+    auto outLayout = DefaultFormatForDims(op->get_output_shape(0).size());
 
     auto primitive = cldnn::gather_elements(layerName,
                                            inputPrimitives[0],
                                            inputPrimitives[1],
-                                           indices_rank,
+                                           outLayout,
+                                           CldnnTensorFromIEDims(op->get_output_shape(0)),
                                            axis);
 
     p.AddPrimitive(primitive);

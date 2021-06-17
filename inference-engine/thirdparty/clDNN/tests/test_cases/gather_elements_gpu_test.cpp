@@ -31,14 +31,13 @@ inline void DoTest(const engine& engine,
     const cldnn::memory& input0, // data
     const cldnn::memory& input1, // indices
     const std::vector<float>& expected_results,
-    // const int indices_rank,
+    const tensor& output_tensor,
     const int axis) {
     topology topology;
     topology.add(input_layout("InputData", input0.get_layout()));
     topology.add(input_layout("InputIndices", input1.get_layout()));
-    int indices_rank = 2;
     topology.add(
-        gather_elements("gather_elements", "InputData", "InputIndices", indices_rank, axis)
+        gather_elements("gather_elements", "InputData", "InputIndices", input1.get_layout().format, output_tensor, axis)
     );
 
     network network(engine, topology);
@@ -50,6 +49,8 @@ inline void DoTest(const engine& engine,
     auto output_ptr = output.pointer<uint16_t>();
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
+        // printf("%ld : %f %f\n", i, expected_results[i], float16_to_float32(output_ptr[i]) );
+        // printf("%ld : %f\n", i, float16_to_float32(output_ptr[i]) );
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
@@ -119,7 +120,7 @@ TEST(gather_elements_gpu_fp16, d2235_i2237_a3) {
         FLOAT16(1), FLOAT16(1), FLOAT16(10), FLOAT16(10), FLOAT16(0), FLOAT16(10), FLOAT16(0),
     };
 
-    DoTest(engine,input0, input1, expected_results, axis);
+    DoTest(engine,input0, input1, expected_results, tensor(2, 2, 3, 7), axis);
 }
 
 // 4-1-2
@@ -187,7 +188,7 @@ TEST(gather_elements_gpu_fp16, d2235_i2237_an1) {
         FLOAT16(1), FLOAT16(1), FLOAT16(10), FLOAT16(10), FLOAT16(0), FLOAT16(10), FLOAT16(0), 
     };
 
-    DoTest(engine,input0, input1, expected_results, axis);
+    DoTest(engine,input0, input1, expected_results, tensor(2, 2, 3, 7), axis);
 }
 
 // 4-2
@@ -249,7 +250,7 @@ TEST(gather_elements_gpu_fp16, d2329_i2329_a2) {
         FLOAT16(2), FLOAT16(5), FLOAT16(3), FLOAT16(5), FLOAT16(1), FLOAT16(1), FLOAT16(4), FLOAT16(8), FLOAT16(0), 
     };
 
-    DoTest(engine,input0, input1, expected_results, axis);
+    DoTest(engine,input0, input1, expected_results, tensor(2, 3, 2, 9), axis);
 }
 
 // 4-3
@@ -322,7 +323,7 @@ TEST(gather_elements_gpu_fp16, d3238_i2238_a0) {
         FLOAT16(2), FLOAT16(10), FLOAT16(7), FLOAT16(3), FLOAT16(3), FLOAT16(10), FLOAT16(6), FLOAT16(1), 
     };
 
-    DoTest(engine,input0, input1, expected_results, axis);
+    DoTest(engine,input0, input1, expected_results, tensor(2, 2, 3, 8), axis);
 }
 
 // 5-1
@@ -330,8 +331,8 @@ TEST(gather_elements_gpu_fp16, d32223_i32228_a4) {
     const auto& engine = get_test_engine();
 
     const int axis = 4;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 2, 2, 3 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 2, 2, 8 } }); // indices
+    auto input0 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 2, 2, 2, 3 } }); // data
+    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 2, 2, 2, 8 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8), 
@@ -419,7 +420,7 @@ TEST(gather_elements_gpu_fp16, d32223_i32228_a4) {
         FLOAT16(0), FLOAT16(5), FLOAT16(5), FLOAT16(5), FLOAT16(4), FLOAT16(5), FLOAT16(5), FLOAT16(4), 
     };
 
-    DoTest(engine,input0, input1, expected_results, axis);
+    DoTest(engine,input0, input1, expected_results, tensor(3, 2, 2, 2, 8), axis);
 }
 
 // 5-2
@@ -427,8 +428,8 @@ TEST(gather_elements_gpu_fp16, d23327_i23327_a3) {
     const auto& engine = get_test_engine();
 
     const int axis = 3;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 3, 2, 7 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 3, 2, 7 } }); // indices
+    auto input0 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 3, 3, 2, 7 } }); // data
+    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 3, 3, 2, 7 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8), FLOAT16(5), FLOAT16(5), FLOAT16(2), FLOAT16(0), 
@@ -547,7 +548,7 @@ TEST(gather_elements_gpu_fp16, d23327_i23327_a3) {
         FLOAT16(3), FLOAT16(10), FLOAT16(9), FLOAT16(4), FLOAT16(6), FLOAT16(8), FLOAT16(0), 
     };
 
-    DoTest(engine,input0, input1, expected_results, axis);
+    DoTest(engine,input0, input1, expected_results, tensor(2, 3, 3, 2, 7), axis);
 }
 
 // 6-1
@@ -555,8 +556,8 @@ TEST(gather_elements_gpu_fp16, d232328_i232328_a3) {
     const auto& engine = get_test_engine();
 
     const int axis = 3;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 2, 3, 2, 8 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 2, 3, 2, 8 } }); // indices
+    auto input0 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 3, 2, 3, 2, 8 } }); // data
+    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 3, 2, 3, 2, 8 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8), FLOAT16(5), FLOAT16(5), FLOAT16(2), FLOAT16(0), FLOAT16(7), 
@@ -783,16 +784,15 @@ TEST(gather_elements_gpu_fp16, d232328_i232328_a3) {
         FLOAT16(0), FLOAT16(1), FLOAT16(5), FLOAT16(7), FLOAT16(5), FLOAT16(5), FLOAT16(0), FLOAT16(5), 
     };
 
-    DoTest(engine,input0, input1, expected_results, axis);
+    DoTest(engine,input0, input1, expected_results, tensor(2, 3, 2, 3, 2, 8), axis);
 }
-
 // 6-2
 TEST(gather_elements_gpu_fp16, d222443_i222446_a5) {
     const auto& engine = get_test_engine();
 
     const int axis = 5;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 2, 4, 4, 3 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 2, 4, 4, 6 } }); // indices
+    auto input0 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 4, 4, 3 } }); // data
+    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 4, 4, 6 } }); // indices
 
     set_values(input0, {
         FLOAT16(0), FLOAT16(1), FLOAT16(8), 
@@ -1187,7 +1187,7 @@ TEST(gather_elements_gpu_fp16, d222443_i222446_a5) {
         FLOAT16(3), FLOAT16(3), FLOAT16(7), FLOAT16(8), FLOAT16(3), FLOAT16(8), 
     };
 
-    DoTest(engine,input0, input1, expected_results, axis);
+    DoTest(engine,input0, input1, expected_results, tensor(2, 2, 2, 4, 4, 6), axis);
 }
 
 // TEST(gather_elements_gpu_fp16, d32223_i32228_a4) {
