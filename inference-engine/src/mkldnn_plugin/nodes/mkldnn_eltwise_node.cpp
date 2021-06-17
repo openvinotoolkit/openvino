@@ -1064,6 +1064,12 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     }
     outputPrecision = filterPrecision(outputPrecision);
 
+    // std::cout << getName() << " input Precisions: ";
+    // for (const auto& precision : inputPrecisions) {
+    //     std::cout << precision.name() << " ";
+    // }
+    // std::cout << "\n";
+
     // TODO: delete after new LPT (ngraph based) is merged
     // WA is needed to handle bug in LPT that produces wrong precision after average pooling (I8/U8 instead of FP32)
     if ((getAlgorithm() == EltwiseMulAdd || getAlgorithm() == EltwisePowerStatic) &&

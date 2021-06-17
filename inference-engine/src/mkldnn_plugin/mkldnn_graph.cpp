@@ -1026,6 +1026,8 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
 }
 
 void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
+    std::cout << "Dropping DW Convolution node" << "\n";
+
     auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
         auto& edges = graph.GetEdges();
         for (auto it = edges.begin(); it != edges.end(); it++) {
@@ -1193,25 +1195,127 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
     return true;
 }
 
+struct SearchNode {
+    Type type;
+    std::unordered_set<Algorithm> algorithm;
+    bool isConst;
+
+    bool operator==(MKLDNNNode &node) const {
+        if (type != node.getType())
+            return false;
+        if (!algorithm.count(node.getAlgorithm()))
+            return false;
+
+        // for (const auto& edge : node.getParentEdges()) {
+        //     if (isConst && edge.lock()->getParent()->isConstant())
+        //         return true;
+        // }
+        // return false;
+        return true;
+    }
+};
+
+// std::vector<SearchNode> subGraph;
+
+static bool is_subgraph(const std::vector<SearchNode>& patternSubGraph,
+                        int index,
+                        const std::shared_ptr<MKLDNNNode> &startNode,
+                        std::unordered_set<std::string>& subGraph) {
+    // std::unordered_set<std::string> visited;
+    std::list<MKLDNNNode*> nextLayers {startNode.get()};
+    auto nodeIt = patternSubGraph.begin();
+
+    // std::cout << "Examining node: " << startNode->getName() << "\n";
+
+    if (!(patternSubGraph[index] == *startNode)) {
+        // std::cout << "Does not match. "
+        //           << "Pattern - type: " << NameFromType(patternSubGraph[index].type) << ", algorithm: ";
+
+        // for (auto alg : patternSubGraph[index].algorithm)
+            // std::cout << alg << " ";
+
+        // std::cout << ", isConst: " << patternSubGraph[index].isConst << ". "
+        //           << "Node - type: " << NameFromType(startNode->getType())
+        //           << ", algorithm: " << startNode->getAlgorithm() << ", isConst: " << startNode->isConstant()
+        //           << "\n";
+        return false;
+    }
+
+    subGraph.insert(startNode->getName());
+
+    if (index + 1 == patternSubGraph.size()) {
+        // std::copy(visited.begin(), visited.end(), std::inserter(subGraph, subGraph.begin()));
+        return true;
+    }
+
+    // if (visited.find(startNode->getName()) == visited.end()) {
+    //     visited.insert(startNode->getName());
+    // }
+
+    for (const auto& oe : startNode->getChildEdges()) {
+        if (is_subgraph(patternSubGraph, index + 1, oe.lock()->getChild(), subGraph)) {
+            return true;
+        }
+    }
+
+    // std::cout << "Does not match" << "\n";
+    return false;
+}
 // Set all non const data paths precision to BF16
 void MKLDNNGraph::EnforceBF16() {
     // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
     // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-    if (implication(isQuantized(), config.manualEnforceBF16)) {
-        for (auto &node : graphNodes) {
-            if (node->getType() != Input && node->getType() != Output) {
-                for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
-                    auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
-                    if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude nodes after Constant Inputs
-                        !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
-                        node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
-                        node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
-                }
+    if (!implication(isQuantized(), config.manualEnforceBF16))
+        return;
 
-                for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-                    if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
-                        node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
+    // std::cout << "EnforceBF16: Enforcing..." << "\n";
+
+    std::unordered_set<std::string> nodesToSkip;
+
+    std::vector<SearchNode> multiplyAddPattern{
+        {Type::Eltwise, {Algorithm::EltwiseMultiply, Algorithm::EltwisePowerStatic}, false},
+        {Type::Eltwise, {Algorithm::EltwiseAdd, Algorithm::EltwiseSubtract}, true},
+    };
+
+    for (auto &node : graphNodes) {
+        // (void)is_subgraph(multiplyAddPattern, 0, node, nodesToSkip);
+        std::unordered_set<std::string> toSkip;
+
+        if (is_subgraph(multiplyAddPattern, 0, node, toSkip)) {
+            // std::cout << "EnforceBF16: MultiplyAdd pattern has been detected" << "\n";
+            std::copy(toSkip.begin(), toSkip.end(), std::inserter(nodesToSkip, nodesToSkip.begin()));
+        }
+    }
+
+    // std::cout << "The following nodes will be skipped" << "\n";
+    // for (const auto& node : nodesToSkip)
+        // std::cout << node << "\n";
+
+    for (auto &node : graphNodes) {
+        if (node->getType() != Input && node->getType() != Output) {
+            if (nodesToSkip.count(node->getName())) {
+                // std::cout << "Skipping BF16 enforcing [IN / OUT] for node: " <<node->getName() << "\n";
+                continue;
+            }
+
+            for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
+                auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
+                if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude nodes after Constant Inputs
+                    !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
+                    !(node->getType() == Gather) &&
+                    !(node->getType() == GatherElements) &&
+                    !(node->getType() == StridedSlice) &&
+                    node->getOriginalInputPrecisionAtPort(i) == Precision::FP32) {
+                    node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
                 }
+                // std::cout << "Skipping BF16 enforcing [IN] for node: " <<node->getName() << "\n";
+            }
+
+            for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+                if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32) {
+                    node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
+                }
+                // std::cout << "Skipping BF16 enforcing [OUT] for node: " <<node->getName() << "\n";
             }
         }
     }
