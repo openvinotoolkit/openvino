@@ -683,7 +683,7 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         auto levels_1 = fq->get_levels() - 1.f;
 
         const size_t DHW = D * H * W;
-        const size_t IDHW = IC * D * H * W;
+        const size_t IDHW = outChannelsShapeIndex == 0 ? IC * D * H * W : OC * D * H * W;
 
         const auto values = constant->cast_vector<float>();
         std::vector<float> quantizedValues(OC * IC * D * H * W);

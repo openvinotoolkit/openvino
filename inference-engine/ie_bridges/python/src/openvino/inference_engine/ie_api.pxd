@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from .cimport ie_api_impl_defs as C
-from .ie_api_impl_defs cimport CBlob, CTensorDesc, InputInfo, CPreProcessChannel, CPreProcessInfo, CExecutableNetwork
+from .ie_api_impl_defs cimport CBlob, CTensorDesc, InputInfo, CPreProcessChannel, CPreProcessInfo, CExecutableNetwork, CVariableState
 
 import os
 
