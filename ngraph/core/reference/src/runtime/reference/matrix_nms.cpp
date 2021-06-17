@@ -90,6 +90,48 @@ namespace ngraph
                     }
                 }
 
+                struct Rectangle
+                {
+                    Rectangle(float x_left, float y_left, float x_right, float y_right)
+                        : x1{x_left}
+                        , y1{y_left}
+                        , x2{x_right}
+                        , y2{y_right}
+                    {
+                    }
+
+                    Rectangle() = default;
+
+                    float x1 = 0.0f;
+                    float y1 = 0.0f;
+                    float x2 = 0.0f;
+                    float y2 = 0.0f;
+                };
+
+                struct BoxInfo
+                {
+                    BoxInfo(const Rectangle& r,
+                            int64_t idx,
+                            float sc,
+                            int64_t batch_idx,
+                            int64_t class_idx)
+                        : box{r}
+                        , index{idx}
+                        , batch_index{batch_idx}
+                        , class_index{class_idx}
+                        , score{sc}
+                    {
+                    }
+
+                    BoxInfo() = default;
+
+                    Rectangle box;
+                    int64_t index = 0;
+                    int64_t batch_index = 0;
+                    int64_t class_index = 0;
+                    float score = 0.0f;
+                };
+
             } // namespace
 
             template <typename T, bool gaussian>
@@ -203,12 +245,10 @@ namespace ngraph
                 int64_t num_classes = static_cast<int64_t>(scores_data_shape[1]);
                 int64_t num_boxes = static_cast<int64_t>(boxes_data_shape[1]);
                 int64_t box_shape = static_cast<int64_t>(boxes_data_shape[2]);
-                std::vector<float> detections;
-                std::vector<int> indices;
-                std::vector<int> num_per_batch;
-                detections.reserve(6 * num_batches * num_classes * num_boxes);
 
-                int64_t background_label = 0;
+                std::vector<int> num_per_batch;
+                std::vector<BoxInfo> filtered_boxes;
+                filtered_boxes.reserve(6 * num_batches * num_classes * num_boxes);
 
                 bool normalized = true;
                 for (int64_t batch = 0; batch < num_batches; batch++)
@@ -216,12 +256,12 @@ namespace ngraph
                     const float* boxesPtr = boxes_data + batch * num_boxes * 4;
                     std::vector<int> all_indices;
                     std::vector<float> all_scores;
-                    std::vector<float> all_classes;
+                    std::vector<int64_t> all_classes;
                     size_t num_det = 0;
 
                     for (int64_t class_idx = 0; class_idx < num_classes; class_idx++)
                     {
-                        if (class_idx == background_label)
+                        if (class_idx == background_class)
                             continue;
                         const float* scoresPtr =
                             scores_data + batch * (num_classes * num_boxes) + class_idx * num_boxes;
@@ -255,7 +295,7 @@ namespace ngraph
                         }
                         for (size_t i = 0; i < all_indices.size() - num_det; i++)
                         {
-                            all_classes.push_back(static_cast<float>(class_idx));
+                            all_classes.push_back(class_idx);
                         }
                         num_det = all_indices.size();
                     }
@@ -290,20 +330,62 @@ namespace ngraph
                         auto score = all_scores[p];
                         auto bbox = boxesPtr + idx * box_shape;
 
-                        indices.push_back(batch * num_boxes + idx);
-                        detections.push_back(cls);
-                        detections.push_back(score);
-                        for (int j = 0; j < box_shape; j++)
-                        {
-                            detections.push_back(bbox[j]);
-                        }
+                        filtered_boxes.push_back(
+                            BoxInfo{Rectangle{bbox[0], bbox[1], bbox[2], bbox[3]},
+                                    batch * num_boxes + idx,
+                                    score,
+                                    batch,
+                                    cls});
                     }
                     num_per_batch.push_back(num_det);
                 }
 
-                std::copy(indices.begin(), indices.end(), selected_indices);
+                if (sort_result_across_batch)
+                { /* sort across batch */
+                    if (sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
+                    {
+                        std::sort(
+                            filtered_boxes.begin(),
+                            filtered_boxes.end(),
+                            [](const BoxInfo& l, const BoxInfo& r) {
+                                return (l.score > r.score) ||
+                                       (l.score == r.score && l.batch_index < r.batch_index) ||
+                                       (l.score == r.score && l.batch_index == r.batch_index &&
+                                        l.class_index < r.class_index) ||
+                                       (l.score == r.score && l.batch_index == r.batch_index &&
+                                        l.class_index == r.class_index && l.index < r.index);
+                            });
+                    }
+                    else if (sort_result_type == op::v8::MulticlassNms::SortResultType::CLASSID)
+                    {
+                        std::sort(filtered_boxes.begin(),
+                                  filtered_boxes.end(),
+                                  [](const BoxInfo& l, const BoxInfo& r) {
+                                      return (l.class_index < r.class_index) ||
+                                             (l.class_index == r.class_index &&
+                                              l.batch_index < r.batch_index) ||
+                                             (l.class_index == r.class_index &&
+                                              l.batch_index == r.batch_index &&
+                                              l.score > r.score) ||
+                                             (l.class_index == r.class_index &&
+                                              l.batch_index == r.batch_index &&
+                                              l.score == r.score && l.index < r.index);
+                                  });
+                    }
+                }
+
                 std::copy(num_per_batch.begin(), num_per_batch.end(), valid_outputs);
-                std::copy(detections.begin(), detections.end(), selected_outputs);
+                for (size_t i = 0; i < filtered_boxes.size(); i++)
+                {
+                    selected_indices[i] = filtered_boxes[i].index;
+                    auto selected_base = selected_outputs + i * 6;
+                    selected_base[0] = filtered_boxes[i].class_index;
+                    selected_base[1] = filtered_boxes[i].score;
+                    selected_base[2] = filtered_boxes[i].box.x1;
+                    selected_base[3] = filtered_boxes[i].box.y1;
+                    selected_base[4] = filtered_boxes[i].box.x2;
+                    selected_base[5] = filtered_boxes[i].box.y2;
+                }
             }
 
             void matrix_nms_postprocessing(const HostTensorVector& outputs,
