@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.graph.graph import Graph
-from mo.middle.passes.infer import partial_infer
+from mo.middle.passes.infer import partial_infer, type_infer
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -19,3 +19,4 @@ class PartialInfer(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         partial_infer(graph)
+        type_infer(graph)

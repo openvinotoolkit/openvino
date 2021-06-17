@@ -9,10 +9,13 @@ import networkx as nx
 
 from mo.graph.graph import Graph
 from mo.middle.passes.eliminate import shape_inference
+from extensions.middle.PartialInfer import type_infer
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils.error import Error, InternalError, FrameworkError
 from mo.utils.logger import progress_bar
 from mo.utils.utils import refer_to_faq_msg
+from mo.graph.graph import Node
+import numpy as np
 
 _registered_classes_dict = {}
 
@@ -256,7 +259,23 @@ def apply_transform(graph: Graph, replacer_cls, **kwargs):
     Safely executes transform if it should be and validates graph after transform execution
     """
     replacer = replacer_cls()
+    # try:
+    #     from mo.graph.graph import Node
+    #     cast_node = Node(graph, '1632')
+    #     print(cast_node.dst_type)
+    #     print(replacer_cls)
+    #     print('------')
+    # except:
+    #     pass
     replacement_id = 'REPLACEMENT_ID'
+    try:
+        from mo.graph.graph import Node
+        data_type = Node(graph, 'Conv_1').out_port(0).get_data_type()
+        print(f'Conv_1 data_type is {data_type}')
+        print('-----------')
+        print(replacer_cls)
+    except:
+        pass
     if hasattr(replacer, 'replacement_id'):
         replacement_id = replacer.replacement_id
 
@@ -282,6 +301,7 @@ def apply_transform(graph: Graph, replacer_cls, **kwargs):
 
         if hasattr(replacer, 'force_shape_inference') and replacer.force_shape_inference:
             shape_inference(graph)
+            type_infer(graph)
 
         if hasattr(replacer, 'run_not_recursively') and replacer.run_not_recursively:
             graph.check_empty_graph(replacer_cls)
