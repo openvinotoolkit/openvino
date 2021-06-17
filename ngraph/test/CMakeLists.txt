@@ -229,6 +229,7 @@ set(SRC
     visitors/op/convolution_backprop.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
+    visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
