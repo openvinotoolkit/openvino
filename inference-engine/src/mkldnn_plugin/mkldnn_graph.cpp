@@ -1200,6 +1200,18 @@ void MKLDNNGraph::EnforceBF16() {
     if (implication(isQuantized(), config.manualEnforceBF16)) {
         for (auto &node : graphNodes) {
             if (node->getType() != Input && node->getType() != Output) {
+                //  Softmax terminal layer will be executed in FP32 precision to maintain accuracy
+                if (node->getType() == Softmax) {
+                    bool isTerminalSoftmax = false;
+                    for (size_t childIdx = 0; childIdx < node->getChildEdges().size(); childIdx++) {
+                        if (node->getChildEdgeAt(childIdx)->getChild()->getType() == Output) {
+                            isTerminalSoftmax = true;
+                            break;
+                        }
+                    }
+                    if (isTerminalSoftmax)
+                        continue;
+                }
                 for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
                     auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
                     if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude nodes after Constant Inputs
