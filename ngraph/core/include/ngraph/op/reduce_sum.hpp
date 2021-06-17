@@ -81,7 +81,9 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 /// \return The default value for Sum.
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 virtual std::shared_ptr<Node> get_default_value() const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;

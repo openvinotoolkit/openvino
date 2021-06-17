@@ -75,7 +75,9 @@ namespace ngraph
                 op::RoundingType get_rounding_type() const;
                 void set_rounding_type(op::RoundingType rounding_type);
                 /// \return The default value for AvgPool.
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 virtual std::shared_ptr<Node> get_default_value() const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
             protected:
                 Shape m_kernel;
