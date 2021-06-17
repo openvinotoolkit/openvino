@@ -153,8 +153,9 @@ pip3 install -r requirements_kaldi.txt
 pip3 install -r requirements_onnx.txt
 ```
 
+## Using the protobuf Library in the Model Optimizer for Caffe\*
 <details>
-    <summary><h2>Using the protobuf Library in the Model Optimizer for Caffe\*</h2></summary> 
+    <summary>Click to expand</summary> 
 
 These procedures require:
 
