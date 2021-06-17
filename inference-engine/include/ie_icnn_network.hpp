@@ -20,14 +20,6 @@
 
 #include <ngraph/ngraph.hpp>
 
-#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN || 1
-# define INFERENCE_ENGINE_ICNNNETWORK_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
-#else
-# define INFERENCE_ENGINE_ICNNNETWORK_CLASS(...)                                 \
-    INFERENCE_ENGINE_INTERNAL("Use InferenceEngine::CNNNetwork wrapper instead") \
-    INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
-#endif
-
 namespace InferenceEngine {
 
 _IE_SUPPRESS_DEPRECATED_START_GCC
