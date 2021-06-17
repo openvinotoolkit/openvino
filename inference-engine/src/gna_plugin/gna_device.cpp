@@ -580,8 +580,4 @@ void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::
     info.realTime_uSec = instrumentationTotal[1];
 #endif
     retPerfCounters["1.2 Stall scoring time in HW"] = info;
-#if GNA_LIB_VER == 2
-    info.realTime_uSec = instrumentationTotal[0] || instrumentationTotal[1] ? 1 : 0;
-    retPerfCounters[InferenceEngine::GNASpecialPerfCounters::GNA_RUN_ON_HW] = info;
-#endif
 }
