@@ -154,8 +154,6 @@ pip3 install -r requirements_onnx.txt
 ```
 
 ## Using the protobuf Library in the Model Optimizer for Caffe\*
-<details>
-    <summary>Click to expand</summary> 
 
 These procedures require:
 
@@ -170,13 +168,20 @@ of the protobuf library on Windows OS or Linux OS.
 
 ### Using the protobuf Library on Linux\* OS
 
+<details>
+    <summary>Click to expand</summary> 
+
 To use the C++ implementation of the protobuf library on Linux, it is enough to
 set up the environment variable:
 ```sh
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 ```
+</details>
 
 ### <a name="protobuf-install-windows"></a>Using the protobuf Library on Windows\* OS
+
+<details>
+    <summary>Click to expand</summary>
 
 On Windows, pre-built protobuf packages for Python versions 3.4, 3.5, 3.6,
 and 3.7 are provided with the installation package and can be found in

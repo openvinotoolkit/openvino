@@ -6,7 +6,7 @@ Model Optimizer process assumes you have a network model trained using a support
 
 ![](img/workflow_steps.png)
 
-Inference Engine enables _deploying_ your network model trained with any of supported deep learning frameworks: Caffe\*, TensorFlow\*, Kaldi\*, MXNet\* or converted to the ONNX\* format. To perform the inference, the Inference Engine does not operate with the original model, but with its Intermediate Representation (IR), which is optimized for execution on end-point target devices. To generate an IR for your trained model, the Model Optimizer tool is used.
+Inference Engine enables _deploying_ your network model trained with any of supported deep learning frameworks: Caffe\*, TensorFlow\*, Kaldi\*, MXNet\* or converted to the ONNX\* format. To perform the inference, the Inference Engine does not operate with the original model, but with its Intermediate Representation (IR), which is optimized for execution on end-point target devices. To _generate_ an IR for your trained model, the Model Optimizer tool is used.
 
 The IR is a pair of files describing the model: 
 
@@ -15,6 +15,13 @@ The IR is a pair of files describing the model:
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
 > **NOTE**: Model Optimizer does not infer models. Model Optimizer is an offline tool that runs before the inference takes place.
+
+Below is a simple command running Model Optimizer to generate an IR for the input model:
+
+```sh
+python3 mo.py --input_model INPUT_MODEL
+```
+To learn about all Model Optimizer parameters and conversion technics, see the [Converting a Model to IR](convert_model/Converting_Model.md) page.
 
 > **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
 > [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare 
