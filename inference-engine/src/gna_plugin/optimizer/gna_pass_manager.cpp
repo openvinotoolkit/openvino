@@ -40,6 +40,7 @@
 #include "gna_graph_patterns.hpp"
 #include "gna_data_types.hpp"
 #include "gna_tensor_tools.hpp"
+#include "gna_itt.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -111,6 +112,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
  */
 static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer, int beforeIdx,
                                    std::shared_ptr<IPassManager> passmanager,  std::string copyLayerType) {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertCopyLayer");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
     std::string copyName = copyLayerType + std::string("_") + std::to_string(passmanager->getIntVar(copyLayersCounter)++);
     gnalog() << "Inserted " << copyName << " between: " << prevLayer->name << " and " << nextLayer->name << std::endl;
@@ -256,6 +258,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
 }
 
 void InsertDiagonalLayerPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertDiagonalLayerPass");
     bool lowPrecision = getPassManager()->isLowPrecision();
 
     for (auto & l : *pLayers) {
@@ -303,6 +306,7 @@ void InsertDiagonalLayerPass::run() {
 }
 
 void HandleMultipleActivationsForTheLayerPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "HandleMultipleActivationsForTheLayerPass");
     // found layer followed by multiple activations
     for (auto & l : *pLayers) {
         CNNLayerSet activations;
@@ -332,6 +336,7 @@ void HandleMultipleActivationsForTheLayerPass::run() {
 }
 
 void ForbidActivationFusingPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ForbidActivationFusingPass");
     for (auto& l : *pLayers) {
         if (LayerInfo(l).isActivation()) {
             auto prevLayer = CNNNetPrevLayer(l);
@@ -369,6 +374,7 @@ namespace {
 } // namespace
 
 void ReorderMaxPoolPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ReorderMaxPoolPass");
     // detecting following pattern
     // conv->activation->maxpooling
     // changing it to conv->maxpooling->activation
@@ -397,6 +403,7 @@ void ReorderMaxPoolPass::run() {
 }
 
 void SubstituteSoftSignPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "SubstituteSoftSignPass");
     //detecting following pattern
     // irv7 model:          irv10 model:
     // a layer                  a layer
@@ -500,6 +507,7 @@ void SubstituteSoftSignPass::run() {
     }
 }
 void SubstitutePReluPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "SubstitutePReluPass");
     auto getScale = [](CNNLayer* layer) {
         auto powerCandidate = LayerInfo(layer);
         if (!powerCandidate.isPower()) return 0.0f;
@@ -605,6 +613,7 @@ void SubstitutePReluPass::run() {
 }
 
 void RemovePermutationsNHWCToNCHWPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "RemovePermutationsNHWCToNCHWPass");
     std::set<CNNLayerPtr> permutations_to_remove;
     std::list<std::pair<CNNLayerPtr, CNNLayerPtr>> nhwc_layout_patterns;
     for (auto& l : *pLayers) {
@@ -688,6 +697,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 }
 
 void InsertIdentityLayerPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertIdentityLayerPass");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     auto createIdentityLayer = [quantized, this](const TensorDesc& tensorDesc) {
         int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
@@ -805,6 +815,7 @@ void InsertIdentityLayerPass::run() {
 }
 
 void InsertCopyLayerPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertCopyLayerPass");
     // Copy layer insertion happens in few cases:
     // Crop output goes to concat layer -> copy layer insertion
     // Splitted part of input goes to concat layer -> copy layer insertion
@@ -927,6 +938,7 @@ void InsertCopyLayerPass::run() {
 }
 
 void FlattenTrivialConcatPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FlattenTrivialConcatPass");
     // change all trivial concatenations (concatenation where output buffer is a buffer made by appending input buffers)
     // by reshaping its inputs to 1 x total_input_size and its output to 1 x total_cocat_size and chaning the axis to 1
     // for example if 4D concat have unaligned inputs then ConcatAlignFilters need to be used if sizes before
@@ -1007,6 +1019,7 @@ void FlattenTrivialConcatPass::run() {
 }
 
 void InsertConcatAligningFilterPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertConcatAligningFilterPass");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     // currently concat layer only supports 2 bytes in int16 and int8 mode. In fp32 mode this no necessary but usefull for testing
     const int bytesPerConcatElement = 2;
@@ -1117,6 +1130,7 @@ void InsertConcatAligningFilterPass::run() {
 }
 
 void ReorderConcatInputsPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ReorderConcatInputsPass");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     int numOfLinkLayers = 0;
 
@@ -1210,6 +1224,7 @@ void ReorderConcatInputsPass::run() {
 }
 
 void InsertSplitAligningFilterPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertSplitAligningFilterPass");
     // currently split layer only supports 2 bytes in int16 and int8 mode. In fp32 mode this is not necessary but is useful for testing
     const int bytesPerSplitElement = 2;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
@@ -1329,6 +1344,8 @@ static InferenceEngine::Blob::Ptr tileBlob(Blob::Ptr& blob, size_t TileTo) {
 }
 
 void EltwiseSplitOverChannelsPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "EltwiseSplitOverChannelsPass");
+
     for (auto & l : *pLayers) {
         if (!LayerInfo(l).isEltwise()) {
             continue;
@@ -1441,6 +1458,7 @@ void EltwiseSplitOverChannelsPass::run() {
 }
 
 void SubstituteScaleShiftBroadCastPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "SubstituteScaleShiftBroadCastPass");
     std::map<std::string, InferenceEngine::SizeVector> reshaped_data;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
 
@@ -1516,6 +1534,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
 }
 
 void BroadcastConstPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BroadcastConstPass");
     for (auto constLayer : *pLayers) {
         if (!LayerInfo(constLayer).isConst()) {
             continue;
@@ -1568,6 +1587,7 @@ void BroadcastConstPass::run() {
 }
 
 void InsertIdentityToLSTMCellPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertIdentityToLSTMCellPass");
     for (auto layer : *pLayers) {
         if (layer->type == "LSTMCell") {
             // This fixed the cases when both functional and non-functional outputs are mixed (or not outputs are used)
@@ -1605,6 +1625,7 @@ void InsertIdentityToLSTMCellPass::run() {
 }
 
 void BreakFusingOfOutputLayersPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BreakFusingOfOutputLayersPass");
 #if GNA_LIB_VER == 1
     return;
 #endif
@@ -1648,6 +1669,7 @@ void BreakFusingOfOutputLayersPass::run() {
 }
 
 void UnrollLSTMCellPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UnrollLSTMCellPass");
     InferenceEngine::NetPass::UnrollRNN_if(getPassManager()->getNetwork(), [] (const RNNCellBase& rnn) -> bool {
         if (rnn.clip != 0.0f)
             return true;
@@ -1664,6 +1686,7 @@ void UnrollLSTMCellPass::run() {
 }
 
 void UnrollTIPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UnrollTIPass");
     auto sts = InferenceEngine::NetPass::UnrollTI(getPassManager()->getNetwork());
     if (!sts) {
         THROW_GNA_EXCEPTION << "TensorIterator layer cannot be unrolled!";
@@ -1671,6 +1694,7 @@ void UnrollTIPass::run() {
 }
 
 void RemoveConstPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "RemoveConstPass");
     auto network = getPassManager()->getNetwork();
     IE_SUPPRESS_DEPRECATED_START
     auto & icnnnet = static_cast<ICNNNetwork &>(network);
@@ -1684,6 +1708,7 @@ void RemoveConstPass::run() {
 }
 
 void RemoveSingleInputConcatPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "RemoveSingleInputConcatPass");
     for (auto &l : *pLayers) {
         if (l->type == "Concat") {
             auto concat = dynamic_cast<ConcatLayer*>(l.get());
@@ -1711,6 +1736,7 @@ void RemoveSingleInputConcatPass::run() {
 }
 
 void FuseMultipleIdentitiesPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FuseMultipleIdentitiesPass");
     for (auto &l : *pLayers) {
         if (l->insData.empty()) continue;
 
@@ -1792,6 +1818,7 @@ void FuseMultipleIdentitiesPass::run() {
 }
 
 void FuseFQIntoWeightsPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FuseFQIntoWeightsPass");
     auto isNonFunctional = [](CNNLayerPtr ptr) {
         return LayerInfo(ptr).isNonFunctional();
     };
@@ -1950,6 +1977,7 @@ void FuseFQIntoWeightsPass::run() {
 }
 
 void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "MoveFakeQuantizeLayerIntoQuantParamsPass");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     if (!quantized) {
         return;
@@ -2151,6 +2179,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 }
 
 void TransposeWeightsFromNCHWToNHWCPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "TransposeWeightsFromNCHWToNHWCPass");
     if (!MustBeConvertedFromNCHWToNHWC(*pLayers)) return;
 
     auto printTranspositionInfo = [](const std::vector<TranspositionInfo> &transpositionInfo) {
