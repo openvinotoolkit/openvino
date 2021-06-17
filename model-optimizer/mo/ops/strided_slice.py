@@ -49,7 +49,7 @@ class StridedSlice(Op):
         data_value = node.in_port(0).data.get_value()
         slices = StridedSlice.get_slices(node, data_shape)
 
-        if data_value is not None:  # TODO need to check that there is no dynamic_dimension in slices
+        if data_value is not None and dynamic_dimension_value not in slices:
             node.out_port(0).data.set_value(data_value[tuple(slices)])
         else:
             node.out_port(0).data.set_shape(get_shape_from_slice(data_shape, slices))
@@ -80,7 +80,8 @@ class StridedSlice(Op):
             elif node.shrink_axis_mask[i]:
                 if begin is not None and begin[i] is not dynamic_dimension:
                     slices[i] = int(begin[i])
-                    if slices[i] < 0 and data_shape[in_idx] is not dynamic_dimension:  # need for ConvertGroupedStridedSlice
+                    # the normalization is needed for the ConvertGroupedStridedSlice transformation
+                    if slices[i] < 0 and data_shape[in_idx] is not dynamic_dimension:
                         slices[i] += int(data_shape[in_idx])
                 else:
                     slices[i] = dynamic_dimension_value
