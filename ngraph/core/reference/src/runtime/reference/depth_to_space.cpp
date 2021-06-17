@@ -89,45 +89,17 @@ namespace ngraph
                     break;
                 }
                 }
-                std::vector<size_t> plain_axes_order(data_shape.size());
-                std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
-                std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
-                std::vector<char> transposed_data(shape_size(data_shape) * elem_size);
-
-                runtime::opt_kernel::reshape(data,
-                                             dispersed_data.data(),
-                                             data_shape,
-                                             plain_axes_order,
-                                             dispersed_shape,
-                                             elem_size);
 
                 Shape post_transpose_shape(axes_order.size());
                 for (size_t axis_idx = 0; axis_idx < axes_order.size(); ++axis_idx)
                 {
                     post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
                 }
-                runtime::opt_kernel::reshape(dispersed_data.data(),
-                                             transposed_data.data(),
+                runtime::opt_kernel::reshape(data,
+                                             out,
                                              dispersed_shape,
                                              axes_order,
                                              post_transpose_shape,
-                                             elem_size);
-
-                Shape squeezed_shape{n_dim, c_flat};
-                for (size_t i = spatial_dim_index; i < data_shape.size(); ++i)
-                {
-                    squeezed_shape.push_back(data_shape.at(i) * block_size);
-                }
-                for (size_t i = plain_axes_order.size() - 1; i < post_transpose_shape.size() - 1;
-                     ++i)
-                {
-                    plain_axes_order.push_back(plain_axes_order[i] + 1);
-                }
-                runtime::opt_kernel::reshape(transposed_data.data(),
-                                             out,
-                                             post_transpose_shape,
-                                             plain_axes_order,
-                                             squeezed_shape,
                                              elem_size);
                 return true;
             }
