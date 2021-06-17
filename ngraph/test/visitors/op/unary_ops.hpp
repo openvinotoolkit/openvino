@@ -24,8 +24,13 @@
 
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
-// Unamed namespace
-
+template <typename T, element::Type_t ELEMENT_TYPE>
+class UnaryOperatorType
+{
+public:
+    using op_type = T;
+    static constexpr element::Type_t element_type = ELEMENT_TYPE;
+};
 template <typename T>
 class UnaryOperatorVisitor : public testing::Test
 {
@@ -37,33 +42,29 @@ public:
     template <typename T>
     static std::string GetName(int)
     {
-        const ngraph::Node::type_info_t typeinfo = T::get_type_info_static();
-        return typeinfo.name;
+        using OP_Type = typename T::op_type;
+        constexpr element::Type precision(T::element_type);
+        const ngraph::Node::type_info_t typeinfo = OP_Type::get_type_info_static();
+        std::string op_name{typeinfo.name};
+        op_name.append("_");
+        return (op_name.append(precision.get_type_name()));
     }
 };
 
 TYPED_TEST_CASE_P(UnaryOperatorVisitor);
 
-TYPED_TEST_P(UnaryOperatorVisitor, No_Attribute_FP16_2D)
+TYPED_TEST_P(UnaryOperatorVisitor, No_Attribute_4D)
 {
-    NodeBuilder::get_ops().register_factory<TypeParam>();
-    const auto A = std::make_shared<op::Parameter>(element::f16, PartialShape{5, 2});
+    using OP_Type = typename TypeParam::op_type;
+    const element::Type_t element_type = TypeParam::element_type;
 
-    const auto op_func = std::make_shared<TypeParam>(A);
+    NodeBuilder::get_ops().register_factory<OP_Type>();
+    const auto A = std::make_shared<op::Parameter>(element_type, PartialShape{2, 2, 2, 2});
+
+    const auto op_func = std::make_shared<OP_Type>(A);
     NodeBuilder builder(op_func);
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
 
-TYPED_TEST_P(UnaryOperatorVisitor, No_Attribute_FP32_4D)
-{
-    NodeBuilder::get_ops().register_factory<TypeParam>();
-    const auto A = std::make_shared<op::Parameter>(element::f32, PartialShape{2, 2, 2, 2});
-
-    const auto op_func = std::make_shared<TypeParam>(A);
-    NodeBuilder builder(op_func);
-    const auto expected_attr_count = 0;
-    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
-}
-
-REGISTER_TYPED_TEST_CASE_P(UnaryOperatorVisitor, No_Attribute_FP16_2D, No_Attribute_FP32_4D);
+REGISTER_TYPED_TEST_CASE_P(UnaryOperatorVisitor, No_Attribute_4D);
