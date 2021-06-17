@@ -94,5 +94,6 @@ VERIFIED_OP_REFERENCES = [
     'TopK-1',
     'TopK-3',
     'Transpose-1',
-    'Unsqueeze-1'
+    'Unsqueeze-1',
+    'VariadicSplit-1',
 ]

@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "ngraph/coordinate.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/strides.hpp"
 
 namespace ngraph
 {
