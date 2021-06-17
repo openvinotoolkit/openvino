@@ -33,7 +33,9 @@ MKLDNNPlugin::MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph:
         dnnl::impl::cpu::x64::avx512_common : dnnl::impl::cpu::x64::avx2;
     if ((snippet_ref = ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(op))) {
         ngraph::OutputVector subgraph_node_inputs;
-        for (auto input : snippet_ref->input_values()) {
+        ngraph::NodeMap nm;
+        auto snippet_ref_copy = ngraph::clone_nodes(std::vector<std::shared_ptr<ngraph::Node>>{snippet_ref}, nm)[0];
+        for (auto input : snippet_ref_copy->input_values()) {
             subgraph_node_inputs.push_back(input);
         }
         auto new_body = ngraph::clone_function(*snippet_ref->get_body().get());
@@ -361,7 +363,7 @@ void MKLDNNPlugin::MKLDNNSnippetNode::define_shedule() {
             }
         }
 
-        start_offset_out.resize(inputNum);
+        start_offset_out.resize(outputNum);
         for (int i = 0; i < outputNum; i++) {
             start_offset_out[i] = getChildEdgeAt(0)->getMemory().GetDescriptor().data.offset0 *
                             MKLDNNExtensionUtils::sizeOfDataType(dnnl::memory::data_type(getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type));
