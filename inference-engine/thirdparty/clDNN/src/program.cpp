@@ -834,7 +834,9 @@ void program_impl::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program_impl::replace_all_usages(program_node& old_node, program_node& new_node) {
-    for (auto& user : old_node.users) {
+    auto itr = old_node.users.begin();
+    while (itr != old_node.users.end()) {
+        auto user = *(itr++);
         user->replace_dependency(old_node, new_node);
     }
 }
