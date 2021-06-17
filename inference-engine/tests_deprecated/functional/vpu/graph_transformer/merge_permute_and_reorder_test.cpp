@@ -62,8 +62,8 @@ protected:
                                  const bool usePermuteMerging,
                                  Blob::Ptr& outputBlob) {
         PrepareGraphCompilation();
-        _compilationConfig.detectBatch = false;
-        _compilationConfig.enablePermuteMerging = usePermuteMerging;
+        _configuration.compileConfig().detectBatch = false;
+        _configuration.compileConfig().enablePermuteMerging = usePermuteMerging;
 
         IE_ASSERT(permutationVectors.size() >= 2);
 

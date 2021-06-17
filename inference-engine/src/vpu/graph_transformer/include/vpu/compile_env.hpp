@@ -8,28 +8,29 @@
 #include <vpu/model/model.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/profiling.hpp>
+#include <mvnc.h>
 
 namespace vpu {
 
 struct DeviceResources {
-    static int numShaves(const Platform& platform);
-    static int numSlices(const Platform& platform);
+    static int numShaves(const ncDevicePlatform_t& platform);
+    static int numSlices(const ncDevicePlatform_t& platform);
     static int numStreams();
 };
 
 struct DefaultAllocation {
-    static int numStreams(const Platform& platform, const CompilationConfig& configuration);
-    static int numSlices(const Platform& platform, int numStreams);
-    static int numShaves(const Platform& platform, int numStreams, int numSlices);
+    static int numStreams(const ncDevicePlatform_t& platform, const PluginConfiguration& configuration);
+    static int numSlices(const ncDevicePlatform_t& platform, int numStreams);
+    static int numShaves(const ncDevicePlatform_t& platform, int numStreams, int numSlices);
     static int tilingCMXLimit(int numSlices);
 };
 
 struct CompileEnv final {
 public:
-    Platform platform;
+    ncDevicePlatform_t platform;
     Resources resources;
 
-    CompilationConfig config;
+    PluginConfiguration config;
 
     Logger::Ptr log;
 
@@ -49,14 +50,14 @@ public:
     static const CompileEnv* getOrNull();
 
     static void init(
-            Platform platform,
-            const CompilationConfig& config,
-            const Logger::Ptr& log);
-    static void updateConfig(const CompilationConfig& config);
+        ncDevicePlatform_t platform,
+        const PluginConfiguration& config,
+        const Logger::Ptr& log);
+    static void updateConfig(const PluginConfiguration& config);
     static void free();
 
 private:
-    explicit CompileEnv(Platform platform);
+    explicit CompileEnv(ncDevicePlatform_t platform);
 };
 
 }  // namespace vpu

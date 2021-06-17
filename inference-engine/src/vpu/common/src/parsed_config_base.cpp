@@ -59,13 +59,7 @@ void ParsedConfigBase::update(
 }
 
 const std::unordered_set<std::string>& ParsedConfigBase::getCompileOptions() const {
-IE_SUPPRESS_DEPRECATED_START
-    static const std::unordered_set<std::string> options = {
-        CONFIG_KEY(LOG_LEVEL),
-        VPU_CONFIG_KEY(LOG_LEVEL)
-    };
-IE_SUPPRESS_DEPRECATED_END
-
+    static const std::unordered_set<std::string> options;
     return options;
 }
 
@@ -73,8 +67,6 @@ const std::unordered_set<std::string>& ParsedConfigBase::getRunTimeOptions() con
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = {
         CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
-        CONFIG_KEY(LOG_LEVEL),
-        VPU_CONFIG_KEY(LOG_LEVEL)
     };
 IE_SUPPRESS_DEPRECATED_END
 
@@ -82,37 +74,12 @@ IE_SUPPRESS_DEPRECATED_END
 }
 
 const std::unordered_set<std::string>& ParsedConfigBase::getDeprecatedOptions() const {
-    IE_SUPPRESS_DEPRECATED_START
-    static const std::unordered_set<std::string> options = {
-        VPU_CONFIG_KEY(LOG_LEVEL)
-    };
-    IE_SUPPRESS_DEPRECATED_END
-
+    static const std::unordered_set<std::string> options;
     return options;
 }
 
 void ParsedConfigBase::parse(const std::map<std::string, std::string>& config) {
-    static const std::unordered_map<std::string, LogLevel> logLevels = {
-        { CONFIG_VALUE(LOG_NONE), LogLevel::None },
-        { CONFIG_VALUE(LOG_ERROR), LogLevel::Error },
-        { CONFIG_VALUE(LOG_WARNING), LogLevel::Warning },
-        { CONFIG_VALUE(LOG_INFO), LogLevel::Info },
-        { CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug },
-        { CONFIG_VALUE(LOG_TRACE), LogLevel::Trace }
-    };
-
-    setOption(_logLevel, logLevels, config, CONFIG_KEY(LOG_LEVEL));
     setOption(_exclusiveAsyncRequests, switches, config, CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
-
-IE_SUPPRESS_DEPRECATED_START
-    setOption(_logLevel, logLevels, config, VPU_CONFIG_KEY(LOG_LEVEL));
-IE_SUPPRESS_DEPRECATED_END
-
-#ifndef NDEBUG
-    if (const auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
-        _logLevel = logLevels.at(envVar);
-    }
-#endif
 }
 
 std::unordered_set<std::string> ParsedConfigBase::merge(

@@ -34,7 +34,7 @@ VPU_DECLARE_ENUM(MovidiusDdrType,
     MICRON_1GB  = 4,
 )
 
-class MyriadConfig final : public ParsedConfig {
+class MyriadConfig : public virtual ParsedConfig {
 public:
     const std::string& pluginLogFilePath() const {
         return _pluginLogFilePath;

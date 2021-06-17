@@ -170,7 +170,7 @@ void PassImpl::run(const Model& model) {
         // Try to merge next Pooling layer
         //
 
-        if (env.config.mergeHwPoolToConv) {
+        if (env.config.compileConfig().mergeHwPoolToConv) {
             if (stage->type() == StageType::StubConv) {
                 if (auto nextPoolStage = getNextPoolStage(stage, output)) {
                     output = nextPoolStage->output(0);

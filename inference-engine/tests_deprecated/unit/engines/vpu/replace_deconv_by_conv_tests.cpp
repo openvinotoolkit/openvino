@@ -91,7 +91,7 @@ TEST_F(VPU_ReplaceDeconvByConvTest, deconvReplacedByConvIfKernelSizeFitsHWUnit) 
 }
 
 TEST_F(VPU_ReplaceDeconvByConvTest, deconvCannotBeReplacedByConvIfDisabledInConfig) {
-    config.hwBlackList.insert("deconv");
+    config.compileConfig().hwBlackList.insert("deconv");
     InitCompileEnv();
     InitDeconvStage(16, 15);
 

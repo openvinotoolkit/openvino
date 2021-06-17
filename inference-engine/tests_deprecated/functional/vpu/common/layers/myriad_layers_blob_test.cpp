@@ -169,10 +169,15 @@ TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetCompileOptionPrintsWar
 
     std::string content = redirectCoutStream.str();
     for (auto &&elem : config) {
+        // TODO: remove once all options are migrated
+        std::stringstream deprecatedExpectedMsgStream;
+        deprecatedExpectedMsgStream << "[Warning][VPU][Config] " << elem.first;
+        const auto& deprecatedMsg = deprecatedExpectedMsgStream.str();
+
         std::stringstream expectedMsgStream;
-        expectedMsgStream << "[Warning][VPU][Config] " << elem.first;
-        std::string msg = expectedMsgStream.str();
-        ASSERT_TRUE(content.find(msg) != std::string::npos) << msg;
+        expectedMsgStream << "[Warning][VPU][Configuration] Configuration option \"" << elem.first;
+        const auto& msg = expectedMsgStream.str();
+        ASSERT_TRUE(content.find(msg) != std::string::npos || content.find(deprecatedMsg) != std::string::npos) << msg;
     }
 }
 

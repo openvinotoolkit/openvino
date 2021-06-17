@@ -25,10 +25,6 @@ VPU_DECLARE_ENUM(ConfigMode,
 
 class ParsedConfigBase {
 public:
-    LogLevel logLevel() const {
-        return _logLevel;
-    }
-
     bool exclusiveAsyncRequests() const {
         return _exclusiveAsyncRequests;
     }
@@ -37,11 +33,9 @@ public:
     ParsedConfigBase();
     virtual ~ParsedConfigBase();
 
-    void update(
-            const std::map<std::string, std::string>& config,
-            ConfigMode mode = ConfigMode::Any);
-
 protected:
+    void update(const std::map<std::string, std::string>& config, ConfigMode mode = ConfigMode::Any);
+
     virtual const std::unordered_set<std::string>& getCompileOptions() const;
     virtual const std::unordered_set<std::string>& getRunTimeOptions() const;
     virtual const std::unordered_set<std::string>& getDeprecatedOptions() const;
@@ -130,7 +124,6 @@ protected:
     Logger::Ptr _log;
 
 private:
-    LogLevel _logLevel = LogLevel::None;
     bool _exclusiveAsyncRequests = false;
 };
 

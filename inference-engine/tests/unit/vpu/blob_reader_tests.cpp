@@ -12,6 +12,8 @@
 #include <vpu/graph_transformer.hpp>
 #include <vpu/utils/logger.hpp>
 
+#include "graph_transformer_tests.hpp"
+
 #include <ngraph/op/util/attr_types.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
 
@@ -48,9 +50,8 @@ public:
         auto fn_ptr = ngraph::builder::subgraph::makeSplitConvConcat();
         ASSERT_NO_THROW(_network = InferenceEngine::CNNNetwork(fn_ptr));
 
-        CompilationConfig compileConfig;
         auto log = std::make_shared<Logger>("GraphCompiler", LogLevel::None, consoleOutput());
-        _compiledGraph = compileNetwork(_network, Platform::MYRIAD_X, compileConfig, log, &_mockCore);
+        _compiledGraph = compileNetwork(_network, ncDevicePlatform_t::NC_MYRIAD_X, createConfiguration(), log, &_mockCore);
     }
 
     CNNNetwork _network;

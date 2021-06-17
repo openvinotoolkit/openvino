@@ -32,23 +32,14 @@ class ExecutableNetwork : public ie::ExecutableNetworkThreadSafeDefault {
 public:
     typedef std::shared_ptr<ExecutableNetwork> Ptr;
 
-    explicit ExecutableNetwork(const ie::CNNNetwork& network,
-                               std::shared_ptr<IMvnc> mvnc,
-                               std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config,
-                               const ie::ICore* core);
+    ExecutableNetwork(const InferenceEngine::CNNNetwork& network, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool,
+                      const MyriadConfiguration& configuration, const ie::ICore* core);
 
-    explicit ExecutableNetwork(std::istream& strm,
-                               std::shared_ptr<IMvnc> mvnc,
-                               std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config,
-                               const ie::ICore* core);
+    ExecutableNetwork(std::istream& strm, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool, const MyriadConfiguration& configuration,
+                      const ie::ICore* core);
 
-    explicit ExecutableNetwork(const std::string &blobFilename,
-                               std::shared_ptr<IMvnc> mvnc,
-                               std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config,
-                               const ie::ICore* core);
+    ExecutableNetwork(const std::string &blobFilename, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool,
+                      const MyriadConfiguration& configuration, const ie::ICore* core);
 
 
     virtual ~ExecutableNetwork() {
@@ -97,9 +88,7 @@ public:
 
     ie::CNNNetwork GetExecGraphInfo() override;
 
-    void Import(std::istream& strm,
-                std::vector<DevicePtr> &devicePool,
-                const MyriadConfig& config);
+    void Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const MyriadConfiguration& configuration);
 
 private:
     Logger::Ptr _log;
@@ -108,7 +97,7 @@ private:
     GraphDesc _graphDesc;
     DevicePtr _device;
     GraphMetaInfo _graphMetaData;
-    MyriadConfig _config;
+    MyriadConfiguration _config;
     const ie::ICore* _core = nullptr;
     int _actualNumExecutors = 0;
     std::vector<std::string> _supportedMetrics;
@@ -119,10 +108,7 @@ private:
     const size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;
 
-    ExecutableNetwork(std::shared_ptr<IMvnc> mvnc,
-        std::vector<DevicePtr> &devicePool,
-        const MyriadConfig& config,
-        const ie::ICore* core);
+    ExecutableNetwork(std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool, const MyriadConfiguration& config, const ie::ICore* core);
 
     ie::ITaskExecutor::Ptr getNextTaskExecutor() {
         std::string id = _taskExecutorGetResultIds.front();

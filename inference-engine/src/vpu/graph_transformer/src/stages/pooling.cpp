@@ -221,8 +221,8 @@ void parsePool2D(const     Model      & model,
     //
 
     const auto& env = CompileEnv::get();
-    bool hwOptimization = env.config.hwOptimization;
-    bool hwDisabled = env.config.hwDisabled(layer->name);
+    bool hwOptimization = env.config.compileConfig().hwOptimization;
+    bool hwDisabled = env.config.compileConfig().hwDisabled(layer->name);
 
     int inputWidth = input->desc().dim(Dim::W);
     int inputHeight = input->desc().dim(Dim::H);
@@ -480,8 +480,8 @@ void parsePoolND(const     Model      & model,
     //
 
     const auto& env = CompileEnv::get();
-    bool hwOptimization = env.config.hwOptimization;
-    bool hwDisabled = env.config.hwDisabled(layer->name);
+    bool hwOptimization = env.config.compileConfig().hwOptimization;
+    bool hwDisabled = env.config.compileConfig().hwDisabled(layer->name);
 
     bool tryHW = canTryHW(poolLayer->_type,
                           input_shape[0],

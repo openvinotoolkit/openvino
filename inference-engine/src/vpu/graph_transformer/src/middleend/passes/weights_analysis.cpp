@@ -88,7 +88,7 @@ bool isScalable(const Stage& stage) {
 
 bool checkGrowingOutput(const Model& model) {
     const auto& env = CompileEnv::get();
-    if (!env.config.checkPreprocessingInsideModel) {
+    if (!env.config.compileConfig().checkPreprocessingInsideModel) {
         return false;
     }
 
@@ -258,7 +258,7 @@ void PassImpl::run(const Model& model) {
                 scale = static_cast<float>(1ULL << static_cast<std::uint32_t>(shift));
             }
 
-            if (!env.config.irWithVpuScalesDir.empty()) {
+            if (!env.config.compileConfig().irWithVpuScalesDir.empty()) {
                 stage->origLayer()->params["vpu_scale"] = toString(scale);
             }
         }

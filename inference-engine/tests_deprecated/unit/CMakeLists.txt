@@ -63,6 +63,7 @@ if (ENABLE_MYRIAD)
             engines/vpu/myriad_tests/helpers/*cpp
             engines/vpu/myriad_tests/helpers/*h
             ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/*.cpp
+            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/configuration/*.cpp
             )
     include_directories(
             engines/vpu/myriad_tests/helpers

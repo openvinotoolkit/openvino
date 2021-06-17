@@ -169,7 +169,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.dumpAllPasses,                  switches, config, ie::MYRIAD_DUMP_ALL_PASSES);
 
     setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
-    setOption(_compileConfig.copyOptimization,               switches, config, ie::MYRIAD_COPY_OPTIMIZATION);
     setOption(_compileConfig.packDataInCmx,                  switches, config, ie::MYRIAD_PACK_DATA_IN_CMX);
     setOption(_compileConfig.ignoreUnknownLayers,            switches, config, ie::MYRIAD_IGNORE_UNKNOWN_LAYERS);
     setOption(_compileConfig.hwOptimization,                 switches, config, ie::MYRIAD_ENABLE_HW_ACCELERATION);

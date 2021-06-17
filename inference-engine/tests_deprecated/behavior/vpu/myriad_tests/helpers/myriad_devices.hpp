@@ -30,8 +30,7 @@ public:
     std::vector<std::string> getDevicesList(
             const ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL,
             const ncDevicePlatform_t devicePlatform = NC_ANY_PLATFORM,
-            const XLinkDeviceState_t state = X_LINK_ANY_STATE
-            );
+            const XLinkDeviceState_t state = X_LINK_ANY_STATE);
 
     inline bool isMyriadXDevice(const std::string &device_name);
     inline bool isMyriad2Device(const std::string &device_name);

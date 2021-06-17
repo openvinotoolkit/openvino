@@ -130,10 +130,12 @@ void checkStageTestInds(const StageRange& stageRange, std::initializer_list<int>
 
 bool checkExecutionOrder(const Model& model, const std::vector<int>& execOrder);
 
+PluginConfiguration createConfiguration();
+
 class GraphTransformerTest : public ::testing::Test {
 public:
-    Platform platform = Platform::MYRIAD_X;
-    CompilationConfig config;
+    ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
+    PluginConfiguration config;
 
     StageBuilder::Ptr stageBuilder;
     FrontEnd::Ptr frontEnd;

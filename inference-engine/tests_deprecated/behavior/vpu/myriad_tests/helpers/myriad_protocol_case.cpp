@@ -4,6 +4,7 @@
 
 #include "myriad_protocol_case.hpp"
 #include "mvnc_ext.h"
+#include "vpu/myriad_config.hpp"
 
 void MyriadProtocolTests::SetUp() {
     protocol = GetParam();

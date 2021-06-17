@@ -31,6 +31,7 @@ MyriadMetrics::MyriadMetrics() {
     };
 
 IE_SUPPRESS_DEPRECATED_START
+    // TODO: remove once all options are migrated
     _supportedConfigKeys = {
         MYRIAD_ENABLE_HW_ACCELERATION,
         MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
@@ -45,7 +46,6 @@ IE_SUPPRESS_DEPRECATED_START
         KEY_VPU_MYRIAD_FORCE_RESET,
         KEY_VPU_MYRIAD_PLATFORM,
 
-        CONFIG_KEY(LOG_LEVEL),
         CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
         CONFIG_KEY(PERF_COUNT),
         CONFIG_KEY(CONFIG_FILE),

@@ -13,7 +13,7 @@
 
 #include "single_layer_common.hpp"
 #include "vpu/vpu_plugin_config.hpp"
-#include <graph_transformer/include/vpu/private_plugin_config.hpp>
+#include <vpu/private_plugin_config.hpp>
 
 
 using config_t = std::map<std::string, std::string>;

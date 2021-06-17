@@ -25,8 +25,8 @@ using VPU_AdjustDataLocationTest = GraphTransformerTest;
 //
 
 TEST_F(VPU_AdjustDataLocationTest, FlushCMX_TwoSpecialConsumers) {
-    config.numSHAVEs = 1;
-    config.numCMXSlices = 1;
+    config.compileConfig().numSHAVEs = 1;
+    config.compileConfig().numCMXSlices = 1;
     InitCompileEnv();
 
     DataDesc dataDesc1(DataType::FP16, DimsOrder::NCHW, {CMX_SLICE_SIZE / (2 * 2), 1, 2, 1});
