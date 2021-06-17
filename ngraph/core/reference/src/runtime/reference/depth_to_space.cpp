@@ -78,7 +78,6 @@ namespace ngraph
                 // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size,
                 //             D3 * block_size, ..., DK * block_size])
                 case op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
-                default:
                 {
                     dispersed_shape.insert(dispersed_shape.begin() + spatial_dims + 1, c_flat);
                     axes_order.push_back(spatial_dims + 1);
