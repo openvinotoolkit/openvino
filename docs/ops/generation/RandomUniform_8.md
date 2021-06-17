@@ -36,7 +36,7 @@ R' = mulhi(R, M) {\oplus} k {\oplus} L \\
 mulhi(a, b) = floor((a {\times} b) / 2^{32}) \\
 mullo(a, b) = (a {\times} b) \mod 2^{32}
 \f]
-where *k* = `R_{key}` for updating counter, *k* = `L_{key}` for updating *n*, *M* = `0xD2511F53` for updating *n*, *M* = `0xCD9E8D57` for updating *counter*.
+where `{\oplus}` - bitwise xor, *k* = `R_{key}` for updating counter, *k* = `L_{key}` for updating *n*, *M* = `0xD2511F53` for updating *n*, *M* = `0xCD9E8D57` for updating *counter*.
 
 After each round *key* is raised by summing with another pair of const values:
 \f[
