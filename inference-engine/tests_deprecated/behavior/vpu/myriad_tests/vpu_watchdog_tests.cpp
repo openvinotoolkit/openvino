@@ -15,6 +15,7 @@
 #include "helpers/myriad_devices.hpp"
 
 #include <cpp/ie_plugin.hpp>
+#include <vpu/private_plugin_config.hpp>
 
 using namespace std;
 using namespace ::testing;
