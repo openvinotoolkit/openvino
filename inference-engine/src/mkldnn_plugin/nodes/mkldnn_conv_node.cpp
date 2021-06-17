@@ -346,11 +346,11 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, ncsp);
             createDescriptor({in_candidate}, {out_candidate});
 
-            if (inputDataType != memory::data_type::bf16 && isNspcAvailable()) {
+//            if (inputDataType != memory::data_type::bf16 && isNspcAvailable()) {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, nspc);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, nspc);
                 createDescriptor({in_candidate}, {out_candidate});
-            }
+//            }
         }
     }
 }

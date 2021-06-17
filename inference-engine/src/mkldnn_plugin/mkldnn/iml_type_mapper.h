@@ -12,15 +12,18 @@ enum impl_desc_type {
     unknown = 0x00000000,
     undef,
     // Optimization approach
-    simple = 1<<6,
-    ref    = 1<<7,
-    jit    = 1<<8,
-    gemm   = 1<<9,
+    simple  = 1<<6,
+    ref     = 1<<7,
+    jit     = 1<<8,
+    gemm    = 1<<9,
+    brgconv = 1<<22,
+    brgemm  = 1<<23,
     // CPU version
     sse42  = 1<<10,
     avx    = 1<<11,
     avx2   = 1<<12,
     avx512 = 1<<13,
+    amx    = 1<<21,
     blas   = 1<<14,
     any    = 1<<15,
     uni    = 1<<16,
@@ -32,7 +35,6 @@ enum impl_desc_type {
     // winograd
     winograd = 1<<20,
 
-    amx = 1<<21,
     // real types
     ref_any             = ref  | any,
 
@@ -66,6 +68,27 @@ enum impl_desc_type {
     jit_sse42_dw        = jit  | sse42  | _dw,
     jit_uni_dw          = jit  | uni    | _dw,
     jit_avx512_amx_dw   = jit  | avx512 | amx | _dw,
+
+    brgconv_avx512      = brgconv  | avx512,
+    brgconv_avx2        = brgconv  | avx2,
+    brgconv_avx         = brgconv  | avx,
+    brgconv_sse42       = brgconv  | sse42,
+    brgconv_uni         = brgconv  | uni,
+    brgconv_avx512_amx  = brgconv  | avx512 | amx,
+
+    brgconv_avx512_1x1      = brgconv  | avx512 | _1x1,
+    brgconv_avx2_1x1        = brgconv  | avx2 | _1x1,
+    brgconv_avx_1x1         = brgconv  | avx | _1x1,
+    brgconv_sse42_1x1       = brgconv  | sse42 | _1x1,
+    brgconv_uni_1x1         = brgconv  | uni | _1x1,
+    brgconv_avx512_amx_1x1  = brgconv  | avx512 | amx | _1x1,
+
+    brgemm_avx512      = brgemm  | avx512,
+    brgemm_avx2        = brgemm  | avx2,
+    brgemm_avx         = brgemm  | avx,
+    brgemm_sse42       = brgemm  | sse42,
+    brgemm_uni         = brgemm  | uni,
+    brgemm_avx512_amx  = brgemm  | avx512 | amx,
 };
 
 impl_desc_type parse_impl_name(std::string impl_desc_name);

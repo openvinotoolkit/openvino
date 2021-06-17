@@ -22,7 +22,10 @@ impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
 
     SEARCH_WORD(ref);
     SEARCH_WORD(jit);
-    SEARCH_WORD(gemm);
+    SEARCH_WORD(brgconv);
+    SEARCH_WORD(brgemm);
+    if ((res & impl_desc_type::brgemm) != impl_desc_type::brgemm)
+        SEARCH_WORD(gemm);
     SEARCH_WORD(blas);
     SEARCH_WORD(sse42);
     SEARCH_WORD_2(sse41, sse42);
