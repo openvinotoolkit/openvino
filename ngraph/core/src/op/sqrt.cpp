@@ -57,6 +57,7 @@ namespace sqrtop
             NGRAPH_TYPE_CASE(evaluate_sqrt, u64, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_sqrt, f16, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_sqrt, f32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sqrt, f64, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -79,7 +80,8 @@ bool op::Sqrt::has_evaluate() const
     case ngraph::element::u32:
     case ngraph::element::u64:
     case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ngraph::element::f32:
+    case ngraph::element::f64: return true;
     default: break;
     }
     return false;
