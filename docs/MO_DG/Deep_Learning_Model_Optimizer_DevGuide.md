@@ -34,6 +34,7 @@ To learn about all Model Optimizer parameters and conversion technics, see the [
 
 ## Videos
 
+\htmlonly
 <table>
   <tr>
     <td><iframe width="480" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
@@ -48,6 +49,22 @@ To learn about all Model Optimizer parameters and conversion technics, see the [
     <td><strong>Choosing the Right Precision</strong>. Duration: 4:18.</td>
   </tr>
 </table>
+\endhtmlonly
+
+\htmlonly
+<table>
+  <tr>
+    <td><a href="https://www.youtube.com/watch?v=Kl1ptVb7aI8"><img alt="Qries" src="https://img.youtube.com/vi/Kl1ptVb7aI8/0.jpg" width="200"></td>
+    <td><a href="https://www.youtube.com/watch?v=BBt1rseDcy0"><img alt="Qries" src="https://img.youtube.com/vi/BBt1rseDcy0/0.jpg" width="200"></td>
+    <td><a href="https://www.youtube.com/watch?v=RF8ypHyiKrY"><img alt="Qries" src="https://img.youtube.com/vi/RF8ypHyiKrY/0.jpg" width="200"></td>
+  </tr>
+  <tr>
+    <td><strong>Model Optimizer Concept</strong>. Duration: 3:56</td>
+    <td><strong>Model Optimizer Basic Operation</strong>. Duration: 2:57.</td>
+    <td><strong>Choosing the Right Precision</strong>. Duration: 4:18.</td>
+  </tr>
+</table>
+\endhtmlonly
 
 \htmlonly
 <iframe width="200" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
