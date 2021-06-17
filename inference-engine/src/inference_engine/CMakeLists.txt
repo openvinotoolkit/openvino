@@ -162,7 +162,7 @@ if (TBBBIND_2_4_FOUND)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
-                                             ngraph::frontend_manager::static inference_engine_transformations)
+                                             ngraph::frontend_manager::static inference_engine_transformations
                                      PUBLIC ngraph)
 
 target_include_directories(${TARGET_NAME} INTERFACE
