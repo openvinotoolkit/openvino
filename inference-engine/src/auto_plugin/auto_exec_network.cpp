@@ -38,6 +38,12 @@ AutoExecutableNetwork::AutoExecutableNetwork(NetworkFuture cpuFuture,
     } else {
         IE_THROW() << "No device task available";
     }
+
+    // fixme: wokers should get from actual network, but how?
+    _requests.set_capacity(4);
+    for (int32_t id =1; id <= 4; ++id) {
+        _requests.push(id);
+    }
 }
 
 AutoExecutableNetwork::~AutoExecutableNetwork() = default;
@@ -131,6 +137,17 @@ void AutoExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& co
 Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
     //fixme: carefuly select between FirstLoaded and ActuallyNeeded
     return _cacheConfig;
+}
+
+// Block until an item becomes available, and then dequeue it.
+void AutoExecutableNetwork::PopRequest(int32_t& id) {
+    _requests.pop(id);
+    // printf("!!! DEBUG: pop request with id(%d), _request.size=%ld !!!\n", id, _requests.size());
+}
+
+void AutoExecutableNetwork::PushRequest(int32_t id) {
+    _requests.push(id);
+    // printf("!!! DEBUG: push request with id(%d), _request.size=%ld !!!\n", id, _requests.size());
 }
 
 }  // namespace AutoPlugin

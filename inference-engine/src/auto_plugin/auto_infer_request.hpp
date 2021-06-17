@@ -40,9 +40,12 @@ public:
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override;
     void SetCallback(Callback callback) override;
 
+    ~AutoInferRequest();
+
 private:
     void HotSwapRequests();
     void SetBlobsToDeviceRequest();
+    void GetAvailableWorker();
 
 private:
     InferenceEngine::SoIInferRequestInternal _inferRequest;
@@ -50,6 +53,7 @@ private:
     Callback _callback; // need to save the callback for hot-swap of the requests
     bool _alreadyActualNetwork{ false };
     bool _enablePerfCount { false };
+    int32_t _id { -1 };
 };
 
 }  // namespace AutoPlugin

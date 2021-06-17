@@ -84,6 +84,8 @@ public:
     }
     void set_capacity(std::size_t newCapacity) {
         std::lock_guard<std::mutex> lock(_mutex);
+        // bug: this is incorrect to set size_t to bool, try_push also has the same issue
+        // fixed in auto_exec_network.hpp
         _capacity = newCapacity;
     }
 

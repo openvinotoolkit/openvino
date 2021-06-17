@@ -28,6 +28,13 @@ AutoInferRequest::AutoInferRequest(const InputsDataMap&              networkInpu
         _outputs[it.first] = _inferRequest->GetBlob(it.first);
 }
 
+AutoInferRequest::~AutoInferRequest() {
+    // valid id is from 1 to N
+    if (_id > 0) {
+        _autoExecutableNetwork->PushRequest(_id);
+    }
+}
+
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoInferRequest::GetPerformanceCounts() const {
     if (_enablePerfCount) {
         try {
@@ -41,6 +48,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoInferRequ
 }
 
 void AutoInferRequest::InferImpl() {
+    GetAvailableWorker();
     HotSwapRequests(); //safe to call here (before actual inference started)
     SetBlobsToDeviceRequest();
     _inferRequest->Infer();
@@ -59,6 +67,7 @@ void AutoInferRequest::Cancel() {
 }
 
 void AutoInferRequest::StartAsync() {
+    GetAvailableWorker();
     HotSwapRequests(); //safe to call here (before actual inference started)
     SetBlobsToDeviceRequest();
     _inferRequest->StartAsync();
@@ -70,7 +79,8 @@ InferenceEngine::StatusCode AutoInferRequest::Wait(int64_t millis_timeout) {
 
 void AutoInferRequest::SetCallback(Callback callback) {
     _callback = callback;
-    _inferRequest->SetCallback(callback);
+    _inferRequest->SetCallback(_callback);
+    // printf("!!! DEBUG: set infer request call back\n");
 }
 
 void AutoInferRequest::HotSwapRequests() {
@@ -85,19 +95,32 @@ void AutoInferRequest::HotSwapRequests() {
 }
 
 void AutoInferRequest::SetBlobsToDeviceRequest() {
-        for (const auto &it : _networkInputs) {
-            const auto &name = it.first;
-            // this assumes the request is already in BUSY state
-            auto blob = GetBlob(name);
-            if (_inferRequest->GetBlob(name) != blob)
-                _inferRequest->SetBlob(name, blob);
-        }
-        for (const auto &it : _networkOutputs) {
-            const auto &name = it.first;
-            // this assumes the request is already in BUSY state
-            auto blob = GetBlob(name);
-            if (_inferRequest->GetBlob(name) != blob)
-                _inferRequest->SetBlob(name, blob);
-        }
+    for (const auto &it : _networkInputs) {
+        const auto &name = it.first;
+        // this assumes the request is already in BUSY state
+        auto blob = GetBlob(name);
+        if (_inferRequest->GetBlob(name) != blob)
+            _inferRequest->SetBlob(name, blob);
     }
+    for (const auto &it : _networkOutputs) {
+        const auto &name = it.first;
+        // this assumes the request is already in BUSY state
+        auto blob = GetBlob(name);
+        if (_inferRequest->GetBlob(name) != blob)
+            _inferRequest->SetBlob(name, blob);
+    }
+}
+
+void AutoInferRequest::GetAvailableWorker() {
+    _autoExecutableNetwork->PopRequest(_id);
+    _inferRequest->SetCallback([this](std::exception_ptr e){
+        // printf("!!! DEBUG: run infer request call back\n");
+        if (_callback) {
+            _callback(e);
+        }
+        _autoExecutableNetwork->PushRequest(_id);
+        _id = -1;
+    });
+}
+
 }  // namespace AutoPlugin
