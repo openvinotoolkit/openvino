@@ -58,7 +58,9 @@ model = tf.keras.models.load_model('yolo4_weight.h5', custom_objects={'Mish': Mi
 tf.saved_model.save(model, 'yolov4')
 ```
 
-4. Run Model Optimizer to converter TensorFlow2\* to IR:
+4. Run Model-Optimizer to converter TensorFlow2\* to IR:
+
+> **NOTE:** Before you run convert be sure that you install all Model-Optimizer dependencies for TensorFlow 2\*.
 ```python
 pyton mo.py --saved_model_dir models\yolov4 --output_dir models\IRs --input_shape (1,608,608,3) --model_name yolov4 
 ```
