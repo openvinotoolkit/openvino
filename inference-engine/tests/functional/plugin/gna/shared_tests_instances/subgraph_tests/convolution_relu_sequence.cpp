@@ -89,8 +89,24 @@ const std::vector<convReluSpecificParams> convReluSpecificParamsSimpleSeqWithPoo
     },
 };
 
+const std::vector<convReluSpecificParams> poolingStrideNotEqualWindow{
+    {
+        {3, 1},     // Kernel size
+        {2, 1},     // Stride
+        {0, 0},     // Pad begin
+        {0, 0},     // Pad end
+        4,          // Num out channels
+        {4, 1},     //Pooling window
+        {2, 1}      //Pooling stride
+    },
+};
+
 const InferenceEngine::SizeVector inputShapeFB = {
     {1, 1, 5, 236},
+};
+
+const InferenceEngine::SizeVector inputShape1D = {
+    {1, 1, 41, 1},
 };
 
 const std::vector<convReluSpecificParams> convReluSpecificParamsFBSeq = {
@@ -200,4 +216,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionReluSequenceTest, GnaConvolutionReluSe
         ::testing::ValuesIn(configs)),
     GnaConvolutionReluSequenceTest::getTestCaseName);
 
+const std::vector<convReluSpecificParamsAll> poolingStrideNotEqualWindowAll = {
+    {
+        inputShape1D,
+        poolingStrideNotEqualWindow
+    }
+};
+
+const std::vector<InferenceEngine::Precision> netPrecisions2 = {
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16
+};
+
+TEST_P(ConvolutionReluSequenceTest, CompareWithRefs) {
+    Run();
+}
+
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionReluSequenceTest, ConvolutionReluSequenceTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(poolingStrideNotEqualWindowAll),
+        ::testing::ValuesIn(netPrecisions2),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA),
+        ::testing::ValuesIn(configs)),
+
+    ConvolutionReluSequenceTest::getTestCaseName);
 } // namespace
