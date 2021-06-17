@@ -30,7 +30,7 @@ namespace {
     const std::vector<op::v8::MulticlassNms::SortResultType> sortResultType = {op::v8::MulticlassNms::SortResultType::CLASSID,
                                                                        op::v8::MulticlassNms::SortResultType::SCORE,
                                                                        op::v8::MulticlassNms::SortResultType::NONE};
-    const std::vector<bool> sort_result_across_batch = {true, false};
+    const std::vector<bool> sortResultAcrossBatch = {true, false};
     const std::vector<element::Type> outType = {element::i32, element::i64};
     const std::vector<int> nmsTopK = {10, 100};
     const std::vector<int> keepTopK = {10, 5};
@@ -41,7 +41,7 @@ namespace {
                                                                ::testing::Values(InferenceEngine::Precision::I32),
                                                                ::testing::Values(InferenceEngine::Precision::FP32)),
                                             ::testing::ValuesIn(sortResultType),
-                                            ::testing::ValuesIn(sort_result_across_batch),
+                                            ::testing::ValuesIn(sortResultAcrossBatch),
                                             ::testing::ValuesIn(outType),
                                             ::testing::ValuesIn(nmsTopK),
                                             ::testing::ValuesIn(keepTopK),

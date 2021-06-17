@@ -42,7 +42,7 @@ namespace ngraph
                 MulticlassNms(const Output<Node>& boxes,
                               const Output<Node>& scores,
                               const SortResultType sort_result_type = SortResultType::NONE,
-                              bool sort_result_across_batch = true,
+                              bool sort_result_across_batch = false,
                               const ngraph::element::Type& output_type = ngraph::element::i64,
                               const float iou_threshold = 0.0f,
                               const float score_threshold = 0.0f,
