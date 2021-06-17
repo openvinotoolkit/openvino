@@ -34,6 +34,21 @@ To learn about all Model Optimizer parameters and conversion technics, see the [
 
 ## Videos
 
+<table>
+  <tr>
+    <td><iframe width="480" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
+    <td><strong>Model Optimizer Concept</strong>. Duration: 3:56</td>
+  </tr>
+  <tr>
+    <td><iframe width="480" src="https://www.youtube.com/embed/BBt1rseDcy0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
+    <td><strong>Model Optimizer Basic Operation</strong>. Duration: 2:57.</td>
+  </tr>
+  <tr>
+    <td><iframe width="480" src="https://www.youtube.com/embed/RF8ypHyiKrY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
+    <td><strong>Choosing the Right Precision</strong>. Duration: 4:18.</td>
+  </tr>
+</table>
+
 \htmlonly
 <iframe width="200" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 <iframe width="200" src="https://www.youtube.com/embed/BBt1rseDcy0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
