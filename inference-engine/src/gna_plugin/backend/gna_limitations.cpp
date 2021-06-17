@@ -11,13 +11,9 @@
 #include <layers/gna_layer_type.hpp>
 #include <layers/gna_layer_info.hpp>
 
-using GNAPluginNS::GNALimitations::Cnn2D::Validator;
-using GNAPluginNS::GNALimitations::Cnn2D::VectorOrSquareLimit;
-using GNAPluginNS::GNALimitations::Cnn2D::VectorOrSquareLimitByChannels;
-using GNAPluginNS::GNALimitations::Cnn2D::VectorOrSquareLimitByChannelsAndPrecision;
-using GNAPluginNS::GNALimitations::Cnn2D::RangeLimit;
-using GNAPluginNS::GNALimitations::Cnn2D::RangeLimit2D;
-using GNAPluginNS::GNALimitations::Cnn2D::RangeMultipleLimit;
+namespace GNAPluginNS {
+namespace GNALimitations {
+namespace Cnn2D {
 
 bool RangeLimit::isValid(const uint32_t val) const {
     return val >= min && val <= max;
@@ -133,7 +129,9 @@ void Validator::ThrowIfNotEmpty(const std::string prefix, const std::string erro
     }
 }
 
-bool Validator::AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
+} // namespace Cnn2D
+
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer *> allLayers;
@@ -168,17 +166,17 @@ bool Validator::AreLayersSupported(InferenceEngine::CNNNetwork& network, std::st
     InferenceEngine::details::UnorderedDFS(allLayers,
                                            startLayer,
                                            [&](const InferenceEngine::CNNLayerPtr layer) {
-                                               if (LayerTypeFromStr(layer->type) == LayerType::NO_TYPE) {
+                                               if (GNAPluginNS::LayerTypeFromStr(layer->type) == GNAPluginNS::LayerType::NO_TYPE) {
                                                    errMessage = "The plugin does not support layer: " + layer->name + ":" + layer->type + "\n";
                                                    check_result =  false;
                                                }
-                                               if (batch_size != 1 && LayerInfo::isBatchSizeConstrained(layer->type)) {
+                                               if (batch_size != 1 && GNAPluginNS::LayerInfo::isBatchSizeConstrained(layer->type)) {
                                                    errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
                                                                 ", and batch size(" + std::to_string(batch_size) + ") != 1 not supported";
                                                    check_result =  false;
                                                }
-                                               if (LayerInfo(layer).isFullyConnected()) {
-                                                   size_t output_batch_size = LayerInfo(layer).getOutputBatchSize();
+                                               if (GNAPluginNS::LayerInfo(layer).isFullyConnected()) {
+                                                   size_t output_batch_size = GNAPluginNS::LayerInfo(layer).getOutputBatchSize();
                                                    if (output_batch_size > 8) {
                                                         errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
                                                                      ", and batch size(" + std::to_string(output_batch_size) + ") not supported";
@@ -189,3 +187,6 @@ bool Validator::AreLayersSupported(InferenceEngine::CNNNetwork& network, std::st
     IE_SUPPRESS_DEPRECATED_END
     return check_result;
 }
+
+} // namespace GNALimitations
+} // namespace GNAPluginNS

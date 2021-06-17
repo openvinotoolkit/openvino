@@ -717,7 +717,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     //  Check the input network
     std::string error;
-    if (!GNALimitations::Cnn2D::Validator::AreLayersSupported(network, error)) {
+    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
