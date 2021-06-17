@@ -390,6 +390,8 @@ extensions/front/tf/broadcast_ext.py
 extensions/front/tf/bucketize.py
 extensions/front/tf/bucketize_ext.py
 extensions/front/tf/Cast_ext.py
+extensions/front/tf/ClipByValue_ext.py
+extensions/front/tf/ClipByValueTFTransformation.py
 extensions/front/tf/ComplexAbs.py
 extensions/front/tf/ComplexAbsAfterComplex.py
 extensions/front/tf/concat.py
@@ -670,6 +672,7 @@ extensions/ops/BN.py
 extensions/ops/box_nms.py
 extensions/ops/bucketize.py
 extensions/ops/Cast.py
+extensions/ops/ClipByValueTF.py
 extensions/ops/constant_fill.py
 extensions/ops/ConvertLike.py
 extensions/ops/copyop.py
