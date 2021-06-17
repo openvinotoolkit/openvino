@@ -22,6 +22,15 @@ namespace ngraph
                                 const op::DepthToSpace::DepthToSpaceMode mode,
                                 const size_t elem_size)
             {
+                // DepthToSpace run in tree steps:
+                // - disperse data from depth channel
+                // - rearrange data so as appropriate chunks of data where close to their
+                //   destination place
+                // - squeeze data from respective dimensions
+                //
+                // First and third step doesn't change data in memory, it change only the shape.
+                // From data layout firs and third step may be omit. The second operation have to be
+                // perform on dispared (x') shape.
                 const size_t n_dim = data_shape.at(0);
                 const size_t c_dim = data_shape.at(1);
                 const size_t spatial_dim_index = 2;
@@ -37,9 +46,6 @@ namespace ngraph
 
                 const size_t c_flat = c_dim / c_dim_divider;
 
-                // First we have to disperse the data from depth channel, then rearrange them
-                // so as appropriate chunks of data where close to their destination place.
-                // Finally squeeze data from respective dimensions.
                 Shape dispersed_shape{n_dim};
                 for (size_t i = 0; i < spatial_dims; ++i)
                 {
@@ -95,12 +101,8 @@ namespace ngraph
                 {
                     post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
                 }
-                runtime::opt_kernel::reshape(data,
-                                             out,
-                                             dispersed_shape,
-                                             axes_order,
-                                             post_transpose_shape,
-                                             elem_size);
+                runtime::opt_kernel::reshape(
+                    data, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
                 return true;
             }
 
