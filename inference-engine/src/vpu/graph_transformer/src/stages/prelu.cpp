@@ -31,29 +31,28 @@ private:
 
 }  // namespace
 
-void FrontEnd::parsePReLU(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
+void FrontEnd::parsePReLU(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    
+    const auto& prelu = ngraph::as_type_ptr<ngraph::opset4::PRelu>(node);
+    VPU_THROW_UNLESS(prelu != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    // IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
+    auto inputNode = node->input_value(1).get_node_shared_ptr();
+    auto weightsBlob = shareWeights(inputNode);
 
-    auto weightsIt = layer->blobs.find("weights");
-    if (weightsIt == layer->blobs.end()) {
-        IE_THROW() << "[VPU] PReLU doesn't have weights";
-    }
-
-    auto weightsBlob = weightsIt->second;
     IE_ASSERT(weightsBlob != nullptr);
 
-    auto channelShared = layer->GetParamAsInt("channel_shared", 0);
+    auto channelShared =  0;
 
     auto output = outputs[0];
 
     auto weights = model->addConstData(
-        layer->name + "@weights",
+        prelu->get_friendly_name() + "@weights",
         DataDesc({output->desc().dim(Dim::C)}),
         std::make_shared<PReLUBlobContent>(weightsBlob, DataDesc({output->desc().dim(Dim::C)}),
                                            channelShared ? output->desc().dim(Dim::C) : 1));
 
-    model->addNewStage<PReluStage>(layer->name, StageType::PRelu, layer, {inputs[0], weights}, outputs);
+    model->addNewStage<PReluStage>(prelu->get_friendly_name(), StageType::PRelu, prelu, {inputs[0], weights}, outputs);
 }
 
 }  // namespace vpu

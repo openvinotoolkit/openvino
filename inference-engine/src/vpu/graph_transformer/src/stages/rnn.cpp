@@ -132,29 +132,63 @@ static void RNNRelayout(
     }
 }
 
-void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) const {
+static int64_t get_seq_axis(const std::shared_ptr<ngraph::Node>& sequence_node) {
+    // Optimization.
+    // Plug-ins support seq_axis attribute (value 1 or 0) for Seq ops, but according to the spec we don't
+    // support this attribute and should insert Transpose layer before and after Seq op in TI to Sequences
+    // transformation. Additional Transpose layers affect the performance, so we try to detect pattern
+    // Transpose(axis_order={1,0,2}) -> Seq -> Transpose(axis_order={2,1,0,3}
+    // and replace unnecessary Transpose ops with SeqIE (seq_axis = 0) to transfer value
+    // of the attribute to plug-ins.
+    // todo: specify seq_axis attribute for Sequence ops.
+    int64_t seq_axis = 1; // default
+    const auto& target_inputs = sequence_node->output(0).get_target_inputs();
+    if (target_inputs.size() == 1) {
+        const auto& transpose_before = std::dynamic_pointer_cast<ngraph::opset5::Transpose>(sequence_node->input_value(0).get_node_shared_ptr());
+        const auto& transpose_after = std::dynamic_pointer_cast<ngraph::opset5::Transpose>(target_inputs.begin()->get_node()->shared_from_this());
+        if (transpose_after != nullptr && transpose_before != nullptr) {
+            auto order_before = std::dynamic_pointer_cast<ngraph::opset5::Constant>(
+                    transpose_before->input_value(1).get_node_shared_ptr());
+            auto order_after = std::dynamic_pointer_cast<ngraph::opset5::Constant>(
+                    transpose_after->input_value(1).get_node_shared_ptr());
+            if (order_before != nullptr && order_after != nullptr) {
+                auto order_before_values = order_before->cast_vector<int64_t>();
+                auto order_after_values = order_after->cast_vector<int64_t>();
+                std::vector<int64_t> order_ref_before = {1, 0, 2};
+                std::vector<int64_t> order_ref_after = {2, 1, 0, 3};
+                if (order_before_values == order_ref_before && order_after_values == order_ref_after) {
+                    seq_axis = 0;
+                }
+            }
+        }
+    }
+    return seq_axis;
+}
+
+void FrontEnd::parseRNN(const Model& model, const NodePtr& node, const DataVector &inputs, const DataVector &outputs) const {
+    const auto& rnnSequence = ngraph::as_type_ptr<ngraph::op::v5::RNNSequence>(node);
+    IE_ASSERT(rnnSequence != nullptr);
     IE_ASSERT(inputs.size() == 3);
     IE_ASSERT(outputs.size() <= 3);
-
-    auto layer = std::dynamic_pointer_cast<ie::RNNSequenceLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
 
     const int ngates = 4;
 
     Data weights, biases;
-    std::tie(weights, biases) = getWeightsAndBiases(model, layer);
+    const auto weightsNode = node->input_value(4).get_node_shared_ptr();
+    const auto biasNode = node->input_value(5).get_node_shared_ptr();
+    std::tie(weights, biases) = getWeightsAndBiases(model, rnnSequence->get_friendly_name(), weightsNode, biasNode);
 
     size_t nCells = 0;
     size_t nBatches = 0;
     size_t inputSize = inputs[0]->desc().dim(Dim::W);
-
-    if (layer->axis == 1) {
+    auto axis = get_seq_axis(rnnSequence);
+    if (axis == 1) {
         nCells = inputs[0]->desc().dim(Dim::H);
         nBatches = inputs[0]->desc().dim(Dim::C);
-    } else if (layer->axis == 0) {
+    } else if (axis == 0) {
         nCells = inputs[0]->desc().dim(Dim::C);
         nBatches = inputs[0]->desc().dim(Dim::H);
-    } else if (layer->axis == 2) {
+    } else if (axis == 2) {
         nCells = inputs[0]->desc().dim(Dim::W);
         nBatches = inputs[0]->desc().dim(Dim::C);
         inputSize = inputs[0]->desc().dim(Dim::H);
@@ -197,39 +231,51 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
             static_cast<int>(inputSize));
     };
 
-    auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
+    auto newWeights = model->addConstData(rnnSequence->get_friendly_name() + "@weights", weights->desc(), generator);
     auto outputData = outputs;
-    if (outputs.size() == 1) {
-        outputData.push_back(model->addFakeData());
+
+    const auto& validOutDataIter = std::find_if(outputData.begin(), outputData.end(), [](const vpu::Data& data) {
+        return data != nullptr;
+    });
+
+    VPU_THROW_UNLESS(validOutDataIter != outputData.end(), "Layer {} with type {} failed: all outputs is nullptr", rnnSequence->get_friendly_name(), rnnSequence->get_type_name());
+
+    for (auto& out : outputData) {
+        if (out == nullptr) {
+            out = model->addFakeData();
+        }
     }
 
     auto stage = model->addNewStage<LSTMCellStage>(
-        layer->name,
+        rnnSequence->get_friendly_name(),
         StageType::LSTMCell,
-        layer,
+        rnnSequence,
         {inputs[0], inputs[1], inputs[2], newWeights, biases},
         outputData);
 
     if (nCells > 1)
         model->addTempBuffer(stage, sizeof(uint16_t) * stateSize);
-
-    bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
+    bool RNNForward = rnnSequence->get_direction() == ngraph::op::RecurrentSequenceDirection::FORWARD;
     stage->attrs().set<bool>("RNNForward", RNNForward);
     stage->attrs().set<int>("nCells", static_cast<int>(nCells));
     stage->attrs().set<int>("nBatches", static_cast<int>(nBatches));
 }
 
-void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) {
+void FrontEnd::parseLSTMCell(const Model& model, const NodePtr& node, const DataVector &inputs, const DataVector &outputs) {
     IE_ASSERT(inputs.size() == 3);
     IE_ASSERT(outputs.size() == 2);
 
     const int ngates = 4;
 
-    const auto layer = std::dynamic_pointer_cast<ie::LSTMCell>(_layer);
-    IE_ASSERT(layer != nullptr);
+    const auto lstmCell = ngraph::as_type_ptr<ngraph::opset4::LSTMCell>(node);
+    VPU_THROW_UNLESS(lstmCell != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
 
     Data weights;
-    std::tie(weights, std::ignore) = getWeightsAndBiases(model, layer);
+    Data biases;
+    std::tie(weights, std::ignore) = getWeightsAndBiases(model,
+                                                         lstmCell->get_friendly_name(),
+                                                         node->input_value(3).get_node_shared_ptr(),
+                                                         node->input_value(4).get_node_shared_ptr());
 
     const auto& src = inputs[0]->desc();
 
@@ -266,12 +312,12 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
             static_cast<int>(inputSize));
     };
 
-    auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
+    auto newWeights = model->addConstData(lstmCell->get_friendly_name() + "@weights", weights->desc(), generator);
 
     DataVector stageInputs = inputs;
-    auto origWeights = layer->_weights;
+    auto origWeights = shareWeights(node->input_value(3).get_node_shared_ptr());
 
-    IE_ASSERT(origWeights != nullptr) << "weights are empty for layer: " << layer->name;
+    IE_ASSERT(origWeights != nullptr) << "weights are empty for node: " << lstmCell->get_friendly_name();
 
     if (_lstmWeights.count(origWeights) != 0) {
         stageInputs.emplace_back(_lstmWeights[origWeights]);
@@ -280,9 +326,9 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
         stageInputs.emplace_back(newWeights);
     }
 
-    auto origBiases = layer->_biases;
+    auto origBiases = shareWeights(node->input_value(4).get_node_shared_ptr());
 
-    Data biases;
+    
     if (origBiases == nullptr) {
         biases = model->addFakeData();
     } else {
@@ -290,7 +336,7 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
             biases = _lstmBiases[origBiases];
         } else {
             biases = model->addConstData(
-                    layer->name + "@biases",
+                    lstmCell->get_friendly_name() + "@biases",
                     DataDesc({origBiases->size()}),
                     ieBlobContent(origBiases));
             _lstmBiases[origBiases] = biases;
@@ -303,7 +349,7 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
     DataVector realOutputs;
     std::copy_if(outputs.cbegin(), outputs.cend(), std::back_inserter(realOutputs), [](const Data& handle) { return !!handle;});
 
-    auto stage = model->addNewStage<LSTMCellStage>(layer->name, StageType::LSTMCell, layer, stageInputs, realOutputs);
+    auto stage = model->addNewStage<LSTMCellStage>(lstmCell->get_friendly_name(), StageType::LSTMCell, lstmCell, stageInputs, realOutputs);
     stage->attrs().set<bool>("RNNForward", true);
     stage->attrs().set<int>("nCells", 1);
     stage->attrs().set<int>("nBatches", static_cast<int>(nBatches));

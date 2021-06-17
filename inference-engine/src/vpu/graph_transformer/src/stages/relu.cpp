@@ -37,20 +37,26 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseReLU(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseReLU(const Model& model, const NodePtr& _node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
-
-    auto layer = std::dynamic_pointer_cast<ie::ReLULayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-
-    _stageBuilder->addReLUStage(model, layer->name, layer, layer->negative_slope, inputs[0], outputs[0]);
+    const auto& relu = ngraph::as_type_ptr<ngraph::opset4::Relu>(_node);
+    
+    VPU_THROW_UNLESS(relu != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", _node->get_friendly_name(), _node->get_type_name());
+    float negativeSlope = 0;
+    if (relu->get_input_size() > 1) {
+        auto slopeNode = std::dynamic_pointer_cast<ngraph::opset4::Constant>(relu->get_input_node_shared_ptr(1));
+        if (slopeNode != nullptr) {
+            negativeSlope = slopeNode->cast_vector<float>()[0];
+        }
+    }
+    _stageBuilder->addReLUStage(model, relu->get_friendly_name(), relu, negativeSlope, inputs[0], outputs[0]);
 }
 
 Stage StageBuilder::addReLUStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         float negativeSlope,
         const Data& input,
         const Data& output,
@@ -71,7 +77,7 @@ Stage StageBuilder::addReLUStage(
     auto stage = model->addNewStage<ReLUStage>(
         name,
         stageType,
-        layer,
+        node,
         {input},
         {output});
 

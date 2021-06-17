@@ -87,7 +87,7 @@ void PassImpl::run(const vpu::Model &model) {
         IE_ASSERT(stage->numInputs() == 2);
         IE_ASSERT(stage->numOutputs() == 1);
 
-        const auto& layer = stage->origLayer();
+        const auto& layer = stage->origNode();
         const auto& input0 = stage->input(0);
         const auto& input1 = stage->input(1);
         const auto& output = stage->output(0);

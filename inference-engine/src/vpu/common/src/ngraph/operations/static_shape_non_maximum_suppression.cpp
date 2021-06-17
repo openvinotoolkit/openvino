@@ -20,7 +20,7 @@ StaticShapeNonMaxSuppression::StaticShapeNonMaxSuppression(const ngraph::opset5:
         nms.get_input_size() > 3 ? nms.input_value(3) : ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {.0f}),
         nms.get_input_size() > 4 ? nms.input_value(4) : ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {.0f}),
         nms.get_input_size() > 5 ? nms.input_value(5) : ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {.0f}),
-        nms.get_box_encoding() == ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER ? 1 : 0,
+        nms.get_box_encoding(),
         nms.get_sort_result_descending(),
         nms.get_output_type()) {}
 
@@ -31,10 +31,10 @@ StaticShapeNonMaxSuppression::StaticShapeNonMaxSuppression(
         const Output<Node>& iouThreshold,
         const Output<Node>& scoreThreshold,
         const Output<Node>& softNmsSigma,
-        int centerPointBox,
+        ngraph::op::v5::NonMaxSuppression::BoxEncodingType centerPointBox,
         const bool sortResultDescending,
         const element::Type& outputType)
-        : ngraph::op::NonMaxSuppressionIE3(
+        : ngraph::opset5::NonMaxSuppression(
         boxes, scores, maxOutputBoxesPerClass, iouThreshold, scoreThreshold,
         softNmsSigma, centerPointBox, sortResultDescending, outputType) {
     constructor_validate_and_infer_types();
@@ -44,12 +44,12 @@ std::shared_ptr<Node>
 StaticShapeNonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<StaticShapeNonMaxSuppression>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-                                                          new_args.at(4), new_args.at(5), m_center_point_box, m_sort_result_descending,
+                                                          new_args.at(4), new_args.at(5), m_box_encoding, m_sort_result_descending,
                                                           m_output_type);
 }
 
 void StaticShapeNonMaxSuppression::validate_and_infer_types() {
-    ngraph::op::NonMaxSuppressionIE3::validate_and_infer_types();
+    ngraph::opset5::NonMaxSuppression::validate_and_infer_types();
 
     auto outIndicesShape = get_output_partial_shape(0);
     auto outScoresShape = get_output_partial_shape(1);

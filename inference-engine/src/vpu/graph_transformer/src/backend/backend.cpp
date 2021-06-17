@@ -43,7 +43,7 @@ void BackEnd::extractDataInfo(
 
 CompiledGraph::Ptr BackEnd::build(
         const Model& model,
-        const std::vector<ie::CNNLayerPtr>& allLayers) {
+        const ngraph::NodeVector& allLayers) {
     auto compiledGraph = std::make_shared<CompiledGraph>();
 
     compiledGraph->networkName = model->name();

@@ -9,24 +9,24 @@
 
 namespace vpu {
 
-static TopKMode getMode(const std::shared_ptr<ie::TopKLayer> layer) {
-    const auto& mode = layer->mode;
-    if (mode == "max")
-        return TopKMode::Max;
-    if (mode == "min")
-        return TopKMode::Min;
-    VPU_THROW_EXCEPTION << layer->name << " TopK can take only 'max' or 'min' for mode, but actually it has: " << mode;
-}
+// static TopKMode getMode(const std::shared_ptr<ie::TopKLayer> layer) {
+//     const auto& mode = layer->mode;
+//     if (mode == "max")
+//         return TopKMode::Max;
+//     if (mode == "min")
+//         return TopKMode::Min;
+//     VPU_THROW_EXCEPTION << layer->name << " TopK can take only 'max' or 'min' for mode, but actually it has: " << mode;
+// }
 
-static TopKSort getSort(const std::shared_ptr<ie::TopKLayer> layer) {
-    const auto& sort = layer->sort;
-    if (sort == "none")
+static TopKSort getSort(const std::shared_ptr<ngraph::op::v1::TopK> node) {
+    const auto& sort = node->get_sort_type();
+    if (sort == ngraph::op::v3::TopK::SortType::NONE)
         return TopKSort::None;
-    if (sort == "value")
+    if (sort == ngraph::op::v3::TopK::SortType::SORT_VALUES)
         return TopKSort::Value;
-    if (sort == "index")
+    if (sort == ngraph::op::v3::TopK::SortType::SORT_INDICES)
         return TopKSort::Index;
-    VPU_THROW_EXCEPTION << layer->name << " TopK can take only 'value', 'index' or 'none' for sort, but actually it has: " << sort;
+    VPU_THROW_EXCEPTION << node->get_friendly_name() << " TopK can take only 'value', 'index' or 'none' for sort, but actually it has: " << sort;
 }
 
 namespace {
@@ -120,10 +120,9 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseTopK(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    auto layer = std::dynamic_pointer_cast<ie::TopKLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-
+void FrontEnd::parseTopK(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    const auto& topk = ngraph::as_type_ptr<ngraph::opset1::TopK>(node);;
+    VPU_THROW_UNLESS(topk != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 2);
 
@@ -138,17 +137,16 @@ void FrontEnd::parseTopK(const Model& model, const ie::CNNLayerPtr& _layer, cons
     IE_ASSERT(outputValues || outputIndices);
     IE_ASSERT(!outputValues || outputValues->desc().numDims() == numDims);
     IE_ASSERT(!outputIndices || outputIndices->desc().numDims() == numDims);
-
-    VPU_THROW_UNLESS(layer->axis < numDims && layer->axis >= -numDims,
+    VPU_THROW_UNLESS(topk->get_axis() < numDims && checked_cast<int>(topk->get_axis()) >= -numDims,
         "Failed to parse layer {} with type {}: axis is expected to be in range [{}, {}], but got {}",
-        layer->name, layer->type, -numDims, numDims - 1, layer->axis);
+        topk->get_friendly_name(), topk->get_type_name(), -numDims, numDims - 1, topk->get_axis());
 
     const auto perm = DimsOrder::fromNumDims(numDims).toPermutation();
-    const auto normalizedAxis = layer->axis + (layer->axis < 0 ? numDims : 0);
+    const auto normalizedAxis = topk->get_axis() + (topk->get_axis() < 0 ? numDims : 0);
     const auto axis = perm[numDims - 1 - normalizedAxis];
 
-    const TopKMode mode = getMode(layer);
-    const TopKSort sort = getSort(layer);
+    const TopKMode mode = topk->get_mode() == ngraph::opset4::TopK::Mode::MAX ? TopKMode::Max : TopKMode::Min;
+    const TopKSort sort = getSort(topk);
     TopKOutputs outputsMode = TopKOutputs::All;
     DataVector realOutputs = outputs;
     if (!outputValues) {
@@ -160,9 +158,9 @@ void FrontEnd::parseTopK(const Model& model, const ie::CNNLayerPtr& _layer, cons
         realOutputs = {outputValues};
     }
 
-    auto stage = model->addNewStage<TopKStage>(layer->name,
+    auto stage = model->addNewStage<TopKStage>(topk->get_friendly_name(),
                                                StageType::TopK,
-                                               layer, inputs, realOutputs);
+                                               topk, inputs, realOutputs);
 
     stage->attrs().set<Dim>("axis", axis);
     stage->attrs().set<TopKMode>("mode", mode);

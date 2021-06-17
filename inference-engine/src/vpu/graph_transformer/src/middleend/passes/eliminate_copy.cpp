@@ -125,7 +125,7 @@ void PassImpl::run(const Model& model) {
         auto copyOutputTopParent = copyOutput->getTopParentData();
 
         auto copyStageName = copyStage->name();
-        auto copyOrigLayer = copyStage->origLayer();
+        auto copyOrigLayer = copyStage->origNode();
 
         auto copyProducer = copyInput->producer();
         auto specialConsumer = copyOutput->singleConsumer();

@@ -1,162 +1,176 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
+// // Copyright (C) 2018-2021 Intel Corporation
+// // SPDX-License-Identifier: Apache-2.0
+// //
 
-#pragma once
+// #pragma once
 
-#include <list>
+// #include <list>
 
-#include <gtest/gtest.h>
+// #include <gtest/gtest.h>
 
-#include <vpu/compile_env.hpp>
-#include <vpu/model/stage.hpp>
-#include <vpu/model/model.hpp>
-#include <vpu/frontend/frontend.hpp>
-#include <vpu/middleend/pass_manager.hpp>
-#include <vpu/backend/backend.hpp>
-#include <vpu/utils/ie_helpers.hpp>
+// #include <vpu/compile_env.hpp>
+// #include <vpu/model/stage.hpp>
+// #include <vpu/model/model.hpp>
+// #include <vpu/frontend/frontend.hpp>
+// #include <vpu/middleend/pass_manager.hpp>
+// #include <vpu/backend/backend.hpp>
+// #include <vpu/utils/ie_helpers.hpp>
 
-#include <unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp>
+// #include <unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp>
 
-namespace vpu {
+// namespace vpu {
 
-template <typename Value>
-using InOutPortMap = std::unordered_map<int, Value>;
+// template <typename Value>
+// using InOutPortMap = std::unordered_map<int, Value>;
 
-class TestStage final : public StageNode {
-public:
-    using StageNode::StageNode;
+// class TestStage final : public StageNode {
+// public:
+//     using StageNode::StageNode;
 
-private:
-    StagePtr cloneImpl() const override;
+// private:
+//     StagePtr cloneImpl() const override;
 
-    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override;
+//     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override;
 
-    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override;
+//     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override;
 
-    void finalizeDataLayoutImpl() override;
+//     void finalizeDataLayoutImpl() override;
 
-    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override;
+//     void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override;
 
-    void serializeParamsImpl(BlobSerializer&) const override;
+//     void serializeParamsImpl(BlobSerializer&) const override;
 
-    void serializeDataImpl(BlobSerializer&) const override;
-};
+//     void serializeDataImpl(BlobSerializer&) const override;
+// };
 
-enum class InputType {
-    Original,
-    PrevStageOutput,
-    Intermediate,
-    Constant
-};
+// enum class InputType {
+//     Original,
+//     PrevStageOutput,
+//     Intermediate,
+//     Constant
+// };
 
-struct InputInfo final {
-    InputType type = InputType::Original;
-    int originalInputInd = -1;
-    int prevStageInd = -1;
-    int prevStageOutputInd = -1;
-    DataDesc desc = DataDesc();
+// struct InputInfo final {
+//     InputType type = InputType::Original;
+//     int originalInputInd = -1;
+//     int prevStageInd = -1;
+//     int prevStageOutputInd = -1;
+//     DataDesc desc = DataDesc();
 
-    static InputInfo fromNetwork(int ind = 0);
+//     static InputInfo fromNetwork(int ind = 0);
 
-    static InputInfo fromPrevStage(int ind, int outputInd = 0);
-    static InputInfo constant(const DataDesc& desc);
+//     static InputInfo fromPrevStage(int ind, int outputInd = 0);
+//     static InputInfo constant(const DataDesc& desc);
 
-    InputInfo& output(int ind);
-};
+//     InputInfo& output(int ind);
+// };
 
-enum class OutputType {
-    Original,
-    Intermediate
-};
+// enum class OutputType {
+//     Original,
+//     Intermediate
+// };
 
-struct OutputInfo final {
-    OutputType type = OutputType::Original;
-    int originalOutputInd = -1;
-    DataDesc desc = DataDesc();
-    MemoryType memReq = MemoryType::DDR;
+// struct OutputInfo final {
+//     OutputType type = OutputType::Original;
+//     int originalOutputInd = -1;
+//     DataDesc desc = DataDesc();
+//     MemoryType memReq = MemoryType::DDR;
 
-    static OutputInfo fromNetwork(int ind = 0);
+//     static OutputInfo fromNetwork(int ind = 0);
 
-    static OutputInfo intermediate(const DataDesc& desc = DataDesc());
-    static OutputInfo intermediate(MemoryType memReq = MemoryType::DDR);
-};
+//     static OutputInfo intermediate(const DataDesc& desc = DataDesc());
+//     static OutputInfo intermediate(MemoryType memReq = MemoryType::DDR);
+// };
 
-class TestModel final {
-public:
-    TestModel() = default;
-    TestModel(const Model& model);
+// class TestModel final {
+// public:
+//     TestModel() = default;
+//     TestModel(const Model& model);
 
-    const Model& getBaseModel() const;
-    const DataVector& getInputs() const;
-    const DataVector& getOutputs() const;
-    const StageVector& getStages() const;
+//     const Model& getBaseModel() const;
+//     const DataVector& getInputs() const;
+//     const DataVector& getOutputs() const;
+//     const StageVector& getStages() const;
 
-    void createInputs(std::vector<DataDesc> inputDescs = {});
-    void createOutputs(std::vector<DataDesc> outputDescs = {});
+//     void createInputs(std::vector<DataDesc> inputDescs = {});
+//     void createOutputs(std::vector<DataDesc> outputDescs = {});
 
-    Stage addStage(
-            const std::vector<InputInfo>& curInputInfos,
-            const std::vector<OutputInfo>& curOutputInfos,
-            StageType stageType = StageType::None);
+//     Stage addStage(
+//             const std::vector<InputInfo>& curInputInfos,
+//             const std::vector<OutputInfo>& curOutputInfos,
+//             StageType stageType = StageType::None);
 
-    void setStageDataOrderInfo(
-            int stageInd,
-            const InOutPortMap<DimsOrder>& inputInfo,
-            const InOutPortMap<DimsOrder>& outputInfo);
+//     void setStageDataOrderInfo(
+//             int stageInd,
+//             const InOutPortMap<DimsOrder>& inputInfo,
+//             const InOutPortMap<DimsOrder>& outputInfo);
 
-    void setStageStridesInfo(
-            int stageInd,
-            const InOutPortMap<StridesRequirement>& inputInfo,
-            const InOutPortMap<StridesRequirement>& outputInfo);
+//     void setStageStridesInfo(
+//             int stageInd,
+//             const InOutPortMap<StridesRequirement>& inputInfo,
+//             const InOutPortMap<StridesRequirement>& outputInfo);
 
-    void setStageBatchInfo(
-            int stageInd,
-            const InOutPortMap<BatchSupport>& inputInfo);
+//     void setStageBatchInfo(
+//             int stageInd,
+//             const InOutPortMap<BatchSupport>& inputInfo);
 
-private:
-    Model _model;
+// private:
+//     Model _model;
 
-    DataVector _inputs;
-    DataVector _outputs;
-    StageVector _stages;
-};
+//     DataVector _inputs;
+//     DataVector _outputs;
+//     StageVector _stages;
+// };
 
-template <class StageRange>
-void checkStageTestInds(const StageRange& stageRange, std::initializer_list<int> expectedInds);
+// template <class StageRange>
+// void checkStageTestInds(const StageRange& stageRange, std::initializer_list<int> expectedInds);
 
-template <class StageRange>
-void checkStageTestInds(const StageRange& stageRange, std::initializer_list<int> expectedInds, const std::function<void(const Stage&)>& extraCheck);
+// template <class StageRange>
+// void checkStageTestInds(const StageRange& stageRange, std::initializer_list<int> expectedInds, const std::function<void(const Stage&)>& extraCheck);
 
-bool checkExecutionOrder(const Model& model, const std::vector<int>& execOrder);
+// bool checkExecutionOrder(const Model& model, const std::vector<int>& execOrder);
 
-PluginConfiguration createConfiguration();
+// <<<<<<< HEAD
+// <<<<<<< HEAD
+// PluginConfiguration createConfiguration();
 
-class GraphTransformerTest : public ::testing::Test {
-public:
-    ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
-    PluginConfiguration config;
+// class GraphTransformerTest : public ::testing::Test {
+// public:
+//     ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
+//     PluginConfiguration config;
+// =======
+// // class GraphTransformerTest : public ::testing::Test {
+// // public:
+// //     Platform platform = Platform::MYRIAD_X;
+// //     CompilationConfig config;
+// >>>>>>> [VPU] switch CNNLayer -> ngraph
+// =======
+// class GraphTransformerTest : public ::testing::Test {
+// public:
+//     Platform platform = Platform::MYRIAD_X;
+//     CompilationConfig config;
+// >>>>>>> refactoring
 
-    StageBuilder::Ptr stageBuilder;
-    FrontEnd::Ptr frontEnd;
-    PassManager::Ptr passManager;
-    BackEnd::Ptr backEnd;
+//     StageBuilder::Ptr stageBuilder;
+//     FrontEnd::Ptr frontEnd;
+//     PassManager::Ptr passManager;
+//     BackEnd::Ptr backEnd;
 
-    bool compileEnvInitialized = false;
+//     bool compileEnvInitialized = false;
 
-    void SetUp() override;
-    void TearDown() override;
+//     void SetUp() override;
+//     void TearDown() override;
 
-    void InitCompileEnv();
+//     void InitCompileEnv();
 
-    Model CreateModel();
+//     Model CreateModel();
 
-    TestModel CreateTestModel();
+//     TestModel CreateTestModel();
 
-private:
-    MockICore  _mockCore;
-    Logger::Ptr _log;
-    std::list<ModelPtr> _models;
-};
+// private:
+//     MockICore  _mockCore;
+//     Logger::Ptr _log;
+//     std::list<ModelPtr> _models;
+// };
 
-} // namespace vpu
+// } // namespace vpu

@@ -89,7 +89,7 @@ protected:
 
         const auto staticShapeNMS = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
                 inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst, softNMSSigmaConst,
-                0, false, ngraph::element::i32);
+                ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER, false, ngraph::element::i32);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(staticShapeNMS->output(0)),
                                      std::make_shared<ngraph::opset3::Result>(staticShapeNMS->output(1))};

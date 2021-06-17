@@ -155,7 +155,7 @@ Data insertCopyOfInput(const Model& model,
     auto copyStage = _stageBuilder->addCopyStage(
             model,
             formatString("%s%s@copy-for-%s", stage->name(), inputNumStr, typeAsString),
-            stage->origLayer(),
+            stage->origNode(),
             data,
             copy,
             formatString("special::%s", typeAsString));
@@ -189,7 +189,7 @@ Data insertCopyOfOutput(const Model& model,
     auto copyStage = _stageBuilder->addCopyStage(
             model,
             formatString("%s%s@copy-for-%s", stage->name(), outputNumStr, typeAsString),
-            stage->origLayer(),
+            stage->origNode(),
             copy,
             data,
             formatString("special::%s", typeAsString));
@@ -252,7 +252,6 @@ void SpecialStageProcessor::processConcat(
 
     const auto& offsets = stage->attrs().get<std::vector<DimValues>>("offsets");
     IE_ASSERT(offsets.size() == checked_cast<size_t>(stage->numInputs()));
-
     for (const auto& inEdge : stage->inputEdges()) {
         IE_ASSERT(inEdge->portInd() >= 0);
         IE_ASSERT(checked_cast<size_t>(inEdge->portInd()) < offsets.size());

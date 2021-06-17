@@ -59,12 +59,12 @@ private:
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         auto size = attrs().get<int>("size");
-        auto k = attrs().get<int>("k");
+        auto k = attrs().get<float>("k");
         auto alpha = attrs().get<float>("alpha");
         auto beta = attrs().get<float>("beta");
 
         serializer.append(static_cast<uint32_t>(size));
-        serializer.append(ie::PrecisionUtils::f32tof16(static_cast<float>(k))); // why float?
+        serializer.append(ie::PrecisionUtils::f32tof16(k)); // why float?
         serializer.append(ie::PrecisionUtils::f32tof16(alpha));
         serializer.append(ie::PrecisionUtils::f32tof16(beta));
         serializer.append(ie::PrecisionUtils::f32tof16(0));  // for alignment
@@ -81,18 +81,27 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseNorm(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
+void FrontEnd::parseNorm(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    // IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
+    const auto& lrn = ngraph::as_type_ptr<ngraph::opset4::LRN>(node);
+    VPU_THROW_UNLESS(lrn != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto stageType = StageType::LRN;
+    auto axis_const = std::dynamic_pointer_cast<ngraph::opset1::Constant>(lrn->input(1).get_source_output().get_node_shared_ptr());
 
-    auto layer = std::dynamic_pointer_cast<ie::NormLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+    auto axis_value = axis_const->cast_vector<int64_t>();
+    std::string region;
+    if (axis_value.size() == 1 && axis_value[0] == 1) {
+        stageType == StageType::InnerLRN;
+    }
 
-    auto stage = model->addNewStage<LRNStage>(layer->name, layer->_isAcrossMaps ? StageType::LRN : StageType::InnerLRN, layer, inputs, outputs);
-    stage->attrs().set<int>("size", layer->_size);
-    stage->attrs().set<int>("k", layer->_k);
-    stage->attrs().set<float>("alpha", layer->_alpha);
-    stage->attrs().set<float>("beta", layer->_beta);
+    DataVector newInput;
+    newInput.emplace_back(inputs[0]);
+    auto stage = model->addNewStage<LRNStage>(lrn->get_friendly_name(), stageType, lrn, newInput, outputs);
+    stage->attrs().set<int>("size", lrn->get_nsize());
+    stage->attrs().set<float>("k", (lrn->get_bias()));
+    stage->attrs().set<float>("alpha", lrn->get_alpha());
+    stage->attrs().set<float>("beta", lrn->get_beta());
 }
 
 }  // namespace vpu

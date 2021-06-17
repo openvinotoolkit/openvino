@@ -13,8 +13,9 @@
 #include <ie_blob.h>
 #include <legacy/ie_layers.h>
 
+#include <ngraph/node.hpp>
 namespace vpu {
-
+using NodePtr = std::shared_ptr<ngraph::Node>;
 namespace ie = InferenceEngine;
 
 VPU_DECLARE_ENUM(LayoutPreference,
@@ -33,6 +34,6 @@ void copyBlob(const ie::Blob::Ptr& in, const ie::Blob::Ptr& out);
 
 void printTo(DotLabel& lbl, const ie::DataPtr& ieData);
 void printTo(DotLabel& lbl, const ie::Blob::Ptr& ieBlob);
-void printTo(DotLabel& lbl, const ie::CNNLayerPtr& ieLayer);
+void printTo(DotLabel& lbl, const NodePtr& node);
 
 }  // namespace vpu

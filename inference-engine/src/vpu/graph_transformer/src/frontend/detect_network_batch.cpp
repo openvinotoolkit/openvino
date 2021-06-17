@@ -73,7 +73,6 @@ void FrontEnd::detectNetworkBatch(
             }
         }
     }
-
     if (inputBatch == 1) {
         env.log->trace("Network is batch 1. Not need to reshape");
         return;
@@ -83,7 +82,6 @@ void FrontEnd::detectNetworkBatch(
         env.log->trace("Unable to decide on network batch size.");
         return;
     }
-
     ShapesMap inputShapes;
 
     for (const auto& inputInfo : inputsInfo) {
@@ -108,10 +106,10 @@ void FrontEnd::detectNetworkBatch(
     for (const auto& op : operations) {
         if (!ngraph::as_type_ptr<ngraph::op::DetectionOutput>(op))
             continue;
-        env.log->trace("Found DetectionOutput layer [%s]", op->get_name());
+        env.log->trace("Found DetectionOutput layer [%s]", op->get_friendly_name());
 
         VPU_THROW_UNLESS(op->get_output_size() == 1, "Layer {} with type {} must have only 1 output but {} provided",
-                         op->get_name(), op->get_type_name(), op->get_output_size());
+                         op->get_friendly_name(), op->get_type_name(), op->get_output_size());
         model->attrs().set<bool>("withDetectionOutput", true);
     }
 
@@ -154,7 +152,6 @@ void FrontEnd::detectNetworkBatch(
 
         const auto origShape = outputShapes[p.first];
         const auto newShape = ieData->getDims();
-
         if (origShape == newShape) {
             env.log->trace("Output [%s] is unbatched", p.first);
 

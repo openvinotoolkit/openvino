@@ -11,7 +11,7 @@
 #include <vpu/backend/blob_serializer.hpp>
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/func_ref.hpp>
-
+#include <ngraph/node_output.hpp>
 #include <ie_data.h>
 #include <ie_blob.h>
 
@@ -21,7 +21,8 @@
 #include <vector>
 
 namespace vpu {
-
+using OutNode = ngraph::Output<ngraph::Node>;
+using NodePtr = std::shared_ptr<ngraph::Node>;
 namespace ie = InferenceEngine;
 
 //
@@ -117,8 +118,8 @@ class DataNode final :
     // Bindings with IE
     //
 
-    VPU_MODEL_ATTRIBUTE(ie::DataPtr, origData, nullptr)
-
+    VPU_MODEL_ATTRIBUTE(NodePtr, origNode, nullptr)
+    VPU_MODEL_ATTRIBUTE(OutNode, origOutput, OutNode())
     //
     // Edges
     //
@@ -232,7 +233,8 @@ public:
     // Bindings with IE
     //
 
-    inline void setOrigData(const ie::DataPtr& origData) { _origData = origData; }
+    inline void setOrigNode(const NodePtr& origNode) { _origNode = origNode; }
+    inline void setOrigOutput(const OutNode& origOutput) { _origOutput = origOutput; }
 
     //
     // StridesRequirement

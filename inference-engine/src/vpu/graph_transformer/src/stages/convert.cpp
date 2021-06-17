@@ -126,20 +126,22 @@ Stage StageBuilder::createConvertStage(
 
 void FrontEnd::parseConvert(
         const Model &model,
-        const ie::CNNLayerPtr &layer,
+        const NodePtr& node,
         const DataVector &inputs,
         const DataVector &outputs) const {
+    auto convert = ngraph::as_type_ptr<ngraph::opset4::Convert>(node);
+    IE_ASSERT(convert != nullptr);
     VPU_THROW_UNLESS(inputs.size() == 1,
                      "Convert stage with name %s has invalid number of inputs: expected 1, "
-                     "actually provided %u", layer->name, inputs.size());
+                     "actually provided %u", convert->get_friendly_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "Convert stage with name %s has invalid number of outputs: expected 1, "
-                     "actually provided %u", layer->name, outputs.size());
+                     "actually provided %u", convert->get_friendly_name(), outputs.size());
 
     auto stage = model->addNewStage<ConvertStage>(
-            layer->name,
+            convert->get_friendly_name(),
             StageType::Convert,
-            layer, inputs,
+            convert, inputs,
             outputs);
 
     stage->attrs().set("scale", 1.f);

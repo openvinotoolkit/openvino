@@ -45,9 +45,15 @@ void FrontEnd::parseInputAndOutputData(const Model& model) {
     //
 
     env.log->trace("Parse network inputs");
-
+    
     for (const auto& inputInfo : _ieParsedNetwork.networkInputs) {
         const auto& netInput = inputInfo.second;
+        const auto& netInputName = inputInfo.first;
+        const auto paramNodeIter = std::find_if(_ieParsedNetwork.networkParameters.begin(), _ieParsedNetwork.networkParameters.end(), [&netInputName](const NodePtr& node) {
+            return node->get_friendly_name() == netInputName;
+        });
+        IE_ASSERT(paramNodeIter != _ieParsedNetwork.networkParameters.end());
+        const auto& paramNode = *paramNodeIter;
         IE_ASSERT(netInput != nullptr);
 
         const auto ieData = netInput->getInputData();
@@ -59,9 +65,9 @@ void FrontEnd::parseInputAndOutputData(const Model& model) {
         const auto vpuDesc = DataDesc{ieData->getTensorDesc()};
         const auto vpuData = model->addInputData(ieData->getName(), vpuDesc);
 
-        parseIOStrides(inputInfo.first, vpuData);
+        parseIOStrides(netInputName, vpuData);
 
-        bindData(vpuData, ieData);
+        bindData(vpuData, paramNode->output(0), paramNode);
     }
 
     //
@@ -72,17 +78,35 @@ void FrontEnd::parseInputAndOutputData(const Model& model) {
 
     for (const auto& outputInfo : _ieParsedNetwork.networkOutputs) {
         const auto& ieData = outputInfo.second;
+        const auto& netOutputName = outputInfo.first;
         IE_ASSERT(ieData != nullptr);
 
         env.log->trace("Network output : %s", ieData->getName());
         VPU_LOGGER_SECTION(env.log);
+        int idx = 0;
+        const auto& resultNodeIter = std::find_if(_ieParsedNetwork.networkResults.begin(), _ieParsedNetwork.networkResults.end(), [&netOutputName, &idx](const NodePtr& node) {
+            const auto& parent = node->get_input_node_shared_ptr(0);
+            std::string name;
+            if (parent->get_output_size() > 1) {
+                name = parent->get_friendly_name();
+                idx = node->get_input_source_output(0).get_index();
+                name += "." + std::to_string(idx);
+            } else { 
+                name = node->get_input_node_shared_ptr(0)->get_friendly_name();
+            }
+            if (name == netOutputName) {
+                return true;
+            } 
+            return false;
+        });
+        IE_ASSERT(resultNodeIter != _ieParsedNetwork.networkResults.end());
+        const auto& resultNode = *resultNodeIter;
 
         const auto vpuDesc = DataDesc{ieData->getTensorDesc()};
         const auto vpuData = model->addOutputData(ieData->getName(), vpuDesc);
 
         parseIOStrides(outputInfo.first, vpuData);
-
-        bindData(vpuData, ieData);
+        bindData(vpuData, resultNode->get_input_node_shared_ptr(0)->output(idx), resultNode->get_input_node_shared_ptr(0));
 
         if (_unbatchedOutputs.count(ieData) > 0) {
             env.log->trace("The output %s is unbatched", vpuData);
@@ -96,27 +120,29 @@ void FrontEnd::parseInputAndOutputData(const Model& model) {
 
     env.log->trace("Parse network constants");
 
-    for (const auto& constInfo : _ieParsedNetwork.constDatas) {
-        const auto& ieData = constInfo.first;
-        IE_ASSERT(ieData != nullptr);
+    for (const auto& constNode : _ieParsedNetwork.networkConstants) {
+        // const auto& ieData = constInfo.first;
+        auto constant = ngraph::as_type_ptr<ngraph::opset4::Constant>(constNode);
+        IE_ASSERT(constant != nullptr);
 
-        env.log->trace("Network constant : %s", ieData->getName());
+        env.log->trace("Network constant : %s", constant->get_friendly_name());
         VPU_LOGGER_SECTION(env.log);
 
-        const auto& ieBlob = constInfo.second;
-        IE_ASSERT(ieBlob != nullptr);
+        // TODO: move method to utility
+        // rework
 
-        auto descriptor = DataDesc{ieData->getTensorDesc()};
+        auto blob = shareWeights(constNode);
+        auto descriptor = DataDesc{constant->get_output_tensor(0)};
         if (descriptor.type() == DataType::FP32) {
             descriptor.setType(DataType::FP16);
         }
 
         const auto vpuData = model->addConstData(
-            ieData->getName(),
+            constant->get_friendly_name(),
             descriptor,
-            ieBlobContent(ieBlob, descriptor.type()));
+            ieBlobContent(blob, descriptor.type()));
 
-        bindData(vpuData, ieData);
+        bindData(vpuData, constNode->output(0), constNode);
     }
 }
 

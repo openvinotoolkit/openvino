@@ -7,30 +7,29 @@
 #include <vector>
 #include <memory>
 #include <set>
-
+#include "vpu/ngraph/operations/fully_connected.hpp"
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
 
 namespace vpu {
-
-void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
+// Rework logic
+void FrontEnd::parseFullyConnected(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     const auto& env = CompileEnv::get();
 
-    IE_ASSERT(inputs.size() == 1);
+    // IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
-
-    auto layer = std::dynamic_pointer_cast<ie::FullyConnectedLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+    auto fc = ngraph::as_type_ptr<ngraph::vpu::op::FullyConnected>(node);
+    IE_ASSERT(fc != nullptr);
 
     auto input = inputs[0];
     auto output = outputs[0];
 
-    auto total_out_num = layer->_out_num * output->desc().dim(Dim::N);
+    auto total_out_num = fc->get_out_size() * output->desc().dim(Dim::N);
     if (total_out_num != output->desc().totalDimSize()) {
         VPU_THROW_EXCEPTION
-                << "Layer Name: " << layer->name << " Layer type: " << layer->type
+                << "Layer Name: " << fc->get_friendly_name() << " Layer type: " << fc->get_type_name()
                 << " has incorrect _out_num param. Expected: " << output->desc().totalDimSize()
-                << " Actual: " << layer->_out_num;
+                << " Actual: " << fc->get_out_size();
     }
 
     //
@@ -43,7 +42,7 @@ void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _l
         tryHW = false;
     }
 
-    if (env.config.compileConfig().hwDisabled(layer->name)) {
+    if (env.config.compileConfig().hwDisabled(fc->get_friendly_name())) {
         tryHW = false;
     }
 
@@ -54,19 +53,20 @@ void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _l
     //
     // Create const datas
     //
-
+    const auto weightsNode = fc->input_value(1).get_node_shared_ptr();
+    const auto biasesNode = (fc->get_input_size() > 2 ) ? node->input_value(2).get_node_shared_ptr() : NodePtr();
     Data weights, biases;
-    std::tie(weights, biases) = getWeightsAndBiases(model, layer);
+    std::tie(weights, biases) = getWeightsAndBiases(model, fc->get_friendly_name(), weightsNode, biasesNode);
 
     IE_ASSERT(weights->desc().totalDimSize() >=
-              input->desc().totalDimSize() / input->desc().dim(Dim::N, 1) * static_cast<int>(layer->_out_num));
+              input->desc().totalDimSize() / input->desc().dim(Dim::N, 1) * static_cast<int>(fc->get_out_size()));
     weights = model->duplicateData(
         weights,
         "@fc",
         DataDesc({
             input->desc().dim(Dim::W, 1) * input->desc().dim(Dim::H, 1),
             input->desc().dim(Dim::C),
-            static_cast<int>(layer->_out_num)}));
+            static_cast<int>(fc->get_out_size())}));
 
     if (biases->usage() != DataUsage::Fake) {
         IE_ASSERT(biases->desc().totalDimSize() >= output->desc().dim(Dim::C));
@@ -81,9 +81,9 @@ void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _l
     //
 
     auto stage = model->addNewStage<StubStage>(
-        layer->name,
+        fc->get_friendly_name(),
         StageType::StubFullyConnected,
-        layer,
+        fc,
         {input, weights, biases, model->addFakeData()},
         {output});
 

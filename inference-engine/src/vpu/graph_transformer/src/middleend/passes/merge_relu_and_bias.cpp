@@ -42,7 +42,7 @@ void PassImpl::run(const Model& model) {
             auto reluOutput = reluStage->output(0);
 
             auto reluStageName = reluStage->name();
-            auto reluOrigLayer = reluStage->origLayer();
+            auto reluOrigLayer = reluStage->origNode();
             auto negativeSlope = reluStage->attrs().get<float>("negativeSlope");
 
             model->removeStage(biasStage);

@@ -19,7 +19,7 @@
 #include <vpu/backend/blob_serializer.hpp>
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/optional.hpp>
-
+#include <ngraph/node.hpp>
 namespace vpu {
 
 //
@@ -400,9 +400,9 @@ class StageNode :
     // Bindings with IE
     //
 
-    IE_SUPPRESS_DEPRECATED_START
-    VPU_MODEL_ATTRIBUTE(ie::CNNLayerPtr, origLayer, nullptr)
-    IE_SUPPRESS_DEPRECATED_END
+
+    VPU_MODEL_ATTRIBUTE(NodePtr, origNode, nullptr)
+    VPU_MODEL_ATTRIBUTE(OutNode, origOutput, OutNode())
 
     //
     // Edges
@@ -574,10 +574,8 @@ public:
     // Bindings with IE
     //
 
-    inline std::string origLayerName() const {
-        IE_SUPPRESS_DEPRECATED_START
-        return _origLayer != nullptr ? _origLayer->name : std::string();
-        IE_SUPPRESS_DEPRECATED_END
+    std::string origLayerName() const {
+        return _origNode != nullptr ? _origNode->get_friendly_name() : std::string();
     }
 
     //

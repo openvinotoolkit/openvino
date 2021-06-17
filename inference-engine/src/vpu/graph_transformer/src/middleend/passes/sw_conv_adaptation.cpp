@@ -255,7 +255,7 @@ void PassImpl::run(const Model& model) {
             continue;
 
         auto origStageName = stage->name();
-        auto origLayer = stage->origLayer();
+        auto origNode = stage->origNode();
 
         auto input = stage->input(0);
         auto weights = stage->input(1);
@@ -315,7 +315,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addSwFullyConnectedStage(
                     model,
                     origStageName,
-                    origLayer,
+                    origNode,
                     input,
                     weights,
                     biases,
@@ -327,7 +327,7 @@ void PassImpl::run(const Model& model) {
                     swStage = model->addNewStage<ConvStage>(
                         origStageName,
                         StageType::Conv,
-                        origLayer,
+                        origNode,
                         {input, weights},
                         {output});
                 } else {
@@ -338,7 +338,7 @@ void PassImpl::run(const Model& model) {
 #else
                         StageType::Im2ColConvolution,
 #endif
-                        origLayer,
+                        origNode,
                         {input, weights},
                         {output});
                 }
@@ -372,7 +372,7 @@ void PassImpl::run(const Model& model) {
                     _stageBuilder->addBiasStage(
                         model,
                         origStageName + "@biases",
-                        origLayer,
+                        origNode,
                         biasesInput, biases,
                         output);
                 }
@@ -388,7 +388,7 @@ void PassImpl::run(const Model& model) {
                     _stageBuilder->addScaleStage(
                         model,
                         origStageName + "@scales",
-                        origLayer,
+                        origNode,
                         scalesInput, scales,
                         output);
                 }
@@ -398,7 +398,7 @@ void PassImpl::run(const Model& model) {
             auto swStage = model->addNewStage<ConvStage>(
                 origStageName,
                 StageType::DepthConv,
-                origLayer,
+                origNode,
                 {input, weights},
                 {output});
 
@@ -427,7 +427,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addBiasStage(
                     model,
                     origStageName + "@biases",
-                    origLayer,
+                    origNode,
                     biasesInput, biases,
                     output);
             }
@@ -443,7 +443,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addScaleStage(
                     model,
                     origStageName + "@scales",
-                    origLayer,
+                    origNode,
                     scalesInput, scales,
                     output);
             }

@@ -13,7 +13,7 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-class StaticShapeNonMaxSuppression : public ngraph::op::NonMaxSuppressionIE3 {
+class StaticShapeNonMaxSuppression : public ngraph::opset5::NonMaxSuppression {
 public:
     static constexpr NodeTypeInfo type_info{"StaticShapeNonMaxSuppression", 0};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -26,7 +26,7 @@ public:
                                  const Output<Node>& iouThreshold,
                                  const Output<Node>& scoreThreshold,
                                  const Output<Node>& softNmsSigma,
-                                 int centerPointBox = 0,
+                                 ngraph::op::v5::NonMaxSuppression::BoxEncodingType boxEncodingType = ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER,
                                  bool sortResultDescending = true,
                                  const ngraph::element::Type& outputType = ngraph::element::i64);
 

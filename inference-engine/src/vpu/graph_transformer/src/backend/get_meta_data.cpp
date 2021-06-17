@@ -40,14 +40,14 @@ namespace vpu {
 
 void BackEnd::getMetaData(
         const Model& model,
-        const std::vector<ie::CNNLayerPtr>& allLayers,
+        const ngraph::NodeVector&  orderedOps,
         GraphMetaInfo& graphMeta) {
     VPU_PROFILE(getMetaData);
 
     std::vector<StageMetaInfo> stagesMeta;
     std::vector<DataMetaInfo> datasMeta;
 
-    std::unordered_set<ie::CNNLayerPtr> visitedLayers;
+    std::unordered_set<NodePtr> visitedNodes;
     int execOrder{};
     StageMap<size_t> stageToMetaIndex;
 
@@ -79,15 +79,14 @@ void BackEnd::getMetaData(
             stageMeta.stageType += "]";
         }
 
-        if (stage->origLayer() == nullptr) {
+        if (stage->origNode() == nullptr) {
             stageMeta.layerName = "";
             stageMeta.layerType = "<Extra>";
         } else {
-            const auto& origLayer = stage->origLayer();
-            stageMeta.layerName = origLayer->params.count("originalLayersNames") ? origLayer->params["originalLayersNames"] :
-                                  origLayer->name;
-            stageMeta.layerType = origLayer->type;
-            visitedLayers.insert(origLayer);
+            const auto& origNode = stage->origNode();
+            stageMeta.layerName = origNode->get_friendly_name(); 
+            stageMeta.layerType = origNode->get_type_name();
+            visitedNodes.insert(origNode);
         }
 
         return stageMeta;
@@ -197,16 +196,16 @@ void BackEnd::getMetaData(
     // Add optimized layers
     //
 
-    for (const auto& layer : allLayers) {
-        if (visitedLayers.count(layer) != 0) {
+    for (const auto& node : orderedOps) {
+        if (visitedNodes.count(node) != 0) {
             continue;
         }
 
         StageMetaInfo stageMeta;
         stageMeta.stageName = "<none>";
         stageMeta.stageType = "<none>";
-        stageMeta.layerName = layer->name;
-        stageMeta.layerType = layer->type;
+        stageMeta.layerName = node->get_friendly_name();
+        stageMeta.layerType = node->get_type_name();
         stageMeta.status = ie::InferenceEngineProfileInfo::LayerStatus::OPTIMIZED_OUT;
         stagesMeta.emplace_back(std::move(stageMeta));
     }

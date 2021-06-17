@@ -62,38 +62,35 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseSoftMax(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseSoftMax(const Model& model, const NodePtr& _node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
     auto input = inputs[0];
     auto output = outputs[0];
+    const auto& softMax = ngraph::as_type_ptr<ngraph::opset4::Softmax>(_node);
 
-    auto layer = std::dynamic_pointer_cast<ie::SoftMaxLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+    VPU_THROW_UNLESS(softMax != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", _node->get_friendly_name(), _node->get_type_name());
 
-    auto layerInput = layer->insData[0].lock();
-    IE_ASSERT(layerInput != nullptr);
-
-    IE_ASSERT(layer->axis < input->desc().numDims());
+    IE_ASSERT(softMax->get_axis() < input->desc().numDims());
 
     auto perm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
-    auto axis = perm[input->desc().numDims() - 1 - layer->axis];
+    auto axis = perm[input->desc().numDims() - 1 - softMax->get_axis()];
 
-    _stageBuilder->addSoftMaxStage(model, layer->name, layer, input, output, axis);
+    _stageBuilder->addSoftMaxStage(model, softMax->get_friendly_name(), softMax, input, output, axis);
 }
 
 Stage StageBuilder::addSoftMaxStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input,
         const Data& output,
         Dim axis) {
     auto stage = model->addNewStage<SoftMaxStage>(
         name,
         StageType::SoftMax,
-        layer,
+        node,
         {input},
         {output});
 

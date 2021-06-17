@@ -126,7 +126,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addReLUStage(
                     model,
                     origStage->name() + "@ReLU",
-                    origStage->origLayer(),
+                    origStage->origNode(),
                     stageOptions.negativeSlope,
                     swConvOutput,
                     swReluOutput);
@@ -144,7 +144,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addClampStage(
                     model,
                     origStage->name() + "@Clamp",
-                    origStage->origLayer(),
+                    origStage->origNode(),
                     0.0,
                     stageOptions.clampMax,
                     swConvOutput,
@@ -157,7 +157,7 @@ void PassImpl::run(const Model& model) {
                 auto hwPoolStage = model->addNewStage<StubStage>(
                     origStage->name() + "@Pool",
                     StageType::StubMaxPool,
-                    origStage->origLayer(),
+                    origStage->origNode(),
                     {hwPoolInput},
                     {stageIO.origOutput});
 
@@ -200,7 +200,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addSplitStage(
                     model,
                     origStage->name() + "@split-input",
-                    origStage->origLayer(),
+                    origStage->origNode(),
                     std::move(hwStageTiler.hwInputTilesOffsets),
                     hwStageTiler.hwInput,
                     hwStageTiler.hwInputTiles);
@@ -210,7 +210,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addSplitStage(
                     model,
                     origStage->name() + "@split-input2",
-                    origStage->origLayer(),
+                    origStage->origNode(),
                     std::move(hwStageTiler.hwWeightsTilesOffsets),
                     stageIO.origWeights,
                     hwStageTiler.hwWeightsTiles);
@@ -220,7 +220,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addConcatStage(
                     model,
                     origStage->name() + "@concat-output",
-                    origStage->origLayer(),
+                    origStage->origNode(),
                     std::move(hwStageTiler.hwOutputTilesOffsets),
                     hwStageTiler.hwOutputTiles,
                     hwStageTiler.hwOutput);

@@ -18,10 +18,12 @@
 #include <vpu/utils/dot_io.hpp>
 #include <vpu/middleend/allocator/allocator.hpp>
 
+#include <ngraph/ops.hpp>
+#include <ngraph/node.hpp>
+
 #include <utility>
 
 namespace vpu {
-
 //
 // Resources
 //
@@ -114,7 +116,7 @@ public:
     Stage addNewStage(
             const std::string& name,
             StageType type,
-            const ie::CNNLayerPtr& origLayer,
+            const NodePtr& origNode,
             const DataVector& inputs,
             const DataVector& outputs);
 
@@ -333,7 +335,7 @@ private:
     Stage addNewStageImpl(
         const std::string& name,
         StageType type,
-        const ie::CNNLayerPtr& origLayer,
+        const NodePtr& origNode,
         const DataVector& inputs,
         const DataVector& outputs,
         const FuncRef<StagePtr()>& creator);
@@ -381,10 +383,10 @@ template <class StageImpl>
 inline Stage ModelObj::addNewStage(
         const std::string& name,
         StageType type,
-        const ie::CNNLayerPtr& origLayer,
+        const NodePtr& origNode,
         const DataVector& inputs,
         const DataVector& outputs) {
-    auto newStage = addNewStageImpl(name, type, origLayer, inputs, outputs, []() { return std::make_shared<StageImpl>(); });
+    auto newStage = addNewStageImpl(name, type, origNode, inputs, outputs, []() { return std::make_shared<StageImpl>(); });
     if (onNewStageCallback) {
         onNewStageCallback(newStage);
     }

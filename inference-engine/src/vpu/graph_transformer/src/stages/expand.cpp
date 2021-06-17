@@ -115,14 +115,14 @@ protected:
 Stage StageBuilder::addExpandStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input,
         const Data& output,
         const DimValues& offset) {
     auto stage = model->addNewStage<ExpandStage>(
         name,
         StageType::Expand,
-        layer,
+        node,
         {input},
         {output});
 

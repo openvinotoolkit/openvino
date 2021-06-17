@@ -32,13 +32,15 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseELU(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseELU(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    const auto& elu = ngraph::as_type_ptr<ngraph::opset4::Elu>(node);
+    VPU_THROW_UNLESS(elu != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    auto alpha = layer->GetParamAsFloat("alpha", 1.0f);
+    auto alpha = elu->get_alpha();
 
-    auto stage = model->addNewStage<EluStage>(layer->name, StageType::Elu, layer, inputs, outputs);
+    auto stage = model->addNewStage<EluStage>(elu->get_friendly_name(), StageType::Elu, elu, inputs, outputs);
     stage->attrs().set<float>("alpha", alpha);
 }
 

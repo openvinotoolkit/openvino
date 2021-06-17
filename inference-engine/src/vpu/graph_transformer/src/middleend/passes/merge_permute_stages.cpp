@@ -175,7 +175,7 @@ void PassImpl::run(const Model& model) {
             auto permuteOutput = firstPermuteStage->output(0);
             if (permuteInput->desc().dimsOrder() == permuteOutput->desc().dimsOrder()) {
                 auto stageName     = firstPermuteStage->name();
-                auto origLayer     = firstPermuteStage->origLayer();
+                auto origLayer     = firstPermuteStage->origNode();
                 model->removeStage(firstPermuteStage);
 
                 if (permuteInput->desc().dims() == permuteOutput->desc().dims()) {

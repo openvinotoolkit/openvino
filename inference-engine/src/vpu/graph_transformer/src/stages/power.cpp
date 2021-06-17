@@ -13,17 +13,39 @@
 
 namespace vpu {
 
-void FrontEnd::parsePower(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parsePower(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    // IE_ASSERT(inputs.size() == 1);
+    IE_ASSERT(outputs.size() == 1);
+
+    for (auto in : node->inputs()) {
+        std::cout << " type is " << in.get_source_output().get_node_shared_ptr()->get_type_name() << std::endl;
+    }
+
+    auto input = inputs[0];
+    auto output = outputs[0];
+    auto power = ngraph::as_type_ptr<ngraph::opset4::Power>(node);
+    VPU_THROW_UNLESS(power != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto pow = 2.f;
+    // try to get the pow parameter
+    auto powerInput = power->get_input_node_shared_ptr(1);
+    if (const auto& constNode = std::dynamic_pointer_cast<ngraph::opset4::Constant>(powerInput)) {
+        pow = constNode->get_vector<float>()[0]; // not sure
+    }
+    
+    _stageBuilder->addPowerStage(model, power->get_friendly_name(), power, 1.0f, pow, 0.0f, inputs[0], outputs[0]);
+}
+
+void FrontEnd::parseSqrt(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
     auto input = inputs[0];
     auto output = outputs[0];
-
-    auto layer = std::dynamic_pointer_cast<ie::PowerLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-
-    _stageBuilder->addPowerStage(model, layer->name, layer, layer->scale, layer->power, layer->offset, inputs[0], outputs[0]);
+    auto sqrt = ngraph::as_type_ptr<ngraph::opset4::Sqrt>(node);
+    
+    VPU_THROW_UNLESS(sqrt != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    
+    _stageBuilder->addPowerStage(model, sqrt->get_friendly_name(), sqrt, 1.0f, 0.5f, 0.0f, inputs[0], outputs[0]);
 }
 
 namespace {
@@ -53,7 +75,7 @@ private:
 Stage StageBuilder::addPowerStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         float scale,
         float power,
         float bias,
@@ -62,7 +84,7 @@ Stage StageBuilder::addPowerStage(
     auto stage = model->addNewStage<PowerStage>(
         name,
         StageType::Power,
-        layer,
+        node,
         {input},
         {output});
 

@@ -217,16 +217,17 @@ void PassImpl::run(const Model& model) {
 
     bool firstStage = true;
     int  normalVal  = 0;
-    const auto& env = CompileEnv::get();
+    // const auto& env = CompileEnv::get();
 
     for (const auto& stage : model->getStages()) {
         if (!isScalable(stage)) {
             continue;
         }
-        IE_ASSERT(stage->origLayer() != nullptr);
+        IE_ASSERT(stage->origNode() != nullptr);
 
         // Get scale from IR, compute if it was absent
-        auto scale = stage->origLayer()->GetParamAsFloat("vpu_scale", 0);
+        // auto scale = stage->origNode()->GetParamAsFloat("vpu_scale", 0); looks unused
+        auto scale = 0.f;
         if (!scale) {
             auto weights = stage->input(1);
 
@@ -248,7 +249,7 @@ void PassImpl::run(const Model& model) {
                 if (firstStage && shift < 4 && isGrowingOutput && weights->desc().dim(Dim::C) > 1) {
                     normalVal = 5;
                 }
-                shift = correctShift(shift, firstStage, stage->origLayer()->type);
+                shift = correctShift(shift, firstStage, stage->origNode()->get_type_name());
                 shift -= normalVal;
             }
 
@@ -257,10 +258,10 @@ void PassImpl::run(const Model& model) {
             if (shift >= scaleThreshold) {
                 scale = static_cast<float>(1ULL << static_cast<std::uint32_t>(shift));
             }
-
-            if (!env.config.compileConfig().irWithVpuScalesDir.empty()) {
-                stage->origLayer()->params["vpu_scale"] = toString(scale);
-            }
+            // should be removed
+            // if (!env.config.compileConfig().irWithVpuScalesDir.empty()) {
+            //     stage->origNode()->params["vpu_scale"] = toString(scale);
+            // }
         }
         scaleWeightableStage(model, stage, scale);
     }

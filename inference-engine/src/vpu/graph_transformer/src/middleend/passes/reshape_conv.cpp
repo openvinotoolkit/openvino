@@ -54,14 +54,15 @@ void PassImpl::run(const Model& model) {
         int resultH = 0;
         int resultW = 0;
 
-        if (stage->origLayer()->params.count("alt_width")) {
-            const auto alt_width = stage->origLayer()->params.at("alt_width");
-            if (!alt_width.empty() &&
-                std::find_if(alt_width.begin(), alt_width.end(),
-                             [](unsigned char c) { return !std::isdigit(c); }) == alt_width.end()) {
-                resultW = std::stoul(alt_width);
-            }
-        }
+        // need to invistigate
+        // if (stage->origLayer()->params.count("alt_width")) {
+        //     const auto alt_width = stage->origLayer()->params.at("alt_width");
+        //     if (!alt_width.empty() &&
+        //         std::find_if(alt_width.begin(), alt_width.end(),
+        //                      [](unsigned char c) { return !std::isdigit(c); }) == alt_width.end()) {
+        //         resultW = std::stoul(alt_width);
+        //     }
+        // }
 
         if (resultW == 0) {
             continue;

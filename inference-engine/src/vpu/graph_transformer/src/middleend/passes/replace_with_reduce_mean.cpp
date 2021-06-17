@@ -61,7 +61,7 @@ void PassImpl::run(const Model& model) {
         const bool isGlobalAvgPooling = (isGlobalPoolingOutputFormat && (isOverlapByKernel && (paddingsNotExist || excludePad)));
 
         if (isGlobalAvgPooling) {
-            auto origLayer = stage->origLayer();
+            auto origLayer = stage->origNode();
 
             model->removeStage(stage);
 
@@ -74,7 +74,7 @@ void PassImpl::run(const Model& model) {
                 buffer[1] = numInputDims - 2;
             };
 
-            auto axesData = model->addConstData(origLayer->name + "@axes", DataDesc(DataType::S32, DimsOrder::C, {2}), generator);
+            auto axesData = model->addConstData(origLayer->get_friendly_name() + "@axes", DataDesc(DataType::S32, DimsOrder::C, {2}), generator);
 
             _stageBuilder->addReduceStage(
                     model,

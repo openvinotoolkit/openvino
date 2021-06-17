@@ -159,7 +159,7 @@ void PassImpl::run(const Model& model) {
                     newDesc_input);
 
             _stageBuilder->addPadStage(model, stage->name() + "@padding",
-                    stage->origLayer(),
+                    stage->origNode(),
                     PadMode::Constant, 0.0f, DimValues(),
                     DimValues({ { Dim::W, (InputExtended_width - input->desc().dim(Dim::W)) },
                     { Dim::H, (InputExtended_height - input->desc().dim(Dim::H)) }, }),
@@ -183,7 +183,7 @@ void PassImpl::run(const Model& model) {
 
         auto reshape_stage = _stageBuilder->addReshapeStage(model,
                 stage->name() + "@copy-reinterpret-input-data",
-                stage->origLayer(), InputExtended, Reinterpret_inputdata);
+                stage->origNode(), InputExtended, Reinterpret_inputdata);
 
         DataDesc Permuted_inputdataDesc(
             DataType::FP16,
@@ -202,7 +202,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addPermuteStage(
             model,
             stage->origLayerName() + "@permute-input-data",
-            stage->origLayer(),
+            stage->origNode(),
             Reinterpret_inputdata,
             Permuted_inputdata,
             DimValues_<Dim>{{Dim::W, Dim::H}, {Dim::H, Dim::C}, {Dim::C, Dim::N}, {Dim::N, Dim::W}});
@@ -219,7 +219,7 @@ void PassImpl::run(const Model& model) {
 
         _stageBuilder->addReshapeStage(model,
                 stage->name() + "@Reshape-Permuted-inputdata",
-                stage->origLayer(), Permuted_inputdata,
+                stage->origNode(), Permuted_inputdata,
                 Reshape_Permuted_inputdata);
 
         // Desc of sub input tensor
@@ -342,7 +342,7 @@ void PassImpl::run(const Model& model) {
         }
 
         auto SplitPermutedInputDataStage = _stageBuilder->addSplitStage(model,
-                stage->name() + "@Split-Permuted-InputData", stage->origLayer(),
+                stage->name() + "@Split-Permuted-InputData", stage->origNode(),
                 std::move(V_Sub_inputdatasOffsets), Reshape_Permuted_inputdata,
                 V_Sub_inputdata);
 
@@ -360,7 +360,7 @@ void PassImpl::run(const Model& model) {
 
             auto newStage = model->addNewStage<StubStage>(
                     stage->origLayerName() + "@SubDataConv",
-                    StageType::StubConv, stage->origLayer(), {
+                    StageType::StubConv, stage->origNode(), {
                             V_Sub_inputdata[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd],
                             weights,
                             biases,
@@ -387,7 +387,7 @@ void PassImpl::run(const Model& model) {
             if (Sub_outputdata_expand) {
                 _stageBuilder->addCropStage(model,
                         stage->name() + "@SubConvOutputData",
-                        stage->origLayer(), Sub_outputdata,
+                        stage->origNode(), Sub_outputdata,
                         V_Sub_outputdata[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd]);
             } else {
                 V_Sub_outputdata[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd] = Sub_outputdata;
@@ -416,12 +416,12 @@ void PassImpl::run(const Model& model) {
         V_Sub_outputdatasOffsets[0].get(Dim::W, w);
 
         auto ConcatSubOutputDataStage = _stageBuilder->addConcatStage(model,
-                stage->name() + "@Concat-Sub-OutputData", stage->origLayer(),
+                stage->name() + "@Concat-Sub-OutputData", stage->origNode(),
                 std::move(V_Sub_outputdatasOffsets), V_Sub_outputdata,
                 Reshape_Permuted_outputdata);
 
         _stageBuilder->addReshapeStage(model,
-                stage->name() + "@Reshape-conv-outputdata", stage->origLayer(),
+                stage->name() + "@Reshape-conv-outputdata", stage->origNode(),
                 Reshape_Permuted_outputdata, Subtensors_outputdata);
 
         // output permute
@@ -437,7 +437,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addPermuteStage(
             model,
             stage->origLayerName() + "@Permute-OutputData",
-            stage->origLayer(),
+            stage->origNode(),
             Subtensors_outputdata,
             permute_outputdata,
             DimValues_<Dim>{{Dim::W, Dim::N}, {Dim::H, Dim::W}, {Dim::C, Dim::H}, {Dim::N, Dim::C}});
@@ -462,17 +462,17 @@ void PassImpl::run(const Model& model) {
 
             _stageBuilder->addReshapeStage(model,
                     stage->name() + "@copy-Permute-OutputData",
-                    stage->origLayer(), permute_outputdata,
+                    stage->origNode(), permute_outputdata,
                     Reinterpret_outputdata);
 
             auto CropToOutputDataStage = _stageBuilder->addCropStage(model,
-                    stage->name() + "@crop-to-OutputData", stage->origLayer(),
+                    stage->name() + "@crop-to-OutputData", stage->origNode(),
                     Reinterpret_outputdata, output);
 
         } else {
             _stageBuilder->addReshapeStage(model,
                     stage->name() + "@copy-Permute-OutputData",
-                    stage->origLayer(), permute_outputdata, output);
+                    stage->origNode(), permute_outputdata, output);
         }
         model->removeStage(stage);
     }

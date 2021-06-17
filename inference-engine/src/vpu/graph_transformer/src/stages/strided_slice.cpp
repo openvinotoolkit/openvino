@@ -3,7 +3,7 @@
 //
 
 #include <vpu/frontend/frontend.hpp>
-
+#include <debug.h>
 #include <memory>
 #include <vector>
 
@@ -32,6 +32,26 @@ std::uint32_t maskStrToInt(std::string mask) {
 
     return result;
 }
+
+std::string stridedSliceMaskStr (const std::vector<int64_t>& mask) {
+    std::string value;
+    for (const auto &val : mask) {
+        if (!value.empty())
+            value += ",";
+        value += std::to_string(val);
+    }
+    return value;
+};
+
+std::string stridedSliceInvertMaskStr (const std::vector<int64_t>& mask) {
+    std::string value;
+    for (const auto &val : mask) {
+        if (!value.empty())
+            value += ",";
+        value += std::to_string(1 - val);
+    }
+    return value;
+};
 
 class StridedSliceStage final : public StageNode {
 public:
@@ -75,16 +95,23 @@ private:
             numInputs() == 3 ? expectedInputs3Types : expectedInputs4Types,
             {{input0DataType}});
     }
-
+    // need to rework
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        const auto& beginMask = origLayer()->GetParamAsString("begin_mask", "");
-        const auto& endMask = origLayer()->GetParamAsString("end_mask", "");
+        auto stridedSlice = ngraph::as_type_ptr<ngraph::opset4::StridedSlice>(origNode());
+        VPU_THROW_UNLESS(stridedSlice != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", origNode()->get_friendly_name(), origNode()->get_type_name());
+        stridedSlice->get_begin_mask();
+        stridedSlice->get_end_mask();
+        stridedSlice->get_new_axis_mask();
+        stridedSlice->get_shrink_axis_mask();
+        stridedSlice->get_ellipsis_mask();
+        const auto& beginMask = stridedSliceInvertMaskStr(stridedSlice->get_begin_mask());
+        const auto& endMask = stridedSliceInvertMaskStr(stridedSlice->get_end_mask());
         serializer.append(maskStrToInt(beginMask));
         serializer.append(maskStrToInt(endMask));
 
-        const auto& newAxisMask = origLayer()->GetParamAsString("new_axis_mask", "");
-        const auto& shrinkAxisMask = origLayer()->GetParamAsString("shrink_axis_mask", "");
-        const auto& ellipsisMask = origLayer()->GetParamAsString("ellipsis_mask", "");
+        const auto& newAxisMask =    stridedSliceMaskStr(stridedSlice->get_new_axis_mask());
+        const auto& shrinkAxisMask = stridedSliceMaskStr(stridedSlice->get_shrink_axis_mask());
+        const auto& ellipsisMask =   stridedSliceMaskStr(stridedSlice->get_ellipsis_mask());
         serializer.append(maskStrToInt(newAxisMask));
         serializer.append(maskStrToInt(shrinkAxisMask));
         serializer.append(maskStrToInt(ellipsisMask));
@@ -101,20 +128,20 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseStridedSlice(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseStridedSlice(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS(inputs.size() == 3 || inputs.size() == 4,
         "Parsing layer {} with type {} failed: number of input should be 3 or 4, but {} were provided",
-        layer->name, layer->type, inputs.size());
+        node->get_friendly_name(), node->get_type_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
         "Parsing layer {} with type {} failed: number of outputs should be 1, but {} were provided",
-        layer->name, layer->type, outputs.size());
+        node->get_friendly_name(), node->get_type_name(), outputs.size());
 
     DataVector extendedInputs{inputs.begin(), inputs.end()};
     if (inputs.size() == 3) {
         extendedInputs.push_back(model->addFakeData());
     }
 
-    model->addNewStage<StridedSliceStage>(layer->name, StageType::StridedSlice, layer, extendedInputs, outputs);
+    model->addNewStage<StridedSliceStage>(node->get_friendly_name(), StageType::StridedSlice, node, extendedInputs, outputs);
 }
 
 }  // namespace vpu

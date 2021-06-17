@@ -84,7 +84,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addPermuteStage(
                 model,
                 stage->name() + "@transposeB",
-                stage->origLayer(),
+                stage->origNode(),
                 inputB,
                 inputBTransposed,
                 DimValues_<Dim>{{Dim::N, Dim::N}, {Dim::H, Dim::W}, {Dim::W, Dim::H},   {Dim::D, Dim::D}, {Dim::C, Dim::C}});
@@ -124,21 +124,21 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addReshapeStage(
                 model,
                 stage->name() + postfix + "@reshapeB",
-                stage->origLayer(),
+                stage->origNode(),
                 subInputsB[batchIndex],
                 convolvedB);
 
             auto convStage = model->addNewStage<StubStage>(
                 stage->origLayerName() + postfix + "@GEMM_HWConv",
                 StageType::StubConv,
-                stage->origLayer(),
+                stage->origNode(),
                 {convolvedB, subInputsA[batchIndex], model->addFakeData(), model->addFakeData()},
                 {convolvedOutput});
 
             _stageBuilder->addReshapeStage(
                 model,
                 stage->name() + postfix + "@reshapeOutput",
-                stage->origLayer(),
+                stage->origNode(),
                 convolvedOutput,
                 subOutputs[batchIndex]);
 
@@ -160,7 +160,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addSplitStage(
             model,
             stage->name() + "@splitA",
-            stage->origLayer(),
+            stage->origNode(),
             Dim::C,
             inputA,
             subInputsA);
@@ -168,7 +168,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addSplitStage(
             model,
             stage->name() + "@splitB",
-            stage->origLayer(),
+            stage->origNode(),
             Dim::C,
             inputB,
             subInputsB);
@@ -176,7 +176,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addConcatStage(
             model,
             stage->name() + "@concat",
-            stage->origLayer(),
+            stage->origNode(),
             Dim::C,
             subOutputs,
             output);

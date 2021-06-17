@@ -177,7 +177,7 @@ CompiledGraph::Ptr compileImpl(const ie::CNNNetwork& network, const ie::ICore* c
                           env.config.compileConfig().irWithVpuScalesDir + "/" + network.getName() + "_scales.bin");
     }
 
-    return backEnd->build(model, frontEnd->origLayers());
+    return backEnd->build(model, frontEnd->origNodes());
 }
 
 CompiledGraph::Ptr compileImpl(const Model& model) {

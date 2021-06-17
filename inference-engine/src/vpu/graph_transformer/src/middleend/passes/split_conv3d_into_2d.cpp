@@ -170,7 +170,7 @@ void PassImpl::run(const Model& model) {
         Data preBiased = model->duplicateData(output, "@pre_biased", outputDesc);
         _stageBuilder->addBiasStage(model,
                                     stage->name() + "@bias",
-                                    stage->origLayer(),
+                                    stage->origNode(),
                                     preBiased,
                                     biases,
                                     output);
@@ -184,7 +184,7 @@ void PassImpl::run(const Model& model) {
         }
         _stageBuilder->addConcatStage(model,
                                       stage->name() + "@concat",
-                                      stage->origLayer(),
+                                      stage->origNode(),
                                       Dim::D,
                                       subOutputs3D,
                                       preBiased);
@@ -197,7 +197,7 @@ void PassImpl::run(const Model& model) {
             subOutputs[d] = model->duplicateData(preBiased, postfix, subOutputsDesc);
             _stageBuilder->addReshapeStage(model,
                                            stage->name() + "@reshape",
-                                           stage->origLayer(),
+                                           stage->origNode(),
                                            subOutputs[d],
                                            subOutputs3D[d]);
         }
@@ -257,7 +257,7 @@ void PassImpl::run(const Model& model) {
                 auto postfix = formatString("@sum(d=%d/%d,k=%d/%d)", d + 1, OD, k + 1, KD);
                 _stageBuilder->addSumStage(model,
                                            stage->name() + postfix,
-                                           stage->origLayer(),
+                                           stage->origNode(),
                                            kCount == 2 ?
                                                subConv[d][kPrev] :  // if 1st + 2nd summ
                                                subSum[d][kPrev],    // if 3rd or further
@@ -268,7 +268,7 @@ void PassImpl::run(const Model& model) {
 
             _stageBuilder->addCopyStage(model,
                                         stage->name() + "@copy",
-                                        stage->origLayer(),
+                                        stage->origNode(),
                                         kCount == 1 ?
                                             subConv[d][kLast] :  // if single subConv
                                             subSum[d][kLast],    // if two or more...
@@ -342,7 +342,7 @@ void PassImpl::run(const Model& model) {
                 auto postfix = formatString("@conv2d(d=%d/%d,k=%d/%d)", d + 1, OD, k + 1, KD);
                 Stage conv2d = _stageBuilder->addConvolutionStage(model,
                                                                   stage->name() + postfix,
-                                                                  stage->origLayer(),
+                                                                  stage->origNode(),
                                                                   subInputs[i],
                                                                   subConv[d][k],
                                                                   subWeights[k],
@@ -382,7 +382,7 @@ void PassImpl::run(const Model& model) {
             subInputs3D[d] = model->duplicateData(input, postfix + "@3D", subInputsDesc3D);
             _stageBuilder->addReshapeStage(model,
                                            stage->name() + "@split",
-                                           stage->origLayer(),
+                                           stage->origNode(),
                                            subInputs3D[d],
                                            subInputs[d]);
         }
@@ -394,7 +394,7 @@ void PassImpl::run(const Model& model) {
         auto myAddSplitStage = [](vpu::StageBuilder::Ptr _stageBuilder,
                                   const vpu::Model       & model,
                                   const std::string      & name,
-                                  const  ie::CNNLayerPtr & layer,
+                                  const NodePtr          & node,
                                   const vpu::Dim           axis,
                                   const vpu::Data        & input,
                                   const vpu::DataVector  & outputs) {
@@ -419,7 +419,7 @@ void PassImpl::run(const Model& model) {
             VPU_THROW_UNLESS(!actualOutputs.empty(), "no actual outputs");
             auto stage = _stageBuilder->addSplitStage(model,
                                                       name,
-                                                      layer,
+                                                      node,
                                                       std::move(offsets),
                                                       input,
                                                       actualOutputs);
@@ -431,7 +431,7 @@ void PassImpl::run(const Model& model) {
         myAddSplitStage(_stageBuilder,
                         model,
                         stage->name() + "@split",
-                        stage->origLayer(),
+                        stage->origNode(),
                         Dim::D,
                         input,
                         subInputs3D);

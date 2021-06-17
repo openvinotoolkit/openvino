@@ -29,11 +29,12 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseTanH(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseTanH(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
-
-    model->addNewStage<TanHStage>(layer->name, StageType::Tanh, layer, inputs, outputs);
+    auto tanh = ngraph::as_type_ptr<ngraph::opset4::Tanh>(node);
+    VPU_THROW_UNLESS(tanh != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    model->addNewStage<TanHStage>(node->get_friendly_name(), StageType::Tanh, node, inputs, outputs);
 }
 
 }  // namespace vpu

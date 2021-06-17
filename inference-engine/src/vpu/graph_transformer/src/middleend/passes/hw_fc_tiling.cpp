@@ -170,7 +170,7 @@ Data createHWInput(const Model& model, const Stage& original, Stage& relayout) {
         relayout = model->addNewStage<HwFcRelayoutStage>(
             original->name() + "@input-relayout",
             StageType::HwFcRelayout,
-            original->origLayer(),
+            original->origNode(),
             {hwInput},
             {hwInputAsVec});
 
@@ -342,7 +342,7 @@ public:
             auto hwStage = model->addNewStage<MyriadXHwStage>(
                 origStage->name(),
                 StageType::MyriadXHwOp,
-                origStage->origLayer(),
+                origStage->origNode(),
                 {hwInput, hwWeights, hwBiases, hwScales},
                 {origStage->output(0)});
 
@@ -365,7 +365,7 @@ private:
         _stageBuilder->addExpandStage(
             model,
             original->name() + "@expand-input",
-            original->origLayer(),
+            original->origNode(),
             hwInput,
             hwInputExtended);
 
@@ -389,7 +389,7 @@ private:
             _stageBuilder->addReLUStage(
                 model,
                 original->name() + "@ReLU",
-                original->origLayer(),
+                original->origNode(),
                 // LeakyReLU cannot be merged into FullyConnected
                 0.0,
                 swOutput,

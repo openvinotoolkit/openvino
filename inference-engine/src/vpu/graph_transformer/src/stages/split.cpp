@@ -128,26 +128,35 @@ protected:
 
 }  // namespace
 
-void FrontEnd::parseSplit(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
+void FrontEnd::parseSplit(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    for (auto input : node->inputs()) {
+        std::cout << "input node: " <<input.get_source_output().get_node_shared_ptr()->get_friendly_name() << std::endl;
+    }
+    // IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(!outputs.empty());
 
-    const auto split = std::dynamic_pointer_cast<ie::SplitLayer>(layer);
+    const auto split = ngraph::as_type_ptr<ngraph::opset4::Split>(node);
+    VPU_THROW_UNLESS(split != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
     IE_ASSERT(split != nullptr);
-
+    auto axisNode = split->input_value(1).get_node_shared_ptr();
+    const auto axisNodeConst = ngraph::as_type_ptr<ngraph::op::Constant>(axisNode);
+    const auto axisIE = axisNodeConst->get_vector<int32_t>()[0];//need to improve
+    std::cout << "axisNode : " << axisNode << std::endl;
+    VPU_THROW_UNLESS(axisNodeConst != nullptr, "Can't parse node with name %s and type %s. Can't get axis node as const", node->get_friendly_name(), node->get_type_name());
+    std::cout << "axisIE : " << axisIE << std::endl;
     const auto input = inputs[0];
 
-    const auto ieRevAxis = input->desc().numDims() - 1 - checked_cast<int>(split->_axis);
+    const auto ieRevAxis = input->desc().numDims() - 1 - checked_cast<int>(axisIE); //??
     const auto defPerm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
     const auto axis = defPerm.at(checked_cast<size_t>(ieRevAxis));
 
-    _stageBuilder->addSplitStage(model, split->name, split, axis, input, outputs);
+    _stageBuilder->addSplitStage(model, split->get_friendly_name(), split, axis, input, outputs);
 }
 
 Stage StageBuilder::addSplitStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         Dim axis,
         const Data& input,
         const DataVector& outputs) {
@@ -163,17 +172,17 @@ Stage StageBuilder::addSplitStage(
 
     std::vector<size_t> outAxisSizes;
     if (haveUnusedOutput(outputs)) {
-        VPU_THROW_UNLESS(layer != nullptr,
+        VPU_THROW_UNLESS(node != nullptr,
             "Can't build split stage whith name {} with unused outputs when layer == nullptr", name);
-        const auto outDimsSize = layer->outData[0]->getDims().size();
-        const int idx = dimToIeInd(axis, outDimsSize);
-        outAxisSizes.reserve(outDimsSize);
-        for (const auto& out : layer->outData) {
-            VPU_THROW_UNLESS(idx <= out->getDims().size(),
-                "Split stage with name {} and type {} can't have idx = {} when out dimensions size = {}",
-                layer->name, layer->type, idx, out->getDims().size());
-            outAxisSizes.push_back(out->getDims()[idx]);
-        }
+        // const auto outDimsSize = node->outData[0]->getDims().size();
+        // const int idx = dimToIeInd(axis, outDimsSize);
+        // outAxisSizes.reserve(outDimsSize);
+        // for (const auto& out : layer->outData) {
+        //     VPU_THROW_UNLESS(idx <= out->getDims().size(),
+        //         "Split stage with name {} and type {} can't have idx = {} when out dimensions size = {}",
+        //         layer->name, layer->type, idx, out->getDims().size());
+        //     outAxisSizes.push_back(out->getDims()[idx]);
+        // }
     } else {
         outAxisSizes.reserve(outputs.size());
         for (const auto& output : outputs) {
@@ -190,7 +199,7 @@ Stage StageBuilder::addSplitStage(
         curOffset.set(axis, curOffset[axis] + outAxisSizes[i]);
     }
 
-    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, usedOutputs);
+    auto stage = addSplitStage(model, name, node, std::move(offsets), input, usedOutputs);
 
     stage->attrs().set("axis", axis);
 
@@ -200,7 +209,7 @@ Stage StageBuilder::addSplitStage(
 Stage StageBuilder::addSplitStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         std::vector<vpu::DimValues>&& offsets,
         const Data& input,
         const DataVector& outputs) {
@@ -209,7 +218,7 @@ Stage StageBuilder::addSplitStage(
     auto stage = model->addNewStage<SplitStage>(
         name,
         StageType::Split,
-        layer,
+        node,
         {input},
         outputs);
 

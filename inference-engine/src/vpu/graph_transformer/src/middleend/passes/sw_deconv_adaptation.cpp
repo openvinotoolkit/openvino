@@ -242,7 +242,7 @@ void PassImpl::run(const Model& model) {
             auto swStage = model->addNewStage<DeconvStage>(
                 stage->name(),
                 StageType::Deconvolution,
-                stage->origLayer(),
+                stage->origNode(),
                 {input, weights},
                 {output});
 
@@ -268,7 +268,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addBiasStage(
                     model,
                     stage->name() + "@biases",
-                    stage->origLayer(),
+                    stage->origNode(),
                     biasesInput, biases,
                     output);
             }
@@ -284,7 +284,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addScaleStage(
                     model,
                     stage->name() + "@scales",
-                    stage->origLayer(),
+                    stage->origNode(),
                     scalesInput, scales,
                     output);
             }
@@ -293,7 +293,7 @@ void PassImpl::run(const Model& model) {
             auto swStage = model->addNewStage<DeconvStage>(
                 stage->name(),
                 StageType::DepthDeconv,
-                stage->origLayer(),
+                stage->origNode(),
                 {input, weights},
                 {output});
 
@@ -319,7 +319,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addBiasStage(
                     model,
                     stage->name() + "@biases",
-                    stage->origLayer(),
+                    stage->origNode(),
                     biasesInput, biases,
                     output);
             }
@@ -335,7 +335,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addScaleStage(
                     model,
                     stage->name() + "@scales",
-                    stage->origLayer(),
+                    stage->origNode(),
                     scalesInput, scales,
                     output);
             }

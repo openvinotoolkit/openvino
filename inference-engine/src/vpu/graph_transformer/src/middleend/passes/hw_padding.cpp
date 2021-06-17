@@ -143,7 +143,7 @@ void insertPaddingStageBefore(const Model& model, StageBuilder::Ptr& stageBuilde
     auto paddingStage = stageBuilder->addPadStage(
         model,
         origStage->name() + "@padding",
-        origStage->origLayer(),
+        origStage->origNode(),
         (origStage->type() == StageType::StubMaxPool) ? PadMode::Edge : PadMode::Constant,
         0.0f,
         DimValues({

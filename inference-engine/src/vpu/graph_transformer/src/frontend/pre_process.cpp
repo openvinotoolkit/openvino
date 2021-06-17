@@ -37,8 +37,13 @@ void FrontEnd::addPreProcessStages(const Model& model) {
         if (preProcess.getMeanVariant() == ie::NONE) {
             continue;
         }
-
-        auto input = getVpuData(ieData);
+        const auto netInputName = inputInfo.first;
+        const auto paramNodeIter = std::find_if(_ieParsedNetwork.networkParameters.begin(), _ieParsedNetwork.networkParameters.end(), [&netInputName](const NodePtr& node) {
+            return node->get_friendly_name() == netInputName;
+        });
+        const auto& paramNode = *paramNodeIter;
+        const auto paramOutput = paramNode->output(0);
+        auto input = getVpuData(paramOutput);
         IE_ASSERT(input != nullptr);
 
         env.log->trace("Add pre-processing for input %s", input->name());
@@ -57,7 +62,7 @@ void FrontEnd::addPreProcessStages(const Model& model) {
                 input,
                 "@after-mean-image");
 
-            bindData(newInput, ieData);
+            bindData(newInput, paramOutput, paramNode);
 
             _stageBuilder->addSumStage(
                 model,
@@ -82,7 +87,7 @@ void FrontEnd::addPreProcessStages(const Model& model) {
                 input,
                 "@after-mean-values");
 
-            bindData(newInput, ieData);
+            bindData(newInput, paramOutput, paramNode);
 
             _stageBuilder->addBiasStage(
                 model,
@@ -110,7 +115,7 @@ void FrontEnd::addPreProcessStages(const Model& model) {
                 input,
                 "@after-std-scale");
 
-            bindData(newInput, ieData);
+            bindData(newInput, paramOutput, paramNode);
 
             _stageBuilder->addPowerStage(
                 model,

@@ -100,7 +100,7 @@ void PassImpl::run(const Model& model) {
                     _stageBuilder->addReorderStage(model,
                                                    formatString("%s@reorder-input-data=%d", stage->name(),
                                                                 inEdge->portInd()),
-                                                   stage->origLayer(),
+                                                   stage->origNode(),
                                                    input,
                                                    newInput);
                     convertedData.emplace_back(newInput);
@@ -154,7 +154,7 @@ void PassImpl::run(const Model& model) {
                     _stageBuilder->addReorderStage(model,
                                                    formatString("%s@reorder-output-data=%d", stage->name(),
                                                                 outEdge->portInd()),
-                                                   stage->origLayer(),
+                                                   stage->origNode(),
                                                    newOutput,
                                                    output);
                 } else {
@@ -216,7 +216,7 @@ void PassImpl::run(const Model& model) {
                     _stageBuilder->addCopyStage(
                         model,
                         formatString("%s@input=%d@align-strides", stage->name(), inEdge->portInd()),
-                        stage->origLayer(),
+                        stage->origNode(),
                         input,
                         newInput,
                         "adjustDataLayout::input");
@@ -281,7 +281,7 @@ void PassImpl::run(const Model& model) {
                     _stageBuilder->addCopyStage(
                         model,
                         formatString("%s@input=%d@align-strides", stage->name(), portInd),
-                        stage->origLayer(),
+                        stage->origNode(),
                         newOutput,
                         output,
                         "adjustDataLayout::output");
