@@ -1,6 +1,7 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <openvino/cc/ngraph/itt.hpp>
 
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
 
@@ -16,6 +17,7 @@ using namespace GNAPluginNS;
 NGRAPH_RTTI_DEFINITION(InsertTransposeAfterConvOrPool, "InsertTransposeAfterConvOrPool", 0);
 
 bool InsertTransposeAfterConvOrPool::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(InsertTransposeAfterConvOrPool);
     bool is_graph_modfied = false;
     for (auto& node : f->get_ordered_ops()) {
         if (std::dynamic_pointer_cast<ngraph::opset7::Convolution>(node) == nullptr &&

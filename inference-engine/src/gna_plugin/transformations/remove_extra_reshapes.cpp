@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <openvino/cc/ngraph/itt.hpp>
+
 #include "transformations/remove_extra_reshapes.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
@@ -12,6 +14,7 @@ using namespace GNAPluginNS;
 NGRAPH_RTTI_DEFINITION(RemoveExtraReshapes, "RemoveExtraReshapes", 0);
 
 RemoveExtraReshapes::RemoveExtraReshapes() {
+    MATCHER_SCOPE(RemoveExtraReshapes);
     const auto reshape = ngraph::pattern::wrap_type<ngraph::opset7::Reshape>();
     const auto pooling = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({reshape});
 
@@ -26,6 +29,6 @@ RemoveExtraReshapes::RemoveExtraReshapes() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(pooling, "RemoveExtraReshapes");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(pooling, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -1,6 +1,7 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <openvino/cc/ngraph/itt.hpp>
 
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 
@@ -77,6 +78,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
 }
 
 SplitConvolution::SplitConvolution() {
+    MATCHER_SCOPE(SplitConvolution);
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
         ngraph::pattern::any_input()});
 
@@ -85,11 +87,12 @@ SplitConvolution::SplitConvolution() {
         return Convert(pattern_map.at(conv).get_node_shared_ptr(), nullptr, nullptr, nullptr);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "SplitConvolution");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
     this->register_matcher(m, callback);
 }
 
 SplitConvolutionWithBias::SplitConvolutionWithBias() {
+    MATCHER_SCOPE(SplitConvolutionWithBias);
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
         ngraph::pattern::any_input()});
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -101,11 +104,12 @@ SplitConvolutionWithBias::SplitConvolutionWithBias() {
             pattern_map.at(bias).get_node_shared_ptr(), nullptr);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "SplitConvolutionWithBias");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     this->register_matcher(m, callback);
 }
 
 SplitConvolutionWithFq::SplitConvolutionWithFq() {
+    MATCHER_SCOPE(SplitConvolutionWithFq);
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
         ngraph::pattern::any_input()});
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -126,6 +130,6 @@ SplitConvolutionWithFq::SplitConvolutionWithFq() {
         return Convert(pattern_map.at(conv).get_node_shared_ptr(), add_node, bias_node, pattern_map.at(out_fq).get_node_shared_ptr());
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(out_fq, "SplitConvolutionWithFq");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(out_fq, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -1,6 +1,7 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <openvino/cc/ngraph/itt.hpp>
 
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 
@@ -107,6 +108,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
 }
 
 ConvertMatmulToPointWiseConvolution::ConvertMatmulToPointWiseConvolution() {
+    MATCHER_SCOPE(ConvertMatmulToPointWiseConvolution);
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto const_fq = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({const_input,
         ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
@@ -121,11 +123,12 @@ ConvertMatmulToPointWiseConvolution::ConvertMatmulToPointWiseConvolution() {
         return Convert(pattern_map.at(matmul).get_node_shared_ptr(), nullptr, nullptr, nullptr);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "ConvertMatmulToPointWiseConvolution");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ConvertMatmulWithBiasToPointWiseConvolution::ConvertMatmulWithBiasToPointWiseConvolution() {
+    MATCHER_SCOPE(ConvertMatmulWithBiasToPointWiseConvolution);
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto const_fq = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({const_input,
         ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
@@ -143,11 +146,12 @@ ConvertMatmulWithBiasToPointWiseConvolution::ConvertMatmulWithBiasToPointWiseCon
             pattern_map.at(bias).get_node_shared_ptr(), nullptr);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvertMatmulWithBiasToPointWiseConvolution");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ConvertMatmulWithFqToPointWiseConvolution::ConvertMatmulWithFqToPointWiseConvolution() {
+    MATCHER_SCOPE(ConvertMatmulWithFqToPointWiseConvolution);
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto const_fq = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({const_input,
         ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
@@ -175,6 +179,6 @@ ConvertMatmulWithFqToPointWiseConvolution::ConvertMatmulWithFqToPointWiseConvolu
              pattern_map.at(out_fq).get_node_shared_ptr());
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(out_fq, "ConvertMatmulWithFqToPointWiseConvolution");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(out_fq, matcher_name);
     this->register_matcher(m, callback);
 }
