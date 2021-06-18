@@ -284,7 +284,9 @@ cdef class IECore:
     #                          If the parameter is not specified, the default configuration is handled automatically.
     # @return Instance of IECore class
     def __cinit__(self, xml_config_file: str = ""):
-        self.impl = C.IECore(xml_config_file.encode())
+        cdef string c_xml_config_file = xml_config_file.encode()
+        with nogil:
+            self.impl = C.IECore(c_xml_config_file)
 
     ## Get a `namedtuple` object with versions of the plugin specified
     #  @param device_name: Name of the the registered plugin
@@ -326,12 +328,15 @@ cdef class IECore:
         cdef string weights_
         cdef string model_
         cdef IENetwork net = IENetwork()
+        cdef size_t bin_size
         if init_from_buffer:
             model_ = bytes(model)
-            net.impl = self.impl.readNetwork(model_, weights, len(weights))
+            bin_buffer = <uint8_t*> weights
+            bin_size = len(weights)
+            with nogil:
+                net.impl = self.impl.readNetwork(model_, bin_buffer, bin_size)
         else:
             weights_ = "".encode()
-
             model = os.fspath(model)
             if not os.path.isfile(model):
                 raise Exception(f"Path to the model {model} doesn't exist or it's a directory")
@@ -342,8 +347,8 @@ cdef class IECore:
                 if not os.path.isfile(weights):
                     raise Exception(f"Path to the weights {weights} doesn't exist or it's a directory")
                 weights_ = weights.encode()
-
-            net.impl = self.impl.readNetwork(model_, weights_)
+            with nogil:
+                net.impl = self.impl.readNetwork(model_, weights_)
         return net
 
     ## Loads a network that was read from the Intermediate Representation (IR) to the plugin with specified device name
@@ -540,7 +545,9 @@ cdef class IECore:
     # If there are more than one device of a specific type, they all are listed followed by a dot and a number.
     @property
     def available_devices(self):
-        cdef vector[string] c_devices = self.impl.getAvailableDevices()
+        cdef vector[string] c_devices
+        with nogil:
+            c_devices = self.impl.getAvailableDevices()
         return [d.decode() for d in c_devices]
 
 ## This structure stores info about pre-processing of network inputs (scale, mean image, ...)
@@ -1408,7 +1415,8 @@ cdef class IENetwork:
                 weights_ = weights.encode()
                 self.impl = C.IENetwork(model_, weights_)
             else:
-                self.impl = C.IENetwork()
+                with nogil:
+                    self.impl = C.IENetwork()
             free(bin_buffer)
         free(xml_buffer)
 
