@@ -1224,7 +1224,8 @@ cdef class InferRequest:
             self._fill_inputs(inputs)
         if self._py_callback_used:
             self._py_callback_called.clear()
-        deref(self.impl).infer_async()
+        with nogil:
+            deref(self.impl).infer_async()
 
     ## Waits for the result to become available. Blocks until specified timeout elapses or the result
     #  becomes available, whichever comes first.
