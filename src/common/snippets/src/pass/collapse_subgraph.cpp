@@ -61,14 +61,20 @@ auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph:
         std::queue<ngraph::Node*> stack;
         stack.push(from);
 
+        unsigned int from_to_distance = 0;
         while (stack.size() > 0) {
             ngraph::Node* curr = stack.front();
             visited.insert(curr);
 
+            if (from_to_distance++ >= 32000) {
+                throw ngraph_error("Distance in cycle dependencies check is too large.");
+            }
             stack.pop();
 
             if (curr != to) {
-                for (const auto& next : curr->get_users()) {
+                const auto all_users = curr->get_users();
+                std::unordered_set<std::shared_ptr<Node>> unique_users(all_users.begin(), all_users.end());
+                for (const auto& next : unique_users) {
                     if (visited.count(next.get()) == 0) {
                         stack.push(next.get());
                     }
