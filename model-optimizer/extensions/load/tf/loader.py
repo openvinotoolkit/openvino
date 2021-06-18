@@ -37,6 +37,10 @@ class TFLoader(Loader):
 
     def load(self, graph: Graph):
         argv = graph.graph['cmd_params']
+
+        if argv.disable_nhwc_to_nchw and argv.force_nhwc_to_nchw:
+            raise Error('Cannot specify both --disable_nhwc_to_nchw and --force_nhwc_to_nchw command line parameters')
+
         if argv.tensorflow_custom_layer_libraries:
             libraries = argv.tensorflow_custom_layer_libraries.split(',')
             for library in libraries:
@@ -44,22 +48,21 @@ class TFLoader(Loader):
                 tf_v1.load_op_library(library)
 
         graph_def, variables_values, framework = load_tf_graph_def(graph_file_name=argv.input_model,
-                                                        is_binary=not argv.input_model_is_text,
-                                                        checkpoint=argv.input_checkpoint,
-                                                        user_output_node_names_list=argv.output,
-                                                        model_dir=argv.saved_model_dir,
-                                                        meta_graph_file=argv.input_meta_graph,
-                                                        saved_model_tags=argv.saved_model_tags)
+                                                                   is_binary=not argv.input_model_is_text,
+                                                                   checkpoint=argv.input_checkpoint,
+                                                                   user_output_node_names_list=argv.output,
+                                                                   model_dir=argv.saved_model_dir,
+                                                                   meta_graph_file=argv.input_meta_graph,
+                                                                   saved_model_tags=argv.saved_model_tags)
         send_framework_info(framework)
 
         try:
             tf_v1.import_graph_def(graph_def, name='')
         except:
-            log.warning("TensorFlow post-processing of loaded model was unsuccessful. "
-                        "This is an optional step that Model Optimizer performs for any input model but it is not usually "
-                        "required for all models."
-                        "It likely means that the original model is ill-formed. "
-                        "Model Optimizer will continue converting this model.")
+            log.warning("TensorFlow post-processing of loaded model was unsuccessful. This is an optional step that "
+                        "Model Optimizer performs for any input model but it is not usually required for all models. "
+                        "It likely means that the original model is ill-formed. Model Optimizer will continue "
+                        "converting this model.")
 
         log.debug("Number of nodes in graph_def: {}".format(len(graph_def.node)))  # pylint: disable=no-member
 
@@ -104,9 +107,10 @@ class TFLoader(Loader):
 
         # try to detect layout from the nodes of the graph. If there are no convolution nodes in N(D)HWC layout then we
         # consider that the graph is in NCHW layout and no layout conversion should be performed
-        NHWC_conv_detected = graph_or_sub_graph_has_nhwc_ops(graph)
-        if not NHWC_conv_detected:
-            for_graph_and_each_sub_graph_recursively(graph, update_cmd_params_and_layout)
+        if not argv.force_nhwc_to_nchw:
+            NHWC_conv_detected = graph_or_sub_graph_has_nhwc_ops(graph)
+            if not NHWC_conv_detected:
+                for_graph_and_each_sub_graph_recursively(graph, update_cmd_params_and_layout)
 
         send_op_names_info(framework, graph)
         send_shapes_info(framework, graph)

@@ -537,6 +537,9 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     tf_group.add_argument('--disable_nhwc_to_nchw',
                           help='Disables default translation from NHWC to NCHW',
                           action='store_true')
+    tf_group.add_argument('--force_nhwc_to_nchw',
+                          help='Forces conversion of the model from NHWC to NCHW (opposite to --disable_nhwc_to_nchw)',
+                          action='store_true')
     return parser
 
 
