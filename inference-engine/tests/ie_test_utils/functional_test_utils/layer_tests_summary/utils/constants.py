@@ -13,6 +13,7 @@ VERIFIED_OP_REFERENCES = [
     'Broadcast-1',
     'Broadcast-3',
     'Bucketize-3',
+    'Ceiling-1',
     'CTCGreedyDecoder-1',
     'CTCGreedyDecoderSeqLen-6',
     'Concat-1',

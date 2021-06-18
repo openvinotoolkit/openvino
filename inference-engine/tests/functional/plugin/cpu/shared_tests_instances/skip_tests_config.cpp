@@ -33,8 +33,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
-        // TODO: Issue: 34805
-        R"(.*ActivationLayerTest.*Ceiling.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform

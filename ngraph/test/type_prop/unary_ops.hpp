@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +95,3 @@ REGISTER_TYPED_TEST_CASE_P(UnaryOperator,
                            dynamic_rank_input_shape_2D,
                            dynamic_rank_input_shape_3D,
                            dynamic_rank_input_shape_full);
-
-using Types = ::testing::Types<op::Acos, op::Asin, op::Abs, op::Sqrt, op::Sin, op::Exp, op::Floor, op::Log>;
-
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop, UnaryOperator, Types);
