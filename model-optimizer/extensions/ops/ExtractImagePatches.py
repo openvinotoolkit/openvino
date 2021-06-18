@@ -43,7 +43,8 @@ class ExtractImagePatches(Op):
 
         assert len(input_shape) == 4, 'ExtractImagePatches operation supports only 4D tensors'
 
-        layout = node.graph.graph['layout']
+        # layout = node.graph.graph['layout']
+        layout = 'NHWC'
         N = input_shape[get_batch_dim(layout, 4)]
         C = input_shape[get_features_dim(layout, 4)]
 
