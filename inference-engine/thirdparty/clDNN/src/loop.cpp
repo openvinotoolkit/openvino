@@ -5,11 +5,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "loop_inst.h"
 
-#include "error_handler.h"
 #include "json_object.h"
 #include "primitive_type_base.h"
-#include "api/data.hpp"
-#include "api/mutable_data.hpp"
+#include "cldnn/primitives/data.hpp"
+#include "cldnn/primitives/mutable_data.hpp"
 #include <string>
 #include <exception>
 #include <algorithm>
@@ -199,18 +198,18 @@ void loop_inst::preprocess_output_memory() {
         const primitive_id& external_id = output_mapping.external_id;
         const primitive_id& internal_id = output_mapping.internal_id;
         if (output_mapping.axis < 0) {
-            memory_impl::ptr memory = get_external_memory(external_id);
-            body_network->get_primitive(internal_id)->set_output_memory(*memory);
+            memory::ptr memory = get_external_memory(external_id);
+            body_network->get_primitive(internal_id)->set_output_memory(memory);
         } else {
-            memory_impl::ptr to_mem = get_external_memory(external_id);
+            memory::ptr to_mem = get_external_memory(external_id);
             auto output_prim = body_network->get_primitive(internal_id);
             layout sliced_layout = output_prim->output_memory().get_layout();
 
             const int64_t max_iteration = node.get_max_iteration();
-            std::vector<memory_impl::ptr> sliced_mems;
+            std::vector<memory::ptr> sliced_mems;
             sliced_mems.reserve(max_iteration);
             for (int j=0; j < max_iteration; ++j) {
-                memory_impl::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
+                memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
                 sliced_mems.push_back(sliced_mem);
             }
 
@@ -219,7 +218,7 @@ void loop_inst::preprocess_output_memory() {
             const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
             const int64_t start = output_mapping.start < 0? node.get_max_iteration() - 1: output_mapping.start;
             concatenated_memory_mapping memory_mapping_info(
-                output_mapping.axis, to_mem, sliced_mems,
+                output_mapping.axis, to_mem, sliced_mems, _network.get_stream(),
                 num_elements_iteration, output_mapping.stride, start);
             memory_mapping_info.concat_data_prim = body_network->get_primitive(internal_id);
             concatenated_output_mem_mappings.push_back(memory_mapping_info);
@@ -241,7 +240,7 @@ void loop_inst::preprocess_input_memory() {
             CLDNN_ERROR_MESSAGE(id(), "loop primitive_map is incomplete");
         }
 
-        memory_impl& memory = input_memory(memory_num);
+        auto memory = input_memory_ptr(memory_num);
         for (size_t i = 0; i < input_map_ptrs.size(); ++i) {
             const auto input_map = input_map_ptrs.at(i);
             bool is_concatenated_input = (input_map->axis >= 0);
@@ -249,10 +248,10 @@ void loop_inst::preprocess_input_memory() {
                 layout sliced_layout
                     = body_network->get_primitive(input_map->internal_id)->output_memory().get_layout();
                 const int64_t max_iteration = node.get_max_iteration();
-                std::vector<memory_impl::ptr> sliced_mems;
+                std::vector<memory::ptr> sliced_mems;
                 sliced_mems.reserve(max_iteration);
                 for (int j=0; j < max_iteration; ++j) {
-                    memory_impl::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
+                    memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
                     sliced_mems.push_back(sliced_mem);
                 }
                 const int64_t num_elements_batch = concatenated_memory_mapping::get_batch_size(
@@ -260,12 +259,12 @@ void loop_inst::preprocess_input_memory() {
                 const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
                 const int64_t start = input_map->start < 0? node.get_max_iteration() - 1: input_map->start;
                 concatenated_memory_mapping concatenated_input_mem_mapping_info(
-                    input_map->axis, (memory_impl::ptr)&memory, sliced_mems,
+                    input_map->axis, memory, sliced_mems, _network.get_stream(),
                     num_elements_iteration, input_map->stride, start);
                 concatenated_input_mem_mapping_info.sliced_data_prim = body_network->get_primitive(input_map->internal_id);
                 iteration_mem.push_back(concatenated_input_mem_mapping_info);
             } else {
-                if (memory.get_layout().data_type != body_network->get_primitive(input_map->internal_id)->output_memory().get_layout().data_type) {
+                if (memory->get_layout().data_type != body_network->get_primitive(input_map->internal_id)->output_memory().get_layout().data_type) {
                     CLDNN_ERROR_MESSAGE(id(), "incompatible datatypes");
                 }
                 body_network->set_input_data(input_map->internal_id, memory);
@@ -285,17 +284,17 @@ void loop_inst::preprocess_backedge_memory() {
         auto backedged_sliced_output_mems = get_sliced_mem(back_edge.from);
         const auto backedge_to_prim = body_network->get_primitive(back_edge.to);
         const auto backedge_from_prim = body_network->get_primitive(back_edge.from);
-        memory_impl::ptr initial_mem = get_external_memory(input_map->external_id);
+        memory::ptr initial_mem = get_external_memory(input_map->external_id);
         if (backedged_sliced_output_mems.empty()) {
             // backedge output which does not need concatenation
             // input memory = output memory = loop output memory
             const auto output_mapping = node.find_io_primitive_maps(back_edge.from, false);
-            memory_impl::ptr backedge_mem;
+            memory::ptr backedge_mem;
             if (output_mapping.empty()) {
                 // from and to primitives in backedge are connected directly
                 if (backedge_to_prim == backedge_from_prim->dependencies().front()) {
                     backedge_memory_mappings.emplace_back(
-                        backedge_from_prim, backedge_to_prim, initial_mem);
+                        backedge_from_prim, backedge_to_prim, initial_mem, body_network->get_stream());
                     continue;
                 } else {
                     auto output_prim = body_network->get_primitive(back_edge.from);
@@ -305,19 +304,19 @@ void loop_inst::preprocess_backedge_memory() {
             } else {
                 backedge_mem = get_external_memory(output_mapping.front()->external_id);
             }
-            body_network->set_input_data(back_edge.to, *backedge_mem);
-            body_network->set_output_memory(back_edge.from, *backedge_mem);
+            body_network->set_input_data(back_edge.to, backedge_mem);
+            body_network->set_output_memory(back_edge.from, backedge_mem);
             backedge_memory_mappings.emplace_back(
-                backedge_from_prim, backedge_to_prim, backedge_mem, initial_mem);
+                backedge_from_prim, backedge_to_prim, backedge_mem, initial_mem, body_network->get_stream());
         } else {
             // backedge output which needs concatenation
             backedge_memory_mappings.emplace_back(
-                backedge_from_prim, backedge_to_prim, backedged_sliced_output_mems, initial_mem);
+                backedge_from_prim, backedge_to_prim, backedged_sliced_output_mems, initial_mem, body_network->get_stream());
         }
     }
 }
 
-std::vector<memory_impl::ptr> loop_inst::get_sliced_mem(const primitive_id& internal_id) const {
+std::vector<memory::ptr> loop_inst::get_sliced_mem(const primitive_id& internal_id) const {
         for (const auto& mem_mapping : concatenated_input_mem_mappings) {
             if (mem_mapping.sliced_data_prim->id() == internal_id) {
                 return mem_mapping.sliced_mems;
@@ -331,20 +330,18 @@ std::vector<memory_impl::ptr> loop_inst::get_sliced_mem(const primitive_id& inte
         return {}; // not found
     }
 
-memory_impl::ptr loop_inst::get_external_memory(const primitive_id& external_id) const {
+memory::ptr loop_inst::get_external_memory(const primitive_id& external_id) const {
     const auto outputPrim = _network.get_primitive(external_id);
-    memory_impl& memory = outputPrim->output_memory();
-    return (memory_impl::ptr) &memory;
+    return outputPrim->output_memory_ptr();
 }
 
 loop_inst::typed_primitive_inst(network_impl & network, loop_node const & node)
     : parent(network, node),
       preproc_memories_done(false),
-      body_network(node.get_program()
-        .get_engine()
-        .allocate_network(*node.get_body_program(),
-                          network.get_stream_id(),
-                          false)) {
+      body_network(network_impl::allocate_network(network.get_stream_ptr(),
+                                                  node.get_body_program(),
+                                                  false,
+                                                  network.is_primary_stream())) {
     if (!check_if_axis_is_set_properly(node))
         CLDNN_ERROR_MESSAGE(node.id(), "axis is not set properly");
 
