@@ -11,6 +11,7 @@
 #include <ngraph/op/broadcast.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/op/reshape.hpp>
+#include <ngraph/op/gather.hpp>
 #include <ngraph/op/util/op_annotations.hpp>
 
 namespace ngraph {
@@ -150,6 +151,20 @@ std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& nod
         }
     }
     return result;
+}
+
+std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_node(const std::shared_ptr<ngraph::Node>& shape_node,
+                                                                                 const std::vector<size_t>& indices) {
+    return std::make_shared<v7::Gather>(
+            shape_node,
+            v0::Constant::create(ngraph::element::i64, {indices.size()}, indices),
+            v0::Constant::create(ngraph::element::i64, {}, {0}));
+}
+
+std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(const ngraph::Output<ngraph::Node>& shape_source,
+                                                                                   const std::vector<size_t>& indices) {
+    const auto & shape_node = std::make_shared<v3::ShapeOf>(shape_source);
+    return node_to_get_shape_value_of_indices_from_shape_node(shape_node, indices);
 }
 
 }  // namespace util

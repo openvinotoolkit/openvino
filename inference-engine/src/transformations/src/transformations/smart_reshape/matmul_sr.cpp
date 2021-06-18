@@ -4,7 +4,7 @@
 
 #include "itt.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
-#include "transformations/smart_reshape/utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <numeric>
 #include <memory>

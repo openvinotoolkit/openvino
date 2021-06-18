@@ -13,9 +13,9 @@ NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::FullyConnectedBiasFusion, "FullyConnectedBi
 
 MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto m_fc = ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>([](ngraph::Output<ngraph::Node> output) {
-        return ngraph::pattern::consumers_count(1)(output) && ngraph::pattern::has_static_shape()(output);
+        return ngraph::pattern::consumers_count(1)(output) && ngraph::pattern::has_static_rank()(output);
     });
-    auto m_bias = ngraph::pattern::any_input();
+    auto m_bias = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
     auto m_add = ngraph::pattern::wrap_type<ngraph::opset1::Add>({m_fc, m_bias});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
@@ -37,16 +37,20 @@ MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         }
 
         ngraph::Shape bias_shape(bias->get_shape());
-        ngraph::Shape output_shape(fc->get_shape());
+        ngraph::PartialShape output_shape(fc->get_output_partial_shape(0));
         size_t bias_size = std::accumulate(bias_shape.begin(), bias_shape.end(), size_t{1}, std::multiplies<int64_t>());
-        if (bias_shape.empty() || bias_shape.back() != output_shape.back() || bias_shape.back() != bias_size) {
+        auto rank = fc->get_output_partial_shape(0).rank().get_length();
+        if (rank == 0 || output_shape[rank - 1].is_dynamic())
+            return false;
+
+        if (bias_shape.empty() || bias_shape.back() != output_shape[rank - 1].get_length() || bias_shape.back() != bias_size) {
             return false;
         }
 
         ngraph::NodeVector new_ops;
 
         std::shared_ptr<ngraph::Node> final_bias = bias;
-        if (bias->get_shape().size() >= 2) {
+        if (bias_shape.size() >= 2) {
             final_bias = std::make_shared<ngraph::opset1::Reshape>(final_bias, ngraph::opset1::Constant::create(ngraph::element::i64,
                                                                                                                 ngraph::Shape{1}, {-1}), true);
             new_ops.push_back(final_bias);
@@ -55,8 +59,9 @@ MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         auto new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(fc->input(0).get_source_output(),
                                                                          fc->input(1).get_source_output(),
                                                                          final_bias,
-                                                                         fc->get_shape(),
+                                                                         fc->get_output_partial_shape(0),
                                                                          fc->get_output_type());
+        new_fc->set_original_rank(fc->get_original_rank());
         new_ops.push_back(new_fc);
 
         new_fc->set_friendly_name(add->get_friendly_name());

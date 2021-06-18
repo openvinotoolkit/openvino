@@ -71,6 +71,7 @@ void MatMulTest::SetUp() {
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto MatMul = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(
             ngraph::builder::makeMatMul(paramOuts[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second));
+    std::cout << MatMul << std::endl;
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "MatMul");
 }
