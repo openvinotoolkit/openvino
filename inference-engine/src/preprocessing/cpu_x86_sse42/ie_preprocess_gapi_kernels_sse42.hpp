@@ -145,6 +145,12 @@ extern template void mergeRowImpl<sse42_tag, uint8_t, 3>(sse42_tag, const std::a
 extern template void mergeRowImpl<sse42_tag, float, 3>(sse42_tag, const std::array<const float*, 3>& ins, float* out, const int length);
 extern template void mergeRowImpl<sse42_tag, uint8_t, 4>(sse42_tag, const std::array<const uint8_t*, 4>& ins, uint8_t* out, const int length);
 extern template void mergeRowImpl<sse42_tag, float, 4>(sse42_tag, const std::array<const float*, 4>& ins, float* out, const int length);
+
+template<typename isa_tag_t>
+void calcRowLinear8UC1Impl(isa_tag_t, uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
+                           const short alpha[], const short clone[], const short mapsx[],
+                           const short beta[], uint8_t tmp[], const Size& inSz,
+                           const Size& outSz, const int lpi, const int l);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
