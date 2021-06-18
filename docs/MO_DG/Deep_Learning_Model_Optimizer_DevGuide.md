@@ -37,24 +37,9 @@ To learn about all Model Optimizer parameters and conversion technics, see the [
 \htmlonly
 <table>
   <tr>
-    <td><a href="https://www.youtube.com/watch?v=Kl1ptVb7aI8"><img alt="Model Optimizer Concept Video" src="https://img.youtube.com/vi/Kl1ptVb7aI8/0.jpg" width="220"></td>
-    <td><a href="https://www.youtube.com/watch?v=BBt1rseDcy0"><img alt="Model Optimizer Basic Operation Video" src="https://img.youtube.com/vi/BBt1rseDcy0/0.jpg" width="220"></td>
-    <td><a href="https://www.youtube.com/watch?v=RF8ypHyiKrY"><img alt="Choosing the Right Precision Video" src="https://img.youtube.com/vi/RF8ypHyiKrY/0.jpg" width="220"></td>
-  </tr>
-  <tr>
-    <td><strong>Model Optimizer Concept</strong>. <br>Duration: 3:56</td>
-    <td><strong>Model Optimizer Basic<br> Operation</strong>. <br>Duration: 2:57.</td>
-    <td><strong>Choosing the Right Precision</strong>. <br>Duration: 4:18.</td>
-  </tr>
-</table>
-\endhtmlonly
-
-\htmlonly
-<table>
-  <tr>
-    <td><iframe width="240" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
-    <td><iframe width="240" src="https://www.youtube.com/embed/BBt1rseDcy0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
-    <td><iframe width="240" src="https://www.youtube.com/embed/RF8ypHyiKrY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
+    <td><iframe width="30%" height="30%" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
+    <td><iframe width="30%" height="30%" src="https://www.youtube.com/embed/BBt1rseDcy0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
+    <td><iframe width="30%" height="30%" src="https://www.youtube.com/embed/RF8ypHyiKrY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
   </tr>
   <tr>
     <td><strong>Model Optimizer Concept</strong>. <br>Duration: 3:56</td>
