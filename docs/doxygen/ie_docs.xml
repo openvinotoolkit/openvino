@@ -194,6 +194,7 @@ limitations under the License.
                 <tab type="user" title="Minimum-1" url="@ref openvino_docs_ops_arithmetic_Minimum_1"/>
                 <tab type="user" title="Mish-4" url="@ref openvino_docs_ops_activation_Mish_4"/>
                 <tab type="user" title="Mod-1" url="@ref openvino_docs_ops_arithmetic_Mod_1"/>
+                <tab type="user" title="MulticlassNonMaxSuppression-8" url="@ref openvino_docs_ops_sort_MulticlassNonMaxSuppression_8"/>
                 <tab type="user" title="Multiply-1" url="@ref openvino_docs_ops_arithmetic_Multiply_1"/>
                 <tab type="user" title="Negative-1" url="@ref openvino_docs_ops_arithmetic_Negative_1"/>
                 <tab type="user" title="NonMaxSuppression-1" url="@ref openvino_docs_ops_sort_NonMaxSuppression_1"/>
