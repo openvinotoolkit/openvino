@@ -38,12 +38,11 @@ class TestExtractImagePatchesPartialInfer(unittest.TestCase):
         ([1, 64, 64, 3], [1, 3, 3, 1], [1, 1, 1, 1], [1, 1, 1, 1], 'valid', 'NHWC', [1, 62, 62, 27]),
         ([1, 64, 64, 3], [1, 3, 3, 1], [1, 1, 1, 1], [1, 1, 1, 1], 'same_upper', 'NHWC', [1, 64, 64, 27]),
 
-        ([1, 3, 10, 10], [1, 1, 3, 3], [1, 1, 5, 5], [1, 1, 1, 1], 'valid', 'NCHW', [1, 27, 2, 2]),
-        ([1, 3, 10, 10], [1, 1, 4, 4], [1, 1, 8, 8], [1, 1, 1, 1], 'valid', 'NCHW', [1, 48, 1, 1]),
+        ([1, 3, 10, 10], [1, 1, 3, 3], [1, 1, 5, 5], [1, 1, 1, 1], 'valid', 'NCHW', [1, 3, 2, 30]),
+        ([1, 3, 10, 10], [1, 1, 4, 4], [1, 1, 8, 8], [1, 1, 1, 1], 'valid', 'NCHW', [1, 3, 1, 40]),
 
-        ([1, 3, 10, 10], [1, 1, 4, 4], [1, 1, 9, 9], [1, 1, 1, 1], 'same_upper', 'NCHW', [1, 48, 2, 2]),
-        ([1, 3, 10, 10], [1, 1, 4, 4], [1, 1, 9, 9], [1, 1, 1, 1], 'same_lower', 'NCHW', [1, 48, 2, 2]),
-
+        ([1, 3, 10, 10], [1, 1, 4, 4], [1, 1, 9, 9], [1, 1, 1, 1], 'same_upper', 'NCHW', [1, 3, 2, 40]),
+        ([1, 3, 10, 10], [1, 1, 4, 4], [1, 1, 9, 9], [1, 1, 1, 1], 'same_lower', 'NCHW', [1, 3, 2, 40]),
     ])
 
 
@@ -54,7 +53,7 @@ class TestExtractImagePatchesPartialInfer(unittest.TestCase):
             update_attributes={
                 'input': {'shape': int64_array(input_shape)},
                 'input_data': {'shape': int64_array(input_shape)},
-                'EIP': {'spatial_dims': int64_array([1, 2]) if layout == 'NHWC' else int64_array([2, 3]),
+                'EIP': {'spatial_dims': int64_array([1, 2]),
                         'sizes': int64_array(sizes), 'strides': int64_array(strides), 'rates': int64_array(rates),
                         'auto_pad': auto_pad},
             }
