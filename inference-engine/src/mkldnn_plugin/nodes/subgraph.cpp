@@ -27,7 +27,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNPlugin::MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common) ?
         dnnl::impl::cpu::x64::avx512_common : dnnl::impl::cpu::x64::avx2;
@@ -50,12 +50,12 @@ MKLDNNPlugin::MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph:
 }
 
 // It's actually initSupportedDescriptors by meaning
-void MKLDNNPlugin::MKLDNNSnippetNode::getSupportedDescriptors() {
+void MKLDNNSnippetNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 }
 
-void MKLDNNPlugin::MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
+void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -95,8 +95,9 @@ void MKLDNNPlugin::MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
                 return 0;
             return (a + b - 1) / b;
         };
+
         auto createMemoryDesc = [lt, div_up, this](MKLDNNEdgePtr edge, Precision prc, size_t offset) -> TensorDesc {
-            if (lt == ChannelsFirst) {
+            if (lt == ChannelsFirst && edge->getDims().ndims() != 1) {
                 auto dims = edge->getDims().ToSizeVector();
                 auto ndims = dims.size();
                 std::vector<size_t> order(ndims);
@@ -112,7 +113,7 @@ void MKLDNNPlugin::MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
                 }
 
                 return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
-            } else if (lt == Blocked && edge->getDims()[1] != 1) {
+            } else if (lt == Blocked && edge->getDims()[1] != 1 && edge->getDims().ndims() != 1) {
                 size_t blockSize = host_isa == dnnl::impl::cpu::x64::avx512_common ? 16 : 8;
 
                 std::vector<size_t> blocks = edge->getDims().ToSizeVector();
@@ -163,13 +164,19 @@ void MKLDNNPlugin::MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(getChildEdgeAt(0)->getDims().ndims(), 1, 2, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         isChannelsFirstApplicable = isChannelsFirstApplicable && dnnl::impl::utils::one_of(getParentEdgeAt(i)->getDims().ndims(), 1, 2, 4, 5);
-        isChannelsFirstApplicable = isChannelsFirstApplicable && getChildEdgeAt(0)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
+
+        for (size_t j = 0; j < getChildEdges().size(); j++) {
+            isChannelsFirstApplicable = isChannelsFirstApplicable && getChildEdgeAt(j)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
+        }
     }
 
-    bool isBlockedApplicable = dnnl::impl::utils::one_of(getChildEdgeAt(0)->getDims().ndims(), 4, 5);
+    bool isBlockedApplicable = dnnl::impl::utils::one_of(getChildEdgeAt(0)->getDims().ndims(),  4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         isBlockedApplicable = isBlockedApplicable && dnnl::impl::utils::one_of(getParentEdgeAt(i)->getDims().ndims(), 4, 5);
-        isBlockedApplicable = isBlockedApplicable && getChildEdgeAt(0)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
+
+        for (size_t j = 0; j < getChildEdges().size(); j++) {
+            isBlockedApplicable = isBlockedApplicable && getChildEdgeAt(j)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
+        }
     }
 
     if (isChannelsFirstApplicable)
@@ -179,20 +186,24 @@ void MKLDNNPlugin::MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
 }
 
-void MKLDNNPlugin::MKLDNNSnippetNode::createPrimitive() {
+void MKLDNNSnippetNode::selectOptimalPrimitiveDescriptor() {
+    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+}
+
+void MKLDNNSnippetNode::createPrimitive() {
     // schedule definition part
     // it defines offsets, strides and sizes for snippet kernel scheduling
     define_shedule();
 
     // code generation part
     // it might be worth to generate explicitly for scheduler work amount for now,
-    // but in future some intserface should be defined in order to cpmmunicate schedule for a kernel
+    // but in future some interface should be defined in order to communicate schedule for a kernel
     // or generate schedule for a kernel..
     // Here kernel is generated for most warying dimension by default.
     generate();
 }
 
-void MKLDNNPlugin::MKLDNNSnippetNode::execute(dnnl::stream strm) {
+void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     if (schedule.ptr == nullptr) {
         interpret();
     } else {
@@ -203,7 +214,7 @@ void MKLDNNPlugin::MKLDNNSnippetNode::execute(dnnl::stream strm) {
             inputs[i] = reinterpret_cast<const uint8_t*>(mem.GetData()) + start_offset_in[i];
         }
 
-        std::vector<const uint8_t *> outputs(outDims.size(), nullptr);
+        std::vector<uint8_t *> outputs(outDims.size(), nullptr);
         for (size_t i = 0; i < outDims.size(); i++) {
             auto & child = getChildEdgesAtPort(i);
             auto &mem = child[0]->getMemory();
@@ -225,7 +236,7 @@ void MKLDNNPlugin::MKLDNNSnippetNode::execute(dnnl::stream strm) {
     }
 }
 
-bool MKLDNNPlugin::MKLDNNSnippetNode::created() const {
+bool MKLDNNSnippetNode::created() const {
     return getType() == Subgraph;
 }
 
@@ -276,7 +287,7 @@ static auto collapseLastDims(std::vector<size_t>& dims, int dimsToCollapse) -> v
     }
 }
 
-void MKLDNNPlugin::MKLDNNSnippetNode::define_shedule() {
+void MKLDNNSnippetNode::define_shedule() {
     auto config = getSelectedPrimitiveDescriptor()->getConfig();
 
     auto initDims = [this, config](size_t tensorRank) {
@@ -294,10 +305,10 @@ void MKLDNNPlugin::MKLDNNSnippetNode::define_shedule() {
             size_t rank = config.inConfs[i].desc.getBlockingDesc().getBlockDims().size();
 
             // WA to normalize blocked and planar layouts
-            // not actual thought, since [§] doesn't support mixed layuts yet
+            // not actual thought, since [§] doesn't support mixed layouts yet
             auto inOrder = config.inConfs[i].desc.getBlockingDesc().getOrder();
             size_t startOff = outOrder.size() != config.outConfs[0].desc.getDims().size() &&
-                              outOrder[outOrder.size() - 1] != inOrder[inOrder.size() - 1] ? 1 : 0;
+                              outOrder.back() != inOrder.back() ? 1 : 0;
             std::cout << "startOff = " << startOff << std::endl;
             for (int j = 0; j < rank; j++) {
                 dims_in[i][dims_in[i].size() - 1 - j - startOff]
@@ -305,7 +316,7 @@ void MKLDNNPlugin::MKLDNNSnippetNode::define_shedule() {
             }
         }
 
-        // assume all ouput sizes are even
+        // assume all output sizes are even
         size_t outputNum = config.outConfs.size();//getChildEdges().size();
         std::cout << "outputNum = " << outputNum << std::endl;
 
@@ -359,14 +370,14 @@ void MKLDNNPlugin::MKLDNNSnippetNode::define_shedule() {
             offset_out_calc(offsets_out[i], dims_out[i]);
 
             for (int j = 0; j < tensorRank; j++) {
-                offsets_out[i][j] *= config.outConfs[0].desc.getPrecision().size();
+                offsets_out[i][j] *= config.outConfs[i].desc.getPrecision().size();
             }
         }
 
         start_offset_out.resize(outputNum);
         for (int i = 0; i < outputNum; i++) {
-            start_offset_out[i] = getChildEdgeAt(0)->getMemory().GetDescriptor().data.offset0 *
-                            MKLDNNExtensionUtils::sizeOfDataType(dnnl::memory::data_type(getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type));
+            start_offset_out[i] = getChildEdgeAt(i)->getMemory().GetDescriptor().data.offset0 *
+                            MKLDNNExtensionUtils::sizeOfDataType(dnnl::memory::data_type(getChildEdgeAt(i)->getMemory().GetDescriptor().data.data_type));
         }
     };
 
@@ -374,7 +385,7 @@ void MKLDNNPlugin::MKLDNNSnippetNode::define_shedule() {
         int collapsedDims = 0;
         size_t minimalConcurrency = parallel_get_max_threads();
         size_t minimalJitWorkAmount = 256;
-        size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx][dims_out.size() - 1];
+        size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx].back();
         bool hasDifferentDims = false;
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
@@ -383,7 +394,7 @@ void MKLDNNPlugin::MKLDNNSnippetNode::define_shedule() {
                 break;
 
             for (int j = 1; j < dims_in.size(); j++) {
-                if (dims_in[j][dims_in[j].size() - 1] != dims_in[0][dims_in[0].size() - 1]) {
+                if (dims_in[j].back() != dims_in[0].back()) {
                     hasDifferentDims = true;
                 }
             }
@@ -429,26 +440,26 @@ void MKLDNNPlugin::MKLDNNSnippetNode::define_shedule() {
     // store to use as an execution domain
     max_rank_out_desc_idx = argmax_rank(config.outConfs);
 
-    // initialize by maximum output dimention. Dimetions of outputs should be broadcastable
+    // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
     tensorRank = std::max(static_cast<size_t>(rank6D), config.outConfs[max_rank_out_desc_idx].desc.getBlockingDesc().getBlockDims().size());
 
     initDims(tensorRank);
 
     fullWorkAmount = 1;
-    for (int i = 0; i < dims_out.size(); i++) {
+    for (int i = 0; i < dims_out[max_rank_out_desc_idx].size(); i++) {
         fullWorkAmount *= dims_out[max_rank_out_desc_idx][i];
     }
 
     isDynBatchEnabled = config.dynBatchSupport;
 
     int collapsedDims = find_dims_to_collapse();
-    batchDimIdx = tensorRank - config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() + collapsedDims;
-    schedulerWorkAmount = fullWorkAmount / dims_out[max_rank_out_desc_idx][dims_out.size() - 1];
+    batchDimIdx = tensorRank - config.outConfs[max_rank_out_desc_idx].desc.getBlockingDesc().getBlockDims().size() + collapsedDims;
+    schedulerWorkAmount = fullWorkAmount / dims_out[max_rank_out_desc_idx].back();
 
     initOffsets(tensorRank);
 }
 
-void MKLDNNPlugin::MKLDNNSnippetNode::generate() {
+void MKLDNNSnippetNode::generate() {
     std::vector<MKLDNNEdgePtr> input_first_row;
     for (size_t i = 0; i < inDims.size(); i++) {
         auto edges = getParentEdgesAtPort(i);
@@ -463,15 +474,14 @@ void MKLDNNPlugin::MKLDNNSnippetNode::generate() {
                 [](const MKLDNNEdgePtr& edge) -> ngraph::snippets::op::Subgraph::BlockedShape {
         ngraph::Shape shape(edge->getDesc().getBlockingDesc().getBlockDims());
         ngraph::AxisVector blocking(edge->getDesc().getBlockingDesc().getOrder());
-        ngraph::element::Type precision = (edge->getDesc().getPrecision() == Precision::FP32) ? ngraph::element::Type(ngraph::element::f32)
-            : ngraph::element::Type(ngraph::element::undefined);
+        ngraph::element::Type precision = (edge->getDesc().getPrecision() == Precision::FP32) ? ngraph::element::f32 : ngraph::element::undefined;
         return std::make_tuple(shape, blocking, precision);
     });
 
     std::vector<MKLDNNEdgePtr> output_first_row;
     for (size_t i = 0; i < outDims.size(); i++) {
         auto edges = getChildEdgesAtPort(i);
-        // Can it go with difference shape or presision to different edges? I assume no.
+        // Can it go with difference shape or precision to different edges? I assume no.
         output_first_row.push_back(edges[0]);
     }
 
@@ -487,7 +497,7 @@ void MKLDNNPlugin::MKLDNNSnippetNode::generate() {
     schedule = snippet->generate(output_shapes, input_shapes);
 }
 
-void MKLDNNPlugin::MKLDNNSnippetNode::shedule_6d(const std::vector<const uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const {
+void MKLDNNSnippetNode::shedule_6d(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const {
     size_t n = inputs.size();
     size_t m = outputs.size();
     auto dom = dims_out[max_rank_out_desc_idx];
@@ -516,6 +526,33 @@ void MKLDNNPlugin::MKLDNNSnippetNode::shedule_6d(const std::vector<const uint8_t
             schedule.get_callable<kernel>()(ca.raw(), sch.raw());
         });
 
+  /*  for (size_t d0 = 0; d0 < dom[0]; d0++) {
+        for (size_t d1 = 0; d1 < dom[1]; d1++) {
+            for (size_t d2 = 0; d2 < dom[2]; d2++) {
+                for (size_t d3 = 0; d3 < dom[3]; d3++) {
+                    for (size_t d4 = 0; d4 < dom[4]; d4++) {
+                        CallArgs ca;
+                        // Benchmarking for overhead
+                        for (size_t i = 0; i < n; i++) {
+                            ca.push(inputs[i] + d0*offsets_in[i][0] + d1*offsets_in[i][1] + d2*offsets_in[i][2] +
+                            d3*offsets_in[i][3] + d4*offsets_in[i][4]);
+                        }
+                        for (size_t i = 0; i < m; i++) {
+                            ca.push(outputs[i] + d0*offsets_out[i][0] + d1*offsets_out[i][1] + d2*offsets_out[i][2] +
+                            d3*offsets_out[i][3] + d4*offsets_out[i][4]);
+                        }
+
+                        // SchduleInfo/ Domen = d0 .. dN
+                        CallArgs sch;
+                        sch.push(static_cast<size_t>(*dom.rbegin()));
+
+                        schedule.get_callable<kernel>()(ca.raw(), sch.raw());
+                    }
+                }
+            }
+        }
+    }*/
+
     // CallArgs ca; // fill
     // parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
     //     [&](size_t d0, size_t d1, size_t d2, size_t d3, size_t d4) {
@@ -537,7 +574,7 @@ void MKLDNNPlugin::MKLDNNSnippetNode::shedule_6d(const std::vector<const uint8_t
     //     });
 }
 
-void MKLDNNPlugin::MKLDNNSnippetNode::shedule_nt(const std::vector<const uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const {
+void MKLDNNSnippetNode::shedule_nt(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const {
     size_t inputNum = inputs.size();
     size_t outputsNum = outputs.size();
 
@@ -596,7 +633,7 @@ void MKLDNNPlugin::MKLDNNSnippetNode::shedule_nt(const std::vector<const uint8_t
     });
 }
 
-bool MKLDNNPlugin::MKLDNNSnippetNode::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
+bool MKLDNNSnippetNode::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
     union param {
         float* ptr;
         size_t len;
@@ -789,7 +826,7 @@ bool MKLDNNPlugin::MKLDNNSnippetNode::evaluate(const ngraph::HostTensorVector& o
     return true;
 }
 
-void MKLDNNPlugin::MKLDNNSnippetNode::interpret() const {
+void MKLDNNSnippetNode::interpret() const {
     ngraph::HostTensorVector inputs;
     auto params = snippet->get_body()->get_parameters();
     for (size_t i = 0; i < inDims.size(); i++) {
