@@ -111,7 +111,7 @@ Boxes of `background_class` are skipped and thus eliminated.
 
 *   **1**: `selected_outputs` - tensor of type *T_THRESHOLDS* and shape `[number of selected boxes, 6]` containing the selected boxes with score and class as tuples `[class_id, box_score, xmin, ymin, xmax, ymax]`.
 
-*   **2**: `selected_indices` - tensor of type *T_IND* and shape `[number of selected boxes, 1]` the selected indices in the flattened `boxes`, which are absolute values cross batches. Therefore possible valid values are in the range [0, num_batches * num_boxes -1].
+*   **2**: `selected_indices` - tensor of type *T_IND* and shape `[number of selected boxes, 1]` the selected indices in the flattened `boxes`, which are absolute values cross batches. Therefore possible valid values are in the range `[0, num_batches * num_boxes - 1]`.
 
 *   **3**: `selected_num` - 1D tensor of type *T_IND* and shape `[num_batches, ]` representing the number of selected boxes for each batch element.
 
