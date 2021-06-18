@@ -14,7 +14,8 @@ class ExtractImagePatchesExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         padding_mapping = {
-            b'SAME': 'same_upper', b'VALID': 'valid'
+            b'SAME': 'same_upper',
+            b'VALID': 'valid'
         }
 
         attrs = {
