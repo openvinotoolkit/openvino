@@ -160,8 +160,8 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void exportNetwork(const string & model_file) except +
         object getMetric(const string & metric_name) except +
         object getConfig(const string & metric_name) except +
-        int wait(int num_requests, int64_t timeout)
-        int getIdleRequestId()
+        int wait(int num_requests, int64_t timeout) nogil
+        int getIdleRequestId() nogil
         shared_ptr[CExecutableNetwork] getPluginLink() except +
 
     cdef cppclass IENetwork:
@@ -195,7 +195,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void setBlob(const string &blob_name, const CBlob.Ptr &blob_ptr, CPreProcessInfo& info) except +
         const CPreProcessInfo& getPreProcess(const string& blob_name) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
-        void infer() except +
+        void infer() nogil except +
         void infer_async() except +
         int wait(int64_t timeout) except +
         void setBatch(int size) except +
