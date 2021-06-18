@@ -300,6 +300,7 @@ TensorFlow*-specific parameters:
                         with TensorFlow* custom operations implementation.
   --disable_nhwc_to_nchw
                         Disables default translation from NHWC to NCHW
+  --force_nhwc_to_nchw  Forces conversion of the model from NHWC to NCHW (opposite to --disable_nhwc_to_nchw)
 ```
 
 > **NOTE:** Models produces with TensorFlow\* usually have not fully defined shapes (contain `-1` in some dimensions). It is necessary to pass explicit shape for the input using command line parameter `--input_shape` or `-b` to override just batch dimension. If the shape is fully defined, then there is no need to specify either `-b` or `--input_shape` options.

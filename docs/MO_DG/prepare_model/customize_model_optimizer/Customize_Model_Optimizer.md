@@ -287,8 +287,9 @@ There are several middle transformations responsible for changing model layout f
 are triggered by default for TensorFlow\* models only because it is the only framework with Convolution operations in
 NHWC layout.
 
-> **NOTE**: If a TensorFlow\* model is in NCHW layout, you should specify the `--disable_nhwc_to_nchw` command line
-> parameter to disable these transformations.
+> **NOTE**: Before 2022.1 release if a TensorFlow\* model is in NCHW layout, you should specify the 
+> `--disable_nhwc_to_nchw` command line parameter to disable these transformations. Starting from 2022.1 release the
+> Model Optimizer automatically detect if the layout conversion is needed or not.
 
 The layout change is a complex problem and detailed explanation of it is out of this document scope. A very brief
 explanation of this process is provided below:

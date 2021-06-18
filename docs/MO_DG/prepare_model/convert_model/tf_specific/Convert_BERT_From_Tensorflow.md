@@ -35,7 +35,6 @@ To generate the BERT Intermediate Representation (IR) of the model, run the Mode
 python3 ./mo_tf.py
 --input_meta_graph uncased_L-12_H-768_A-12/bert_model.ckpt.meta \
 --output bert/pooler/dense/Tanh                                 \
---disable_nhwc_to_nchw                                          \
 --input Placeholder{i32},Placeholder_1{i32},Placeholder_2{i32}
 ```
 
@@ -110,10 +109,9 @@ python3 run_classifier.py \
 
 Run the Model Optimizer with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
 ```sh
-python3 ./mo_tf.py
---input_model inference_graph.pb 
---input "IteratorGetNext:0{i32}[1 128],IteratorGetNext:1{i32}[1 128],IteratorGetNext:4{i32}[1 128]" 
---disable_nhwc_to_nchw 
+python3 ./mo_tf.py \
+    --input_model inference_graph.pb  \
+    --input "IteratorGetNext:0{i32}[1 128],IteratorGetNext:1{i32}[1 128],IteratorGetNext:4{i32}[1 128]" 
 ```
 For other applicable parameters, refer to [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md).
 
