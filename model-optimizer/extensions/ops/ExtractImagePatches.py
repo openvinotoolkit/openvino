@@ -3,7 +3,6 @@
 
 import numpy as np
 
-from mo.front.common.layout import shape_for_layout, get_batch_dim, get_features_dim
 from mo.front.common.partial_infer.utils import int64_array, tf_window_op_pad_infer
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -45,9 +44,8 @@ class ExtractImagePatches(Op):
 
         # the operation ExtractImagePatches should always calculate output shape in NHWC layout (because
         # in OV the operation produces the tensor in NHWC layout)
-        layout = 'NHWC'
-        N = input_shape[get_batch_dim(layout, 4)]
-        C = input_shape[get_features_dim(layout, 4)]
+        N = input_shape[0]
+        C = input_shape[3]
 
         size_spatial = int64_array(node.sizes)[node.spatial_dims]
 
@@ -62,10 +60,5 @@ class ExtractImagePatches(Op):
                                                                          node.auto_pad,
                                                                          False)
 
-        out_shape = shape_for_layout(layout,
-                                     batch=N,
-                                     features=C * np.prod(size_spatial),
-                                     height=output_spatial_shape[0],
-                                     width=output_spatial_shape[1])
-
+        out_shape = [N, output_spatial_shape[0], output_spatial_shape[1], C * np.prod(size_spatial)]
         node.out_port(0).data.set_shape(int64_array(out_shape))
