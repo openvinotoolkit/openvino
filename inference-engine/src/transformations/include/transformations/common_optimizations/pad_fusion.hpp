@@ -95,7 +95,7 @@ public:
  * Pad -> GroupConvolutionBackpropData to GroupConvolutionBackpropData, under following conditions
  * - pad mode is op::PadMode::CONSTANT
  * - pad value is 0
- * - pads in GroupConvolutionBackpropData are greater than pads in Pad node
+ * - pads in GroupConvolutionBackpropData are greater than pads in Pad node!
  */
 class ngraph::pass::PadFusionGroupConvolutionBackpropData: public ngraph::pass::MatcherPass {
 public:
