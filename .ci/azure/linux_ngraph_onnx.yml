@@ -17,6 +17,8 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)/_w
     MODELS_DIR: /mount/cinfsshare/onnxtestdata
     TMP_DIR: /mnt/tmp
+    ONNX_MODEL_ZOO_SHA: "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
+
 
   steps:
   - script: |
@@ -61,7 +63,7 @@ jobs:
   - script: |
       ##wget -O "$(TMP_DIR)/msft.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
       ##unzip "$(TMP_DIR)/msft.zip" -d "$(MODELS_DIR)/msft"
-      #unzip "/mnt/onnxtestdata/models/20191107.zip" -d "$(MODELS_DIR)/msft"
+      #unzip "/mnt/onnxtestdata/models/20191107.zip" -d "$(MODELS_DIR)/msft" -s "$(ONNX_MODEL_ZOO_SHA)"
       #mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_sorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_0
       #mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_unsorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_1
     displayName: 'Get MSFT models'
