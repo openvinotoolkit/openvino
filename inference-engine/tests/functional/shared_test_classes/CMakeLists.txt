@@ -9,6 +9,10 @@ list(APPEND EXPORT_DEPENDENCIES
         ngraphFunctions
         )
 
+set(DEPENDENCIES
+    template_extension
+)
+
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -26,6 +30,7 @@ addIeTarget(
                 ${EXPORT_DEPENDENCIES}
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
+        DEPENDENCIES ${DEPENDENCIES}
 )
 
 # CVS-55373

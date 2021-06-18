@@ -20,8 +20,6 @@ OpImplementation::OpImplementation(const std::shared_ptr<ngraph::Node>& node) {
             IE_THROW() << "Cannot create implementation for operation with incorrect number of inputs or outputs!";
         if (castedNode->get_input_partial_shape(0).is_dynamic() || castedNode->get_output_partial_shape(0).is_dynamic())
             IE_THROW() << "Cannot create implementation for op with dynamic shapes!";
-        if (castedNode->get_input_shape(0).size() != 4 || castedNode->get_output_shape(0).size() != 4)
-            IE_THROW() << "Operation supports only 4d tensors for input and output.";
         if (castedNode->get_input_element_type(0) != ngraph::element::f32 || castedNode->get_output_element_type(0) != ngraph::element::f32)
             IE_THROW() << "Operation supports only FP32 tensors.";
         add = castedNode->getAddAttr();
@@ -41,7 +39,9 @@ InferenceEngine::StatusCode OpImplementation::getSupportedConfigurations(std::ve
         config.dynBatchSupport = false;
         InferenceEngine::DataConfig inData;
         InferenceEngine::DataConfig outData;
-        InferenceEngine::SizeVector order = {0, 1, 2, 3};
+        InferenceEngine::SizeVector order(inShape.size());
+        for (size_t i = 0; i < order.size(); i++)
+            order[i] = i;
         // Allow any offset before data
         size_t offset((std::numeric_limits<size_t>::max)());
         if (planar) {
@@ -91,10 +91,6 @@ InferenceEngine::StatusCode OpImplementation::init(InferenceEngine::LayerConfig&
     try {
         if (config.inConfs.size() != 1 || config.outConfs.size() != 1) {
             IE_THROW() << "Operation cannot be initialized with incorrect number of inputs/outputs!";
-        }
-
-        if (config.inConfs[0].desc.getDims().size() != 4 || config.outConfs[0].desc.getDims().size() != 4) {
-            IE_THROW() << "Operation can be initialized only with 4d input/output tensors!";
         }
 
         if (config.outConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32 ||
