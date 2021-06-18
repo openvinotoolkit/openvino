@@ -21,11 +21,11 @@ namespace ngraph
             class NGRAPH_API TopK : public Op
             {
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 using SortType = TopKSortType;
                 using Mode = TopKMode;
 
-                static constexpr NodeTypeInfo type_info{"TopK", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a TopK operation
                 TopK() = default;
                 /// \brief Constructs a TopK operation with two outputs: values and indices.
@@ -60,7 +60,6 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                virtual size_t get_version() const override { return 1; }
                 /// \brief Returns axis value after normalization
                 /// \note If input rank required to normalization is dynamic, the exception is
                 /// thrown

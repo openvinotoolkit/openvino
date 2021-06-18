@@ -9,7 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "gemm/gemm_kernel_selector.h"
 #include "gemm/gemm_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -17,6 +17,10 @@ namespace gpu {
 struct gemm_gpu : typed_primitive_gpu_impl<gemm> {
     using parent = typed_primitive_gpu_impl<gemm>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<gemm_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const gemm_node& arg) {
