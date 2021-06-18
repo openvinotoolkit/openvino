@@ -1236,7 +1236,7 @@ IE_CPU.multiclass_nms_identical_boxes
 IE_CPU.multiclass_nms_limit_output_size
 IE_CPU.multiclass_nms_single_box
 IE_CPU.multiclass_nms_by_IOU
-IE_CPU.multiclass_nms_by_IO
+IE_CPU.multiclass_nms_by_IOU_and_scores
 
 # Unsupported dynamic op
 IE_CPU.matrix_nms_output_type_i64
