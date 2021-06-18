@@ -101,7 +101,7 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
         }
 
         for (auto prc : exec_precisions_priority) {
-            if (std::find(supported_precision_intersection.begin(), supported_precision_intersection.end(), prc) != supported_precision_intersection.end()) {
+            if (supported_precision_intersection.find(prc) != supported_precision_intersection.end()) {
                 exec_prc = prc;
                 break;
             }
@@ -481,8 +481,12 @@ private:
     inline void compute_eltwise_op() {
         std::vector<size_t> in_idxs;
         std::vector<size_t> aux_idxs;
+
+        in_idxs.reserve(eltwise_emitter->get_inputs_num());
         for (int i = 0; i < eltwise_emitter->get_inputs_num(); i++)
             in_idxs.push_back(get_vmm_reg(i).getIdx());
+
+        aux_idxs.reserve(eltwise_emitter->aux_vecs_count());
         for (int i = 0; i < eltwise_emitter->aux_vecs_count(); i++)
             aux_idxs.push_back(get_aux_vmm(i).getIdx());
 
@@ -500,9 +504,13 @@ private:
             if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
                 std::vector<size_t> in_idxs;
                 std::vector<size_t> aux_idxs;
+
+                in_idxs.reserve(post_op_emitters[eltwise_post_op_idx]->get_inputs_num() + 1);
                 in_idxs.push_back(vmm_dst.getIdx());
                 for (int j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++)
                     in_idxs.push_back(get_vmm_reg(input_idx++).getIdx());
+
+                aux_idxs.reserve(post_op_emitters[eltwise_post_op_idx]->aux_vecs_count());
                 for (int j = 0; j < post_op_emitters[eltwise_post_op_idx]->aux_vecs_count(); j++)
                     aux_idxs.push_back(get_aux_vmm(j).getIdx());
 
@@ -1081,7 +1089,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     };
 
     auto initDesc = [&] (LayoutType lt) -> PrimitiveDescInfo {
-        auto createMemoryDesc = [lt](MKLDNNEdgePtr edge, Precision prc, size_t offset) -> TensorDesc {
+        auto createMemoryDesc = [lt](const MKLDNNEdgePtr& edge, Precision prc, size_t offset) -> TensorDesc {
             if (lt == ChannelsFirst && edge->getDims().ndims() != 1) {
                 auto dims = edge->getDims().ToSizeVector();
                 auto ndims = dims.size();

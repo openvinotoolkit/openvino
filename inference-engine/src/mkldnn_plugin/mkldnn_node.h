@@ -34,7 +34,7 @@ namespace MKLDNNPlugin {
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
-Type TypeFromName(const std::string type);
+Type TypeFromName(const std::string& type);
 
 static std::string NameFromType(Type type) {
     switch (type) {
@@ -502,11 +502,11 @@ public:
         this->typeStr = typeStr;
     }
 
-    virtual size_t descInputNumbers(MKLDNNDescriptor desc) {
+    virtual size_t descInputNumbers(const MKLDNNDescriptor& desc) {
         return desc.inputNumbers();
     }
 
-    virtual size_t descOutputNumbers(MKLDNNDescriptor desc) {
+    virtual size_t descOutputNumbers(const MKLDNNDescriptor& desc) {
         return desc.outputNumbers();
     }
 
@@ -674,7 +674,7 @@ protected:
     virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims& dims) const;
     int batchToProcess();
 
-    InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
+    InferenceEngine::Layout getWeightsLayoutByDims(const InferenceEngine::SizeVector& dims, bool isGrouped);
 
     /**
      * @brief Auxiliary function to get node input precisions
@@ -756,18 +756,41 @@ private:
 
     template <class PD, class D, typename FPD>
     typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
-    createPd(MKLDNNDescriptor desc) {
+    createPd(const MKLDNNDescriptor& desc) {
         std::shared_ptr<D> selected_desc_ptr = desc;
         std::shared_ptr<FPD> backward_prim_desc_ptr = desc;
         return PD(*selected_desc_ptr, engine, *backward_prim_desc_ptr);
     }
 
+    // template <class PD, class D, typename FPD>
+    // typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
+    // createPd(const std::shared_ptr<D>& desc) {
+    //     std::shared_ptr<D> selected_desc_ptr = desc;
+    //     std::shared_ptr<FPD> backward_prim_desc_ptr = desc;
+    //     return PD(*selected_desc_ptr, engine, *backward_prim_desc_ptr);
+    // }
+
+    // template <class PD, class D, typename FPD>
+    // typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
+    // createPd(MKLDNNDescriptor desc) {
+    //     std::shared_ptr<D> selected_desc_ptr = desc;
+    //     std::shared_ptr<FPD> backward_prim_desc_ptr = desc;
+    //     return PD(*selected_desc_ptr, engine, *backward_prim_desc_ptr);
+    // }
+
     template <class PD, class D, typename FPD>
     typename std::enable_if<std::is_same<FPD, bool>::value, PD>::type
-    createPd(MKLDNNDescriptor desc) {
+    createPd(const MKLDNNDescriptor& desc) {
         std::shared_ptr<D> selected_desc_ptr = desc;
         return PD(*selected_desc_ptr, engine);
     }
+
+    // template <class PD, class D, typename FPD>
+    // typename std::enable_if<std::is_same<FPD, bool>::value, PD>::type
+    // createPd(const D& desc) {
+    //     std::shared_ptr<D> selected_desc_ptr = desc;
+    //     return PD(*selected_desc_ptr, engine);
+    // }
 
     void prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::primitive_desc_iterator& itpd);
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };

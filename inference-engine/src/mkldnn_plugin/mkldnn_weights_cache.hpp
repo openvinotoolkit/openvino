@@ -56,7 +56,7 @@ class MKLDNNWeightsSharing {
     struct MKLDNNMemoryInfo {
         typedef std::shared_ptr<MKLDNNMemoryInfo> Ptr;
 
-        MKLDNNMemoryInfo(MKLDNNMemoryPtr memoryPtr, bool valid)
+        MKLDNNMemoryInfo(const MKLDNNMemoryPtr& memoryPtr, bool valid)
             : sharedMemory(memoryPtr)
             , valid(valid)
         {}

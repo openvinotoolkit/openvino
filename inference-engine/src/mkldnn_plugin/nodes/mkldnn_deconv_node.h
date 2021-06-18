@@ -27,7 +27,7 @@ public:
         return false;
     }
 
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+    size_t descInputNumbers(const MKLDNNDescriptor& desc) override {
         return static_cast<size_t>(getParentEdges().size());
     }
 

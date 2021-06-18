@@ -7,6 +7,7 @@
 #include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
+#include <utility>
 #include <vector>
 #include <memory>
 #include <caseless.hpp>
@@ -48,7 +49,7 @@ struct jit_uni_eltwise_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(jep), eltwiseNode(node) {}
+    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(std::move(jep)), eltwiseNode(node) {}
     virtual ~jit_uni_eltwise_kernel() {}
 
     virtual void create_ker() = 0;

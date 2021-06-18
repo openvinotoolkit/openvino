@@ -19,7 +19,7 @@ public:
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+    size_t descInputNumbers(const MKLDNNDescriptor& desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
     MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;

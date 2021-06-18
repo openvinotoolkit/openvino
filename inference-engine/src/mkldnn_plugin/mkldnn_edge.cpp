@@ -6,6 +6,7 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_utils.h"
 #include <blob_factory.hpp>
+#include <utility>
 #include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
@@ -55,7 +56,7 @@ bool MKLDNNEdge::isDropped() const {
 void MKLDNNEdge::drop() {
     auto _drop_from = [&] (std::vector<MKLDNNEdgeWeakPtr> &list) {
         auto myself = std::find_if(list.begin(), list.end(),
-                [&] (MKLDNNEdgeWeakPtr edge) { return edge.lock().get() == this; });
+                [&] (const MKLDNNEdgeWeakPtr& edge) { return edge.lock().get() == this; });
 
         if (myself != list.end())
             list.erase(myself);
@@ -77,7 +78,7 @@ bool MKLDNNEdge::needReorder() {
     int inNumber = getInputNum();
     bool in_place = inPlace();
     bool childCanChangeMem = childSPD->getConfig().outConfs.empty();
-    for (const auto conf : childSPD->getConfig().outConfs) {
+    for (const auto& conf : childSPD->getConfig().outConfs) {
         if (conf.inPlace == outNumber && outNumber >= 0)
             childCanChangeMem = true;
     }
@@ -89,7 +90,7 @@ bool MKLDNNEdge::needReorder() {
             int outNumber = edge->getOutputNum();
             if (childSPD->getConfig().outConfs.empty())
                 count++;
-            for (const auto conf : childSPD->getConfig().outConfs) {
+            for (const auto& conf : childSPD->getConfig().outConfs) {
                 if (conf.inPlace == outNumber)
                     count++;
             }
@@ -120,7 +121,7 @@ bool MKLDNNEdge::needReorder() {
 void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
     if (status != Status::NeedAllocation)
         return;
-    memoryPtr = ptr;
+    memoryPtr = std::move(ptr);
     status = Status::Allocated;
 }
 
@@ -188,7 +189,7 @@ std::string MKLDNNEdge::name() {
     auto tensorDescToStr = [](InferenceEngine::TensorDesc const & desc) {
         std::string name = desc.getPrecision().name();
 
-        auto blockingDesc = desc.getBlockingDesc();
+        const auto& blockingDesc = desc.getBlockingDesc();
         auto dims = blockingDesc.getBlockDims();
 
         if (!dims.empty()) {
@@ -209,7 +210,7 @@ std::string MKLDNNEdge::name() {
             + "<->" + childPtr->getName() + std::to_string(child_port);
 }
 
-void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
+void MKLDNNEdge::externalAllocate(const MKLDNNWeightsSharing::Ptr& weightsCache) {
     if (status != Status::NeedAllocation)
         return;
 
@@ -672,7 +673,7 @@ void MKLDNNEdge::init() {
     if (port < 0)
         return;
     auto edges_at_same_port = getParent()->getChildEdgesAtPort(static_cast<size_t>(port));
-    for (auto edge : edges_at_same_port) {
+    for (const auto& edge : edges_at_same_port) {
         if (edge->getStatus() != Status::NeedAllocation && edge->getStatus() != Status::Uninitialized) {
             if (edge->getSharedEdge() != edgePtr)
                 IE_THROW() << "Unsupported behavior. Cannot mark edge "
@@ -732,7 +733,7 @@ MKLDNNEdgePtr MKLDNNEdge::getBaseEdge(int look) {
 
     auto edges_for_same_port = getParent()->getChildEdgesAtPort(inputNum);
     if (!(look & LOOK_NO_RECURRENT)) {
-        for (auto edge : edges_for_same_port) {
+        for (const auto& edge : edges_for_same_port) {
             if (edge.get() != this) {
                 auto base = edge->getBaseEdge(LOOK_BOTH | LOOK_NO_RECURRENT);
                 if (base != edge && base != edges_for_same_port[0]) return base;

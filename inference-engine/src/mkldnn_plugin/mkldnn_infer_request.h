@@ -18,8 +18,8 @@ class MKLDNNAsyncInferRequest;
 class MKLDNNInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     typedef std::shared_ptr<MKLDNNInferRequest> Ptr;
-    explicit MKLDNNInferRequest(InferenceEngine::InputsDataMap      networkInputs,
-                                InferenceEngine::OutputsDataMap     networkOutputs,
+    explicit MKLDNNInferRequest(const InferenceEngine::InputsDataMap&      networkInputs,
+                                const InferenceEngine::OutputsDataMap&     networkOutputs,
                                 std::shared_ptr<MKLDNNExecNetwork>  execNetwork);
 
     ~MKLDNNInferRequest();

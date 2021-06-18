@@ -37,7 +37,7 @@ public:
     const mkldnn::memory& getWeights() const;
     const mkldnn::memory& getBias() const;
 
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+    size_t descInputNumbers(const MKLDNNDescriptor& desc) override {
         return static_cast<size_t>(isWinograd() ? 1 : getOriginalInputsNumber());
     }
 
@@ -70,7 +70,7 @@ private:
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
     bool isNspcAvailable() const;
-    InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
+    InferenceEngine::Blob::Ptr createInternalBlob(const InferenceEngine::SizeVector& dims, size_t edgeNum, bool isGrouped = false);
 
     bool withBiases;
     bool withSum;

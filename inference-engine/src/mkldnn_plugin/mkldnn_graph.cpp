@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <string>
 #include <map>
+#include <utility>
 #include <vector>
 #include <tuple>
 #include <unordered_set>
@@ -103,7 +104,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
     // Will be stored as fake output separately.
     std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;
 
-    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node> childOp, const std::shared_ptr<ngraph::Node> parentOp,
+    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node>& childOp, const std::shared_ptr<ngraph::Node>& parentOp,
                                   const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
             if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
@@ -114,7 +115,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
         return -1;
     };
 
-    for (const auto op : subgraph->get_ordered_ops()) {
+    for (const auto& op : subgraph->get_ordered_ops()) {
         const MKLDNNNodePtr node {MKLDNNNode::factory().create(op, getEngine(), extMgr, weightsCache)};
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
@@ -163,7 +164,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
     }
 
     // Add stub output node for unused data
-    for (auto unusedOutput : unusedOutputs) {
+    for (const auto& unusedOutput : unusedOutputs) {
         auto portInfo = op2node[unusedOutput.get_node_shared_ptr()];
         auto parentNode = portInfo.first;
         auto port = portInfo.second;
@@ -200,7 +201,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     std::map<std::shared_ptr<ngraph::Node>, MKLDNNNodePtr> op2node;
     std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
 
-    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node> childOp, const std::shared_ptr<ngraph::Node> parentOp,
+    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node>& childOp, const std::shared_ptr<ngraph::Node>& parentOp,
                                   const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
             if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
@@ -265,7 +266,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     }
 
     // Add stub output node for unused outputs
-    for (auto unusedOutput : unusedOutputs) {
+    for (const auto& unusedOutput : unusedOutputs) {
         auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
         const auto port = unusedOutput.get_index();
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
@@ -458,7 +459,7 @@ void MKLDNNGraph::InitEdges() {
     size_t numberOfEdges = graphEdges.size();
 
     std::unordered_set<std::string> uniqueLayerNames;
-    for (auto node : graphNodes) {
+    for (const auto& node : graphNodes) {
         uniqueLayerNames.insert(node->getName());
     }
 
@@ -510,7 +511,7 @@ void MKLDNNGraph::InitEdges() {
     }
 }
 
-static inline bool isConstOutput(MKLDNNEdgePtr edge) {
+static inline bool isConstOutput(const MKLDNNEdgePtr& edge) {
     return edge->getParent()->isConstant() && !edge->getChild()->isConstant();
 }
 
@@ -833,7 +834,7 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
     if (infer_count != -1) infer_count++;
 }
 
-void MKLDNNGraph::VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes) {
+void MKLDNNGraph::VisitNode(const MKLDNNNodePtr& node, std::vector<MKLDNNNodePtr>& sortedNodes) {
     if (node->temporary) {
         return;
     }
@@ -1127,15 +1128,15 @@ void MKLDNNGraph::RemoveDroppedEdges() {
     }
 }
 
-MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const TensorDesc& inDesc, const TensorDesc& outDesc,
-                                bool isOptimized, InferenceEngine::Blob::Ptr scales) {
+MKLDNNNodePtr MKLDNNGraph::InsertReorder(const MKLDNNEdgePtr& edge, const std::string& layerName, const TensorDesc& inDesc, const TensorDesc& outDesc,
+                                         bool isOptimized, InferenceEngine::Blob::Ptr scales) {
     MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layerName, getEngine(), weightsCache));
     auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());
     if (reorderPtr == nullptr) {
         IE_THROW() << "MKLDNNGraph::InsertReorder: Cannot cast to MKLDNNReorderNode";
     }
     reorderPtr->setDescs(inDesc, outDesc);
-    reorderPtr->_scales = scales;
+    reorderPtr->_scales = std::move(scales);
     reorderPtr->setOptimized(isOptimized);
 
     InsertNode(edge, newReorder, true);
@@ -1150,7 +1151,7 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
     return newReorder;
 }
 
-bool MKLDNNGraph::InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node, bool initNode) {
+bool MKLDNNGraph::InsertNode(const MKLDNNEdgePtr& edge, const MKLDNNNodePtr& node, bool initNode) {
     auto oIndex = edge->getOutputNum();
     auto iIndex = edge->getInputNum();
     if (iIndex < 0 || oIndex < 0)
@@ -1163,7 +1164,8 @@ bool MKLDNNGraph::InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node, bool initNo
     return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex, initNode);
 }
 
-bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort, bool initNode) {
+bool MKLDNNGraph::InsertNode(const MKLDNNNodePtr& parent, const MKLDNNNodePtr& child, const MKLDNNNodePtr& node,
+                             int parentPort, int childPort, bool initNode) {
     MKLDNNEdgePtr beforeNode(new MKLDNNEdge(parent, node, parentPort, 0));
     MKLDNNEdgePtr afterNode(new MKLDNNEdge(node, child, 0, childPort));
 

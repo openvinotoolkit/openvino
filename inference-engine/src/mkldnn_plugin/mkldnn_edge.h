@@ -45,7 +45,7 @@ public:
 
     void init();
     void allocate(const void* mem_ptr = nullptr);
-    void externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache);
+    void externalAllocate(const MKLDNNWeightsSharing::Ptr& weightsCache);
     void reuse(MKLDNNMemoryPtr ptr);
     void validate();
     void drop();

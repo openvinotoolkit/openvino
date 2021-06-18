@@ -226,7 +226,7 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
     }
 
     auto ops = function->get_ordered_ops();
-    for (auto op : ops) {
+    for (const auto& op : ops) {
         auto type = TypeFromName(op->get_type_name());
         if (type == Tile) {
             const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);

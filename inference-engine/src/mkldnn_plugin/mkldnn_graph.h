@@ -123,7 +123,7 @@ public:
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
-    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc,
+    MKLDNNNodePtr InsertReorder(const MKLDNNEdgePtr& edge, const std::string& layerName, const InferenceEngine::TensorDesc& inDesc,
             const InferenceEngine::TensorDesc& outDesc, bool isOptimized = false, InferenceEngine::Blob::Ptr scales = nullptr);
 
     /**
@@ -139,7 +139,7 @@ public:
      * parameter that determines whether the node needs to be initialized
      * @return true in case of success, false otherwise.
      */
-    bool InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node, bool initNode = false);
+    bool InsertNode(const MKLDNNEdgePtr& edge, const MKLDNNNodePtr& node, bool initNode = false);
 
     /**
      * @brief Insert MKLDNNNode between two specified nodes.
@@ -159,7 +159,8 @@ public:
      * parameter that determines whether the node needs to be initialized
      * @return true in case of success, false otherwise.
      */
-    bool InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort, bool initNode = false);
+    bool InsertNode(const MKLDNNNodePtr& parent, const MKLDNNNodePtr& child, const MKLDNNNodePtr& node,
+                    int parentPort, int childPort, bool initNode = false);
 
     InferenceEngine::CNNNetwork dump() const;
 
@@ -172,7 +173,7 @@ public:
     }
 
 protected:
-    void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
+    void VisitNode(const MKLDNNNodePtr& node, std::vector<MKLDNNNodePtr>& sortedNodes);
 
     void ForgetGraphData() {
         status = NotReady;

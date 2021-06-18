@@ -205,7 +205,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Tan", Math},
 };
 
-Type TypeFromName(const std::string type) {
+Type TypeFromName(const std::string& type) {
     auto itType = type_to_name_tbl.find(type);
     if (type_to_name_tbl.end() != itType) {
         return itType->second;
@@ -483,7 +483,7 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
 
     std::string str_type;
 
-    auto add_type = [&](std::string t) {
+    auto add_type = [&](const std::string& t) {
         if (!str_type.empty() && t.c_str()[0] != '_')
             str_type += "_";
         str_type += t;
@@ -882,11 +882,11 @@ void MKLDNNNode::addOriginalLayer(const std::string& layerName) {
 void MKLDNNNode::cleanup() {
     internalBlobs.clear();
 
-    for (auto it : fusedWith) {
+    for (const auto& it : fusedWith) {
         it->cleanup();
     }
 
-    for (auto it : mergedWith) {
+    for (const auto& it : mergedWith) {
         it->cleanup();
     }
 }
@@ -1145,7 +1145,7 @@ void MKLDNNNode::setDynamicBatchLim(int lim) {
 }
 
 bool MKLDNNNode::isFusedWith(Type fusedNodeType) const {
-    for (auto fusedNode : fusedWith) {
+    for (const auto& fusedNode : fusedWith) {
         if (fusedNode->type == fusedNodeType)
             return true;
     }
@@ -1153,7 +1153,7 @@ bool MKLDNNNode::isFusedWith(Type fusedNodeType) const {
     return false;
 }
 
-Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
+Layout MKLDNNNode::getWeightsLayoutByDims(const SizeVector& dims, bool isGrouped) {
     switch (dims.size()) {
         case 0:
             return Layout::SCALAR;

@@ -871,7 +871,7 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
     return true;
 }
 
-InferenceEngine::Blob::Ptr MKLDNNConvolutionNode::createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped) {
+InferenceEngine::Blob::Ptr MKLDNNConvolutionNode::createInternalBlob(const InferenceEngine::SizeVector& dims, size_t edgeNum, bool isGrouped) {
     const auto constNode = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgeAt(edgeNum)->getParent());
     if (!constNode) {
         IE_THROW() << "Cannot cast " << edgeNum << " input to Input node for " << getName() << ".";

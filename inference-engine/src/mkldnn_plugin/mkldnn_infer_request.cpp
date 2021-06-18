@@ -23,11 +23,11 @@
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 
-MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
-                                                     InferenceEngine::OutputsDataMap    networkOutputs,
+MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(const InferenceEngine::InputsDataMap&     networkInputs,
+                                                     const InferenceEngine::OutputsDataMap&    networkOutputs,
                                                      MKLDNNExecNetwork::Ptr             execNetwork_)
 : IInferRequestInternal(networkInputs, networkOutputs)
-, execNetwork(execNetwork_) {
+, execNetwork(std::move(execNetwork_)) {
     auto id = (execNetwork->_numRequests)++;
     profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
 
