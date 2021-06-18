@@ -1239,16 +1239,21 @@ IE_CPU.multiclass_nms_by_IOU
 IE_CPU.multiclass_nms_by_IOU_and_scores
 
 # Unsupported dynamic op
-IE_CPU.matrix_nms_center_point_box_format
+IE_CPU.matrix_nms_output_type_i64
+IE_CPU.matrix_nms_output_type_i32
+IE_CPU.matrix_nms_gaussian
+IE_CPU.matrix_nms_two_batches_two_classes
+IE_CPU.matrix_nms_two_batches_two_classes_by_score_cross_batch
+IE_CPU.matrix_nms_two_batches_two_classes_by_classid_cross_batch
+IE_CPU.matrix_nms_by_keep_top_k
+IE_CPU.matrix_nms_background
 IE_CPU.matrix_nms_flipped_coordinates
+IE_CPU.matrix_nms_post_threshold
 IE_CPU.matrix_nms_identical_boxes
-IE_CPU.matrix_nms_limit_output_size
+IE_CPU.matrix_nms_nms_top_k
 IE_CPU.matrix_nms_single_box
-IE_CPU.matrix_nms_by_IOU
-IE_CPU.matrix_nms_by_IOU_and_scores
-IE_CPU.matrix_nms_two_batches
-IE_CPU.matrix_nms_two_classes
-IE_CPU.matrix_nms_by_IOU_and_scores_without_constants
+IE_CPU.matrix_nms_no_output
+
 
 # Unsupported dynamic op
 IE_CPU.range_v4_trunc_inputs
