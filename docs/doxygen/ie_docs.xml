@@ -189,6 +189,7 @@ limitations under the License.
                 <tab type="user" title="MVN-1" url="@ref openvino_docs_ops_normalization_MVN_1"/>
                 <tab type="user" title="MVN-6" url="@ref openvino_docs_ops_normalization_MVN_6"/>
                 <tab type="user" title="MatMul-1" url="@ref openvino_docs_ops_matrix_MatMul_1"/>
+                <tab type="user" title="MatrixNonMaxSuppression-8" url="@ref openvino_docs_ops_sort_MatrixNonMaxSuppression_8"/>
                 <tab type="user" title="MaxPool-1" url="@ref openvino_docs_ops_pooling_MaxPool_1"/>
                 <tab type="user" title="Maximum-1" url="@ref openvino_docs_ops_arithmetic_Maximum_1"/>
                 <tab type="user" title="Minimum-1" url="@ref openvino_docs_ops_arithmetic_Minimum_1"/>
