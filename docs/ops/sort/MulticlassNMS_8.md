@@ -113,9 +113,9 @@ Boxes of `background_class` are skipped and thus eliminated.
 
 *   **2**: `selected_indices` - tensor of type *T_IND* and shape `[number of selected boxes, 1]` the selected indices in the flattened `boxes`, which are absolute values cross batches. Therefore possible valid values are in the range `[0, num_batches * num_boxes - 1]`.
 
-*   **3**: `selected_num` - 1D tensor of type *T_IND* and shape `[num_batches, ]` representing the number of selected boxes for each batch element.
+*   **3**: `selected_num` - 1D tensor of type *T_IND* and shape `[num_batches]` representing the number of selected boxes for each batch element.
 
-When there is no box selected, `selected_num` is filled with 0. `selected_outputs` is an empty tensor of shape (0, 6), and `selected_indices` is an empty tensor of shape (0, 1).
+When there is no box selected, `selected_num` is filled with 0. `selected_outputs` is an empty tensor of shape `[0, 6]`, and `selected_indices` is an empty tensor of shape `[0, 1]`.
 
 **Types**
 
@@ -151,6 +151,7 @@ When there is no box selected, `selected_num` is filled with 0. `selected_output
         </port>
         <port id="6" precision="I64">
             <dim>-1</dim>
+            <dim>1</dim>
         </port>
         <port id="7" precision="I64">
             <dim>3</dim>
