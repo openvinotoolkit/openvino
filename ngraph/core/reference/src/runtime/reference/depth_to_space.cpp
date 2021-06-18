@@ -29,7 +29,7 @@ namespace ngraph
                 // - squeeze data from respective dimensions
                 //
                 // First and third step doesn't change input data in memory, it change only the
-                // shape of input data. From data layout perspective firs and third step may be
+                // shape of input. From data layout perspective firs and third step may be
                 // omit. The second operation have to be perform on input data with dispared
                 // shape (x').
                 const size_t n_dim = in_shape.at(0);
@@ -41,9 +41,13 @@ namespace ngraph
                 NGRAPH_CHECK(block_size > 0 && c_dim % c_dim_divider == 0,
                              "DepthToSpace: The input data's 'channels' axis size: ",
                              c_dim,
-                             " must be a equivalent to ",
-                             "'block_size'^'spatial_dims': ",
-                             c_dim_divider);
+                             " must be evenly divided by 'block_size'^'spatial_dims': (",
+                             c_dim_divider,
+                             ", ",
+                             block_size,
+                             "^",
+                             spatial_dims,
+                             ")");
 
                 const size_t c_flat = c_dim / c_dim_divider;
 
