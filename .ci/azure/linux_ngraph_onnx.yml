@@ -77,6 +77,6 @@ jobs:
     displayName: 'Create swap'
 
   - script: |
-      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
+      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image /bin/bash -c "tox && tox -e zoo_models"
     displayName: 'Docker run'
 
