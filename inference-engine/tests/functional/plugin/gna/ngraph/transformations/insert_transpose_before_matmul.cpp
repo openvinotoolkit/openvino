@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ using ResultPtr = std::shared_ptr<ngraph::opset7::Result>;
 using TransposePtr = std::shared_ptr<ngraph::opset7::Transpose>;
 
 
-TEST(TransformationTests, InsertTransposeBeforeMatmulTestOtherDimension) {
+TEST(TransformationTests, InsertTransposeBeforeMatmulTestShapeNotSupported) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
     const ngraph::Shape data_shape{2, 9};
 
@@ -65,7 +65,7 @@ TEST(TransformationTests, InsertTransposeBeforeMatmulTestOtherDimension) {
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, InsertTransposeBeforeMatmulTestReshapeInOutNotEq) {
+TEST(TransformationTests, InsertTransposeBeforeMatmulTestReshapeInOutEq) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
     const ngraph::Shape data_shape{9, 2};
 
