@@ -23,16 +23,31 @@ using LayersRestrictionsParamsTuple = typename std::tuple<
 
 namespace LayerTestsDefinitions {
 
-struct FullyConnectedBatchSize {
-    static const char* getName() { return "FullyConnectedBatchSize"; }
+struct FullyConnectedBatchSizeMoreThan8 {
+    static const char* getName() { return "FullyConnectedBatchSizeMoreThan8"; }
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {{85, 79}});
-        auto fullyConnected = ngraph::builder::makeFullyConnected(params[0], ngPrc, 1);
+        std::vector<size_t> inputShape = {9, 1};
+        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        auto weights = CommonTestUtils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
+        auto fullyConnected = ngraph::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, weights);
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fullyConnected) };
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
-    static const char* getMatch() { return "and batch size(85) not supported"; }
+    static const char* getMatch() { return "and batch size(9) not supported"; }
+};
+
+struct FullyConnectedBatchSizeLessThanOrEqual8 {
+    static const char* getName() { return "FullyConnectedBatchSizeLessThanOrEqual8"; }
+    static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::Precision& netPrecision) {
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        std::vector<size_t> inputShape = {7, 1};
+        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        auto weights = CommonTestUtils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
+        auto fullyConnected = ngraph::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, weights);
+        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fullyConnected) };
+        return std::make_shared<ngraph::Function>(results, params, getName());
+    }
 };
 
 template<typename T>
@@ -63,9 +78,10 @@ protected:
     }
 };
 
-using LayersRestrictionsFullyConnectedBatchSize = LayersRestrictions<FullyConnectedBatchSize>;
+using LayersRestrictionsFullyConnectedBatchSizeMoreThan8 = LayersRestrictions<FullyConnectedBatchSizeMoreThan8>;
+using LayersRestrictionsFullyConnectedBatchSizeLessThanOrEqual8 = LayersRestrictions<FullyConnectedBatchSizeLessThanOrEqual8>;
 
-TEST_P(LayersRestrictionsFullyConnectedBatchSize, CompareWithRefImpl) {
+TEST_P(LayersRestrictionsFullyConnectedBatchSizeMoreThan8, CompareWithRefImpl) {
     std::string what;
     try {
         LoadNetwork();
@@ -75,15 +91,26 @@ TEST_P(LayersRestrictionsFullyConnectedBatchSize, CompareWithRefImpl) {
     EXPECT_TRUE(what.find(getMatch()) != std::string::npos);
 }
 
+TEST_P(LayersRestrictionsFullyConnectedBatchSizeLessThanOrEqual8, CompareWithRefImpl) {
+    Run();
+};
+
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 const std::vector<std::map<std::string, std::string>> configs = {
     { {"GNA_DEVICE_MODE", "GNA_SW_EXACT"} }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_layers_restrictions, LayersRestrictionsFullyConnectedBatchSize,
+INSTANTIATE_TEST_CASE_P(smoke_layers_restrictions, LayersRestrictionsFullyConnectedBatchSizeMoreThan8,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(configs),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-                        LayersRestrictionsFullyConnectedBatchSize::getTestCaseName);
+                        LayersRestrictionsFullyConnectedBatchSizeMoreThan8::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_layers_restrictions, LayersRestrictionsFullyConnectedBatchSizeLessThanOrEqual8,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(configs),
+                                ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                        LayersRestrictionsFullyConnectedBatchSizeLessThanOrEqual8::getTestCaseName);
 } // namespace LayerTestsDefinitions

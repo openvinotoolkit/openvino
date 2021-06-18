@@ -100,18 +100,20 @@ class LayerInfo {
         auto& dims = layer->outData[0]->getDims();
         auto layout = layer->outData[0]->getLayout();
         switch (dims.size()) {
+        case 1:
+            return 1;
         case 2:
             if (layout == InferenceEngine::Layout::NC) {
                 return dims[0];
             } else if (layout == InferenceEngine::Layout::CN) {
                 return dims[1];
             } else {
-                THROW_GNA_EXCEPTION << "batch size is not define";
+                THROW_GNA_EXCEPTION << "batch size is not define in layer '" << layer->name << "'";
             }
         case 4:
             return dims[0];
         default:
-            THROW_GNA_EXCEPTION << "batch size is not define";
+            THROW_GNA_EXCEPTION << "batch size is not define in layer '" << layer->name << "'";
         }
     }
     bool isActivation() const noexcept {
