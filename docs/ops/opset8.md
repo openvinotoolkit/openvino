@@ -63,7 +63,7 @@ declared in `namespace opset8`.
 * [FakeQuantize](quantization/FakeQuantize_1.md)
 * [Floor](arithmetic/Floor_1.md)
 * [FloorMod](arithmetic/FloorMod_1.md)
-* [Gather](movement/Gather_7.md)
+* [Gather](movement/Gather_8.md)
 * [GatherElements](movement/GatherElements_6.md)
 * [GatherND_5](movement/GatherND_5.md)
 * [GatherTree](movement/GatherTree_1.md)
