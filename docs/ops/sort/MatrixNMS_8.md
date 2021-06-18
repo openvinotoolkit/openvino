@@ -8,7 +8,7 @@
 
 **Detailed description**: *MatrixNonMaxSuppression* is a multi-phase operation.
 
-1. First this operation selects candidate bounding boxes with scores higher than `score_threshold`.
+1. Selects candidate bounding boxes with scores higher than `score_threshold`.
 2. For each class, selects at most `nms_top_k` candidate boxes.
 3. Decays scores of the candidate boxes according to the Matrix NMS algorithm [Wang et al](https://arxiv.org/abs/2003.10152.pdf). This algorithm is applied independently to each class and each batch element. Boxes of `background_class` are skipped and thus eliminated during the process.
 4. Selects boxes with the decayed scores higher than `post_threshold`, and selects at most `keep_top_k` scoring candidate boxes per batch element.
