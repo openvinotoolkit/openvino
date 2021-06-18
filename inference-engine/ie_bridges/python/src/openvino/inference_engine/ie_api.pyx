@@ -1028,16 +1028,26 @@ cdef class ExecutableNetwork:
     #                  If not specified, `timeout` value is set to -1 by default.
     #  @return Request status code: OK or RESULT_NOT_READY
     cpdef wait(self, num_requests=None, timeout=None):
+        cdef int status_code 
+        cdef int64_t c_timeout
+        cdef int c_num_requests
         if num_requests is None:
             num_requests = len(self.requests)
+        c_num_requests = <int> num_requests
         if timeout is None:
             timeout = WaitMode.RESULT_READY
-        return deref(self.impl).wait(<int> num_requests, <int64_t> timeout)
+        c_timeout = <int64_t> timeout
+        with nogil:
+            status_code = deref(self.impl).wait(c_num_requests, c_timeout)
+        return status_code
 
     ## Get idle request ID
     #  @return Request index
     cpdef get_idle_request_id(self):
-        return deref(self.impl).getIdleRequestId()
+        cdef int request_id
+        with nogil:
+            request_id = deref(self.impl).getIdleRequestId()
+        return request_id
 
 ctypedef extern void (*cb_type)(void*, int) with gil
 
@@ -1183,8 +1193,8 @@ cdef class InferRequest:
     cpdef infer(self, inputs=None):
         if inputs is not None:
             self._fill_inputs(inputs)
-
-        deref(self.impl).infer()
+        with nogil:
+            deref(self.impl).infer()
 
     ## Starts asynchronous inference of the infer request and fill outputs array
     #
