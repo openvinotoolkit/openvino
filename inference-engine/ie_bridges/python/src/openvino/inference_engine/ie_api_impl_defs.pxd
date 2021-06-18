@@ -172,9 +172,9 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         size_t batch_size
         string precision
         map[string, vector[size_t]] inputs
-        const map[string, InputInfo.Ptr] getInputsInfo() except +
+        const map[string, InputInfo.Ptr] getInputsInfo() nogil except +
         const map[string, DataPtr] getInputs() except +
-        map[string, DataPtr] getOutputs() except +
+        map[string, DataPtr] getOutputs() nogil except +
         void addOutput(string &, size_t) except +
         void setAffinity(map[string, string] & types_affinity_map, map[string, string] & layers_affinity_map) except +
         void setBatch(size_t size) except +
@@ -197,7 +197,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() nogil except +
         void infer_async() except +
-        int wait(int64_t timeout) except +
+        int wait(int64_t timeout) nogil except +
         void setBatch(int size) except +
         void setCyCallback(void (*)(void*, int), void *) except +
         vector[CVariableState] queryState() except +

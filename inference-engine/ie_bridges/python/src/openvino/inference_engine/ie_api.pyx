@@ -910,15 +910,19 @@ cdef class ExecutableNetwork:
     ## A tuple of `InferRequest` instances
     @property
     def requests(self):
+        cdef size_t c_infer_requests_size
+        with nogil:
+            c_infer_requests_size = deref(self.impl).infer_requests.size()
         if len(self._infer_requests) == 0:
-            for i in range(deref(self.impl).infer_requests.size()):
+            for i in range(c_infer_requests_size):
                 infer_request = InferRequest()
-                infer_request.impl = &(deref(self.impl).infer_requests[i])
+                with nogil:
+                    infer_request.impl = &(deref(self.impl).infer_requests[i])
                 infer_request._inputs_list = list(self.input_info.keys())
                 infer_request._outputs_list = list(self.outputs.keys())
                 self._infer_requests.append(infer_request)
 
-        if len(self._infer_requests) != deref(self.impl).infer_requests.size():
+        if len(self._infer_requests) != c_infer_requests_size:
             raise Exception("Mismatch of infer requests number!")
 
         return self._infer_requests
@@ -1035,7 +1039,7 @@ cdef class ExecutableNetwork:
     #                  If not specified, `timeout` value is set to -1 by default.
     #  @return Request status code: OK or RESULT_NOT_READY
     cpdef wait(self, num_requests=None, timeout=None):
-        cdef int status_code 
+        cdef int status_code
         cdef int64_t c_timeout
         cdef int c_num_requests
         if num_requests is None:
@@ -1236,9 +1240,14 @@ cdef class InferRequest:
     #
     #  Usage example: See `async_infer()` method of the the `InferRequest` class.
     cpdef wait(self, timeout=None):
+        cdef int status
+        cdef int64_t c_timeout
+        cdef int c_wait_mode
         if self._py_callback_used:
             # check request status to avoid blocking for idle requests
-            status = deref(self.impl).wait(WaitMode.STATUS_ONLY)
+            c_wait_mode = WaitMode.STATUS_ONLY
+            with nogil:
+                status = deref(self.impl).wait(c_wait_mode)
             if status != StatusCode.RESULT_NOT_READY:
                 return status
             if not self._py_callback_called.is_set():
@@ -1253,8 +1262,10 @@ cdef class InferRequest:
 
         if timeout is None:
             timeout = WaitMode.RESULT_READY
-
-        return deref(self.impl).wait(<int64_t> timeout)
+        c_timeout = <int64_t> timeout
+        with nogil:
+            status = deref(self.impl).wait(c_timeout)
+        return status
 
     ## Queries performance measures per layer to get feedback of what is the most time consuming layer.
     #
@@ -1429,7 +1440,9 @@ cdef class IENetwork:
     ## A dictionary that maps input layer names to InputInfoPtr objects.
     @property
     def input_info(self):
-        cdef map[string, C.InputInfo.Ptr] c_inputs = self.impl.getInputsInfo()
+        cdef map[string, C.InputInfo.Ptr] c_inputs
+        with nogil:
+            c_inputs = self.impl.getInputsInfo()
         inputs = {}
         cdef InputInfoPtr input_info_ptr
         for input in c_inputs:
@@ -1462,7 +1475,9 @@ cdef class IENetwork:
     ## A dictionary that maps output layer names to DataPtr objects
     @property
     def outputs(self):
-        cdef map[string, C.DataPtr] c_outputs = self.impl.getOutputs()
+        cdef map[string, C.DataPtr] c_outputs
+        with nogil:
+            c_outputs = self.impl.getOutputs()
         outputs = {}
         cdef DataPtr data_ptr
         for output in c_outputs:
