@@ -4,7 +4,7 @@
 
 **Category**: *Sorting and maximization*
 
-**Short description**: *MatrixNonMaxSuppression* performs matrix non maximum suppression (NMS) of the boxes with predicted scores.
+**Short description**: *MatrixNonMaxSuppression* performs matrix non-maximum suppression (NMS) of the boxes with predicted scores.
 
 **Detailed description**: *MatrixNonMaxSuppression* is a multi-phase operation.
 
