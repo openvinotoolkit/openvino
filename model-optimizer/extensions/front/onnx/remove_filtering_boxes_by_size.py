@@ -27,7 +27,7 @@ class RemoveFilteringBoxesBySize(FrontReplacementSubgraph):
     that produces a tensor with values from 0 to input.shape[0] to select all boxes. The output of this sub-graph will
     be used in the NonMaxSuppression so the implementation of this layer should ignore boxes with negative sizes.
     """
-    enabled = True
+    enabled = False
     force_clean_up = True
 
     def run_after(self):

@@ -29,7 +29,7 @@ class HSigmoidWithClamp(FrontReplacementSubgraph):
     The transformation looks for the pattern with ReLU6 (Clamp) defining the HSigmoid function:
     HSigmoid(x) = Relu6(x + 3.0) / 6.0.
     """
-    enabled = True
+    enabled = False
 
     def run_after(self):
         return [AttributedClampNormalizer]
@@ -66,7 +66,7 @@ class HSigmoidWithMinMax(FrontReplacementSubgraph):
     The transformation looks for the pattern with Min/Max defining the HSigmoid function:
     HSigmoid(x) = Min(Max(x + 3.0, 0), 6.0) / 6.0.
     """
-    enabled = True
+    enabled = False
 
     def run_after(self):
         return [AttributedClampNormalizer]
@@ -105,7 +105,7 @@ class HSigmoidWithReluDiv(FrontReplacementSubgraph):
     The transformation looks for the pattern with Relu/Div defining the HSigmoid function:
     HSigmoid(x) = Min(Relu(x + 3.0), 6.0) / 6.0
     """
-    enabled = True
+    enabled = False
 
     def run_after(self):
         return [AttributedClampNormalizer]
@@ -144,7 +144,7 @@ class HSigmoidWithReluMul(FrontReplacementSubgraph):
     The transformation looks for the pattern with Relu/Mul defining the HSigmoid function:
     HSigmoid(x) = Min(Relu(x + 3.0), 6.0) * 1.0/6.0
     """
-    enabled = True
+    enabled = False
 
     def run_after(self):
         return [AttributedClampNormalizer]

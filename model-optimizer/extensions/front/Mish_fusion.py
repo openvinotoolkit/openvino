@@ -12,7 +12,7 @@ class MishFusion(FrontReplacementSubgraph):
     """
     The transformation looks for the pattern with Softplus defining the Mish function: Mish(x) = x * tanh(SoftPlus(x)).
     """
-    enabled = True
+    enabled = False
 
     def run_after(self):
         return [SoftplusFusion]

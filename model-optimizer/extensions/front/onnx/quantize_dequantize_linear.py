@@ -18,7 +18,7 @@ class QuantizeDequantizeLinear(FrontReplacementSubgraph):
     Fuses QuantizeLinear and DequantizeLinear nodes into single FakeQuantize.
     Covers cases when the values for zero point and scale are same in both QuantizeLinear and DequantizeLinear.
     """
-    enabled = True
+    enabled = False
 
     def pattern(self):
         return dict(

@@ -14,7 +14,7 @@ class SoftplusFusion(FrontReplacementSubgraph):
     """
     The transformation looks for the pattern for the Softplus function: Softplus(x) = ln(1 + e^x)
     """
-    enabled = True
+    enabled = False
 
     def pattern(self):
         return dict(

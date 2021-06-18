@@ -12,7 +12,7 @@ class RemoveUselessPad(MiddleReplacementPattern):
     """
     The Pad layer is removed if all padding values are equal to 0 (Constant values).
     """
-    enabled = True
+    enabled = False
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(op='Pad'):

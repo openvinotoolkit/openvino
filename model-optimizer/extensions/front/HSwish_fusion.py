@@ -37,7 +37,7 @@ class HSwishWithClamp(FrontReplacementSubgraph):
     The transformation looks for the pattern with ReLU6 (Clamp) defining the HSwish function:
     HSwish(x) = x * Relu6(x + 3) / 6.0.
     """
-    enabled = True
+    enabled = False
 
     def run_after(self):
         return [AttributedClampNormalizer]
@@ -77,7 +77,7 @@ class HSwishWithMinMax(FrontReplacementSubgraph):
     The transformation looks for the pattern with Min/Max defining the HSwish function:
     HSwish(x) = x * Min(Max(x + 3, 0), 6) / 6.0.
     """
-    enabled = True
+    enabled = False
 
     def run_after(self):
         return [AttributedClampNormalizer]
