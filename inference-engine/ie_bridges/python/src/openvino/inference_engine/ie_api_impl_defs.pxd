@@ -196,7 +196,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         const CPreProcessInfo& getPreProcess(const string& blob_name) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() nogil except +
-        void infer_async() except +
+        void infer_async() nogil except +
         int wait(int64_t timeout) nogil except +
         void setBatch(int size) except +
         void setCyCallback(void (*)(void*, int), void *) except +
