@@ -11,7 +11,7 @@
 1. First this operation selects candidate bounding boxes with scores higher than `score_threshold`.
 2. Second for each class at most `nms_top_k` candidate boxes are selected.
 3. Score of the candidate boxes are then decayed according to Matrix NMS algorithm [Wang et al](https://arxiv.org/abs/2003.10152.pdf). This algorithm is applied independently to each class and each batch element. Boxes of `background_class` are skipped and thus eliminated during the process.
-4. Finanly, the operation selects boxes with the decayed scores higher than `post_threshold`, and selects at most `keep_top_k` scoring candidate boxes per batch element.
+4. Selects boxes with the decayed scores higher than `post_threshold`, and selects at most `keep_top_k` scoring candidate boxes per batch element.
 
 The Matrix NMS algorithm is described below:
 1.  Sort descending the candidate boxes by score, and compute `n*n` pairwise IOU (IntersectionOverUnion) matrix `X` for the top `n` boxes. Suppose `n` is the number of candidate boxes.
