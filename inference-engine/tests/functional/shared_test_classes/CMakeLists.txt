@@ -4,6 +4,10 @@
 
 set(TARGET_NAME sharedTestClasses)
 
+set(DEPENDENCIES
+    template_extension
+)
+
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -21,6 +25,7 @@ addIeTarget(
                 pugixml::static
                 funcTestUtils
                 ngraphFunctions
+        DEPENDENCIES ${DEPENDENCIES}
 )
 
 # CVS-55373
