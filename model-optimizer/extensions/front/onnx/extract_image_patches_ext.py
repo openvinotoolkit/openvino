@@ -8,6 +8,9 @@ from mo.front.onnx.extractors.utils import onnx_attr
 
 
 class ExtractImagePatchesExtractor(FrontExtractorOp):
+    """
+    This ONNX operation is not in the official opset, but exists in some models and has input/output in NHWC layout.
+    """
     op = 'ExtractImagePatches'
     enabled = True
 
