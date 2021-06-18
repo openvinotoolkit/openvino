@@ -14,6 +14,7 @@
 
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/ie_helpers.hpp>
+#include <vpu/graph_transformer.hpp>
 
 #include "myriad_executor.h"
 #include "myriad_config.h"
