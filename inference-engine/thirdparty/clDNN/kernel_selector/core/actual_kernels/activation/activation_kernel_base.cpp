@@ -69,7 +69,6 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
     KernelData kd = KernelData::Default<activation_params>(params);
 
     activation_params& newParams = *static_cast<activation_params*>(kd.params.get());
-    const std::string kernel_id = GetEntryPoint(kernelName, params.layerID, options);
 
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);

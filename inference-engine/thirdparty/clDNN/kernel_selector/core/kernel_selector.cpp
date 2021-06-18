@@ -70,6 +70,8 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
     KernelsData kernelsData;
     std::string kernelName;
 
+    options.uniqueID = params.uniqueID;
+
     auto allImplementations = GetAllImplementations(params, options, kType);
 
     for (const auto& implementation : allImplementations) {
@@ -117,6 +119,8 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                                                         KernelType kType) const {
     KernelsData kernelsData;
     std::string kernelName;
+
+    options.uniqueID = params.uniqueID;
 
     auto allImplementations = GetAllImplementations(params, options, kType);
     auto kernel_params = static_cast<const base_params&>(params);
