@@ -44,8 +44,6 @@ class TestExtractImagePatchesPartialInfer(unittest.TestCase):
         ([1, 3, 10, 10], [1, 1, 4, 4], [1, 1, 9, 9], [1, 1, 1, 1], 'same_upper', 'NCHW', [1, 3, 2, 40]),
         ([1, 3, 10, 10], [1, 1, 4, 4], [1, 1, 9, 9], [1, 1, 1, 1], 'same_lower', 'NCHW', [1, 3, 2, 40]),
     ])
-
-
     def test_eip_infer(self, input_shape, sizes, strides, rates, auto_pad, layout, output_shape):
         graph = build_graph(
             nodes_attrs=nodes,
