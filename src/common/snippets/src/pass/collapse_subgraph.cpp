@@ -60,7 +60,11 @@ auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph:
         std::unordered_set<ngraph::Node*> visited;
         std::queue<ngraph::Node*> stack;
         stack.push(from);
-
+        auto add_if_not_visited = [&visited, &stack](ngraph::Node* next){
+            if (visited.count(next) == 0) {
+                stack.push(next);
+            }
+        };
         unsigned int from_to_distance = 0;
         while (stack.size() > 0) {
             ngraph::Node* curr = stack.front();
@@ -73,11 +77,12 @@ auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph:
 
             if (curr != to) {
                 const auto all_users = curr->get_users();
-                std::unordered_set<std::shared_ptr<Node>> unique_users(all_users.begin(), all_users.end());
-                for (const auto& next : unique_users) {
-                    if (visited.count(next.get()) == 0) {
-                        stack.push(next.get());
-                    }
+                if (all_users.size() == 1) {
+                    add_if_not_visited(all_users[0].get());
+                } else if (all_users.size() > 1) {
+                    std::unordered_set<std::shared_ptr<Node>> unique_users(all_users.begin(), all_users.end());
+                    for (const auto &n : unique_users)
+                        add_if_not_visited(n.get());
                 }
             } else {
                 return true;
