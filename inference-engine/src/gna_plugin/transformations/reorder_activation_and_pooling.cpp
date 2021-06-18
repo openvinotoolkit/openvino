@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <openvino/cc/ngraph/itt.hpp>
+
 #include "transformations/reorder_activation_and_pooling.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
@@ -15,6 +17,7 @@ using namespace GNAPluginNS;
 NGRAPH_RTTI_DEFINITION(ReorderActivationAndPooling, "ReorderActivationAndPooling", 0);
 
 ReorderActivationAndPooling::ReorderActivationAndPooling() {
+    MATCHER_SCOPE(ReorderActivationAndPooling);
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
                                                                          ngraph::pattern::any_input()});
     auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({conv, ngraph::pattern::any_input()});
@@ -63,6 +66,6 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "ReorderActivationAndPooling");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(pool, matcher_name);
     this->register_matcher(m, callback);
 }

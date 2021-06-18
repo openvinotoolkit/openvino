@@ -65,7 +65,7 @@ if(UNIX)
     set_source_files_properties(${__CLDNN_Sources__gtest} PROPERTIES
         COMPILE_FLAGS "-Wno-undef")
 endif()
-  
+
 if (MSVC)
   file(GLOB __CLDNN_Sources__natvis
     "${CMAKE_CURRENT_SOURCE_DIR}/float16.natvis"
@@ -76,7 +76,7 @@ set(__CLDNN_Directory__ks_main           "${CLDNN__KERNEL_SELECTOR_DIR}")
 set(__CLDNN_Directory__ks_core           "${CLDNN__KERNEL_SELECTOR_DIR}/core")
 set(__CLDNN_Directory__ks_common         "${CLDNN__KERNEL_SELECTOR_DIR}/common")
 set(__CLDNN_Directory__ks_core_common    "${__CLDNN_Directory__ks_core}/common")
-set(__CLDNN_Directory__ks_actual_kernels "${__CLDNN_Directory__ks_core}/actual_kernels")  
+set(__CLDNN_Directory__ks_actual_kernels "${__CLDNN_Directory__ks_core}/actual_kernels")
 set(__CLDNN_Directory__ks_cache          "${__CLDNN_Directory__ks_core}/cache")
 
 set(__CLDNN_AllSources
@@ -101,7 +101,9 @@ source_group("${__CLDNN_Label__gtest}"        FILES ${__CLDNN_Sources__gtest})
 include_directories(
     "${CLDNN__MAIN_DIR}"
     "${CLDNN__MAIN_DIR}/src"
+    "${CLDNN__MAIN_DIR}/src/include/"
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CLDNN__RUNTIME_DIR}"
     "${__CLDNN_Directory__test_utils}"
     "${__CLDNN_Directory__ks_core}"
     "${__CLDNN_Directory__ks_core}/common"
@@ -118,20 +120,23 @@ include_directories(SYSTEM
 add_executable("${CLDNN_BUILD__PROJ}"
     ${__CLDNN_AllSources}
   )
+
+if(COMMAND set_ie_threading_interface_for)
+  set_ie_threading_interface_for("${CLDNN_BUILD__PROJ}")
+endif()
+
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
 # Set library dependencies
-target_link_libraries("${CLDNN_BUILD__PROJ}"
-    "${CLDNN_BUILD__PROJ__clDNN}"
-  )
+target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE "${CLDNN_BUILD__PROJ__clDNN}")
 
 if(WIN32)
-  target_link_libraries("${CLDNN_BUILD__PROJ}" setupapi)
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))
-  target_link_libraries("${CLDNN_BUILD__PROJ}" pthread)
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
-target_link_libraries("${CLDNN_BUILD__PROJ}" ${CLDNN__SYSTEM_LINK_LIBRARIES})
+target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
 
 # =================================== Custom pre- and post-steps =======================================
 
