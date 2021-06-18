@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#pragma GCC diagnostic ignored "-Wreturn-type"
 
 #include <algorithm>
 #include <string>

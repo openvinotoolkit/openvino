@@ -220,7 +220,6 @@ template<typename Node>
 std::string description(const Node& n) {
     return n->get_friendly_name() + " (" + (n->get_type_name()) + ")";
 }
-
 }
 namespace attributes {
 

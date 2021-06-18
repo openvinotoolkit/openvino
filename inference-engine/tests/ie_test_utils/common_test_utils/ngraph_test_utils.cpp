@@ -618,7 +618,8 @@ Comparator::Result Comparator::compare(
     auto type_info2 = node2->get_type_info();
 
     if (!compareTypeInfo(type_info1, type_info2)) {
-        return Result::error(node1->get_friendly_name() + " (" + typeInfoToStr(type_info1) + ") != " + node2->get_friendly_name() + " (" + typeInfoToStr(type_info2) + ")");
+        return Result::error(node1->get_friendly_name() + " (" + typeInfoToStr(type_info1) + ") != " +
+            node2->get_friendly_name() + " (" + typeInfoToStr(type_info2) + ")");
     }
 
     auto subgraph1 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node1);
@@ -722,8 +723,8 @@ void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::o
 
 void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
     for (int i = 0; i < node1->outputs().size(); ++i) {
-        const auto& tensor1 = node1->output(i).get_tensor();
-        const auto& tensor2 = node2->output(i).get_tensor();
+        //const auto& tensor1 = node1->output(i).get_tensor();
+        //const auto& tensor2 = node2->output(i).get_tensor();
 
         //if (tensor1.get_names() != tensor2.get_names()) {
         //    err_log << "Output tensors names " << tensor_names(tensor1) << " and "
