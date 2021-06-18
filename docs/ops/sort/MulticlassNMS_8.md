@@ -115,7 +115,7 @@ Boxes of `background_class` are skipped and thus eliminated.
 
 *   **3**: `selected_num` - 1D tensor of type *T_IND* and shape `[num_batches]` representing the number of selected boxes for each batch element.
 
-When there is no box selected, `selected_num` is filled with 0. `selected_outputs` is an empty tensor of shape `[0, 6]`, and `selected_indices` is an empty tensor of shape `[0, 1]`.
+When there is no box selected, `selected_num` is filled with `0`. `selected_outputs` is an empty tensor of shape `[0, 6]`, and `selected_indices` is an empty tensor of shape `[0, 1]`.
 
 **Types**
 
