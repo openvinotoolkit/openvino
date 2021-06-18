@@ -22,7 +22,7 @@ void regclass_pyngraph_Place(py::module m)
     place.def("is_input",
               &ngraph::frontend::Place::is_input,
               R"(
-                Returns true if this place is input for a model
+                Returns true if this place is input for a model.
 
                 Returns
                 ----------
@@ -33,24 +33,24 @@ void regclass_pyngraph_Place(py::module m)
     place.def("is_output",
               &ngraph::frontend::Place::is_output,
               R"(
-                Returns true if this place is output for a model
+                Returns true if this place is output for a model.
 
                 Returns
                 ----------
                 is_output : bool
-                    True if this place is output for a model
+                    True if this place is output for a model.
              )");
 
     place.def("get_names",
               &ngraph::frontend::Place::get_names,
               R"(
-                All associated names (synonyms) that identify this place in the graph in a framework specific way
+                All associated names (synonyms) that identify this place in the graph in a framework specific way.
 
                 Returns
                 ----------
                 get_names : List[str]
                     A vector of strings each representing a name that identifies this place in the graph.
-                    Can be empty if there are no names associated with this place or name cannot be attached
+                    Can be empty if there are no names associated with this place or name cannot be attached.
              )");
 
     place.def("is_equal",
@@ -62,31 +62,31 @@ void regclass_pyngraph_Place(py::module m)
                 Parameters
                 ----------
                 other : Place
-                    Another place object
+                    Another place object.
 
                 Returns
                 ----------
                 is_equal : bool
-                    True if another place is the same as this place
+                    True if another place is the same as this place.
              )");
 
     place.def("is_equal_data",
               &ngraph::frontend::Place::is_equal_data,
               py::arg("other"),
               R"(
-                Returns true if another place points to the same data
+                Returns true if another place points to the same data.
                 Note: The same data means all places on path:
-                      output port -> output edge -> tensor -> input edge -> input port
+                      output port -> output edge -> tensor -> input edge -> input port.
 
                 Parameters
                 ----------
                 other : Place
-                    Another place object
+                    Another place object.
 
                 Returns
                 ----------
                 is_equal_data : bool
-                    True if another place points to the same data
+                    True if another place points to the same data.
              )");
 
     place.def(
@@ -103,14 +103,14 @@ void regclass_pyngraph_Place(py::module m)
         },
         py::arg("outputPortIndex") = py::none(),
         R"(
-                Returns references to all operation nodes that consume data from this place for specified output port
-                Note: It can be called for any kind of graph place searching for the first consuming operations
+                Returns references to all operation nodes that consume data from this place for specified output port.
+                Note: It can be called for any kind of graph place searching for the first consuming operations.
 
                 Parameters
                 ----------
                 outputPortIndex : int
                     If place is an operational node it specifies which output port should be considered
-                    May not be set if node has only one output port
+                    May not be set if node has only one output port.
 
                 Returns
                 ----------
@@ -133,18 +133,18 @@ void regclass_pyngraph_Place(py::module m)
         py::arg("outputPortIndex") = py::none(),
         R"(
                 Returns a tensor place that gets data from this place; applicable for operations,
-                output ports and output edges
+                output ports and output edges.
 
                 Parameters
                 ----------
                 outputPortIndex : int
-                    Output port index if the current place is an operation node and has multiple output ports
-                    May not be set if place has only one output port
+                    Output port index if the current place is an operation node and has multiple output ports.
+                    May not be set if place has only one output port.
 
                 Returns
                 ----------
                 get_consuming_operations : Place
-                    A tensor place which hold the resulting value for this place
+                    A tensor place which hold the resulting value for this place.
              )");
 
     place.def(
@@ -161,29 +161,29 @@ void regclass_pyngraph_Place(py::module m)
         },
         py::arg("inputPortIndex") = py::none(),
         R"(
-                Get an operation node place that immediately produces data for this place
+                Get an operation node place that immediately produces data for this place.
 
                 Parameters
                 ----------
                 inputPortIndex : int
                     If a given place is itself an operation node, this specifies a port index.
-                    May not be set if place has only one input port
+                    May not be set if place has only one input port.
 
                 Returns
                 ----------
                 get_producing_operation : Place
-                    An operation place that produces data for this place
+                    An operation place that produces data for this place.
              )");
 
     place.def("get_producing_port",
               &ngraph::frontend::Place::get_producing_port,
               R"(
-                Returns a port that produces data for this place
+                Returns a port that produces data for this place.
 
                 Returns
                 ----------
                 get_producing_port : Place
-                    A port place that produces data for this place
+                    A port place that produces data for this place.
              )");
 
     place.def(
@@ -216,20 +216,20 @@ void regclass_pyngraph_Place(py::module m)
         py::arg("inputName") = py::none(),
         py::arg("inputPortIndex") = py::none(),
         R"(
-                For operation node returns reference to an input port with specified name and index
+                For operation node returns reference to an input port with specified name and index.
 
                 Parameters
                 ----------
                 inputName : str
-                    Name of port group. May not be set if node has one input port group
+                    Name of port group. May not be set if node has one input port group.
 
                 inputPortIndex : int
-                    Input port index in a group. May not be set if node has one input port in a group
+                    Input port index in a group. May not be set if node has one input port in a group.
 
                 Returns
                 ----------
                 get_input_port : Place
-                    Appropriate input port place
+                    Appropriate input port place.
              )");
 
     place.def(
@@ -262,31 +262,31 @@ void regclass_pyngraph_Place(py::module m)
         py::arg("outputName") = py::none(),
         py::arg("outputPortIndex") = py::none(),
         R"(
-                For operation node returns reference to an output port with specified name and index
+                For operation node returns reference to an output port with specified name and index.
 
                 Parameters
                 ----------
                 outputName : str
-                    Name of output port group. May not be set if node has one output port group
+                    Name of output port group. May not be set if node has one output port group.
 
                 outputPortIndex : int
-                    Output port index. May not be set if node has one output port in a group
+                    Output port index. May not be set if node has one output port in a group.
 
                 Returns
                 ----------
                 get_output_port : Place
-                    Appropriate output port place
+                    Appropriate output port place.
              )");
 
     place.def("get_consuming_ports",
               &ngraph::frontend::Place::get_consuming_ports,
               R"(
-                Returns all input ports that consume data flows through this place
+                Returns all input ports that consume data flows through this place.
 
                 Returns
                 ----------
                 get_consuming_ports : List[Place]
-                    Input ports that consume data flows through this place
+                    Input ports that consume data flows through this place.
              )");
 
     place.def(
@@ -304,16 +304,16 @@ void regclass_pyngraph_Place(py::module m)
         py::arg("inputPortIndex") = py::none(),
         R"(
                 Returns a tensor place that supplies data for this place; applicable for operations,
-                input ports and input edges
+                input ports and input edges.
 
                 Parameters
                 ----------
                 inputPortIndex : int
-                    Input port index for operational node. May not be specified if place has only one input port
+                    Input port index for operational node. May not be specified if place has only one input port.
 
                 Returns
                 ----------
                 get_source_tensor : Place
-                    A tensor place which supplies data for this place
+                    A tensor place which supplies data for this place.
              )");
 }

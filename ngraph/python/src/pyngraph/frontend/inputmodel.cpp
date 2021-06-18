@@ -6,10 +6,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "frontend_manager.hpp"
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/frontend_manager.hpp"
-#include "pyngraph/function.hpp"
 
 namespace py = pybind11;
 
@@ -29,12 +27,12 @@ void regclass_pyngraph_InputModel(py::module m)
                 Parameters
                 ----------
                 tensorName : str
-                    Name of tensor
+                    Name of tensor.
 
                 Returns
                 ----------
                 get_place_by_tensor_name : Place
-                    Tensor place corresponding to specified tensor name
+                    Tensor place corresponding to specified tensor name.
              )");
 
     im.def("get_place_by_operation_name",
@@ -42,17 +40,17 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("operationName"),
            R"(
                 Returns an operation place by an operation name following framework conventions, or
-                nullptr if an operation with this name doesn't exist
+                nullptr if an operation with this name doesn't exist.
 
                 Parameters
                 ----------
                 operationName : str
-                    Name of operation
+                    Name of operation.
 
                 Returns
                 ----------
                 get_place_by_operation_name : Place
-                    Place representing operation
+                    Place representing operation.
              )");
 
     im.def("get_place_by_operation_name_and_input_port",
@@ -60,20 +58,20 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("operationName"),
            py::arg("inputPortIndex"),
            R"(
-                Returns an input port place by operation name and appropriate port index
+                Returns an input port place by operation name and appropriate port index.
 
                 Parameters
                 ----------
                 operationName : str
-                    Name of operation
+                    Name of operation.
 
                 inputPortIndex : int
-                    Index of input port for this operation
+                    Index of input port for this operation.
 
                 Returns
                 ----------
                 get_place_by_operation_name_and_input_port : Place
-                    Place representing input port of operation
+                    Place representing input port of operation.
              )");
 
     im.def("get_place_by_operation_name_and_output_port",
@@ -81,20 +79,20 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("operationName"),
            py::arg("outputPortIndex"),
            R"(
-                Returns an output port place by operation name and appropriate port index
+                Returns an output port place by operation name and appropriate port index.
 
                 Parameters
                 ----------
                 operationName : str
-                    Name of operation
+                    Name of operation.
 
                 outputPortIndex : int
-                    Index of output port for this operation
+                    Index of output port for this operation.
 
                 Returns
                 ----------
                 get_place_by_operation_name_and_output_port : Place
-                    Place representing output port of operation
+                    Place representing output port of operation.
              )");
 
     im.def("set_name_for_tensor",
@@ -102,15 +100,15 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("tensor"),
            py::arg("newName"),
            R"(
-                Sets name for tensor. Overwrites existing names of this place
+                Sets name for tensor. Overwrites existing names of this place.
 
                 Parameters
                 ----------
                 tensor : Place
-                    Tensor place
+                    Tensor place.
 
                 newName : str
-                    New name for this tensor
+                    New name for this tensor.
             )");
 
     im.def("add_name_for_tensor",
@@ -123,10 +121,10 @@ void regclass_pyngraph_InputModel(py::module m)
                 Parameters
                 ----------
                 tensor : Place
-                    Tensor place
+                    Tensor place.
 
                 newName : str
-                    New name to be added to this place
+                    New name to be added to this place.
             )");
 
     im.def("set_name_for_operation",
@@ -134,39 +132,39 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("operation"),
            py::arg("newName"),
            R"(
-                Adds new name for tensor
+                Adds new name for tensor.
 
                 Parameters
                 ----------
                 operation : Place
-                    Operation place
+                    Operation place.
 
                 newName : str
-                    New name for this operation
+                    New name for this operation.
             )");
 
     im.def("free_name_for_tensor",
            &ngraph::frontend::InputModel::free_name_for_tensor,
            py::arg("name"),
            R"(
-                Unassign specified name from tensor place(s)
+                Unassign specified name from tensor place(s).
 
                 Parameters
                 ----------
                 name : str
-                    Name of tensor
+                    Name of tensor.
             )");
 
     im.def("free_name_for_operation",
            &ngraph::frontend::InputModel::free_name_for_operation,
            py::arg("name"),
            R"(
-                Unassign specified name from operation place(s)
+                Unassign specified name from operation place(s).
 
                 Parameters
                 ----------
                 name : str
-                    Name of operation
+                    Name of operation.
             )");
 
     im.def("set_name_for_dimension",
@@ -175,18 +173,18 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("dimIndex"),
            py::arg("dimName"),
            R"(
-                Set name for a particular dimension of a place (e.g. batch dimension)
+                Set name for a particular dimension of a place (e.g. batch dimension).
 
                 Parameters
                 ----------
                 place : Place
-                    Model's place
+                    Model's place.
 
                 shapeDimIndex : int
-                    Dimension index
+                    Dimension index.
 
                 dimName : str
-                    Name to assign on this dimension
+                    Name to assign on this dimension.
             )");
 
     im.def("cut_and_add_new_input",
@@ -195,15 +193,15 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("newName") = std::string(),
            R"(
                 Cut immediately before this place and assign this place as new input; prune
-                all nodes that don't contribute to any output
+                all nodes that don't contribute to any output.
 
                 Parameters
                 ----------
                 place : Place
-                    New place to be assigned as input
+                    New place to be assigned as input.
 
                 newNameOptional : str
-                    Optional new name assigned to this input place
+                    Optional new name assigned to this input place.
             )");
 
     im.def("cut_and_add_new_output",
@@ -212,27 +210,27 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("newName") = std::string(),
            R"(
                 Cut immediately before this place and assign this place as new output; prune
-                all nodes that don't contribute to any output
+                all nodes that don't contribute to any output.
 
                 Parameters
                 ----------
                 place : Place
-                    New place to be assigned as output
+                    New place to be assigned as output.
 
                 newNameOptional : str
-                    Optional new name assigned to this output place
+                    Optional new name assigned to this output place.
             )");
 
     im.def("add_output",
            &ngraph::frontend::InputModel::add_output,
            py::arg("place"),
            R"(
-                Assign this place as new output or add necessary nodes to represent a new output
+                Assign this place as new output or add necessary nodes to represent a new output.
 
                 Parameters
                 ----------
                 place : Place
-                    Anchor point to add an output
+                    Anchor point to add an output.
             )");
 
     im.def("remove_output",
@@ -240,7 +238,7 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("place"),
            R"(
                 Removes any sinks directly attached to this place with all inbound data flow
-                if it is not required by any other output
+                if it is not required by any other output.
 
                 Parameters
                 ----------
@@ -261,17 +259,17 @@ void regclass_pyngraph_InputModel(py::module m)
                 Parameters
                 ----------
                 place : Place
-                    Model place
+                    Model place.
 
                 shape : PartialShape
-                    Partial shape for this place
+                    Partial shape for this place.
             )");
 
     im.def("get_partial_shape",
            &ngraph::frontend::InputModel::get_partial_shape,
            py::arg("place"),
            R"(
-                Returns current partial shape used for this place
+                Returns current partial shape used for this place.
 
                 Parameters
                 ----------
@@ -281,24 +279,24 @@ void regclass_pyngraph_InputModel(py::module m)
                 Returns
                 ----------
                 get_partial_shape : PartialShape
-                    Partial shape for this place
+                    Partial shape for this place.
             )");
 
     im.def("get_inputs",
            &ngraph::frontend::InputModel::get_inputs,
            R"(
-                Returns all inputs for a model
+                Returns all inputs for a model.
 
                 Returns
                 ----------
                 get_inputs : List[Place]
-                    A list of input places
+                    A list of input places.
             )");
 
     im.def("get_outputs",
            &ngraph::frontend::InputModel::get_outputs,
            R"(
-                Returns all outputs for a model. An output is a terminal place in a graph where data escapes the flow
+                Returns all outputs for a model. An output is a terminal place in a graph where data escapes the flow.
 
                 Returns
                 ----------
@@ -311,15 +309,15 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("inputs"),
            py::arg("outputs"),
            R"(
-                Leaves only subgraph that are defined by new inputs and new outputs
+                Leaves only subgraph that are defined by new inputs and new outputs.
 
                 Parameters
                 ----------
                 inputs : List[Place]
-                    Array of new input places
+                    Array of new input places.
 
                 outputs : List[Place]
-                    Array of new output places
+                    Array of new output places.
             )");
 
     im.def("override_all_inputs",
@@ -332,19 +330,20 @@ void regclass_pyngraph_InputModel(py::module m)
                 Parameters
                 ----------
                 inputs : List[Place]
-                    Array of new input places
+                    Array of new input places.
             )");
 
     im.def("override_all_outputs",
            &ngraph::frontend::InputModel::override_all_outputs,
            py::arg("outputs"),
            R"(
-                Replaces all existing outputs with new ones removing all data flow that is not required for new outputs
+                Replaces all existing outputs with new ones removing all data flow that
+                is not required for new outputs.
 
                 Parameters
                 ----------
                 outputs : List[Place]
-                    Vector with places that will become new outputs; may intersect existing outputs
+                    Vector with places that will become new outputs; may intersect existing outputs.
             )");
 
     im.def("set_element_type",
@@ -352,14 +351,14 @@ void regclass_pyngraph_InputModel(py::module m)
            py::arg("place"),
            py::arg("type"),
            R"(
-                Sets new element type for a place
+                Sets new element type for a place.
 
                 Parameters
                 ----------
                 place : Place
-                    Model place
+                    Model place.
 
                 type : ngraph.Type
-                    New element type
+                    New element type.
             )");
 }
