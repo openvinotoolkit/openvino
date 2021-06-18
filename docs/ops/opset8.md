@@ -40,7 +40,7 @@ declared in `namespace opset8`.
 * [Cos](arithmetic/Cos_1.md)
 * [Cosh](arithmetic/Cosh_1.md)
 * [CumSum](arithmetic/CumSum_3.md)
-* [DeformableConvolution](convolution/DeformableConvolution_1.md)
+* [DeformableConvolution](convolution/DeformableConvolution_8.md)
 * [DeformablePSROIPooling](detection/DeformablePSROIPooling_1.md)
 * [DepthToSpace](movement/DepthToSpace_1.md)
 * [DetectionOutput](detection/DetectionOutput_1.md)
