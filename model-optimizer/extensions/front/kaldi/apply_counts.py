@@ -82,6 +82,11 @@ def read_counts_file(file_path):
     except TypeError:
         raise Error('Expect counts file to contain list of floats.' +
                     refer_to_faq_msg(90))
+
+    return counts
+
+
+def counts_to_priors(counts):
     cutoff = 1.00000001e-10
     cutoff_idxs = np.where(counts < cutoff)
     counts[cutoff_idxs] = cutoff
@@ -111,33 +116,14 @@ class ApplyCountsFilePattern(FrontReplacementSubgraph):
                 ]
 
     def find_and_replace_pattern(self, graph: Graph):
-        try:
-            counts = read_counts_file(graph.graph['cmd_params'].counts)
-        except Exception as e:
-            raise Error('Model Optimizer is not able to read counts file {}'.format(graph.graph['cmd_params'].counts) +
-                        refer_to_faq_msg(92)) from e
+        if graph.graph['cmd_params'].counts == "":
+            counts = graph.graph['priors'].copy()
+        else:
+            try:
+                counts = read_counts_file(graph.graph['cmd_params'].counts)
+            except Exception as e:
+                raise Error('Model Optimizer is not able to read counts file {}'.format(graph.graph['cmd_params'].counts) +
+                            refer_to_faq_msg(92)) from e
 
+        counts = counts_to_priors(counts)
         apply_biases_to_last_layer(graph, counts)
-
-
-class ApplyPriorsFilePattern(FrontReplacementSubgraph):
-    """
-    Pass applies s file as biases to last layer
-    """
-    enabled = True
-    graph_condition = [lambda graph: graph.graph['priors'] is not None]
-
-    def run_after(self):
-        from extensions.front.output_cut import OutputCut
-        from extensions.front.MoveEmbeddedInputsToInputs import MoveEmbeddedInputsToInputs
-        return [MoveEmbeddedInputsToInputs,
-                OutputCut,
-                ]
-
-    def run_before(self):
-        from extensions.front.MatMul_normalizer import FullyConnectedDecomposer
-        return [FullyConnectedDecomposer,
-                ]
-
-    def find_and_replace_pattern(self, graph: Graph):
-        apply_biases_to_last_layer(graph, graph.graph['priors'])

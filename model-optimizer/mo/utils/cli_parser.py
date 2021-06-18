@@ -75,6 +75,17 @@ class CanonicalizePathCheckExistenceAction(CanonicalizePathAction):
                             ' but "{}" does not exist.'.format(self.dest, name))
 
 
+class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenceAction):
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values is not None:
+            if isinstance(values, str):
+                if values != "":
+                    super.__call__(parser, namespace, values, option_string)
+                else:
+                    setattr(namespace, self.dest, values)
+
+
 class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
     def __call__(self, parser, namespace, values, option_string=None):
         super().__call__(parser, namespace, values, option_string)
@@ -401,7 +412,7 @@ def get_mxnet_cli_options():
 
 def get_kaldi_cli_options():
     d = {
-        'counts': '- A file name with full path to the counts file',
+        'counts': '- A file name with full path to the counts file or empty string if you want to use counts from model',
         'remove_output_softmax': '- Removes the SoftMax layer that is the output layer',
         'remove_memory': '- Removes the Memory layer and use additional inputs and outputs instead'
     }
@@ -595,7 +606,7 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
     kaldi_group.add_argument("--counts",
                              help="Path to the counts file",
                              default=None,
-                             action=CanonicalizePathCheckExistenceAction)
+                             action=CanonicalizePathCheckExistenceIfNeededAction)
 
     kaldi_group.add_argument("--remove_output_softmax",
                              help="Removes the SoftMax layer that is the output layer",
