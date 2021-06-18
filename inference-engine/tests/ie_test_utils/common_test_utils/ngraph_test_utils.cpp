@@ -803,6 +803,8 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ngraph::ValueAc
         insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
     } else if (auto framework_node_attr = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
         insert(name, framework_node_attr->get());
+    } else if (auto variable_ptr = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        insert(name, variable_ptr->get());
     } else {
         m_read_result += "store   attr [ ERR ]: " + name +
                          " [drop `void` comparison which is '" + adapter.get_type_info().name +
@@ -882,6 +884,8 @@ void ReadAndCompareAttributes::verify_others(const std::string &name, ngraph::Va
         verify_mem_buf(name, a->get());
     } else if (auto attrs = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
         verify(name, attrs->get());
+    } else if (auto variable_ptr = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        verify(name, variable_ptr->get());
     } else {
         m_cmp_result += "compare attr [ ERR ]: " + name +
                         " [drop `void` comparison which is '" + adapter.get_type_info().name +
