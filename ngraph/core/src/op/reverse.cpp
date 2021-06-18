@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::Reverse::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Reverse, "Reverse", 1);
 
 op::v1::Reverse::Reverse(const Output<Node>& data,
                          const Output<Node>& reversed_axes,

@@ -205,7 +205,7 @@ namespace topk
 } // namespace topk
 
 // v1 version starts
-constexpr NodeTypeInfo op::v1::TopK::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::TopK, "TopK", 1);
 
 static const std::uint64_t UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
 

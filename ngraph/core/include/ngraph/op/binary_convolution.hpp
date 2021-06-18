@@ -59,7 +59,6 @@ namespace ngraph
                                   float pad_value,
                                   const PadType& auto_pad = PadType::EXPLICIT);
 
-                size_t get_version() const override { return 1; }
                 void validate_and_infer_types() override;
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
