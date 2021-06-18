@@ -14,6 +14,7 @@
 
 #include "itt.hpp"
 #include "transformations/smart_reshape/utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap& pattern_to_output,
                                          const std::shared_ptr<ngraph::Node>& matmul_label,

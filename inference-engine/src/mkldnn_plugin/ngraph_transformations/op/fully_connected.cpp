@@ -8,7 +8,7 @@ constexpr ngraph::NodeTypeInfo MKLDNNPlugin::FullyConnectedNode::type_info;
 
 MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
                                                      const ngraph::Output<Node>& B,
-                                                     const ngraph::Shape& output_shape,
+                                                     const ngraph::PartialShape& output_shape,
                                                      const ngraph::element::Type output_type)
     : Op({A, B}), m_output_shape(output_shape), m_output_type(output_type) {
     validate_and_infer_types();
@@ -17,7 +17,7 @@ MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>&
 MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
                                                      const ngraph::Output<Node>& B,
                                                      const ngraph::Output<Node>& C,
-                                                     const ngraph::Shape& output_shape,
+                                                     const ngraph::PartialShape& output_shape,
                                                      const ngraph::element::Type output_type)
     : Op({A, B, C}), m_output_shape(output_shape), m_output_type(output_type) {
     validate_and_infer_types();
@@ -35,8 +35,11 @@ std::shared_ptr<ngraph::Node> MKLDNNPlugin::FullyConnectedNode::clone_with_new_i
 }
 
 void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
-    m_output_size = m_output_shape.back();
-    set_output_type(0, m_output_type == ngraph::element::undefined ? input_value(0).get_element_type() : m_output_type, m_output_shape);
+    auto out_type = m_output_type == ngraph::element::undefined ? input_value(0).get_element_type() : m_output_type;
+    if (m_output_shape.rank().is_static() && m_output_shape.rank().get_length() > 1 &&
+            m_output_shape[m_output_shape.rank().get_length() - 1].is_static())
+        m_output_size = static_cast<size_t>(m_output_shape[m_output_shape.rank().get_length() - 1].get_length());
+    set_output_type(0, out_type, m_output_shape);
 }
 
 bool MKLDNNPlugin::FullyConnectedNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
