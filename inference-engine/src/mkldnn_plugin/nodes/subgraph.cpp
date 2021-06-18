@@ -307,7 +307,7 @@ void MKLDNNSnippetNode::define_shedule() {
             // WA to normalize blocked and planar layouts
             // not actual thought, since [§] doesn't support mixed layouts yet
             auto inOrder = config.inConfs[i].desc.getBlockingDesc().getOrder();
-            size_t startOff = outOrder.size() != config.outConfs[0].desc.getDims().size() &&
+            size_t startOff = outOrder.size() != config.outConfs[max_rank_out_desc_idx].desc.getDims().size() &&
                               outOrder.back() != inOrder.back() ? 1 : 0;
             std::cout << "startOff = " << startOff << std::endl;
             for (int j = 0; j < rank; j++) {
@@ -385,7 +385,7 @@ void MKLDNNSnippetNode::define_shedule() {
         int collapsedDims = 0;
         size_t minimalConcurrency = parallel_get_max_threads();
         size_t minimalJitWorkAmount = 256;
-        size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx].back();
+        size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx][dims_out.size() - 1];
         bool hasDifferentDims = false;
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
@@ -446,9 +446,9 @@ void MKLDNNSnippetNode::define_shedule() {
     initDims(tensorRank);
 
     fullWorkAmount = 1;
-    for (int i = 0; i < dims_out[max_rank_out_desc_idx].size(); i++) {
-        fullWorkAmount *= dims_out[max_rank_out_desc_idx][i];
-    }
+    // for (int i = 0; i < dims_out[max_rank_out_desc_idx].size(); i++) {
+    //     fullWorkAmount *= dims_out[max_rank_out_desc_idx][i];
+    // }
 
     isDynBatchEnabled = config.dynBatchSupport;
 
@@ -525,33 +525,6 @@ void MKLDNNSnippetNode::shedule_6d(const std::vector<uint8_t *>& outputs, const 
 
             schedule.get_callable<kernel>()(ca.raw(), sch.raw());
         });
-
-  /*  for (size_t d0 = 0; d0 < dom[0]; d0++) {
-        for (size_t d1 = 0; d1 < dom[1]; d1++) {
-            for (size_t d2 = 0; d2 < dom[2]; d2++) {
-                for (size_t d3 = 0; d3 < dom[3]; d3++) {
-                    for (size_t d4 = 0; d4 < dom[4]; d4++) {
-                        CallArgs ca;
-                        // Benchmarking for overhead
-                        for (size_t i = 0; i < n; i++) {
-                            ca.push(inputs[i] + d0*offsets_in[i][0] + d1*offsets_in[i][1] + d2*offsets_in[i][2] +
-                            d3*offsets_in[i][3] + d4*offsets_in[i][4]);
-                        }
-                        for (size_t i = 0; i < m; i++) {
-                            ca.push(outputs[i] + d0*offsets_out[i][0] + d1*offsets_out[i][1] + d2*offsets_out[i][2] +
-                            d3*offsets_out[i][3] + d4*offsets_out[i][4]);
-                        }
-
-                        // SchduleInfo/ Domen = d0 .. dN
-                        CallArgs sch;
-                        sch.push(static_cast<size_t>(*dom.rbegin()));
-
-                        schedule.get_callable<kernel>()(ca.raw(), sch.raw());
-                    }
-                }
-            }
-        }
-    }*/
 
     // CallArgs ca; // fill
     // parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],

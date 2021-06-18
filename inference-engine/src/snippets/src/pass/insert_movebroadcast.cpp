@@ -169,8 +169,9 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
     auto any = std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](std::shared_ptr<Node> n) {
             // should add supports_auto_broadcast to SquaredDifference
-            return (ngraph::op::supports_auto_broadcast(n) || !!as_type_ptr<opset1::SquaredDifference>(n) || !!as_type_ptr<opset1::Mod>(n))
-                && n->get_autob().m_type == ngraph::op::AutoBroadcastType::NUMPY; });
+            // and check for prelu as well (if rank of slope shape is 1, per channel broadcast is applied)
+            return ((ngraph::op::supports_auto_broadcast(n) || !!as_type_ptr<opset1::SquaredDifference>(n) || !!as_type_ptr<opset1::Mod>(n)) &&
+                 n->get_autob().m_type == ngraph::op::AutoBroadcastType::NUMPY) || !!as_type_ptr<opset1::PRelu>(n); });
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(any), callback);
 }
