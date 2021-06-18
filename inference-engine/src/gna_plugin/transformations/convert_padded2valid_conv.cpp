@@ -45,6 +45,7 @@ struct ConvData {
     op::PadType padding_type;
     size_t output_channel_count;
     Shape output_shape;
+    element::Type element_type;
 };
 
 bool TransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<int64_t> order) {
@@ -108,6 +109,17 @@ bool VerifyLayer<>(std::shared_ptr<opset1::MaxPool> max_pool) {
     return true;
 }
 
+bool VerifyBias(std::shared_ptr<opset1::Add> conv_bias, const size_t filter_count) {
+    auto add_const = std::dynamic_pointer_cast<op::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
+
+    // The add may be a normal add not bias, then we just go further
+    if (add_const && shape_size(add_const->get_shape()) == filter_count)
+        return true;
+
+    // Bias size doesn't match (or dynamic bias), can't convert such convolution
+    return false;
+}
+
 std::shared_ptr<opset1::Convolution> DetectVerifyConvolution(std::shared_ptr<Node> node) {
     auto conv = std::dynamic_pointer_cast<opset1::Convolution>(node);
 
@@ -154,6 +166,7 @@ void FillConvData(std::shared_ptr<opset1::Convolution> conv, ConvData& conv_data
     conv_data.pads_end_height = conv->get_pads_end()[0];
     conv_data.pads_end_width = conv->get_pads_end()[1];
     conv_data.output_channel_count = conv_data.filter_count;
+    conv_data.element_type = conv->get_element_type();
 }
 
 std::shared_ptr<Transpose> DetectVerifyLeadingTranspose(std::shared_ptr<opset1::Convolution> conv) {
@@ -170,23 +183,6 @@ template<class T>
 std::shared_ptr<T> DetectNextLayer(std::shared_ptr<Node> node) {
     auto output_0_node = node->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
     return std::dynamic_pointer_cast<T>(output_0_node);
-}
-
-std::shared_ptr<Node> CreateBiasConst(std::shared_ptr<opset1::Add> conv_bias, const ConvData& conv_data) {
-    auto add_const = std::dynamic_pointer_cast<op::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
-
-    if (add_const) {
-        auto bias_size = shape_size(add_const->get_shape());
-
-        // the add may be a normal add not bias, than we just go further
-        if (bias_size == conv_data.filter_count) {
-            const float* srd_data_pointer = add_const->get_data_ptr<float>();
-            std::vector<float> bias_values(srd_data_pointer, srd_data_pointer + bias_size);
-            return opset1::Constant::create(element::f32, Shape{ 1, bias_size , 1, 1 }, bias_values);
-        }
-    }
-    // BIAS size does not match (or dynamic BIAS), can't convert such convolution
-    return nullptr;
 }
 
 template<class T>
@@ -220,12 +216,12 @@ bool DetectGraphSequence(GraphData& graph_data, const ConvData& conv_data) {
 
         if (VerifyLayer(graph_data.trailing_transpose) &&
             (conv_bias = DetectNextLayer<opset1::Add>(graph_data.trailing_transpose)) &&
-            (graph_data.bias_const = CreateBiasConst(conv_bias, conv_data))) {
+            (VerifyBias(conv_bias, conv_data.filter_count))) {
             graph_data.last_op_in_sequence_for_replacement = conv_bias;
             graph_data.disable_nhwc_to_nchw_option = true;
         }
     } else if ((conv_bias = DetectNextLayer<opset1::Add>(graph_data.conv))) {
-        if (!VerifyLayer(conv_bias) || !(graph_data.bias_const = CreateBiasConst(conv_bias, conv_data)))
+        if (!VerifyLayer(conv_bias) || !(VerifyBias(conv_bias, conv_data.filter_count)))
             return false;
 
         if ((graph_data.trailing_transpose = DetectNextLayer<Transpose>(conv_bias))) {
@@ -344,9 +340,9 @@ std::shared_ptr<Node> CreatePaddedNet(const GraphData& graph_data, const ConvDat
 
     auto flat_input = std::make_shared<opset1::Reshape>(graph_data.leading_transpose->input_value(0),
         op::Constant::create(element::i64, Shape{ 2 }, Shape{ 1ull, shape_size(graph_data.leading_transpose->input_value(0).get_shape()) }), false);
+
     // zero padding
-    // TODO: find biggest padding in whole network
-    auto const_holding_padding = std::make_shared<opset1::Constant>(element::f32, Shape{ 1, biggest_padding }, 0);
+    auto const_holding_padding = std::make_shared<opset1::Constant>(conv_data.element_type, Shape{ 1, biggest_padding }, 0);
 
     copy_runtime_info(graph_data.conv, const_holding_padding);
     std::shared_ptr<Node> original_row = flat_input;
@@ -416,6 +412,7 @@ void GeneratePadding(const GraphData& graph_data, const ConvData& conv_data) {
             conv_data.pads_begin_height + conv_data.input_height + conv_data.pads_end_height,
             conv_data.pads_begin_width + conv_data.input_width + conv_data.pads_end_width,
             conv_data.input_channel_count }), false);
+
     //NHWC => NCHW
     auto transposed2chw = std::make_shared<op::Transpose>(padded_input_plane_reshaped,
         op::Constant::create(element::i64, Shape{ 4 }, { 0ull, 3ull, 1ull, 2ull })->output(0));
@@ -434,13 +431,13 @@ void GeneratePadding(const GraphData& graph_data, const ConvData& conv_data) {
 } // namespace
 
 // Supported cases:
-//   - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC)
-//   - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => Transpose(NCHW->NHWC)
-//   - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPooling => Transpose(NCHW->NHWC) (2d max pool case)
-//   - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => ActivationFunction => Transpose(NCHW->NHWC)
-//   - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPool => ActivationFunction => Transpose(NCHW->NHWC)
-//   - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS (output of MO --disable_nhwc_to_nchw option)
-//   - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS => AF (output of MO --disable_nhwc_to_nchw option)
+//   - Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC)
+//   - Transpose(NHWC->NCHW) => Conv => Broadcasted add (bias) => Transpose(NCHW->NHWC)
+//   - Transpose(NHWC->NCHW) => Conv => Broadcasted add (bias) => MaxPooling => Transpose(NCHW->NHWC) (2d max pool case)
+//   - Transpose(NHWC->NCHW) => Conv => Broadcasted add (bias) => ActivationFunction => Transpose(NCHW->NHWC)
+//   - Transpose(NHWC->NCHW) => Conv => Broadcasted add (bias) => MaxPool => ActivationFunction => Transpose(NCHW->NHWC)
+//   - Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) => Bias (output of MO --disable_nhwc_to_nchw option)
+//   - Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) => Bias => ActivationFunction (output of MO --disable_nhwc_to_nchw option)
 
 NGRAPH_RTTI_DEFINITION(ConvertPadded2ValidConv, "ConvertPadded2ValidConv", 0);
 bool ConvertPadded2ValidConv::run_on_function(std::shared_ptr<Function> f) {
@@ -456,7 +453,7 @@ bool ConvertPadded2ValidConv::run_on_function(std::shared_ptr<Function> f) {
 
         FillConvData(graph_data.conv, conv_data);
 
-        // we are looking for Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC)
+        // We are looking for Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC)
         // or similar cases so required network must be in NHWC order like in TF
         if (!(graph_data.leading_transpose = DetectVerifyLeadingTranspose(graph_data.conv)))
             continue;

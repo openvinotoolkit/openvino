@@ -219,8 +219,7 @@ TEST_P(Gna30Padded2ValidConvTest, CompareWithRefs) {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
-    //TODO: FP16 is currently not supported by the transform
-    //InferenceEngine::Precision::FP16
+    InferenceEngine::Precision::FP16
 };
 
 const std::vector<std::map<std::string, std::string>> configs1D = {
