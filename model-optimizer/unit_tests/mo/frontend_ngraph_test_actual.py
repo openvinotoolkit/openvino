@@ -8,10 +8,6 @@ import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
-# pylint: disable=no-name-in-module,import-error
-from mo.main import main
-from mo.utils.cli_parser import get_absolute_path
-
 import numpy as np
 
 import pytest
@@ -19,6 +15,9 @@ import pytest
 
 mock_available = True
 try:
+    # pylint: disable=no-name-in-module,import-error
+    from mo.main import main
+
     # pylint: disable=no-name-in-module,import-error
     from mock_mo_python_api import get_fe_stat, get_mdl_stat, \
         clear_fe_stat, clear_mdl_stat, clear_place_stat, \
@@ -58,7 +57,7 @@ def replaceArgsHelper(log_level='DEBUG',
                       batch=None,
                       mean_values=None,
                       scale_values=None,
-                      output_dir=get_absolute_path('.'),
+                      output_dir='.',
                       freeze_placeholder_with_value=None):
     return argparse.Namespace(
         log_level=log_level,
