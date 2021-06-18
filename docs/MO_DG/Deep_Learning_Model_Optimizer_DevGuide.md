@@ -49,4 +49,16 @@ To learn about all Model Optimizer parameters and conversion technics, see the [
 </table>
 \endhtmlonly
 
+\htmlonly
+<iframe width="220" height="120" src="https://www.youtube.com/embed/LN54KeRkvPo"> </iframe>
+<iframe width="220" height="120" src="https://www.youtube.com/embed/zAe5n2F3IQI"> </iframe>
+<iframe width="220" height="120" src="https://www.youtube.com/embed/LN54KeRkvPo"> </iframe>
+\endhtmlonly
+
+\htmlonly
+<iframe width="30%" height="30%" src="https://www.youtube.com/embed/LN54KeRkvPo" allowfullscreen> </iframe>
+<iframe width="30%" height="30%" src="https://www.youtube.com/embed/zAe5n2F3IQI" allowfullscreen> </iframe>
+<iframe width="30%" height="30%" src="https://www.youtube.com/embed/LN54KeRkvPo" allowfullscreen> </iframe>
+\endhtmlonly
+
 
