@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-
 try:
     import tensorflow.compat.v1 as tf_v1
 
@@ -25,6 +23,7 @@ from mo.front.extractor import restore_edges, extract_node_attrs, remove_control
 from mo.front.tf.extractor import get_tf_edges, create_tf_edge, tf_op_extractor, tf_op_extractors
 from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph, Node
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils import tensorboard_util
 from mo.utils.error import Error
 from mo.utils.telemetry_utils import send_op_names_info, send_shapes_info, send_framework_info
