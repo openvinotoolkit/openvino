@@ -265,7 +265,7 @@ public:
 
 private:
     void run(program_impl& p) override;
-    std::list<std::pair<primitive_id, memory_impl::ptr>> calculate(engine_impl& engine, build_options bo);
+    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine, build_options bo);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program_impl& prog, program_node& node);
     void add_constant(program_impl& prog, program_node& node);
