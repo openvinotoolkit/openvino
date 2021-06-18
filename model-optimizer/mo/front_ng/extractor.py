@@ -10,7 +10,7 @@ import numpy as np
 
 from mo.utils.error import Error
 
-from ngraph.frontend import InputModel
+from ngraph.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 
 
 def decode_name_with_port(input_model: InputModel, node_name: str):

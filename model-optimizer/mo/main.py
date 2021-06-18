@@ -264,7 +264,7 @@ def prepare_ir(argv: argparse.Namespace):
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
     graph = None
-    ngraphFunction = None
+    ngraph_function = None
 
     # In future check of use_legacy_frontend option can be added here
     if argv.feManager is None or argv.framework not in new_front_ends:
