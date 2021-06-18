@@ -6,7 +6,7 @@
 #include "eltwise_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "convolution/convolution_kernel_selector.h"
@@ -21,6 +21,10 @@ struct convolution_gpu : typed_primitive_gpu_impl<convolution> {
     using parent = typed_primitive_gpu_impl<convolution>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<convolution_gpu>(*this);
+    }
+
 protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
@@ -33,26 +37,20 @@ protected:
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.weights_memory(0).get_layout().data_type,
+                                                    instance.weights_memory(0)->get_layout().data_type,
                                                     "");
 
         return res;
     }
 
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<convolution>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<convolution>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
 
-        args.weights = (memory_impl::cptr) &instance.weights_memory(split);
-        args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory(split) : nullptr);
-        args.weights_zero_points = (memory_impl::cptr) (instance.weights_zero_points_term() ? &instance.weights_zero_points_memory(split)
-                                                                                            : nullptr);
-        args.activations_zero_points = (memory_impl::cptr) (instance.activations_zero_points_term()
-                                       ? &instance.activations_zero_points_memory(split)
-                                       : nullptr);
-        args.compensation = (memory_impl::cptr) (instance.compensation_term()
-                                       ? &instance.compensation_memory(split)
-                                       : nullptr);
+        args.weights = instance.weights_memory(split);
+        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
+        args.weights_zero_points = instance.weights_zero_points_term() ? instance.weights_zero_points_memory(split) : nullptr;
+        args.activations_zero_points = instance.activations_zero_points_term() ? instance.activations_zero_points_memory(split) : nullptr;
+        args.compensation = instance.compensation_term() ? instance.compensation_memory(split) : nullptr;
 
         return args;
     }

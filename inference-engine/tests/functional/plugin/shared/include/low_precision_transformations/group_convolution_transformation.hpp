@@ -18,8 +18,11 @@ public:
     ngraph::Shape inputShape;
     ngraph::Shape outputShape;
     size_t group;
+    int groupCalculationDimention;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    std::string layerName;
+    std::string expectedKernelType;
 };
 
 typedef std::tuple<
@@ -37,6 +40,8 @@ public:
 
 protected:
     void SetUp() override;
+
+    void Run() override;
 
 private:
     void validate();

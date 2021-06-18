@@ -12,6 +12,8 @@
 #include <debug.h>
 #include "../gna_matcher.hpp"
 
+using namespace InferenceEngine::details;
+
 typedef struct {
     std::vector<size_t> input_shape;
     std::vector<size_t> squeeze_indices;
