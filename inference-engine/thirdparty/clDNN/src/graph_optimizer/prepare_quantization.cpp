@@ -82,29 +82,29 @@ void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_no
     };
 
     auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
-                           std::function<float(size_t)>& get_data) {
+                                  std::function<float(size_t)>& get_data) {
         switch (memory->get_layout().data_type) {
             case data_types::f32: {
-                mem_lock<float> data_lock{memory, stream};
-                float* data = data_lock.data();
+                std::shared_ptr<mem_lock<float>> data_lock_ptr = std::make_shared<mem_lock<float>>(memory, stream);
+                float* data = data_lock_ptr->data();
                 set_data = [data] (size_t idx, float value) {
                     data[idx] = value;
                 };
                 get_data = [data] (size_t idx) {
                     return data[idx];
                 };
-                break;
+                return std::pair<std::shared_ptr<mem_lock<float>>, std::shared_ptr<mem_lock<uint16_t>>>(data_lock_ptr, nullptr);
             }
             case data_types::f16: {
-                mem_lock<uint16_t> data_lock{memory, stream};
-                uint16_t* data = data_lock.data();
+                std::shared_ptr<mem_lock<uint16_t>> data_lock_ptr = std::make_shared<mem_lock<uint16_t>>(memory, stream);
+                uint16_t* data = data_lock_ptr->data();
                 set_data = [data] (size_t idx, float value) {
                     data[idx] = float_to_half(value);
                 };
                 get_data = [data] (size_t idx) {
                     return half_to_float(data[idx]);
                 };
-                break;
+                return std::pair<std::shared_ptr<mem_lock<float>>, std::shared_ptr<mem_lock<uint16_t>>>(nullptr, data_lock_ptr);
             }
             default:
                 throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
@@ -113,35 +113,35 @@ void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_no
 
     std::function<void(size_t, float)> set_data_input_low;
     std::function<float(size_t)> get_data_input_low;
-    lock_memory(mem_input_low, set_data_input_low, get_data_input_low);
+    auto input_low_locked_memory = lock_memory(mem_input_low, set_data_input_low, get_data_input_low);
 
     std::function<void(size_t, float)> set_data_input_high;
     std::function<float(size_t)> get_data_input_high;
-    lock_memory(mem_input_high, set_data_input_high, get_data_input_high);
+    auto input_high_locked_memory = lock_memory(mem_input_high, set_data_input_high, get_data_input_high);
 
     std::function<void(size_t, float)> set_data_output_low;
     std::function<float(size_t)> get_data_output_low;
-    lock_memory(mem_output_low, set_data_output_low, get_data_output_low);
+    auto output_low_locked_memory = lock_memory(mem_output_low, set_data_output_low, get_data_output_low);
 
     std::function<void(size_t, float)> set_data_output_high;
     std::function<float(size_t)> get_data_output_high;
-    lock_memory(mem_output_high, set_data_output_high, get_data_output_high);
+    auto output_high_locked_memory = lock_memory(mem_output_high, set_data_output_high, get_data_output_high);
 
     std::function<void(std::size_t, float)> set_data_input_scale;
     std::function<float(size_t)> get_data_input_scale;
-    lock_memory(mem_input_scale, set_data_input_scale, get_data_input_scale);
+    auto input_scale_locked_memory = lock_memory(mem_input_scale, set_data_input_scale, get_data_input_scale);
 
     std::function<void(size_t, float)> set_data_input_shift;
     std::function<float(size_t)> get_data_input_shift;
-    lock_memory(mem_input_shift, set_data_input_shift, get_data_input_shift);
+    auto input_shift_locked_memory = lock_memory(mem_input_shift, set_data_input_shift, get_data_input_shift);
 
     std::function<void(size_t, float)> set_data_output_scale;
     std::function<float(size_t)> get_data_output_scale;
-    lock_memory(mem_output_scale, set_data_output_scale, get_data_output_scale);
+    auto output_scale_locked_memory = lock_memory(mem_output_scale, set_data_output_scale, get_data_output_scale);
 
     std::function<void(size_t, float)> set_data_output_shift;
     std::function<float(size_t)> get_data_output_shift;
-    lock_memory(mem_output_shift, set_data_output_shift, get_data_output_shift);
+    auto output_shift_locked_memory = lock_memory(mem_output_shift, set_data_output_shift, get_data_output_shift);
 
     bool has_negative_scales = false;
     bool need_post_scale = false;
