@@ -2,25 +2,25 @@
 
 This tutorial explains how to convert the Attention OCR (AOCR) model from the [TensorFlow* Attention OCR repository](https://github.com/emedvedev/attention-ocr) to the Intermediate Representation (IR).
 
-## Extract model from `aocr` library
+## Extract Model from `aocr` Library
 
-The easiest way to get AOCR model is to download python library `aocr`:
+The easiest way to get an AOCR model is to download `aocr` Python\* library:
 ```
 pip install git+https://github.com/emedvedev/attention-ocr.git@master#egg=aocr
 ```
-This library contains pretrain model and allows to train and run AOCR using command line. After installing `aocr` you can extract model:
+This library contains a pretrained model and allows to train and run AOCR using the command line. After installing `aocr`, you can extract the model:
 ```
 aocr export --format=frozengraph model/path/
 ```
-After this step you can find model in model/path/ folder.
+After this step you can find the model in model/path/ folder.
 
 ## Convert the TensorFlow* AOCR Model to IR
 
-The original AOCR contains data preprocessing which consists of folowing steps:
-* Decoding input data to binary format where input data is image as string.
+The original AOCR contains data preprocessing which consists of the following steps:
+* Decoding input data to binary format where input data is an image represented as a string.
 * Resizing binary image to working resolution.
 
-After that resized image is sent to CNN. The Model Optimizer does not support decoding images so you should exclude preprocessing from model converting. 
+After that, the resized image is sent to the convolution neural network (CNN). The Model Optimizer does not support image decoding so you should exclude preprocessing from model converting. 
 ```sh
 python3 path/to/model_optimizer/mo_tf.py \
 --input_model=model/path/frozen_graph.pb \
