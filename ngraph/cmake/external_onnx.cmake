@@ -8,24 +8,21 @@ include(FetchContent)
 # ONNX.proto definition version
 #------------------------------------------------------------------------------
 
-set(ONNX_VERSION 1.8.1)
+set(ONNX_VERSION mbencer/OnnxProtoSymbolsVisibility)
 
 #------------------------------------------------------------------------------
 # Download and install libonnx ...
 #------------------------------------------------------------------------------
 
-set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
-set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
+set(ONNX_GIT_REPO_URL https://github.com/mbencer/onnx.git)
+set(ONNX_GIT_BRANCH ${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
-set(ONNX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/onnx_patch.diff")
 
 FetchContent_Declare(
     ext_onnx
     GIT_REPOSITORY ${ONNX_GIT_REPO_URL}
     GIT_TAG ${ONNX_GIT_BRANCH}
     GIT_SHALLOW TRUE
-    # apply patch to fix problems with symbols visibility for MSVC
-    PATCH_COMMAND git reset --hard HEAD && git apply --ignore-space-change --ignore-whitespace --verbose ${ONNX_PATCH_FILE}
 )
 
 macro(onnx_set_target_properties)
