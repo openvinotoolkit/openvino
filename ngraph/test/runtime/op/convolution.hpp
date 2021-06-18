@@ -178,7 +178,9 @@ namespace ngraph
                 const PadType& get_pad_type() const { return m_pad_type; }
                 void set_pad_type(const PadType& pad_type) { m_pad_type = pad_type; }
                 /// \return The default value for Convolution.
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 virtual std::shared_ptr<Node> get_default_value() const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
             protected:
                 Strides m_window_movement_strides;
