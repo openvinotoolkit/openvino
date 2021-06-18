@@ -196,6 +196,13 @@ bool is_cv_type_in_list(const int type_id) {
     return type_dispatch<typelist>(type_id, cv_type_id{}, [](...){ return true;}, false);
 }
 
+
+G_TYPED_KERNEL(ScalePlane8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_8u") {
+    static cv::GMatDesc outMeta(const cv::GMatDesc & in, const Size & sz, int) {
+        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
+        return in.withSize(sz);
+    }
+};
 namespace {
 using merge_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float, fp_16_t>;
 
@@ -449,10 +456,10 @@ namespace {
 using i420_to_rgb_supported_types = typelist<uint8_t>;
 
 static void i420ToRgbRowImpl(scalar_tag, const  uint8_t** y_rows,
-    const  uint8_t* u_row,
-    const  uint8_t* v_row,
-    uint8_t** out_rows,
-    const int buf_width) {
+                            const  uint8_t* u_row,
+                            const  uint8_t* v_row,
+                            uint8_t** out_rows,
+                            const int buf_width) {
     for (int i = 0; i < buf_width; i += 2) {
         uchar u = u_row[i / 2];
         uchar v = v_row[i / 2];
@@ -488,6 +495,222 @@ struct typed_i420_to_rgb_row {
                 auto outT = reinterpret_cast<type**>(out_rows);
 
                 i420ToRgbRowImpl(isa_tag_t{}, inT1, inT2, inT3, outT, buf_width);
+        };
+    }
+};
+}  // namespace
+
+namespace linear {
+struct Mapper {
+    typedef short alpha_type;
+    typedef short index_type;
+    constexpr static const int unity = ONE;
+
+    typedef MapperUnit<short, short> Unit;
+
+    static inline Unit map(double ratio, int start, int max, int outCoord) {
+        float f = static_cast<float>((outCoord + 0.5) * ratio - 0.5);
+        int s = cvFloor(f);
+        f -= s;
+
+        Unit u;
+
+        u.index0 = std::max(s - start, 0);
+        u.index1 = ((f == 0.0) || s + 1 >= max) ? s - start : s - start + 1;
+
+        u.alpha0 = saturate_cast<short>(ONE * (1.0f - f));
+        u.alpha1 = saturate_cast<short>(ONE *         f);
+
+        return u;
+    }
+};
+}  // namespace linear
+template<typename T, typename Mapper, int chanNum>
+struct linearScratchDesc {
+    using alpha_t = typename Mapper::alpha_type;
+    using index_t = typename Mapper::index_type;
+
+    alpha_t* alpha;
+    alpha_t* clone;
+    index_t* mapsx;
+    alpha_t* beta;
+    index_t* mapsy;
+    T*       tmp;
+
+    linearScratchDesc(int /*inW*/, int /*inH*/, int outW, int outH,  void* data) {
+        alpha = reinterpret_cast<alpha_t*>(data);
+        clone = reinterpret_cast<alpha_t*>(alpha + outW);
+        mapsx = reinterpret_cast<index_t*>(clone + outW*4);
+        beta  = reinterpret_cast<alpha_t*>(mapsx + outW);
+        mapsy = reinterpret_cast<index_t*>(beta  + outH);
+        tmp   = reinterpret_cast<T*>      (mapsy + outH*2);
+    }
+
+    static int bufSize(int inW, int /*inH*/, int outW, int outH, int lpi) {
+        auto size = outW * sizeof(alpha_t)     +
+                    outW * sizeof(alpha_t) * 4 +  // alpha clones // previous alpha is redundant?
+                    outW * sizeof(index_t)     +
+                    outH * sizeof(alpha_t)     +
+                    outH * sizeof(index_t) * 2 +
+                     inW * sizeof(T) * lpi * chanNum;
+
+        return static_cast<int>(size);
+    }
+};
+static inline double invRatio(int inSz, int outSz) {
+    return static_cast<double>(outSz) / inSz;
+}
+
+static inline double ratio(int inSz, int outSz) {
+    return 1 / invRatio(inSz, outSz);
+}
+
+template<typename T, typename Mapper, int chanNum = 1>
+static void initScratchLinear(const cv::GMatDesc& in,
+                              const         Size& outSz,
+                              cv::gapi::fluid::Buffer& scratch,
+                                             int  lpi) {
+    using alpha_type = typename Mapper::alpha_type;
+    static const auto unity = Mapper::unity;
+
+    auto inSz = in.size;
+    auto sbufsize = linearScratchDesc<T, Mapper, chanNum>::bufSize(inSz.width, inSz.height, outSz.width, outSz.height, lpi);
+
+    Size scratch_size{sbufsize, 1};
+
+    cv::GMatDesc desc;
+    desc.chan = 1;
+    desc.depth = CV_8UC1;
+    desc.size = scratch_size;
+
+    cv::gapi::fluid::Buffer buffer(desc);
+    scratch = std::move(buffer);
+
+    double hRatio = ratio(in.size.width, outSz.width);
+    double vRatio = ratio(in.size.height, outSz.height);
+
+    linearScratchDesc<T, Mapper, chanNum> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
+
+    auto *alpha = scr.alpha;
+    auto *clone = scr.clone;
+    auto *index = scr.mapsx;
+
+    for (int x = 0; x < outSz.width; x++) {
+        auto map = Mapper::map(hRatio, 0, in.size.width, x);
+        auto alpha0 = map.alpha0;
+        auto index0 = map.index0;
+
+        // TRICK:
+        // Algorithm takes pair of input pixels, sx0'th and sx1'th,
+        // and compute result as alpha0*src[sx0] + alpha1*src[sx1].
+        // By definition: sx1 == sx0 + 1 either sx1 == sx0, and
+        // alpha0 + alpha1 == unity (scaled appropriately).
+        // Here we modify formulas for alpha0 and sx1: by assuming
+        // that sx1 == sx0 + 1 always, and patching alpha0 so that
+        // result remains intact.
+        // Note that we need in.size.width >= 2, for both sx0 and
+        // sx0+1 were indexing pixels inside the input's width.
+        if (map.index1 != map.index0 + 1) {
+            GAPI_DbgAssert(map.index1 == map.index0);
+            GAPI_DbgAssert(in.size.width >= 2);
+            if (map.index0 < in.size.width-1) {
+                // sx1=sx0+1 fits inside row,
+                // make sure alpha0=unity and alpha1=0,
+                // so that result equals src[sx0]*unity
+                alpha0 = saturate_cast<alpha_type>(unity);
+            } else {
+                // shift sx0 to left by 1 pixel,
+                // and make sure that alpha0=0 and alpha1==1,
+                // so that result equals to src[sx0+1]*unity
+                alpha0 = 0;
+                index0--;
+            }
+        }
+
+        alpha[x] = alpha0;
+        index[x] = index0;
+
+        for (int l = 0; l < 4; l++) {
+            clone[4*x + l] = alpha0;
+        }
+    }
+
+    auto *beta    = scr.beta;
+    auto *index_y = scr.mapsy;
+
+    for (int y = 0; y < outSz.height; y++) {
+        auto mapY = Mapper::map(vRatio, 0, in.size.height, y);
+        beta[y] = mapY.alpha0;
+        index_y[y] = mapY.index0;
+        index_y[outSz.height + y] = mapY.index1;
+    }
+}
+
+namespace {
+
+using resize_linear_c1_supported_types = typelist<uint8_t>;
+
+template<class Mapper>
+void calcRowLinear8UC1Impl(scalar_tag, uint8_t* dst[],
+                           const uint8_t* src0[],
+                           const uint8_t* src1[],
+                           const short    alpha[],
+                           const short    clone[],  // 4 clones of alpha
+                           const short    mapsx[],
+                           const short    beta[],
+                           uint8_t        tmp[],
+                           const Size& inSz,
+                           const Size& outSz,
+                           const int   lpi,
+                           const int  length) {
+    using alpha_type = typename Mapper::alpha_type;
+    for (int l = 0; l < lpi; l++) {
+        constexpr static const auto unity = Mapper::unity;
+
+        auto beta0 = beta[l];
+        auto beta1 = saturate_cast<alpha_type>(unity - beta[l]);
+
+        for (int x = 0; x < length; x++) {
+            auto alpha0 = alpha[x];
+            auto alpha1 = saturate_cast<alpha_type>(unity - alpha[x]);
+            auto sx0 = mapsx[x];
+            auto sx1 = sx0 + 1;
+            uint8_t tmp0 = calc(beta0, src0[l][sx0], beta1, src1[l][sx0]);
+            uint8_t tmp1 = calc(beta0, src0[l][sx1], beta1, src1[l][sx1]);
+            dst[l][x] = calc(alpha0, tmp0, alpha1, tmp1);
+        }
+    }
+}
+
+template<typename isa_tag_t, class Mapper>
+struct typed_resize_linear_c1_row {
+    using p_f = void (*)(uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
+                         const short alpha[], const short clone[], const short mapsx[],
+                         const short beta[], uint8_t tmp[], const Size& inSz,
+                         const Size& outSz, const int lpi, const int length);
+
+    template<typename tag = isa_tag_t>
+    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    operator()(type_to_type<uint8_t>) {
+        return [](uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
+                  const short alpha[], const short clone[], const short mapsx[],
+                  const short beta[], uint8_t tmp[], const Size& inSz,
+                  const Size& outSz, const int lpi, const int length) {
+            tag t;
+            calcRowLinear8UC1Impl(t, dst, src0, src1, alpha, clone,
+                                  mapsx, beta, tmp, inSz, outSz, lpi, length);
+        };
+    }
+
+    template<typename tag = isa_tag_t>
+    typename std::enable_if<std::is_same<tag, scalar_tag>::value, p_f>::type
+    operator()(type_to_type<uint8_t>) {
+        return [](uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
+                  const short alpha[], const short clone[], const short mapsx[],
+                  const short beta[], uint8_t tmp[], const Size& inSz,
+                  const Size& outSz, const int lpi, const int length) {
+            calcRowLinear8UC1Impl<Mapper>(isa_tag_t{}, dst, src0, src1, alpha, clone,
+                                          mapsx, beta, tmp, inSz, outSz, lpi, length);
         };
     }
 };
@@ -670,10 +893,10 @@ GAPI_FLUID_KERNEL(FMerge4, Merge4, false) {
     static const int LPI = 4;
     static const int Window = 1;
     static void run(const cv::gapi::fluid::View & a,
-        const cv::gapi::fluid::View & b,
-        const cv::gapi::fluid::View & c,
-        const cv::gapi::fluid::View & d,
-        cv::gapi::fluid::Buffer & out) {
+                    const cv::gapi::fluid::View & b,
+                    const cv::gapi::fluid::View & c,
+                    const cv::gapi::fluid::View & d,
+                    cv::gapi::fluid::Buffer & out) {
         GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
 
         const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 4>{}, nullptr);
@@ -682,6 +905,97 @@ GAPI_FLUID_KERNEL(FMerge4, Merge4, false) {
         }
     }
 };
+
+template<typename T, class Mapper>
+static void calcRowLinear(const cv::gapi::fluid::View& in,
+                          cv::gapi::fluid::Buffer& out,
+                          cv::gapi::fluid::Buffer& scratch) {
+    GAPI_DbgAssert(is_cv_type_in_list<resize_linear_c1_supported_types>(out.meta().depth));
+
+    auto  inSz = in.meta().size;
+    auto outSz = out.meta().size;
+
+    auto inY = in.y();
+    int length = out.length();
+    int outY = out.y();
+    int lpi = out.lpi();
+    GAPI_DbgAssert(outY + lpi <= outSz.height);
+
+    GAPI_DbgAssert(lpi <= 4);
+
+    linearScratchDesc<T, Mapper, 1> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
+
+    const auto* alpha = scr.alpha;
+    const auto* clone = scr.clone;
+    const auto* mapsx = scr.mapsx;
+    const auto* beta0 = scr.beta;
+    const auto* mapsy = scr.mapsy;
+    auto* tmp = scr.tmp;
+
+    const auto* beta = beta0 + outY;
+    const T* src0[4];
+    const T* src1[4];
+    T* dst[4];
+
+    for (int l = 0; l < lpi; l++) {
+        auto index0 = mapsy[outY + l] - inY;
+        auto index1 = mapsy[outSz.height + outY + l] - inY;
+        src0[l] = in.InLine<const T>(index0);
+        src1[l] = in.InLine<const T>(index1);
+        dst[l] = out.OutLine<T>(l);
+    }
+
+    const auto rowFunc = type_dispatch<resize_linear_c1_supported_types>(out.meta().depth, cv_type_id{},
+                                                                         typed_resize_linear_c1_row<isa_tag_t,
+                                                                         Mapper>{}, nullptr);
+
+    GAPI_DbgAssert(rowFunc);
+
+    rowFunc(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi, length);
+}
+
+GAPI_FLUID_KERNEL(FScalePlane8u, ScalePlane8u, true) {
+    static const int Window = 1;
+    static const int LPI = 4;
+    static const auto Kind = cv::GFluidKernel::Kind::Resize;
+
+    static void initScratch(const cv::GMatDesc & in,
+                            Size outSz, int /*interp*/,
+                            cv::gapi::fluid::Buffer & scratch) {
+        initScratchLinear<uchar, linear::Mapper>(in, outSz, scratch, LPI);
+    }
+
+    static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
+    }
+
+    static void run(const cv::gapi::fluid::View & in, Size /*sz*/, int /*interp*/,
+        cv::gapi::fluid::Buffer & out, cv::gapi::fluid::Buffer & scratch) {
+        calcRowLinear<uint8_t, linear::Mapper>(in, out, scratch);
+    }
+};
+#if 0
+GAPI_FLUID_KERNEL(FScalePlane32f, ScalePlane32f, true) {
+    static const int Window = 1;
+    static const int LPI = 4;
+    static const auto Kind = cv::GFluidKernel::Kind::Resize;
+
+    static void initScratch(const cv::GMatDesc & in,
+        Size outSz, int /*interp*/,
+        cv::gapi::fluid::Buffer & scratch) {
+        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
+
+        initScratchLinear<float, linear32f::Mapper>(in, outSz, scratch, 0);
+    }
+
+    static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
+    }
+
+    static void run(const cv::gapi::fluid::View & in, Size /*sz*/, int /*interp*/,
+        cv::gapi::fluid::Buffer & out, cv::gapi::fluid::Buffer & scratch) {
+        calcRowLinear<float, linear32f::Mapper>(in, out, scratch);
+    }
+};
+#endif
 };
 
 namespace {
@@ -713,6 +1027,7 @@ struct SplitISA {
         pckg.include<typename choose_impl<isa_tag_t>::FSplit2>();
         pckg.include<typename choose_impl<isa_tag_t>::FSplit3>();
         pckg.include<typename choose_impl<isa_tag_t>::FSplit4>();
+        pckg.include<typename choose_impl<isa_tag_t>::FScalePlane8u>();
         //at the moment type_dispatch requires something to be returned by the lambda
         return true;
     }
@@ -735,13 +1050,6 @@ cv::gapi::GKernelPackage FKernelsChooseISA() {
 }
 
 //----------------------------------------------------------------------
-
-G_TYPED_KERNEL(ScalePlane8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_8u") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
-        return in.withSize(sz);
-    }
-};
 
 G_TYPED_KERNEL(ScalePlane32f, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_32f") {
     static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
@@ -817,128 +1125,6 @@ GAPI_COMPOUND_KERNEL(FScalePlane, ScalePlane) {
     }
 };
 
-static inline double invRatio(int inSz, int outSz) {
-    return static_cast<double>(outSz) / inSz;
-}
-
-static inline double ratio(int inSz, int outSz) {
-    return 1 / invRatio(inSz, outSz);
-}
-
-template<typename T, typename Mapper, int chanNum>
-struct linearScratchDesc {
-    using alpha_t = typename Mapper::alpha_type;
-    using index_t = typename Mapper::index_type;
-
-    alpha_t* alpha;
-    alpha_t* clone;
-    index_t* mapsx;
-    alpha_t* beta;
-    index_t* mapsy;
-    T*       tmp;
-
-    linearScratchDesc(int /*inW*/, int /*inH*/, int outW, int outH,  void* data) {
-        alpha = reinterpret_cast<alpha_t*>(data);
-        clone = reinterpret_cast<alpha_t*>(alpha + outW);
-        mapsx = reinterpret_cast<index_t*>(clone + outW*4);
-        beta  = reinterpret_cast<alpha_t*>(mapsx + outW);
-        mapsy = reinterpret_cast<index_t*>(beta  + outH);
-        tmp   = reinterpret_cast<T*>      (mapsy + outH*2);
-    }
-
-    static int bufSize(int inW, int /*inH*/, int outW, int outH, int lpi) {
-        auto size = outW * sizeof(alpha_t)     +
-                    outW * sizeof(alpha_t) * 4 +  // alpha clones // previous alpha is redundant?
-                    outW * sizeof(index_t)     +
-                    outH * sizeof(alpha_t)     +
-                    outH * sizeof(index_t) * 2 +
-                     inW * sizeof(T) * lpi * chanNum;
-
-        return static_cast<int>(size);
-    }
-};
-
-template<typename T, typename Mapper, int chanNum = 1>
-static void initScratchLinear(const cv::GMatDesc& in,
-                              const         Size& outSz,
-                              cv::gapi::fluid::Buffer& scratch,
-                                             int  lpi) {
-    using alpha_type = typename Mapper::alpha_type;
-    static const auto unity = Mapper::unity;
-
-    auto inSz = in.size;
-    auto sbufsize = linearScratchDesc<T, Mapper, chanNum>::bufSize(inSz.width, inSz.height, outSz.width, outSz.height, lpi);
-
-    Size scratch_size{sbufsize, 1};
-
-    cv::GMatDesc desc;
-    desc.chan = 1;
-    desc.depth = CV_8UC1;
-    desc.size = scratch_size;
-
-    cv::gapi::fluid::Buffer buffer(desc);
-    scratch = std::move(buffer);
-
-    double hRatio = ratio(in.size.width, outSz.width);
-    double vRatio = ratio(in.size.height, outSz.height);
-
-    linearScratchDesc<T, Mapper, chanNum> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
-
-    auto *alpha = scr.alpha;
-    auto *clone = scr.clone;
-    auto *index = scr.mapsx;
-
-    for (int x = 0; x < outSz.width; x++) {
-        auto map = Mapper::map(hRatio, 0, in.size.width, x);
-        auto alpha0 = map.alpha0;
-        auto index0 = map.index0;
-
-        // TRICK:
-        // Algorithm takes pair of input pixels, sx0'th and sx1'th,
-        // and compute result as alpha0*src[sx0] + alpha1*src[sx1].
-        // By definition: sx1 == sx0 + 1 either sx1 == sx0, and
-        // alpha0 + alpha1 == unity (scaled appropriately).
-        // Here we modify formulas for alpha0 and sx1: by assuming
-        // that sx1 == sx0 + 1 always, and patching alpha0 so that
-        // result remains intact.
-        // Note that we need in.size.width >= 2, for both sx0 and
-        // sx0+1 were indexing pixels inside the input's width.
-        if (map.index1 != map.index0 + 1) {
-            GAPI_DbgAssert(map.index1 == map.index0);
-            GAPI_DbgAssert(in.size.width >= 2);
-            if (map.index0 < in.size.width-1) {
-                // sx1=sx0+1 fits inside row,
-                // make sure alpha0=unity and alpha1=0,
-                // so that result equals src[sx0]*unity
-                alpha0 = saturate_cast<alpha_type>(unity);
-            } else {
-                // shift sx0 to left by 1 pixel,
-                // and make sure that alpha0=0 and alpha1==1,
-                // so that result equals to src[sx0+1]*unity
-                alpha0 = 0;
-                index0--;
-            }
-        }
-
-        alpha[x] = alpha0;
-        index[x] = index0;
-
-        for (int l = 0; l < 4; l++) {
-            clone[4*x + l] = alpha0;
-        }
-    }
-
-    auto *beta    = scr.beta;
-    auto *index_y = scr.mapsy;
-
-    for (int y = 0; y < outSz.height; y++) {
-        auto mapY = Mapper::map(vRatio, 0, in.size.height, y);
-        beta[y] = mapY.alpha0;
-        index_y[y] = mapY.index0;
-        index_y[outSz.height + y] = mapY.index1;
-    }
-}
-
 template<typename T, class Mapper>
 static void calcRowLinear(const cv::gapi::fluid::View  & in,
                                 cv::gapi::fluid::Buffer& out,
@@ -959,11 +1145,9 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
     linearScratchDesc<T, Mapper, 1> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
 
     const auto *alpha = scr.alpha;
-    const auto *clone = scr.clone;
     const auto *mapsx = scr.mapsx;
     const auto *beta0 = scr.beta;
     const auto *mapsy = scr.mapsy;
-    auto *tmp         = scr.tmp;
 
     const auto *beta = beta0 + outY;
     const T *src0[4];
@@ -980,23 +1164,7 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
 
     #ifdef HAVE_AVX512
     if (with_cpu_x86_avx512_core()) {
-        if (std::is_same<T, uint8_t>::value) {
-            if (inSz.width >= 64 && outSz.width >= 32) {
-                avx512::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
-                                           reinterpret_cast<const uint8_t**>(src0),
-                                           reinterpret_cast<const uint8_t**>(src1),
-                                           reinterpret_cast<const short*>(alpha),
-                                           reinterpret_cast<const short*>(clone),
-                                           reinterpret_cast<const short*>(mapsx),
-                                           reinterpret_cast<const short*>(beta),
-                                           reinterpret_cast<uint8_t*>(tmp),
-                                           inSz, outSz, lpi);
-
-                return;
-            }
-        }
-
-        if (std::is_same<T, float>::value) {
+       if (std::is_same<T, float>::value) {
             avx512::calcRowLinear_32F(reinterpret_cast<float**>(dst),
                                       reinterpret_cast<const float**>(src0),
                                       reinterpret_cast<const float**>(src1),
@@ -1007,29 +1175,10 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
             return;
         }
     }
-    #else
-    (void)tmp;
-    (void)clone;
     #endif
 
     #ifdef HAVE_AVX2
     if (with_cpu_x86_avx2()) {
-        if (std::is_same<T, uint8_t>::value) {
-            if (inSz.width >= 32 && outSz.width >= 16) {
-                avx::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
-                                        reinterpret_cast<const uint8_t**>(src0),
-                                        reinterpret_cast<const uint8_t**>(src1),
-                                        reinterpret_cast<const short*>(alpha),
-                                        reinterpret_cast<const short*>(clone),
-                                        reinterpret_cast<const short*>(mapsx),
-                                        reinterpret_cast<const short*>(beta),
-                                        reinterpret_cast<uint8_t*>(tmp),
-                                        inSz, outSz, lpi);
-
-                return;
-            }
-        }
-
         if (std::is_same<T, float>::value) {
             avx::calcRowLinear_32F(reinterpret_cast<float**>(dst),
                                    reinterpret_cast<const float**>(src0),
@@ -1045,21 +1194,6 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
 
     #ifdef HAVE_SSE
     if (with_cpu_x86_sse42()) {
-        if (std::is_same<T, uint8_t>::value) {
-            if (inSz.width >= 16 && outSz.width >= 8) {
-                calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
-                                   reinterpret_cast<const uint8_t**>(src0),
-                                   reinterpret_cast<const uint8_t**>(src1),
-                                   reinterpret_cast<const short*>(alpha),
-                                   reinterpret_cast<const short*>(clone),
-                                   reinterpret_cast<const short*>(mapsx),
-                                   reinterpret_cast<const short*>(beta),
-                                   reinterpret_cast<uint8_t*>(tmp),
-                                   inSz, outSz, lpi);
-                return;
-            }
-        }
-
         if (std::is_same<T, float>::value) {
             calcRowLinear_32F(reinterpret_cast<float**>(dst),
                               reinterpret_cast<const float**>(src0),
@@ -1074,21 +1208,6 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
     #endif  // HAVE_SSE
 
 #ifdef HAVE_NEON
-    if (std::is_same<T, uint8_t>::value) {
-        if (inSz.width >= 16 && outSz.width >= 8) {
-            neon::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
-                                     reinterpret_cast<const uint8_t**>(src0),
-                                     reinterpret_cast<const uint8_t**>(src1),
-                                     reinterpret_cast<const short*>(alpha),
-                                     reinterpret_cast<const short*>(clone),
-                                     reinterpret_cast<const short*>(mapsx),
-                                     reinterpret_cast<const short*>(beta),
-                                     reinterpret_cast<uint8_t*>(tmp),
-                                     inSz, outSz, lpi);
-            return;
-        }
-    }
-
     if (std::is_same<T, float>::value) {
         neon::calcRowLinear_32F(reinterpret_cast<float**>(dst),
                                 reinterpret_cast<const float**>(src0),
@@ -1263,33 +1382,6 @@ static void calcRowLinearC(const cv::gapi::fluid::View  & in,
 
 
 //------------------------------------------------------------------------------
-
-namespace linear {
-struct Mapper {
-    typedef short alpha_type;
-    typedef short index_type;
-    constexpr static const int unity = ONE;
-
-    typedef MapperUnit<short, short> Unit;
-
-    static inline Unit map(double ratio, int start, int max, int outCoord) {
-        float f = static_cast<float>((outCoord + 0.5) * ratio - 0.5);
-        int s = cvFloor(f);
-        f -= s;
-
-        Unit u;
-
-        u.index0 = std::max(s - start, 0);
-        u.index1 = ((f == 0.0) || s + 1 >= max) ? s - start : s - start + 1;
-
-        u.alpha0 = saturate_cast<short>(ONE * (1.0f - f));
-        u.alpha1 = saturate_cast<short>(ONE *         f);
-
-        return u;
-    }
-};
-}  // namespace linear
-
 namespace linear32f {
 struct Mapper {
     typedef float alpha_type;
@@ -2304,7 +2396,6 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FScalePlanes4
         , FScalePlane
         , FScalePlane32f
-        , FScalePlane8u
         , FUpscalePlaneArea8u
         , FUpscalePlaneArea32f
         , FScalePlaneArea8u

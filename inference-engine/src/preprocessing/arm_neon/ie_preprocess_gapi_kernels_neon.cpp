@@ -424,15 +424,45 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4>& dst,
     calcRowLinear_8UC_Impl_<4>(dst, src0, src1, alpha, clone, mapsx,
                                beta, tmp, inSz, outSz, lpi);
 }
+}  // namespace neon
+
+CV_ALWAYS_INLINE void vertical_anyLPI(const uchar* src0, const uchar* src1,
+                                      uchar* tmp, const int inLength,
+                                      const short beta) {
+    constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
+    GAPI_Assert(inLength >= nlanes);
+
+    const int half_nlanes = nlanes / 2;
+    int w = 0;
+    for (;;) {
+        for (; w <= inLength - nlanes; w += nlanes) {
+            v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(&src0[w]));
+            v_int16 s1 = v_reinterpret_as_s16(vx_load_expand(&src1[w]));
+            v_int16 s2 = v_reinterpret_as_s16(vx_load_expand(&src0[w + half_nlanes]));
+            v_int16 s3 = v_reinterpret_as_s16(vx_load_expand(&src1[w + half_nlanes]));
+            v_int16 res1 = v_mulhrs(s0 - s1, beta) + s1;
+            v_int16 res2 = v_mulhrs(s2 - s3, beta) + s3;
+
+            vx_store(tmp + w, v_pack_u(res1, res2));
+        }
+
+        if (w < inLength) {
+            w = inLength - nlanes;
+            continue;
+        }
+        break;
+    }
+}
 
 CV_ALWAYS_INLINE void horizontal_4LPI(uint8_t* dst[],
                                       const uchar* tmp, const short mapsx[],
-                                      const uchar _mask_horizontal[],
                                       const short clone[], const int length) {
     constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
     constexpr int half_nlanes = nlanes / 2;
     GAPI_Assert(length >= half_nlanes);
 
+    uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
+                                       1, 5, 9, 13, 3, 7, 11, 15 };
     v_uint8 hmask = vx_load(_mask_horizontal);
     int x = 0;
     for (;;) {
@@ -517,17 +547,20 @@ CV_ALWAYS_INLINE void horizontal_anyLPI(uint8_t* dst,
 }
 
 // 8UC1 Resize (bi-linear)
-void calcRowLinear_8UC1(uint8_t* dst[],
-                        const uint8_t* src0[],
-                        const uint8_t* src1[],
-                        const short    alpha[],
-                        const short    clone[],  // 4 clones of alpha
-                        const short    mapsx[],
-                        const short    beta[],
-                            uint8_t    tmp[],
-                        const Size&    inSz,
-                        const Size&    outSz,
-                        const int      lpi) {
+template<>
+void calcRowLinear8UC1Impl(neon_tag,
+                           uint8_t* dst[],
+                           const uint8_t* src0[],
+                           const uint8_t* src1[],
+                           const short    alpha[],
+                           const short    clone[],  // 4 clones of alpha
+                           const short    mapsx[],
+                           const short    beta[],
+                               uint8_t    tmp[],
+                           const Size&    inSz,
+                           const Size&    outSz,
+                           const int      lpi,
+                           const int) {
     static_assert(v_uint8::nlanes == 16,
                   "The wide of NEON vector is 128 bits, so one vector contains 16 uchars");
 
@@ -538,16 +571,12 @@ void calcRowLinear_8UC1(uint8_t* dst[],
     bool yRatioEq = inSz.height == outSz.height;
 
     if (!xRatioEq && !yRatioEq) {
-        GAPI_Assert(inSz.width >= half_nlanes);
-
-        uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
-                                           1, 5, 9, 13, 3, 7, 11, 15 };
         if (4 == lpi) {
             // vertical pass
             vertical_4LPI(src0, src1, tmp, beta, inSz.width);
 
             // horizontal pass
-            horizontal_4LPI(dst, tmp, mapsx, _mask_horizontal, clone, outSz.width);
+            horizontal_4LPI(dst, tmp, mapsx, clone, outSz.width);
         } else {  // if any lpi
             for (int l = 0; l < lpi; ++l) {
                 short beta0 = beta[l];
@@ -566,8 +595,6 @@ void calcRowLinear_8UC1(uint8_t* dst[],
     } else if (!xRatioEq) {
         GAPI_DbgAssert(yRatioEq);
         GAPI_Assert(inSz.width >= nlanes);
-        uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
-                                           1, 5, 9, 13, 3, 7, 11, 15 };
 
         if (4 == lpi) {
             // vertical pass
@@ -589,7 +616,7 @@ void calcRowLinear_8UC1(uint8_t* dst[],
             }
 
             // horizontal pass
-            horizontal_4LPI(dst, tmp, mapsx, _mask_horizontal, clone, outSz.width);
+            horizontal_4LPI(dst, tmp, mapsx, clone, outSz.width);
         } else {  // any LPI
             GAPI_Assert(outSz.width >= half_nlanes);
             for (int l = 0; l < lpi; ++l) {
@@ -623,7 +650,6 @@ void calcRowLinear_8UC1(uint8_t* dst[],
         }
     }
 }
-}  // namespace neon
 
 template void chanToPlaneRowImpl(neon_tag, const uint8_t* in, int chan, int chs, uint8_t* out, const int length);
 template void chanToPlaneRowImpl(neon_tag, const float*   in, int chan, int chs, float  * out, const int length);

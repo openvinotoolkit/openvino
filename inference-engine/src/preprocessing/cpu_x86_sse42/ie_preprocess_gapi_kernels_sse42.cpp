@@ -56,17 +56,19 @@ namespace gapi {
 namespace kernels {
 
 // 8UC1 Resize (bi-linear)
-void calcRowLinear_8UC1(uint8_t       *dst[],
-                        const uint8_t *src0[],
-                        const uint8_t *src1[],
-                        const short    alpha[],
-                        const short    clone[],  // 4 clones of alpha
-                        const short    mapsx[],
-                        const short    beta[],
-                              uint8_t  tmp[],
-                        const Size&    inSz,
-                        const Size&    outSz,
-                              int      lpi) {
+template<>
+void calcRowLinear8UC1Impl(sse42_tag, uint8_t  *dst[],
+                           const uint8_t *src0[],
+                           const uint8_t *src1[],
+                           const short    alpha[],
+                           const short    clone[],  // 4 clones of alpha
+                           const short    mapsx[],
+                           const short    beta[],
+                               uint8_t    tmp[],
+                            const Size&   inSz,
+                            const Size&   outSz,
+                            const int     lpi,
+                            const int) {
     bool xRatioEq1 = inSz.width  == outSz.width;
     bool yRatioEq1 = inSz.height == outSz.height;
 
@@ -1289,6 +1291,7 @@ template void mergeRowImpl<sse42_tag, uchar, 3>(sse42_tag, const std::array<cons
 template void mergeRowImpl<sse42_tag, float, 3>(sse42_tag, const std::array<const float*, 3>& ins, float* out, const int length);
 template void mergeRowImpl<sse42_tag, uchar, 4>(sse42_tag, const std::array<const uint8_t*, 4>& ins, uint8_t* out, const int length);
 template void mergeRowImpl<sse42_tag, float, 4>(sse42_tag, const std::array<const float*, 4>& ins, float* out, const int length);
+
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
