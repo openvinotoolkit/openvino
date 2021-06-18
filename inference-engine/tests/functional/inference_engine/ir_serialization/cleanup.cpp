@@ -55,8 +55,7 @@ TEST_F(SerializationCleanupTest, SerializationShouldWorkWithDynamicFunction) {
                            ngraph::PartialShape{ngraph::Dimension()});
 
     const InferenceEngine::CNNNetwork net{f};
-    ASSERT_THROW(net.serialize(m_out_xml_path, m_out_bin_path),
-                 InferenceEngine::Exception);
+    net.serialize(m_out_xml_path, m_out_bin_path);
 
     // .xml & .bin files should be present
     ASSERT_TRUE(std::ifstream(m_out_xml_path, std::ios::in).good());
