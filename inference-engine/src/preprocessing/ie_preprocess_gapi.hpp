@@ -44,9 +44,19 @@ class PreprocEngine {
                       Update update);
 
     template<typename BlobTypePtr>
-    void preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
+    void preprocessTypedBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
         ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
         int batch_size);
+
+    void preprocessBlob(const Blob::Ptr &inBlob, MemoryBlob::Ptr &outBlob, const ResizeAlgorithm &algorithm,
+        ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial, int batch_size);
+
+    void preprocessBatchedBlob(const BatchedBlob::Ptr &inBlob, MemoryBlob::Ptr &outBlob,
+        ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
+        int batch_size);
+
+    static void checkSingleBlobApplicabilityGAPI(const Blob::Ptr &src, const SizeVector &network_input_valid_dims);
+    static void checkBatchedBlobApplicabilityGAPI(const BatchedBlob::Ptr &src, const SizeVector &network_input_valid_dims);
 
 public:
     PreprocEngine();
