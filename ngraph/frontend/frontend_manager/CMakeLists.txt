@@ -45,7 +45,6 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/frontend_manager
     COMPONENT ngraph
     FILES_MATCHING
         PATTERN "*.hpp"
-        PATTERN "*.h"
 )
 
 export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")

@@ -91,23 +91,18 @@ void regclass_pyngraph_Place(py::module m)
 
     place.def(
         "get_consuming_operations",
-        static_cast<std::vector<ngraph::frontend::Place::Ptr> (ngraph::frontend::Place::*)() const>(
-            &ngraph::frontend::Place::get_consuming_operations),
+        [](const ngraph::frontend::Place& self, py::object outputPortIndex) {
+            if (outputPortIndex == py::none())
+            {
+                return self.get_consuming_operations();
+            }
+            else
+            {
+                return self.get_consuming_operations(py::cast<int>(outputPortIndex));
+            }
+        },
+        py::arg("outputPortIndex") = py::none(),
         R"(
-                Returns references to all operation nodes that consume data from this place
-                Note: It can be called for any kind of graph place searching for the first consuming operations
-
-                Returns
-                ----------
-                get_consuming_operations : List[Place]
-                    A list with all operation node references that consumes data from this place
-             )");
-
-    place.def("get_consuming_operations",
-              static_cast<std::vector<ngraph::frontend::Place::Ptr> (ngraph::frontend::Place::*)(
-                  int) const>(&ngraph::frontend::Place::get_consuming_operations),
-              py::arg("outputPortIndex"),
-              R"(
                 Returns references to all operation nodes that consume data from this place for specified output port
                 Note: It can be called for any kind of graph place searching for the first consuming operations
 
@@ -115,6 +110,7 @@ void regclass_pyngraph_Place(py::module m)
                 ----------
                 outputPortIndex : int
                     If place is an operational node it specifies which output port should be considered
+                    May not be set if node has only one output port
 
                 Returns
                 ----------
@@ -122,10 +118,20 @@ void regclass_pyngraph_Place(py::module m)
                     A list with all operation node references that consumes data from this place
              )");
 
-    place.def("get_target_tensor",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
-                  &ngraph::frontend::Place::get_target_tensor),
-              R"(
+    place.def(
+        "get_target_tensor",
+        [](const ngraph::frontend::Place& self, py::object outputPortIndex) {
+            if (outputPortIndex == py::none())
+            {
+                return self.get_target_tensor();
+            }
+            else
+            {
+                return self.get_target_tensor(py::cast<int>(outputPortIndex));
+            }
+        },
+        py::arg("outputPortIndex") = py::none(),
+        R"(
                 Returns a tensor place that gets data from this place; applicable for operations,
                 output ports and output edges
 
@@ -133,6 +139,7 @@ void regclass_pyngraph_Place(py::module m)
                 ----------
                 outputPortIndex : int
                     Output port index if the current place is an operation node and has multiple output ports
+                    May not be set if place has only one output port
 
                 Returns
                 ----------
@@ -140,44 +147,27 @@ void regclass_pyngraph_Place(py::module m)
                     A tensor place which hold the resulting value for this place
              )");
 
-    place.def("get_target_tensor",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
-                  &ngraph::frontend::Place::get_target_tensor),
-              py::arg("outputPortIndex"),
-              R"(
-                Returns a tensor place that gets data from this place; applicable for operations,
-                output ports and output edges which have only one output port
-
-                Returns
-                ----------
-                get_consuming_operations : Place
-                    A tensor place which hold the resulting value for this place
-             )");
-
-    place.def("get_producing_operation",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
-                  &ngraph::frontend::Place::get_producing_operation),
-              R"(
-                Get an operation node place that immediately produces data for this place; applicable if place
-                has only one input port
-
-                Returns
-                ----------
-                get_producing_operation : Place
-                    An operation place that produces data for this place
-             )");
-
-    place.def("get_producing_operation",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
-                  &ngraph::frontend::Place::get_producing_operation),
-              py::arg("inputPortIndex"),
-              R"(
+    place.def(
+        "get_producing_operation",
+        [](const ngraph::frontend::Place& self, py::object inputPortIndex) {
+            if (inputPortIndex == py::none())
+            {
+                return self.get_producing_operation();
+            }
+            else
+            {
+                return self.get_producing_operation(py::cast<int>(inputPortIndex));
+            }
+        },
+        py::arg("inputPortIndex") = py::none(),
+        R"(
                 Get an operation node place that immediately produces data for this place
 
                 Parameters
                 ----------
                 inputPortIndex : int
-                    If a given place is itself an operation node, this specifies a port index
+                    If a given place is itself an operation node, this specifies a port index.
+                    May not be set if place has only one input port
 
                 Returns
                 ----------
@@ -196,71 +186,45 @@ void regclass_pyngraph_Place(py::module m)
                     A port place that produces data for this place
              )");
 
-    place.def("get_input_port",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
-                  &ngraph::frontend::Place::get_input_port),
-              R"(
-                For operation node returns reference to an input port; applicable if operation node
-                has only one input port
-
-                Returns
-                ----------
-                get_input_port : Place
-                    Input port place
-             )");
-
-    place.def("get_input_port",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
-                  &ngraph::frontend::Place::get_input_port),
-              py::arg("inputPortIndex"),
-              R"(
-                For operation node returns reference to an input port with specified index
-
-                Parameters
-                ----------
-                inputPortIndex : int
-                    Input port index
-
-                Returns
-                ----------
-                get_input_port : Place
-                    Appropriate input port place
-             )");
-
-    place.def("get_input_port",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(
-                  const std::string&) const>(&ngraph::frontend::Place::get_input_port),
-              py::arg("inputName"),
-              R"(
-                For operation node returns reference to an input port with specified name; applicable if
-                port group has only one input port
-
-                Parameters
-                ----------
-                inputName : str
-                    Name of port group
-
-                Returns
-                ----------
-                get_input_port : Place
-                    Appropriate input port place
-             )");
-
-    place.def("get_input_port",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(
-                  const std::string&, int) const>(&ngraph::frontend::Place::get_input_port),
-              py::arg("inputName"),
-              py::arg("inputPortIndex"),
-              R"(
+    place.def(
+        "get_input_port",
+        [](const ngraph::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
+            if (inputName == py::none())
+            {
+                if (inputPortIndex == py::none())
+                {
+                    return self.get_input_port();
+                }
+                else
+                {
+                    return self.get_input_port(py::cast<int>(inputPortIndex));
+                }
+            }
+            else
+            {
+                if (inputPortIndex == py::none())
+                {
+                    return self.get_input_port(py::cast<std::string>(inputName));
+                }
+                else
+                {
+                    return self.get_input_port(py::cast<std::string>(inputName),
+                                               py::cast<int>(inputPortIndex));
+                }
+            }
+        },
+        py::arg("inputName") = py::none(),
+        py::arg("inputPortIndex") = py::none(),
+        R"(
                 For operation node returns reference to an input port with specified name and index
 
                 Parameters
                 ----------
                 inputName : str
-                    Name of port group
+                    Name of port group. May not be set if node has one input port group
 
                 inputPortIndex : int
-                    Input port index in a group
+                    Input port index in a group. May not be set if node has one input port in a group
 
                 Returns
                 ----------
@@ -268,72 +232,45 @@ void regclass_pyngraph_Place(py::module m)
                     Appropriate input port place
              )");
 
-    place.def("get_output_port",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
-                  &ngraph::frontend::Place::get_output_port),
-              R"(
-                For operation node returns reference to an output por; applicable for
-                operations with only one output port
-
-                Returns
-                ----------
-                get_output_port : Place
-                    Appropriate output port place
-             )");
-
-    place.def("get_output_port",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
-                  &ngraph::frontend::Place::get_output_port),
-              py::arg("outputPortIndex"),
-              R"(
-                For operation node returns reference to an output por; applicable for
-                operations with only one output port
-
-                Parameters
-                ----------
-                outputPortIndex : int
-                    Output port index
-
-                Returns
-                ----------
-                get_output_port : Place
-                    Appropriate output port place
-             )");
-
-    place.def("get_output_port",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(
-                  const std::string&) const>(&ngraph::frontend::Place::get_output_port),
-              py::arg("outputName"),
-              R"(
-                For operation node returns reference to an output port; applicable for
-                operations with only one output port in a group
-
-                Parameters
-                ----------
-                outputName : str
-                    Name of output port group
-
-                Returns
-                ----------
-                get_output_port : Place
-                    Appropriate output port place
-             )");
-
-    place.def("get_output_port",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(
-                  const std::string&, int) const>(&ngraph::frontend::Place::get_output_port),
-              py::arg("outputName"),
-              py::arg("outputPortIndex"),
-              R"(
+    place.def(
+        "get_output_port",
+        [](const ngraph::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
+            if (outputName == py::none())
+            {
+                if (outputPortIndex == py::none())
+                {
+                    return self.get_output_port();
+                }
+                else
+                {
+                    return self.get_output_port(py::cast<int>(outputPortIndex));
+                }
+            }
+            else
+            {
+                if (outputPortIndex == py::none())
+                {
+                    return self.get_output_port(py::cast<std::string>(outputName));
+                }
+                else
+                {
+                    return self.get_output_port(py::cast<std::string>(outputName),
+                                                py::cast<int>(outputPortIndex));
+                }
+            }
+        },
+        py::arg("outputName") = py::none(),
+        py::arg("outputPortIndex") = py::none(),
+        R"(
                 For operation node returns reference to an output port with specified name and index
 
                 Parameters
                 ----------
                 outputName : str
-                    Name of output port group
+                    Name of output port group. May not be set if node has one output port group
 
                 outputPortIndex : int
-                    Output port index
+                    Output port index. May not be set if node has one output port in a group
 
                 Returns
                 ----------
@@ -352,31 +289,27 @@ void regclass_pyngraph_Place(py::module m)
                     Input ports that consume data flows through this place
              )");
 
-    place.def("get_source_tensor",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)() const>(
-                  &ngraph::frontend::Place::get_source_tensor),
-              R"(
-                Returns a tensor place that supplies data for this place; applicable for operations,
-                input ports and input edges which have only one input port
-
-                Returns
-                ----------
-                get_source_tensor : Place
-                    A tensor place which supplies data for this place
-             )");
-
-    place.def("get_source_tensor",
-              static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::Place::*)(int) const>(
-                  &ngraph::frontend::Place::get_source_tensor),
-              py::arg("inputPortIndex"),
-              R"(
+    place.def(
+        "get_source_tensor",
+        [](const ngraph::frontend::Place& self, py::object inputPortIndex) {
+            if (inputPortIndex == py::none())
+            {
+                return self.get_source_tensor();
+            }
+            else
+            {
+                return self.get_source_tensor(py::cast<int>(inputPortIndex));
+            }
+        },
+        py::arg("inputPortIndex") = py::none(),
+        R"(
                 Returns a tensor place that supplies data for this place; applicable for operations,
                 input ports and input edges
 
                 Parameters
                 ----------
                 inputPortIndex : int
-                    Input port index for operational nodes
+                    Input port index for operational node. May not be specified if place has only one input port
 
                 Returns
                 ----------
