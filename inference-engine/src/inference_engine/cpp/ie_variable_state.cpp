@@ -4,7 +4,6 @@
 
 #include "details/ie_so_loader.h"
 #include "cpp/ie_memory_state.hpp"
-#include "ie_imemory_state.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "exception2status.hpp"
 

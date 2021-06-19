@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include <cpp/ie_infer_request.hpp>
-#include "unit_test_utils/mocks/mock_ie_ivariable_state.hpp"
 
 using namespace ::testing;
 using namespace std;
