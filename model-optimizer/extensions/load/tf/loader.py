@@ -109,6 +109,11 @@ class TFLoader(Loader):
         if not argv.force_nhwc_to_nchw:
             NHWC_conv_detected = graph_or_sub_graph_has_nhwc_ops(graph)
             if not NHWC_conv_detected:
+                if not argv.silent:
+                    print('The TensorFlow model does not contain Convolution operations with N(D)HWC layout so the '
+                          'model layout conversion from NHWC to NCHW has been disabled (the same effect as if you '
+                          'specify "--disable_nhwc_to_nchw" command line parameter). If you still want to enable the '
+                          'layout conversion mechanism add "--force_nhwc_to_nchw" command line parameter.')
                 for_graph_and_each_sub_graph_recursively(graph, update_cmd_params_and_layout)
 
         send_op_names_info(framework, graph)
