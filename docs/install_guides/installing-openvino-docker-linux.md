@@ -150,7 +150,7 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2021/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
    - **CentOS 7**:
@@ -184,7 +184,7 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2021/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
 2. Run the Docker* image:

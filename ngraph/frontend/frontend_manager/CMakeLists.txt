@@ -27,9 +27,9 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "Manager of OpenVINO nGraph Frontends")
 endif()
 
-set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/frontend_manager")
+set(FRONTEND_INSTALL_INCLUDE "runtime/include/ngraph/frontend/frontend_manager")
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
-                                                       $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
+                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
 target_include_directories(${TARGET_NAME} PRIVATE ${NGRAPH_INCLUDE_PATH} ${FRONTEND_INCLUDE_DIR})
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

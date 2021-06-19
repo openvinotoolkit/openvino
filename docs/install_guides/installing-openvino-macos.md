@@ -196,7 +196,7 @@ You can choose to either configure the Model Optimizer for all supported framewo
 
 1. Go to the Model Optimizer prerequisites directory:
    ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
+   cd /opt/intel/openvino_2021/tools/model_optimizer/install_prerequisites
    ```
 
 2. Run the script to configure the Model Optimizer for Caffe, TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
@@ -210,7 +210,7 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
 
 1. Go to the Model Optimizer prerequisites directory:
    ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
+   cd /opt/intel/openvino_2021/tools/model_optimizer/install_prerequisites
    ```
 
 2. Run the script for your model framework. You can run more than one script:

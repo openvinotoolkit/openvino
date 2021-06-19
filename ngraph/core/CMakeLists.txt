@@ -79,7 +79,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
-                                         $<INSTALL_INTERFACE:${NGRAPH_INSTALL_INCLUDE}>
+                                         $<INSTALL_INTERFACE:runtime/include>
                                   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
                                           ${CMAKE_CURRENT_BINARY_DIR}/include)
 
@@ -96,11 +96,11 @@ endif()
 
 # nGraph
 install(TARGETS ngraph EXPORT ngraphTargets
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-    DESTINATION ${NGRAPH_INSTALL_INCLUDE}
+    DESTINATION runtime/include
     COMPONENT ngraph_dev
     FILES_MATCHING
         PATTERN "*.hpp"
@@ -108,7 +108,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         PATTERN "*version.in.hpp" EXCLUDE
 )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/ngraph/version.hpp
-    DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph
+    DESTINATION runtime/include/ngraph
     COMPONENT ngraph_dev)
 
 set(CPACK_GENERATOR "DEB")

@@ -184,12 +184,6 @@ if (DEFINED NGRAPH_INSTALL_PREFIX)
 endif()
 message(STATUS "Installation directory: ${CMAKE_INSTALL_PREFIX}")
 
-# Destinations
-set(NGRAPH_INSTALL_LIB "deployment_tools/ngraph/${CMAKE_INSTALL_LIBDIR}")
-set(NGRAPH_INSTALL_INCLUDE "deployment_tools/ngraph/${CMAKE_INSTALL_INCLUDEDIR}")
-set(NGRAPH_INSTALL_DOC "deployment_tools/ngraph/${CMAKE_INSTALL_DOCDIR}")
-set(NGRAPH_INSTALL_BIN "deployment_tools/ngraph/${CMAKE_INSTALL_BINDIR}")
-
 #-----------------------------------------------------------------------------------------------
 # Compile Flags for nGraph...
 #-----------------------------------------------------------------------------------------------
@@ -274,7 +268,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
         install(EXPORT ngraphTargets
             FILE ngraphTargets.cmake
             NAMESPACE ngraph::
-            DESTINATION "deployment_tools/ngraph/cmake"
+            DESTINATION "runtime/cmake"
             COMPONENT ngraph_dev)
     endif()
 
@@ -288,7 +282,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION "deployment_tools/ngraph/cmake"
+        DESTINATION "runtime/cmake"
         COMPONENT ngraph_dev)
 endif()
 
@@ -336,10 +330,6 @@ endif()
 
 add_subdirectory(test)
 
-if (NGRAPH_PYTHON_BUILD_ENABLE)
+if(NGRAPH_PYTHON_BUILD_ENABLE)
     add_subdirectory(python)
 endif()
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/VERSION
-    DESTINATION "deployment_tools/ngraph"
-    COMPONENT ngraph)

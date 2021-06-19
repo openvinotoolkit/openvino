@@ -282,7 +282,7 @@ cd /home/<user>/squeezenet1.1_FP16
 
 3. Use the Model Optimizer to convert an FP16 SqueezeNet Caffe* model into an optimized Intermediate Representation (IR):
 ```sh
-python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model /home/<user>/openvino_models/FP32/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir .
+python3 /opt/intel/openvino/tools/model_optimizer/mo.py --input_model /home/<user>/openvino_models/FP32/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir .
 ```
 
 4. The `squeezenet1.1.labels` file contains the classes `ImageNet` uses. This file is included so that the inference results show text instead of classification numbers. Copy `squeezenet1.1.labels` to the your optimized model location:

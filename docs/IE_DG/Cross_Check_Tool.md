@@ -8,7 +8,7 @@ The Cross Check Tool can compare metrics per layer or all over the model.
 
 On Linux* OS, before running the Cross Check Tool binary, make sure your application can find the
 Deep Learning Inference Engine libraries.
-Navigate to the `<INSTALL_DIR>/deployment_tools/inference_engine/bin` folder and run the `setvars.sh` script to
+Navigate to the `<INSTALL_DIR>/runtime/bin` folder and run the `setvars.sh` script to
 set all necessary environment variables:
 
 ```sh

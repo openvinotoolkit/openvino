@@ -157,14 +157,14 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
 
 1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
    ```sh
-   cd <INSTALL_DIR>/deployment_tools/open_model_zoo/tools/downloader
+   cd <INSTALL_DIR>/extras/open_model_zoo/tools/downloader
    ```
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
    ```
 2. Convert the model to the Inference Engine IR format. Go to the Model Optimizer directory and run the `mo.py` script with specifying the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
    ```sh
-   cd <INSTALL_DIR>/deployment_tools/model_optimizer
+   cd <INSTALL_DIR>/tools/model_optimizer
    ```
    ```sh
    python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>

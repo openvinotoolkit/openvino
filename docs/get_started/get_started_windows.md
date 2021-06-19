@@ -26,9 +26,9 @@ This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit
 
 By default, the installation directory is `C:\Program Files (x86)\Intel\openvino_<version>`, referred to as `<INSTALL_DIR>`. If you installed the Intel® Distribution of OpenVINO™ toolkit to a directory other than the default, replace `C:\Program Files (x86)\Intel` with the directory in which you installed the software. For simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2021`.
 
-The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>\deployment_tools` directory.
+The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>\tools` directory.
 <details>
-    <summary><strong>Click for the <code>deployment_tools</code> directory structure</strong></summary>
+    <summary><strong>Click for the <code>tools</code> directory structure</strong></summary>
    
 
 | Directory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description                                                                           |  
@@ -323,7 +323,7 @@ The `vehicle-license-plate-detection-barrier-0106`, `vehicle-attributes-recognit
 
 3. Run the Model Optimizer script:
    ```bat
-   cd <INSTALL_DIR>\deployment_tools\model_optimizer
+   cd <INSTALL_DIR>\tools\model_optimizer
    ```
    ```bat 
    python .\mo.py --input_model <model_dir>\<model_file> --data_type <model_precision> --output_dir <ir_dir>
@@ -336,7 +336,7 @@ The `vehicle-license-plate-detection-barrier-0106`, `vehicle-attributes-recognit
 The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP16 IR and saves to the `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` output directory:
 
 ```bat
-   cd <INSTALL_DIR>\deployment_tools\model_optimizer
+   cd <INSTALL_DIR>\tools\model_optimizer
    ```
    ```bat  
    python .\mo.py --input_model C:\Users\username\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel --data_type FP16 --output_dir C:\Users\username\Documents\models\public\squeezenet1.1\ir
@@ -492,7 +492,7 @@ To build all the demos and samples:
 cd $INTEL_OPENVINO_DIR\inference_engine_samples\cpp
 # to compile C samples, go here also: cd <INSTALL_DIR>\inference_engine\samples\c
 build_samples_msvc.bat
-cd $INTEL_OPENVINO_DIR\deployment_tools\open_model_zoo\demos
+cd $INTEL_OPENVINO_DIR\extras\open_model_zoo\demos
 build_demos_msvc.bat
 ```
 

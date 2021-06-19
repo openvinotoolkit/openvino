@@ -48,7 +48,7 @@ endif()
 target_link_libraries(onnx_importer PRIVATE onnx_common ngraph::builder
     PUBLIC ngraph)
 
-set(ONNX_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
+set(ONNX_INSTALL_INCLUDE "runtime/include/ngraph/frontend")
 target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
                                                        $<INSTALL_INTERFACE:${ONNX_INSTALL_INCLUDE}>)
 
@@ -68,9 +68,9 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
 endif()
 
 install(TARGETS onnx_importer EXPORT ngraphTargets
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
 
 install(DIRECTORY ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import
     DESTINATION ${ONNX_INSTALL_INCLUDE}

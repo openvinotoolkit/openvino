@@ -164,7 +164,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LI
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-            $<INSTALL_INTERFACE:${IE_CPACK_IE_DIR}/include>
+            $<INSTALL_INTERFACE:runtime/include>
     PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -232,27 +232,27 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCH
     list(APPEND core_components tbb)
 
     install(DIRECTORY "${TBB}/include"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
+            DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)
     install(DIRECTORY "${TBB}/lib"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
+            DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)
     if(EXISTS "${TBB}/bin")
         install(DIRECTORY "${TBB}/bin"
-                DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
+                DESTINATION runtime/3rdparty/tbb
                 COMPONENT tbb)
     endif()
     install(FILES "${TBB}/LICENSE"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
+            DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)
 
-    set(IE_TBB_DIR_INSTALL "external/tbb/cmake")
+    set(IE_TBB_DIR_INSTALL "runtime/3rdarty/tbb/cmake")
     set(IE_TBB_DIR "${TBB_DIR}")
     list(APPEND PATH_VARS "IE_TBB_DIR")
 
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
                   "${TBB}/cmake/TBBConfigVersion.cmake"
-            DESTINATION ${IE_CPACK_IE_DIR}/${IE_TBB_DIR_INSTALL}
+            DESTINATION ${IE_TBB_DIR_INSTALL}
             COMPONENT tbb)
 endif()
 
@@ -261,7 +261,8 @@ endif()
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
-install(DIRECTORY "${IE_MAIN_SOURCE_DIR}/include" DESTINATION ${IE_CPACK_IE_DIR}
+install(DIRECTORY "${IE_MAIN_SOURCE_DIR}/include"
+        DESTINATION runtime/include/ie
         COMPONENT core_dev)
 
 install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
@@ -278,7 +279,7 @@ install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
 install(EXPORT InferenceEngineTargets
         FILE InferenceEngineTargets.cmake
         NAMESPACE IE::
-        DESTINATION ${IE_CPACK_IE_DIR}/share
+        DESTINATION runtime/cmake
         COMPONENT core_dev)
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
@@ -307,5 +308,5 @@ configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-vers
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
               "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake"
-        DESTINATION ${IE_CPACK_IE_DIR}/share
+        DESTINATION runtime/cmake
         COMPONENT core_dev)

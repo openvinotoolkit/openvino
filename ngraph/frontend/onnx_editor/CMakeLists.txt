@@ -27,7 +27,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE onnx_common onnx_importer
 
 set(ONNX_EDITOR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(ONNX_EDITOR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set(ONNX_EDITOR_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
+set(ONNX_EDITOR_INSTALL_INCLUDE "runtime/include/ngraph/frontend")
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_EDITOR_INCLUDE_DIR}>
                                                  $<INSTALL_INTERFACE:${ONNX_EDITOR_INSTALL_INCLUDE}>)

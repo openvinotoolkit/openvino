@@ -141,7 +141,7 @@ target_precision="FP16"
 
 printf "target_precision = %s\n" "${target_precision}"
 
-downloader_dir="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/tools/downloader"
+downloader_dir="${INTEL_OPENVINO_DIR}/extras/open_model_zoo/tools/downloader"
 
 downloader_path="$downloader_dir/downloader.py"
 models_path="$HOME/openvino_models/ir"
@@ -164,7 +164,7 @@ done < "$ROOT_DIR/demo_security_barrier_camera.conf"
 printf "%s" "${dashes}"
 printf "Build Inference Engine demos\n\n"
 
-demos_path="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/demos"
+demos_path="${INTEL_OPENVINO_DIR}/extras/open_model_zoo/demos"
 
 if ! command -v cmake &>/dev/null; then
     printf "\n\nCMAKE is not installed. It is required to build Inference Engine demos. Please install it. %s" "${run_again}"

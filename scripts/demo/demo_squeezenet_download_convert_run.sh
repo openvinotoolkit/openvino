@@ -149,7 +149,7 @@ else
     sudo -E "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 fi
 
-downloader_dir="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/tools/downloader"
+downloader_dir="${INTEL_OPENVINO_DIR}/extras/open_model_zoo/tools/downloader"
 
 model_dir=$("$python_binary" "$downloader_dir/info_dumper.py" --name "$model_name" |
     "$python_binary" -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
@@ -164,7 +164,7 @@ if [ ! -e "$ir_dir" ]; then
     # Step 2. Configure Model Optimizer
     printf "%s" "${dashes}"
     printf "Install Model Optimizer dependencies\n\n"
-    cd "${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer/install_prerequisites"
+    cd "${INTEL_OPENVINO_DIR}/tools/model_optimizer/install_prerequisites"
     . ./install_prerequisites.sh caffe
     cd "$cur_path"
 
@@ -172,7 +172,7 @@ if [ ! -e "$ir_dir" ]; then
     printf "%s" "${dashes}"
     printf "Convert a model with Model Optimizer\n\n"
 
-    mo_path="${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer/mo.py"
+    mo_path="${INTEL_OPENVINO_DIR}/tools/model_optimizer/mo.py"
 
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
     print_and_run "$python_binary" "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
@@ -193,7 +193,7 @@ if [ "$OS_PATH" == "x86_64" ]; then
   NUM_THREADS="-j8"
 fi
 
-samples_path="${INTEL_OPENVINO_DIR}/deployment_tools/inference_engine/samples/cpp"
+samples_path="${INTEL_OPENVINO_DIR}/samples/cpp"
 build_dir="$HOME/inference_engine_samples_build"
 binaries_dir="${build_dir}/${OS_PATH}/Release"
 

@@ -10,10 +10,10 @@ if [ -z "$INTEL_OPENVINO_DIR" ]; then
     exit -1
 fi
 
-if [ -f "$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/external/97-myriad-usbboot.rules" ]; then
+if [ -f "$INTEL_OPENVINO_DIR/3rdparty/97-myriad-usbboot.rules" ]; then
     sudo usermod -a -G users "$(whoami)"
 
-    sudo cp "$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/external/97-myriad-usbboot.rules" /etc/udev/rules.d/
+    sudo cp "$INTEL_OPENVINO_DIR/3rdparty/97-myriad-usbboot.rules" /etc/udev/rules.d/
     sudo udevadm control --reload-rules
     sudo udevadm trigger
     sudo ldconfig

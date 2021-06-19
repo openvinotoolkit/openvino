@@ -31,7 +31,7 @@ For simplicity, a symbolic link to the latest installation is also created: `/ho
 
 If you installed the Intel® Distribution of OpenVINO™ toolkit to a directory other than the default, replace `/opt/intel` or `/home/<USER>/` with the directory in which you installed the software. 
 
-The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/deployment_tools` directory.
+The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/tools` directory.
 <details>
     <summary><strong>Click for the Intel® Distribution of OpenVINO™ toolkit directory structure</strong></summary>
    
@@ -219,7 +219,7 @@ This guide uses the Model Downloader to get pre-trained models. You can use one 
 
 * **List the models available in the downloader**: 
 ```sh
-cd /opt/intel/openvino_2021/deployment_tools/tools/model_downloader/
+cd /opt/intel/openvino_2021/tools/model_downloader/
 ```
 ```sh
 python3 info_dumper.py --print_all
@@ -326,7 +326,7 @@ The `vehicle-license-plate-detection-barrier-0106`, `vehicle-attributes-recognit
 
 3. Run the Model Optimizer script:
    ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer
+   cd /opt/intel/openvino_2021/tools/model_optimizer
    ```
    ```sh  
    python3 ./mo.py --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
@@ -339,7 +339,7 @@ The `vehicle-license-plate-detection-barrier-0106`, `vehicle-attributes-recognit
 The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP16 IR and saves to the `~/models/public/squeezenet1.1/ir` output directory:
 
 ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer
+   cd /opt/intel/openvino_2021/tools/model_optimizer
    ```
    ```sh  
    python3 ./mo.py --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/models/public/squeezenet1.1/ir
@@ -484,7 +484,7 @@ To build all the demos and samples:
 cd $INTEL_OPENVINO_DIR/inference_engine_samples/cpp
 # to compile C samples, go here also: cd <INSTALL_DIR>/inference_engine/samples/c
 build_samples.sh
-cd $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/demos
+cd $INTEL_OPENVINO_DIR/extras/open_model_zoo/demos
 build_demos.sh
 ```
 
@@ -503,7 +503,7 @@ Template to call sample code or a demo application:
 With the sample information specified, the command might look like this:
 
 ```sh
-cd $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/demos/object_detection_demo
+cd $INTEL_OPENVINO_DIR/extras/open_model_zoo/demos/object_detection_demo
 ./object_detection_demo -i ~/Videos/catshow.mp4 -m ~/ir/fp32/mobilenet-ssd.xml -d CPU
 ```
 

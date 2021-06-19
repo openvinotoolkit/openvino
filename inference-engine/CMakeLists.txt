@@ -73,20 +73,20 @@ endif()
 ie_cpack_add_component(cpp_samples DEPENDS core)
 
 install(DIRECTORY ../thirdparty/zlib
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        DESTINATION samples/cpp/thirdparty
         COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS
         PATTERN .clang-format EXCLUDE)
 
 install(DIRECTORY ../thirdparty/cnpy
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        DESTINATION samples/cpp/thirdparty
         COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS
         PATTERN .clang-format EXCLUDE)
 
 if(UNIX)
     install(DIRECTORY samples/
-            DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
+            DESTINATION samples/cpp
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE
@@ -94,7 +94,7 @@ if(UNIX)
             PATTERN .clang-format EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY samples/
-            DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
+            DESTINATION samples/cpp
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.sh EXCLUDE
@@ -108,22 +108,22 @@ ie_cpack_add_component(c_samples DEPENDS core_c)
 
 if(UNIX)
     install(PROGRAMS samples/build_samples.sh
-            DESTINATION ${IE_CPACK_IE_DIR}/samples/c
+            DESTINATION samples/c
             COMPONENT c_samples)
 elseif(WIN32)
     install(PROGRAMS samples/build_samples_msvc.bat
-            DESTINATION ${IE_CPACK_IE_DIR}/samples/c
+            DESTINATION samples/c
             COMPONENT c_samples)
 endif()
 
 install(DIRECTORY ie_bridges/c/samples/
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/c
+        DESTINATION samples/c
         COMPONENT c_samples
         PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE
         PATTERN ie_bridges/c/samples/.clang-format EXCLUDE)
 
 install(FILES samples/CMakeLists.txt
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/c
+        DESTINATION samples/c
         COMPONENT c_samples)
 
 # install speech demo files
@@ -133,7 +133,7 @@ if(SPEECH_LIBS_AND_DEMOS)
 
     install(DIRECTORY ${TEMP}/deployment_tools
                       ${TEMP}/data_processing
-            DESTINATION .
+            DESTINATION extras/open_model_zoo
             USE_SOURCE_PERMISSIONS
             COMPONENT speech_demo_files)
 endif()

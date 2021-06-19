@@ -5,8 +5,6 @@
 include(CPackComponent)
 unset(IE_CPACK_COMPONENTS_ALL CACHE)
 
-set(IE_CPACK_IE_DIR       deployment_tools/inference_engine)
-
 #
 # ie_cpack_set_library_dir()
 #
@@ -14,13 +12,13 @@ set(IE_CPACK_IE_DIR       deployment_tools/inference_engine)
 #
 function(ie_cpack_set_library_dir)
     if(WIN32)
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/bin/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
+        set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH runtime/bin/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
     else()
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
     endif()
 endfunction()
 

@@ -140,7 +140,7 @@ Follow the next steps to use the pre-trained face detection model using Inferenc
    ```
 2. Build the Object Detection Sample:
    ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2021/deployment_tools/inference_engine/samples/cpp
+   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2021/samples/cpp
    ```
    ```sh
    make -j2 object_detection_sample_ssd

@@ -10,7 +10,7 @@ Model Optimizer requires:
 
 1. Go to the Model Optimizer folder:
 <pre>
-    cd PATH_TO_INSTALL_DIR/deployment_tools/model_optimizer
+    cd PATH_TO_INSTALL_DIR/tools/model_optimizer
 </pre>
 
 2. Create virtual environment and activate it. This option is strongly recommended as it creates a Python sandbox and

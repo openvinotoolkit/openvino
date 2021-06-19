@@ -5,7 +5,7 @@ To simply convert a model trained by any supported framework, run the Model Opti
 python3 mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-The script is in `$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/`. The output directory must have write permissions, so you can run mo.py from the output directory or specify an output path with the `--output_dir` option.
+The script is in `$INTEL_OPENVINO_DIR/tools/model_optimizer/`. The output directory must have write permissions, so you can run mo.py from the output directory or specify an output path with the `--output_dir` option.
 
 > **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For details, refer to [When to Reverse Input Channels](#when_to_reverse_input_channels).
 

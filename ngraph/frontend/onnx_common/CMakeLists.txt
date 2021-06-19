@@ -22,7 +22,7 @@ add_library(ngraph::onnx_common ALIAS ${TARGET_NAME})
 
 set(ONNX_COMMON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(ONNX_COMMON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set(ONNX_COMMON_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
+set(ONNX_COMMON_INSTALL_INCLUDE "runtime/include/ngraph/frontend")
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_COMMON_INCLUDE_DIR}>
                                                  $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)

@@ -38,7 +38,7 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 To convert a Caffe\* model:
 
-1. Go to the `$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer` directory.
+1. Go to the `$INTEL_OPENVINO_DIR/tools/model_optimizer` directory.
 2. Use the `mo.py` script to simply convert a model, specifying the path to the input model `.caffemodel` file and the path to an output directory with write permissions:
 ```sh
 python3 mo.py --input_model <INPUT_MODEL>.caffemodel --output_dir <OUTPUT_MODEL_DIR>

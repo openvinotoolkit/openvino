@@ -12,10 +12,10 @@ You can download TensorFlow\* Object Detection API models from the <a href="http
 
 <strong>NOTE</strong>: Before converting, make sure you have configured the Model Optimizer. For configuration steps, refer to [Configuring the Model Optimizer](../../Config_Model_Optimizer.md).
 
-To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory and run the `mo_tf.py` script with the following required parameters:
+To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/tools/model_optimizer` directory and run the `mo_tf.py` script with the following required parameters:
 
 * `--input_model <path_to_frozen.pb>` --- File with a pre-trained model (binary or text .pb file after freezing) OR `--saved_model_dir <path_to_saved_model>` for the TensorFlow\* 2 models
-* `--transformations_config <path_to_subgraph_replacement_configuration_file.json>` --- A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow\* Object Detection API zoo, you can find the configuration files in the `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf` directory. Use:
+* `--transformations_config <path_to_subgraph_replacement_configuration_file.json>` --- A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow\* Object Detection API zoo, you can find the configuration files in the `<INSTALL_DIR>/tools/model_optimizer/extensions/front/tf` directory. Use:
     * `ssd_v2_support.json` --- for frozen SSD topologies from the models zoo version up to 1.13.X inclusively
     * `ssd_support_api_v.1.14.json` --- for SSD topologies trained using the TensorFlow\* Object Detection API version 1.14 up to 1.14.X inclusively
     * `ssd_support_api_v.1.15.json` --- for SSD topologies trained using the TensorFlow\* Object Detection API version 1.15 up to 2.0
@@ -51,7 +51,7 @@ Additionally to the mandatory parameters listed above you can use optional conve
 For example, if you downloaded the [pre-trained SSD InceptionV2 topology](http://download.tensorflow.org/models/object_detection/ssd_inception_v2_coco_2018_01_28.tar.gz) and extracted archive to the directory `/tmp/ssd_inception_v2_coco_2018_01_28`, the sample command line to convert the model looks as follows:
 
 ```
-<INSTALL_DIR>/deployment_tools/model_optimizer/mo_tf.py --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config <INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
+<INSTALL_DIR>/tools/model_optimizer/mo_tf.py --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config <INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
 ```
 
 ## Custom Input Shape <a name="tf_od_custom_input_shape"></a>
@@ -120,7 +120,7 @@ There are a number of important notes about feeding input images to the samples:
 
 This section is intended for users who want to understand how the Model Optimizer performs Object Detection API models conversion in details. The knowledge given in this section is also useful for users having complex models that are not converted with the Model Optimizer out of the box. It is highly recommended to read [Sub-Graph Replacement in Model Optimizer](../../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md) chapter first to understand sub-graph replacement concepts which are used here.
 
-Implementation of the sub-graph replacers for Object Detection API models is located in the file `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/ObjectDetectionAPI.py`.
+Implementation of the sub-graph replacers for Object Detection API models is located in the file `<INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/ObjectDetectionAPI.py`.
 
 It is also important to open the model in the [TensorBoard](https://www.tensorflow.org/guide/summaries_and_tensorboard) to see the topology structure. Model Optimizer can create an event file that can be then fed to the TensorBoard* tool. Run the Model Optimizer with providing two command line parameters:
 * `--input_model <path_to_frozen.pb>` --- Path to the frozen model
@@ -141,7 +141,7 @@ Model Optimizer cannot convert the part of the `Preprocessor` block performing s
 
 The `Preprocessor` block has two outputs: the tensor with pre-processed image(s) data and a tensor with pre-processed image(s) size(s). While converting the model, Model Optimizer keeps only the nodes producing the first tensor. The second tensor is a constant which can be obtained from the `pipeline.config` file to be used in other replacers.
 
-The implementation of the `Preprocessor` block sub-graph replacer is the following (file `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/ObjectDetectionAPI.py`):
+The implementation of the `Preprocessor` block sub-graph replacer is the following (file `<INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/ObjectDetectionAPI.py`):
 
 ```python
 class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
