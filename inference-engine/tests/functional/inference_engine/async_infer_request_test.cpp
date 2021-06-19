@@ -5,98 +5,84 @@
 #include <gtest/gtest.h>
 
 #include <cpp/ie_infer_request.hpp>
-#include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-IE_SUPPRESS_DEPRECATED_START
-
-TEST(InferRequestCPPTests, throwsOnUninitialized) {
-    std::shared_ptr<IInferRequest> ptr;
-    ASSERT_THROW(InferRequest req(ptr), InferenceEngine::NotAllocated);
-}
-
-TEST(InferRequestCPPTests, nothrowOnInitialized) {
-    std::shared_ptr<IInferRequest> ptr = std::make_shared<MockIInferRequest>();
-    ASSERT_NO_THROW(InferRequest req(ptr));
-}
-
-IE_SUPPRESS_DEPRECATED_END
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBlob) {
     InferRequest req;
-    ASSERT_THROW(req.SetBlob({}, {}), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.SetBlob({}, {}), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedGetBlob) {
     InferRequest req;
-    ASSERT_THROW(req.GetBlob({}), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.GetBlob({}), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBlobPreproc) {
     InferRequest req;
-    ASSERT_THROW(req.SetBlob({}, {}, {}), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.SetBlob({}, {}, {}), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedGetPreProcess) {
     InferRequest req;
-    ASSERT_THROW(req.GetPreProcess({}), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.GetPreProcess({}), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedInfer) {
     InferRequest req;
-    ASSERT_THROW(req.Infer(), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedGetPerformanceCounts) {
     InferRequest req;
-    ASSERT_THROW(req.GetPerformanceCounts(), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.GetPerformanceCounts(), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetInput) {
     InferRequest req;
-    ASSERT_THROW(req.SetInput({{}}), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.SetInput({{}}), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetOutput) {
     InferRequest req;
-    ASSERT_THROW(req.SetOutput({{}}), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.SetOutput({{}}), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBatch) {
     InferRequest req;
-    ASSERT_THROW(req.SetBatch({}), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.SetBatch({}), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedStartAsync) {
     InferRequest req;
-    ASSERT_THROW(req.StartAsync(), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.StartAsync(), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedWait) {
     InferRequest req;
-    ASSERT_THROW(req.Wait({}), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.Wait({}), InferenceEngine::Exception);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetCompletionCallback) {
     InferRequest req;
     std::function<void(InferRequest, StatusCode)> f;
-    ASSERT_THROW(req.SetCompletionCallback(f), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.SetCompletionCallback(f), InferenceEngine::Exception);
 }
 
 IE_SUPPRESS_DEPRECATED_START
 
 TEST(InferRequestCPPTests, throwsOnUninitializedCast) {
     InferRequest req;
-    ASSERT_THROW((void)static_cast<IInferRequest::Ptr>(req), InferenceEngine::NotAllocated);
+    ASSERT_THROW((void)static_cast<IInferRequest::Ptr>(req), InferenceEngine::Exception);
 }
 
 IE_SUPPRESS_DEPRECATED_END
 
 TEST(InferRequestCPPTests, throwsOnUninitializedQueryState) {
     InferRequest req;
-    ASSERT_THROW(req.QueryState(), InferenceEngine::NotAllocated);
+    ASSERT_THROW(req.QueryState(), InferenceEngine::Exception);
 }
