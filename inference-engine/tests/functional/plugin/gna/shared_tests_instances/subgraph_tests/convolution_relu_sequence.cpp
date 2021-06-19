@@ -33,7 +33,6 @@ TEST_P(GnaConvolutionReluSequenceTest, CompareWithRefs) {
     Run();
 }
 
-
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::FP16
@@ -274,10 +273,6 @@ const std::vector<convReluSpecificParamsAll> poolingStrideNotEqualWindowAll = {
         poolingStrideAboveWindow
     }
 };
-
-TEST_P(ConvolutionReluSequenceTest, CompareWithRefs) {
-    Run();
-}
 
 INSTANTIATE_TEST_CASE_P(smoke_ConvolutionPoolingStrideNotEqualWindowTest, ConvolutionReluSequenceTest,
     ::testing::Combine(

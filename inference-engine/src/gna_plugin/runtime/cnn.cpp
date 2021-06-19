@@ -20,8 +20,7 @@ void CNNFilter32(intel_dnn_component_t *component) {
     float *ptr_inputs = reinterpret_cast<float *>(component->ptr_inputs);
     float *ptr_outputs = reinterpret_cast<float *>(component->ptr_outputs);
     uint32_t num_filter_outputs = component->op.conv1D.num_feature_map_rows - component->op.conv1D.num_filter_rows + 1;
-    uint32_t
-            num_inputs_band_stride = component->op.conv1D.num_feature_maps * component->op.conv1D.num_feature_map_columns;
+    uint32_t num_inputs_band_stride = component->op.conv1D.num_feature_maps * component->op.conv1D.num_feature_map_columns;
     uint32_t num_filter_coefficients = component->op.conv1D.num_filter_coefficients;
 
     std::string layer_name;
@@ -32,6 +31,10 @@ void CNNFilter32(intel_dnn_component_t *component) {
     if (component->num_columns_out < num_filter_outputs * component->op.conv1D.num_filters) {
         THROW_GNA_EXCEPTION << "Bad num_columns_out in CNNFilter32!" << layer_name;
     }
+
+    const auto maxOutputsPerFilter = component->num_columns_out / component->op.conv1D.num_filters;
+    if ((maxOutputsPerFilter - 1) * num_inputs_band_stride + num_filter_coefficients - 1 < component->num_columns_in)
+        num_filter_outputs = maxOutputsPerFilter;
 
     for (uint32_t j = 0; j < num_filter_outputs; j++) {
         float *ptr_in = ptr_inputs + j * num_inputs_band_stride;
@@ -113,7 +116,7 @@ void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t 
                 }
             } else {
                 for (uint32_t j = 0; j < num_rows_in; j += num_pool_step) {
-                    float max = -1e20f;
+                    float max = std::numeric_limits<float>::lowest();
                     uint32_t num_end = (j + num_pool_size > num_rows_in) ? num_rows_in : j + num_pool_size;
                     for (uint32_t k = j; k < num_end; k++) {
                         if (ptr_inputs[k * in_c + i] > max) max = ptr_inputs[k * in_c + i];
