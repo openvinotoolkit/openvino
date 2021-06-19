@@ -199,7 +199,7 @@ Before running compiled binary files, make sure your application can find the
 Inference Engine and OpenCV libraries.
 Run the `setupvars` script to set all necessary environment variables:
 ```sh
-source <INSTALL_DIR>/bin/setupvars.sh
+source <INSTALL_DIR>/setupvars.sh
 ```
 
 **(Optional)**: The OpenVINO environment variables are removed when you close the
@@ -212,7 +212,7 @@ vi <user_home_directory>/.bashrc
 
 2. Add this line to the end of the file:
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2021/setupvars.sh
 ```
 
 3. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
@@ -228,7 +228,7 @@ Before running compiled binary files, make sure your application can find the
 Inference Engine and OpenCV libraries.
 Use the `setupvars` script, which sets all necessary environment variables:
 ```sh
-<INSTALL_DIR>\bin\setupvars.bat
+<INSTALL_DIR>\setupvars.bat
 ```
 
 To debug or run the samples on Windows in Microsoft Visual Studio, make sure you

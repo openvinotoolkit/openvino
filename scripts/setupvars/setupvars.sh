@@ -69,8 +69,8 @@ if [ -e "$INSTALLDIR/extras/opencv" ]; then
 fi
 
 
-if [ -f "$INTEL_OPENVINO_DIR/extras/dl_streamer/bin/setupvars.sh" ]; then
-    source "$INTEL_OPENVINO_DIR/extras/dl_streamer/bin/setupvars.sh"
+if [ -f "$INTEL_OPENVINO_DIR/extras/dl_streamer/setupvars.sh" ]; then
+    source "$INTEL_OPENVINO_DIR/extras/dl_streamer/setupvars.sh"
 fi
 
 export PATH="$INTEL_OPENVINO_DIR/tools/model_optimizer${PATH:+:$PATH}"

@@ -368,7 +368,7 @@ To run the **Image Classification** code sample with an input image on the IR:
 
 1. Set up the OpenVINO environment variables:
    ```bat
-   <INSTALL_DIR>\openvino\bin\setupvars.sh
+   <INSTALL_DIR>\openvino\setupvars.bat
    ``` 
 2. Go to the code samples build directory:
    ```bat
@@ -433,7 +433,7 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 
 1. Set up the OpenVINO environment variables:
    ```bat
-   <INSTALL_DIR>\bin\setupvars.bat
+   <INSTALL_DIR>\setupvars.bat
    ``` 
 2. Go to the demo application build directory:
    ```bat
@@ -474,7 +474,7 @@ Below you can find basic guidelines for executing the OpenVINO™ workflow using
 
 1. Before using the OpenVINO™ samples, always set up the environment: 
 ```bat
-<INSTALL_DIR>\bin\setupvars.bat
+<INSTALL_DIR>\setupvars.bat
 ``` 
 2. Make sure to have the directory path for the following:
 - Code Sample binaries located in `C:\Users\<USER_ID>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\intel64\Release`

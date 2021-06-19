@@ -135,7 +135,7 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    ~~~
 3. For example, run the `demo_security_barrier_camera` demo with the command below:  
    ~~~
-   cd bin && setupvars.bat && cd ../ && cd deployment_tools\demo && demo_security_barrier_camera.bat -d GPU -sample-options -no_show
+   setupvars.bat && cd ../ && cd deployment_tools\demo && demo_security_barrier_camera.bat -d GPU -sample-options -no_show
    ~~~
    > **NOTE**: Addittional third-party dependencies will be installed.
 

@@ -11,7 +11,7 @@ For Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, the followi
 
 1. Set the environment variables:
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2021/setupvars.sh
 ```
 > **NOTE**: The `HDDL_INSTALL_DIR` variable is set to `<openvino_install_dir>/3rdparty/hddl`. If you installed the Intel® Distribution of OpenVINO™ to the default install directory, the `HDDL_INSTALL_DIR` was set to `/opt/intel/openvino_2021//3rdparty/hddl`.
 
@@ -52,7 +52,7 @@ E: [ncAPI] [    965618] [MainThread] ncDeviceOpen:677   Failed to find a device,
 ```sh
 kill -9 $(pidof hddldaemon autoboot)
 pidof hddldaemon autoboot # Make sure none of them is alive
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2021/setupvars.sh
 ${HDDL_INSTALL_DIR}/bin/bsl_reset
 ```
 

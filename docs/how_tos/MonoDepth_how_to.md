@@ -22,7 +22,7 @@ export WD=~/MonoDepth_Python/
 
 Initialize OpenVINO™:
 ```
-source $OV/bin/setupvars.sh
+source $OV/setupvars.sh
 ```
 
 Install the Model Optimizer prerequisites:

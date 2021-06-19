@@ -384,7 +384,7 @@ To run the **Image Classification** code sample with an input image on the IR:
 
 1. Set up the OpenVINO environment variables:
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2021/setupvars.sh
    ``` 
 2. Go to the code samples build directory:
    ```sh
@@ -463,7 +463,7 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 
 1. Set up the OpenVINO environment variables:
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2021/setupvars.sh
    ``` 
 2. Go to the demo application build directory:
    ```sh
@@ -512,7 +512,7 @@ Following are some basic guidelines for executing the OpenVINO™ workflow using
 
 1. Before using the OpenVINO™ samples, always set up the environment: 
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2021/setupvars.sh
 ``` 
 2. Have the directory path for the following:
 - Code Sample binaries located in `~/inference_engine_cpp_samples_build/intel64/Release`

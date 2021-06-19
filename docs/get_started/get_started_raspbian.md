@@ -84,7 +84,7 @@ Following are some basic guidelines for executing the OpenVINO™ workflow using
 
 1. Before using the OpenVINO™ samples, always set up the environment: 
 ```sh
-source <INSTALL_DIR>/bin/setupvars.sh
+source <INSTALL_DIR>/setupvars.sh
 ``` 
 2. Have the directory path for the following:
    - Code Sample binaries

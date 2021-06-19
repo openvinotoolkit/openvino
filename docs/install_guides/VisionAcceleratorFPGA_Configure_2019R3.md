@@ -59,7 +59,7 @@ export INTELFPGAOCLSDKROOT=/opt/altera/aocl-pro-rte/aclrte-linux64
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$AOCL_BOARD_PACKAGE_ROOT/linux64/lib
 export CL_CONTEXT_COMPILER_MODE_INTELFPGA=3
 source /opt/altera/aocl-pro-rte/aclrte-linux64/init_opencl.sh
-source /opt/intel/openvino/bin/setupvars.sh 
+source /opt/intel/openvino/setupvars.sh 
 ```
 
 12. Source the script.

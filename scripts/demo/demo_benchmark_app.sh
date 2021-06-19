@@ -64,8 +64,8 @@ run_again="Then run the script again\n\n"
 dashes="\n\n###################################################\n\n"
 
 
-if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
-    setupvars_path="$ROOT_DIR/../../bin/setupvars.sh"
+if [ -e "$ROOT_DIR/../../setupvars.sh" ]; then
+    setupvars_path="$ROOT_DIR/../../setupvars.sh"
 else
     printf "Error: setupvars.sh is not found\n"
 fi

@@ -185,11 +185,11 @@ ie_cpack_add_component(setupvars REQUIRED)
 
 if(UNIX)
     install(PROGRAMS scripts/setupvars/setupvars.sh
-            DESTINATION bin
+            DESTINATION .
             COMPONENT setupvars)
 elseif(WIN32)
     install(PROGRAMS scripts/setupvars/setupvars.bat
-            DESTINATION bin
+            DESTINATION .
             COMPONENT setupvars)
 endif()
 

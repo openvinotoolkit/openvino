@@ -45,8 +45,8 @@ set model_name=squeezenet1.1
 
 set target_image_path=%ROOT_DIR%car.png
 
-if exist "%ROOT_DIR%..\..\bin\setupvars.bat" (
-    call "%ROOT_DIR%..\..\bin\setupvars.bat"
+if exist "%ROOT_DIR%..\..\setupvars.bat" (
+    call "%ROOT_DIR%..\..\setupvars.bat"
 ) else (
     echo setupvars.bat is not found, INTEL_OPENVINO_DIR can't be set
     goto error

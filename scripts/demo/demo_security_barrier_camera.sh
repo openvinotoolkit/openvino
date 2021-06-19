@@ -122,8 +122,8 @@ else
     sudo -E "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 fi
 
-if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
-    setupvars_path="$ROOT_DIR/../../bin/setupvars.sh"
+if [ -e "$ROOT_DIR/../../setupvars.sh" ]; then
+    setupvars_path="$ROOT_DIR/../../setupvars.sh"
 else
     printf "Error: setupvars.sh is not found\n"
 fi

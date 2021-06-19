@@ -40,8 +40,8 @@ set TARGET_PRECISION=FP16
 
 echo target_precision = !TARGET_PRECISION!
 
-if exist "%ROOT_DIR%..\..\bin\setupvars.bat" (
-    call "%ROOT_DIR%..\..\bin\setupvars.bat"
+if exist "%ROOT_DIR%..\..\setupvars.bat" (
+    call "%ROOT_DIR%..\..\setupvars.bat"
 ) else (
     echo setupvars.bat is not found, INTEL_OPENVINO_DIR can't be set
     goto error

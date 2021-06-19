@@ -110,14 +110,14 @@ To deploy the Inference Engine components from the development machine to the ta
    cd <destination_dir>/openvino/
    ```
    ```sh
-   source ./bin/setupvars.sh
+   source ./setupvars.sh
    ```
    * For Windows:
    ```
    cd <destination_dir>\openvino\
    ```
    ```
-   .\bin\setupvars.bat
+   .\setupvars.bat
    ```
 
 Congratulations, you have finished the deployment of the Inference Engine components to the target host. 

@@ -145,7 +145,7 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 You need to update several environment variables before you can compile and run OpenVINO™ applications. Open the macOS Terminal\* or a command-line interface shell you prefer and run the following script to temporarily set your environment variables:
 
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2021/setupvars.sh
    ```  
 
 If you didn't choose the default installation option, replace `/opt/intel/openvino_2021` with your directory.
@@ -160,7 +160,7 @@ If you didn't choose the default installation option, replace `/opt/intel/openvi
 
 3. Add this line to the end of the file:
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2021/setupvars.sh
    ```
 
 If you didn't choose the default installation option, replace `/opt/intel/openvino_2021` with your directory.

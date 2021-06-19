@@ -176,9 +176,9 @@ export AOCL_BOARD_PACKAGE_ROOT="\$OPAE_PLATFORM_ROOT/opencl/opencl_bsp"
 \$AOCL_BOARD_PACKAGE_ROOT/linux64/libexec/setup_permissions.sh
 source $INTELFPGAOCLSDKROOT/init_opencl.sh
 export IE_INSTALL="/opt/intel/openvino"
-source \$IE_INSTALL/../bin/setupvars.sh
+source \$IE_INSTALL/setupvars.sh
 export PATH="\$PATH:\$HOME/inference_engine_samples/intel64/Release"
-alias mo="python3.6 \$IE_INSTALL/model_optimizer/mo.py"
+alias mo="python3.6 \$IE_INSTALL/tools/model_optimizer/mo.py"
 ```
 
 2. Source the script

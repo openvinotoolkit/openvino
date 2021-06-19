@@ -132,7 +132,7 @@ The screen example below indicates you are missing two dependencies:
 
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the `setupvars.bat` batch file to temporarily set your environment variables:
 ```sh
-"C:\Program Files (x86)\Intel\openvino_2021\bin\setupvars.bat"
+"C:\Program Files (x86)\Intel\openvino_2021\setupvars.bat"
 ```
 > **IMPORTANT**: Windows PowerShell* is not recommended to run the configuration commands, please use the Command Prompt instead.
 
