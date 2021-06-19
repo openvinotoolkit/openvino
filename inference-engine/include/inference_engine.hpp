@@ -11,6 +11,3 @@
 #include "ie_transformations.hpp"
 #include "ie_compound_blob.h"
 #include "ie_core.hpp"
-
-// remove in 2022.1 major release
-#include <iostream>
