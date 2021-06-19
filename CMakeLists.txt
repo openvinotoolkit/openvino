@@ -220,4 +220,12 @@ elseif(WIN32)
             PATTERN *.sh EXCLUDE)
 endif()
 
+# install licensing
+
+ie_cpack_add_component(licensing)
+
+install(DIRECTORY licensing
+        DESTINATION doc/licensing
+        COMPONENT licensing)
+
 ie_cpack(${IE_CPACK_COMPONENTS_ALL})

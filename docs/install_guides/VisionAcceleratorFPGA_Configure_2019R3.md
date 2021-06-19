@@ -248,7 +248,7 @@ cp ~/openvino_models/ir/FP16/public/squeezenet1.1/squeezenet1.1.labels  .
 	
 5. Copy a sample image to the release directory. You will use this with your optimized model:
 ```sh
-cp /opt/intel/openvino/deployment_tools/demo/car.png ~/inference_engine_samples_build/intel64/Release
+cp /opt/intel/openvino/extras/open_model_zoo/demo/car.png ~/inference_engine_samples_build/intel64/Release
 ```
 	
 ## 4. Run a Sample Application

@@ -13,7 +13,7 @@ For Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, the followi
 ```sh
 source /opt/intel/openvino_2021/setupvars.sh
 ```
-> **NOTE**: The `HDDL_INSTALL_DIR` variable is set to `<openvino_install_dir>/3rdparty/hddl`. If you installed the Intel® Distribution of OpenVINO™ to the default install directory, the `HDDL_INSTALL_DIR` was set to `/opt/intel/openvino_2021//3rdparty/hddl`.
+> **NOTE**: The `HDDL_INSTALL_DIR` variable is set to `<openvino_install_dir>/runtime/3rdparty/hddl`. If you installed the Intel® Distribution of OpenVINO™ to the default install directory, the `HDDL_INSTALL_DIR` was set to `/opt/intel/openvino_2021/runtime/3rdparty/hddl`.
 
 2. Install dependencies:
 ```sh

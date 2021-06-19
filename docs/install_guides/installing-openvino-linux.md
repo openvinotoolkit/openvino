@@ -340,7 +340,7 @@ After configuration is done, you are ready to run the verification scripts with 
 
 1. Go to the **Inference Engine demo** directory:
 ```sh
-cd /opt/intel/openvino_2021/deployment_tools/demo
+cd /opt/intel/openvino_2021/extras/open_model_zoo/demo
 ```
 
 2. Run the **Image Classification verification script**. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.

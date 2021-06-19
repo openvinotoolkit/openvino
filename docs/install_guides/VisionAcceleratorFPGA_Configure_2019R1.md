@@ -243,7 +243,7 @@ cp /home/<user>/openvino_models/ir/FP32/classification/squeezenet/1.1/caffe/sque
 	
 5. Copy a sample image to the release directory. You will use this with your optimized model:
 ```sh
-sudo cp /opt/intel/openvino/deployment_tools/demo/car.png  ~/inference_engine_samples_build/intel64/Release
+sudo cp /opt/intel/openvino/extras/open_model_zoo/demo/car.png  ~/inference_engine_samples_build/intel64/Release
 ```
 	
 ## 4. Run a Sample Application

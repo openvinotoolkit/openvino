@@ -131,8 +131,8 @@ install(FILES samples/CMakeLists.txt
 if(SPEECH_LIBS_AND_DEMOS)
     ie_cpack_add_component(speech_demo_files)
 
-    install(DIRECTORY ${TEMP}/deployment_tools
-                      ${TEMP}/data_processing
+    install(DIRECTORY ${TEMP}/data_processing
+                      ${TEMP}/deployment_tools/demo
             DESTINATION extras/open_model_zoo
             USE_SOURCE_PERMISSIONS
             COMPONENT speech_demo_files)

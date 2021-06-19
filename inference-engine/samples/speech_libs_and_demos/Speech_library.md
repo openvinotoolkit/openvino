@@ -12,7 +12,7 @@ Speech Library contains:
 - Speech library source code in the `src` folder
 - Speech library header files in the `include` folder. The library API is in the file `speech_library.h`.
 
-To compile the libraries, please run a `.bat/.sh` file in the root folder of speech libraries and demos, or run the demonstration script `<INSTALL_DIR>/deployment_tools/demo/speech_recogintion.bat/sh`. 
+To compile the libraries, please run a `.bat/.sh` file in the root folder of speech libraries and demos, or run the demonstration script `<INSTALL_DIR>/extras/open_model_zoo/demo/speech_recogintion.bat/sh`. 
 
 ## Architecture
 

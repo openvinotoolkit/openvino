@@ -46,7 +46,7 @@ mkdir ~/POT
 cd ~/POT
 ```
 ```
-python3 $OV/deployment_tools/tools/model_downloader/downloader.py --name mobilenet-v2-pytorch -o .
+python3 $OV/tools/model_downloader/downloader.py --name mobilenet-v2-pytorch -o .
 ```
 
 ## 3. Prepare Model for Inference

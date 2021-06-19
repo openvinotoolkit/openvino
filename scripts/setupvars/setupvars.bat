@@ -4,7 +4,6 @@
 :: SPDX-License-Identifier: Apache-2.0
 
 set ROOT=%~dp0
-call :GetFullPath "%ROOT%\.." ROOT
 set SCRIPT_NAME=%~nx0
 
 set "INTEL_OPENVINO_DIR=%ROOT%"

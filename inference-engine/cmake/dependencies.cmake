@@ -68,13 +68,12 @@ if (THREADING STREQUAL "OMP")
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     log_rpath_from_dir(OMP "${OMP}/lib")
     debug_message(STATUS "intel_omp=" ${OMP})
-    
+
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list} 
-            DESTINATION "3rdparty/omp/lib"
+            DESTINATION "runtime/3rdparty/omp/lib"
             COMPONENT omp)
-    
 endif ()
 
 ## TBB package

@@ -27,14 +27,14 @@ source $OV/setupvars.sh
 
 Install the Model Optimizer prerequisites:
 ```
-cd $OV/deployment_tools/model_optimizer/install_prerequisites/
+cd $OV/model_optimizer/install_prerequisites/
 sudo ./install_prerequisites.sh
 ```
 
 Install the Model Downloader prerequisites:
 
 ```
-cd $OV/deployment_tools/tools/model_downloader/
+cd $OV/tools/model_downloader/
 python3 -mpip install --user -r ./requirements.in
 sudo python3 -mpip install --user -r ./requirements-pytorch.in
 sudo python3 -mpip install --user -r ./requirements-caffe2.in
@@ -44,7 +44,7 @@ sudo python3 -mpip install --user -r ./requirements-caffe2.in
 
 Download all models from the Demo Models list:
 ```
-python3 $OV/deployment_tools/tools/model_downloader/downloader.py --list $OV/deployment_tools/inference_engine/demos/python_demos/monodepth_demo/models.lst -o $WD
+python3 $OV/tools/model_downloader/downloader.py --list $OV/deployment_tools/inference_engine/demos/python_demos/monodepth_demo/models.lst -o $WD
 ```
 
 ## 4. Convert Models to Intermediate Representation (IR)
@@ -52,7 +52,7 @@ python3 $OV/deployment_tools/tools/model_downloader/downloader.py --list $OV/dep
 Use the convert script to convert the models to ONNX*, and then to IR format:
 ```
 cd $WD
-python3 $OV/deployment_tools/tools/model_downloader/converter.py --list $OV/deployment_tools/inference_engine/demos/python_demos/monodepth_demo/models.lst
+python3 $OV/tools/model_downloader/converter.py --list $OV/deployment_tools/inference_engine/demos/python_demos/monodepth_demo/models.lst
 ```
 
 ## 5. Run Demo

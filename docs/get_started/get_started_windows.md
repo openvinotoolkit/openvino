@@ -63,7 +63,7 @@ The simplified OpenVINO™ workflow is:
 
 ## Use the Demo Scripts to Learn the Workflow
 
-The demo scripts in `<INSTALL_DIR>\deployment_tools\demo` give you a starting point to learn the OpenVINO workflow. These scripts automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios. The demo steps demonstrate how to: 
+The demo scripts in `<INSTALL_DIR>\extras\open_model_zoo\demo` give you a starting point to learn the OpenVINO workflow. These scripts automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios. The demo steps demonstrate how to: 
 * Compile several samples from the source files delivered as part of the OpenVINO toolkit
 * Download trained models
 * Perform pipeline steps and see the output on the console
@@ -108,7 +108,7 @@ When the script completes, you see the label and confidence for the top-10 categ
 
 Top 10 results:
 
-Image C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png
+Image C:\Program Files (x86)\Intel\openvino_2021\extras\open_model_zoo\demo\car.png
 
 classid probability label
 ------- ----------- -----
@@ -219,7 +219,7 @@ This guide uses the Model Downloader to get pre-trained models. You can use one 
 
 * **List the models available in the downloader**: 
 ```bat
-cd <INSTALL_DIR>\deployment_tools\tools\model_downloader\
+cd <INSTALL_DIR>\tools\model_downloader\
 ```
 ```bat
 python info_dumper.py --print_all
@@ -344,9 +344,9 @@ The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP
 
 After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` directory.
 
-Copy the `squeezenet1.1.labels` file from the `<INSTALL_DIR>\deployment_tools\demo\` to `<ir_dir>`. This file contains the classes that ImageNet uses. Therefore, the inference results show text instead of classification numbers:
+Copy the `squeezenet1.1.labels` file from the `<INSTALL_DIR>\extras\open_model_zoo\demo\` to `<ir_dir>`. This file contains the classes that ImageNet uses. Therefore, the inference results show text instead of classification numbers:
    ```batch   
-   cp <INSTALL_DIR>\deployment_tools\demo\squeezenet1.1.labels <ir_dir>
+   cp <INSTALL_DIR>\extras\open_model_zoo\demo\squeezenet1.1.labels <ir_dir>
    ```
 </details>
 
@@ -357,8 +357,8 @@ Many sources are available from which you can download video media to use the co
 - https://images.google.com
 
 As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes two sample images that you can use for running code samples and demo applications:
-* `<INSTALL_DIR>\deployment_tools\demo\car.png`
-* `<INSTALL_DIR>\deployment_tools\demo\car_1.bmp`
+* `<INSTALL_DIR>\extras\open_model_zoo\demo\car.png`
+* `<INSTALL_DIR>\extras\open_model_zoo\demo\car_1.bmp`
 
 ### <a name="run-image-classification"></a>Step 4: Run the Image Classification Code Sample
 
@@ -381,31 +381,31 @@ To run the **Image Classification** code sample with an input image on the IR:
 <details>
     <summary><strong>Click for examples of running the Image Classification code sample on different devices</strong></summary>
 
-The following commands run the Image Classification Code Sample using the `car.png` file from the `<INSTALL_DIR>\deployment_tools\demo` directory as an input image, the IR of your model from `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` and on different hardware devices:
+The following commands run the Image Classification Code Sample using the `car.png` file from the `<INSTALL_DIR>\extras\open_model_zoo\demo` directory as an input image, the IR of your model from `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` and on different hardware devices:
 
 **CPU:**
    ```bat
-   .\classification_sample_async -i <INSTALL_DIR>\deployment_tools\demo\car.png -m C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d CPU
+   .\classification_sample_async -i <INSTALL_DIR>\extras\open_model_zoo\demo\car.png -m C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d CPU
    ```
 
    **GPU:**
    
    > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires additional hardware configuration steps. For details, see the Steps for Intel® Processor Graphics (GPU) section in the [installation instructions](../install_guides/installing-openvino-windows.md).
    ```bat
-   .\classification_sample_async -i <INSTALL_DIR>\deployment_tools\demo\car.png -m C:\Users\<USER_ID>\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d GPU
+   .\classification_sample_async -i <INSTALL_DIR>\extras\open_model_zoo\demo\car.png -m C:\Users\<USER_ID>\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d GPU
    ```
    
    **MYRIAD:** 
 
   ```bat   
-   .\classification_sample_async -i <INSTALL_DIR>\deployment_tools\demo\car.png -m C:\Users\<USER_ID>\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d MYRIAD
+   .\classification_sample_async -i <INSTALL_DIR>\extras\open_model_zoo\demo\car.png -m C:\Users\<USER_ID>\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d MYRIAD
    ```
 
 When the Sample Application completes, you see the label and confidence for the top-10 categories on the display. Below is a sample output with inference results on CPU:    
 ```bat
 Top 10 results:
 
-Image C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png
+Image C:\Program Files (x86)\Intel\openvino_2021\extras\open_model_zoo\demo\car.png
 
 classid probability label
 ------- ----------- -----
@@ -450,14 +450,14 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 **CPU:**
 
 ```bat
-.\security_barrier_camera_demo -i <INSTALL_DIR>\deployment_tools\demo\car_1.bmp -m C:\Users\username\Documents\models\intel\vehicle-license-plate-detection-barrier-0106\FP16\vehicle-license-plate-detection-barrier-0106.xml -m_va C:\Users\username\Documents\models\intel\vehicle-attributes-recognition-barrier-0039\FP16\vehicle-attributes-recognition-barrier-0039.xml -m_lpr C:\Users\username\Documents\models\intel\license-plate-recognition-barrier-0001\FP16\license-plate-recognition-barrier-0001.xml -d CPU
+.\security_barrier_camera_demo -i <INSTALL_DIR>\extras\open_model_zoo\demo\car_1.bmp -m C:\Users\username\Documents\models\intel\vehicle-license-plate-detection-barrier-0106\FP16\vehicle-license-plate-detection-barrier-0106.xml -m_va C:\Users\username\Documents\models\intel\vehicle-attributes-recognition-barrier-0039\FP16\vehicle-attributes-recognition-barrier-0039.xml -m_lpr C:\Users\username\Documents\models\intel\license-plate-recognition-barrier-0001\FP16\license-plate-recognition-barrier-0001.xml -d CPU
 ```
 
 **GPU:**
    
 > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires additional hardware configuration steps. For details, see the Steps for Intel® Processor Graphics (GPU) section in the [installation instructions](../install_guides/installing-openvino-windows.md).
 ```bat
-.\security_barrier_camera_demo -i <INSTALL_DIR>\deployment_tools\demo\car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d GPU
+.\security_barrier_camera_demo -i <INSTALL_DIR>\extras\open_model_zoo\demo\car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d GPU
 ```
 
 **MYRIAD:** 

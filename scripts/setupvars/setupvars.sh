@@ -4,13 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
-BASE_DIR="$( dirname "$SCRIPT_DIR" )"
-
-INSTALLDIR="${BASE_DIR}"
-
-
+INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
-export INTEL_CVSDK_DIR="$INTEL_OPENVINO_DIR"
 
 # parse command line options
 while [[ $# -gt 0 ]]
@@ -32,7 +27,7 @@ done
 if [ -e "$INSTALLDIR/runtime" ]; then
     export InferenceEngine_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
     export ngraph_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
-    system_type=$(ls "$INTEL_OPENVINO_DIR/runtime/lib/")
+
     IE_PLUGINS_PATH=$INTEL_OPENVINO_DIR/runtime/lib
 
     export HDDL_INSTALL_DIR=$INSTALLDIR/runtime/3rdparty/hddl

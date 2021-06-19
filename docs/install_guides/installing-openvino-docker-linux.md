@@ -150,7 +150,7 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino_2021/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2021/runtime/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
    - **CentOS 7**:
@@ -184,7 +184,7 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino_2021/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2021/runtime/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
 2. Run the Docker* image:
@@ -281,25 +281,25 @@ To run the Security Barrier Camera Demo on a specific inference device, run the 
 **CPU**:
 ```sh
 docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d CPU -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && extras/open_model_zoo/demo/demo_security_barrier_camera.sh -d CPU -sample-options -no_show"
 ```
 
 **GPU**:
 ```sh
 docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d GPU -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && extras/open_model_zoo/demo/demo_security_barrier_camera.sh -d GPU -sample-options -no_show"
 ```
 
 **MYRIAD**:
 ```sh
 docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d MYRIAD -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && extras/open_model_zoo/demo/demo_security_barrier_camera.sh -d MYRIAD -sample-options -no_show"
 ```
 
 **HDDL**:
 ```sh
 docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d HDDL -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && extras/open_model_zoo/demo/demo_security_barrier_camera.sh -d HDDL -sample-options -no_show"
 ```
 
 ## Use a Docker* Image for FPGA
