@@ -6,13 +6,23 @@
 
 To download the pre-trained model or train the model yourself, refer to the 
 [instruction](https://github.com/yulunzhang/RCAN/blob/master/README.md) in the RCAN model repository. Firstly, 
-convert the model to ONNX\* format. :
+convert the model to ONNX\* format. Create and run the script with the following content in the root
+directory of the model repository:
+```python
+from argparse import Namespace
 
-```sh
-python main.py --scale 2 --model RCAN --n_resgroups 10 --n_resblocks 20 --n_feats 64 --pre_train ../model/RCAN_BIX2.pt --chop
+import torch
+
+from RCAN_TestCode.code.model.rcan import RCAN
+
+config = Namespace(n_feats=64, n_resblocks=4, n_resgroups=2, reduction=16, scale=[2], data_train='DIV2K', res_scale=1, 
+                   n_colors=3, rgb_range=255)
+net = RCAN(config)
+net.eval()
+dummy_input = torch.randn(1, 3, 360, 640)
+torch.onnx.export(net, dummy_input, 'RCAN.onnx')
 ```
-
-The script generates the ONNX\* model file RCAN.onnx. 
+The script generates the ONNX\* model file RCAN.onnx. The model conversion was tested with the repository hash commit `3339ebc59519c3bb2b5719b87dd36515ec7f3ba7`.
 
 ## Convert ONNX* RCAN Model to IR
 
