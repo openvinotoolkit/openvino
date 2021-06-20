@@ -10,10 +10,10 @@
 
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
-#include "ie_variable_state_base.hpp"
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
+
 namespace InferenceEngine {
 
 #define CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(StatusCode, ExceptionType) catch (const ExceptionType& ex) {       \
@@ -169,23 +169,6 @@ public:
     StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetBatch(batch_size));
     }
-
-    IE_SUPPRESS_DEPRECATED_START
-    StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
-        try {
-            auto v = _impl->QueryState();
-            if (idx >= v.size()) {
-                return OUT_OF_BOUNDS;
-            }
-            pState = std::make_shared<VariableStateBase>(v[idx]);
-            return OK;
-        } catch (const std::exception& ex) {
-            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-        } catch (...) {
-            return InferenceEngine::DescriptionBuffer(UNEXPECTED);
-        }
-    }
-    IE_SUPPRESS_DEPRECATED_END
 };
 
 IE_SUPPRESS_DEPRECATED_END

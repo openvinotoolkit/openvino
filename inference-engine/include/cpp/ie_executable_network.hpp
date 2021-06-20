@@ -32,9 +32,6 @@ class IExecutableNetworkInternal;
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
     details::SharedObjectLoader                  _so;
     std::shared_ptr<IExecutableNetworkInternal>  _impl;
-    IE_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<IExecutableNetwork>          actual;
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr
@@ -50,18 +47,6 @@ public:
      * @brief A default constructor.
      */
     ExecutableNetwork() = default;
-
-    IE_SUPPRESS_DEPRECATED_START
-    /**
-     * @deprecated This ctor will be removed in 2022.1
-     * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr
-     * @param exec Initialized shared pointer
-     * @param splg Plugin to use. This is required to ensure that ExecutableNetwork can work properly even if plugin object is destroyed.
-     */
-    INFERENCE_ENGINE_DEPRECATED("This ctor will be removed in 2022.1")
-    explicit ExecutableNetwork(std::shared_ptr<IExecutableNetwork> exec,
-                               std::shared_ptr<details::SharedObjectLoader> splg = {});
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Gets the Executable network output Data node information.
