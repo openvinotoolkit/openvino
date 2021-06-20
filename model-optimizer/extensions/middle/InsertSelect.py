@@ -38,6 +38,8 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
 
     @staticmethod
     def calculate_frame_time(graph: Graph):
+        # in Kaldi main input always have name 'input'
+        assert 'input' in graph and Node(graph, 'input').op == 'Parameter'
         try:
             nodes = list(bfs_search(graph, ['input']))
         except:
