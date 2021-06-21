@@ -33,7 +33,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ReshapeFullyConnected>();
     manager.register_pass<ConvertToPowerStatic>();
     manager.register_pass<ConvertToLeakyRelu>();
-    manager.register_pass<ReshapePRelu>();
     manager.register_pass<ConvertToSwishCPU>();
     manager.register_pass<OptimizeGRUSequenceTransposes>();
     manager.register_pass<OptimizeLSTMSequenceTransposes>();

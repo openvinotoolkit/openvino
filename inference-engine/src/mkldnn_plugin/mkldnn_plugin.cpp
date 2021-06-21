@@ -377,6 +377,35 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         lptManager.run_passes(nGraphFunc);
     }
 
+    ngraph::pass::Manager postCommonPassManager;
+    postCommonPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
+    postCommonPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
+    postCommonPassManager.register_pass<ReshapePRelu>();
+
+    postCommonPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
+        std::string errMsg;
+        return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
+    });
+    postCommonPassManager.get_pass_config()->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
+        if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+            auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(mul_op->get_input_node_shared_ptr(0));
+            auto constant = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(mul_op->get_input_node_shared_ptr(1));
+            bool is_dequantization = mul_op->get_rt_info().count("DEQUANTIZATION") != 0;
+            if (add_op && constant && is_dequantization) {
+                return ngraph::is_type<ngraph::opset1::Convolution>(add_op->get_input_node_shared_ptr(0)) ||
+                       ngraph::is_type<ngraph::opset1::GroupConvolution>(add_op->get_input_node_shared_ptr(0)) ||
+                       ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
+            }
+        }
+        return false;
+    });
+    postCommonPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
+        // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
+        return node->get_rt_info().count("UNROLL_TI") == 0;
+    });
+
+    postCommonPassManager.run_passes(nGraphFunc);
+
     // bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
     bool enableInt8 = conf.lpTransformsMode == Config::LPTransformsMode::On
                     && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
@@ -422,34 +451,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         ngraph::pass::VisualizeTree("tokenized.svg").run_on_function(nGraphFunc);
 #endif
     }
-
-    ngraph::pass::Manager postLPTPassManager;
-    postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
-    postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
-
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
-        std::string errMsg;
-        return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
-    });
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
-        if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
-            auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(mul_op->get_input_node_shared_ptr(0));
-            auto constant = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(mul_op->get_input_node_shared_ptr(1));
-            bool is_dequantization = mul_op->get_rt_info().count("DEQUANTIZATION") != 0;
-            if (add_op && constant && is_dequantization) {
-                return ngraph::is_type<ngraph::opset1::Convolution>(add_op->get_input_node_shared_ptr(0)) ||
-                       ngraph::is_type<ngraph::opset1::GroupConvolution>(add_op->get_input_node_shared_ptr(0)) ||
-                       ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
-            }
-        }
-        return false;
-    });
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
-        // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-        return node->get_rt_info().count("UNROLL_TI") == 0;
-    });
-
-    postLPTPassManager.run_passes(nGraphFunc);
 
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
