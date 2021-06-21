@@ -43,7 +43,9 @@ Auto-device supports query device optimization capabilities in metric;
 | :---                           | :---                     |
 | "OPTIMIZATION_CAPABILITIES"    | Auto-Device capabilities |
 
-## Enumerating Available Devices and Limit Auto Target Devices
+## Enumerating Available Devices and Auto-Device Selecting Logic
+
+### Enumerating Available Devices
 
 Inference Engine now features a dedicated API to enumerate devices and their capabilities. 
 See [Hello Query Device C++ Sample](../../../inference-engine/samples/hello_query_device/README.md).
@@ -58,8 +60,34 @@ Available devices:
 ...
     Device: GPU.1
 ```
-Auto-device selects the most suitable device from available or limits devices to load, 
-and simple programmatic way to load mode to device from available devices with the auto-device is as follows:
+
+###	Default Auto-Device selecting logic
+
+With the 2021.4 release, Auto-Device selects the most suitable device with following logic default:
+1.	Check if dGPU, iGPU and CPU device are available
+2.	Get the precision of the input model, such as FP32
+3.	According to the priority of dGPU, iGPU and CPU, if this device supports the precision of input network, select it as the most suitable device
+
+For example, CPU, dGPU and iGPU can support below precision:
+
+| Device   | OPTIMIZATION_CAPABILITIES       |
+| :---     | :---                            |
+| CPU      | WINOGRAD FP32 FP16 INT8 BIN     |
+| dGPU     | FP32 BIN BATCHED_BLOB FP16 INT8 |
+| iGPU     | FP32 BIN BATCHED_BLOB FP16 INT8 |
+
+When application use Auto-device to run FP16 IR on system with CPU, dGPU and iGPU, Auto-device will offload this workload to dGPU.
+
+When application use Auto-device to run FP16 IR on system with CPU and iGPU, Auto-device will offload this workload to iGPU.
+
+When application use Auto-device to run WINOGRAD IR on system with CPU, dGPU and iGPU, Auto-device will offload this workload to CPU.
+
+If offloading workload to dGPU or iGPU is fault, workload will fall back to CPU as the last choice.
+
+### Limit Auto Target Devices Logic
+
+According to the selecting logic in Auto-device on content 4.1, 
+it selects the most suitable device from available devices to load mode as follows:
 
 @snippet snippets/AUTO2.cpp part2
 
@@ -82,7 +110,7 @@ allowing the Auto-device plugin to parse and apply it to the right devices. See 
 
 Note that every OpenVINO sample that supports "-d" (which stands for "device") command-line option transparently accepts the Auto-device. 
 The Benchmark Application is the best example of the optimal usage of the Auto-device. 
-You do not need to set the number of requests and CPU threads, as the application provides optimal out-of-the-box performance.
+You do not need to set the number of requests and CPU threads, as the application provides optimal out-of-the-box performance. 
 Below is the example command-line to evaluate AUTO performance with that:
 
 ```sh
