@@ -385,12 +385,12 @@ void MKLDNNSnippetNode::define_shedule() {
         int collapsedDims = 0;
         size_t minimalConcurrency = parallel_get_max_threads();
         size_t minimalJitWorkAmount = 256;
-        size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx][dims_out.size() - 1];
+        size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx].back();
         bool hasDifferentDims = false;
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
                (!isDynBatchEnabled || (config.outConfs[max_rank_out_desc_idx].desc.getBlockingDesc().getBlockDims().size() - collapsedDims > 2))) {
-            if (dims_out.size() - collapsedDims - 2 < 0)
+            if (dims_out[max_rank_out_desc_idx].size() - collapsedDims - 2 < 0)
                 break;
 
             for (int j = 1; j < dims_in.size(); j++) {
@@ -446,13 +446,13 @@ void MKLDNNSnippetNode::define_shedule() {
     initDims(tensorRank);
 
     fullWorkAmount = 1;
-    // for (int i = 0; i < dims_out[max_rank_out_desc_idx].size(); i++) {
-    //     fullWorkAmount *= dims_out[max_rank_out_desc_idx][i];
-    // }
+     for (int i = 0; i < dims_out[max_rank_out_desc_idx].size(); i++) {
+         fullWorkAmount *= dims_out[max_rank_out_desc_idx][i];
+     }
 
     isDynBatchEnabled = config.dynBatchSupport;
 
-    int collapsedDims = find_dims_to_collapse();
+    int collapsedDims = 0; // find_dims_to_collapse();
     batchDimIdx = tensorRank - config.outConfs[max_rank_out_desc_idx].desc.getBlockingDesc().getBlockDims().size() + collapsedDims;
     schedulerWorkAmount = fullWorkAmount / dims_out[max_rank_out_desc_idx].back();
 
