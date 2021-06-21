@@ -84,7 +84,10 @@ endif()
 if(NGRAPH_UNIT_TEST_ENABLE)
     add_subdirectory(tests/mock/mock_py_ngraph_frontend)
     add_dependencies(_${PROJECT_NAME} mock_py_ngraph_frontend)
-    set_target_properties(mock_py_ngraph_frontend PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN})
+    set_target_properties(mock_py_ngraph_frontend PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
+            ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
+            COMPILE_PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
+            PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN})
 
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
     add_dependencies(_${PROJECT_NAME} pybind_mock_frontend)
