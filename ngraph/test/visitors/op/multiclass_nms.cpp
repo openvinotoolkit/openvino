@@ -10,7 +10,7 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-#include "ngraph/opsets/opset7.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 #include "util/visitor.hpp"
 
@@ -21,11 +21,11 @@ using ngraph::test::ValueMap;
 
 TEST(attributes, multiclass_nms_v8_op_custom_attributes)
 {
-    NodeBuilder::get_ops().register_factory<opset7::MulticlassNms>();
+    NodeBuilder::get_ops().register_factory<opset8::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto sort_result_type = opset7::MulticlassNms::SortResultType::SCORE;
+    auto sort_result_type = opset8::MulticlassNms::SortResultType::SCORE;
     auto sort_result_across_batch = false;
     auto output_type = ngraph::element::i32;
     int nms_top_k = 100;
@@ -35,9 +35,9 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     int background_class = 2;
     float nms_eta = 0.3f;
 
-    auto nms = make_shared<opset7::MulticlassNms>(boxes, scores, sort_result_type, sort_result_across_batch, output_type, iou_threshold, score_threshold, nms_top_k, keep_top_k, background_class, nms_eta);
+    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, sort_result_type, sort_result_across_batch, output_type, iou_threshold, score_threshold, nms_top_k, keep_top_k, background_class, nms_eta);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset7::MulticlassNms>(builder.create());
+    auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
 
     EXPECT_EQ(g_nms->get_sort_result_type(), nms->get_sort_result_type());
     EXPECT_EQ(g_nms->get_sort_result_across_batch(), nms->get_sort_result_across_batch());
@@ -61,13 +61,13 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
 
 TEST(attributes, multiclass_nms_v8_op_default_attributes)
 {
-    NodeBuilder::get_ops().register_factory<opset7::MulticlassNms>();
+    NodeBuilder::get_ops().register_factory<opset8::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto nms = make_shared<opset7::MulticlassNms>(boxes, scores);
+    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset7::MulticlassNms>(builder.create());
+    auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
 
     EXPECT_EQ(g_nms->get_sort_result_type(), nms->get_sort_result_type());
     EXPECT_EQ(g_nms->get_sort_result_across_batch(), nms->get_sort_result_across_batch());

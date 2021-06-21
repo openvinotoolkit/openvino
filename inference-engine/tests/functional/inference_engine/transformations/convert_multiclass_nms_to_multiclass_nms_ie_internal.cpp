@@ -12,7 +12,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie_internal.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
@@ -31,7 +31,7 @@ TEST(TransformationTests, ConvertMulticlassNmsToMulticlassNmsIEInternal) {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
 
-        auto nms = std::make_shared<opset7::MulticlassNms>(boxes, scores);
+        auto nms = std::make_shared<opset8::MulticlassNms>(boxes, scores);
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
