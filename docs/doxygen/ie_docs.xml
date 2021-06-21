@@ -41,6 +41,7 @@ limitations under the License.
                             <tab type="user" title="Convert TensorFlow* XLNet Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow"/>
                             <tab type="user" title="Converting TensorFlow* Wide and Deep Models from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models"/>
                             <tab type="user" title="Converting EfficientDet Models from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models"/>
+                            <tab type="user" title="Converting Attention OCR Model from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_AttentionOCR_From_Tensorflow"/>
                         </tab>
                         <tab type="usergroup" title="Converting a MXNet* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet">
                             <tab type="user" title="Converting a Style Transfer Model from MXNet" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet"/>
@@ -291,11 +292,9 @@ limitations under the License.
                     <tab type="user" title="Custom ONNX operators" url="@ref openvino_docs_IE_DG_Extensibility_DG_Custom_ONNX_Ops"/>
                 </tab>
                 <tab type="user" title="Integrate the Inference Engine with Your Application" url="@ref openvino_docs_IE_DG_Integrate_with_customer_application_new_API"/>
-                <tab type="user" title="[DEPRECATED] Migration from Inference Engine Plugin API to Core API" url="@ref openvino_docs_IE_DG_Migration_CoreAPI"/>
                 <tab type="user" title="Introduction to Performance Topics" url="@ref openvino_docs_IE_DG_Intro_to_Performance"/>
                 <tab type="user" title="Inference Engine Python* API Overview" url="@ref openvino_inference_engine_ie_bridges_python_docs_api_overview"/>
                 <tab type="user" title="Read an ONNX model" url="@ref openvino_docs_IE_DG_ONNX_Support"/>
-                <tab type="user" title="[DEPRECATED] Import an ONNX model" url="@ref openvino_docs_IE_DG_OnnxImporterTutorial"/>
                 <tab type="user" title="Using Dynamic Batching Feature" url="@ref openvino_docs_IE_DG_DynamicBatching"/>
                 <tab type="user" title="Using Static Shape Infer Feature" url="@ref openvino_docs_IE_DG_ShapeInference"/>
                 <tab type="usergroup" title="Using Bfloat16 Inference" url="@ref openvino_docs_IE_DG_Bfloat16Inference">
@@ -311,7 +310,6 @@ limitations under the License.
                         <tab type="user" title="RemoteBlob API of GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API"/>
                     </tab>
                     <tab type="user" title="CPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CPU"/>
-                    <tab type="user" title="[DEPRECATED] FPGA Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_FPGA"/>
                     <tab type="usergroup" title="VPU Plugins" url="@ref openvino_docs_IE_DG_supported_plugins_VPU">
                         <tab type="user" title="MYRIAD Plugin " url="@ref openvino_docs_IE_DG_supported_plugins_MYRIAD"/>
                         <tab type="user" title="HDDL Plugin " url="@ref openvino_docs_IE_DG_supported_plugins_HDDL"/>
