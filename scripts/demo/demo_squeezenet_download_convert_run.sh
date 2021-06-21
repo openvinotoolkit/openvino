@@ -72,7 +72,7 @@ if ! . "$setupvars_path" ; then
 fi
 
 # Step 1. Download the Caffe model and the prototxt of the model
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "\n\nDownloading the Caffe model and the prototxt"
 
 cur_path=$PWD
@@ -162,14 +162,14 @@ ir_dir="${irs_path}/${model_dir}/${target_precision}"
 
 if [ ! -e "$ir_dir" ]; then
     # Step 2. Configure Model Optimizer
-    printf "%s" "${dashes}"
+    echo -ne "${dashes}"
     printf "Install Model Optimizer dependencies\n\n"
     cd "${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer/install_prerequisites"
     . ./install_prerequisites.sh caffe
     cd "$cur_path"
 
     # Step 3. Convert a model with Model Optimizer
-    printf "%s" "${dashes}"
+    echo -ne "${dashes}"
     printf "Convert a model with Model Optimizer\n\n"
 
     mo_path="${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer/mo.py"
@@ -182,7 +182,7 @@ else
 fi
 
 # Step 4. Build samples
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "Build Inference Engine samples\n\n"
 
 OS_PATH=$(uname -m)
@@ -207,7 +207,7 @@ cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 make $NUM_THREADS classification_sample_async
 
 # Step 5. Run samples
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "Run Inference Engine classification sample\n\n"
 
 cd "$binaries_dir"
@@ -216,5 +216,5 @@ cp -f "$ROOT_DIR/${model_name}.labels" "${ir_dir}/"
 
 print_and_run ./classification_sample_async -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" ${sampleoptions}
 
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "Demo completed successfully.\n\n"

@@ -133,7 +133,7 @@ if ! . "$setupvars_path" ; then
 fi
 
 # Step 1. Downloading Intel models
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "Downloading Intel models\n\n"
 
 
@@ -161,7 +161,7 @@ while read -r model_opt model_name; do
 done < "$ROOT_DIR/demo_security_barrier_camera.conf"
 
 # Step 2. Build samples
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "Build Inference Engine demos\n\n"
 
 demos_path="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/demos"
@@ -189,7 +189,7 @@ cmake -DCMAKE_BUILD_TYPE=Release "$demos_path"
 make $NUM_THREADS security_barrier_camera_demo
 
 # Step 3. Run samples
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "Run Inference Engine security_barrier_camera demo\n\n"
 
 binaries_dir="${build_dir}/${OS_PATH}/Release"
@@ -197,5 +197,5 @@ cd "$binaries_dir"
 
 print_and_run ./security_barrier_camera_demo -d "$target" -d_va "$target" -d_lpr "$target" -i "$target_image_path" "${model_args[@]}" ${sampleoptions}
 
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "Demo completed successfully.\n\n"
