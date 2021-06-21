@@ -228,7 +228,7 @@ If the original framework does not have a special API for working with states, a
 
 **Kaldi:** Kaldi models will already contain Assign/ReadValue (Memory) operations after model conversion. TensorIterator/Loop operations never be generated.
 
-## LowLatence2
+## LowLatencу2
 
 LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) by adding the ability to work with the state, inserting the Assign/ReadValue layers as it is shown in the picture below.
 
@@ -333,7 +333,7 @@ InferenceEngine::lowLatency2(cnnNetwork, false);
 		}
 	}
 ```
-## [DEPRECATED] LowLatence
+## [DEPRECATED] LowLatency
 
 LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) by adding the ability to work with the state, inserting the Assign/ReadValue layers as it is shown in the picture below.
 
