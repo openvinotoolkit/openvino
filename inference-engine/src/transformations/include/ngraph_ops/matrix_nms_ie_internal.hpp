@@ -11,6 +11,7 @@
 
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/matrix_nms.hpp"
 
 namespace ngraph {
 namespace op {
