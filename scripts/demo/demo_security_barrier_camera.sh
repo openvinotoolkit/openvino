@@ -88,7 +88,7 @@ elif [[ $DISTRO == "ubuntu" ]]; then
     python_binary=python3
     pip_binary=pip3
 
-    system_ver=`cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2`
+    system_ver=$(grep -i "DISTRIB_RELEASE" -f /etc/lsb-release | cut -d "=" -f2)
     if [ "$system_ver" = "16.04" ]; then
         sudo -E apt-get install -y libpng12-dev
     else
@@ -112,7 +112,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 if ! command -v $python_binary &>/dev/null; then
-    printf "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. ${run_again}"
+    printf "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. %s" "${run_again}"
     exit 1
 fi
 
@@ -128,18 +128,18 @@ else
     printf "Error: setupvars.sh is not found\n"
 fi
 if ! . "$setupvars_path" ; then
-    printf "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
+    printf "Unable to run ./setupvars.sh. Please check its presence. %s" "${run_again}"
     exit 1
 fi
 
 # Step 1. Downloading Intel models
-printf "${dashes}"
+printf "%s" "${dashes}"
 printf "Downloading Intel models\n\n"
 
 
 target_precision="FP16"
 
-printf "target_precision = ${target_precision}\n"
+printf "target_precision = %s\n" "${target_precision}"
 
 downloader_dir="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/tools/downloader"
 
@@ -161,13 +161,13 @@ while read -r model_opt model_name; do
 done < "$ROOT_DIR/demo_security_barrier_camera.conf"
 
 # Step 2. Build samples
-printf "${dashes}"
+printf "%s" "${dashes}"
 printf "Build Inference Engine demos\n\n"
 
 demos_path="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/demos"
 
 if ! command -v cmake &>/dev/null; then
-    printf "\n\nCMAKE is not installed. It is required to build Inference Engine demos. Please install it. ${run_again}"
+    printf "\n\nCMAKE is not installed. It is required to build Inference Engine demos. Please install it. %s" "${run_again}"
     exit 1
 fi
 
@@ -189,13 +189,13 @@ cmake -DCMAKE_BUILD_TYPE=Release "$demos_path"
 make $NUM_THREADS security_barrier_camera_demo
 
 # Step 3. Run samples
-printf "${dashes}"
+printf "%s" "${dashes}"
 printf "Run Inference Engine security_barrier_camera demo\n\n"
 
 binaries_dir="${build_dir}/${OS_PATH}/Release"
 cd "$binaries_dir"
 
-print_and_run ./security_barrier_camera_demo -d "$target" -d_va "$target" -d_lpr "$target" -i "$target_image_path" "${model_args[@]}" ${sampleoptions}
+print_and_run ./security_barrier_camera_demo -d "$target" -d_va "$target" -d_lpr "$target" -i "$target_image_path" "${model_args[@]}" "${sampleoptions}"
 
-printf "${dashes}"
+printf "%s" "${dashes}"
 printf "Demo completed successfully.\n\n"

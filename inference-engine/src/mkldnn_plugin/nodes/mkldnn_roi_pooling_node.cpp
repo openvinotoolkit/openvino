@@ -88,8 +88,7 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
         this->postamble();
 
         load_emitter->emit_data();
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && store_emitter != nullptr && store_emitter->get_emu_vcvtneps2bf16() != nullptr)
-            store_emitter->get_emu_vcvtneps2bf16()->emit_data();
+        store_emitter->emit_data();
     }
 
 private:
@@ -155,7 +154,7 @@ private:
             Vmm vmm_max = get_acc_reg(i);
 
             load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx())}, {static_cast<size_t>(vmm_max.getIdx())},
-                                    std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", i * src_c_off),
+                                    std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, i * src_c_off),
                                     {}, load_pool_gpr_idxs);
         }
 
@@ -169,7 +168,7 @@ private:
                     Vmm vmm_src = get_src_reg(i);
 
                     load_emitter->emit_code({static_cast<size_t>(aux_reg_input1.getIdx())}, {static_cast<size_t>(vmm_src.getIdx())},
-                                            std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", i * src_c_off),
+                                            std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, i * src_c_off),
                                             {}, load_pool_gpr_idxs);
 
                     if (isa == cpu::x64::sse41) {
@@ -222,7 +221,7 @@ private:
 
         for (int i = 0; i < c_blocks; i++) {
             const int src_c_off = i * jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_data_size;
-            const auto load_context = std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", src_c_off);
+            const auto load_context = std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, src_c_off);
 
             mov(aux_reg_input, reg_input);
 

@@ -6,7 +6,7 @@
 
 #include "pass_manager.h"
 #include "program_helpers.h"
-#include "api_extension/fused_conv_eltwise.hpp"
+#include "cldnn/primitives/fused_conv_eltwise.hpp"
 #include "include/fused_conv_eltwise_inst.h"
 #include "include/binary_convolution_inst.h"
 #include "include/deformable_convolution_inst.h"
@@ -36,7 +36,7 @@ post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bi
 template<typename T>
 void post_optimize_weights::optimize_weights(T& node, program_impl& p) {
     auto offsets = get_weights_bias_offset(node);
-    auto* impl = node.get_selected_impl().get();
+    auto impl = node.get_selected_impl();
     auto output_layout = node.get_output_layout();
     auto& weights_reorder_params = impl->_weights_reorder_params;
 

@@ -4,9 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/lstm_dynamic.hpp"
+#include "cldnn/primitives/lstm_dynamic.hpp"
 #include "primitive_inst.h"
-#include "error_handler.h"
+
 #include <string>
 #include <memory>
 

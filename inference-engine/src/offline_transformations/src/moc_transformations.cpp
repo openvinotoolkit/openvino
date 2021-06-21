@@ -12,9 +12,5 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
 bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    ngraph::pass::Manager m(get_pass_config());
-    m.register_pass<Pruning>();
-    m.run_passes(f);
-
     return false;
 }
