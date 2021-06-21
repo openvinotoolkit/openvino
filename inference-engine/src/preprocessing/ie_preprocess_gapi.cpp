@@ -146,8 +146,8 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const NV12Blob::Ptr& i
     std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
     for (int i = 0; i < batch_size; ++i) {
         auto& input = batched_input_plane_mats[i];
-        input.emplace_back(std::move(batched_y_plane_mats[i][0]));
-        input.emplace_back(std::move(batched_uv_plane_mats[i][0]));
+        input.emplace_back(std::move(batched_y_plane_mats[i][0]));  //[0] cause only one channel for y
+        input.emplace_back(std::move(batched_uv_plane_mats[i][0])); //[0] cause only one channel for uv
     }
 
     return batched_input_plane_mats;
@@ -169,9 +169,9 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const I420Blob::Ptr& i
     std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
     for (int i = 0; i < batch_size; ++i) {
         auto& input = batched_input_plane_mats[i];
-        input.emplace_back(std::move(batched_y_plane_mats[i][0]));
-        input.emplace_back(std::move(batched_u_plane_mats[i][0]));
-        input.emplace_back(std::move(batched_v_plane_mats[i][0]));
+        input.emplace_back(std::move(batched_y_plane_mats[i][0])); //[0] cause only one channel for y
+        input.emplace_back(std::move(batched_u_plane_mats[i][0])); //[0] cause only one channel for u
+        input.emplace_back(std::move(batched_v_plane_mats[i][0])); //[0] cause only one channel for v
     }
 
     return batched_input_plane_mats;
@@ -179,47 +179,28 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const I420Blob::Ptr& i
 
 std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const BatchedBlob::Ptr& blob,
                                                           int batch_size) {
-    const auto& ie_desc     = blob->getTensorDesc();
-    const auto& ie_desc_blk = ie_desc.getBlockingDesc();
-    const auto     desc     = G::decompose(blob);
-    const auto cv_depth     = get_cv_depth(ie_desc);
-    const auto stride       = desc.s.H*blob->element_size();
-    const auto planeSize    = cv::gapi::own::Size(desc.d.W, desc.d.H);
-    // Note: operating with strides (desc.s) rather than dimensions (desc.d) which is vital for ROI
-    //       blobs (data buffer is shared but dimensions are different due to ROI != original image)
-    const auto batch_offset = desc.s.N * blob->element_size();
+    int underlied_blob_size = 1;
+    std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(blob->size() * underlied_blob_size);
+    for (size_t i = 0; i < blob->size(); ++i) {
+        auto inBlob = blob->getBlob(i);
 
-    std::vector<std::vector<cv::gapi::own::Mat>> result(batch_size);
+        std::vector<std::vector<cv::gapi::own::Mat>> underlied_blob_plane;
 
-    uint8_t* blob_ptr = static_cast<uint8_t*>(blob->buffer());
-    if (blob_ptr == nullptr) {
-        IE_THROW() << "Blob buffer is nullptr";
-    }
-    blob_ptr += blob->element_size()*ie_desc_blk.getOffsetPadding();
+        if (inBlob->is<NV12Blob>()) {
+            underlied_blob_plane = bind_to_blob(as<NV12Blob>(inBlob), underlied_blob_size);
+        } else if (inBlob->is<I420Blob>()) {
+            underlied_blob_plane = bind_to_blob(as<I420Blob>(inBlob), underlied_blob_size);
+        } /* no alternative here - it had just validated right before */
 
-    for (int i = 0; i < batch_size; ++i) {
-        uint8_t* curr_data_ptr = blob_ptr + i * batch_offset;
-
-        std::vector<cv::gapi::own::Mat> planes;
-        if (ie_desc.getLayout() == Layout::NHWC) {
-            planes.emplace_back(planeSize.height, planeSize.width, CV_MAKETYPE(cv_depth, desc.d.C),
-                curr_data_ptr, stride);
-        } else {  // NCHW
-            if (desc.d.C <= 0) {
-                IE_THROW() << "Invalid number of channels in blob tensor descriptor, "
-                                      "expected >0, actual: " << desc.d.C;
-            }
-            const auto planeType = CV_MAKETYPE(cv_depth, 1);
-            for (int ch = 0; ch < desc.d.C; ch++) {
-                cv::gapi::own::Mat plane(planeSize.height, planeSize.width, planeType,
-                    curr_data_ptr + ch*desc.s.C*blob->element_size(), stride);
-                planes.emplace_back(plane);
-            }
+        // iterate over underlying lob batch_size her
+        for (size_t j = 0; j < underlied_blob_plane.size(); j++) {
+            // got  underlying blob components: (y & uv) or (y & u & v)
+            auto &full_component_plane = underlied_blob_plane[j];
+            batched_input_plane_mats.at(i * underlied_blob_size).swap(full_component_plane);
         }
-
-        result[i] = std::move(planes);
     }
-    return result;
+
+    return batched_input_plane_mats;
 }
 
 template<typename... Ts, int... IIs>
@@ -406,7 +387,7 @@ void validateBlob(const I420Blob::Ptr &inBlob) {
 
 const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const BatchedBlob::Ptr &blob) {
     const auto& desc =  blob->getTensorDesc();
-    return {desc, desc.getLayout()};
+    return {desc, /*desc.getLayout()*/ Layout::NCHW};
 }
 
 const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const MemoryBlob::Ptr &blob) {
@@ -448,7 +429,18 @@ G::Desc getGDesc(G::Desc in_desc_y, const MemoryBlob::Ptr &) {
 }
 
 G::Desc getGDesc(G::Desc in_desc_y, const BatchedBlob::Ptr &batch) {
-    //TODO add description
+    if (!batch->size()) {
+        IE_THROW() << "Cannot call getGDesc() from empty batch blob";
+    }
+    auto blob = batch->getBlob(0);
+    if (blob->is<I420Blob>()) {
+        return getGDesc(in_desc_y, as<I420Blob>(blob));
+    } else if (blob->is<NV12Blob>()) {
+        return getGDesc(in_desc_y, as<NV12Blob>(blob));
+    } else {
+        IE_THROW() << "Cannot call getGDesc() BatchedBlob underlying type is not supported";
+    }
+
     return in_desc_y;
 }
 
@@ -1067,6 +1059,7 @@ void PreprocEngine::preprocessTypedBlob(const BlobTypePtr &inBlob, MemoryBlob::P
 void PreprocEngine::preprocessBatchedBlob(const BatchedBlob::Ptr &inBlob, MemoryBlob::Ptr &outMemoryBlob,
         ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
         int batch_size) {
+    batch_size = inBlob->size();
     preprocessTypedBlob(inBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
             batch_size);
 }
