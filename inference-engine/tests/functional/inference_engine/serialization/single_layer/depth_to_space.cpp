@@ -7,14 +7,9 @@
 #include <ngraph/opsets/opset3.hpp>
 
 #include "common_test_utils/test_constants.hpp"
-#include "shared_test_classes/single_layer/depth_to_space.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph::opset3;
-
-#include <vector>
-
-using namespace LayerTestsDefinitions;
 
 namespace {
 TEST_P(DepthToSpaceLayerTest, Serialize) {

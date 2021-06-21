@@ -106,6 +106,7 @@ namespace ngraph
                 {
                     post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
                 }
+
                 runtime::opt_kernel::reshape(
                     in, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
             }
