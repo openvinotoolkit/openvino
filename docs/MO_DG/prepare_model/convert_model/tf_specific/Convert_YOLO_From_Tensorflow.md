@@ -1,13 +1,69 @@
 # Converting YOLO* Models to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow}
 
-This tutorial explains how to convert real-time object detection YOLOv1\*, YOLOv2\*, and YOLOv3\* public models to the Intermediate Representation (IR). All YOLO\* models are originally implemented in the DarkNet\* framework and consist of two files:
+This tutorial explains how to convert real-time object detection YOLOv1\*, YOLOv2\*, YOLOv3\* and YOLOv4\* public models to the Intermediate Representation (IR). All YOLO\* models are originally implemented in the DarkNet\* framework and consist of two files:
 * `.cfg` file with model configurations  
 * `.weights` file with model weights
 
 Depending on a YOLO model version, the Model Optimizer converts it differently:
 
+- YOLOv4 must be first converted from Keras\* to TensorFlow2\*.
 - YOLOv3 has several implementations. This tutorial uses a TensorFlow implementation of YOLOv3 model, which can be directly converted to the IR.
 - YOLOv1 and YOLOv2 models must be first converted to TensorFlow\* using DarkFlow\*.
+
+## <a name="yolov4-to-ir"></a>Convert YOLOv4 Model to IR
+
+This tutorial explains how to convert YOLOv4 model from the [https://github.com/Ma-Dan/keras-yolo4](https://github.com/Ma-Dan/keras-yolo4]) repository to IR. To convert YOLOv4 model, follow the instructions below:
+
+1. Download YOLOv4 weights from [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT).
+Convert the Darknet YOLOv4 model to a Keras model.
+Run YOLOv4 detection.
+
+2. Implement custom layer Mish
+```python
+import tensorflow as tf
+
+class Mish(tf.keras.layers.Layer):
+    '''
+    Mish Activation Function.
+    .. math::
+        mish(x) = x * tanh(softplus(x)) = x * tanh(ln(1 + e^{x}))
+    Shape:
+        - Input: Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+        - Output: Same shape as the input.
+    Examples:
+        >>> X_input = Input(input_shape)
+        >>> X = Mish()(X_input)
+    '''
+
+    def __init__(self, **kwargs):
+        super(Mish, self).__init__(**kwargs)
+        self.supports_masking = True
+
+    def call(self, inputs):
+        return inputs * tf.math.tanh(tf.math.softplus(inputs))
+
+    def get_config(self):
+        config = super(Mish, self).get_config()
+        return config
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+```
+
+3. Convert the YOLOv4 Keras\* model to TensorFlow2\*.
+```python
+model = tf.keras.models.load_model('yolo4_weight.h5', custom_objects={'Mish': Mish})
+tf.saved_model.save(model, 'yolov4')
+```
+
+4. Run Model-Optimizer to converter TensorFlow2\* to IR:
+
+> **NOTE:** Before you run convert be sure that you install all Model-Optimizer dependencies for TensorFlow 2\*.
+```python
+pyton mo.py --saved_model_dir models\yolov4 --output_dir models\IRs --input_shape (1,608,608,3) --model_name yolov4 
+```
 
 ## <a name="yolov3-to-ir"></a>Convert YOLOv3 Model to IR
 
