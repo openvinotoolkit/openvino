@@ -33,8 +33,8 @@ case $key in
     shift
     ;;
     -sample-options)
-    sampleoptions="$2 $3 $4 $5 $6"
-    echo sample-options = "${sampleoptions}"
+    sampleoptions=("${@:2}")
+    echo sample-options = "${sampleoptions[*]}"
     shift
     ;;
     *)
@@ -44,8 +44,8 @@ esac
 shift
 done
 
-if ([ -z "$sampleoptions" ]); then
-    sampleoptions="-niter 1000"
+if [ -z "${sampleoptions[*]}" ]; then
+    sampleoptions=( -niter 1000 )
 fi
 
 target_precision="FP16"
@@ -218,7 +218,7 @@ cd "$binaries_dir"
 
 cp -f "$ROOT_DIR/${model_name}.labels" "${ir_dir}/"
 
-print_and_run ./benchmark_app -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" -pc ${sampleoptions}
+print_and_run ./benchmark_app -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" -pc "${sampleoptions[@]}"
 
 echo -ne "${dashes}"
 
