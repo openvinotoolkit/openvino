@@ -405,9 +405,9 @@ const auto groupDeconvParams_2D_I8 = ::testing::Combine(
 );
 
 const std::vector<CPUSpecificParams> CPUParams_2D_I8 = {
-        conv_sse42_2D_I8,
-        conv_avx2_2D_I8,
-        conv_avx512_2D_I8
+        conv_sse42_2D_nspc,
+        conv_avx2_2D_nspc,
+        conv_avx512_2D_nspc
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_I8, GroupDeconvolutionLayerCPUTest,
@@ -442,7 +442,7 @@ const std::vector<CPUSpecificParams> CPUParams_2D_1x1_I8 = {
         // not supported 1x1 grouped conv for avx2/sse41 isa
         // conv_sse42_2D_1x1_I8,
         // conv_avx2_2D_1x1_I8,
-        conv_avx512_2D_1x1_I8
+        conv_avx512_2D_1x1_nspc
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_1x1_2D_I8, GroupDeconvolutionLayerCPUTest,
@@ -480,9 +480,9 @@ const auto groupDeconvParams_3D_I8 = ::testing::Combine(
 );
 
 const std::vector<CPUSpecificParams> CPUParams_3D_I8 = {
-        conv_sse42_3D_I8,
-        conv_avx2_3D_I8,
-        conv_avx512_3D_I8
+        conv_sse42_3D_nspc,
+        conv_avx2_3D_nspc,
+        conv_avx512_3D_nspc
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_I8, GroupDeconvolutionLayerCPUTest,
@@ -517,7 +517,7 @@ const std::vector<CPUSpecificParams> CPUParams_3D_1x1_I8 = {
         // not supported 1x1 grouped conv for avx2/sse41 isa
         // conv_sse42_3D_1x1_I8,
         // conv_avx2_3D_1x1_I8,
-        conv_avx512_3D_1x1_I8
+        conv_avx512_3D_1x1_nspc
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_1x1_3D_I8, GroupDeconvolutionLayerCPUTest,
