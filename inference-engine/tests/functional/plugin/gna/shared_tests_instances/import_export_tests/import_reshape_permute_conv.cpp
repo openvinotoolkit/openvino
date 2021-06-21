@@ -46,6 +46,10 @@ TEST_P(ImportReshapePermuteConvGNA, CompareWithRefImpl) {
     Run();
 };
 
+const std::vector<std::vector<size_t>> inputShape = {
+    {}
+};
+
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
@@ -76,6 +80,7 @@ const std::vector<std::string> appHeaders = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkCase, ImportReshapePermuteConvGNA,
                         ::testing::Combine(
+                            ::testing::ValuesIn(inputShape),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(exportConfigs),

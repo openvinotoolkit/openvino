@@ -37,8 +37,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)",
         R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
-        // TODO: Issue 51528
-        R"(.*CachingSupport.*_(u8|i16)_.*)",
         // TODO: Issue 51525
         R"(.*CachingSupport.*KSOFunction.*)",
         // TODO: Issue 57363 (Param -> Result subgraphs)
