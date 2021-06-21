@@ -10,11 +10,11 @@ You need to have have write permissions for an output directory.
 
 To adjust the conversion process, you may use general parameters defined in the [Converting a Model Using General Conversion Parameters](Converting_Model_General.md) and 
 Framework-specific parameters for:
-* [Caffe](Convert_Model_From_Caffe.md),
-* [TensorFlow](Convert_Model_From_TensorFlow.md),
-* [MXNet](Convert_Model_From_MxNet.md),
-* [ONNX](Convert_Model_From_ONNX.md),
-* [Kaldi](Convert_Model_From_Kaldi.md).
+* [Caffe](Convert_Model_From_Caffe.md)
+* [TensorFlow](Convert_Model_From_TensorFlow.md)
+* [MXNet](Convert_Model_From_MxNet.md)
+* [ONNX](Convert_Model_From_ONNX.md)
+* [Kaldi](Convert_Model_From_Kaldi.md)
 
 
 ## See Also
