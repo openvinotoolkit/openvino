@@ -549,7 +549,11 @@ std::shared_ptr<ngraph::Node> NetworkHelper::separateInStandaloneBranch(std::sha
         }
 
         std::vector<Output<Node>> inputs = node->input_values();
-        const size_t inputIndex = NetworkHelper::getChildInputIndex(dequantization.multiply, node);
+        const auto originalParent = dequantization.multiply ?
+            dequantization.multiply->shared_from_this() :
+            dequantization.subtract->shared_from_this();
+
+        const size_t inputIndex = NetworkHelper::getChildInputIndex(originalParent, node);
         inputs[inputIndex] = parent;
         const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
 
