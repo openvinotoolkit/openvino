@@ -48,7 +48,6 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoInferRequ
 }
 
 void AutoInferRequest::InferImpl() {
-    GetAvailableWorker();
     HotSwapRequests(); //safe to call here (before actual inference started)
     SetBlobsToDeviceRequest();
     _inferRequest->Infer();
@@ -67,8 +66,8 @@ void AutoInferRequest::Cancel() {
 }
 
 void AutoInferRequest::StartAsync() {
-    GetAvailableWorker();
     HotSwapRequests(); //safe to call here (before actual inference started)
+    GetAvailableWorker();
     SetBlobsToDeviceRequest();
     _inferRequest->StartAsync();
 }
