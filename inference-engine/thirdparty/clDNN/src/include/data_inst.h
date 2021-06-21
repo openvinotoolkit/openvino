@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/data.hpp"
+#include "cldnn/primitives/data.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 
@@ -17,11 +18,12 @@ struct typed_program_node<data> : public typed_program_node_base<data> {
 
     typed_program_node(const std::shared_ptr<data> prim, program_impl& prog);
 
-    memory_impl& get_attached_memory() const { return *mem; }
-    void attach_memory(memory_impl& new_mem, bool invalidate_users_if_changed = true);
+    memory& get_attached_memory() const { return *mem; }
+    memory::ptr get_attached_memory_ptr() const { return mem; }
+    void attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed = true);
 
 private:
-    memory_impl::ptr mem;
+    memory::ptr mem;
 };
 
 using data_node = typed_program_node<data>;

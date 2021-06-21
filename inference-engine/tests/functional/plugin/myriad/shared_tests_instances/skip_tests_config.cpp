@@ -33,8 +33,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*DSR_GatherStaticDataDynamicIdx.*f32.*1.3.200.304.*",
         // TODO: Issue 47315
         ".*ProposalLayerTest.*",
-        // TODO: Issue 48183
-        R"(.*CTCGreedyDecoderSeqLen.*?\(1.1.1\).*)",
         // TODO: Issue 51804
         ".*PreprocessConversionTest.*oPRC=U8.*",
         // TODO: Issue: 56556
@@ -46,6 +44,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IS=\(16\.16\.96\)\(96\)_eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
         // TODO: Issue CVS-57108
         R"(.*QueryNetworkHETEROWithMULTINoThrow_V10.*)",
-        R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)"
+        R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
+        // TODO: Issue CVS-58162
+        R"(.*HoldersTestOnImportedNetwork\.CreateRequestWithCoreRemoved.*)"
     };
 }
