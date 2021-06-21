@@ -28,14 +28,9 @@ or enable model caching to export compiled network automatically. Reusing cached
 
 To enable model caching application shall specify folder where to store cached blobs. It can be done like this
 
-```cpp
-InferenceEngine::Core ie;                                 // Step 1: create Inference engine object
-ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "myCacheFolder"}}); // Step 1b: Enable caching
-auto cnnNet = ie.ReadNetwork(<modelFile>);                // Step 2: ReadNetwork
-...                                                       // Step 3: Prepare inputs/outputs
-...                                                       // Step 4: Set device configuration
-ie.LoadNetwork(cnnNet, <device>, <deviceConfig>);         // Step 5: LoadNetwork
-```
+
+@snippet snippets/InferenceEngine_Caching0.cpp part0
+
 With this code, if device supports Import/Export network capability, cached blob will be automatically created inside `myCacheFolder` folder
 CACHE_DIR config is set to Core object, so if device doesn't support Import/Export capability, cache will just not be created and no error will be thrown
 
@@ -43,23 +38,18 @@ Depending on your device, total time for loading network on application startup 
 Please also note that very first LoadNetwork (when cache is not yet created) will take slightly longer time to 'export' compiled blob into a cache file
 ![caching_enabled]
 
-## Even faster: use LoadNetwork(\<modelName\>)
+## Even faster: use LoadNetwork(modelPath)
 
 In some cases applications do not need to customize inputs and outputs every time. In this case such applications always
 call `cnnNet = ie.ReadNetwork(...)`, then `ie.LoadNetwork(cnnNet, ..)` and it can be further optimized.
 For such cases more convenient API to load network in one call is introduced in release 2021.4
 
-```cpp
-InferenceEngine::Core ie;                                 // Step 1: create Inference engine object
-ie.LoadNetwork(<modelPath>, <device>, <deviceConfig>);    // Step 2: LoadNetwork by model file path
-```
+@snippet snippets/InferenceEngine_Caching1.cpp part1
 
-And with enabled model caching total load time will be even smaller - in case that ReadNetwork will be optimized as well
-```cpp
-InferenceEngine::Core ie;                                 // Step 1: create Inference engine object
-ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "myCacheFolder"}}); // Step 1b: Enable caching
-ie.LoadNetwork(<modelPath>, <device>, <deviceConfig>);    // Step 2: LoadNetwork by model file path
-```
+With enabled model caching total load time will be even smaller - in case that ReadNetwork will be optimized as well
+
+@snippet snippets/InferenceEngine_Caching2.cpp part2
+
 ![caching_times]
 
 
@@ -67,16 +57,9 @@ ie.LoadNetwork(<modelPath>, <device>, <deviceConfig>);    // Step 2: LoadNetwork
 
 Not any device supports network import/export capability, enabling of caching for such devices don't have any effect.
 To check in advance if particular device supports model caching, application can use the following code:
-```cpp
-// Get list of supported metrics
-std::vector<std::string> keys = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
 
-// Find 'IMPORT_EXPORT_SUPPORT' metric in supported metrics
-auto it = std::find(keys.begin(), keys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+@snippet snippets/InferenceEngine_Caching3.cpp part3
 
-// If metric 'IMPORT_EXPORT_SUPPORT' exists, check it's value
-bool cachingSupported = (it != keys.end()) && ie.GetMetric(deviceName, METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-```
 
 [caching_enabled]: ../img/caching_enabled.png
 [caching_times]: ../img/caching_times.png
