@@ -14,8 +14,8 @@ using namespace InferenceEngine;
 
 class MockExecutableNetworkThreadSafe : public ExecutableNetworkThreadSafeDefault {
 public:
-    MOCK_METHOD2(CreateInferRequestImpl,
-                 std::shared_ptr<IInferRequestInternal>(InputsDataMap networkInputs, OutputsDataMap networkOutputs));
-    MOCK_METHOD1(Export, void(const std::string &));
+    MOCK_METHOD(std::shared_ptr<IInferRequestInternal>, CreateInferRequestImpl,
+        (InputsDataMap networkInputs, OutputsDataMap networkOutputs));
+    MOCK_METHOD(void, Export, (const std::string &));
     void Export(std::ostream &) override {}
 };

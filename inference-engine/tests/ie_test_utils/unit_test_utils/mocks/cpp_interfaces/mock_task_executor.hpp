@@ -13,5 +13,5 @@ class MockTaskExecutor : public InferenceEngine::ITaskExecutor {
 public:
     typedef std::shared_ptr<MockTaskExecutor> Ptr;
 
-    MOCK_METHOD1(run, void(InferenceEngine::Task));
+    MOCK_METHOD(void, run, (InferenceEngine::Task));
 };
