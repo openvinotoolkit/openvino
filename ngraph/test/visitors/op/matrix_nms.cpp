@@ -10,7 +10,7 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-#include "ngraph/opsets/opset7.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 #include "util/visitor.hpp"
 
@@ -21,25 +21,25 @@ using ngraph::test::ValueMap;
 
 TEST(attributes, matrix_nms_v8_op_custom_attributes)
 {
-    NodeBuilder::get_ops().register_factory<opset7::MatrixNms>();
+    NodeBuilder::get_ops().register_factory<opset8::MatrixNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto sort_result_type = opset7::MatrixNms::SortResultType::SCORE;
+    auto sort_result_type = opset8::MatrixNms::SortResultType::SCORE;
     auto output_type = ngraph::element::i32;
     int nms_top_k = 100;
     int keep_top_k = 10;
     bool sort_result_across_batch = false;
     float score_threshold = 0.1f;
     int background_class = 2;
-    auto decay_function = opset7::MatrixNms::DecayFunction::GAUSSIAN;
+    auto decay_function = opset8::MatrixNms::DecayFunction::GAUSSIAN;
     float gaussian_sigma = 0.2f;
     float post_threshold = 0.3f;
 
-    auto nms = make_shared<opset7::MatrixNms>(boxes, scores, sort_result_type, sort_result_across_batch,
+    auto nms = make_shared<opset8::MatrixNms>(boxes, scores, sort_result_type, sort_result_across_batch,
         output_type, score_threshold, nms_top_k, keep_top_k, background_class, decay_function, gaussian_sigma, post_threshold);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset7::MatrixNms>(builder.create());
+    auto g_nms = as_type_ptr<opset8::MatrixNms>(builder.create());
 
     EXPECT_EQ(g_nms->get_sort_result_type(), nms->get_sort_result_type());
     EXPECT_EQ(g_nms->get_output_type(), nms->get_output_type());
@@ -66,13 +66,13 @@ TEST(attributes, matrix_nms_v8_op_custom_attributes)
 
 TEST(attributes, matrix_nms_v8_op_default_attributes)
 {
-    NodeBuilder::get_ops().register_factory<opset7::MatrixNms>();
+    NodeBuilder::get_ops().register_factory<opset8::MatrixNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto nms = make_shared<opset7::MatrixNms>(boxes, scores);
+    auto nms = make_shared<opset8::MatrixNms>(boxes, scores);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset7::MatrixNms>(builder.create());
+    auto g_nms = as_type_ptr<opset8::MatrixNms>(builder.create());
 
     EXPECT_EQ(g_nms->get_sort_result_type(), nms->get_sort_result_type());
     EXPECT_EQ(g_nms->get_output_type(), nms->get_output_type());

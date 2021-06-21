@@ -140,7 +140,6 @@ void MatrixNmsLayerTest::SetUp() {
     element::Type outType;
     int nmsTopK, keepTopK, backgroudClass;
     op::v8::MatrixNms::DecayFunction decayFunction;
-    std::string targetDevice;
     std::tie(inShapeParams, inPrecisions, sortResultType, sortResultAcrossBatch, outType, nmsTopK, keepTopK,
         backgroudClass, decayFunction, targetDevice) = this->GetParam();
 
@@ -154,7 +153,7 @@ void MatrixNmsLayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
-    auto nms = std::make_shared<opset7::MatrixNms>(paramOuts[0], paramOuts[1], sortResultType, sortResultAcrossBatch, outType, 0.5f,
+    auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], sortResultType, sortResultAcrossBatch, outType, 0.5f,
         nmsTopK, keepTopK, backgroudClass, decayFunction);
     auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
     auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape{1}, {1}));

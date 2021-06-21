@@ -8,7 +8,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -20,10 +20,10 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatrixNmsToMatrixNmsIEInternal, "Con
 
 ngraph::pass::ConvertMatrixNmsToMatrixNmsIEInternal::ConvertMatrixNmsToMatrixNmsIEInternal() {
     MATCHER_SCOPE(ConvertMatrixNmsToMatrixNmsIEInternal);
-    auto nms = ngraph::pattern::wrap_type<ngraph::opset7::MatrixNms>();
+    auto nms = ngraph::pattern::wrap_type<ngraph::opset8::MatrixNms>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        auto nms = std::dynamic_pointer_cast<ngraph::opset7::MatrixNms>(m.get_match_root());
+        auto nms = std::dynamic_pointer_cast<ngraph::opset8::MatrixNms>(m.get_match_root());
         if (!nms) {
             return false;
         }
@@ -34,13 +34,13 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIEInternal::ConvertMatrixNmsToMatrixNms
 
         int sort_result_type = 0;
         switch (nms->get_sort_result_type()) {
-            case ::ngraph::opset7::MatrixNms::SortResultType::SCORE:
+            case ::ngraph::opset8::MatrixNms::SortResultType::SCORE:
                 sort_result_type = 1;
                 break;
-            case ::ngraph::opset7::MatrixNms::SortResultType::CLASSID:
+            case ::ngraph::opset8::MatrixNms::SortResultType::CLASSID:
                 sort_result_type = 0;
                 break;
-            case ::ngraph::opset7::MatrixNms::SortResultType::NONE:
+            case ::ngraph::opset8::MatrixNms::SortResultType::NONE:
                 sort_result_type = 2;
                 break;
             default:
