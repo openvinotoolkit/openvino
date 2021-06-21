@@ -21,7 +21,7 @@ Here is the list of models that are tested and guaranteed to be supported. Howev
   steps 2 and 3 of [regular instructions](#typical-pytorch).
 * YOLACT topology can be converted using steps described in [Convert PyTorch\* YOLACT to the IR](pytorch_specific/Convert_YOLACT.md)
   instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
-* [RCAN](https://github.com/yulunzhang/RCAN) topology can be converted using steps described in [Convert PyTorch\* RCAN to the IR](pytorch_specific/Convert_RCAN.md)
+* [RCAN](https://github.com/yulunzhang/RCAN) topology can be converted using the steps described in [Convert PyTorch\* RCAN to the IR](pytorch_specific/Convert_RCAN.md)
 instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
 
 ## Typical steps to convert PyTorch\* model <a name="typical-pytorch"></a>
