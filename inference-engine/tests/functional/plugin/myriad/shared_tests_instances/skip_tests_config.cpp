@@ -44,6 +44,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IS=\(16\.16\.96\)\(96\)_eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
         // TODO: Issue CVS-57108
         R"(.*QueryNetworkHETEROWithMULTINoThrow_V10.*)",
-        R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)"
+        R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
+        // TODO: Issue CVS-58162
+        R"(.*HoldersTestOnImportedNetwork\.CreateRequestWithCoreRemoved.*)"
     };
 }
