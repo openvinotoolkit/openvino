@@ -213,11 +213,6 @@ Decsriptions can be found in [Samples Overview](./Samples_Overview.md)
 
 If the original framework does not have a special API for working with states, after importing the model, OpenVINO representation will not contain Assign/ReadValue layers. For example, if the original ONNX model contains RNN operations, IR will contain TensorIterator operations and the values will be obtained only after execution of the whole TensorIterator primitive. Intermediate values from each iteration will not be available. To enable you to work with these intermediate values of each iteration and receive them with a low latency after each infer request, special LowLatency and LowLatency2 transformations were introduced.
 
-**The differences between LowLatency and LowLatency2**:
-
-* Unrolling of TensorIterator/Loop operations became a part of LowLatency2, not a separate transformation. After invoking the transformation, the network can be serialized and inferred without re-invoking the transformation.
-* Added support for TensorIterator and Loop operations with multiple iterations inside. TensorIterator/Loop will not be unrolled in this case.
-* Resolved the ‘Parameters connected directly to ReadValues’ limitation. To apply the previous version of the transformation in this case, additional manual manipulations were required, now the case is processed automatically.
 ### How to get TensorIterator/Loop operaions from different frameworks via ModelOptimizer.
 
 **ONNX and frameworks supported via ONNX format:** *LSTM, RNN, GRU* original layers are converted to the TensorIterator operation. TensorIterator body contains LSTM/RNN/GRU Cell. Peepholes, InputForget modifications are not supported, sequence_lengths optional input is supported.
@@ -236,6 +231,11 @@ If the original framework does not have a special API for working with states, a
 
 LowLatency2 transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) by adding the ability to work with the state, inserting the Assign/ReadValue layers as it is shown in the picture below.
 
+### The differences between LowLatency and LowLatency2**:
+
+* Unrolling of TensorIterator/Loop operations became a part of LowLatency2, not a separate transformation. After invoking the transformation, the network can be serialized and inferred without re-invoking the transformation.
+* Added support for TensorIterator and Loop operations with multiple iterations inside. TensorIterator/Loop will not be unrolled in this case.
+* Resolved the ‘Parameters connected directly to ReadValues’ limitation. To apply the previous version of the transformation in this case, additional manual manipulations were required, now the case is processed automatically.
 #### Example of applying LowLatency2 transformation:
 ![applying_low_latency_2_example](./img/applying_low_latency_2.png)
 
