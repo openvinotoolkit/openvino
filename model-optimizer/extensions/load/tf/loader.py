@@ -149,6 +149,7 @@ def graph_or_sub_graph_has_nhwc_ops(graph: Graph):
         # for the Loop node we need to check that the body does not contain marker ops as well
         if node.op == 'Loop':
             NHWC_conv_detected |= graph_or_sub_graph_has_nhwc_ops(node.body)
+        # TODO check for If op when it is implemented
     return NHWC_conv_detected
 
 
