@@ -15,10 +15,8 @@ Depending on a YOLO model version, the Model Optimizer converts it differently:
 This tutorial explains how to convert YOLOv4 model from the [https://github.com/Ma-Dan/keras-yolo4](https://github.com/Ma-Dan/keras-yolo4]) repository to IR. To convert YOLOv4 model, follow the instructions below:
 
 1. Download YOLOv4 weights from [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT).
-Convert the Darknet YOLOv4 model to a Keras model.
-Run YOLOv4 detection.
 
-2. Implement custom layer Mish
+2. Implement custom layer Mish. The code below should be contain in .py file with any name in the same folder as yolo4_weight.h5 file.
 ```python
 import tensorflow as tf
 
@@ -61,7 +59,7 @@ tf.saved_model.save(model, 'yolov4')
 4. Run Model-Optimizer to converter TensorFlow2\* to IR:
 
 > **NOTE:** Before you run convert be sure that you install all Model-Optimizer dependencies for TensorFlow 2\*.
-```python
+```sh
 pyton mo.py --saved_model_dir models\yolov4 --output_dir models\IRs --input_shape (1,608,608,3) --model_name yolov4 
 ```
 
