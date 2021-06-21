@@ -71,7 +71,7 @@ else
 fi
 
 if ! . "$setupvars_path" ; then
-    printf "Unable to run ./setupvars.sh. Please check its presence. %s" "${run_again}"
+    echo -ne "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
     exit 1
 fi
 
@@ -143,7 +143,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 if ! command -v $python_binary &>/dev/null; then
-    printf "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. %s" "${run_again}"
+    echo -ne "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. ${run_again}"
     exit 1
 fi
 
@@ -182,7 +182,7 @@ if [ ! -e "$ir_dir" ]; then
     print_and_run "$python_binary" "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
 else
     printf "\n\nTarget folder %s already exists. Skipping IR generation  with Model Optimizer." "${ir_dir}"
-    printf "If you want to convert a model again, remove the entire %s folder. %s" "${ir_dir}" "${run_again}"
+    echo -ne "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"
 fi
 
 # Step 4. Build samples

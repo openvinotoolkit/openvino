@@ -112,7 +112,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 if ! command -v $python_binary &>/dev/null; then
-    printf "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. %s" "${run_again}"
+    echo -ne "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. ${run_again}"
     exit 1
 fi
 
@@ -128,7 +128,7 @@ else
     printf "Error: setupvars.sh is not found\n"
 fi
 if ! . "$setupvars_path" ; then
-    printf "Unable to run ./setupvars.sh. Please check its presence. %s" "${run_again}"
+    echo -ne "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
     exit 1
 fi
 
@@ -167,7 +167,7 @@ printf "Build Inference Engine demos\n\n"
 demos_path="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/demos"
 
 if ! command -v cmake &>/dev/null; then
-    printf "\n\nCMAKE is not installed. It is required to build Inference Engine demos. Please install it. %s" "${run_again}"
+    echo -ne "\n\nCMAKE is not installed. It is required to build Inference Engine demos. Please install it. ${run_again}"
     exit 1
 fi
 
