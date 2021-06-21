@@ -4,6 +4,7 @@
 
 #include "mkldnn_extension_utils.h"
 #include "utils/general_utils.h"
+#include "cpu_memory_desc_utils.h"
 #include <limits>
 #include <vector>
 #include <numeric>
@@ -118,14 +119,14 @@ bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc
         in1Block.getOffsetPadding() != uninitNum && in2Block.getOffsetPadding() != uninitNum);
 }
 
-PartialBlkDesc PartialBlkDesc::makePlain(const InferenceEngine::SizeVector &dims) {
+PartialBlkDesc PartialBlkDesc::makePlain(const std::vector<size_t> &dims) {
     PartialBlkDesc res;
     res.outer_order.resize(dims.size());
     std::iota(res.outer_order.begin(), res.outer_order.end(), 0);
     return res;
 }
 
-PartialBlkDesc PartialBlkDesc::makeCBlocked(const InferenceEngine::SizeVector &dims, size_t block_size) {
+PartialBlkDesc PartialBlkDesc::makeCBlocked(const std::vector<size_t> &dims, size_t block_size) {
     PartialBlkDesc res;
     res.outer_order.resize(dims.size());
     std::iota(res.outer_order.begin(), res.outer_order.end(), 0);
@@ -133,7 +134,6 @@ PartialBlkDesc PartialBlkDesc::makeCBlocked(const InferenceEngine::SizeVector &d
     res.inner_blk_idxes = {1};
     return res;
 }
-
 
 PartialBlkDesc PartialBlkDesc::makeTailC(const InferenceEngine::SizeVector &dims) {
     PartialBlkDesc res = makePlain(dims);
@@ -144,14 +144,10 @@ PartialBlkDesc PartialBlkDesc::makeTailC(const InferenceEngine::SizeVector &dims
     return res;
 }
 
-PartialBlkDesc PartialBlkDesc::extractFrom(const InferenceEngine::TensorDesc &desc) {
-    if (desc.getLayout() == InferenceEngine::ANY)
-        IE_THROW() << "Cannot extract partial blocked descriptor for `ANY` layout";
-
-    const auto &dims = desc.getDims();
-    const auto &blk = desc.getBlockingDesc();
-    const auto &blk_dims = blk.getBlockDims();
-    const auto &blk_order = blk.getOrder();
+PartialBlkDesc PartialBlkDesc::extractFrom(const BlockedMemoryDesc &desc) {
+    const auto &dims = desc.getShape().getStaticDims();
+    const auto &blk_dims = desc.getBlockDims();
+    const auto &blk_order = desc.getOrder();
 
     PartialBlkDesc res;
     res.outer_order = {blk_order.begin(), blk_order.begin() + dims.size()};
@@ -161,7 +157,7 @@ PartialBlkDesc PartialBlkDesc::extractFrom(const InferenceEngine::TensorDesc &de
     return res;
 }
 
-bool PartialBlkDesc::isAutoExtendedWith(const InferenceEngine::SizeVector &dims) const {
+bool PartialBlkDesc::isAutoExtendedWith(const std::vector<size_t> &dims) const {
     auto tmp_dims = dims;
     for (int i = 0; i < inner_blk_size.size(); i++) {
         auto idx = inner_blk_idxes[i];
@@ -193,14 +189,15 @@ bool PartialBlkDesc::operator < (const PartialBlkDesc& it) const {
                     it.outer_order);
 }
 
-std::string MKLDNNExtensionUtils::getReorderArgs(const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc) {
+// TODO [DS]: Move into InsertReorder();
+std::string MKLDNNExtensionUtils::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc) {
     std::string inArgs, outArgs;
     if (parentDesc.getPrecision() != childDesc.getPrecision()) {
         inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
         outArgs += (outArgs.empty() ? "" : "_") + std::string(childDesc.getPrecision().name());
     }
-    auto fmt_tag_src = MKLDNNMemoryDesc(parentDesc).getFormat();
-    auto fmt_tag_dst = MKLDNNMemoryDesc(childDesc).getFormat();
+    auto fmt_tag_src = MemoryDescUtils::getLayout(parentDesc);
+    auto fmt_tag_dst = MemoryDescUtils::getLayout(childDesc);
     if (fmt_tag_src != fmt_tag_dst || one_of(mkldnn::memory::format_tag::undef, fmt_tag_src, fmt_tag_dst)) {
         inArgs += (inArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(fmt_tag_src);
         outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(fmt_tag_dst);

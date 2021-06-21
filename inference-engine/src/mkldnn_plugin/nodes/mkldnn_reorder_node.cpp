@@ -25,10 +25,6 @@ MKLDNNReorderNode::MKLDNNReorderNode(const std::string& name, const mkldnn::engi
         MKLDNNNode("Reorder", name, eng, w_cache) {
 }
 void MKLDNNReorderNode::getSupportedDescriptors() {
-    if (outDims.empty() && output.getLayout() != InferenceEngine::Layout::ANY)
-        outDims.push_back(MKLDNNDims(output.getDims()));
-    if (inDims.empty() && input.getLayout() != InferenceEngine::Layout::ANY)
-        inDims.push_back(MKLDNNDims(input.getDims()));
     if (getParentEdges().size() != 1)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
@@ -39,13 +35,10 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto inputDataType = MKLDNNMemoryDesc(input).getDataType();
-    auto outputDataType = MKLDNNMemoryDesc(output).getDataType();
-
     auto parent = getParentEdgeAt(0)->getParent();
     auto child = getChildEdgeAt(0)->getChild();
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.outConfs.resize(1);
@@ -57,19 +50,18 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].inPlace = 0;
         config.outConfs[0].inPlace = 0;
     }
-    if (input.getLayout() != InferenceEngine::Layout::ANY && output.getLayout() != InferenceEngine::Layout::ANY) {
-        config.inConfs[0].desc = input;
-        config.outConfs[0].desc = output;
+    if (input && output) {
+        config.inConfs[0].desc = input->clone();
+        config.outConfs[0].desc = output->clone();
     } else if (parent->getSelectedPrimitiveDescriptor() != nullptr &&
                child->getSelectedPrimitiveDescriptor() != nullptr) {
-        config.inConfs[0].desc = parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
-        config.outConfs[0].desc = child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+        config.inConfs[0].desc = parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc->clone();
+        config.outConfs[0].desc = child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->clone();
     } else {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::any);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::any);
+        IE_THROW() << "Cannot initialize supported PDs for Reorder node with name `" << getName() << "`";
     }
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder, MKLDNNMemory::Convert(config.outConfs[0].desc.getLayout()));
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder);
 }
 
 void MKLDNNReorderNode::createPrimitive() {
@@ -82,11 +74,13 @@ void MKLDNNReorderNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
+    auto inDims = getParentEdgeAt(0)->getShape().getStaticDims();
+
     if (!isOptimized) {
-        if (MKLDNNPlugin::one_of(getParentEdgeAt(0)->getDims().ndims(), 4, 5) &&
-                getParentEdgeAt(0)->getDims()[1] <= 64 &&
-                getParentEdgeAt(0)->getDims()[1] >= 16 &&
-                (getParentEdgeAt(0)->getMemory().GetElementsCount() / getParentEdgeAt(0)->getDims()[1]) >= 128 &&
+        if (MKLDNNPlugin::one_of(inDims.size(), 4, 5) &&
+                inDims[1] <= 64 &&
+                inDims[1] >= 16 &&
+                (getParentEdgeAt(0)->getMemory().GetElementsCount() / inDims[1]) >= 128 &&
                 getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat() &&
                 getChildEdgeAt(0)->getMemory().GetDesc().isPlainFormat() &&
                 getParentEdgeAt(0)->getMemory().GetDesc().getDataType() == memory::data_type::f32 &&
@@ -94,7 +88,7 @@ void MKLDNNReorderNode::createPrimitive() {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
             canUseOptimizedNspc2Ncsp = true;
         } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
-                   MKLDNNPlugin::one_of(getParentEdgeAt(0)->getDims().ndims(), 4, 5) &&
+                   MKLDNNPlugin::one_of(inDims.size(), 4, 5) &&
                    getParentEdgeAt(0)->getMemory().GetDesc().isPlainFormat() &&
                    getChildEdgeAt(0)->getMemory().GetDesc().isTailCFormat() &&
                    getParentEdgeAt(0)->getMemory().GetDataType() == getChildEdgeAt(0)->getMemory().GetDataType() &&
@@ -116,23 +110,6 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
     dst_blocked->Create(dstDesc, dstPtr, false);
 
     mkldnn::primitive_attr attr;
-
-    if (_scales) {
-        std::vector<float> scales;
-
-        float* scaleData = static_cast<float*>(_scales->buffer());
-
-        for (size_t i = 0; i < _scales->size(); i++) {
-            scales.push_back(scaleData[i]);
-        }
-
-        int mask = 0;
-        int oc_dim_id = 1;
-        mask = 1 << oc_dim_id;
-
-        attr.set_output_scales(mask, scales);
-    }
-
     auto createReorder = [&]() -> bool {
         // No autoblocking. Reorder can be applied as is
         reorder::primitive_desc pd = mkldnn::reorder::primitive_desc(src_blocked->GetPrimitive(), dst_blocked->GetPrimitive(), attr, true);
@@ -162,7 +139,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         if (src_blocked->GetDesc().isPlainFormat() &&
             src_blocked->GetDims().size() + 1 == dst_blocked->GetDims().size()) {
             const auto newDims = dst_blocked->GetDims();
-            const auto newFormat = MKLDNNMemory::GetPlainFormat(newDims);
+            const auto newFormat = MKLDNNMemory::GetPlainFormatByRank(newDims.size());
 
             auto newDesc = mkldnn::memory::desc(newDims, src_blocked->GetDataType(), newFormat);
             src_blocked->Create(newDesc, srcPtr, false);
@@ -192,12 +169,14 @@ bool MKLDNNReorderNode::created() const {
 void MKLDNNReorderNode::optimizedNcsp2Nspc() {
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
-    const int ndims = parentEdge->getDims().ndims();
-    const size_t DIM0 = parentEdge->getDims()[0];
-    const size_t DIM1 = parentEdge->getDims()[1];
-    const size_t DIM2 = ndims == 5 ? parentEdge->getDims()[ndims - 3] : 1;
-    const size_t DIM3 = parentEdge->getDims()[ndims - 2];
-    const size_t DIM4 = parentEdge->getDims()[ndims - 1];
+
+    auto inDims = parentEdge->getShape().getStaticDims();
+    const size_t ndims = inDims.size();
+    const size_t DIM0 = inDims[0];
+    const size_t DIM1 = inDims[1];
+    const size_t DIM2 = ndims == 5 ? inDims[ndims - 3] : 1;
+    const size_t DIM3 = inDims[ndims - 2];
+    const size_t DIM4 = inDims[ndims - 1];
 
     auto src_data = reinterpret_cast<const uint8_t *>(parentEdge->getMemoryPtr()->GetPtr());
     auto dst_data = reinterpret_cast<uint8_t *>(childEdge->getMemoryPtr()->GetPtr());
@@ -221,12 +200,14 @@ void MKLDNNReorderNode::optimizedNcsp2Nspc() {
 void MKLDNNReorderNode::optimizedNspc2Ncsp() {
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
-    const int ndims = parentEdge->getDims().ndims();
-    const size_t DIM0 = parentEdge->getDims()[0];
-    const size_t DIM1 = parentEdge->getDims()[1];
-    const size_t DIM2 = ndims == 5 ? parentEdge->getDims()[ndims - 3] : 1;
-    const size_t DIM3 = parentEdge->getDims()[ndims - 2];
-    const size_t DIM4 = parentEdge->getDims()[ndims - 1];
+
+    auto inDims = parentEdge->getShape().getStaticDims();
+    const size_t ndims = inDims.size();
+    const size_t DIM0 = inDims[0];
+    const size_t DIM1 = inDims[1];
+    const size_t DIM2 = ndims == 5 ? inDims[ndims - 3] : 1;
+    const size_t DIM3 = inDims[ndims - 2];
+    const size_t DIM4 = inDims[ndims - 1];
 
     auto src_data = reinterpret_cast<const float *>(parentEdge->getMemoryPtr()->GetPtr());
     auto dst_data = reinterpret_cast<float *>(childEdge->getMemoryPtr()->GetPtr());

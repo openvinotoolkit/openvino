@@ -349,15 +349,15 @@ void MKLDNNInputNode::cloneBlobIfRequired() {
     }
 }
 
-MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::SizeVector &dims, const InferenceEngine::Precision &prc, const std::string &name,
+MKLDNNInputNode::MKLDNNInputNode(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
                                  const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(type, name, eng, cache) {
     constant = ConstantType::NoConst;
     if (getType() == Input) {
-        outDims.emplace_back(dims);
+        outputShapes.emplace_back(shape);
         addOriginalOutputPrecision(prc);
     }  else if (getType() == Output) {
-        inDims.emplace_back(dims);
+        inputShapes.emplace_back(shape);
         addOriginalInputPrecision(prc);
     }
 }
@@ -388,42 +388,29 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    LayerConfig config;
-    config.dynBatchSupport = true;
+    std::vector<PortConfigurator> inPortConfs;
+    std::vector<PortConfigurator> outPortConfs;
+
     if (getType() == Input || getType() == MemoryInput) {
         precision = getOriginalOutputPrecisionAtPort(0);
         if (precision == Precision::U16 || isMeanImage) {
             precision = Precision::FP32;
         }
-        DataConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
 
-        auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-        auto mem_tdesc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
-        dataConfig.desc = mem_tdesc;
-        config.outConfs.push_back(dataConfig);
-        // ReadValue operation expects constant input
+        outPortConfs.push_back({TensorDescCreatorTypes::ncsp, precision});
         if (!getParentEdges().empty()) {
-            DataConfig inConfig;
-            inConfig.inPlace = -1;
-            inConfig.constant = true;
-            inConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
-            config.inConfs.push_back(inConfig);
+            inPortConfs.push_back({TensorDescCreatorTypes::ncsp, precision, true});
         }
     } else if (getType() == Output) {
         precision = getOriginalInputPrecisionAtPort(0);
         if (precision == Precision::U16) precision = Precision::FP32;
-        DataConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
 
-        auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-        auto mem_tdesc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType);
-        dataConfig.desc = mem_tdesc;
-        config.inConfs.push_back(dataConfig);
+        inPortConfs.push_back({TensorDescCreatorTypes::ncsp, precision});
     }
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+
+    addSupportedPrimDesc(inPortConfs,
+                         outPortConfs,
+                         impl_desc_type::unknown);
 }
 
 void MKLDNNInputNode::createPrimitive() {
@@ -440,7 +427,7 @@ void MKLDNNInputNode::createPrimitive() {
                                << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
     }
 
-    const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 }

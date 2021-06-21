@@ -16,9 +16,44 @@ if (ENABLE_CPU_DEBUG_CAPS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_DEBUG_CAPS")
 endif()
 
-file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-                          ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file(GLOB SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/rt_info/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/emitters/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/op/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.cpp
+#        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_input_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
+)
+
+file(GLOB HEADERS
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/rt_info/*.hpp
+#        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_input_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/base.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.hpp
+)
+
+#file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+#file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+#                          ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 addVersionDefines(mkldnn_plugin.cpp CI_BUILD_NUMBER)
 

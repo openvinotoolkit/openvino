@@ -20,9 +20,9 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
-    void initDescriptor(const InferenceEngine::LayerConfig& config) override;
+    void createDescriptor(const std::vector<MKLDNNMemoryDesc>& inputDesc,
+                          const std::vector<MKLDNNMemoryDesc>& outputDesc) override;
+    void initDescriptor(const NodeConfig& config) override;
     void createPrimitive() override;
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -32,7 +32,7 @@ public:
         return false;
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
-    MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::unique_ptr<MKLDNNMemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     const mkldnn::memory& getWeights() const;
     const mkldnn::memory& getBias() const;

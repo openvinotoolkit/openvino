@@ -303,6 +303,7 @@ public:
      * @return the standard memory layout
      */
     static Layout getLayoutByDims(const SizeVector& dims);
+    static Layout getLayoutByRank(size_t rank);
 
 private:
     /**
