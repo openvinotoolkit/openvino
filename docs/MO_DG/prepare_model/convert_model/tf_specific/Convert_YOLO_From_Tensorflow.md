@@ -50,7 +50,7 @@ class Mish(tf.keras.layers.Layer):
         return input_shape
 ```
 
-3. Convert the YOLOv4 Keras\* model to TensorFlow2\*.
+3. Convert the YOLOv4 Keras\* model to TensorFlow2\*. The code below should be contain in any .py file in the same folder as mish.py.
 ```python
 from mish import Mish
 
