@@ -4,9 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <legacy/graph_tools.hpp>
-#include <gmock/gmock-generated-function-mockers.h>
-#include <gmock/gmock-generated-matchers.h>
-#include <gmock/gmock-more-actions.h>
+#include <gmock/gmock.h>
 #include "cpp/ie_cnn_network.h"
 #include <legacy/details/ie_cnn_network_tools.h>
 
@@ -24,8 +22,8 @@ using namespace std;
  */
 class GraphTestsBase : public ::testing::Test {
 protected:
-    MOCK_METHOD2(visited, void(size_t, int));
-    MOCK_METHOD2(visited2, void(size_t, int));
+    MOCK_METHOD(void, visited, (size_t, int));
+    MOCK_METHOD(void, visited2, (size_t, int));
 
     std::vector<CNNLayerPtr> layers;
     std::vector<std::vector<DataPtr>> datas;

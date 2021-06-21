@@ -10,9 +10,15 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
+namespace testing {
+namespace internal {
+
 template <> inline void
-testing::internal::PrintTo(const ngraph::op::v5::NonMaxSuppression::BoxEncodingType& value,
+PrintTo(const ::ngraph::op::v5::NonMaxSuppression::BoxEncodingType& value,
     ::std::ostream* os) { }
+
+}
+}
 
 namespace LayerTestsDefinitions {
 

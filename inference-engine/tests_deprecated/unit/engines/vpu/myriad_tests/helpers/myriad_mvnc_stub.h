@@ -5,7 +5,7 @@
 #pragma once
 
 #include <gtest/gtest.h>
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 #include "myriad_mvnc_wrapper.h"
 
 using namespace vpu::MyriadPlugin;
@@ -17,10 +17,10 @@ using namespace vpu::MyriadPlugin;
 class MvncStub : public IMvnc {
 public:
     //Operations
-    MOCK_QUALIFIED_METHOD0(AvailableDevicesNames, const, std::vector<std::string>());
-    MOCK_QUALIFIED_METHOD0(AvailableDevicesDesc, const, std::vector<ncDeviceDescr_t>());
+    MOCK_METHOD(std::vector<std::string>, AvailableDevicesNames, (), (const));
+    MOCK_METHOD(std::vector<ncDeviceDescr_t>, AvailableDevicesDesc, (), (const));
 
-    MOCK_METHOD0(watchdogHndl, WatchdogHndl_t*());
+    MOCK_METHOD(WatchdogHndl_t*, watchdogHndl, ());
 
     ~MvncStub() = default;
 };

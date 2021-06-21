@@ -62,7 +62,7 @@ TEST_P(myriadBlobTests_smoke, CanGetSameBlobsOnSameIR) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadBlobTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadBlobTests_smoke,
     ::testing::Values(CONFIG_VALUE(YES), CONFIG_VALUE(NO))
 );
 
@@ -413,5 +413,5 @@ static const std::vector<InferenceEngine::Precision> inputPrecisions = {Inferenc
 static const std::vector<InferenceEngine::Precision> outputPrecisions = {InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32};
 
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_smoke,
                         ::testing::Combine(::testing::ValuesIn(inputPrecisions), ::testing::ValuesIn(outputPrecisions)));

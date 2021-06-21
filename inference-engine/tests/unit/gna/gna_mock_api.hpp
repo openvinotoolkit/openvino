@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include <gmock/gmock-generated-function-mockers.h>
+#include <gmock/gmock.h>
 
 #if defined(_WIN32)
     #ifdef libGNAStubs_EXPORTS
@@ -20,7 +20,7 @@ public:
     GNA_STUBS_EXPORT GNACppApi();
     GNA_STUBS_EXPORT ~GNACppApi();
 #if GNA_LIB_VER == 1
-    MOCK_METHOD10(GNAScoreGaussians, intel_gna_status_t(
+    MOCK_METHOD(intel_gna_status_t, GNAScoreGaussians, (
         // intel_gna_handle_t          nGNADevice,            // handle to GNA accelerator
         // const intel_feature_type_t* pFeatureType,
         const intel_feature_t*      pFeatureData,
@@ -35,7 +35,7 @@ public:
         intel_gna_proc_t            nAccelerationType));
 
 
-    MOCK_METHOD6(GNAPropagateForward, intel_gna_status_t(
+    MOCK_METHOD(GNAPropagateForward, intel_gna_status_t(
         intel_gna_handle_t          nGNADevice,            // handle to GNA accelerator
         const intel_nnet_type_t*    pNeuralNetwork,
         const uint32_t*             pActiveIndices,
@@ -43,30 +43,30 @@ public:
         uint32_t*                   pReqId,
         intel_gna_proc_t            nAccelerationType));
 
-    MOCK_METHOD3(GNAAlloc, void *(
+    MOCK_METHOD(void *, GNAAlloc, (
         intel_gna_handle_t nGNADevice,   // handle to GNA accelerator
         uint32_t           sizeRequested,
         uint32_t*          sizeGranted));
 
-    MOCK_METHOD1(GNAFree, intel_gna_status_t(intel_gna_handle_t nGNADevice));
+    MOCK_METHOD(intel_gna_status_t, GNAFree, (intel_gna_handle_t nGNADevice));
 
-    MOCK_METHOD1(GNADeviceOpen, intel_gna_handle_t(intel_gna_status_t* status));
+    MOCK_METHOD(intel_gna_handle_t, GNADeviceOpen, (intel_gna_status_t* status));
 
-    MOCK_METHOD2(GNADeviceOpenSetThreads, intel_gna_handle_t(intel_gna_status_t* status, uint8_t n_threads));
-    MOCK_METHOD1(GNADeviceClose, intel_gna_status_t(intel_gna_handle_t nGNADevice));
+    MOCK_METHOD(intel_gna_handle_t, GNADeviceOpenSetThreads, (intel_gna_status_t* status, uint8_t n_threads));
+    MOCK_METHOD(intel_gna_status_t, GNADeviceClose, (intel_gna_handle_t nGNADevice));
 
-    MOCK_METHOD3(GNAWait, intel_gna_status_t(
+    MOCK_METHOD(intel_gna_status_t, GNAWait, (
                  intel_gna_handle_t nGNADevice,            // handle to GNA accelerator
                  uint32_t           nTimeoutMilliseconds,
                  uint32_t           reqId));               // IN score request ID
 
-    MOCK_METHOD4(GNAWaitPerfRes, intel_gna_status_t(
+    MOCK_METHOD(intel_gna_status_t, GNAWaitPerfRes, (
                  intel_gna_handle_t nGNADevice,            // handle to GNA accelerator
                  uint32_t           nTimeoutMilliseconds,
                  uint32_t           reqId,                 // IN score request ID
                  intel_gna_perf_t*  nGNAPerfResults));
 
-    MOCK_METHOD6(GNADumpXnn, void* (
+    MOCK_METHOD(void*, GNADumpXnn, (
         const intel_nnet_type_t*    neuralNetwork,
         const uint32_t*             activeIndices,
         uint32_t                    activeIndicesCount,
@@ -74,13 +74,13 @@ public:
         intel_gna_status_t*         status,
         intel_gna_alloc_cb          customAlloc));
 
-    MOCK_METHOD1(gmmSetThreads, intel_gna_handle_t(uint8_t num));
+    MOCK_METHOD(intel_gna_handle_t, gmmSetThreads, (uint8_t num));
 #else
-    MOCK_METHOD3(Gna2MemoryAlloc, Gna2Status(
+    MOCK_METHOD(Gna2Status, Gna2MemoryAlloc, (
         uint32_t sizeRequested,
         uint32_t * sizeGranted,
         void ** memoryAddress));
-    MOCK_METHOD2(Gna2RequestWait, Gna2Status(
+    MOCK_METHOD(Gna2Status, Gna2RequestWait, (
         uint32_t requestId,
         uint32_t timeoutMilliseconds));
 #endif
