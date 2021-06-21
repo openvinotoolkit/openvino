@@ -88,6 +88,7 @@ limitations under the License.
         <!-- Intermediate Representation and Operations Sets -->
         <tab id="intermediate_representaton_and_operations_sets" type="usergroup" title="Intermediate Representation and Operations Sets" url="@ref openvino_docs_MO_DG_IR_and_opsets">
             <tab type="usergroup" title="Available Operations Sets" url="@ref openvino_docs_ops_opset">
+                <tab type="user" title="opset8 Specification" url="@ref openvino_docs_ops_opset8"/>
                 <tab type="user" title="opset7 Specification" url="@ref openvino_docs_ops_opset7"/>
                 <tab type="user" title="opset6 Specification" url="@ref openvino_docs_ops_opset6"/>
                 <tab type="user" title="opset5 Specification" url="@ref openvino_docs_ops_opset5"/>
@@ -100,6 +101,8 @@ limitations under the License.
                 <tab type="user" title="Abs-1" url="@ref openvino_docs_ops_arithmetic_Abs_1"/>
                 <tab type="user" title="Acos-1" url="@ref openvino_docs_ops_arithmetic_Acos_1"/>
                 <tab type="user" title="Acosh-3" url="@ref openvino_docs_ops_arithmetic_Acosh_3"/>
+                <tab type="user" title="AdaptiveAvgPool-8" url="@ref openvino_docs_ops_pooling_AdaptiveAvgPool_8"/>
+                <tab type="user" title="AdaptiveMaxPool-8" url="@ref openvino_docs_ops_pooling_AdaptiveMaxPool_8"/>
                 <tab type="user" title="Add-1" url="@ref openvino_docs_ops_arithmetic_Add_1"/>
                 <tab type="user" title="Asin-1" url="@ref openvino_docs_ops_arithmetic_Asin_1"/>
                 <tab type="user" title="Asinh-3" url="@ref openvino_docs_ops_arithmetic_Asinh_3"/>
@@ -128,7 +131,7 @@ limitations under the License.
                 <tab type="user" title="Cosh-1" url="@ref openvino_docs_ops_arithmetic_Cosh_1"/>
                 <tab type="user" title="CTCLoss-4" url="@ref openvino_docs_ops_sequence_CTCLoss_4"/>
                 <tab type="user" title="CumSum" url="@ref openvino_docs_ops_arithmetic_CumSum_3"/>
-                <tab type="user" title="DeformableConvolution-1" url="@ref openvino_docs_ops_convolution_DeformableConvolution_1"/>
+                <tab type="user" title="DeformableConvolution-8" url="@ref openvino_docs_ops_convolution_DeformableConvolution_8"/>
                 <tab type="user" title="DeformablePSROIPooling-1" url="@ref openvino_docs_ops_detection_DeformablePSROIPooling_1"/>
                 <tab type="user" title="DepthToSpace-1" url="@ref openvino_docs_ops_movement_DepthToSpace_1"/>
                 <tab type="user" title="DetectionOutput-1" url="@ref openvino_docs_ops_detection_DetectionOutput_1"/>
@@ -186,11 +189,13 @@ limitations under the License.
                 <tab type="user" title="MVN-1" url="@ref openvino_docs_ops_normalization_MVN_1"/>
                 <tab type="user" title="MVN-6" url="@ref openvino_docs_ops_normalization_MVN_6"/>
                 <tab type="user" title="MatMul-1" url="@ref openvino_docs_ops_matrix_MatMul_1"/>
+                <tab type="user" title="MatrixNonMaxSuppression-8" url="@ref openvino_docs_ops_sort_MatrixNonMaxSuppression_8"/>
                 <tab type="user" title="MaxPool-1" url="@ref openvino_docs_ops_pooling_MaxPool_1"/>
                 <tab type="user" title="Maximum-1" url="@ref openvino_docs_ops_arithmetic_Maximum_1"/>
                 <tab type="user" title="Minimum-1" url="@ref openvino_docs_ops_arithmetic_Minimum_1"/>
                 <tab type="user" title="Mish-4" url="@ref openvino_docs_ops_activation_Mish_4"/>
                 <tab type="user" title="Mod-1" url="@ref openvino_docs_ops_arithmetic_Mod_1"/>
+                <tab type="user" title="MulticlassNonMaxSuppression-8" url="@ref openvino_docs_ops_sort_MulticlassNonMaxSuppression_8"/>
                 <tab type="user" title="Multiply-1" url="@ref openvino_docs_ops_arithmetic_Multiply_1"/>
                 <tab type="user" title="Negative-1" url="@ref openvino_docs_ops_arithmetic_Negative_1"/>
                 <tab type="user" title="NonMaxSuppression-1" url="@ref openvino_docs_ops_sort_NonMaxSuppression_1"/>
@@ -293,7 +298,6 @@ limitations under the License.
                 <tab type="user" title="[DEPRECATED] Import an ONNX model" url="@ref openvino_docs_IE_DG_OnnxImporterTutorial"/>
                 <tab type="user" title="Using Dynamic Batching Feature" url="@ref openvino_docs_IE_DG_DynamicBatching"/>
                 <tab type="user" title="Using Static Shape Infer Feature" url="@ref openvino_docs_IE_DG_ShapeInference"/>
-                <tab type="user" title="Using GPU kernels tuning" url="@ref openvino_docs_IE_DG_GPU_Kernels_Tuning"/>
                 <tab type="usergroup" title="Using Bfloat16 Inference" url="@ref openvino_docs_IE_DG_Bfloat16Inference">
                 </tab>
                 <tab type="usergroup" title="Using Low-Precision 8-bit Integer Inference" url="@ref openvino_docs_IE_DG_Int8Inference">
@@ -303,7 +307,7 @@ limitations under the License.
                 </tab>
                 <tab type="user" title="Introduction to OpenVINO state API" url="@ref openvino_docs_IE_DG_network_state_intro"/>
                 <tab type="usergroup" title="Supported Devices" url="@ref openvino_docs_IE_DG_supported_plugins_Supported_Devices">
-                    <tab type="usergroup" title="GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CL_DNN">
+                    <tab type="usergroup" title="GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU">
                         <tab type="user" title="RemoteBlob API of GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API"/>
                     </tab>
                     <tab type="user" title="CPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CPU"/>

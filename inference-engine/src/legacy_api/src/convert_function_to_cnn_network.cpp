@@ -244,6 +244,9 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     LayerParams params = {layer->get_friendly_name(), "TensorIterator",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::TensorIterator>(params);
+    if (res == nullptr) {
+        IE_THROW() << "Can't create TensorIterator";
+    }
     res->body = body;
 
     // Port map: outputs

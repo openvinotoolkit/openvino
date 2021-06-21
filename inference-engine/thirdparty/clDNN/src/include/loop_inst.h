@@ -5,17 +5,17 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "api/loop.hpp"
-#include "api/mutable_data.hpp"
-#include "api/input_layout.hpp"
-#include "api/memory.hpp"
+#include "cldnn/primitives/loop.hpp"
+#include "cldnn/primitives/mutable_data.hpp"
+#include "cldnn/primitives/input_layout.hpp"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/error_handler.hpp"
 
 #include "network_impl.h"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>
 #include <vector>
-#include "error_handler.h"
 
 namespace cldnn {
 template<>
@@ -31,7 +31,7 @@ private:
     bool use_current_iteration;
     bool use_execution_condition;
     mutable program_impl::ptr body_program;
-    mutable std::map<primitive_id, memory_impl::ptr> backedge_mem_impls;
+    mutable std::map<primitive_id, memory::ptr> backedge_mem_impls;
     mutable std::map<primitive_id, std::shared_ptr<mutable_data>> backedge_layers;
     mutable std::map<primitive_id, std::shared_ptr<memory>> backedge_mem;
 
@@ -40,8 +40,8 @@ private:
     void setup_internal_mutabledata_node(primitive_id md_id, layout md_layout, std::vector<primitive_id> md_inputs_id = {}, uint32_t net_id = 0) const {
         if (body.get_primitives().count(md_id) == 0) {
             backedge_mem_impls[md_id] = get_program().get_engine().allocate_memory(md_layout, net_id);
-            backedge_mem[md_id] = std::make_shared<memory>(backedge_mem_impls[md_id].get());
-            backedge_layers[md_id] = std::make_shared<mutable_data>(md_id, md_inputs_id, *backedge_mem[md_id]);
+            backedge_mem[md_id] = backedge_mem_impls[md_id];
+            backedge_layers[md_id] = std::make_shared<mutable_data>(md_id, md_inputs_id, backedge_mem[md_id]);
             body.add(backedge_layers[md_id]);
         }
     }
@@ -266,7 +266,7 @@ public:
         auto opts = get_program().get_options();
         std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
         opts.set_option(build_option::outputs(output_names_vec));
-        body_program = get_program().get_engine().build_program(body, opts, false);
+        body_program = program_impl::build_program(get_program().get_engine(), body, opts, false, false, true);
     }
 
     const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }
@@ -298,17 +298,19 @@ public:
         };
         std::shared_ptr<primitive_inst> from_primitive;
         std::shared_ptr<primitive_inst> to_primitive;
-        std::vector<memory_impl::ptr> from_mems;
-        memory_impl::ptr initial_mem;
+        std::vector<memory::ptr> from_mems;
+        memory::ptr initial_mem;
+        cldnn::stream& stream;
         backedge_type type;
         size_t total_bytes;
 
         backedge_memory_mapping(
             std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
-            std::vector<memory_impl::ptr> from_mems, memory_impl::ptr initial_mem, backedge_type type = CONCAT_OUTPUT):
+            std::vector<memory::ptr> from_mems, memory::ptr initial_mem, cldnn::stream& stream, backedge_type type = CONCAT_OUTPUT):
             from_primitive(from_primitive),
             to_primitive(to_primitive),
             from_mems(from_mems),
+            stream(stream),
             type(type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
                 validate_backedge_memory();
@@ -316,11 +318,12 @@ public:
 
         backedge_memory_mapping(
             std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
-            memory_impl::ptr from_mem, memory_impl::ptr initial_mem, backedge_type type = SINGLE_SHARED):
+            memory::ptr from_mem, memory::ptr initial_mem, cldnn::stream& stream, backedge_type type = SINGLE_SHARED):
             from_primitive(from_primitive),
             to_primitive(to_primitive),
             from_mems{from_mem},
             initial_mem(initial_mem),
+            stream(stream),
             type(type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
                 validate_backedge_memory();
@@ -328,10 +331,11 @@ public:
 
         backedge_memory_mapping(
             std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
-            memory_impl::ptr initial_mem, backedge_type type = SINGLE):
+            memory::ptr initial_mem, cldnn::stream& stream, backedge_type type = SINGLE):
             from_primitive(from_primitive),
             to_primitive(to_primitive),
             initial_mem(initial_mem),
+            stream(stream),
             type(type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
                 validate_backedge_memory();
@@ -340,22 +344,22 @@ public:
         void setup_iteration(int64_t iter) const {
             if (type == CONCAT_OUTPUT) {
                 if (iter == 0) {
-                    to_primitive->set_output_memory(*initial_mem);
+                    to_primitive->set_output_memory(initial_mem);
                 } else if (iter > 0) {
-                    to_primitive->set_output_memory(*from_mems.at(iter - 1));
+                    to_primitive->set_output_memory(from_mems.at(iter - 1));
                 } else {
                     throw std::runtime_error("Invalid iteraton count" + std::to_string(iter));
                 }
             } else if (type == SINGLE_SHARED && iter == 0) {
-                copy_data(initial_mem, from_mems.front());
+                from_mems.front()->copy_from(stream, *initial_mem);
             } else if (type == SINGLE) {
-                memory_impl::ptr mem1 = (memory_impl::ptr)&to_primitive->output_memory();
+                memory::ptr mem1 = to_primitive->output_memory_ptr();
                 if (iter == 0) {
-                    copy_data(initial_mem, mem1);
+                    mem1->copy_from(stream, *initial_mem);
                 } else {
-                    memory_impl::ptr mem2 = (memory_impl::ptr)&from_primitive->output_memory();
-                    to_primitive->set_output_memory(*mem2);
-                    from_primitive->set_output_memory(*mem1);
+                    memory::ptr mem2 = from_primitive->output_memory_ptr();
+                    to_primitive->set_output_memory(mem2);
+                    from_primitive->set_output_memory(mem1);
                 }
             }
         }
@@ -370,26 +374,20 @@ private:
                 }
             }
         }
-
-        void copy_data(cldnn::memory_impl::ptr src_mem, cldnn::memory_impl::ptr dst_mem) const {
-            mem_lock<uint8_t> from_lock {src_mem};
-            mem_lock<uint8_t> to_lock {dst_mem};
-            const auto src = from_lock.begin();
-            const auto dst = to_lock.begin();
-            std::copy(src, src + total_bytes, dst);
-        }
     };
 
     struct concatenated_memory_mapping {
         concatenated_memory_mapping(int64_t axis,
-                            memory_impl::ptr concatenated_mem,
-                            std::vector<memory_impl::ptr> sliced_mems,
-                            int64_t iteration_elements = 0,
-                            int64_t stride = 0,
-                            int64_t initial_offset = 0) :
+                                    memory::ptr concatenated_mem,
+                                    std::vector<memory::ptr> sliced_mems,
+                                    stream& stream,
+                                    int64_t iteration_elements = 0,
+                                    int64_t stride = 0,
+                                    int64_t initial_offset = 0) :
             axis(axis),
             concatenated_mem(concatenated_mem),
             sliced_mems(sliced_mems),
+            stream(stream),
             bytes_per_element(data_type_traits::size_of(concatenated_mem->get_layout().data_type)),
             batch_size(get_batch_size(concatenated_mem->get_layout(), axis)),
             bytes_batch_stride((static_cast<int64_t>(concatenated_mem->get_layout().count()) / batch_size) * bytes_per_element),
@@ -410,13 +408,13 @@ private:
         }
 
         void restore_concatenated_mem() const {
-            mem_lock<uint8_t> concat_mem_lock{ concatenated_mem };
+            mem_lock<uint8_t> concat_mem_lock{ concatenated_mem, stream };
             int64_t iteration_offset = bytes_iteration_initial_offset;
             for (const auto& sliced_mem : sliced_mems) {
                 for (int64_t batch = 0; batch < batch_size; ++batch) {
                     const int64_t src_offset = batch * bytes_iteration;
                     const int64_t dst_offset = batch * bytes_batch_stride + iteration_offset;
-                    mem_lock<uint8_t> sliced_mem_lock{ sliced_mem };
+                    mem_lock<uint8_t> sliced_mem_lock{ sliced_mem, stream };
                     uint8_t* src = sliced_mem_lock.data() + src_offset;
                     uint8_t* dst = concat_mem_lock.data() + dst_offset;
                     std::copy(src, src + bytes_iteration, dst);
@@ -427,18 +425,18 @@ private:
 
         void setup_concatenated_output_memory(uint64_t iteration) const {
             const auto& sliced_output_mem = sliced_mems.at(iteration);
-            concat_data_prim->set_output_memory(*sliced_output_mem);
+            concat_data_prim->set_output_memory(sliced_output_mem);
         }
 
-        memory_impl::ptr get_sliced_mem(int64_t iteration) const {
-            mem_lock<uint8_t> from_lock{ concatenated_mem };
+        memory::ptr get_sliced_mem(int64_t iteration) const {
+            mem_lock<uint8_t> from_lock{ concatenated_mem, stream };
             int64_t batch_offset = 0;
             const int64_t iteration_offset = bytes_iteration_initial_offset +
                 bytes_iteration_stride * iteration;
             for (int64_t batch = 0; batch < batch_size; ++batch) {
                 const int64_t src_offset = batch_offset + iteration_offset;
                 const int64_t dst_offset = batch * bytes_iteration;
-                mem_lock<uint8_t> to_lock{ sliced_mems.at(iteration) };
+                mem_lock<uint8_t> to_lock{ sliced_mems.at(iteration), stream };
                 const auto src = from_lock.begin() + src_offset;
                 const auto dst = to_lock.begin() + dst_offset;
                 std::copy(src, src + bytes_iteration, dst);
@@ -450,8 +448,9 @@ private:
         const int64_t axis;
         std::shared_ptr<primitive_inst> concat_data_prim;
         std::shared_ptr<primitive_inst> sliced_data_prim;
-        memory_impl::ptr concatenated_mem;
-        std::vector<memory_impl::ptr> sliced_mems;
+        memory::ptr concatenated_mem;
+        std::vector<memory::ptr> sliced_mems;
+        cldnn::stream& stream;
         // element size
         const int64_t bytes_per_element;
         // number of higher level of dimension of slicing axis
@@ -483,8 +482,8 @@ public:
 
 private:
     network_impl::ptr body_network;
-    memory_impl::ptr get_external_memory(const primitive_id& external_id) const;
-    std::vector<memory_impl::ptr> get_sliced_mem(const primitive_id& internal_id) const;
+    memory::ptr get_external_memory(const primitive_id& external_id) const;
+    std::vector<memory::ptr> get_sliced_mem(const primitive_id& internal_id) const;
 };
 
 using loop_inst = typed_primitive_inst<loop>;

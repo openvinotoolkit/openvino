@@ -8,8 +8,8 @@
 #include "ngraph/op/normalize_l2.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/normalize.hpp"
-#include "api/data.hpp"
+#include "cldnn/primitives/normalize.hpp"
+#include "cldnn/primitives/data.hpp"
 
 namespace CLDNNPlugin {
 
@@ -35,8 +35,8 @@ void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0::Norma
     // We create fake scale constant and fill it with ones to keep the same behavior as current primitive
     auto scale = std::make_shared<ngraph::op::v0::Constant>(op->get_output_element_type(0), ngraph::Shape{1}, std::vector<float>{1.0});
     cldnn::layout constLayout = cldnn::layout(DataTypeFromPrecision(op->get_output_element_type(0)), cldnn::format::bfyx, cldnn::tensor{1});
-    auto mem = cldnn::memory::allocate(p.GetEngine(), constLayout, 0, false);
-    auto tmpPointer = mem.pointer<char>();  // implicitly maps buffer - unmap in destructor
+    auto mem = p.GetEngine().allocate_memory(constLayout, false);
+    cldnn::mem_lock<int8_t> tmpPointer{mem, p.GetEngine().get_program_stream()};
     auto buf = tmpPointer.data();
     auto bufSize = scale->get_output_tensor(0).size();
 

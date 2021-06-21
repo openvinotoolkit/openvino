@@ -9,8 +9,8 @@
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/unsqueeze.hpp"
 
-#include "api/reshape.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 

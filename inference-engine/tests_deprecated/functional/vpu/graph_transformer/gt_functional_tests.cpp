@@ -7,6 +7,8 @@
 #include <vpu/utils/logger.hpp>
 #include <vpu/compile_env.hpp>
 #include <vpu/graph_transformer_internal.hpp>
+#include <vpu/configuration/options/log_level.hpp>
+#include <vpu/configuration/options/copy_optimization.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -19,12 +21,12 @@ void graphTransformerFunctionalTests::SetUp() {
     vpuLayersTests::SetUp();
 
     _stageBuilder = std::make_shared<StageBuilder>();
-    _platform = CheckMyriadX() ? Platform::MYRIAD_X : Platform::MYRIAD_2;
+    _platform = CheckMyriadX() ? ncDevicePlatform_t::NC_MYRIAD_X : ncDevicePlatform_t::NC_MYRIAD_2;
 }
 
 void graphTransformerFunctionalTests::CreateModel() {
     const auto compilerLog = std::make_shared<Logger>("Test", LogLevel::Info, consoleOutput());
-    CompileEnv::init(_platform, _compilationConfig, compilerLog);
+    CompileEnv::init(_platform, _configuration, compilerLog);
     AutoScope autoDeinit([] {
         CompileEnv::free();
     });
@@ -43,7 +45,13 @@ void graphTransformerFunctionalTests::CreateModel() {
 
 void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     SetSeed(DEFAULT_SEED_VALUE);
-    _compilationConfig = CompilationConfig();
+
+    _configuration.registerOption<LogLevelOption>();
+    _configuration.registerOption<CopyOptimizationOption>();
+IE_SUPPRESS_DEPRECATED_START
+    _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+IE_SUPPRESS_DEPRECATED_END
+
     _inputsInfo.clear();
     _outputsInfo.clear();
     _inputMap.clear();
@@ -87,7 +95,7 @@ int64_t graphTransformerFunctionalTests::CompileAndInfer(Blob::Ptr& inputBlob, B
     auto compiledGraph = compileModel(
                 _gtModel,
                 _platform,
-                _compilationConfig,
+                _configuration,
                 compilerLog);
 
     std::istringstream instream(std::string(compiledGraph->blob.data(), compiledGraph->blob.size()));

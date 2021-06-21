@@ -14,6 +14,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -125,6 +126,7 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const op::PadType &autoPad,
                                                           size_t numOutChannels,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
                                                           const std::vector<float> &filterWeights = {},
                                                           const std::vector<float> &biasesWeights = {});
 
@@ -137,6 +139,22 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const std::vector<size_t> &dilations,
                                                           const op::PadType &autoPad,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
+                                                          const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
+                                                          const ngraph::Output<Node> &outputShape,
+                                                          const element::Type &type,
+                                                          const std::vector<size_t> &filterSize,
+                                                          const std::vector<size_t> &strides,
+                                                          const std::vector<ptrdiff_t> &padsBegin,
+                                                          const std::vector<ptrdiff_t> &padsEnd,
+                                                          const std::vector<size_t> &dilations,
+                                                          const op::PadType &autoPad,
+                                                          size_t numOutChannels,
+                                                          bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
+                                                          const std::vector<float> &filterWeights = {},
                                                           const std::vector<float> &biasesWeights = {});
 
 std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(

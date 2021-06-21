@@ -2,9 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
 # TODO: remove after changing [private plugins]
-set(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_MAIN_SOURCE_DIR@") # KMB
-set(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@") # HDDL
+set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_MAIN_SOURCE_DIR@") # KMB
+set_and_check(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@") # HDDL
 
 # Variables to export in plugin's projects
 
@@ -22,31 +26,45 @@ endforeach()
 message("")
 
 # for samples in 3rd party projects
-set(gflags_DIR "@gflags_BINARY_DIR@")
+set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
 
-# Targets
+#
+# Content
+#
 
-if(USE_SYSTEM_PUGIXML)
-    find_package(PugiXML REQUIRED)
-    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
-endif()
+find_dependency(IEDevScripts
+                PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+                NO_CMAKE_FIND_ROOT_PATH
+                NO_DEFAULT_PATH)
+
+find_dependency(InferenceEngine
+                PATHS "${CMAKE_CURRENT_LIST_DIR}"
+                NO_CMAKE_FIND_ROOT_PATH
+                NO_DEFAULT_PATH)
+
+# WA for cmake: it exports ngraph as IE::ngraph in the IE export list
+# while we already have ngraph export in its own export list as ngraph::ngraph
+set_property(TARGET ngraph::ngraph PROPERTY IMPORTED_GLOBAL TRUE)
+add_library(IE::ngraph ALIAS ngraph::ngraph)
 
 foreach(component @openvino_export_components@)
     include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
 endforeach()
 
-set(InferenceEngine_LIBRARIES IE::inference_engine)
+if(USE_SYSTEM_PUGIXML)
+    find_dependency(PugiXML)
+    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+endif()
+
+# inherit OpenCV from main IE project if enabled
+if ("@OpenCV_FOUND@")
+    load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+    find_dependency(OpenCV)
+endif()
 
 #
-# Common cmake includes
+# Extra Compile Flags
 #
-
-# Inference Engine Developer Scripts package
-
-find_package(IEDevScripts REQUIRED
-             PATHS "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package"
-             NO_CMAKE_FIND_ROOT_PATH
-             NO_DEFAULT_PATH)
 
 if(NOT MSVC)
     ie_add_compiler_flags(-Wno-error=unused-variable)
@@ -57,15 +75,3 @@ endif()
 
 # Don't threat deprecated API warnings as errors in 3rd party apps
 ie_deprecated_no_errors()
-
-# inherit OpenCV from main IE project if enabled
-if (ENABLE_OPENCV)
-    load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
-    find_package(OpenCV)
-endif()
-
-# inherit TBB from main IE project if enabled
-if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    load_cache("${cache_path}" READ_WITH_PREFIX "" TBB_DIR)
-    find_package(TBB)
-endif()
