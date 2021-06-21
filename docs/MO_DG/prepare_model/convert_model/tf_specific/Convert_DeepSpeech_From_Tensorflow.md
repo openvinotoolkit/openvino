@@ -46,26 +46,27 @@ The main and most computationally expensive part of the model converts the prepr
 There are two specificities with the supported part of the model. 
 
 The first is that the model contains an input with sequence length. So the model can be converted with 
-a fixed input length shape, thus the model is not [reshapeable](../../../../IE_DG/ShapeInference.md).
+a fixed input length shape, thus the model is not reshapeable. 
+Refer to the [Using Shape Inference](../../../../IE_DG/ShapeInference.md).
 
 The second is that the frozen model still has two variables: `previous_state_c` and `previous_state_h`, figure 
 with the frozen *.pb model is below. It means that the model keeps training these variables at each inference. 
 
 ![DeepSpeech model view](../../../img/DeepSpeech-0.8.2.png)
 
-At the first inference the variables are initialized by zero tensors. After executing, the results of the `BlockLSTM` 
+At the first inference the variables are initialized with zero tensors. After executing, the results of the `BlockLSTM` 
 are assigned to cell state and hidden state, which are these two variables.
 
 ## Convert the Main Part of DeepSpeech Model into IR
 
-The Model Optimizer assumes that the output model is for inference only. That is why you should cut `previous_state_c` 
+Model Optimizer assumes that the output model is for inference only. That is why you should cut `previous_state_c` 
 and `previous_state_h` variables off and resolve keeping cell and hidden states on the application level.
 
 There are certain limitations for the model conversion:
 - Time length (`time_len`) and sequence length (`seq_len`) are equal.
 - Original model cannot be reshaped, so you should keep original shapes.
 
-To generate the IR, run Model Optimizer with the following parameters:
+To generate the IR, run the Model Optimizer with the following parameters:
 ```sh
 python3 {path_to_mo}/mo_tf.py                            \
 --input_model output_graph.pb                            \
@@ -75,7 +76,7 @@ python3 {path_to_mo}/mo_tf.py                            \
 ```
 
 Where:
-* `input_lengths->[16]` freezes sequence length
-* `input_node[1 16 19 26],previous_state_h[1 2048],previous_state_c[1 2048]` replaces the variables with a placeholder
-* `--output ".../GatherNd_1,.../GatherNd,logits" ` gets data for the next model
-execution.
+* `input_lengths->[16]` Replaces the input node with name "input_lengths" with a constant tensor of shape [1] with a 
+  single integer value 16. This means that the model now can consume input sequences of length 16 only.
+* `input_node[1 16 19 26],previous_state_h[1 2048],previous_state_c[1 2048]` replaces the variables with a placeholder.
+* `--output ".../GatherNd_1,.../GatherNd,logits" ` output node names.
