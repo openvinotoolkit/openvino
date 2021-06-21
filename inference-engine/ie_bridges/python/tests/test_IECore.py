@@ -5,6 +5,8 @@ import os
 import pytest
 from sys import platform
 from pathlib import Path
+from threading import Thread
+from time import sleep, time
 
 from openvino.inference_engine import IENetwork, IECore, ExecutableNetwork
 from conftest import model_path, plugins_path, model_onnx_path, model_prototxt_path
@@ -253,3 +255,22 @@ def test_net_from_buffer_valid():
     o_net2 = ref_net.outputs
     assert ii_net.keys() == ii_net2.keys()
     assert o_net.keys() == o_net2.keys()
+
+
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "VGA") != "GPU", reason=f"Device dependent test")
+def test_load_network_release_gil(device):
+    def detect_long_gil_holds():
+        sleep_time = 0.01
+        latency_alert_threshold = 0.1
+        while True:
+            start_sleep = time()
+            sleep(sleep_time)
+            elapsed = time() - start_sleep
+            assert elapsed < latency_alert_threshold
+
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    gil_hold_detection_thread = Thread(daemon=True, target=detect_long_gil_holds)
+    gil_hold_detection_thread.start()
+    sleep(0.1)
+    exec_net = ie.load_network(net, device)
