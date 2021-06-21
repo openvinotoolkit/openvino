@@ -312,7 +312,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
-    bool tokenizeSubgraphs = Config::TokenizationMode::Subgraph;
+    bool tokenizeSubgraphs = Config::TokenizationMode::Node;
     if (!with_cpu_x86_avx2()) {
         // forse disable subgraph tokenization for SSE4.1 targets since not supported.
         tokenizeSubgraphs = Config::TokenizationMode::Disabled;
@@ -474,11 +474,33 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         lptManager.run_passes(nGraphFunc);
     }
 
+    ngraph::pass::Manager postLPTPassManager;
+    postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
+    postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
+
+    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
+        std::string errMsg;
+        return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
+    });
+    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
+        // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
+        return node->get_rt_info().count("UNROLL_TI") == 0;
+    });
+
+    postLPTPassManager.register_pass<MoveEltwiseUpThroughDataMov>();
+    postLPTPassManager.get_pass_config()->set_callback<MoveEltwiseUpThroughDataMov>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+        if (node->get_input_size() >= 2) {
+            return node->get_input_element_type(1) == ngraph::element::i8 || node->get_input_element_type(1) == ngraph::element::u8;
+        }
+        return false;
+    });
+
+    postLPTPassManager.run_passes(nGraphFunc);
     // bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
     bool enableInt8 = _enableLPT &&
                       ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
     if (enableInt8) {
-    //if (conf.enforceBF16 == true || enableInt8) {
+        //if (conf.enforceBF16 == true || enableInt8) {
         // forse disable subgraph tokenization. SS doesn't support bf16 & int8 yet.
         tokenizeSubgraphs = Config::TokenizationMode::Disabled;
     }
@@ -519,29 +541,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         ngraph::pass::VisualizeTree("tokenized.svg").run_on_function(nGraphFunc);
 #endif
     }
-
-    ngraph::pass::Manager postLPTPassManager;
-    postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
-    postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
-
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
-        std::string errMsg;
-        return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
-    });
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
-        // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-        return node->get_rt_info().count("UNROLL_TI") == 0;
-    });
-
-    postLPTPassManager.register_pass<MoveEltwiseUpThroughDataMov>();
-    postLPTPassManager.get_pass_config()->set_callback<MoveEltwiseUpThroughDataMov>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-        if (node->get_input_size() >= 2) {
-            return node->get_input_element_type(1) == ngraph::element::i8 || node->get_input_element_type(1) == ngraph::element::u8;
-        }
-        return false;
-    });
-
-    postLPTPassManager.run_passes(nGraphFunc);
 }
 
 static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT) {
