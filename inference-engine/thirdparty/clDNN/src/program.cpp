@@ -84,13 +84,15 @@ program_impl::program_impl(engine& engine_ref,
                            topology_impl const& topology,
                            build_options const& options,
                            bool is_internal,
-                           bool no_optimizations)
+                           bool no_optimizations,
+                           bool is_body_program)
     : _engine(engine_ref),
       _stream(_engine.create_stream()),
       program_state(_engine),
       options(options),
       processing_order(),
-      tuning_cache(nullptr) {
+      tuning_cache(nullptr),
+      is_body_program(is_body_program) {
     init_primitives();
     kernel_selector::KernelBase::ResetCounter();
     set_options();
@@ -163,8 +165,9 @@ program_impl::ptr program_impl::build_program(engine& engine,
                                               const topology_impl& topology,
                                               const build_options& options,
                                               bool is_internal,
-                                              bool no_optimizations) {
-    return std::make_shared<program_impl>(engine, topology, options, is_internal, no_optimizations);
+                                              bool no_optimizations,
+                                              bool is_body_program) {
+    return std::make_shared<program_impl>(engine, topology, options, is_internal, no_optimizations, is_body_program);
 }
 
 program_impl::ptr program_impl::build_program(engine& engine,
