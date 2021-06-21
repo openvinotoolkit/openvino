@@ -177,3 +177,5 @@ NGRAPH_OP(Roll, ngraph::op::v7)
 
 // New operations added in opset8
 NGRAPH_OP(Gather, ngraph::op::v8)
+NGRAPH_OP(MatrixNms, ngraph::op::v8)
+NGRAPH_OP(MulticlassNms, ngraph::op::v8)
