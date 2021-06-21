@@ -35,7 +35,7 @@ class MockICNNNetwork final : public InferenceEngine::ICNNNetwork {
     MOCK_QUALIFIED_METHOD0(layerCount, const noexcept, size_t());
     MOCK_QUALIFIED_METHOD0(getName, const noexcept, const std::string&());
     MOCK_QUALIFIED_METHOD3(addOutput, noexcept, InferenceEngine::StatusCode(const std::string &, size_t, InferenceEngine::ResponseDesc*));
-     MOCK_QUALIFIED_METHOD3(getLayerByName, const noexcept, InferenceEngine::StatusCode(const char* ,
+    MOCK_QUALIFIED_METHOD3(getLayerByName, const noexcept, InferenceEngine::StatusCode(const char* ,
             std::shared_ptr<InferenceEngine::CNNLayer>&,
             InferenceEngine::ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(setBatchSize, noexcept, InferenceEngine::StatusCode(const size_t size, InferenceEngine::ResponseDesc*));
