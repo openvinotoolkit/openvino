@@ -81,7 +81,7 @@ class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenc
         if values is not None:
             if isinstance(values, str):
                 if values != "":
-                    super.__call__(parser, namespace, values, option_string)
+                    super().__call__(parser, namespace, values, option_string)
                 else:
                     setattr(namespace, self.dest, values)
 
