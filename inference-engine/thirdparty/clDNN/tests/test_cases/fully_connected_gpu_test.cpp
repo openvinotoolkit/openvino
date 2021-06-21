@@ -1068,7 +1068,7 @@ TEST_P(fully_connected_random_test_f32, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke,
                         fully_connected_random_test_f32,
                         ::testing::Combine(
                             ::testing::Values(1, 2),
@@ -1080,7 +1080,7 @@ INSTANTIATE_TEST_CASE_P(smoke,
                             ::testing::Values(format::any),
                             ::testing::Values("")), );
 
-INSTANTIATE_TEST_CASE_P(smoke_bfyx_batched,
+INSTANTIATE_TEST_SUITE_P(smoke_bfyx_batched,
                         fully_connected_random_test_f32,
                         ::testing::Combine(
                             ::testing::Values(2, 8),
@@ -1096,7 +1096,7 @@ TEST_P(fully_connected_random_test_f16, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_bfyx_b2,
+INSTANTIATE_TEST_SUITE_P(smoke_bfyx_b2,
                         fully_connected_random_test_f16,
                         ::testing::Combine(
                             // Batch 1 is disabled due to sporadic failures in `fully_connected_gpu_bs_f_bsv16_b1`
@@ -1110,7 +1110,7 @@ INSTANTIATE_TEST_CASE_P(smoke_bfyx_b2,
                             ::testing::Values(format::any),
                             ::testing::Values("")), );
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke,
                         fully_connected_random_test_f16,
                         ::testing::Combine(
                             ::testing::Values(1, 2),
@@ -1122,7 +1122,7 @@ INSTANTIATE_TEST_CASE_P(smoke,
                             ::testing::Values(format::any),
                             ::testing::Values("")), );
 
-INSTANTIATE_TEST_CASE_P(smoke_bfyx_batched,
+INSTANTIATE_TEST_SUITE_P(smoke_bfyx_batched,
                         fully_connected_random_test_f16,
                         ::testing::Combine(
                             ::testing::Values(2, 8),
@@ -1168,7 +1168,7 @@ TEST_P(fully_connected_random_test_f32_3d, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke,
                         fully_connected_random_test_f32_3d,
                         ::testing::Combine(
                             ::testing::Values(1,3),
@@ -1180,7 +1180,7 @@ INSTANTIATE_TEST_CASE_P(smoke,
                             ::testing::Values(format::any),
                             ::testing::Values("")), );
 
-INSTANTIATE_TEST_CASE_P(smoke_big,
+INSTANTIATE_TEST_SUITE_P(smoke_big,
                         fully_connected_random_test_f32_3d,
                         ::testing::Combine(
                             ::testing::Values(3),
@@ -1196,7 +1196,7 @@ TEST_P(fully_connected_random_test_f16_3d, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke,
                         fully_connected_random_test_f16_3d,
                         ::testing::Combine(
                             ::testing::Values(1,3),
@@ -1212,7 +1212,7 @@ TEST_P(fully_connected_random_test_i8_3d, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke,
                         fully_connected_random_test_i8_3d,
                         ::testing::Combine(
                             ::testing::Values(1,3),
@@ -1224,7 +1224,7 @@ INSTANTIATE_TEST_CASE_P(smoke,
                             ::testing::Values(format::any),
                             ::testing::Values("")), );
 
-INSTANTIATE_TEST_CASE_P(smoke_big,
+INSTANTIATE_TEST_SUITE_P(smoke_big,
                         fully_connected_random_test_i8_3d,
                         ::testing::Combine(
                             ::testing::Values(1,3),
@@ -1523,7 +1523,7 @@ TEST_P(fully_connected_u8_f32_test, random) {
     run_random_test();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     basic,
     fully_connected_i8_i8_test,
     testing::Combine(
@@ -1537,7 +1537,7 @@ INSTANTIATE_TEST_CASE_P(
     fully_connected_i8_i8_test::PrintToStringParamName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     basic,
     fully_connected_i8_u8_test,
     testing::Combine(
@@ -1551,7 +1551,7 @@ INSTANTIATE_TEST_CASE_P(
     fully_connected_i8_u8_test::PrintToStringParamName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     basic,
     fully_connected_i8_f32_test,
     testing::Combine(
@@ -1565,7 +1565,7 @@ INSTANTIATE_TEST_CASE_P(
     fully_connected_i8_f32_test::PrintToStringParamName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     basic,
     fully_connected_u8_i8_test,
     testing::Combine(
@@ -1579,7 +1579,7 @@ INSTANTIATE_TEST_CASE_P(
     fully_connected_u8_i8_test::PrintToStringParamName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     basic,
     fully_connected_u8_u8_test,
     testing::Combine(
@@ -1593,7 +1593,7 @@ INSTANTIATE_TEST_CASE_P(
     fully_connected_u8_u8_test::PrintToStringParamName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     basic,
     fully_connected_u8_f32_test,
     testing::Combine(

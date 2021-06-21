@@ -312,7 +312,7 @@ TEST_P(MultiplyToGroupConvolutionTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     MultiplyToGroupConvolutionTransformation,
     ::testing::ValuesIn(testValues),

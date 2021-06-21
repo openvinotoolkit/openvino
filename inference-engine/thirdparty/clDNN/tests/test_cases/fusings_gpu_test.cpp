@@ -629,7 +629,7 @@ TEST_P(conv_fp32_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_activation, ::testing::ValuesIn(std::vector<bc_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation, ::testing::ValuesIn(std::vector<bc_test_params>{
                                                                            bc_test_params{CASE_CONV_FP32_1, 2, 3},
                                                                            bc_test_params{CASE_CONV_FP32_2, 2, 3},
                                                                            bc_test_params{CASE_CONV_FP32_3, 2, 3},
@@ -658,7 +658,7 @@ TEST_P(conv_fp32_scale, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                              // bc_test_params{CASE_CONV_FP32_1, 2, 3},
                                              bc_test_params{CASE_CONV_FP32_2, 2, 3},
@@ -688,7 +688,7 @@ TEST_P(conv_fp32_bias, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_bias,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_bias,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                              bc_test_params{CASE_CONV_FP32_1, 2, 3},
                                              bc_test_params{CASE_CONV_FP32_2, 2, 3},
@@ -815,7 +815,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_prelu_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_prelu_eltwise,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                              // bc_test_params{CASE_CONV_FP32_1, 2, 4},
                                              bc_test_params{CASE_CONV_FP32_2, 2, 4},
@@ -851,7 +851,7 @@ TEST_P(conv_fp32_multi_eltwise_2, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_2,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_2,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                              bc_test_params{CASE_CONV_FP32_2, 2, 4},
                                              bc_test_params{CASE_CONV_FP32_3, 2, 4},
@@ -887,7 +887,7 @@ TEST_P(conv_fp32_multi_eltwise_2_clamp, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_2_clamp,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_2_clamp,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                              bc_test_params{CASE_CONV_FP32_2, 2, 5},
                                              bc_test_params{CASE_CONV_FP32_3, 2, 5},
@@ -927,7 +927,7 @@ TEST_P(conv_fp32_multi_eltwise_4_clamp, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_4_clamp,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_4_clamp,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                              bc_test_params{CASE_CONV_FP32_2, 2, 7},
                                              bc_test_params{CASE_CONV_FP32_3, 2, 7},
@@ -964,7 +964,7 @@ TEST_P(conv_fp32_multi_eltwise_3_fusing, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_3_fusing,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_3_fusing,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                              bc_test_params{CASE_CONV_FP32_2, 2, 5},
                                              bc_test_params{CASE_CONV_FP32_3, 2, 5},
@@ -999,7 +999,7 @@ TEST_P(conv_fp32_multi_eltwise_quantization, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_quantization,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_quantization,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                              bc_test_params{CASE_CONV_FP32_2, 4, 5},
                                              bc_test_params{CASE_CONV_FP32_4, 4, 5},
@@ -1035,7 +1035,7 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_multi_eltwise_concat,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_concat,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                              bc_test_params{CASE_CONV_FP32_2, 5, 5},
                                              bc_test_params{CASE_CONV_FP32_3, 5, 5},
@@ -1082,7 +1082,7 @@ TEST_P(conv_fp32_swish, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_swish,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_swish,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 // bc_test_params{CASE_CONV_FP32_1, 2, 4},
                                 bc_test_params{CASE_CONV_FP32_2, 2, 4},
@@ -1119,7 +1119,7 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, splitted_vector_ops) {
     //  execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_eltwise_b_fs_zyx_fsv16,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_b_fs_zyx_fsv16,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_FP32_6, 2, 3},
                                 bc_test_params{CASE_CONV_FP32_7, 2, 3},
@@ -1157,7 +1157,7 @@ TEST_P(conv_fp32_quantize_u8_first_conv, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_quantize_u8_first_conv,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_quantize_u8_first_conv,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_FP32_14, 2, 3},
                         }), );
@@ -1181,7 +1181,7 @@ TEST_P(conv_fp32_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_quantize_u8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_quantize_u8,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 // For now only b_fs_yx_fsv16 supports this case
                                 bc_test_params{CASE_CONV_FP32_2, 2, 3},
@@ -1214,7 +1214,7 @@ TEST_P(conv_fp32_scale_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_quantize_i8,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 // For now only b_fs_yx_fsv16 supports this case
                                 bc_test_params{CASE_CONV_FP32_2, 2, 4},
@@ -1246,7 +1246,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 // For now only b_fs_yx_fsv16 supports this case
                                 bc_test_params{CASE_CONV_FP32_2, 2, 5},
@@ -1279,7 +1279,7 @@ TEST_P(conv_fp32_scale_activation_quantize_u8_eltwise_fp32, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_u8_eltwise_fp32,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_u8_eltwise_fp32,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 // For now only b_fs_yx_fsv16 supports this case
                                 bc_test_params{CASE_CONV_FP32_2, 2, 6},
@@ -1312,7 +1312,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_activation,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_activation,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_FP32_2, 2, 6},
                                 bc_test_params{CASE_CONV_FP32_3, 2, 6},
@@ -1350,7 +1350,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_FP32_2, 2, 7},
                                 bc_test_params{CASE_CONV_FP32_3, 2, 7},
@@ -1372,7 +1372,7 @@ TEST_P(conv_fp32_activation_eltwise_in_u8_fp32, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_activation_eltwise_in_u8_fp32,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_eltwise_in_u8_fp32,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 // bc_test_params{CASE_CONV_FP32_1, 2, 4}, - eltwise fusing not supported
                                 bc_test_params{CASE_CONV_FP32_2, 2, 4},
@@ -1402,7 +1402,7 @@ TEST_P(conv_fp32_activation_eltwise_diff_sizes, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_activation_eltwise_diff_sizes,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_eltwise_diff_sizes,
                         ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
                                 conv_eltw_test_params{CASE_CONV_ELTW_FP32_1, 2, 4},
                                 conv_eltw_test_params{CASE_CONV_ELTW_FP32_2, 2, 4},
@@ -1437,7 +1437,7 @@ TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantize_i8,
                         ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
                                 conv_eltw_test_params{CASE_CONV_ELTW_FP32_1, 2, 6},
                                 conv_eltw_test_params{CASE_CONV_ELTW_FP32_2, 2, 6},
@@ -1467,7 +1467,7 @@ TEST_P(conv_bin_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_bin_activation,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_bin_activation,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                             bc_test_params{CASE_BIN_CONV1, 2, 3},
                                             }), );
@@ -1487,7 +1487,7 @@ TEST_P(conv_bin_scale_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_bin_scale_activation,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_bin_scale_activation,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                             bc_test_params{CASE_BIN_CONV1, 2, 4},
                             bc_test_params{CASE_BIN_CONV2, 2, 4},
@@ -1528,7 +1528,7 @@ TEST_P(conv_bin_quantize_bin, blob_wise_quantize) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_bin_quantize_bin,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_bin_quantize_bin,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                             bc_test_params{CASE_BIN_CONV1, 2, 3},
                             bc_test_params{CASE_BIN_CONV2, 2, 3},
@@ -1573,7 +1573,7 @@ TEST_P(conv_bin_scale_conv_dw, dw_kernel_3x3_stride1) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_bin_scale_conv_dw,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_bin_scale_conv_dw,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                             bc_test_params{CASE_BIN_CONV2, 3, 4},
                             bc_test_params{CASE_BIN_CONV3, 3, 4},
@@ -1624,7 +1624,7 @@ TEST_P(conv_bin_scale_conv_dw_prelu, dw_kernel_3x3_stride1) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_bin_scale_conv_dw_prelu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_bin_scale_conv_dw_prelu,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                             bc_test_params{CASE_BIN_CONV2, 3, 5},
                             bc_test_params{CASE_BIN_CONV3, 3, 5},
@@ -1664,7 +1664,7 @@ TEST_P(conv_int8_scale, fp16_scale_out) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 3},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 3},
@@ -1703,7 +1703,7 @@ TEST_P(conv_int8_eltwise, fp16_eltwise_out) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 3},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 3},
@@ -1748,7 +1748,7 @@ TEST_P(conv_int8_scale_shift_swish, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_shift_swish,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 8},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 8},
@@ -1814,7 +1814,7 @@ TEST_P(conv_int8_prelu_eltwise, fsv16) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_prelu_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_prelu_eltwise,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 4},
@@ -1900,7 +1900,7 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv32) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_activation_eltwise_quantize,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise_quantize,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 5},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 5},
@@ -1965,7 +1965,7 @@ TEST_P(conv_int8_activation_eltwise, fsv32) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_activation_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 4},
@@ -2018,7 +2018,7 @@ TEST_P(conv_int8_quantize_u8, per_tensor) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_quantize_u8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_quantize_u8,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 3},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 3},
@@ -2065,7 +2065,7 @@ TEST_P(conv_int8_scale_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_quantize_i8,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 4},
@@ -2115,7 +2115,7 @@ TEST_P(conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{ CASE_CONV_S8S8_11, 2, 4 },
                         }), );
@@ -2160,7 +2160,7 @@ TEST_P(conv_int8_relu_quantize, u8) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_relu_quantize,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_relu_quantize,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 4},
@@ -2205,7 +2205,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 5},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 5},
@@ -2251,7 +2251,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltwise_fp32,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltwise_fp32,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 6},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 6},
@@ -2297,7 +2297,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_activation,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_activation,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 6},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 6},
@@ -2350,7 +2350,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, DISABLED
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 7},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 7},
@@ -2438,7 +2438,7 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_3, 2, 7},
                                 bc_test_params{CASE_CONV_U8S8_5, 2, 7},
@@ -2492,7 +2492,7 @@ TEST_P(conv_int8_asymmetric_weights, basic) {
     compare(network_not_fused, network_fused, p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_asymmetric_weights,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_weights,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 2},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 2},
@@ -2559,7 +2559,7 @@ TEST_P(conv_int8_asymmetric_data, basic) {
     compare(network_not_fused, network_fused, p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_asymmetric_data,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_data,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 3},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 3},
@@ -2630,7 +2630,7 @@ TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
     compare(network_not_fused, network_fused, p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_asymmetric_data_and_weights,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_data_and_weights,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 3},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 3},
@@ -2670,7 +2670,7 @@ TEST_P(conv_i8_activation_eltwise_diff_sizes, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_i8_activation_eltwise_diff_sizes,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_i8_activation_eltwise_diff_sizes,
                         ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
                                 conv_eltw_test_params{CASE_CONV_ELTW_i8_1, 3, 4},
                                 conv_eltw_test_params{CASE_CONV_ELTW_i8_2, 2, 4},
@@ -2724,7 +2724,7 @@ TEST_P(conv_fp16_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp16_activation, ::testing::ValuesIn(std::vector<bc_force_kernel_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_activation, ::testing::ValuesIn(std::vector<bc_force_kernel_params>{
                                                                            bc_force_kernel_params{CASE_CONV_FP16_13, 2, 3, "convolution_gpu_fs_byx_fsv32"},
                                                                            }), );
 
@@ -2745,7 +2745,7 @@ TEST_P(conv_fp16_scale, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp16_scale,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_scale,
                         ::testing::ValuesIn(std::vector<bc_force_kernel_params>{
                                              bc_force_kernel_params{CASE_CONV_FP16_13, 2, 3, "convolution_gpu_fs_byx_fsv32"},
                                              }), );
@@ -2769,7 +2769,7 @@ TEST_P(fc_fp32_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_fp32_activation, ::testing::ValuesIn(std::vector<bc_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation, ::testing::ValuesIn(std::vector<bc_test_params>{
                                                                             bc_test_params{ CASE_FC_FP32_1, 2, 3 },
                                                                             bc_test_params{ CASE_FC_FP32_2, 2, 3 },
                                                                             bc_test_params{ CASE_FC_FP32_3, 2, 3 },
@@ -2793,7 +2793,7 @@ TEST_P(fc_fp32_bias, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_fp32_bias, ::testing::ValuesIn(std::vector<bc_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_bias, ::testing::ValuesIn(std::vector<bc_test_params>{
                                                                             bc_test_params{ CASE_FC_FP32_1, 2, 3 },
                                                                             bc_test_params{ CASE_FC_FP32_2, 2, 3 },
                                                                             bc_test_params{ CASE_FC_FP32_3, 2, 3 },
@@ -2830,7 +2830,7 @@ TEST_P(fc_int8_scale, fp16_scale_out) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_scale,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_scale,
     ::testing::ValuesIn(std::vector<bc_test_params>{
                         bc_test_params{ CASE_FC_U8S8_1, 2, 3 },
                         bc_test_params{ CASE_FC_U8S8_2, 2, 3 },
@@ -2859,7 +2859,7 @@ TEST_P(fc_int8_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu_fc, fc_int8_quantize_u8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu_fc, fc_int8_quantize_u8,
     ::testing::ValuesIn(std::vector<bc_test_params>{
         bc_test_params{CASE_FC_U8S8_1, 2, 3},
         bc_test_params{CASE_FC_U8S8_2, 2, 3},
@@ -2889,7 +2889,7 @@ TEST_P(fc_int8_scale_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_scale_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_scale_quantize_i8,
     ::testing::ValuesIn(std::vector<bc_test_params>{
         bc_test_params{CASE_FC_U8S8_1, 2, 4},
         bc_test_params{CASE_FC_U8S8_2, 2, 4},
@@ -2923,7 +2923,7 @@ TEST_P(fc_int8_scale_activation_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_scale_activation_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_scale_activation_quantize_i8,
     ::testing::ValuesIn(std::vector<bc_test_params>{
         bc_test_params{CASE_FC_U8S8_1, 2, 5},
         bc_test_params{CASE_FC_U8S8_2, 2, 5},
@@ -2981,7 +2981,7 @@ TEST_P(gemm_3in_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_3in_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_3in_quantize_i8,
     ::testing::ValuesIn(std::vector<gemm_test_params>{
                         gemm_test_params{ CASE_GEMM_3IN_FP16_1, 4, 5 },
                         gemm_test_params{ CASE_GEMM_3IN_S8S8_1, 4, 5 },
@@ -3008,7 +3008,7 @@ TEST_P(gemm_2in_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_2in_quantize_u8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_quantize_u8,
     ::testing::ValuesIn(std::vector<gemm_test_params>{
                         gemm_test_params{ CASE_GEMM_2IN_FP16_1, 3, 4 },
                         gemm_test_params{ CASE_GEMM_2IN_U8U8_1, 3, 4 },
@@ -3046,7 +3046,7 @@ TEST_P(gemm_2in_scale, fp16_scale_out) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_2in_scale,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_scale,
     ::testing::ValuesIn(std::vector<gemm_test_params>{
                         gemm_test_params{ CASE_GEMM_2IN_FP32_1, 3, 4 },
                         gemm_test_params{ CASE_GEMM_2IN_FP16_1, 3, 4 },
@@ -3076,7 +3076,7 @@ TEST_P(gemm_2in_act_scale_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_2in_act_scale_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_quantize_i8,
     ::testing::ValuesIn(std::vector<gemm_test_params>{
                         gemm_test_params{ CASE_GEMM_2IN_FP32_1, 3, 6 },
                         gemm_test_params{ CASE_GEMM_2IN_FP16_1, 3, 6 },
@@ -3107,7 +3107,7 @@ TEST_P(gemm_2in_act_scale_quantize_eltwise_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_2in_act_scale_quantize_eltwise_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_quantize_eltwise_i8,
     ::testing::ValuesIn(std::vector<gemm_test_params>{
                         gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP32_1, 3, 7 },
                         gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP16_1, 3, 7 },
@@ -3150,7 +3150,7 @@ TEST_P(gemm_2in_act_scale_eltwise, broadcast_eltwise) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_2in_act_scale_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_eltwise,
     ::testing::ValuesIn(std::vector<gemm_test_params>{
                         gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP32_1, 3, 6 },
                         gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP16_1, 3, 6 },
@@ -3214,7 +3214,7 @@ TEST_P(resample_quantize, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_quantize,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_quantize,
     ::testing::ValuesIn(std::vector<resample_test_params>{
                         resample_test_params{ CASE_RESAMPLE_FP32_1, 2, 3 },
                         resample_test_params{ CASE_RESAMPLE_FP32_2, 2, 3 },
@@ -3256,7 +3256,7 @@ TEST_P(resample_scale_activation_eltwise, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_activation_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_scale_activation_eltwise,
     ::testing::ValuesIn(std::vector<resample_test_params>{
                         resample_test_params{ CASE_RESAMPLE_FP32_1, 2, 5 },
                         resample_test_params{ CASE_RESAMPLE_FP32_2, 2, 5 },
@@ -3320,7 +3320,7 @@ TEST_P(resample_quantize_concat, along_f) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_quantize_concat,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_quantize_concat,
     ::testing::ValuesIn(std::vector<resample_test_params>{
                         resample_test_params{ CASE_RESAMPLE_FP32_1, 3, 6 },
                         resample_test_params{ CASE_RESAMPLE_FP32_2, 3, 6 },
@@ -3376,7 +3376,7 @@ TEST_P(resample_scale_concat, along_f) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_concat,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_scale_concat,
     ::testing::ValuesIn(std::vector<resample_test_params>{
                         resample_test_params{ CASE_RESAMPLE_FP32_1, 3, 6 },
                         resample_test_params{ CASE_RESAMPLE_FP32_2, 3, 6 },
@@ -3502,7 +3502,7 @@ TEST_P(mvn_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_activation,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_activation,
     ::testing::ValuesIn(std::vector<mvn_test_params>{
                         mvn_test_params{ CASE_MVN_F32_1, 2, 3 },
                         mvn_test_params{ CASE_MVN_F32_2, 2, 3 },
@@ -3546,7 +3546,7 @@ TEST_P(mvn_scale_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_quantize_i8,
     ::testing::ValuesIn(std::vector<mvn_test_params>{
         // Full fusing for fp input not supported yet, it may lead to output padding and non-optimal kernel
         // mvn_test_params{ CASE_MVN_F32_1, 2, 4 },
@@ -3594,7 +3594,7 @@ TEST_P(mvn_scale_activation_eltwise_fp32_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_activation_eltwise_fp32_quantize_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_activation_eltwise_fp32_quantize_i8,
     ::testing::ValuesIn(std::vector<mvn_test_params>{
         // Full using for fp input not supported yet, it may lead to output padding and non-optimal kernel
         // mvn_test_params{ CASE_MVN_F32_1, 2, 7 },
@@ -3645,7 +3645,7 @@ TEST_P(mvn_eltwise, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise,
     ::testing::ValuesIn(std::vector<mvn_test_params>{
         mvn_test_params{ CASE_MVN_I8_5, 2, 3 },
         mvn_test_params{ CASE_MVN_I8_6, 2, 3 },
@@ -3681,7 +3681,7 @@ TEST_P(mvn_eltwise_f16, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_eltwise_f16,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise_f16,
     ::testing::ValuesIn(std::vector<mvn_test_params>{
         mvn_test_params{ CASE_MVN_I8_6, 2, 3 },
         mvn_test_params{ CASE_MVN_U8_2, 2, 3 },
@@ -3811,7 +3811,7 @@ TEST_P(lrn_fp32_quantize_u8_scale_activation, per_channel) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         lrn_fp32_quantize_u8_scale_activation,
                         ::testing::ValuesIn(std::vector<lrn_test_params>{
                             // InputDataType = FP32   OutputDataType = FP32
@@ -3862,7 +3862,7 @@ TEST_P(lrn_fp32_quantize_i8_scale_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         lrn_fp32_quantize_i8_scale_activation,
                         ::testing::ValuesIn(std::vector<lrn_test_params>{
                             // InputDataType = FP32   OutputDataType = INT8
@@ -3905,7 +3905,7 @@ TEST_P(lrn_fp32_scale_activation_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         lrn_fp32_scale_activation_quantize_u8,
                         ::testing::ValuesIn(std::vector<lrn_test_params>{
                             // InputDataType = FP32   OutputDataType = UINT8
@@ -3940,7 +3940,7 @@ TEST_P(lrn_fp16_scale_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         lrn_fp16_scale_activation,
                         ::testing::ValuesIn(std::vector<lrn_test_params>{
                             // InputDataType = FP16   OutputDataType = FP16
@@ -4062,7 +4062,7 @@ TEST_P(activation_quantize_i8, per_channel) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     activation_quantize_i8,
     ::testing::ValuesIn(std::vector<activation_test_params>{
@@ -4082,7 +4082,7 @@ INSTANTIATE_TEST_CASE_P(
         activation_test_params{CASE_ACTIVATION_3D_F32_2, 2, 3, "activation_ref"},
     }), );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     DISABLED_fusings_gpu,
     activation_quantize_i8,
     ::testing::ValuesIn(std::vector<activation_test_params>{
@@ -4130,7 +4130,7 @@ TEST_P(activation_scale_activation_quantize_u8, per_channel) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     activation_scale_activation_quantize_u8,
     ::testing::ValuesIn(std::vector<activation_test_params>{
@@ -4153,7 +4153,7 @@ INSTANTIATE_TEST_CASE_P(
         activation_test_params{CASE_ACTIVATION_3D_F32_2, 2, 5, "activation_ref"},
     }), );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     DISABLED_fusings_gpu,
     activation_scale_activation_quantize_u8,
     ::testing::ValuesIn(std::vector<activation_test_params>{
@@ -4174,7 +4174,7 @@ TEST_P(activation_scale_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     activation_scale_activation,
     ::testing::ValuesIn(std::vector<activation_test_params>{
@@ -4229,7 +4229,7 @@ INSTANTIATE_TEST_CASE_P(
         activation_test_params{CASE_ACTIVATION_3D_I8_1, 2, 4, "activation_ref"}
     }), );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     DISABLED_fusings_gpu,
     activation_scale_activation,
     ::testing::ValuesIn(std::vector<activation_test_params>{
@@ -4373,7 +4373,7 @@ TEST_P(deconv_actv, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_actv,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_actv,
     ::testing::ValuesIn(std::vector<deconv_test_params>{
         deconv_test_params{ CASE_DECONV_FP32_1, 2, 3 },
         deconv_test_params{ CASE_DECONV_FP32_2, 2, 3 },
@@ -4467,7 +4467,7 @@ TEST_P(deconv_bias, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_bias,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_bias,
     ::testing::ValuesIn(std::vector<deconv_test_params>{
         deconv_test_params{ CASE_DECONV_FP32_1, 2, 3 },
         deconv_test_params{ CASE_DECONV_FP32_2, 2, 3 },
@@ -4531,7 +4531,7 @@ TEST_P(deconv_scale, fp16_scale_out) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale,
     ::testing::ValuesIn(std::vector<deconv_test_params>{
         deconv_test_params{ CASE_DECONV_U8S8_1, 2, 3 },
         deconv_test_params{ CASE_DECONV_U8S8_2, 2, 3 },
@@ -4588,7 +4588,7 @@ TEST_P(deconv_actv_eltw_actv, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_actv_eltw_actv,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_actv_eltw_actv,
     ::testing::ValuesIn(std::vector<deconv_test_params>{
         // Some fusings disabled under deconvolution -> convolution optimization
         deconv_test_params{ CASE_DECONV_FP32_1, 3, 5 },
@@ -4688,7 +4688,7 @@ TEST_P(deconv_scale_actv_quant_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale_actv_quant_i8,
     ::testing::ValuesIn(std::vector<deconv_test_params>{
         deconv_test_params{ CASE_DECONV_FP32_1, 2, 5 },
         deconv_test_params{ CASE_DECONV_FP32_2, 2, 5 },
@@ -4799,7 +4799,7 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8,
     ::testing::ValuesIn(std::vector<deconv_test_params>{
         deconv_test_params{ CASE_DECONV_FP32_1, 2, 9 },
         deconv_test_params{ CASE_DECONV_FP32_2, 2, 9 },
@@ -4903,7 +4903,7 @@ TEST_P(deconv_scale_activation_quantize_i8_eltwise_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_activation_quantize_i8_eltwise_quantize_u8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale_activation_quantize_i8_eltwise_quantize_u8,
                         ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
                                 conv_eltw_test_params{CASE_DECONV_ELTW_FP32_1, 2, 7},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_FP32_2, 2, 7},
@@ -4939,7 +4939,7 @@ TEST_P(deconv_activation_eltwise_diff_sizes, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_activation_eltwise_diff_sizes,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_activation_eltwise_diff_sizes,
                         ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
                                 conv_eltw_test_params{CASE_DECONV_ELTW_FP32_1, 2, 4},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_FP32_2, 2, 4},
@@ -5086,7 +5086,7 @@ TEST_P(pooling_f32_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         pooling_f32_activation,
                         ::testing::ValuesIn(std::vector<pooling_test_params>{
                             pooling_test_params{CASE_POOLING_F32_1, 2, 3, pooling_mode::max, ""},
@@ -5132,7 +5132,7 @@ TEST_P(pooling_f32_scale, fp16_scale_out) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         pooling_f32_scale,
                         ::testing::ValuesIn(std::vector<pooling_test_params>{
                             pooling_test_params{CASE_POOLING_F32_1, 2, 3, pooling_mode::max, ""},
@@ -5207,7 +5207,7 @@ TEST_P(pooling_scale_activation_quantize, per_channel) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                          pooling_scale_activation_quantize,
                          ::testing::ValuesIn(std::vector<pooling_test_params>{
                             // Input type: FP32
@@ -5247,7 +5247,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             pooling_test_params{CASE_POOLING_U8_6, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref"},
                         }), );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu,
                          pooling_scale_activation_quantize,
                          ::testing::ValuesIn(std::vector<pooling_test_params>{
                             pooling_test_params{CASE_POOLING_F32_3, 2, 5, pooling_mode::average, "pooling_gpu_average_opt"},  //currently not enabled, fusing not upported
@@ -5282,7 +5282,7 @@ TEST_P(pooling_scale_activation, eltwise_mul) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         pooling_scale_activation,
                         ::testing::ValuesIn(std::vector<pooling_test_params>{
                             // Input type: F32
@@ -5461,7 +5461,7 @@ TEST_P(depth_to_space_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     depth_to_space_quantize_i8,
     ::testing::ValuesIn(std::vector<depth_to_space_test_params>{
@@ -5492,7 +5492,7 @@ TEST_P(depth_to_space_scale_act_eltwise_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     depth_to_space_scale_act_eltwise_quantize_u8,
     ::testing::ValuesIn(std::vector<depth_to_space_test_params>{
@@ -5523,7 +5523,7 @@ TEST_P(depth_to_space_scale_act_eltw, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     depth_to_space_scale_act_eltw,
     ::testing::ValuesIn(std::vector<depth_to_space_test_params>{
@@ -5600,7 +5600,7 @@ TEST_P(space_to_depth_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     space_to_depth_quantize_i8,
     ::testing::ValuesIn(std::vector<space_to_depth_params>{
@@ -5631,7 +5631,7 @@ TEST_P(space_to_depth_scale_act_eltwise_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     space_to_depth_scale_act_eltwise_quantize_u8,
     ::testing::ValuesIn(std::vector<space_to_depth_params>{
@@ -5662,7 +5662,7 @@ TEST_P(space_to_depth_scale_act_eltw, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     space_to_depth_scale_act_eltw,
     ::testing::ValuesIn(std::vector<space_to_depth_params>{
@@ -5779,7 +5779,7 @@ TEST_P(gather_quantize, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_quantize,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_quantize,
     ::testing::ValuesIn(std::vector<gather_test_params>{
                         gather_test_params{ CASE_GATHER_FP32_1, 2, 3 },
                         gather_test_params{ CASE_GATHER_FP32_2, 2, 3 },
@@ -5822,7 +5822,7 @@ TEST_P(gather_scale_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_scale_activation,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_scale_activation,
     ::testing::ValuesIn(std::vector<gather_test_params>{
                         gather_test_params{ CASE_GATHER_FP32_1, 2, 4 },
                         gather_test_params{ CASE_GATHER_FP32_2, 2, 4 },
@@ -5956,7 +5956,7 @@ TEST_P(scatter_update_quantize, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_update_quantize,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_update_quantize,
     ::testing::ValuesIn(std::vector<scatter_update_test_params>{
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_1, 2, 3 },
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_2, 2, 3 },
@@ -6000,7 +6000,7 @@ TEST_P(scatter_update_scale_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_update_scale_activation,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_update_scale_activation,
     ::testing::ValuesIn(std::vector<scatter_update_test_params>{
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_1, 2, 4 },
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_2, 2, 4 },
@@ -6046,7 +6046,7 @@ TEST_P(scatter_update_scale_activation_eltwise, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_update_scale_activation_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_update_scale_activation_eltwise,
                         ::testing::ValuesIn(std::vector<scatter_update_test_params> {
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_1, 3, 5 },
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_2, 3, 5 },
@@ -6176,7 +6176,7 @@ TEST_P(scatter_elements_update_quantize, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_elements_update_quantize,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_elements_update_quantize,
     ::testing::ValuesIn(std::vector<scatter_elements_update_test_params>{
                         scatter_elements_update_test_params{ CASE_SCATTER_ELEMENTS_UPDATE_FP32_1, 2, 3 },
                         scatter_elements_update_test_params{ CASE_SCATTER_ELEMENTS_UPDATE_FP32_2, 2, 3 },
@@ -6211,7 +6211,7 @@ TEST_P(scatter_elements_update_scale_activation_eltwise, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_elements_update_scale_activation_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_elements_update_scale_activation_eltwise,
     ::testing::ValuesIn(std::vector<scatter_elements_update_test_params>{
                         scatter_elements_update_test_params{ CASE_SCATTER_ELEMENTS_UPDATE_FP32_1, 2, 5 },
                         scatter_elements_update_test_params{ CASE_SCATTER_ELEMENTS_UPDATE_FP32_2, 2, 5 },
@@ -6357,7 +6357,7 @@ TEST_P(permute_activation_scale_eltwise, basic) {
         execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_activation_scale_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_activation_scale_eltwise,
                         ::testing::ValuesIn(std::vector<permute_params> {
                             permute_params{CASE_PERMUTE_F32_0, 2, 5},
                             permute_params{CASE_PERMUTE_F32_1, 2, 5},
@@ -6451,7 +6451,7 @@ TEST_P(permute_quant_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_quant_u8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_quant_u8,
                         ::testing::ValuesIn(std::vector<permute_params> {
                             permute_params{CASE_PERMUTE_F32_0, 2, 3},
                             permute_params{CASE_PERMUTE_F32_1, 2, 3},
@@ -6486,7 +6486,7 @@ TEST_P(permute_scale_actv_eltw_scale_actv_quant_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_actv_eltw_scale_actv_quant_i8,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_scale_actv_eltw_scale_actv_quant_i8,
                         ::testing::ValuesIn(std::vector<permute_params> {
                             permute_params{CASE_PERMUTE_F32_0, 2, 8},
                             permute_params{CASE_PERMUTE_F32_1, 2, 8},
@@ -6560,7 +6560,7 @@ TEST_P(permute_scale_eltwise_actv_scale_actv, basic) {
         execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv,
                         ::testing::ValuesIn(std::vector<permute_params> {
                             permute_params{CASE_PERMUTE_F32_0, 2, 7},
                             permute_params{CASE_PERMUTE_F32_1, 2, 7},
@@ -6727,7 +6727,7 @@ TEST_P(permute_redundant_reorder, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_redundant_reorder,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_redundant_reorder,
                             ::testing::ValuesIn(std::vector<permute_reorder_params> {
                                 permute_reorder_params{CASE_PERMUTE_REORDER_F32_0, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_F32_1, 3, 4},
@@ -6776,7 +6776,7 @@ TEST_P(permute_act_reorder, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_act_reorder,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_act_reorder,
                             ::testing::ValuesIn(std::vector<permute_reorder_params> {
                                 permute_reorder_params{CASE_PERMUTE_REORDER_F32_0, 3, 5},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_F32_1, 3, 5},
@@ -6840,7 +6840,7 @@ TEST_P(normalize_i8_quantize, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         normalize_i8_quantize,
                         ::testing::ValuesIn(std::vector<normalize_test_params>{
                             normalize_test_params{CASE_NORMALIZE_I8_1, false, 2, 3},
@@ -6863,7 +6863,7 @@ TEST_P(normalize_i8_float, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         normalize_i8_float,
                         ::testing::ValuesIn(std::vector<normalize_test_params>{
                             normalize_test_params{CASE_NORMALIZE_I8_1, false, 2, 4},
@@ -6935,7 +6935,7 @@ TEST_P(batch_to_space_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     batch_to_space_quantize_i8,
     ::testing::ValuesIn(std::vector<batch_to_space_test_params> {
@@ -6966,7 +6966,7 @@ TEST_P(batch_to_space_scale_act_eltwise_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     batch_to_space_scale_act_eltwise_quantize_u8,
     ::testing::ValuesIn(std::vector<batch_to_space_test_params> {
@@ -6996,7 +6996,7 @@ TEST_P(batch_to_space_scale_act_eltw, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     batch_to_space_scale_act_eltw,
     ::testing::ValuesIn(std::vector<batch_to_space_test_params> {
@@ -7076,7 +7076,7 @@ TEST_P(space_to_batch_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     space_to_batch_quantize_i8,
     ::testing::ValuesIn(std::vector<space_to_batch_test_params> {
@@ -7107,7 +7107,7 @@ TEST_P(space_to_batch_scale_act_eltwise_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     space_to_batch_scale_act_eltwise_quantize_u8,
     ::testing::ValuesIn(std::vector<space_to_batch_test_params> {
@@ -7138,7 +7138,7 @@ TEST_P(space_to_batch_scale_act_eltw, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     space_to_batch_scale_act_eltw,
     ::testing::ValuesIn(std::vector<space_to_batch_test_params> {
@@ -7268,7 +7268,7 @@ TEST_P(eltwise_quantize, i8_per_channel) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         eltwise_quantize,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             eltwise_test_params{CASE_ELTWISE_FP16_1, 3, 4},
@@ -7318,7 +7318,7 @@ TEST_P(eltwise_const_path, not_fuse_to_const_eltwise) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         eltwise_const_path,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             eltwise_test_params{CASE_ELTWISE_FP16_3, 2, 3},
@@ -7364,7 +7364,7 @@ TEST_P(eltwise_fp32_fsv16, add_per_element) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         eltwise_fp32_fsv16,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             eltwise_test_params{CASE_ELTWISE_FP16_3, 3, 5},
@@ -7406,7 +7406,7 @@ TEST_P(eltwise_fp32_fsv32, add_per_element) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         eltwise_fp32_fsv32,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             // There's no optimized eltwise kernel yet for fsv32 layout that supports fused_ops
@@ -7449,7 +7449,7 @@ TEST_P(eltwise_fp32_fsv4, add_per_element) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         eltwise_fp32_fsv4,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             eltwise_test_params{CASE_ELTWISE_FP32_5, 3, 5},
@@ -7502,7 +7502,7 @@ TEST_P(eltwise_fp32_fused_prims, eltwise_activation_with_broadcast) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         eltwise_fp32_fused_prims,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             eltwise_test_params{CASE_ELTWISE_FP16_1, 3, 5},
@@ -7550,7 +7550,7 @@ TEST_P(eltwise_fp32_scale, 6d) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         eltwise_fp32_scale,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             eltwise_test_params{CASE_ELTWISE_FP32_4, 3, 4},
@@ -7660,7 +7660,7 @@ TEST_P(scale_basic, bias_act_quantize) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         scale_basic,
                         ::testing::ValuesIn(std::vector<scale_test_params>{
                             scale_test_params{CASE_SCALE_FP32_1, 2, 4},
@@ -7685,7 +7685,7 @@ TEST_P(eltwise_no_pitches_same_dims_quantize, quantize_f32_output) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         eltwise_no_pitches_same_dims_quantize,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             eltwise_test_params{CASE_ELTWISE_FP16_1, 3, 4},
@@ -7721,7 +7721,7 @@ TEST_P(eltwise_activation, fp16_out) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         eltwise_activation,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             eltwise_test_params{CASE_ELTWISE_FP16_1, 3, 4},
@@ -7871,7 +7871,7 @@ TEST_P(reduce_eltwise_activation_quantize, per_channel) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         reduce_eltwise_activation_quantize,
                         ::testing::ValuesIn(std::vector<reduce_test_params>{
                             reduce_test_params{CASE_REDUCE_F32_0, 2, 5, reduce_mode::mean, {reduce::along_x, reduce::along_f, reduce::along_y, reduce::along_b}, true, "reduce_gpu_b_fs_yx_fsv16"},
@@ -7968,7 +7968,7 @@ TEST_P(reduce_scale_activation, per_channel) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         reduce_scale_activation,
                         ::testing::ValuesIn(std::vector<reduce_test_params>{
                             reduce_test_params{CASE_REDUCE_F32_0, 2, 4, reduce_mode::max, {reduce::along_x, reduce::along_y, reduce::along_b}, true, "reduce_gpu_b_fs_yx_fsv16"},
@@ -7988,7 +7988,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             reduce_test_params{CASE_REDUCE_F16_0, 2, 4, reduce_mode::sum, {reduce::along_x}, true, "reduce_gpu_b_fs_yx_fsv16"},
                         }), );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_fusings_gpu,
+INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu,
                         reduce_eltwise_activation_quantize,
                         ::testing::ValuesIn(std::vector<reduce_test_params>{
                             // No layout format available for quantize/scale
@@ -8108,7 +8108,7 @@ TEST_P(scatter_nd_update_quantize, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_nd_update_quantize,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_nd_update_quantize,
     ::testing::ValuesIn(std::vector<scatter_nd_update_test_params>{
         scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_1, 2, 3 },
         scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_2, 2, 3 },
@@ -8172,7 +8172,7 @@ TEST_P(scatter_nd_update_scale_activation_eltwise, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_nd_update_scale_activation_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_nd_update_scale_activation_eltwise,
     ::testing::ValuesIn(std::vector<scatter_nd_update_test_params>{
         scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_1, 2, 5 },
         scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_2, 2, 5 },
@@ -8325,7 +8325,7 @@ TEST_P(gather_nd_quantize, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_nd_quantize,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_nd_quantize,
     ::testing::ValuesIn(std::vector<gather_nd_test_params>{
         gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_1, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_2, 2, 3 },
@@ -8379,7 +8379,7 @@ TEST_P(gather_nd_activation_scale_eltwise, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_nd_activation_scale_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_nd_activation_scale_eltwise,
     ::testing::ValuesIn(std::vector<gather_nd_test_params>{
         gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_1, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_2, 2, 5 },

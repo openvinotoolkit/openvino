@@ -3321,7 +3321,7 @@ TEST_P(eltwise_same_input_test, random) {
     execute_same_input(param, true);
 }
 
-INSTANTIATE_TEST_CASE_P(eltwise_same_input,
+INSTANTIATE_TEST_SUITE_P(eltwise_same_input,
                         eltwise_same_input_test,
                         testing::ValuesIn(
                             eltwise_same_input_param_generator()
@@ -3490,7 +3490,7 @@ static std::vector<std::vector<std::vector<int32_t>>> inputs = {
         {{1, 32, 1, 1, 1}, {8, 32, 3, 4, 5}},
 };
 
-INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test,
+INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test,
                         ::testing::Combine(
                                 ::testing::ValuesIn(modes),
                                 ::testing::ValuesIn(types),
@@ -3572,7 +3572,7 @@ static std::vector<std::vector<std::vector<int32_t>>> inputs_6d = {
         {{1, 32, 1, 1, 1, 7}, {8, 32, 4, 5, 6, 7}},
 };
 
-INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_6d,
+INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_6d,
                         ::testing::Combine(
                                 ::testing::ValuesIn(modes),
                                 ::testing::ValuesIn(types),
@@ -3653,7 +3653,7 @@ TEST_P(eltwise_test_mixed_precision, fsv16) {
 
 static std::vector<data_types> mixed_types = {data_types::i8, data_types::u8};
 
-INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_mixed_precision,
+INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_precision,
                         ::testing::Combine(
                                 ::testing::ValuesIn(modes),
                                 ::testing::ValuesIn(mixed_types),
@@ -3748,7 +3748,7 @@ TEST_P(eltwise_test_mixed_layout, mixed_layout) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_mixed_layout,
+INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_layout,
                         ::testing::ValuesIn(std::vector<eltwise_layout_test_params>{
                             eltwise_layout_test_params{CASE_ELTWISE_TEST1},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST2},
@@ -3937,7 +3937,7 @@ TEST_P(eltwise_random_test, random) {
     execute_compare(param, true);
 }
 
-INSTANTIATE_TEST_CASE_P(eltwise_smoke_fsv4,
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv4,
                         eltwise_random_test,
                         testing::ValuesIn(
                             eltwise_random_test_param_generator()

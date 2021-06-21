@@ -105,7 +105,7 @@ std::vector<BinaryEltwiseShapes> dataShapesWithUpperBound = {
         },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBinaryElementwise, DSR_BinaryElementwiseBothDSR,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBinaryElementwise, DSR_BinaryElementwiseBothDSR,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::ValuesIn(dataShapesWithUpperBound),
@@ -130,7 +130,7 @@ std::vector<BinaryEltwiseShapes> dataShapesWithUpperBoundSingleDSR = {
         },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBinaryElementwiseSingleDSR, DSR_BinaryElementwiseSingleDSR,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBinaryElementwiseSingleDSR, DSR_BinaryElementwiseSingleDSR,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::ValuesIn(dataShapesWithUpperBoundSingleDSR),
@@ -334,7 +334,7 @@ std::vector<BinaryEltwiseShapes> dataShapesWithUpperBoundBothDSREmpty = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BinaryElementwiseBothDSRCheckOutputShape, DSR_BinaryElementwiseBothDSRCheckOutputShape,
+INSTANTIATE_TEST_SUITE_P(smoke_BinaryElementwiseBothDSRCheckOutputShape, DSR_BinaryElementwiseBothDSRCheckOutputShape,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::ValuesIn(dataShapesWithUpperBoundBothDSREmpty),

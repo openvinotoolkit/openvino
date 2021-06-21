@@ -1718,7 +1718,7 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
 
 class permute_tile_fsv_4d: public TiledPermuteTest {};
 
-INSTANTIATE_TEST_CASE_P(, permute_tile_fsv_4d,
+INSTANTIATE_TEST_SUITE_P(, permute_tile_fsv_4d,
     ::testing::ValuesIn(std::vector<TiledPermuteParam> {
         // b_fs_yx_fsv16
         // normal cases
@@ -1791,7 +1791,7 @@ TEST_P(permute_tile_fsv_4d, i64) {
 
 class permute_tile_fsv_5d: public TiledPermuteTest {};
 
-INSTANTIATE_TEST_CASE_P(, permute_tile_fsv_5d,
+INSTANTIATE_TEST_SUITE_P(, permute_tile_fsv_5d,
     ::testing::ValuesIn(std::vector<TiledPermuteParam> {
         // b_fs_zyx_fsv16
         // normal cases

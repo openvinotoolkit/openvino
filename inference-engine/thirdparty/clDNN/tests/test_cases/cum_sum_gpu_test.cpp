@@ -207,7 +207,7 @@ namespace {
     };
     std::vector<bool> variants = {false, true};
 }
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_0,
         cum_sum_gpu,
         ::testing::Combine(
@@ -223,7 +223,7 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(variants)
             ), );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_1,
         cum_sum_gpu,
         ::testing::Combine(
@@ -239,7 +239,7 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(variants)
             ), );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_2,
         cum_sum_gpu,
         ::testing::Combine(
@@ -255,7 +255,7 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(variants)
             ), );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_3,
         cum_sum_gpu,
         ::testing::Combine(
@@ -271,7 +271,7 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(variants)
             ), );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_4,
         cum_sum_gpu,
         ::testing::Combine(
@@ -287,7 +287,7 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(variants)
             ), );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_5,
         cum_sum_gpu,
         ::testing::Combine(
