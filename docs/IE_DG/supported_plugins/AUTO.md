@@ -63,12 +63,12 @@ Available devices:
 
 ###	Default Auto-Device selecting logic
 
-With the 2021.4 release, Auto-Device selects the most suitable device with following logic default:
+With the 2021.4 release, Auto-Device selects the most suitable device with following default logic:
 1.	Check if dGPU, iGPU and CPU device are available
 2.	Get the precision of the input model, such as FP32
-3.	According to the priority of dGPU, iGPU and CPU, if this device supports the precision of input network, select it as the most suitable device
+3.	According to the priority of dGPU, iGPU and CPU (in this order), if the device supports the precision of input network, select it as the most suitable device
 
-For example, CPU, dGPU and iGPU can support below precision:
+For example, CPU, dGPU and iGPU can support below precision and optimization capabilities:
 
 | Device   | OPTIMIZATION_CAPABILITIES       |
 | :---     | :---                            |
@@ -80,14 +80,14 @@ When application use Auto-device to run FP16 IR on system with CPU, dGPU and iGP
 
 When application use Auto-device to run FP16 IR on system with CPU and iGPU, Auto-device will offload this workload to iGPU.
 
-When application use Auto-device to run WINOGRAD IR on system with CPU, dGPU and iGPU, Auto-device will offload this workload to CPU.
+When application use Auto-device to run WINOGRAD-enabled IR on system with CPU, dGPU and iGPU, Auto-device will offload this workload to CPU.
 
-If offloading workload to dGPU or iGPU is fault, workload will fall back to CPU as the last choice.
+In any case, when loading the network to dGPU or iGPU fails, the networks falls back to CPU as the last choice.
 
 ### Limit Auto Target Devices Logic
 
-According to the selecting logic in Auto-device on content 4.1, 
-it selects the most suitable device from available devices to load mode as follows:
+According to the Auto-device selection logic from the previous section, 
+the most suitable device from available devices to load mode as follows:
 
 @snippet snippets/AUTO2.cpp part2
 
