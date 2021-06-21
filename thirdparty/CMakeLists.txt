@@ -22,6 +22,7 @@ function(add_gtest_libraries)
     endif()
 
     set(BUILD_SHARED_LIBS OFF)
+    set(INSTALL_GTEST OFF)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
