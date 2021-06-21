@@ -1,10 +1,10 @@
-tensorflow>=1.15.2,<2.0; python_version < "3.8"
-tensorflow>=2.2; python_version >= "3.8"
-mxnet>=1.0.0,<=1.7.0
-networkx>=1.11
-numpy>=1.14.0,<1.19.0
-protobuf>=3.6.1
-onnx>=1.1.2
-defusedxml>=0.5.0
-urllib3>=1.25.9
-requests>=2.20.0
+tensorflow~=2.4.1
+mxnet~=1.2.0; sys_platform == 'win32'
+mxnet~=1.7.0.post2; sys_platform != 'win32'
+networkx~=2.5
+numpy>=1.16.6,<1.20
+protobuf>=3.15.6
+onnx>=1.8.1
+defusedxml>=0.7.1
+urllib3>=1.26.4
+requests>=2.25.1

@@ -52,29 +52,6 @@ if (ENABLE_GNA)
     endif()
 endif()
 
-if (ENABLE_MKL_DNN)
-    if (GEMM STREQUAL "MKL")
-        add_definitions(-DUSE_MKL)
-    endif ()
-    file(GLOB
-            MKLDNN_TESTS
-            engines/mkldnn/*.cpp
-            engines/mkldnn/graph/layers/extensions/*.cpp
-            engines/mkldnn/graph/layers/internal/*.cpp
-            engines/mkldnn/graph/structure/*.cpp
-            engines/mkldnn/graph/*.cpp)
-    file(GLOB
-            MKLDNN_TESTS_INCLUDE engines/mkldnn/graph/*.hpp)
-
-    source_group("mkldnn" FILES ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE})
-
-    include_directories(engines/mkldnn/graph)
-
-    list(APPEND TEST_SRC ${MKLDNN_TESTS})
-    list(APPEND TEST_INCLUDE ${MKLDNN_TESTS_INCLUDE})
-    list(APPEND TEST_DEPS MKLDNNPlugin_obj)
-endif ()
-
 if (ENABLE_MYRIAD)
     include(${XLINK_DIR}/XLink.cmake)
 
@@ -86,6 +63,7 @@ if (ENABLE_MYRIAD)
             engines/vpu/myriad_tests/helpers/*cpp
             engines/vpu/myriad_tests/helpers/*h
             ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/*.cpp
+            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/configuration/*.cpp
             )
     include_directories(
             engines/vpu/myriad_tests/helpers
@@ -106,7 +84,6 @@ source_group("include" FILES ${TEST_INCLUDE})
 # create target
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})
-set_ie_threading_interface_for(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${IE_MAIN_SOURCE_DIR}/src/gna_plugin
@@ -138,7 +115,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     # dynamic libraries
     inference_engine_transformations
     inference_engine_lp_transformations
-    inference_engine_snippets
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

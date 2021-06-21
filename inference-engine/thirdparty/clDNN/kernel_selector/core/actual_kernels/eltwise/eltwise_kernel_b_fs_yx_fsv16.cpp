@@ -246,6 +246,9 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
     if (count % 8 != 0)
         return false;
 
+    if (IsUnsupportedModeForVecCode(params))
+        return false;
+
     for (size_t i = 0; i < params.inputs.size(); i++) {
         if ((params.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16) &&
             (params.inputs[i].GetLayout() != DataLayout::b_fs_zyx_fsv16) &&
@@ -331,11 +334,11 @@ KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, co
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = dispatchData.gws;
-    kernel.workGroups.local = dispatchData.lws;
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
 
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,
                                    GetFusedPrimitiveInputsCount(params));

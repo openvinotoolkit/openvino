@@ -16,10 +16,14 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNReorderNode::MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
-        MKLDNNNode(layer, eng, w_cache) {
+MKLDNNReorderNode::MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
+        MKLDNNNode(op, eng, w_cache) {
+    IE_THROW() << "Can't create reorder node from ngraph node";
 }
 
+MKLDNNReorderNode::MKLDNNReorderNode(const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
+        MKLDNNNode("Reorder", name, eng, w_cache) {
+}
 void MKLDNNReorderNode::getSupportedDescriptors() {
     if (outDims.empty() && output.getLayout() != InferenceEngine::Layout::ANY)
         outDims.push_back(MKLDNNDims(output.getDims()));

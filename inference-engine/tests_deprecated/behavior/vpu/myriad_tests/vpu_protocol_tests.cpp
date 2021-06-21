@@ -12,8 +12,8 @@ TEST_P(MyriadProtocolTests, CanInferenceWithProtocol) {
         GTEST_SKIP();
     }
 
-    auto network = ie->ReadNetwork(FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str,
-                                   FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob);
+    auto network = ie->ReadNetwork(convReluNormPoolFcModelFP16.model_xml_str,
+                                   convReluNormPoolFcModelFP16.weights_blob);
 
     std::map<std::string, std::string> config = getConfigForProtocol(protocol);
 
@@ -32,8 +32,8 @@ TEST_P(MyriadProtocolTests, NoErrorsMessagesWhenLoadNetworkSuccessful) {
     char buff[8192] = {};
     setbuf(stdout, buff);
 
-    auto network = ie->ReadNetwork(FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str,
-                                   FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob);
+    auto network = ie->ReadNetwork(convReluNormPoolFcModelFP16.model_xml_str,
+                                   convReluNormPoolFcModelFP16.weights_blob);
 
     std::map<std::string, std::string> config = {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_WARNING)}};
 

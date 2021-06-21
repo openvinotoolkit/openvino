@@ -31,6 +31,7 @@ MyriadMetrics::MyriadMetrics() {
     };
 
 IE_SUPPRESS_DEPRECATED_START
+    // TODO: remove once all options are migrated
     _supportedConfigKeys = {
         MYRIAD_ENABLE_HW_ACCELERATION,
         MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
@@ -45,7 +46,6 @@ IE_SUPPRESS_DEPRECATED_START
         KEY_VPU_MYRIAD_FORCE_RESET,
         KEY_VPU_MYRIAD_PLATFORM,
 
-        CONFIG_KEY(LOG_LEVEL),
         CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
         CONFIG_KEY(PERF_COUNT),
         CONFIG_KEY(CONFIG_FILE),
@@ -81,13 +81,13 @@ std::vector<std::string> MyriadMetrics::AvailableDevicesNames(
 
 std::string MyriadMetrics::FullName(std::string deviceName) const {
     std::string nameDelimiter("-ma");
-    unsigned int indexLenght = 4;
+    unsigned int indexLength = 4;
     unsigned int placeOfTypeId = 2;
 
     auto indexStr = deviceName;
     indexStr.erase(0, indexStr.find(nameDelimiter) + nameDelimiter.length());
 
-    if (indexLenght != indexStr.length()) {
+    if (indexLength != indexStr.length()) {
         return deviceName;
     } else {
         auto myriadId = std::string(1, indexStr[placeOfTypeId]);

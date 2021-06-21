@@ -10,7 +10,6 @@
 
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
-#include "ie_variable_state_base.hpp"
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
@@ -142,7 +141,8 @@ public:
     }
 
     StatusCode SetCompletionCallback(CompletionCallback callback) noexcept override {
-        TO_STATUS_NO_RESP(_impl->SetCallback([callback, this] (std::exception_ptr exceptionPtr) {
+        auto weakImpl = std::shared_ptr<IInferRequestInternal>(_impl.get(), [](IInferRequestInternal*){});
+        TO_STATUS_NO_RESP(_impl->SetCallback([callback, weakImpl] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = [&] ()-> StatusCode {
                 if (exceptionPtr) {
                     TO_STATUS_NO_RESP(std::rethrow_exception(exceptionPtr));
@@ -150,46 +150,25 @@ public:
                     return OK;
                 }
             } ();
-            callback(std::shared_ptr<InferRequestBase>{this, [](InferRequestBase*){}}, statusCode);
+            callback(std::make_shared<InferRequestBase>(weakImpl), statusCode);
         }));
     }
 
-    StatusCode GetUserData(void** data, ResponseDesc*) noexcept override {
+    StatusCode GetUserData(void** data, ResponseDesc* resp) noexcept override {
         if (data != nullptr) {
-            *data = _data;
-            return OK;
+            TO_STATUS(*data = _impl->GetUserData());
         } else {
             return GENERAL_ERROR;
         }
     }
 
-    StatusCode SetUserData(void* data, ResponseDesc*) noexcept override {
-        _data = data;
-        return OK;
+    StatusCode SetUserData(void* data, ResponseDesc* resp) noexcept override {
+        TO_STATUS(_impl->SetUserData(data));
     }
 
     StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetBatch(batch_size));
     }
-
-    IE_SUPPRESS_DEPRECATED_START
-    StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
-        try {
-            auto v = _impl->QueryState();
-            if (idx >= v.size()) {
-                return OUT_OF_BOUNDS;
-            }
-            pState = std::make_shared<VariableStateBase>(v[idx]);
-            return OK;
-        } catch (const std::exception& ex) {
-            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-        } catch (...) {
-            return InferenceEngine::DescriptionBuffer(UNEXPECTED);
-        }
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    void* _data = nullptr;
 };
 
 IE_SUPPRESS_DEPRECATED_END

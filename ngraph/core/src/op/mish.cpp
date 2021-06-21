@@ -74,3 +74,15 @@ bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVec
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return mish::evaluate_mish(inputs[0], outputs[0]);
 }
+
+bool op::v4::Mish::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v4_Mish_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}

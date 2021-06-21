@@ -23,13 +23,14 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
     const auto reshapeValues = reshape->get_input_node_shared_ptr(1);
     NGRAPH_CHECK(reshapeValues != nullptr, "Reshape constant was not found");
 
-    const auto constantIndex = ngraph::pass::low_precision::NetworkHelper::getConstantInputIndex(elementwise);
-    NGRAPH_CHECK(constantIndex != -1);
-
-    const auto elementwiseValues = elementwise->get_input_node_shared_ptr(constantIndex);
+    auto elementwiseValuesConvert = as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(1ul));
+    auto elementwiseValues = elementwiseValuesConvert == nullptr ?
+        elementwise->get_input_node_shared_ptr(1ul) :
+        elementwiseValuesConvert->get_input_node_shared_ptr(0ul);
+    assert(is_type<opset1::Constant>(elementwiseValues));
 
     const std::shared_ptr<opset1::Reshape> newReshape = as_type_ptr<opset1::Reshape>(reshape->clone_with_new_inputs({
-        elementwise->get_input_node_shared_ptr(constantIndex == 1 ? 0ul : 1ul),
+        elementwise->get_input_node_shared_ptr(0ul),
         reshapeValues }));
 
     std::shared_ptr<Node> newElementwiseValues;
@@ -54,10 +55,15 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
             elementwiseValues->output(0),
             newReshapeValues->output(0),
             as_type_ptr<opset1::Reshape>(reshape)->get_special_zero());
+        assert(is_type<opset1::Constant>(newElementwiseValues));
     } else {
         newElementwiseValues = elementwiseValues;
     }
-    const auto newElementwise = elementwise->clone_with_new_inputs({ newReshape, newElementwiseValues });
+    const auto newElementwise = elementwise->clone_with_new_inputs({
+        newReshape,
+        elementwiseValuesConvert == nullptr ?
+            newElementwiseValues :
+            std::make_shared<opset1::Convert>(newElementwiseValues, elementwiseValuesConvert->get_destination_type()) });
 
     replace_node(reshape, newElementwise);
     copy_runtime_info({ elementwise, reshape }, { newReshape, newElementwise });
@@ -87,8 +93,12 @@ ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroug
     const std::vector<ngraph::element::Type>& inputPrecisions) {
     const auto weights = ngraph::pattern::wrap_type<ngraph::opset1::Constant>(pattern::type_matches_any(inputPrecisions));
     const auto convert = ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ weights });
-    const auto subtractConvert = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    const auto subtract = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>({ convert, subtractConvert });
+
+    const auto subtractValues = std::make_shared<pattern::op::Or>(OutputVector{
+        ngraph::pattern::wrap_type<ngraph::opset1::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ngraph::pattern::wrap_type<ngraph::opset1::Constant>()})
+    });
+    const auto subtract = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>({ convert, subtractValues });
 
     const auto subtractOrConvert = std::make_shared<pattern::op::Or>(OutputVector{ convert, subtract });
 

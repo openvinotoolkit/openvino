@@ -42,6 +42,7 @@ SUPPORTED_DATA_TYPES = {
     'int32': (np.int32, 'I32', 'i32'),
     'int64': (np.int64, 'I64', 'i64'),
     'bool': (np.bool, 'BOOL', 'boolean'),
+    'uint64': (np.uint64, 'U64', 'u64'),
 
     # custom types
     'U1': (packed_U1, 'U1', 'u1'),

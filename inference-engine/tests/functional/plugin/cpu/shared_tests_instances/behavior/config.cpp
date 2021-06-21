@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
-
+#include "ie_plugin_config.hpp"
 #include "behavior/config.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -42,6 +41,10 @@ namespace {
                     {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "10"}}
     };
 
+    const std::vector<std::map<std::string, std::string>> AutoConfigs = {
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}}
+    };
+
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigTests,
             ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
@@ -54,6 +57,13 @@ namespace {
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
             ::testing::ValuesIn(MultiConfigs)),
+            CorrectConfigTests::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
+            ::testing::Combine(
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+            ::testing::ValuesIn(AutoConfigs)),
             CorrectConfigTests::getTestCaseName);
 
     const std::vector<std::map<std::string, std::string>> inconfigs = {
@@ -71,10 +81,14 @@ namespace {
                     {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "NAN"}}
     };
 
+    const std::vector<std::map<std::string, std::string>> autoinconfigs = {
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU},
+            {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "OFF"}}
+    };
+
     const std::vector<std::map<std::string, std::string>> multiconf = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
     };
-
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigAPITests,
             ::testing::Combine(
@@ -88,6 +102,13 @@ namespace {
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
             ::testing::ValuesIn(multiconf)),
+            CorrectConfigAPITests::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, CorrectConfigAPITests,
+            ::testing::Combine(
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+            ::testing::ValuesIn(AutoConfigs)),
             CorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigTests,
@@ -117,5 +138,12 @@ namespace {
             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
             ::testing::ValuesIn(multiinconfigs)),
             IncorrectConfigAPITests::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
+                            ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(autoinconfigs)),
+                            IncorrectConfigAPITests::getTestCaseName);
 
 } // namespace

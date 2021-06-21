@@ -48,7 +48,7 @@ void PassImpl::run(const Model& model) {
     allocNonIntermediateData(model);
     adjustModelForMemReqs(model);
     copyHwMisalignedInput(model);
-    if (env.config.packDataInCmx.getOrDefault(true)) {
+    if (env.config.compileConfig().packDataInCmx.getOrDefault(true)) {
         packDataInCmx(model);
     }
 }
@@ -147,7 +147,7 @@ void PassImpl::collectMemReqs(const Model& model) {
 }
 
 void PassImpl::resetStageOrder(const Model& model) {
-    if (!CompileEnv::get().config.hwOptimization)
+    if (!CompileEnv::get().config.compileConfig().hwOptimization)
         return;
 
     static const std::string s_expectCMXOutput {"expectCMXOutput"};
@@ -232,9 +232,8 @@ void PassImpl::adjustModelForMemReqs(const Model& model) {
 
         const auto failedData = allocRes.failedData;
         VPU_THROW_UNLESS(!failedData || failedData->memReqs() == MemoryType::CMX,
-            R"(Stage "{}" of type "{}" requested {} bytes in {} for output "{}", while there is only {} bytes is free)",
-            failedStage->name(), failedStage->type(), calcAllocationSize(failedData), failedData->memReqs(), failedData->name(),
-                         allocator.freeMemoryAmount(failedData->memReqs()));
+            R"(Request {} bytes in {} for output "{}" failed for stage "{}" of type "{}")",
+            calcAllocationSize(failedData), failedData->memReqs(), failedData->name(), failedStage->name(), failedStage->type());
 
         auto allCmxDatas = allocator.getAllocatedDatas(MemoryType::CMX);
         env.log->trace("Got %d datas in CMX : %v", allCmxDatas.size(), allCmxDatas);

@@ -60,9 +60,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # ====================================== HELPER CONSTANT VARIABLES =====================================
 # ======================================================================================================
 # ======================================================================================================
-if("${CLDNN_THREADING}" MATCHES "SEQ")
+if(CLDNN_THREADING MATCHES "SEQ")
     add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_SEQ)
-elseif("${CLDNN_THREADING}" MATCHES "TBB")
+elseif(CLDNN_THREADING MATCHES "TBB")
     add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_TBB)
 else()
     add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_THREADPOOL)
@@ -82,6 +82,9 @@ set(CLDNN__API_EXTENSION_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/api_extension")
 
 # Path which points to directory with interface for framework.
 set(CLDNN__KERNEL_SELECTOR_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/kernel_selector")
+
+# Path which points to directory with runtime
+set(CLDNN__RUNTIME_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/runtime")
 
 # Path which points to directory with binaries for Khronos OpenCL ICD Loader (Installable Client Driver).
 set(CLDNN__OCL_ICD_DIR  "${CLDNN__COMMON_DIR}/khronos_ocl_icd")
@@ -270,12 +273,6 @@ mark_as_advanced(CLDNN__INCLUDE_TESTS)
 
 # ======================================================================================================
 
-# Include and build: Core Internal Tests (unit tests and small acceptance tests) for core internal clDNN framework mechanisms.
-set(CLDNN__INCLUDE_CORE_INTERNAL_TESTS ON CACHE BOOL "Include and build: clDNN framework's core internal tests.")
-mark_as_advanced(CLDNN__INCLUDE_CORE_INTERNAL_TESTS)
-
-# ======================================================================================================
-
 
 # Include and build: clDNN tutorial.
 set(CLDNN__INCLUDE_TUTORIAL ON CACHE BOOL "Include and build: clDNN Tutorial.")
@@ -286,12 +283,6 @@ mark_as_advanced(CLDNN__INCLUDE_TUTORIAL)
 # Run (requires CLDNN__INCLUDE_TESTS to be true): Tests (unit tests and small acceptance tests) for clDNN framework.
 set(CLDNN__RUN_TESTS OFF CACHE BOOL "Run: clDNN framework's tests.")
 mark_as_advanced(CLDNN__RUN_TESTS)
-
-# ======================================================================================================
-
-# Run (requires CLDNN__INCLUDE_CORE_INTERNAL_TESTS to be true): Tests (unit tests and small acceptance core internal tests) for clDNN framework.
-set(CLDNN__RUN_CORE_INTERNAL_TESTS OFF CACHE BOOL "Run: clDNN framework's core internal tests.")
-mark_as_advanced(CLDNN__RUN_CORE_INTERNAL_TESTS)
 
 # ======================================================================================================
 
@@ -330,18 +321,10 @@ endif()
 
 # ======================================================================================================
 
-# Checking whether tests can be run.
-if((NOT CLDNN__INCLUDE_CORE_INTERNAL_TESTS) AND CLDNN__RUN_CORE_INTERNAL_TESTS)
-  message(WARNING "[clDNN] CLDNN__INCLUDE_CORE_INTERNAL_TESTS: Selected running of core internal tests, but test are not built. Option will be disabled.")
-  set(CLDNN__RUN_CORE_INTERNAL_TESTS OFF)
-endif()
-
-# ======================================================================================================
-
-# Check for python 2.7 interpreter (required tool).
-find_package(PythonInterp 2.7)
+# Check for python 3 interpreter (required tool).
+find_package(PythonInterp 3 QUIET)
 if(NOT PYTHONINTERP_FOUND)
-  message(WARNING "[clDNN] Project requires Python 2.7 interpreter to build (with python loader). CMake could not detect it correctly.
+  message(WARNING "[clDNN] Project requires Python 3.x interpreter to build (with python loader). CMake could not detect it correctly.
       If you have installed this interpreter, please disregard this warning or specify PYTHON_EXECUTABLE in CMake command-line."
     )
 endif()
@@ -375,19 +358,26 @@ set(CLDNN__OCL_ICD_ROOT "${CLDNN__OCL_ICD_DIR}" CACHE INTERNAL "Path to Khronos 
 set(CLDNN__OCL_ICD_INCDIRS "${CLDNN__KHR_CLHPP_DIR}" CACHE INTERNAL "Paths to interface headers for OpenCL.")
 set(CLDNN__OCL_ICD_STLDIRS "${CLDNN__OCL_ICD_ROOT}/${__CLDNN_TargetOs}/${CLDNN__TARGET_CFG_VAR}/lib/${__CLDNN_TargetCpuDir}" CACHE INTERNAL "Paths to static libraries for OpenCL ICD Loader.")
 set(CLDNN__OCL_ICD_SHLDIRS "${CLDNN__OCL_ICD_ROOT}/${__CLDNN_TargetOs}/${CLDNN__TARGET_CFG_VAR}/bin/${__CLDNN_TargetCpuDir}" CACHE INTERNAL "Paths to shared libraries for OpenCL ICD Loader.")
+include_directories(SYSTEM "${CLDNN__KHR_CLHPP_DIR}")
 
 # Select link directory based on targeted OS.
 # - on Windows: static libraries directory.
 # - on others:  shared libraries directory.
 if(__CLDNN_TargetOs MATCHES "^windows$")
-  set(CLDNN__OCL_ICD_LIBDIRS ${CLDNN__OCL_ICD_STLDIRS} CACHE INTERNAL "Paths to libraries to link for OpenCL ICD Loader.")
-  set(CLDNN__OCL_ICD_LIBPATH ${CLDNN__OCL_ICD_LIBDIRS}/${CMAKE_STATIC_LIBRARY_PREFIX}OpenCL${CMAKE_STATIC_LIBRARY_SUFFIX} CACHE INTERNAL "")
+set(CLDNN__OCL_ICD_LIBDIRS ${CLDNN__OCL_ICD_STLDIRS} CACHE INTERNAL "Paths to libraries to link for OpenCL ICD Loader.")
+set(CLDNN__OCL_ICD_LIBPATH ${CLDNN__OCL_ICD_LIBDIRS}/${CMAKE_STATIC_LIBRARY_PREFIX}OpenCL${CMAKE_STATIC_LIBRARY_SUFFIX} CACHE INTERNAL "")
 else()
-  set(CLDNN__OCL_ICD_LIBDIRS ${CLDNN__OCL_ICD_SHLDIRS} CACHE INTERNAL "Paths to libraries to link for OpenCL ICD Loader.")
-  set(CLDNN__OCL_ICD_LIBPATH ${CLDNN__OCL_ICD_LIBDIRS}/${CMAKE_SHARED_LIBRARY_PREFIX}OpenCL${CMAKE_SHARED_LIBRARY_SUFFIX} CACHE INTERNAL "")
+set(CLDNN__OCL_ICD_LIBDIRS ${CLDNN__OCL_ICD_SHLDIRS} CACHE INTERNAL "Paths to libraries to link for OpenCL ICD Loader.")
+set(CLDNN__OCL_ICD_LIBPATH ${CLDNN__OCL_ICD_LIBDIRS}/${CMAKE_SHARED_LIBRARY_PREFIX}OpenCL${CMAKE_SHARED_LIBRARY_SUFFIX} CACHE INTERNAL "")
 endif()
 
-
+set(OpenCL_LIBRARY "${CLDNN__OCL_ICD_LIBPATH}" CACHE INTERNAL "Paths to shared libraries for OpenCL ICD Loader.")
+set(OpenCL_INCLUDE_DIR "${CLDNN__OCL_ICD_INCDIRS}" CACHE INTERNAL "Paths to interface headers for OpenCL.")
+add_library(clDNN_OpenCL UNKNOWN IMPORTED)
+set_target_properties(clDNN_OpenCL
+    PROPERTIES
+        IMPORTED_LOCATION ${CLDNN__OCL_ICD_LIBPATH}
+  )
 # ======================================================================================================
 set(CLDNN_UTILS__RAPIDJSON_INCDIRS "utils/rapidjson" CACHE INTERNAL "Paths to interface headers for rapidjson.")
 # ====================================== Version Calculation ===========================================
@@ -414,11 +404,9 @@ message(STATUS "[clDNN]")
 message(STATUS "[clDNN]  - Include/Build cldnn core:          ${CLDNN__INCLUDE_CORE}")
 message(STATUS "[clDNN]  - Include/Build kernel selector:     ${CLDNN__INCLUDE_KERNEL_SELECTOR}")
 message(STATUS "[clDNN]  - Include/Build tests:               ${CLDNN__INCLUDE_TESTS}")
-message(STATUS "[clDNN]  - Include/Build core internal tests: ${CLDNN__INCLUDE_CORE_INTERNAL_TESTS}")
 message(STATUS "[clDNN]  - Include/Build tutorial:            ${CLDNN__INCLUDE_TUTORIAL}")
 message(STATUS "[clDNN]")
 message(STATUS "[clDNN]  - Run tests:                     ${CLDNN__RUN_TESTS}")
-message(STATUS "[clDNN]  - Run core internal tests:       ${CLDNN__RUN_CORE_INTERNAL_TESTS}")
 message(STATUS "[clDNN]")
 message(STATUS "[clDNN]  - Use static C++ Runtime:        ${CLDNN__COMPILE_LINK_USE_STATIC_RUNTIME}")
 message(STATUS "[clDNN]  - Allow unsafe size opts:        ${CLDNN__COMPILE_LINK_ALLOW_UNSAFE_SIZE_OPT}")
@@ -781,29 +769,17 @@ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
 include_directories(
     ${CLDNN_UTILS__RAPIDJSON_INCDIRS}
     "${CLDNN__CODEGEN_INCDIR}"
+    "${CLDNN__API_DIR}"
   )
-
-include_directories(SYSTEM
-   "${CLDNN__KHR_CLHPP_DIR}"
-  )
-
-add_library(clDNN_OpenCL UNKNOWN IMPORTED)
-set_target_properties(clDNN_OpenCL
-    PROPERTIES
-        IMPORTED_LOCATION ${CLDNN__OCL_ICD_LIBPATH}
-  )
-
 
 # =================================== Link targets and dependencies ====================================
 if(CLDNN__INCLUDE_CORE)
   add_subdirectory(src)
+  add_subdirectory(runtime)
   add_subdirectory(api_test_builds)
 endif()
 if(CLDNN__INCLUDE_TESTS)
   add_subdirectory(tests)
-endif()
-if(CLDNN__INCLUDE_CORE_INTERNAL_TESTS)
-  add_subdirectory(tests_core_internal)
 endif()
 if(CLDNN__INCLUDE_KERNEL_SELECTOR)
   add_subdirectory(kernel_selector)

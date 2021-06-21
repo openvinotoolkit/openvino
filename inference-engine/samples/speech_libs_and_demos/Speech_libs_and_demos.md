@@ -34,9 +34,9 @@ The package contains the following components:
 
 Additionally, new acoustic and language models are available in the OpenVINO&trade; [storage](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/librispeech_s5/).
 
-## <a name="run-demos">Run Speech Recognition Demos with Pretrained Models</a>
+## <a name="run-demos">Run Speech Recognition Demos with Pre-trained Models</a>
 
-To download pretrained models and build all dependencies:
+To download pre-trained models and build all dependencies:
 
 * On Linux* OS, use the shell script `<INSTALL_DIR>/deployment_tools/demo/demo_speech_recognition.sh`
 
@@ -67,9 +67,9 @@ set https_proxy=https://{proxyHost}:{proxyPort}
 
 ## <a name="hardware-support">Hardware Support</a>
 
-The provided acoustic models have been tested on a CPU, graphics processing unit (GPU), and Intel&reg; Gaussian & Neural Accelerator (Intel&reg; GNA), and you can switch between these targets in offline and live speech recognition demos.  
+The provided acoustic models have been tested on a CPU, graphics processing unit (GPU), and Intel&reg; Gaussian & Neural Accelerator (Intel&reg; GNA), and you can switch between these targets in offline and live speech recognition demos.
 
-> **NOTE**: Intel&reg; GNA is a specific low-power coprocessor, which offloads some workloads, thus saving power and CPU resources. If you use a processor supporting the GNA, such as Intel&reg; Core&trade; i3-8121U and Intel&reg; Core&trade; i7-1065G7, you can notice that CPU load is much lower when GNA is selected. If you selected GNA as a device for inference, and your processor does not support GNA, then execution is performed in the emulation mode (on CPU) because `GNA_AUTO` configuration option is used.   
+> **NOTE**: Intel&reg; GNA is a specific low-power coprocessor, which offloads some workloads, thus saving power and CPU resources. If you use a processor supporting the GNA, such as Intel&reg; Core&trade; i3-8121U and Intel&reg; Core&trade; i7-1065G7, you can notice that CPU load is much lower when GNA is selected. If you selected GNA as a device for inference, and your processor does not support GNA, then execution is performed in the emulation mode (on CPU) because `GNA_AUTO` configuration option is used.
 > See [the GNA plugin documentation](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_GNA.html) for more information.
 
 Speech Library provides a highly optimized implementation of preprocessing and postprocessing (feature extraction and decoding) on CPU only.
@@ -78,7 +78,7 @@ Speech Library provides a highly optimized implementation of preprocessing and p
 
 Before running demonstration applications with custom models, follow the steps below:
 
-1. Build the Speech Library and demonstration application using the `demo_speech_recognition.sh/.bat` file mentioned in <a href="#run-demos">Run Speech Recognition Demos with Pretrained Models</a>
+1. Build the Speech Library and demonstration application using the `demo_speech_recognition.sh/.bat` file mentioned in <a href="#run-demos">Run Speech Recognition Demos with Pre-trained Models</a>
 2. Train acoustic and statistical language models using the Kaldi framework (if required)
 3. [Convert the acoustic model](../../../docs/MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md) using Model Optimizer for Kaldi
 4. [Convert the language model](Kaldi_SLM_conversion_tool.md) using the Kaldi toolkit and provided converter

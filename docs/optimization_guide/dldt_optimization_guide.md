@@ -2,13 +2,13 @@
 
 ## Introduction
 
-The purpose of this document is to give you performance-related insights to every step of the network deployment process.  
+The purpose of this document is to give you performance-related insights to every step of the network deployment process.
 
 For information on the general workflow, refer to the documentation in <a href="#see-also">See Also</a>. For an example Inference Engine API snippet, see <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a>.
 
 ### Deep Learning Inference Engine Overview <a name="dldt-overview"></a>
 
-Deep Learning Inference Engine is a part of Intel&reg; Deep Learning Deployment Toolkit (Intel&reg; DL Deployment Toolkit) and OpenVINO&trade; toolkit. Inference Engine facilitates deployment of deep learning solutions by delivering a unified, device-agnostic API.  
+Deep Learning Inference Engine is a part of Intel&reg; Deep Learning Deployment Toolkit (Intel&reg; DL Deployment Toolkit) and OpenVINO&trade; toolkit. Inference Engine facilitates deployment of deep learning solutions by delivering a unified, device-agnostic API.
 
 Below, there are the three main steps of the deployment process:
 
@@ -50,7 +50,7 @@ When evaluating performance of your model with the Inference Engine, you must me
 
 ### Latency vs. Throughput <a name="latency-vs-throughput"></a>
 
-In the asynchronous case (see <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a>), the performance of an individual infer request is usually of less concern. Instead, you typically execute multiple requests asynchronously and measure the throughput in images per second by dividing the number of images that were processed by the processing time. 
+In the asynchronous case (see <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a>), the performance of an individual infer request is usually of less concern. Instead, you typically execute multiple requests asynchronously and measure the throughput in images per second by dividing the number of images that were processed by the processing time.
 In contrast, for the latency-oriented tasks, the time to a single frame is more important.
 
 Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which allows latency vs. throughput measuring.
@@ -114,23 +114,23 @@ The resulting IR precision, for instance, `FP16` or `FP32`, directly affects per
 
 ## Multi-Device Execution <a name="multi-device-optimizations"></a>
 OpenVINO&trade; toolkit supports automatic multi-device execution, please see [MULTI-Device plugin description](../IE_DG/supported_plugins/MULTI.md).
-In the next chapter you can find the device-specific tips, while this section covers few recommendations 
+In the next chapter you can find the device-specific tips, while this section covers few recommendations
 for the multi-device execution:
--	MULTI usually performs best when the fastest device is specified first in the list of the devices. 
-    This is particularly important when the parallelism is not sufficient 
+-	MULTI usually performs best when the fastest device is specified first in the list of the devices.
+    This is particularly important when the parallelism is not sufficient
     (e.g. the number of request in the flight is not enough to saturate all devices).
-- It is highly recommended to query the optimal number of inference requests directly from the instance of the ExecutionNetwork 
-  (resulted from the LoadNetwork call with the specific multi-device configuration as a parameter). 
-Please refer to the code of the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample for details.    
--   Notice that for example CPU+GPU execution performs better with certain knobs 
+- It is highly recommended to query the optimal number of inference requests directly from the instance of the ExecutionNetwork
+  (resulted from the LoadNetwork call with the specific multi-device configuration as a parameter).
+Please refer to the code of the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample for details.
+-   Notice that for example CPU+GPU execution performs better with certain knobs
     which you can find in the code of the same [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample.
-    One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams (which is already a default for the GPU) to amortize slower 
+    One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams (which is already a default for the GPU) to amortize slower
     inference completion from the device to the host.
--	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests 
-    and device-specific 'worker' requests that are being actually scheduled behind the scene. 
-    To facilitate the copy savings, it is recommended to start the requests in the order that they were created 
+-	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests
+    and device-specific 'worker' requests that are being actually scheduled behind the scene.
+    To facilitate the copy savings, it is recommended to start the requests in the order that they were created
     (with ExecutableNetwork's CreateInferRequest).
-  
+
 
 ## Device-Specific Optimizations <a name="device-specific-optimizations"></a>
 
@@ -161,16 +161,19 @@ In fact, the OpenVINO does support the "throughput" mode for the CPU, which allo
 
 Internally, the execution resources are split/pinned into execution "streams".
 This feature usually provides much better performance for the networks than batching. This is especially true for the many-core server machines:
+![](../img/cpu_streams_explained_1.png)
+Compared with the batching, the parallelism is somewhat transposed (i.e. performed over inputs, and much less within CNN ops):
 ![](../img/cpu_streams_explained.png)
 
 Try the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample and play with number of streams running in parallel. The rule of thumb is tying up to a number of CPU cores on your machine.
 For example, on an 8-core CPU, compare the `-nstreams 1` (which is a legacy, latency-oriented scenario) to the 2, 4, and 8 streams.
+Notice that on a multi-socket machine, the bare minimum of streams for a latency scenario equals the number of sockets.
 
 In addition, you can play with the batch size to find the throughput sweet spot.
 
-If your application is hard or impossible to change in accordance with the multiple-requests logic, consider the "multiple-instance" trick to improve the throughput:  
+If your application is hard or impossible to change in accordance with the multiple-requests logic, consider the "multiple-instance" trick to improve the throughput:
 -   For multi-socket execution, it is recommended to set   [`KEY_CPU_THREADS_NUM`](../IE_DG/supported_plugins/CPU.md) to the number of cores per socket, and run as many instances of the application as you have sockets.
--   Similarly, for extremely lightweight networks (running faster than 1ms) and/or many-core machines (16+ cores), try limiting the number of CPU inference  threads to just `#&zwj;phys` cores and further, while trying to saturate the machine with running multiple instances of the application.
+-   Similarly, for extremely lightweight networks (running faster than 1ms) and/or many-core machines (16+ cores), try limiting the number of CPU inference threads to just `#&zwj;phys` cores and further, while trying to saturate the machine with running multiple instances of the application.
 
 
 ### GPU Checklist <a name="gpu-checklist"></a>
@@ -183,15 +186,15 @@ Inference Engine relies on the [Compute Library for Deep Neural Networks (clDNN)
 -	If your application is simultaneously using the inference on the CPU or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](../IE_DG/supported_plugins/CPU.md) to limit number of inference threads for the CPU plugin.
 -	In the GPU-only scenario, a GPU driver might occupy a CPU core with spin-looped polling for completion. If the _CPU_ utilization is a concern, consider the `KEY_CLDND_PLUGIN_THROTTLE` configuration option.
 
-> **NOTE**: See the [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) code for a usage example. 
-Notice that while disabling the polling, this option might reduce the GPU performance, so usually this option is used with multiple [GPU streams](../IE_DG/supported_plugins/CL_DNN.md). 
+> **NOTE**: See the [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) code for a usage example.
+Notice that while disabling the polling, this option might reduce the GPU performance, so usually this option is used with multiple [GPU streams](../IE_DG/supported_plugins/GPU.md).
 
 
 ### Intel&reg; Movidius&trade; Myriad&trade; X Visual Processing Unit and Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs  <a name="myriad"></a>
 
 Since Intel&reg; Movidius&trade; Myriad&trade; X Visual Processing Unit (Intel&reg; Movidius&trade; Myriad&trade; 2 VPU) communicates with the host over USB, minimum four infer requests in flight are recommended to hide the data transfer costs. See <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a> and [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) for more information.
 
-Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs requires to keep at least 32 inference requests in flight to fully saturate the device.  
+Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs requires to keep at least 32 inference requests in flight to fully saturate the device.
 
 ### FPGA <a name="fpga"></a>
 
@@ -271,11 +274,11 @@ The following tips are provided to give general guidance on optimizing execution
 
 -	Generally, GPU performance is better on heavy kernels (like Convolutions) and large inputs. So if the network inference time is already too small (~1ms of execution time), using the GPU would unlikely give a boost.
 
--	A typical strategy to start with is to test the CPU-only and GPU-only scenarios first (with samples this is plain `-d CPU` or `-d GPU`). If there are specific kernels that are not supported by the GPU, the best option to try is the `HETERO:GPU,CPU` that automatically applies default splitting (based on the plugins layers support). Then, you can play with the manual affinity settings (for example, to further minimize the number of subgraphs).  
+-	A typical strategy to start with is to test the CPU-only and GPU-only scenarios first (with samples this is plain `-d CPU` or `-d GPU`). If there are specific kernels that are not supported by the GPU, the best option to try is the `HETERO:GPU,CPU` that automatically applies default splitting (based on the plugins layers support). Then, you can play with the manual affinity settings (for example, to further minimize the number of subgraphs).
 
 -	The general affinity “rule of thumb” is to keep computationally-intensive kernels on the accelerator, and "glue" (or helper) kernels on the CPU. Notice that this includes the granularity considerations. For example, running some (custom) activation on the CPU would result in too many conversions.
 
--	It is advised to do <a href="#analyzing-hetero-execution">performance analysis</a> to determine “hotspot” kernels, which should be the first candidates for offloading. At the same time, it is often more efficient to offload some reasonably sized sequence of kernels, rather than individual kernels, to minimize scheduling and other run-time overheads.
+-	It is advised to do <a href="#analyzing-hetero-execution">performance analysis</a> to determine “hotspot” kernels, which should be the first candidates for offloading. At the same time, it is often more efficient to offload some reasonably sized sequence of kernels, rather than individual kernels, to minimize scheduling and other runtime overhead.
 
 -	Notice that GPU can be busy with other tasks (like rendering). Similarly, the CPU can be in charge for the general OS routines and other application threads (see <a href="#note-on-app-level-threading">Note on the App-Level Threading</a>). Also, a high interrupt rate due to many subgraphs can raise the frequency of the one device and drag the frequency of another down.
 
@@ -334,7 +337,7 @@ For inference on the CPU there are multiple threads binding options, see
 
 If you are building an app-level pipeline with third-party components like GStreamer*, the general guidance for NUMA machines is as follows:
 - Whenever possible, use at least one instance of the pipeline per NUMA node:
-   - Pin the _entire_ pipeline instance to the specific NUMA node at the outer-most level (for example, use Kubernetes* and/or `numactl` command with proper settings before  actual GStreamer commands). 
+   - Pin the _entire_ pipeline instance to the specific NUMA node at the outer-most level (for example, use Kubernetes* and/or `numactl` command with proper settings before  actual GStreamer commands).
    - Disable any individual pinning by the pipeline components (e.g. set [CPU_BIND_THREADS to 'NO'](../IE_DG/supported_plugins/CPU.md)).
    - Limit each instance with respect to number of inference threads. Use  [CPU_THREADS_NUM](../IE_DG/supported_plugins/CPU.md) or  or other means (e.g. virtualization, Kubernetes*, etc), to avoid oversubscription.
 - If pinning instancing/pinning of the entire pipeline is not possible or desirable, relax the inference threads pinning to just 'NUMA'.
@@ -362,19 +365,17 @@ Note that in many cases, you can directly share the (input) data with the Infere
 
 The general approach for sharing data between Inference Engine and media/graphics APIs like Intel&reg; Media Server Studio (Intel&reg; MSS) is based on sharing the *system* memory.  That is, in your code, you should map or copy the data from the API to the CPU address space first.
 
-For Intel MSS, it is recommended to perform a viable pre-processing, for example, crop/resize, and then convert to RGB again with the [Video Processing Procedures (VPP)](https://software.intel.com/en-us/node/696108). Then lock the result and create an Inference Engine blob on top of that. The resulting pointer can be used for the `SetBlob`:
+For Intel® Media SDK, it is recommended to perform a viable pre-processing, for example, crop/resize, and then convert to RGB again with the [Video Processing Procedures (VPP)](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onevpl.htm). Then lock the result and create an Inference Engine blob on top of that. The resulting pointer can be used for `SetBlob`:
 
 @snippet snippets/dldt_optimization_guide2.cpp part2
 
-**WARNING**: The `InferenceEngine::NHWC` layout is not supported natively by most InferenceEngine plugins so internal conversion might happen.
+Using the `InferenceEngine::NHWC` layout:
 
 @snippet snippets/dldt_optimization_guide3.cpp part3
 
-Alternatively, you can use RGBP (planar RGB) output from Intel MSS. This allows to wrap the (locked) result as regular NCHW which is generally friendly for most plugins (unlike NHWC). Then you can use it with `SetBlob` just like in previous example:
+Alternatively, you can use an RGBP (planar RGB) output from Intel® Media SDK. This allows you to wrap the (locked) result as regular NCHW. Then you can use it with `SetBlob` just like in the previous example:
 
 @snippet snippets/dldt_optimization_guide4.cpp part4
-
-The only downside of this approach is that VPP conversion to RGBP is not hardware accelerated (and performed on the GPU EUs). Also, it is available only on LInux.
 
 ### OpenCV* Interoperability Example <a name="opencv-interoperability"></a>
 
@@ -415,7 +416,7 @@ If your application simultaneously executes multiple infer requests:
 
 -	For FPGA and GPU, the actual work is serialized by a plugin and/or a driver anyway.
 
-- 	Finally, for <a href="#myriad">any VPU flavor</a>, using multiple requests is a must for achieving good throughput. 
+- 	Finally, for <a href="#myriad">any VPU flavor</a>, using multiple requests is a must for achieving good throughput.
 
 In the Inference Engine, there is no notion of requests priorities. It is left to the user side (for example, not queuing the low priority infer request, until another higher priority is waiting). Notice that it would require additional logic to synchronize between executable networks (queues) in your application code.
 
@@ -469,12 +470,12 @@ Example of Inference Engine calls:
 	Notice that `Task_runNOThrow` is an Async API wrapper and it is executed in a different thread and triggers the Intel MKL-DNN execution:
 
 	![](../img/vtune_timeline.png)
-	
+
 -	In the Intel VTune Amplifier **Top-down view**, grouped by the **Task Domain**.
 	Notice the `Task_runNoThrow` and `MKLDNN _INFER` that are bracketing the actual Intel MKL-DNN kernels execution:
-	
+
 	![](../img/vtune_topdown_view.jpg)
-	
+
 Similarly, you can use any GPU analysis in the Intel VTune Amplifier and get general correlation with Inference Engine API as well as the execution breakdown for OpenCL kernels.
 
 Just like with regular native application, further drill down in the counters is possible, however, this is mostly useful for <a href="#optimizing-custom-kernels">optimizing custom kernels</a>. Finally, with the Intel VTune Amplifier, the profiling is not limited to your user-level code (see the [corresponding section in the Intel&reg; VTune&trade; Amplifier User's Guide](https://software.intel.com/en-us/vtune-amplifier-help-analyze-performance)).
@@ -512,12 +513,12 @@ Since FPGA execution does not separate individual kernels, only bulk execution/d
 
 ```
 subgraph1: 1. input preprocessing (mean data/FPGA):EXECUTED   layerType: preprocessing   realTime: 129     cpu: 129
-subgraph1: 2. input transfer to DDR:EXECUTED       layerType:                    realTime: 201        cpu: 0              
-subgraph1: 3. FPGA execute time:EXECUTED           layerType:                    realTime: 3808       cpu: 0              subgraph1: 4. output transfer from DDR:EXECUTED    layerType:                    realTime: 55         cpu: 0              
-subgraph1: 5. FPGA output postprocessing:EXECUTED  layerType:                    realTime: 7          cpu: 7              
-subgraph1: 6. softmax/copy:   EXECUTED       layerType:                    realTime: 2          cpu: 2              
-subgraph2: out_prob:          NOT_RUN        layerType: Output             realTime: 0          cpu: 0              
-subgraph2: prob:              EXECUTED       layerType: SoftMax            realTime: 10         cpu: 10             
+subgraph1: 2. input transfer to DDR:EXECUTED       layerType:                    realTime: 201        cpu: 0
+subgraph1: 3. FPGA execute time:EXECUTED           layerType:                    realTime: 3808       cpu: 0              subgraph1: 4. output transfer from DDR:EXECUTED    layerType:                    realTime: 55         cpu: 0
+subgraph1: 5. FPGA output postprocessing:EXECUTED  layerType:                    realTime: 7          cpu: 7
+subgraph1: 6. softmax/copy:   EXECUTED       layerType:                    realTime: 2          cpu: 2
+subgraph2: out_prob:          NOT_RUN        layerType: Output             realTime: 0          cpu: 0
+subgraph2: prob:              EXECUTED       layerType: SoftMax            realTime: 10         cpu: 10
 Total time: 4212     microseconds
 ```
 

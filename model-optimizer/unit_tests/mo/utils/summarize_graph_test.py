@@ -15,7 +15,7 @@ pbtxt = 'node{name:"Placeholder"op:"Placeholder"attr{key:"dtype"value{type:DT_FL
 class TestingSummarizeGraph(unittest.TestCase):
     def test_summarize_graph(self):
         with patch('mo.front.tf.loader.open', mock_open(read_data=pbtxt)) as m:
-            graph_def, _ = load_tf_graph_def('path', False)
+            graph_def, _, _ = load_tf_graph_def('path', False)
             summary = summarize_graph(graph_def)
             self.assertEqual(len(summary['outputs']), 1)
             self.assertEqual(summary['outputs'][0], 'Output/Identity')

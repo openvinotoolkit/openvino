@@ -555,7 +555,7 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
 
 
 @nameable_op
-def shuffle_channels(data: Node, axis: int, groups: int, name: Optional[str] = None) -> Node:
+def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = None) -> Node:
     """Perform permutation on data in the channel dimension of the input tensor.
 
     @param data: The node with input tensor.
@@ -603,7 +603,7 @@ def shuffle_channels(data: Node, axis: int, groups: int, name: Optional[str] = N
     @endcode
     """
     return _get_node_factory_opset3().create(
-        "ShuffleChannels", [as_node(data)], {"axis": axis, "groups": groups}
+        "ShuffleChannels", [as_node(data)], {"axis": axis, "group": group}
     )
 
 

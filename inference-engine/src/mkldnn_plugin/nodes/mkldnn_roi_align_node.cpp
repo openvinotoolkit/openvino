@@ -3,7 +3,6 @@
 //
 
 #include "mkldnn_roi_align_node.h"
-#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
@@ -14,6 +13,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include "ie_parallel.hpp"
 #include <mkldnn_selective_build.h>
+#include <ngraph/opsets/opset3.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -21,19 +21,52 @@ using namespace mkldnn;
 using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::cpu::x64;
 
-MKLDNNROIAlignNode::MKLDNNROIAlignNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                                       MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+using ngPoolingMode = ngraph::op::v3::ROIAlign::PoolingMode;
+
+bool MKLDNNROIAlignNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto roiAlign = std::dynamic_pointer_cast<const ngraph::opset3::ROIAlign>(op);
+        if (!roiAlign) {
+            errorMessage = "Only opset3 ROIAlign operation is supported";
+            return false;
+        }
+
+        const ngPoolingMode mode = roiAlign->get_mode();
+        if (mode != ngPoolingMode::AVG && mode != ngPoolingMode::MAX) {
+            errorMessage = "Doesn't support mode: " + ngraph::as_string(mode);
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNROIAlignNode::MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+                                       MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
+
+        const auto roiAlign = std::dynamic_pointer_cast<const ngraph::opset3::ROIAlign>(op);
+        pooledH = roiAlign->get_pooled_h();
+        pooledW = roiAlign->get_pooled_w();
+        spatialScale = roiAlign->get_spatial_scale();
+        samplingRatio = roiAlign->get_sampling_ratio();
+        const ngPoolingMode m = roiAlign->get_mode();
+        if (m == ngPoolingMode::MAX) {
+            algorithm = Algorithm::ROIAlignMax;
+        } else if (m == ngPoolingMode::AVG) {
+            algorithm = Algorithm::ROIAlignAvg;
+        }
+    } else {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+}
 
 void MKLDNNROIAlignNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
-
-    class CNNLayer *genericLayer = getCnnLayer().get();
-    if (genericLayer == nullptr)
-        IE_THROW() << "Cannot convert ROIPooling layer.";
-
-    std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
     if (getParentEdges().size() != 3)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
@@ -66,27 +99,14 @@ void MKLDNNROIAlignNode::getSupportedDescriptors() {
                            << getParentEdgeAt(1)->getDims()[0] << ") and indexes ("
                            << getParentEdgeAt(2)->getDims()[0] << ")";
     }
-
-    pooledH = genericLayer->GetParamAsInt("pooled_h");
-    pooledW = genericLayer->GetParamAsInt("pooled_w");
-    spatialScale = genericLayer->GetParamAsFloat("spatial_scale");
-    samplingRatio = genericLayer->GetParamAsInt("sampling_ratio");
-    std::string m = genericLayer->GetParamAsString("mode");
-    if (m == "max") {
-        opType = ROIAlignOpType::Max;
-    } else if (m == "avg") {
-        opType = ROIAlignOpType::Avg;
-    } else {
-        IE_THROW() << errorPrefix << "doesn't support roi pooling method: " << m;
-    }
 }
 
 void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inputPrec0 = getCnnLayer()->insData[0].lock()->getPrecision();
-    Precision outputPrec = getCnnLayer()->outData[0]->getPrecision();
+    Precision inputPrec0 = getOriginalInputPrecisionAtPort(0);
+    Precision outputPrec = getOriginalOutputPrecisionAtPort(0);
 
     if (!mayiuse(avx512_core)) {
         if (outputPrec == Precision::BF16 || inputPrec0 == Precision::BF16)
@@ -291,8 +311,8 @@ void MKLDNNROIAlignNode::executeSpecified() {
                                     pointVector[sampleIndex + 3].second * wInputStride + blockResidual_;
                 float part4 = srcData[part4Index];
 
-                switch (opType) {
-                    case ROIAlignOpType::Max:
+                switch (getAlgorithm()) {
+                    case Algorithm::ROIAlignMax:
                     {
                         float sampleValue = std::max(
                                 {weightVector[sampleIndex] * part1,
@@ -302,7 +322,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
                         pooledValue = sampleValue > pooledValue ? sampleValue : pooledValue;
                         break;
                     }
-                    case ROIAlignOpType::Avg:
+                    case Algorithm::ROIAlignAvg:
                     default:
                     {
                         float sampleValue =

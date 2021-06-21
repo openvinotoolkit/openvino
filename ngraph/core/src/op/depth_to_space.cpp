@@ -235,10 +235,17 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate);
     return evaluate_depth_to_space(outputs, inputs);
 }
+
+bool op::DepthToSpace::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_has_evaluate);
+    return !get_input_partial_shape(0).is_dynamic();
+}
+
 namespace ngraph
 {
     template <>
-    EnumNames<op::DepthToSpace::DepthToSpaceMode>&
+    NGRAPH_API EnumNames<op::DepthToSpace::DepthToSpaceMode>&
         EnumNames<op::DepthToSpace::DepthToSpaceMode>::get()
     {
         static auto enum_names = EnumNames<op::DepthToSpace::DepthToSpaceMode>(

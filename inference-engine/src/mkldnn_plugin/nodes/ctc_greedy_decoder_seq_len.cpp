@@ -4,51 +4,81 @@
 
 #include "base.hpp"
 #include "ie_parallel.hpp"
+#include <ngraph/op/ctc_greedy_decoder_seq_len.hpp>
+#include <nodes/common/tensor_desc_creator.h>
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+using MKLDNNPlugin::TensorDescCreatorTypes;
+
 class CTCGreedyDecoderSeqLenImpl: public ExtLayerBase {
 public:
-    explicit CTCGreedyDecoderSeqLenImpl(const CNNLayer* layer) : mergeRepeated_(true) {
-        errPrefix = "CTCGreedyDecoderSeqLen layer with name '" + layer->name + "' ";
-        if (layer->insData.size() < 2 || layer->insData.size() > 3)
-            IE_THROW() << errPrefix << "has invalid number of input edges: " << layer->insData.size();
-        if (layer->outData.size() != 2)
-            IE_THROW() << errPrefix << "has invalid number of outputs edges: " << layer->outData.size();
-
-        auto inData = layer->insData[DATA_INDEX].lock();
-        auto sequenceLenData = layer->insData[SEQUENCE_LENGTH_INDEX].lock();
-        if (!inData || !sequenceLenData)
-            IE_THROW() << errPrefix << "has nullable inputs.";
-        if (inData->getTensorDesc().getDims()[0] != sequenceLenData->getTensorDesc().getDims()[0])
-            IE_THROW() << errPrefix << "has invalid input shapes.";
-        if (inData->getTensorDesc().getPrecision() != Precision::FP32 &&
-                inData->getTensorDesc().getPrecision() != Precision::BF16)
-            IE_THROW() << errPrefix << "has unsupported 'data' input precision: " << inData->getTensorDesc().getPrecision();
-        if (sequenceLenData->getTensorDesc().getPrecision() != Precision::I32 &&
-                sequenceLenData->getTensorDesc().getPrecision() != Precision::I64)
-            IE_THROW() << errPrefix << "has unsupported 'sequence_length' input precision: " << sequenceLenData->getTensorDesc().getPrecision();
-
-        std::vector<DataConfigurator> inputConfigs{{ConfLayout::PLN, Precision::FP32}, {ConfLayout::PLN, Precision::I32}};
-
-        if (layer->insData.size() > BLANK_INDEX) {
-            auto blankIndexData = layer->insData[BLANK_INDEX].lock();
-            if (!blankIndexData)
-                IE_THROW() << errPrefix << "has nullable inputs.";
-            if (blankIndexData->getTensorDesc().getPrecision() != Precision::I32 &&
-                    blankIndexData->getTensorDesc().getPrecision() != Precision::I64)
-                IE_THROW() << errPrefix << "has unsupported 'blank_index' input precision: " << blankIndexData->getTensorDesc().getPrecision();
-            inputConfigs.push_back({ConfLayout::PLN, Precision::I32});
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+        try {
+            auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
+            if (!greedyDecOp) {
+                errorMessage = "Node is not an instance of the CTCGreedyDecoderSeqLen operation from operation set v6.";
+                return false;
+            }
+        } catch (...) {
+            return false;
         }
-        std::vector<DataConfigurator> outputConfigs{{ConfLayout::PLN, Precision::I32}, {ConfLayout::PLN, Precision::I32}};
-        addConfig(layer, inputConfigs, outputConfigs);
 
-        mergeRepeated_ = layer->GetParamAsBool("merge_repeated", true);
+        return true;
+    }
+
+    explicit CTCGreedyDecoderSeqLenImpl(const std::shared_ptr<ngraph::Node>& op) : mergeRepeated_(true) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            std::string errPrefix = "CTCGreedyDecoderSeqLen layer with name '" + op->get_friendly_name() + "' ";
+            if (op->get_input_size() < 2 || op->get_input_size() > 3)
+                IE_THROW() << errPrefix << "has invalid number of input edges: " << op->get_input_size();
+            if (op->get_output_size() != 2)
+                IE_THROW() << errPrefix << "has invalid number of outputs edges: " << op->get_output_size();
+
+            if (op->get_input_shape(DATA_INDEX)[0] != op->get_input_shape(SEQUENCE_LENGTH_INDEX)[0])
+                IE_THROW() << errPrefix << "has invalid input shapes.";
+
+            Precision inDataPrecision = details::convertPrecision(op->get_input_element_type(DATA_INDEX));
+            if (inDataPrecision != Precision::FP32 && inDataPrecision != Precision::BF16)
+                IE_THROW() << errPrefix << "has unsupported 'data' input precision: " << inDataPrecision;
+
+            Precision seqLenPrecision = details::convertPrecision(op->get_input_element_type(SEQUENCE_LENGTH_INDEX));
+            if (seqLenPrecision != Precision::I32 && seqLenPrecision != Precision::I64)
+                IE_THROW() << errPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
+
+            auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
+            mergeRepeated_ = greedyDecOp->get_merge_repeated();
+
+            if (op->get_input_size() == BLANK_INDEX) {
+                addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                               {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                              {{TensorDescCreatorTypes::ncsp, Precision::I32},
+                               {TensorDescCreatorTypes::ncsp, Precision::I32}});
+            } else {
+                Precision blIdxPrecision = details::convertPrecision(op->get_input_element_type(BLANK_INDEX));
+                if (blIdxPrecision != Precision::I32 && blIdxPrecision != Precision::I64)
+                    IE_THROW() << errPrefix << "has unsupported 'blank_index' input precision: " << blIdxPrecision;
+
+                addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                               {TensorDescCreatorTypes::ncsp, Precision::I32},
+                               {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                              {{TensorDescCreatorTypes::ncsp, Precision::I32},
+                               {TensorDescCreatorTypes::ncsp, Precision::I32}});
+            }
+        } catch (InferenceEngine::Exception &ex) {
+            errorMsg = ex.what();
+            throw;
+        }
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,

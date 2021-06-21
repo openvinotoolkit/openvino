@@ -28,7 +28,7 @@ makeParams(const element::Type &type, const std::vector<std::pair<std::string, s
 template<typename T>
 std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
                                    const std::vector<T> &data, bool random = false,
-                                   uint32_t upTo = 10, uint32_t startFrom = 1, const int seed = 1) {
+                                   T upTo = 10, T startFrom = 1, const int seed = 1) {
     std::shared_ptr<ngraph::Node> weightsNode;
 
 #define makeNode(TYPE) \
@@ -125,6 +125,7 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const op::PadType &autoPad,
                                                           size_t numOutChannels,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
                                                           const std::vector<float> &filterWeights = {},
                                                           const std::vector<float> &biasesWeights = {});
 
@@ -137,6 +138,22 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const std::vector<size_t> &dilations,
                                                           const op::PadType &autoPad,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
+                                                          const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
+                                                          const ngraph::Output<Node> &outputShape,
+                                                          const element::Type &type,
+                                                          const std::vector<size_t> &filterSize,
+                                                          const std::vector<size_t> &strides,
+                                                          const std::vector<ptrdiff_t> &padsBegin,
+                                                          const std::vector<ptrdiff_t> &padsEnd,
+                                                          const std::vector<size_t> &dilations,
+                                                          const op::PadType &autoPad,
+                                                          size_t numOutChannels,
+                                                          bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
+                                                          const std::vector<float> &filterWeights = {},
                                                           const std::vector<float> &biasesWeights = {});
 
 std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
@@ -509,5 +526,9 @@ std::shared_ptr<ngraph::Node> makeRoll(const ngraph::Output<Node>& dataNode,
                                        const ngraph::Output<Node>& shiftNode,
                                        const ngraph::Output<Node>& axesNode);
 
+std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
+                                      const std::vector<int64_t> &axes,
+                                      const std::vector<int64_t> &signalSize,
+                                      const ngraph::helpers::DFTOpType opType);
 }  // namespace builder
 }  // namespace ngraph

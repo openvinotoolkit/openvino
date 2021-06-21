@@ -101,14 +101,15 @@ install(TARGETS ngraph EXPORT ngraphTargets
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
     DESTINATION ${NGRAPH_INSTALL_INCLUDE}
-    COMPONENT ngraph
+    COMPONENT ngraph_dev
     FILES_MATCHING
         PATTERN "*.hpp"
         PATTERN "*.h"
+        PATTERN "*version.in.hpp" EXCLUDE
 )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/ngraph/version.hpp
     DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph
-    COMPONENT ngraph)
+    COMPONENT ngraph_dev)
 
 set(CPACK_GENERATOR "DEB")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)

@@ -8,23 +8,6 @@ ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE
 
 ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
 
-# "MKL-DNN library might use MKL-ML or OpenBLAS for gemm tasks: MKL|OPENBLAS|JIT"
-if (ENABLE_MKL_DNN)
-    if(AARCH64)
-        set(GEMM_DEFAULT "OPENBLAS")
-    else()
-        set(GEMM_DEFAULT "JIT")
-    endif()
-    set(GEMM "${GEMM_DEFAULT}" CACHE STRING "GEMM implementation")
-    set_property(CACHE GEMM PROPERTY STRINGS "MKL" "OPENBLAS" "JIT")
-    list (APPEND IE_OPTIONS GEMM)
-    if (NOT GEMM STREQUAL "MKL" AND
-        NOT GEMM STREQUAL "OPENBLAS" AND
-        NOT GEMM STREQUAL "JIT")
-        message(FATAL_ERROR "GEMM should be set to MKL, OPENBLAS or JIT. Default option is ${GEMM_DEFAULT}")
-    endif()
-endif()
-
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
@@ -82,8 +65,6 @@ ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engin
 ie_dependent_option (ENABLE_SPEECH_DEMO "enable speech demo integration" ON "NOT APPLE;NOT ANDROID;X86 OR X86_64" OFF)
 
 ie_option (ENABLE_OPENCV "enables OpenCV" ON)
-
-ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
 
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
 

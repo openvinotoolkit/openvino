@@ -25,8 +25,8 @@ void FrontEnd::parseInputAndOutputData(const Model& model) {
     VPU_LOGGER_SECTION(env.log);
 
     const auto parseIOStrides = [&env](const std::string& name, const Data& data) {
-        const auto& match = env.config.ioStrides.find(name);
-        if (match == env.config.ioStrides.end()) {
+        const auto& match = env.config.compileConfig().ioStrides.find(name);
+        if (match == env.config.compileConfig().ioStrides.end()) {
             return;
         }
 

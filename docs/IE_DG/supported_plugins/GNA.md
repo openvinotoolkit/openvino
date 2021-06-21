@@ -51,7 +51,7 @@ Intel® Core™ i3-8121U Processor
 Intel® GNA hardware requires a driver to be installed on the system.
 
 * Linux\* OS:
-[Download Intel® GNA driver for Ubuntu Linux 18.04.3 LTS (with HWE Kernel version 5.0+)](https://download.01.org/opencv/drivers/gna/)
+[Download Intel® GNA driver for Ubuntu Linux 18.04.3 LTS (with HWE Kernel version 5.4+)](https://storage.openvinotoolkit.org/drivers/gna/)
 
 * Windows\* OS:
 Intel® GNA driver for Windows is available through Windows Update\*
@@ -73,7 +73,7 @@ Limitations include:
 
 #### Experimental Support for 2D Convolutions
 
-The Intel® GNA hardware natively supports only 1D convolution.
+The Intel® GNA hardware natively supports only 1D convolutions.
 
 However, 2D convolutions can be mapped to 1D when a convolution kernel moves in a single direction. GNA Plugin performs such a transformation for Kaldi `nnet1` convolution. From this perspective, the Intel® GNA hardware convolution operation accepts an `NHWC` input and produces an `NHWC` output. Because OpenVINO™ only supports the `NCHW` layout, you may need to insert `Permute` layers before or after convolutions.
 

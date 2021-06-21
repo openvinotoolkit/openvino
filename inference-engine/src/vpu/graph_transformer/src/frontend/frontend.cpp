@@ -192,14 +192,17 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     // ConvertPrecision must be executed before ConvertOpSet1ToLegacy due to this pass works with operations from opsets only
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32, myriadTypeToFuseMap);
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u64, ngraph::element::i32, myriadTypeToFuseMap);
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u32, ngraph::element::i32, myriadTypeToFuseMap);
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::i32, myriadTypeToFuseMap);
+    static const precisions_array precisions = {
+        { ngraph::element::i64, ngraph::element::i32 },
+        { ngraph::element::u64, ngraph::element::i32 },
+        { ngraph::element::u32, ngraph::element::i32 },
+        { ngraph::element::boolean, ngraph::element::i32 }
+    };
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions, myriadTypeToFuseMap);
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     //  ConvertOpSet1ToLegacy can produce constants with I64 precision
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32, myriadTypeToFuseMap);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }}, myriadTypeToFuseMap);
     manager.register_pass<vpu::MergeSubsequentDSROperations>();
 
     auto pass_config = manager.get_pass_config();
@@ -218,7 +221,9 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
                               ngraph::pass::ConvertStridedSliceToCropMatcher>(transformationPredicate);
 
     manager.run_passes(nGraphFunc);
+    IE_SUPPRESS_DEPRECATED_START
     return ie::CNNNetwork(ie::details::convertFunctionToICNNNetwork(nGraphFunc, network));
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 std::set<std::string> FrontEnd::checkSupportedLayers(const ie::CNNNetwork& network) {
@@ -431,7 +436,7 @@ void FrontEnd::processTrivialCases(const Model& model) {
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
-    VPU_THROW_UNSUPPORTED_UNLESS(env.config.ignoreUnknownLayers, "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
+    VPU_THROW_UNSUPPORTED_LAYER_UNLESS(env.config.compileConfig().ignoreUnknownLayers, "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
     _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
 }
 
@@ -461,15 +466,15 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
     // Parse custom layers
     //
 
-    if (!env.config.customLayers.empty()) {
-        env.log->trace("Parse custom layers : %s", env.config.customLayers);
+    if (!env.config.compileConfig().customLayers.empty()) {
+        env.log->trace("Parse custom layers : %s", env.config.compileConfig().customLayers);
         VPU_LOGGER_SECTION(env.log);
 
-        if (env.platform != Platform::MYRIAD_X) {
+        if (env.platform != ncDevicePlatform_t::NC_MYRIAD_X) {
             VPU_THROW_FORMAT("Custom layers are not supported for %v platforms", env.platform);
         }
 
-        _customLayers = CustomLayer::loadFromFile(env.config.customLayers);
+        _customLayers = CustomLayer::loadFromFile(env.config.compileConfig().customLayers);
     }
 
     //
@@ -489,7 +494,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
 
-        if (network.getFunction() && env.config.forceDeprecatedCnnConversion) {
+        if (network.getFunction() && env.config.compileConfig().forceDeprecatedCnnConversion) {
             network = convertNetwork(network);
         }
 
@@ -540,7 +545,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         processTrivialCases(model);
 
-        if (!CompileEnv::get().config.disableConvertStages) {
+        if (!CompileEnv::get().config.compileConfig().disableConvertStages) {
             addDataTypeConvertStages(model);
         }
 
@@ -562,7 +567,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         getInputAndOutputData(model, layer, inputs, outputs);
 
-        if (env.config.skipAllLayers() || env.config.skipLayerType(layer->type)) {
+        if (env.config.compileConfig().skipAllLayers() || env.config.compileConfig().skipLayerType(layer->type)) {
             _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
             supportedLayer(layer);
             continue;

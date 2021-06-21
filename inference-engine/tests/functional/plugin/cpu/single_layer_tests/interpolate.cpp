@@ -60,7 +60,9 @@ protected:
         std::vector<size_t> inputShape;
         std::vector<size_t> targetShape;
         Precision netPrecision;
-        std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice) = basicParamsSet;
+        std::map<std::string, std::string> additional_config;
+        std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape,
+                 targetShape, targetDevice, additional_config) = basicParamsSet;
 
         ngraph::op::v4::Interpolate::InterpolateMode mode;
         ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
@@ -101,7 +103,10 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType.push_back('_');
-        selectedType += netPrecision.name();
+        if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) && additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
+            selectedType += "BF16";
+        else
+            selectedType += netPrecision.name();
     }
 };
 
@@ -239,6 +244,8 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         fusingFakeQuantizePerChannelRelu,
 };
 
+std::map<std::string, std::string> additional_config = {};
+
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
     if (with_cpu_x86_avx512f()) {
         return {
@@ -264,7 +271,8 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 21, 4, 4})),
                 ::testing::Values(std::vector<size_t>({1, 21, 5, 6})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
@@ -281,7 +289,8 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLaye
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 21, 4, 4})),
                 ::testing::Values(std::vector<size_t>({1, 21, 5, 6})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
@@ -298,7 +307,8 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinear_Layout_Test, InterpolateLayerCPU
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 21, 4, 4})),
                 ::testing::Values(std::vector<size_t>({1, 21, 5, 6})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
@@ -315,7 +325,8 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerCPUT
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 21, 4, 4})),
                 ::testing::Values(std::vector<size_t>({1, 21, 5, 6})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
@@ -327,7 +338,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice5D() {
     if (with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw16c, x, x, x}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x, x}, {ndhwc}, {"jit_avx512"}, "jit_avx512"});
-        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"jit_avx2"}, "jit_avx2"});
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x, x, x}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x, x}, {ndhwc}, {"jit_avx2"}, "jit_avx2"});
@@ -366,7 +376,7 @@ const auto interpolateCasesLinearOnnx5D = ::testing::Combine(
         ::testing::ValuesIn(defaultScales5D));
 
 const auto interpolateCasesNN5D = ::testing::Combine(
-        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
         ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
         ::testing::ValuesIn(defNearestModes),
@@ -388,7 +398,8 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx5D_Layout_Test, InterpolateLa
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 21, 4, 4, 4})),
                 ::testing::Values(std::vector<size_t>({1, 21, 5, 6, 2})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
             ::testing::ValuesIn(filterCPUInfoForDevice5D()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
@@ -405,7 +416,8 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN5D_Layout_Test, InterpolateLayerCPUTe
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 21, 4, 4, 4})),
                 ::testing::Values(std::vector<size_t>({1, 21, 5, 6, 2})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
             ::testing::ValuesIn(filterCPUInfoForDevice5D()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
