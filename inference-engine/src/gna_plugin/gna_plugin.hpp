@@ -83,6 +83,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      */
     uint32_t rwSegmentSize = 0;
 
+    InferenceEngine::CNNNetwork network;
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
