@@ -446,45 +446,45 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_I8, DeconvolutionLayerCPUTest,
                         DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Deconvolution params I8 (3D) ============= */
-const std::vector<SizeVector> kernels3di8 = { {3, 3, 3} };
-const std::vector<SizeVector> strides3di8 = { {1, 1, 1}, {2, 2, 2} };
-const std::vector<std::vector<ptrdiff_t>> padBegins3di8 = { {0, 0, 0}, {1, 1, 1} };
-const std::vector<std::vector<ptrdiff_t>> padEnds3di8 = { {0, 0, 0}, {1, 1, 1} };
-const std::vector<SizeVector> dilations3di8 = { {1, 1, 1}/*, {2, 2, 2}*/ };
-
-const auto deconvParams_3D_I8 = ::testing::Combine(
-        ::testing::ValuesIn(kernels3di8),
-        ::testing::ValuesIn(strides3di8),
-        ::testing::ValuesIn(padBegins3di8),
-        ::testing::ValuesIn(padEnds3di8),
-        ::testing::ValuesIn(dilations3di8),
-        ::testing::ValuesIn(numOutChannels_Planar),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT),
-        ::testing::ValuesIn(emptyOutputPadding)
-);
-
-const std::vector<CPUSpecificParams> CPUParams_3D_I8 = {
-        conv_sse42_3D_nspc,
-        conv_avx2_3D_nspc,
-        conv_avx512_3D_nspc
-};
-
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_I8, DeconvolutionLayerCPUTest,
-                        ::testing::Combine(
-                                ::testing::Combine(
-                                        deconvParams_3D_I8,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(Precision::U8, Precision::I8),
-                                        ::testing::Values(Precision::FP32/*, Precision::I32*/),
-                                        ::testing::Values(Layout::ANY),
-                                        ::testing::Values(Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
-                                        ::testing::ValuesIn(emptyOutputShape),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D_I8)),
-                                ::testing::ValuesIn(fusingParamsSetI8),
-                                ::testing::Values(cpuEmptyPluginConfig)),
-                        DeconvolutionLayerCPUTest::getTestCaseName);
+//const std::vector<SizeVector> kernels3di8 = { {3, 3, 3} };
+//const std::vector<SizeVector> strides3di8 = { {1, 1, 1}, {2, 2, 2} };
+//const std::vector<std::vector<ptrdiff_t>> padBegins3di8 = { {0, 0, 0}, {1, 1, 1} };
+//const std::vector<std::vector<ptrdiff_t>> padEnds3di8 = { {0, 0, 0}, {1, 1, 1} };
+//const std::vector<SizeVector> dilations3di8 = { {1, 1, 1}/*, {2, 2, 2}*/ };
+//
+//const auto deconvParams_3D_I8 = ::testing::Combine(
+//        ::testing::ValuesIn(kernels3di8),
+//        ::testing::ValuesIn(strides3di8),
+//        ::testing::ValuesIn(padBegins3di8),
+//        ::testing::ValuesIn(padEnds3di8),
+//        ::testing::ValuesIn(dilations3di8),
+//        ::testing::ValuesIn(numOutChannels_Planar),
+//        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+//        ::testing::ValuesIn(emptyOutputPadding)
+//);
+//
+//const std::vector<CPUSpecificParams> CPUParams_3D_I8 = {
+//        conv_sse42_3D_nspc,
+//        conv_avx2_3D_nspc,
+//        conv_avx512_3D_nspc
+//};
+//
+//INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_I8, DeconvolutionLayerCPUTest,
+//                        ::testing::Combine(
+//                                ::testing::Combine(
+//                                        deconvParams_3D_I8,
+//                                        ::testing::Values(Precision::FP32),
+//                                        ::testing::Values(Precision::U8, Precision::I8),
+//                                        ::testing::Values(Precision::FP32/*, Precision::I32*/),
+//                                        ::testing::Values(Layout::ANY),
+//                                        ::testing::Values(Layout::ANY),
+//                                        ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+//                                        ::testing::ValuesIn(emptyOutputShape),
+//                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D_I8)),
+//                                ::testing::ValuesIn(fusingParamsSetI8),
+//                                ::testing::Values(cpuEmptyPluginConfig)),
+//                        DeconvolutionLayerCPUTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParams_2D_1x1_I8 = {
         conv_sse42_2D_1x1_nspc,
@@ -511,39 +511,39 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_I8, DeconvolutionLayerCPUTest,
 
 /* ============= Kernel_1x1 (3D) ============= */
 
-const auto convParams_ExplicitPadding_1x1_3D = ::testing::Combine(
-        ::testing::Values(SizeVector({1, 1, 1})),
-        ::testing::Values(SizeVector({1, 1, 1})),
-        ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
-        ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
-        ::testing::Values(SizeVector({1, 1, 1})),
-        ::testing::ValuesIn(numOutChannels_Blocked),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT),
-        ::testing::ValuesIn(emptyOutputPadding)
-);
-
-const std::vector<CPUSpecificParams> CPUParams_3D_1x1_I8 = {
-        conv_sse42_3D_1x1_nspc,
-        conv_avx2_3D_1x1_nspc,
-        conv_avx512_3D_1x1_nspc
-};
-
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_1x1_I8, DeconvolutionLayerCPUTest,
-                        ::testing::Combine(
-                                ::testing::Combine(
-                                        convParams_ExplicitPadding_1x1_3D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(Precision::U8, Precision::I8),
-                                        ::testing::Values(Precision::FP32/*, Precision::I32*/),
-                                        ::testing::Values(Layout::ANY),
-                                        ::testing::Values(Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7, 7 })),
-                                        ::testing::ValuesIn(emptyOutputShape),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D_1x1_I8)),
-                                ::testing::ValuesIn(fusingParamsSetI8),
-                                ::testing::Values(cpuEmptyPluginConfig)),
-                        DeconvolutionLayerCPUTest::getTestCaseName);
+//const auto convParams_ExplicitPadding_1x1_3D = ::testing::Combine(
+//        ::testing::Values(SizeVector({1, 1, 1})),
+//        ::testing::Values(SizeVector({1, 1, 1})),
+//        ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
+//        ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
+//        ::testing::Values(SizeVector({1, 1, 1})),
+//        ::testing::ValuesIn(numOutChannels_Blocked),
+//        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+//        ::testing::ValuesIn(emptyOutputPadding)
+//);
+//
+//const std::vector<CPUSpecificParams> CPUParams_3D_1x1_I8 = {
+//        conv_sse42_3D_1x1_nspc,
+//        conv_avx2_3D_1x1_nspc,
+//        conv_avx512_3D_1x1_nspc
+//};
+//
+//INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_1x1_I8, DeconvolutionLayerCPUTest,
+//                        ::testing::Combine(
+//                                ::testing::Combine(
+//                                        convParams_ExplicitPadding_1x1_3D,
+//                                        ::testing::Values(Precision::FP32),
+//                                        ::testing::Values(Precision::U8, Precision::I8),
+//                                        ::testing::Values(Precision::FP32/*, Precision::I32*/),
+//                                        ::testing::Values(Layout::ANY),
+//                                        ::testing::Values(Layout::ANY),
+//                                        ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7, 7 })),
+//                                        ::testing::ValuesIn(emptyOutputShape),
+//                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D_1x1_I8)),
+//                                ::testing::ValuesIn(fusingParamsSetI8),
+//                                ::testing::Values(cpuEmptyPluginConfig)),
+//                        DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ========= */
 
