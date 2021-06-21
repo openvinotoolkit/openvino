@@ -1241,4 +1241,4 @@ INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu,
                                 ::testing::ValuesIn(in_features),
                                 ::testing::ValuesIn(crop_features),
                                 ::testing::ValuesIn(formats)
-                                ), );
+                                ));

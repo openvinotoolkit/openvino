@@ -221,7 +221,7 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[0]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
 INSTANTIATE_TEST_SUITE_P(
         axis_1,
@@ -237,7 +237,7 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[1]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
 INSTANTIATE_TEST_SUITE_P(
         axis_2,
@@ -253,7 +253,7 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[2]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
 INSTANTIATE_TEST_SUITE_P(
         axis_3,
@@ -269,7 +269,7 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[3]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
 INSTANTIATE_TEST_SUITE_P(
         axis_4,
@@ -285,7 +285,7 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[4]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
 INSTANTIATE_TEST_SUITE_P(
         axis_5,
@@ -301,7 +301,7 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[5]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
 // FIXME: This test fails on some driver versions. Looks like UB in impl or driver issue
 TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {

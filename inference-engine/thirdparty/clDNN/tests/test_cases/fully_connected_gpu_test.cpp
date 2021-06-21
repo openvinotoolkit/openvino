@@ -1078,7 +1078,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                             ::testing::Values(3, 32),
                             ::testing::Values(format::bfyx, format::yxfb),
                             ::testing::Values(format::any),
-                            ::testing::Values("")), );
+                            ::testing::Values("")));
 
 INSTANTIATE_TEST_SUITE_P(smoke_bfyx_batched,
                         fully_connected_random_test_f32,
@@ -1090,7 +1090,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_bfyx_batched,
                             ::testing::Values(3, 32),
                             ::testing::Values(format::bfyx),
                             ::testing::Values(format::bfyx),
-                            ::testing::Values("")), );
+                            ::testing::Values("")));
 
 TEST_P(fully_connected_random_test_f16, basic) {
     run_test();
@@ -1108,7 +1108,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_bfyx_b2,
                             ::testing::Values(3, 32),
                             ::testing::Values(format::bfyx),
                             ::testing::Values(format::any),
-                            ::testing::Values("")), );
+                            ::testing::Values("")));
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                         fully_connected_random_test_f16,
@@ -1120,7 +1120,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                             ::testing::Values(3, 32),
                             ::testing::Values(format::yxfb),
                             ::testing::Values(format::any),
-                            ::testing::Values("")), );
+                            ::testing::Values("")));
 
 INSTANTIATE_TEST_SUITE_P(smoke_bfyx_batched,
                         fully_connected_random_test_f16,
@@ -1132,7 +1132,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_bfyx_batched,
                             ::testing::Values(3, 32),
                             ::testing::Values(format::bfyx),
                             ::testing::Values(format::bfyx),
-                            ::testing::Values("")), );
+                            ::testing::Values("")));
 
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
@@ -1178,7 +1178,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                             ::testing::Values(1,3,16),
                             ::testing::Values(format::bfyx),
                             ::testing::Values(format::any),
-                            ::testing::Values("")), );
+                            ::testing::Values("")));
 
 INSTANTIATE_TEST_SUITE_P(smoke_big,
                         fully_connected_random_test_f32_3d,
@@ -1190,7 +1190,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_big,
                             ::testing::Values(17, 32),
                             ::testing::Values(format::bfyx),
                             ::testing::Values(format::any),
-                            ::testing::Values("")), );
+                            ::testing::Values("")));
 
 TEST_P(fully_connected_random_test_f16_3d, basic) {
     run_test();
@@ -1206,7 +1206,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                             ::testing::Values(1,3,16),
                             ::testing::Values(format::bfyx),
                             ::testing::Values(format::any),
-                            ::testing::Values("")), );
+                            ::testing::Values("")));
 
 TEST_P(fully_connected_random_test_i8_3d, basic) {
     run_test();
@@ -1222,7 +1222,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                             ::testing::Values(1,3,16),
                             ::testing::Values(format::bfyx),
                             ::testing::Values(format::any),
-                            ::testing::Values("")), );
+                            ::testing::Values("")));
 
 INSTANTIATE_TEST_SUITE_P(smoke_big,
                         fully_connected_random_test_i8_3d,
@@ -1234,7 +1234,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_big,
                             ::testing::Values(17, 32),
                             ::testing::Values(format::bfyx),
                             ::testing::Values(format::any),
-                            ::testing::Values("")), );
+                            ::testing::Values("")));
 
 
 struct quantization_t {

@@ -3329,7 +3329,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise_same_input,
                             .simple_params(data_types::f32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
                             .simple_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .simple_params(data_types::f32, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
-                        ), );
+                        ));
 
 // mode, input type, input sizes
 using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<std::vector<int32_t>>>;
@@ -3495,7 +3495,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test,
                                 ::testing::ValuesIn(modes),
                                 ::testing::ValuesIn(types),
                                 ::testing::ValuesIn(inputs)
-                                ), );
+                                ));
 
 class eltwise_test_6d : public eltwise_test {};
 TEST_P(eltwise_test_6d, bfwzyx) {
@@ -3577,7 +3577,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_6d,
                                 ::testing::ValuesIn(modes),
                                 ::testing::ValuesIn(types),
                                 ::testing::ValuesIn(inputs_6d)
-                                ), );
+                                ));
 
 class eltwise_test_mixed_precision : public eltwise_test {};
 TEST_P(eltwise_test_mixed_precision, fsv16) {
@@ -3658,7 +3658,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_precision,
                                 ::testing::ValuesIn(modes),
                                 ::testing::ValuesIn(mixed_types),
                                 ::testing::ValuesIn(inputs)
-                                ), );
+                                ));
 
 
 struct eltwise_layout_test_params {
@@ -3759,7 +3759,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_layout,
                             eltwise_layout_test_params{CASE_ELTWISE_TEST7},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST8},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST9},
-                        }), );
+                        }));
 
 //
 struct eltwise_random_test_params {
@@ -3949,4 +3949,4 @@ INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv4,
                             .simple_params(data_types::f16, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                             .simple_params(data_types::i8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                             .simple_params(data_types::u8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
-                        ), );
+                        ));
