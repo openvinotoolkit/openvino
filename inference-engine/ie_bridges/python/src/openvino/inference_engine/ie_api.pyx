@@ -940,7 +940,6 @@ cdef class ExecutableNetwork:
             inputs[in_.first.decode()] = input_info_ptr
         return inputs
 
-
     ## A dictionary that maps output layer names to CDataPtr objects
     @property
     def outputs(self):
@@ -1284,7 +1283,6 @@ cdef class InferRequest:
                                             "cpu_time": info.cpu_time, "execution_index": info.execution_index}
         return profile
 
-
     ## Current infer request inference time in milliseconds
     @property
     def latency(self):
@@ -1340,10 +1338,11 @@ cdef class IENetwork:
     #   caps = Function.to_capsule(func)
     #   net = IENetwork(caps)
     #   ```
-    def __cinit__(self, model = ""):
+    def __cinit__(self, model = None):
         # Try to create Inference Engine network from capsule
-        if model.__class__.__name__ == 'PyCapsule':
-            self.impl = C.IENetwork(model)
+        if model is not None:
+            with nogil:
+                self.impl = C.IENetwork(model)
         else:
             with nogil:
                 self.impl = C.IENetwork()
@@ -1368,7 +1367,6 @@ cdef class IENetwork:
             input_info_ptr._ptr_network = &self.impl
             inputs[input.first.decode()] = input_info_ptr
         return inputs
-
 
     ## A dictionary that maps output layer names to DataPtr objects
     @property
