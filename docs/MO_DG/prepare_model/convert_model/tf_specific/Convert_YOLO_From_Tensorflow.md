@@ -60,9 +60,9 @@ tf.saved_model.save(model, 'yolov4')
 
 4. Run Model-Optimizer to converter TensorFlow2\* to IR:
 
-> **NOTE:** Before you run convert be sure that you install all Model-Optimizer dependencies for TensorFlow 2\*.
+> **NOTE:** Before you run convert be sure that you install all the Model-Optimizer dependencies for TensorFlow 2\*.
 ```sh
-python mo.py --saved_model_dir models\yolov4 --output_dir models\IRs --input_shape (1,608,608,3) --model_name yolov4 
+python mo.py --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4 
 ```
 
 ## <a name="yolov3-to-ir"></a>Convert YOLOv3 Model to IR
