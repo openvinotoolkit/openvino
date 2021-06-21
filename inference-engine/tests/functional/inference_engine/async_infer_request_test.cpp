@@ -5,26 +5,12 @@
 #include <gtest/gtest.h>
 
 #include <cpp/ie_infer_request.hpp>
-#include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-IE_SUPPRESS_DEPRECATED_START
-
-TEST(InferRequestCPPTests, throwsOnUninitialized) {
-    std::shared_ptr<IInferRequest> ptr;
-    ASSERT_THROW(InferRequest req(ptr), InferenceEngine::NotAllocated);
-}
-
-TEST(InferRequestCPPTests, nothrowOnInitialized) {
-    std::shared_ptr<IInferRequest> ptr = std::make_shared<MockIInferRequest>();
-    ASSERT_NO_THROW(InferRequest req(ptr));
-}
-
-IE_SUPPRESS_DEPRECATED_END
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBlob) {
     InferRequest req;

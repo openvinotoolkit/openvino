@@ -13,17 +13,11 @@ struct mutable_data_gpu : public typed_primitive_gpu_impl<mutable_data> {
     using parent = typed_primitive_gpu_impl<mutable_data>;
     using parent::parent;
 
-public:
-    bool validate_impl(const typed_primitive_inst<mutable_data>& instance) const override {
-        bool is_primary = instance.get_network().is_primary_stream();
-
-        auto net_id = instance.get_network().get_id();
-        auto mem_net_id = instance.output_memory().get_net_id();
-
-        bool res = is_primary || net_id == mem_net_id;
-        return res;
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<mutable_data_gpu>(*this);
     }
 
+public:
     static primitive_impl* create(mutable_data_node const& arg) { return new mutable_data_gpu(arg, {}); }
 };
 

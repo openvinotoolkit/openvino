@@ -29,6 +29,22 @@ class Einsum(Op):
         return ['equation']
 
     @staticmethod
+    def is_label_elsewhere(input_subscripts: list, label_to_check: str, excluded_subscript_inds: list) -> bool:
+        """
+        Check if the given label is met in input subscripts excluding ones specified by a list of indices
+        excluded_subscript_inds
+
+        :param input_subscripts: input subscripts among which to check if the label is met
+        :param label_to_check: a label to check
+        :param excluded_subscript_inds: indices of input subscripts to be excluded for this check
+        :return: True - met, False - otherwise
+        """
+        for ind, input_subscript in enumerate(input_subscripts):
+            if ind not in excluded_subscript_inds and label_to_check in input_subscript:
+                return True
+        return False
+
+    @staticmethod
     def parse_equation(node_name: str, equation: str) -> (list, str):
         """
         Parse Einsum equation and check that its format is correct to make sure that
@@ -70,7 +86,12 @@ class Einsum(Op):
                     "The output subscript of Einsum node {} must contain ellipsis".format(node_name)
         elif len(splitted_equation) == 1:
             # recover output subscript in case implicit mode
-            output_subscript = ''.join(input_subscripts_list)
+            output_subscript = ""
+            for ind, input_subscript in enumerate(input_subscripts_list):
+                labels = Einsum.extract_subscript_labels(node_name, input_subscript)
+                for label in labels:
+                    if Einsum.is_label_elsewhere(input_subscripts_list, label, [ind]) is False:
+                        output_subscript += label
             output_subscript = ''.join(sorted(list(set(output_subscript) - {'.'})))
             if is_ellipsis_met:
                 output_subscript = "..." + output_subscript

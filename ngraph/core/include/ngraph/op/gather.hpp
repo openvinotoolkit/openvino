@@ -61,5 +61,32 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
             };
         } // namespace v7
+
+        namespace v8
+        {
+            /// \brief Gather slices from axis of params according to indices
+            class NGRAPH_API Gather : public op::util::GatherBase
+            {
+            public:
+                NGRAPH_RTTI_DECLARATION;
+                Gather() = default;
+
+                /// \param data The tensor from which slices are gathered
+                /// \param indices Tensor with indexes to gather
+                /// \param axis The tensor is a dimension index to gather data from
+                /// \param batch_dims The number of batch dimension in data and indices tensors.
+                Gather(const Output<Node>& data,
+                       const Output<Node>& indices,
+                       const Output<Node>& axis,
+                       const int64_t batch_dims = 0);
+
+                bool visit_attributes(AttributeVisitor& visitor) override;
+                void validate_and_infer_types() override;
+                int64_t get_batch_dims() const;
+
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+            };
+        } // namespace v8
     }     // namespace op
 } // namespace ngraph

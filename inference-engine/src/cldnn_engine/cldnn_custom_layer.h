@@ -10,7 +10,7 @@
 #include <map>
 #include <ie_common.h>
 #include "pugixml.hpp"
-#include "api/tensor.hpp"
+#include "cldnn/runtime/tensor.hpp"
 
 namespace CLDNNPlugin {
 
