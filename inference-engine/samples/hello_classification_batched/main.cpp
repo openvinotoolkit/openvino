@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
 
         // ------------------------------ Read image names
         // -----------------------------------------------------
-        size_t batched_blob_size_limit = 1;
+        size_t batched_blob_size_limit = 2;
         auto image_names = readInputFileNames(input_image_path, batched_blob_size_limit);
 
         if (image_names.empty()) {

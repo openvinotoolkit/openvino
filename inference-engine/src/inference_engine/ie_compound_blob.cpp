@@ -199,7 +199,7 @@ TensorDesc verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blo
 TensorDesc getBlobTensorDesc(const Blob::Ptr& blob) {
     if (auto nv12 = dynamic_cast<NV12Blob*>(blob.get())) {
         auto yDesc = nv12->y()->getTensorDesc();
-        yDesc.getDims()[1] += 2;
+        yDesc.getDims()[1] += 2;  /* -S- Why 2? */
         return yDesc;
     }
 
@@ -224,7 +224,7 @@ TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
         })) {
         IE_THROW() << "Cannot create a compound blob from nullptr Blob objects";
     }
-
+    //-S- Invalid descr?
     const auto subBlobDesc = getBlobTensorDesc(blobs[0]);
 
     if (std::any_of(blobs.begin(), blobs.end(),
