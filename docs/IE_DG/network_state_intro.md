@@ -213,6 +213,11 @@ Decsriptions can be found in [Samples Overview](./Samples_Overview.md)
 
 If the original framework does not have a special API for working with states, after importing the model, OpenVINO representation will not contain Assign/ReadValue layers. For example, if the original ONNX model contains RNN operations, IR will contain TensorIterator operations and the values will be obtained only after execution of the whole TensorIterator primitive. Intermediate values from each iteration will not be available. To enable you to work with these intermediate values of each iteration and receive them with a low latency after each infer request, special LowLatency and LowLatency2 transformations were introduced.
 
+**The differences between LowLatency and LowLatency2**:
+
+* Unrolling of TensorIterator/Loop operations became a part of LowLatency2, not a separate transformation. After invoking the transformation, the network can be serialized and inferred without re-invoking the transformation.
+* Added support for TensorIterator and Loop operations with multiple iterations inside. TensorIterator/Loop will not be unrolled in this case.
+* Resolved the ‘Parameters connected directly to ReadValues’ limitation. To apply the previous version of the transformation in this case, additional manual manipulations were required, now the case is processed automatically.
 ### How to get TensorIterator/Loop operaions from different frameworks via ModelOptimizer.
 
 **ONNX and frameworks supported via ONNX format:** *LSTM, RNN, GRU* original layers are converted to the TensorIterator operation. TensorIterator body contains LSTM/RNN/GRU Cell. Peepholes, InputForget modifications are not supported, sequence_lengths optional input is supported.
@@ -229,14 +234,14 @@ If the original framework does not have a special API for working with states, a
 
 ## LowLatencу2
 
-LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) by adding the ability to work with the state, inserting the Assign/ReadValue layers as it is shown in the picture below.
+LowLatency2 transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) by adding the ability to work with the state, inserting the Assign/ReadValue layers as it is shown in the picture below.
 
 #### Example of applying LowLatency2 transformation:
 ![applying_low_latency_2_example](./img/applying_low_latency_2.png)
 
 After applying the transformation, ReadValue operations can receive other operations as an input, as shown in the picture above. These inputs should set the initial value for initialization of ReadValue operations. However, such initialization is not supported in the current State API implementation. Input values are ignored and the initial values for the ReadValue operations are set to zeros unless otherwise specified by the user via [State API](#openvino-state-api).
 
-### Steps to apply LowLatency Transformation
+### Steps to apply LowLatency2 Transformation
 
 1. Get CNNNetwork. Either way is acceptable:
 
@@ -258,7 +263,7 @@ cnnNetwork.reshape({"X" : {1, 1, 16});
 ```
 **Unrolling**: If the LowLatency2 transformation is applied to a network containing TensorIterator/Loop nodes with exactly one iteration inside, these nodes are unrolled; otherwise, the nodes remain as they are. Please see [the picture](#example-of-applying-lowlatency2-transformation) for more details.
 
-3. Apply LowLatency transformation
+3. Apply LowLatency2 transformation
 ```cpp
 #include "ie_transformations.hpp"
 
@@ -288,7 +293,7 @@ InferenceEngine::lowLatency2(cnnNetwork, false);
 	auto state_name = tensor_iterator_name + "//" + body_parameter_name + "//" + "variable_" + idx;
 
 	InferenceEngine::CNNNetwork cnnNetwork = InferenceEngine::CNNNetwork{function};
-	InferenceEngine::LowLatency(cnnNetwork);
+	InferenceEngine::lowLatency2(cnnNetwork);
 
 	InferenceEngine::ExecutableNetwork executableNetwork = core->LoadNetwork(/*cnnNetwork, targetDevice, configuration*/);
 
