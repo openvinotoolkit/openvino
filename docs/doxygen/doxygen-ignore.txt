@@ -22,6 +22,8 @@ inference-engine/include/vpu/vpu_config.hpp
 inference-engine/include/vpu/vpu_plugin_config.hpp
 openvino/docs/benchmarks/performance_int8_vs_fp32.md
 openvino/docs/get_started/get_started_macos.md
+openvino/docs/optimization_guide/dldt_optimization_guide.md
+openvino/docs/IE_DG/ShapeInference.md
 inference-engine/include/details/ie_so_pointer.hpp
 inference-engine/include/ie_compound_blob.h
 inference-engine/include/ie_data.h
