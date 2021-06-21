@@ -6,6 +6,7 @@
 
 #include "dnn_types.h"
 #include <cstdint>
+#include <cpp/ie_cnn_network.h>
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -94,5 +95,8 @@ public:
         const uint32_t strideH, const uint32_t strideW) const;
 };
 } // namespace Cnn2D
+
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
+
 } // namespace GNALimitations
 } // namespace GNAPluginNS
