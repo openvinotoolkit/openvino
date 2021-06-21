@@ -9,13 +9,10 @@
 using namespace ngraph;
 using namespace std;
 
-descriptor::Tensor::Tensor(const element::Type& element_type,
-                           const PartialShape& pshape,
-                           const std::string& name)
+descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape)
     : m_element_type(element_type)
     , m_shape(pshape.is_static() ? pshape.to_shape() : Shape{})
     , m_partial_shape(pshape)
-    , m_name(name)
 {
 }
 
@@ -101,18 +98,6 @@ size_t descriptor::Tensor::size() const
     return shape_size(get_shape()) * m_element_type.size();
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-void descriptor::Tensor::set_name(const string& name)
-{
-    m_name = name;
-}
-
-const std::string& descriptor::Tensor::get_name() const
-{
-    return m_name;
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 const std::unordered_set<std::string>& descriptor::Tensor::get_names() const
 {
     return m_names;
@@ -132,10 +117,6 @@ ostream& operator<<(ostream& out, const descriptor::Tensor& tensor)
             names += ", ";
         names += name;
     }
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    if (names.empty())
-        names = tensor.get_name();
-    NGRAPH_SUPPRESS_DEPRECATED_END
     out << "Tensor(" << names << ")";
     return out;
 }

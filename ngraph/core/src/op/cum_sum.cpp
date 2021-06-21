@@ -68,8 +68,3 @@ shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_a
     check_new_args_count(this, new_args);
     return make_shared<op::CumSum>(new_args.at(0), new_args.at(1), m_exclusive, m_reverse);
 }
-
-shared_ptr<Node> op::v0::CumSum::get_default_value() const
-{
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}

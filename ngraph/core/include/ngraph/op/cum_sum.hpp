@@ -90,10 +90,6 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
 
-                /// \return The default value for CumSum.
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                virtual std::shared_ptr<Node> get_default_value() const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
                 bool is_exclusive() const { return m_exclusive; }
                 bool is_reverse() const { return m_reverse; }
 

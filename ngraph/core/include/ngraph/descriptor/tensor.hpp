@@ -30,18 +30,11 @@ namespace ngraph
             Tensor& operator=(const Tensor&) = delete;
 
         public:
-            Tensor(const element::Type& element_type,
-                   const PartialShape& pshape,
-                   const std::string& name);
+            Tensor(const element::Type& element_type, const PartialShape& pshape);
             Tensor(const element::Type& element_type,
                    const PartialShape& pshape,
                    Node* node,
                    size_t node_output_number);
-
-            NGRAPH_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")
-            const std::string& get_name() const;
-            NGRAPH_DEPRECATED("set_name() is deprecated! Please use set_names() instead.")
-            void set_name(const std::string& name);
 
             const std::unordered_set<std::string>& get_names() const;
             void set_names(const std::unordered_set<std::string>& names);

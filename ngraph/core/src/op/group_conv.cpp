@@ -23,11 +23,6 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v1::GroupConvolution, "GroupConvolution", 1);
 
-shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const
-{
-    return op::Constant::create(get_element_type(), get_shape(), {0});
-}
-
 op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
                                            const Output<Node>& filters,
                                            const Strides& strides,

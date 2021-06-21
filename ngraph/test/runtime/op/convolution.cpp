@@ -180,10 +180,6 @@ shared_ptr<Node> op::v0::Convolution::clone_with_new_inputs(const OutputVector& 
 }
 
 constexpr NodeTypeInfo op::v0::ConvolutionBackpropData::type_info;
-shared_ptr<Node> op::v0::Convolution::get_default_value() const
-{
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}
 
 op::v0::ConvolutionBackpropData::ConvolutionBackpropData(
     const Shape& data_batch_shape,

@@ -228,8 +228,3 @@ shared_ptr<Node> op::v0::AvgPool::clone_with_new_inputs(const OutputVector& new_
                                     m_pad_type,
                                     m_ceil_mode);
 }
-
-shared_ptr<Node> op::v0::AvgPool::get_default_value() const
-{
-    return Constant::create(get_element_type(), get_shape(), {0});
-}

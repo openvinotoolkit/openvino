@@ -234,8 +234,3 @@ shared_ptr<Node> op::v1::AvgPool::clone_with_new_inputs(const OutputVector& new_
                                     m_rounding_type,
                                     m_auto_pad);
 }
-
-shared_ptr<Node> op::v1::AvgPool::get_default_value() const
-{
-    return op::Constant::create(get_element_type(), get_shape(), {0});
-}

@@ -24,11 +24,6 @@ op::v1::ReduceProd::ReduceProd(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v1::ReduceProd::get_default_value() const
-{
-    return ngraph::make_constant_from_string("1", get_element_type(), get_shape());
-}
-
 shared_ptr<Node> op::v1::ReduceProd::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceProd_clone_with_new_inputs);

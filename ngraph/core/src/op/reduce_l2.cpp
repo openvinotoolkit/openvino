@@ -24,11 +24,6 @@ op::v4::ReduceL2::ReduceL2(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v4::ReduceL2::get_default_value() const
-{
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}
-
 shared_ptr<Node> op::v4::ReduceL2::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v4_ReduceL2_clone_with_new_inputs);

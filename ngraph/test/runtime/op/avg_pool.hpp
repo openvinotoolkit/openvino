@@ -145,10 +145,6 @@ namespace ngraph
                 void set_pad_type(const PadType& pad_type);
                 bool get_ceil_mode() const;
                 void set_ceil_mode(bool ceil_mode);
-                /// \return The default value for AvgPool.
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                virtual std::shared_ptr<Node> get_default_value() const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
 
             protected:
                 Shape m_window_shape;

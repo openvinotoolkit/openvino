@@ -345,11 +345,6 @@ namespace ngraph
         descriptor::Tensor& get_output_tensor(size_t i) const;
         descriptor::Tensor& get_input_tensor(size_t i) const;
 
-        /// Returns the tensor name for output i
-        NGRAPH_DEPRECATED(
-            "The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
-        const std::string& get_output_tensor_name(size_t i) const;
-
         std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
         /// Returns the number of inputs for the op
@@ -366,11 +361,6 @@ namespace ngraph
         /// Returns the partial shape of input i
         // TODO: deprecate in favor of node->get_input_partial_shape(i)
         const PartialShape& get_input_partial_shape(size_t i) const;
-
-        /// Returns the tensor name for input i
-        NGRAPH_DEPRECATED(
-            "The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
-        const std::string& get_input_tensor_name(size_t i) const;
 
         std::unordered_set<descriptor::Tensor*> liveness_new_list;
         std::unordered_set<descriptor::Tensor*> liveness_free_list;
@@ -435,8 +425,6 @@ namespace ngraph
         /// \return Version of this node
         virtual size_t get_version() const { return get_type_info().version; }
 
-        NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
-        virtual std::shared_ptr<Node> get_default_value() const { return nullptr; }
         /// Use instance ids for comparison instead of memory addresses to improve determinism
         bool operator<(const Node& other) const { return m_instance_id < other.m_instance_id; }
         /// \return A vector containing a handle for each of this node's inputs, in order.

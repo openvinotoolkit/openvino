@@ -303,7 +303,7 @@ runtime::dynamic::DynamicTensor::DynamicTensor(
     const element::Type& element_type,
     const PartialShape& shape,
     const std::shared_ptr<runtime::Backend>& wrapped_backend)
-    : Tensor(make_shared<descriptor::Tensor>(element_type, shape, "wrapped_dynamic"))
+    : Tensor(make_shared<descriptor::Tensor>(element_type, shape))
     , m_wrapped_tensor(nullptr)
     , m_wrapped_backend(wrapped_backend)
 {

@@ -77,13 +77,8 @@ namespace ngraph
                           const Output<Node>& reduction_axes,
                           bool keep_dims = false);
 
-                virtual std::shared_ptr<Node>
+                std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                /// \return The default value for Sum.
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                virtual std::shared_ptr<Node> get_default_value() const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;

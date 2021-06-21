@@ -171,11 +171,6 @@ shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_
         new_args.at(0), m_strides, m_pads_begin, m_pads_end, m_kernel, m_rounding_type, m_auto_pad);
 }
 
-shared_ptr<Node> op::v1::MaxPool::get_default_value() const
-{
-    return op::Constant::create(get_element_type(), get_shape(), {0});
-}
-
 namespace maxpool
 {
     template <element::Type_t ET>
