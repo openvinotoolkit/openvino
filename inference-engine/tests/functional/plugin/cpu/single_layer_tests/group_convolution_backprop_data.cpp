@@ -462,79 +462,79 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_1x1_2D_I8, GroupDeconvolutionLayerCPUT
                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupDeconvolution params I8 (3D) ============= */
-const std::vector<SizeVector> kernels3di8 = { {3, 3, 3} };
-const std::vector<SizeVector> strides3di8 = { {1, 1, 1}, {2, 2, 2} };
-const std::vector<std::vector<ptrdiff_t>> padBegins3di8 = { {0, 0, 0}, {1, 1, 1} };
-const std::vector<std::vector<ptrdiff_t>> padEnds3di8 = { {0, 0, 0}, {1, 1, 1} };
-const std::vector<SizeVector> dilations3di8 = { {1, 1, 1} };
-
-const auto groupDeconvParams_3D_I8 = ::testing::Combine(
-        ::testing::ValuesIn(kernels3di8),
-        ::testing::ValuesIn(strides3di8),
-        ::testing::ValuesIn(padBegins3di8),
-        ::testing::ValuesIn(padEnds3di8),
-        ::testing::ValuesIn(dilations3di8),
-        ::testing::ValuesIn(numOutChannels_Blocked),
-        ::testing::ValuesIn(numGroups_Blocked),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
-);
-
-const std::vector<CPUSpecificParams> CPUParams_3D_I8 = {
-        conv_sse42_3D_nspc,
-        conv_avx2_3D_nspc,
-        conv_avx512_3D_nspc
-};
-
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_I8, GroupDeconvolutionLayerCPUTest,
-                        ::testing::Combine(
-                                ::testing::Combine(
-                                        groupDeconvParams_3D_I8,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(Precision::U8, Precision::I8),
-                                        ::testing::Values(Precision::FP32/*, Precision::I32*/),
-                                        ::testing::Values(Layout::ANY),
-                                        ::testing::Values(Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7, 7 })),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D_I8)),
-                                ::testing::ValuesIn(fusingParamsSetI8),
-                                ::testing::Values(cpuEmptyPluginConfig)),
-                        GroupDeconvolutionLayerCPUTest::getTestCaseName);
+//const std::vector<SizeVector> kernels3di8 = { {3, 3, 3} };
+//const std::vector<SizeVector> strides3di8 = { {1, 1, 1}, {2, 2, 2} };
+//const std::vector<std::vector<ptrdiff_t>> padBegins3di8 = { {0, 0, 0}, {1, 1, 1} };
+//const std::vector<std::vector<ptrdiff_t>> padEnds3di8 = { {0, 0, 0}, {1, 1, 1} };
+//const std::vector<SizeVector> dilations3di8 = { {1, 1, 1} };
+//
+//const auto groupDeconvParams_3D_I8 = ::testing::Combine(
+//        ::testing::ValuesIn(kernels3di8),
+//        ::testing::ValuesIn(strides3di8),
+//        ::testing::ValuesIn(padBegins3di8),
+//        ::testing::ValuesIn(padEnds3di8),
+//        ::testing::ValuesIn(dilations3di8),
+//        ::testing::ValuesIn(numOutChannels_Blocked),
+//        ::testing::ValuesIn(numGroups_Blocked),
+//        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+//);
+//
+//const std::vector<CPUSpecificParams> CPUParams_3D_I8 = {
+//        conv_sse42_3D_nspc,
+//        conv_avx2_3D_nspc,
+//        conv_avx512_3D_nspc
+//};
+//
+//INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_I8, GroupDeconvolutionLayerCPUTest,
+//                        ::testing::Combine(
+//                                ::testing::Combine(
+//                                        groupDeconvParams_3D_I8,
+//                                        ::testing::Values(Precision::FP32),
+//                                        ::testing::Values(Precision::U8, Precision::I8),
+//                                        ::testing::Values(Precision::FP32/*, Precision::I32*/),
+//                                        ::testing::Values(Layout::ANY),
+//                                        ::testing::Values(Layout::ANY),
+//                                        ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7, 7 })),
+//                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D_I8)),
+//                                ::testing::ValuesIn(fusingParamsSetI8),
+//                                ::testing::Values(cpuEmptyPluginConfig)),
+//                        GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupDeconvolution params 1x1 I8 (3D) ============= */
-const auto groupDeconvParams_1x1_3D_I8 = ::testing::Combine(
-        ::testing::Values(SizeVector({1, 1, 1})),
-        ::testing::Values(SizeVector({1, 1, 1})),
-        ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
-        ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
-        ::testing::Values(SizeVector({1, 1, 1})),
-        ::testing::ValuesIn(numOutChannels_Blocked),
-        ::testing::ValuesIn(numGroups_Blocked),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
-);
-
-const std::vector<CPUSpecificParams> CPUParams_3D_1x1_I8 = {
-        // not supported 1x1 grouped conv for avx2/sse41 isa
-        // conv_sse42_3D_1x1_I8,
-        // conv_avx2_3D_1x1_I8,
-        conv_avx512_3D_1x1_nspc
-};
-
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_1x1_3D_I8, GroupDeconvolutionLayerCPUTest,
-                        ::testing::Combine(
-                                ::testing::Combine(
-                                        groupDeconvParams_1x1_3D_I8,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(Precision::U8, Precision::I8),
-                                        ::testing::Values(Precision::FP32/*, Precision::I32*/),
-                                        ::testing::Values(Layout::ANY),
-                                        ::testing::Values(Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7, 7 })),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D_1x1_I8)),
-                                ::testing::ValuesIn(fusingParamsSetI8),
-                                ::testing::Values(cpuEmptyPluginConfig)),
-                        GroupDeconvolutionLayerCPUTest::getTestCaseName);
+//const auto groupDeconvParams_1x1_3D_I8 = ::testing::Combine(
+//        ::testing::Values(SizeVector({1, 1, 1})),
+//        ::testing::Values(SizeVector({1, 1, 1})),
+//        ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
+//        ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
+//        ::testing::Values(SizeVector({1, 1, 1})),
+//        ::testing::ValuesIn(numOutChannels_Blocked),
+//        ::testing::ValuesIn(numGroups_Blocked),
+//        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+//);
+//
+//const std::vector<CPUSpecificParams> CPUParams_3D_1x1_I8 = {
+//        // not supported 1x1 grouped conv for avx2/sse41 isa
+//        // conv_sse42_3D_1x1_I8,
+//        // conv_avx2_3D_1x1_I8,
+//        conv_avx512_3D_1x1_nspc
+//};
+//
+//INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_1x1_3D_I8, GroupDeconvolutionLayerCPUTest,
+//                        ::testing::Combine(
+//                                ::testing::Combine(
+//                                        groupDeconvParams_1x1_3D_I8,
+//                                        ::testing::Values(Precision::FP32),
+//                                        ::testing::Values(Precision::U8, Precision::I8),
+//                                        ::testing::Values(Precision::FP32/*, Precision::I32*/),
+//                                        ::testing::Values(Layout::ANY),
+//                                        ::testing::Values(Layout::ANY),
+//                                        ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7, 7 })),
+//                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D_1x1_I8)),
+//                                ::testing::ValuesIn(fusingParamsSetI8),
+//                                ::testing::Values(cpuEmptyPluginConfig)),
+//                        GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupDeconvolution params I8 (DW 2D) ============= */
 const auto groupDeconvParams_DW_2D_I8 = ::testing::Combine(
