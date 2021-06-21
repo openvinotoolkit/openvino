@@ -144,8 +144,21 @@ cd darkflow
 
 To convert YOLOv1 or YOLOv2 model to TensorFlow, go to the root directory of the cloned DarkFlow repository and run the following command:<br>
 ```sh
-python3 ./flow --model <path_to_model>/<model_name>.cfg --load <path_to_model>/<model_name>.weights --savepb
+python3 flow --model <path_to_model>/<model_name>.cfg --load <path_to_model>/<model_name>.weights --labels <path_to_dataset_labels_file> --savepb
 ```
+
+For Yolo V1 `--labels` argument can be skipped:
+```sh
+python3 flow --model yolov1.cfg --load yolov1.weights --savepb
+```
+
+For Yolo V2 with VOC dataset additional changes in the original exporting script are required. 
+In the file`darkflow/utils/loader.py` change line 121 from `self.offset = 16` to `self.offset = 20` 
+And then run:
+```sh
+python3 flow --model yolov2-voc.cfg --load yolov2-voc.weights --labels voc-labels.txt --savepb
+```
+voc-labels can be found by the following link https://raw.githubusercontent.com/szaza/android-yolo-v2/master/assets/tiny-yolo-voc-labels.txt
 
 If the model was successfully converted, you can find the `<model_name>.meta` and `<model_name>.pb` files
 in `built_graph`  subdirectory of the cloned DarkFlow repository.
