@@ -46,6 +46,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*QueryNetworkHETEROWithMULTINoThrow_V10.*)",
         R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
         // TODO: Issue CVS-58162
-        R"(.*HoldersTestOnImportedNetwork\.CreateRequestWithCoreRemoved.*)"
+        R"(.*HoldersTestOnImportedNetwork.*CreateRequestWithCoreRemoved.*)"
     };
 }
