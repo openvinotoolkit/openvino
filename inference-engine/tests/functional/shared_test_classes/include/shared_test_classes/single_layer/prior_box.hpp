@@ -27,7 +27,7 @@
 #include "ngraph_functions/builders.hpp"
 
 namespace LayerTestDefinitions {
-typedef std::tuple<
+using priorBoxSpecificParams =  std::tuple<
         std::vector<float>, // min_size
         std::vector<float>, // max_size
         std::vector<float>, // aspect_ratio
@@ -39,7 +39,7 @@ typedef std::tuple<
         float,              // step
         float,              // offset
         std::vector<float>, // variance
-        bool> priorBoxSpecificParams; // scale_all_sizes
+        bool>;              // scale_all_sizes
 
 typedef std::tuple<
         priorBoxSpecificParams,
