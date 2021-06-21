@@ -66,7 +66,31 @@ void Edge::drop() {
     _drop_from(getChild()->parentEdges);
 }
 
-bool Edge::enforceReorder() {
+/**
+ * Collect all nodes that really read the memory. Nodes with inPlace inputs are skipped since they do not read the memory.
+ *
+ * @param vector of all consumer nodes
+ */
+void MKLDNNEdge::collectConsumers(std::vector<MKLDNNNodePtr>& result) const {
+    if (this->inPlace(LOOK_DOWN)) {
+        if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
+            auto peerOutputNum = this->getOutputNum();
+            auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace;
+            auto& vecChildEdges = this->getChild()->getChildEdgesAtPort(peerInPlacePort);
+            for (auto childEdge : vecChildEdges) {
+                childEdge->collectConsumers(result);
+            }
+        }
+    } else {
+        result.push_back(this->getChild());
+    }
+}
+
+bool MKLDNNEdge::needReorder() {
+    if (!getInputDesc().isCompatible(getOutputDesc())) {
+        return true;
+    }
+
     bool canBeInPlaceConflicts = false;
     auto parentNode = getParent();
     auto parentSPD = parentNode->getSelectedPrimitiveDescriptor();
@@ -98,22 +122,6 @@ bool Edge::enforceReorder() {
         return count;
     };
 
-    std::function<void(const MKLDNNEdge& edge, std::vector<MKLDNNNodePtr>& result)> collectConsumers;
-    collectConsumers = [&collectConsumers](const MKLDNNEdge& edge, std::vector<MKLDNNNodePtr>& result) {
-        if (edge.inPlace(LOOK_DOWN)) {
-            if (auto peerChildSPD = edge.getChild()->getSelectedPrimitiveDescriptor()) {
-                auto peerOutputNum = edge.getOutputNum();
-                auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace;
-                auto& vecChildEdges = edge.getChild()->getChildEdgesAtPort(peerInPlacePort);
-                for (auto childEdge : vecChildEdges) {
-                    collectConsumers(*childEdge, result);
-                }
-            }
-        } else {
-            result.push_back(edge.getChild());
-        }
-    };
-
     bool isInPlace = inPlace();
     int inNumber = getInputNum();
     const auto portChildEdges = parentNode->getChildEdgesAtPort(inNumber);
@@ -124,7 +132,7 @@ bool Edge::enforceReorder() {
                 if (pEdgePeer.get() == this)
                     continue;
                 std::vector<MKLDNNNodePtr> vecConsumers;
-                collectConsumers(*pEdgePeer, vecConsumers);
+                pEdgePeer->collectConsumers(vecConsumers);
 
                 for (auto node : vecConsumers) {
                     if (node->getExecIndex() >= execIndex) {
