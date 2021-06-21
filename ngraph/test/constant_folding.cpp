@@ -300,6 +300,7 @@ TEST(constant_folding, constant_unary_binary)
     auto g = make_shared<op::Constant>(element::i32, Shape{2}, values_g);
     auto h = make_shared<op::Constant>(element::boolean, Shape{2, 2}, values_h);
     auto i = make_shared<op::Constant>(element::boolean, Shape{2}, values_i);
+    auto doubles = make_shared<op::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 9.0});
 
     auto add = make_shared<op::v1::Add>(a, b);
     auto sub = make_shared<op::v1::Subtract>(a, b);
@@ -328,6 +329,7 @@ TEST(constant_folding, constant_unary_binary)
     auto logical_or_autob_numpy =
         make_shared<op::v1::LogicalOr>(h, i, op::AutoBroadcastType::NUMPY);
     auto logical_xor_autob_numpy = make_shared<op::Xor>(h, i, op::AutoBroadcastType::NUMPY);
+    auto doubles_sqrt = make_shared<op::Sqrt>(doubles);
 
     auto neg_sqrt = make_shared<op::Sqrt>(c);
 
@@ -355,7 +357,8 @@ TEST(constant_folding, constant_unary_binary)
                                                  less_autob_numpy,
                                                  less_eq_autob_numpy,
                                                  logical_or_autob_numpy,
-                                                 logical_xor_autob_numpy},
+                                                 logical_xor_autob_numpy,
+                                                 doubles_sqrt},
                                       ParameterVector{});
     auto func_error = make_shared<Function>(NodeVector{neg_sqrt}, ParameterVector{});
 
@@ -388,6 +391,7 @@ TEST(constant_folding, constant_unary_binary)
     vector<char> less_eq_autob_numpy_expected{1, 1, 0, 1};
     vector<char> logical_or_autob_numpy_expected{0, 1, 1, 1};
     vector<char> logical_xor_autob_numpy_expected{0, 1, 1, 0};
+    vector<double> doubles_sqrt_expected{2.0, 3.0};
 
     ASSERT_EQ(get_result_constant<int>(func, 0), add_expected);
     ASSERT_EQ(get_result_constant<int>(func, 1), sub_expected);
@@ -414,6 +418,7 @@ TEST(constant_folding, constant_unary_binary)
     ASSERT_EQ(get_result_constant<char>(func, 22), less_eq_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<char>(func, 23), logical_or_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<char>(func, 24), logical_xor_autob_numpy_expected);
+    ASSERT_EQ(get_result_constant<double>(func, 25), doubles_sqrt_expected);
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
@@ -457,6 +462,16 @@ TEST(constant_folding, const_convert)
     {
         vector<float> in{1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f};
         vector<bool> expected{true, false, true, false, true, false, true};
+        test_const_convert(in, expected);
+    }
+    {
+        vector<int64_t> in{1, 2, 3, 4, 5};
+        vector<double> expected{1.0, 2.0, 3.0, 4.0, 5.0};
+        test_const_convert(in, expected);
+    }
+    {
+        vector<double> in{1.2, 2.1, 3.3, 4.45, 5.02};
+        vector<int64_t> expected{1, 2, 3, 4, 5};
         test_const_convert(in, expected);
     }
 }
