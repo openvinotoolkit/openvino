@@ -51,6 +51,7 @@ namespace negativeop
         {
             NGRAPH_TYPE_CASE(evaluate_negative, i32, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_negative, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_negative, bf16, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_negative, f16, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_negative, f32, arg0, out, count);
         default: rc = false; break;
