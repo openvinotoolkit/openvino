@@ -35,7 +35,7 @@ public:
         intel_gna_proc_t            nAccelerationType));
 
 
-    MOCK_METHOD(GNAPropagateForward, intel_gna_status_t(
+    MOCK_METHOD(intel_gna_status_t, GNAPropagateForward, (
         intel_gna_handle_t          nGNADevice,            // handle to GNA accelerator
         const intel_nnet_type_t*    pNeuralNetwork,
         const uint32_t*             pActiveIndices,
