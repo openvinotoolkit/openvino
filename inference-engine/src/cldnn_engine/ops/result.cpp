@@ -18,19 +18,30 @@ void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& o
     p.ValidateInputs(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    auto inputID = op->get_input_source_output(0).get_tensor().get_name();
-    NGRAPH_SUPPRESS_DEPRECATED_END
-    if (inputID.empty()) {
-        inputID = prev->get_friendly_name();
-        if (prev->get_output_size() > 1) {
-            inputID += "." + std::to_string(op->get_input_source_output(0).get_index());
+    auto names = op->get_input_source_output(0).get_tensor().get_names();
+    std::string inputID;
+    auto legacy_name = prev->get_friendly_name();
+    if (prev->get_output_size() > 1) {
+        legacy_name += "." + std::to_string(op->get_input_source_output(0).get_index());
+    }
+    names.insert(legacy_name);
+    for (const auto& name : names) {
+        if (networkOutputs.find(name) != networkOutputs.end()) {
+            inputID = name;
+            break;
         }
     }
-    auto it = networkOutputs.find(inputID);
-    if (it == networkOutputs.end()) {
-        IE_THROW() << "Can't find output " << inputID << " in OutputsDataMap";
+    if (inputID.empty()) {
+        std::string names_message;
+        for (const auto& name : names) {
+            if (!names_message.empty())
+                names_message += ", ";
+            names_message += name;
+        }
+
+        IE_THROW() << "Can't find output (with possible names: " << names_message << ") in OutputsDataMap";
     }
+    auto it = networkOutputs.find(inputID);
     std::string originalOutName = it->first;
     DataPtr outputData = it->second;
 
