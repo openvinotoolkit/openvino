@@ -57,7 +57,7 @@ public:
 
 TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, Single) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddFCLayer();
@@ -67,11 +67,11 @@ TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, Single) {
 
 TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, Single_NC) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     if (p.in.h != 1 || p.in.w != 1) {
-        SKIP() << "Non NC case";
+        GTEST_SKIP() << "Non NC case";
     }
 
     in_tensor.clear();
@@ -84,7 +84,7 @@ TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, Single_NC) {
 
 TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, WithReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddFCLayer();
@@ -95,7 +95,7 @@ TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, WithReLU) {
 
 TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, MultipleInfer) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddFCLayer();

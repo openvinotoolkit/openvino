@@ -58,7 +58,7 @@ public:
 
     void RunAsyncTest(int numIters = 20) {
         if (!CheckMyriadX()) {
-            SKIP() << "Non-MyriadX device";
+            GTEST_SKIP() << "Non-MyriadX device";
         }
 
         auto fnPtr = ngraph::builder::subgraph::makeSplitMultiConvConcat();

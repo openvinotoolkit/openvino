@@ -70,7 +70,7 @@ public:
 
     void RunSingleTest(const std::string& poolMethod, float tolerance) {
         if (!CheckMyriadX()) {
-            SKIP() << "Non-MyriadX device";
+            GTEST_SKIP() << "Non-MyriadX device";
         }
 
         AddPoolingLayer(poolMethod);
@@ -80,7 +80,7 @@ public:
 
     void RunWithReLUTest(const std::string& poolMethod, float tolerance) {
         if (!CheckMyriadX()) {
-            SKIP() << "Non-MyriadX device";
+            GTEST_SKIP() << "Non-MyriadX device";
         }
 
         AddPoolingLayer(poolMethod);
@@ -91,7 +91,7 @@ public:
 
     void RunMultipleInferTest(const std::string& poolMethod) {
         if (!CheckMyriadX()) {
-            SKIP() << "Non-MyriadX device";
+            GTEST_SKIP() << "Non-MyriadX device";
         }
 
         AddPoolingLayer(poolMethod);
@@ -108,11 +108,11 @@ TEST_P(MyriadX_HW_Pooling_Tests_nightly, Avg_Single) {
     // this case is not supported by HW
     if (kernel.x == 3 && kernel.y == 3 &&
         stride.x == 2 && stride.y == 2) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
     if ((kernel.x % 2 == 0 || kernel.y % 2 == 0) &&
         (in_dims.w % 2 == 1 || in_dims.h % 2 == 1)) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
 
     RunSingleTest("avg", 0.0015f);
@@ -126,11 +126,11 @@ TEST_P(MyriadX_HW_Pooling_Tests_nightly, Avg_WithReLU) {
     // this case is not supported by HW
     if (kernel.x == 3 && kernel.y == 3 &&
         stride.x == 2 && stride.y == 2) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
     if ((kernel.x % 2 == 0 || kernel.y % 2 == 0) &&
         (in_dims.w % 2 == 1 || in_dims.h % 2 == 1)) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
 
     RunWithReLUTest("avg", 0.0015f);
@@ -144,11 +144,11 @@ TEST_P(MyriadX_HW_Pooling_Tests_nightly, Avg_MultipleInfer) {
     // this case is not supported by HW
     if (kernel.x == 3 && kernel.y == 3 &&
         stride.x == 2 && stride.y == 2) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
     if ((kernel.x % 2 == 0 || kernel.y % 2 == 0) &&
         (in_dims.w % 2 == 1 || in_dims.h % 2 == 1)) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
 
     RunMultipleInferTest("avg");
@@ -368,7 +368,7 @@ public:
 
 TEST_P(MyriadX_HW_PoolTF_Tests_nightly, Single) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddPoolingLayer();

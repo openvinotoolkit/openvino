@@ -92,7 +92,7 @@ TEST_P(DSR_BinaryElementwiseBothDSR, CompareWithReference) {
     const auto& eltwiseType = std::get<2>(GetParam());
 
     if (doNotSupportI32.count(eltwiseType) && inDataType == ngraph::element::i32) {
-        SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
+        GTEST_SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
     }
 
     Run();
@@ -117,7 +117,7 @@ TEST_P(DSR_BinaryElementwiseSingleDSR, CompareWithReference) {
     const auto& eltwiseType = std::get<2>(GetParam());
 
     if (doNotSupportI32.count(eltwiseType) && inDataType == ngraph::element::i32) {
-        SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
+        GTEST_SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
     }
 
     Run();
@@ -169,7 +169,7 @@ TEST_P(DSR_BinaryElementwiseBothDSRCheckOutputShape, CheckOutputShape) {
     const auto& eltwiseType = std::get<2>(GetParam());
 
     if (doNotSupportI32.count(eltwiseType) && inDataType == ngraph::element::i32) {
-        SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
+        GTEST_SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
     }
 
     Run();

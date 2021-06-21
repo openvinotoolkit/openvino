@@ -105,7 +105,7 @@ public:
 
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, Single) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddInitialCopyLayer();
@@ -117,7 +117,7 @@ TEST_P(MyriadX_HW_Convolution_Tests_nightly, Single) {
 
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddInitialCopyLayer();
@@ -130,7 +130,7 @@ TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithReLU) {
 
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithLeakyReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvolutionLayer();
@@ -142,7 +142,7 @@ TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithLeakyReLU) {
 
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithClamp) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvolutionLayer();
@@ -154,7 +154,7 @@ TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithClamp) {
 
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, MultipleInfer) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvolutionLayer();
@@ -794,7 +794,7 @@ public:
 
 TEST_P(MyriadX_HW_ConvPoolMerged_Tests_nightly, WithReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvLayer();
@@ -807,7 +807,7 @@ TEST_P(MyriadX_HW_ConvPoolMerged_Tests_nightly, WithReLU) {
 
 TEST_P(MyriadX_HW_ConvPoolMerged_Tests_nightly, WithLeakyReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvLayer();
@@ -951,7 +951,7 @@ public:
 
 TEST_P(MyriadX_HW_ConvTF_Tests_nightly, Single) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvolutionLayer();
@@ -1124,7 +1124,7 @@ public:
 
 TEST_P(MyriadX_HW_Deconvolution_Tests_nightly, Single) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddInitialCopyLayer();
@@ -1136,7 +1136,7 @@ TEST_P(MyriadX_HW_Deconvolution_Tests_nightly, Single) {
 
 TEST_P(MyriadX_HW_Deconvolution_Tests_nightly, ScaleTests) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddInitialCopyLayer();

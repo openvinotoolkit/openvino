@@ -356,7 +356,7 @@ using myriadExtraTests_smoke = myriadLayersTests_nightly;
 
 TEST_F(myriadExtraTests_smoke, ThereIsNoSegfaultOnZeroConvolutionWeights) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     tensor_test_params input_dims = { 1, 3, 25, 25 };
