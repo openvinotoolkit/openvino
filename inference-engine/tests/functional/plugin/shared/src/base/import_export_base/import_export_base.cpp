@@ -9,12 +9,13 @@
 namespace FuncTestUtils {
 
 std::string ImportNetworkTestBase::getTestCaseName(testing::TestParamInfo<exportImportNetworkParams> obj) {
+    std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> exportConfiguration;
     std::map<std::string, std::string> importConfiguration;
     std::string appHeader;
-    std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, appHeader) = obj.param;
+    std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, appHeader) = obj.param;
 
     std::ostringstream result;
     result << "netPRC=" << netPrecision.name() << "_";
@@ -26,6 +27,8 @@ std::string ImportNetworkTestBase::getTestCaseName(testing::TestParamInfo<export
         result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
     }
     result << "_appHeader=" << appHeader;
+    result << CommonTestUtils::vec2str(inputShape);
+
     return result.str();
 }
 

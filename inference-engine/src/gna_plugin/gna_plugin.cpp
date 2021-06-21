@@ -734,7 +734,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
     IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
+    network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
     IE_SUPPRESS_DEPRECATED_END
 
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
@@ -1656,7 +1656,6 @@ void GNAPlugin::Export(std::ostream &outStream) {
         THROW_GNA_EXCEPTION << " exporting network with multiple inputs not supported";
     }
 #endif
-
     // TODO: nnet group parameter looks only used in application - so can we move this line into load network.
     IE_ASSERT(!inputsDataMap.empty());
     auto inputDims = inputsDataMap.begin()->second->getTensorDesc().getDims();
@@ -1673,8 +1672,8 @@ void GNAPlugin::Export(std::ostream &outStream) {
     auto serial = GNAModelSerial(modelToSerial,
                                  inputsDesc,
                                  outputsDesc,
-                                 inputsDataMap,
-                                 outputsDataMap)
+                                 network.getInputsInfo(),
+                                 network.getOutputsInfo())
                     .SetInputRotation(transpose_inputs_info)
                     .SetOutputRotation(transpose_outputs_info);
 
