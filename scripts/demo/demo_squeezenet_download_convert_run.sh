@@ -214,7 +214,7 @@ cd "$binaries_dir"
 
 cp -f "$ROOT_DIR/${model_name}.labels" "${ir_dir}/"
 
-print_and_run ./classification_sample_async -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" "${sampleoptions}"
+print_and_run ./classification_sample_async -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" ${sampleoptions}
 
 printf "%s" "${dashes}"
 printf "Demo completed successfully.\n\n"

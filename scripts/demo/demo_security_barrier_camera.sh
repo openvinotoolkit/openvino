@@ -195,7 +195,7 @@ printf "Run Inference Engine security_barrier_camera demo\n\n"
 binaries_dir="${build_dir}/${OS_PATH}/Release"
 cd "$binaries_dir"
 
-print_and_run ./security_barrier_camera_demo -d "$target" -d_va "$target" -d_lpr "$target" -i "$target_image_path" "${model_args[@]}" "${sampleoptions}"
+print_and_run ./security_barrier_camera_demo -d "$target" -d_va "$target" -d_lpr "$target" -i "$target_image_path" "${model_args[@]}" ${sampleoptions}
 
 printf "%s" "${dashes}"
 printf "Demo completed successfully.\n\n"
