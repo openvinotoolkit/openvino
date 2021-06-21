@@ -16,7 +16,7 @@ This tutorial explains how to convert YOLOv4 model from the [https://github.com/
 
 1. Download YOLOv4 weights from [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT).
 
-2. Implement custom layer Mish. The code below should be contain in .py file with any name in the same folder as yolo4_weight.h5 file.
+2. Implement custom layer Mish. The code below should be contain in mish.py file in the same folder as yolo4_weight.h5 file.
 ```python
 import tensorflow as tf
 
@@ -52,6 +52,8 @@ class Mish(tf.keras.layers.Layer):
 
 3. Convert the YOLOv4 Keras\* model to TensorFlow2\*.
 ```python
+from mish import Mish
+
 model = tf.keras.models.load_model('yolo4_weight.h5', custom_objects={'Mish': Mish})
 tf.saved_model.save(model, 'yolov4')
 ```
