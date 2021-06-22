@@ -4,7 +4,7 @@
 
 **Category**: Infrastructure
 
-**Description**: *If* operation, depending on `cond` value, performs the internal network, which is described in the `then_body` (if `cond` is `True`) or `else_body` (if `cond` is `False`). 
+**Description**: *If* operation contains two internal networks(`then_body` and `else_body`) and performs one of them depending on `cond` value. If `cond` is  `True` `then_body` will be executed. `else_body` will be executed if `cond` value is `False`. 
 
 **If attributes**:
 
