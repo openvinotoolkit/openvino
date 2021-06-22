@@ -365,7 +365,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
 
     uint32_t num_filters = convolution._out_depth;
     uint32_t num_filter_coefficients = single_conv_kernel_size + num_conv_kernel_padding;
-    uint32_t num_filter_rows = num_filter_coefficients / num_feature_map_columns;
     uint32_t num_columns_in = num_inputs + num_input_padding;
 
     uint32_t num_columns_out = (((num_inputs - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
@@ -416,7 +415,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         weight_scale_factor = quantized->_weights_quant.GetScale();
         output_scale_factor = quantized->_dst_quant.GetScale();
     }
-
+    // uint32_t num_filter_rows = num_filter_coefficients / num_feature_map_columns;
     auto& currentComponent = dnnComponents.addComponent(convolution.name, "convolution");
     dnn->InitConvolutional1DComponent(currentComponent,
         1,
@@ -428,9 +427,9 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         num_bytes_per_weight,
         num_bytes_per_bias,
         num_filters,
-        num_filter_rows,
+        //num_filter_rows,
         num_filter_coefficients,
-        1,
+        //1,
         num_feature_map_rows,
         num_feature_map_columns,
         weight_scale_factor,

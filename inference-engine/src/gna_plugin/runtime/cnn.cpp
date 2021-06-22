@@ -15,36 +15,34 @@
 
 
 void CNNFilter32(intel_dnn_component_t *component) {
-    float *ptr_filters = reinterpret_cast<float *>(component->op.conv1D.ptr_filters);
-    float *ptr_biases = reinterpret_cast<float *>(component->op.conv1D.ptr_biases);
-    float *ptr_inputs = reinterpret_cast<float *>(component->ptr_inputs);
-    float *ptr_outputs = reinterpret_cast<float *>(component->ptr_outputs);
-    uint32_t num_filter_outputs = component->op.conv1D.num_feature_map_rows - component->op.conv1D.num_filter_rows + 1;
-    uint32_t num_inputs_band_stride = component->op.conv1D.num_feature_maps * component->op.conv1D.num_feature_map_columns;
-    uint32_t num_filter_coefficients = component->op.conv1D.num_filter_coefficients;
+    auto filters = reinterpret_cast<float *>(component->op.conv1D.ptr_filters);
+    auto biases = reinterpret_cast<float *>(component->op.conv1D.ptr_biases);
+    auto input = reinterpret_cast<float *>(component->ptr_inputs);
+    auto output = reinterpret_cast<float *>(component->ptr_outputs);
+
+    const auto convolutionStride = component->op.conv1D.num_feature_map_columns;
+    const auto filterSize = component->op.conv1D.num_filter_coefficients;
+    const auto numberOfInputs = component->num_columns_in;
+    // TODO: reuse outputFromConv() from backend\am_intel_dnn.cpp
+    const auto numberOfOutputsPerFilter = (numberOfInputs - filterSize) / convolutionStride + 1;
+    const auto numberOfFilters = component->op.conv1D.num_filters;
 
     std::string layer_name;
     layer_name = " In layer '" + std::string(component->original_layer_name) + "'";
     if (component->num_rows_in != 1 || component->num_rows_out != 1) {
         THROW_GNA_EXCEPTION << "Bad number of rows in CNNFilter32!" << layer_name;
     }
-    if (component->num_columns_out < num_filter_outputs * component->op.conv1D.num_filters) {
+    if (component->num_columns_out < numberOfOutputsPerFilter * numberOfFilters) {
         THROW_GNA_EXCEPTION << "Bad num_columns_out in CNNFilter32!" << layer_name;
     }
 
-    const auto maxOutputsPerFilter = component->num_columns_out / component->op.conv1D.num_filters;
-    if ((maxOutputsPerFilter - 1) * num_inputs_band_stride + num_filter_coefficients - 1 < component->num_columns_in)
-        num_filter_outputs = maxOutputsPerFilter;
-
-    for (uint32_t j = 0; j < num_filter_outputs; j++) {
-        float *ptr_in = ptr_inputs + j * num_inputs_band_stride;
-        for (uint32_t i = 0; i < component->op.conv1D.num_filters; i++) {
-            float *ptr_coef = ptr_filters + i * num_filter_coefficients;
-            float sum = ptr_biases[i];
-            for (uint32_t k = 0; k < num_filter_coefficients; k++) {
-                sum += ptr_in[k] * ptr_coef[k];
+    for (uint32_t j = 0; j < numberOfOutputsPerFilter; j++, input += convolutionStride, output += numberOfFilters) {
+        auto filter = filters;
+        for (uint32_t i = 0; i < numberOfFilters; i++, filter += filterSize) {
+            output[i] = biases[i];
+            for (uint32_t k = 0; k < filterSize; k++) {
+                output[i] += input[k] * filter[k];
             }
-            ptr_outputs[j * component->op.conv1D.num_filters + i] = sum;
         }
     }
 }
