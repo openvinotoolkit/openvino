@@ -295,7 +295,7 @@ def get_config_dictionary(config_file):
         return config
     with open(config_file) as f:
         config_line = f.readline()
-        key = config_line.split(config_file)[0]
+        key = config_line.split()[0]
         value = config_line[len(key):].strip()
         config[key] = value
     return config
