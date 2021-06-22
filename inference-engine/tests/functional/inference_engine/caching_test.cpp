@@ -66,8 +66,8 @@ class MockRemoteContext : public RemoteContext {
 public:
     MockRemoteContext(std::string name): m_name(std::move(name)) {}
     std::string getDeviceName() const noexcept { return m_name; }
-    MOCK_METHOD(RemoteBlob::Ptr, CreateBlob, (const TensorDesc&, const ParamMap&));
-    MOCK_METHOD(ParamMap, getParams, (), (const));
+    MOCK_METHOD2(CreateBlob, RemoteBlob::Ptr(const TensorDesc&, const ParamMap&));
+    MOCK_CONST_METHOD0(getParams, ParamMap());
 };
 
 class MockCachingInferencePluginBase : public InferenceEngine::IInferencePlugin {
@@ -92,30 +92,28 @@ public:
     MockCachingInferencePlugin() = default;
     ~MockCachingInferencePlugin() = default;
 
-    MOCK_METHOD(std::shared_ptr<IExecutableNetworkInternal>, LoadExeNetworkImpl,
-        (const CNNNetwork&,
-        (const std::map<std::string, std::string>&)));
+    MOCK_METHOD2(LoadExeNetworkImpl, std::shared_ptr<IExecutableNetworkInternal>(const CNNNetwork& network,
+                                                                                 const std::map<std::string, std::string>& config));
 
-    MOCK_METHOD(std::shared_ptr<IExecutableNetworkInternal>, LoadExeNetworkImpl,
-        (const CNNNetwork&, const RemoteContext::Ptr&,
-        (const std::map<std::string, std::string>&)));
+    MOCK_METHOD3(LoadExeNetworkImpl, std::shared_ptr<IExecutableNetworkInternal>(const CNNNetwork& network,
+                                                                                 const RemoteContext::Ptr& context,
+                                                                                 const std::map<std::string, std::string>& config));
 
-    MOCK_METHOD(void, OnLoadNetworkFromFile, ());
+    MOCK_CONST_METHOD0(OnLoadNetworkFromFile, void(void));
 
-    MOCK_METHOD(IExecutableNetworkInternal::Ptr, ImportNetwork,
-        (std::istream&, (const std::map<std::string, std::string>&)));
+    MOCK_METHOD2(ImportNetwork, IExecutableNetworkInternal::Ptr(std::istream& networkModel,
+                                                               const std::map<std::string, std::string>& config));
 
-    MOCK_METHOD(IExecutableNetworkInternal::Ptr, ImportNetwork,
-        (std::istream&, const RemoteContext::Ptr&,
-        (const std::map<std::string, std::string>&)));
+    MOCK_METHOD3(ImportNetwork, IExecutableNetworkInternal::Ptr(std::istream& networkModel,
+                                                                const RemoteContext::Ptr& context,
+                                                                const std::map<std::string, std::string>& config));
 
-    MOCK_METHOD(QueryNetworkResult, QueryNetwork,
-        (const CNNNetwork&, (const std::map<std::string, std::string>&)));
+    MOCK_CONST_METHOD2(QueryNetwork, QueryNetworkResult(const CNNNetwork& network,
+                                                        const std::map<std::string, std::string>& config));
 
-    MOCK_METHOD(Parameter, GetMetric,
-        (const std::string&, (const std::map<std::string, Parameter>&)));
-    MOCK_METHOD(void, SetConfig, ((const std::map<std::string, std::string>&)));
-    MOCK_METHOD(RemoteContext::Ptr, GetDefaultContext, (const ParamMap& params));
+    MOCK_CONST_METHOD2(GetMetric, Parameter(const std::string& name, const std::map<std::string, Parameter>& options));
+    MOCK_METHOD1(SetConfig, void(const std::map<std::string, std::string>& options));
+    MOCK_METHOD1(GetDefaultContext, RemoteContext::Ptr(const ParamMap& params));
 };
 
 class MockExecutableNetwork : public IExecutableNetworkInternal {
@@ -123,16 +121,15 @@ class MockExecutableNetwork : public IExecutableNetworkInternal {
 
 public:
     MockExecutableNetwork() {}
-
-    MOCK_METHOD(void, Export, (std::ostream& networkModel));
-    MOCK_METHOD(IInferRequestInternal::Ptr, CreateInferRequest, ());
-    MOCK_METHOD(ConstInputsDataMap, GetInputsInfo, ());
-    MOCK_METHOD(ConstOutputsDataMap, GetOutputsInfo, ());
-    MOCK_METHOD(Parameter, GetConfig, (const std::string& name));
-    MOCK_METHOD(Parameter, GetMetric, (const std::string& name));
-    MOCK_METHOD(IInferRequestInternal::Ptr, CreateInferRequestImpl, (InputsDataMap, OutputsDataMap));
-    MOCK_METHOD(void, setNetworkInputs, (const InputsDataMap& networkInputs));
-    MOCK_METHOD(void, setNetworkOutputs, (const OutputsDataMap& networkOutputs));
+    MOCK_METHOD1(Export, void(std::ostream& networkModel));
+    MOCK_METHOD0(CreateInferRequest, IInferRequestInternal::Ptr());
+    MOCK_CONST_METHOD0(GetInputsInfo, ConstInputsDataMap());
+    MOCK_CONST_METHOD0(GetOutputsInfo, ConstOutputsDataMap());
+    MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string& name));
+    MOCK_CONST_METHOD1(GetMetric, Parameter(const std::string& name));
+    MOCK_METHOD2(CreateInferRequestImpl, IInferRequestInternal::Ptr(InputsDataMap, OutputsDataMap));
+    MOCK_METHOD1(setNetworkInputs, void(const InputsDataMap& networkInputs));
+    MOCK_METHOD1(setNetworkOutputs, void(const OutputsDataMap& networkOutputs));
 
     // void Export(std::ostream& networkModel) override {
     //     std::lock_guard<std::mutex> guard(m_pluginMutex);
@@ -1078,7 +1075,7 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
             if (index != std::string::npos) {
                 content.replace(index, buildNum.size(), zeroBuild);
             } else {
-                GTEST_SKIP();
+                return; // skip test
             }
             std::ofstream out(fileName, std::ios_base::binary);
             out.write(content.c_str(), content.size());
@@ -1508,7 +1505,7 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_CachingTest, CachingTest,
+INSTANTIATE_TEST_CASE_P(CachingTest, CachingTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(loadVariants),
                             ::testing::ValuesIn(cacheFolders)),
