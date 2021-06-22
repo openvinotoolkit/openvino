@@ -167,6 +167,7 @@ set(SRC
     type_prop/mish.cpp
     type_prop/mod.cpp
     type_prop/mvn.cpp
+    type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
     type_prop/non_zero.cpp
     type_prop/normalize.cpp
@@ -257,6 +258,7 @@ set(SRC
     visitors/op/max_pool.cpp
     visitors/op/mod.cpp
     visitors/op/mvn.cpp
+    visitors/op/negative.cpp
     visitors/op/non_max_suppression.cpp
     visitors/op/normalize_l2.cpp
     visitors/op/one_hot.cpp
