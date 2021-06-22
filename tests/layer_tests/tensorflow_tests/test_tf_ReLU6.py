@@ -9,6 +9,8 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestReLU6(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     def create_relu6_net(self, shape, ir_version):
         """
             Tensorflow net                 IR net
@@ -16,33 +18,18 @@ class TestReLU6(CommonTFLayerTest):
             Input->ReLU6       =>       Input->Clamp
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            shapes = shape.copy()
-            # reshaping
-            if len(shapes) >= 3:
-                shapes.append(shapes.pop(1))
-            input = tf.compat.v1.placeholder(tf.float32, shapes, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
 
             tf.nn.relu6(input, name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
-
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
 
         ref_net = None
 
@@ -64,7 +51,7 @@ class TestReLU6(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    test_data_precommit = [dict(shape=[1, 3, 50, 100, 224])]
+    test_data_precommit = [dict(shape=[1, 3, 5, 7, 9])]
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
@@ -73,10 +60,10 @@ class TestReLU6(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data = [dict(shape=[1]),
-                 dict(shape=[1, 224]),
-                 pytest.param(dict(shape=[1, 3, 224]), marks=pytest.mark.xfail(reason="*-19053")),
-                 dict(shape=[1, 3, 100, 224]),
-                 dict(shape=[1, 3, 50, 100, 224])]
+                 dict(shape=[1, 3]),
+                 dict(shape=[1, 3, 5]),
+                 dict(shape=[1, 3, 7, 9]),
+                 dict(shape=[1, 3, 5, 7, 9])]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
