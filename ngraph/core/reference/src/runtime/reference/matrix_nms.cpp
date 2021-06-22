@@ -37,7 +37,10 @@ namespace ngraph
                 template <typename T>
                 struct decay_score<T, false>
                 {
-                    T operator()(T iou, T max_iou, T sigma) { return (1. - iou) / (1. - max_iou + 1e-10f); }
+                    T operator()(T iou, T max_iou, T sigma)
+                    {
+                        return (1. - iou) / (1. - max_iou + 1e-10f);
+                    }
                 };
 
                 template <class T>
