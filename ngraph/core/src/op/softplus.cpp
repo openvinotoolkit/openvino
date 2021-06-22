@@ -29,6 +29,13 @@ bool op::v4::SoftPlus::visit_attributes(AttributeVisitor& visitor)
 void op::v4::SoftPlus::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v4_SoftPlus_validate_and_infer_types);
+    const element::Type& input_et = get_input_element_type(0);
+
+    NODE_VALIDATION_CHECK(this,
+                          input_et.is_dynamic() || input_et.is_real(),
+                          "Input element type must be float. Got: ",
+                          input_et);
+
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
