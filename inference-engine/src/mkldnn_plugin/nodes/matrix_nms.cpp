@@ -197,9 +197,9 @@ public:
         BoxInfo() = default;
 
         Rectangle box;
-        int64_t index = 0;
-        int64_t batch_index = 0;
-        int64_t class_index = 0;
+        int64_t index = -1;
+        int64_t batch_index = -1;
+        int64_t class_index = -1;
         float score = 0.0f;
     };
 
@@ -214,7 +214,9 @@ public:
                     const int64_t top_k,
                     const bool normalized,
                     int64_t *selected_indices,
-                    T *decayed_scores) {
+                    T *decayed_scores,
+                    int64_t *selected_classes,
+                    int64_t class_index) {
         std::vector<int64_t> candidate_index(boxes_num);
         std::iota(candidate_index.begin(), candidate_index.end(), 0);
         size_t num_det = 0;
@@ -260,6 +262,7 @@ public:
 
         if (scores_data[candidate_index[0]] > post_threshold) {
             selected_indices[0] = candidate_index[0];
+            selected_classes[0] = class_index;
             decayed_scores[0] = scores_data[candidate_index[0]];
             num_det++;
         }
@@ -278,6 +281,7 @@ public:
                 continue;
             num_det++;
             selected_indices[i] = candidate_index[i];
+            selected_classes[i] = class_index;
             decayed_scores[i] = ds;
         }
         return num_det;
@@ -285,7 +289,6 @@ public:
 
     StatusCode execute(std::vector<Blob::Ptr> &inputs, std::vector<Blob::Ptr> &outputs,
                        ResponseDesc *resp) noexcept override {
-        std::cout << "***Matrix NMS start to run " << std::endl;
         auto start = std::chrono::high_resolution_clock::now();
         const float *boxes = inputs[NMS_BOXES]->cbuffer().as<const float *>() +
                              inputs[NMS_BOXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
@@ -295,12 +298,12 @@ public:
         const int box_shape = 4;
         size_t  real_num_classes = m_background_class == -1 ? num_classes : num_classes - 1;
         size_t  real_num_boxes = m_nms_top_k == -1 ? num_boxes : std::min(m_nms_top_k, static_cast<int>(num_boxes));
-        std::vector<int64_t> num_per_batch;
+        std::vector<int64_t> num_per_batch(num_batches);
         std::vector<BoxInfo> filtered_boxes(num_batches * real_num_classes * real_num_boxes);
 
         bool normalized = true;
-        for (int64_t batch = 0; batch < num_batches; batch++) {
-            const float *boxesPtr = boxes + batch * num_boxes * 4;
+        InferenceEngine::parallel_for(num_classes, [&](size_t batch) {
+            const float *boxes_ptr = boxes + batch * num_boxes * 4;
             std::vector<int64_t> all_indices(real_num_classes * real_num_boxes, -1);
             std::vector<float> all_scores(real_num_classes * real_num_boxes, 0);
             std::vector<int64_t> all_classes(real_num_classes * real_num_boxes, -1);
@@ -316,43 +319,43 @@ public:
             InferenceEngine::parallel_for(num_classes, [&](size_t class_idx){
                 if (class_idx == m_background_class)
                     return;
-                const float *scoresPtr =
+                const float *scores_ptr =
                         scores + batch * (num_classes * num_boxes) + class_idx * num_boxes;
                 size_t class_num_det = 0;
                 if (m_decay_function == ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN) {
-                    class_num_det = nms_matrix<float, true>(boxesPtr,
+                    class_num_det = nms_matrix<float, true>(boxes_ptr,
                                                             num_boxes,
                                                             box_shape,
-                                                            scoresPtr,
+                                                            scores_ptr,
                                                             m_score_threshold,
                                                             m_post_threshold,
                                                             m_gaussian_sigma,
                                                             m_nms_top_k,
                                                             normalized,
                                                             all_indices.data() + class_offset[class_idx],
-                                                            all_scores.data() + class_offset[class_idx]);
+                                                            all_scores.data() + class_offset[class_idx],
+                                                            all_classes.data() + class_offset[class_idx],
+                                                            class_idx);
                 } else {
-                    class_num_det = nms_matrix<float, false>(boxesPtr,
+                    class_num_det = nms_matrix<float, false>(boxes_ptr,
                                                              num_boxes,
                                                              box_shape,
-                                                             scoresPtr,
+                                                             scores_ptr,
                                                              m_score_threshold,
                                                              m_post_threshold,
                                                              m_gaussian_sigma,
                                                              m_nms_top_k,
                                                              normalized,
                                                              all_indices.data() + class_offset[class_idx],
-                                                             all_scores.data() + class_offset[class_idx]);
-                }
-                for (size_t i = 0; i < class_num_det; i++) {
-                    auto class_index_base = all_classes.data() + class_offset[class_idx];
-                    class_index_base[i] = class_idx;
+                                                             all_scores.data() + class_offset[class_idx],
+                                                             all_classes.data() + class_offset[class_idx],
+                                                             class_idx);
                 }
                 num_per_class[class_idx] = class_num_det;
             });
             num_det = std::accumulate(num_per_class.begin(), num_per_class.end(), 0);
             if (num_det <= 0) {
-                break;
+                return;
             }
 
             if (m_keep_top_k > -1) {
@@ -376,15 +379,15 @@ public:
                 auto idx = all_indices[p];
                 auto cls = all_classes[p];
                 auto score = all_scores[p];
-                auto bbox = boxesPtr + idx * box_shape;
+                auto bbox = boxes_ptr + idx * box_shape;
                 filtered_boxes[offset + i] = BoxInfo{Rectangle{bbox[0], bbox[1], bbox[2], bbox[3]},
                                                      batch * num_boxes + idx,
                                                      score,
                                                      batch,
                                                      cls};
             }
-            num_per_batch.push_back(num_det);
-        }
+            num_per_batch[batch] = (num_det);
+        });
 
         if (m_sort_result_across_batch) { /* sort across batch */
             if (m_sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::SCORE) {
