@@ -131,23 +131,23 @@ TEST(MemDescTest, isTailCCheck) {
 }
 
 TEST(MemDescTest, constructWithPlainFormat) {
-    SKIP();
+    GTEST_SKIP();
 }
 
 TEST(MemDescTest, CheckScalar) {
-    SKIP();
+    GTEST_SKIP();
 }
 
 TEST(MemDescTest, UpperBound) {
-    SKIP();
+    GTEST_SKIP();
 }
 
 TEST(MemDescTest, BlockedConversion) {
-    SKIP();
+    GTEST_SKIP();
 }
 
 TEST(MemDescTest, ComaptibleWithFormat) {
-    SKIP();
+    GTEST_SKIP();
 }
 
 TEST(isSameMethodTest, CheckTensorWithSameStrides) {

@@ -92,7 +92,7 @@ TEST_P(DSR_BinaryElementwiseBothDSR, CompareWithReference) {
     const auto& eltwiseType = std::get<2>(GetParam());
 
     if (doNotSupportI32.count(eltwiseType) && inDataType == ngraph::element::i32) {
-        SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
+        GTEST_SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
     }
 
     Run();
@@ -105,7 +105,7 @@ std::vector<BinaryEltwiseShapes> dataShapesWithUpperBound = {
         },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBinaryElementwise, DSR_BinaryElementwiseBothDSR,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBinaryElementwise, DSR_BinaryElementwiseBothDSR,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::ValuesIn(dataShapesWithUpperBound),
@@ -117,7 +117,7 @@ TEST_P(DSR_BinaryElementwiseSingleDSR, CompareWithReference) {
     const auto& eltwiseType = std::get<2>(GetParam());
 
     if (doNotSupportI32.count(eltwiseType) && inDataType == ngraph::element::i32) {
-        SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
+        GTEST_SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
     }
 
     Run();
@@ -130,7 +130,7 @@ std::vector<BinaryEltwiseShapes> dataShapesWithUpperBoundSingleDSR = {
         },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBinaryElementwiseSingleDSR, DSR_BinaryElementwiseSingleDSR,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBinaryElementwiseSingleDSR, DSR_BinaryElementwiseSingleDSR,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::ValuesIn(dataShapesWithUpperBoundSingleDSR),
@@ -169,7 +169,7 @@ TEST_P(DSR_BinaryElementwiseBothDSRCheckOutputShape, CheckOutputShape) {
     const auto& eltwiseType = std::get<2>(GetParam());
 
     if (doNotSupportI32.count(eltwiseType) && inDataType == ngraph::element::i32) {
-        SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
+        GTEST_SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
     }
 
     Run();
@@ -334,7 +334,7 @@ std::vector<BinaryEltwiseShapes> dataShapesWithUpperBoundBothDSREmpty = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BinaryElementwiseBothDSRCheckOutputShape, DSR_BinaryElementwiseBothDSRCheckOutputShape,
+INSTANTIATE_TEST_SUITE_P(smoke_BinaryElementwiseBothDSRCheckOutputShape, DSR_BinaryElementwiseBothDSRCheckOutputShape,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::ValuesIn(dataShapesWithUpperBoundBothDSREmpty),

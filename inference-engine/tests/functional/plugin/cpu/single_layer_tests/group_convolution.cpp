@@ -218,7 +218,7 @@ const std::vector<CPUSpecificParams> CPUParams_Gemm_2D = {
         conv_gemm_2D_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_Gemm_FP32, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_Gemm_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Gemm_2D,
@@ -233,7 +233,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_Gemm_FP32, GroupConvolutionLayerCPUTe
                                 ::testing::ValuesIn(fusingParamsSet)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_Gemm_BF16, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_Gemm_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Gemm_2D,
@@ -265,7 +265,7 @@ const std::vector<CPUSpecificParams> CPUParams_Gemm_3D = {
         conv_gemm_3D_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_Gemm_FP32, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_Gemm_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Gemm_3D,
@@ -280,7 +280,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_Gemm_FP32, GroupConvolutionLayerCPUTe
                                 ::testing::ValuesIn(fusingParamsSet)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_Gemm_BF16, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_Gemm_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Gemm_3D,
@@ -316,7 +316,7 @@ const std::vector<CPUSpecificParams> CPUParams_2D = {
         conv_avx512_2D_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_2D,
@@ -331,7 +331,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
                                 ::testing::ValuesIn(fusingParamsSet)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_BF16, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_2D,
@@ -366,7 +366,7 @@ const std::vector<CPUSpecificParams> CPUParams_3D = {
         conv_avx512_3D_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_FP32, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_3D,
@@ -381,7 +381,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_FP32, GroupConvolutionLayerCPUTest,
                                 ::testing::ValuesIn(fusingParamsSet)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_BF16, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_3D,
@@ -417,7 +417,7 @@ const std::vector<CPUSpecificParams> CPUParams_DW_2D = {
         conv_avx512_dw_2D_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_DW_FP32, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_DW_2D,
@@ -433,7 +433,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_DW_FP32, GroupConvolutionLayerCPUTest
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_DW_BF16, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_DW_2D,
@@ -469,7 +469,7 @@ const std::vector<CPUSpecificParams> CPUParams_DW_3D = {
         conv_avx512_dw_3D_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_DW_FP32, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_DW_3D,
@@ -586,7 +586,7 @@ const std::vector<groupConvLayerCPUTestParamsSet> gemmGroupConvTestCases = gener
                                         2, 1, {10, 10, 10}, 3, 3, CPUParams_Gemm_3D, vecPrcConnectParams)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GEMM_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(gemmGroupConvTestCases)),
+INSTANTIATE_TEST_SUITE_P(smoke_GEMM_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(gemmGroupConvTestCases)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT SSE42 GroupConvolution ============= */
@@ -637,7 +637,7 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_SSE42_GroupConvTestCases =
         //                              2, 1, {10, 10, 10}, 8, 8, cpuParams_sse42_3D),
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_JIT_SSE42_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(JIT_SSE42_GroupConvTestCases)),
+INSTANTIATE_TEST_SUITE_P(smoke_JIT_SSE42_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(JIT_SSE42_GroupConvTestCases)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT AVX2 GroupConvolution ============= */
@@ -687,7 +687,7 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX2_GroupConvTestCases = 
                                         2, 1, {10, 10, 10}, 8, 8, avx2_GroupConv_3D, vecPrcConnectParamsFP32)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_JIT_AVX2_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(JIT_AVX2_GroupConvTestCases)),
+INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX2_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(JIT_AVX2_GroupConvTestCases)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT AVX512 GroupConvolution ============= */
@@ -718,7 +718,7 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX512_GroupConvTestCases 
                                         2, 1, {10, 10, 10}, 16, 16, avx512_GroupConv_3D, vecPrcConnectParams)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_JIT_AVX512_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(JIT_AVX512_GroupConvTestCases)),
+INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX512_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(JIT_AVX512_GroupConvTestCases)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT SSE42 DW GroupConvolution ============= */
@@ -754,7 +754,7 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_SSE42_DW_GroupConvTestCase
                                         8, 1, {10, 10, 10}, 1, 1, sse42_DW_3D, vecPrcConnectParamsFP32)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_JIT_SSE42_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
+INSTANTIATE_TEST_SUITE_P(smoke_JIT_SSE42_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
 (JIT_SSE42_DW_GroupConvTestCases)), GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT AVX2 DW GroupConvolution ============= */
@@ -790,7 +790,7 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX2_DW_GroupConvTestCases
                                         8, 1, {10, 10, 10}, 1, 1, avx2_DW_3D, vecPrcConnectParamsFP32)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_JIT_AVX2_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
+INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX2_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
 (JIT_AVX2_DW_GroupConvTestCases)), GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT AVX512 DW GroupConvolution ============= */
@@ -825,7 +825,7 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX512_DW_GroupConvTestCas
                                         16, 1, {10, 10, 10}, 1, 1, avx512_DW_3D, vecPrcConnectParams)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_JIT_AVX512_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
+INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX512_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
 (JIT_AVX512_DW_GroupConvTestCases)), GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT SSE42 1x1 Convolution (not supported with groups) ============= */
@@ -860,7 +860,7 @@ const std::vector<CPUSpecificParams> CPUParams_1D = {
         conv_avx512_1D
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConv_1D, GroupConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_1D, GroupConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_1D,
