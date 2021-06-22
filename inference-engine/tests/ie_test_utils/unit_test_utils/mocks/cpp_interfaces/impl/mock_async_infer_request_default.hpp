@@ -20,5 +20,5 @@ public:
                                  const ITaskExecutor::Ptr &callbackExecutor)
             : AsyncInferRequestThreadSafeDefault(request, taskExecutor, callbackExecutor) {}
 
-    MOCK_METHOD(void, CheckBlob, ());
+    MOCK_METHOD0(CheckBlob, void());
 };

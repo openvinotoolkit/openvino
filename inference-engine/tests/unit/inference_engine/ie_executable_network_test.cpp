@@ -57,7 +57,7 @@ protected:
     }
 };
 
-TEST_F(ExecutableNetworkTests, DISABLED_GetOutputsInfoThrowsIfReturnErr) {
+TEST_F(ExecutableNetworkTests, GetOutputsInfoThrowsIfReturnErr) {
     EXPECT_CALL(*mockIExeNet.get(), GetOutputsInfo())
             .Times(1)
             .WillOnce(Throw(InferenceEngine::GeneralError{""}));
@@ -65,14 +65,14 @@ TEST_F(ExecutableNetworkTests, DISABLED_GetOutputsInfoThrowsIfReturnErr) {
     ASSERT_THROW(exeNetwork->GetOutputsInfo(), InferenceEngine::Exception);
 }
 
-TEST_F(ExecutableNetworkTests, DISABLED_GetOutputsInfo) {
+TEST_F(ExecutableNetworkTests, GetOutputsInfo) {
     InferenceEngine::ConstOutputsDataMap data;
     EXPECT_CALL(*mockIExeNet.get(), GetOutputsInfo()).Times(1).WillRepeatedly(Return(InferenceEngine::ConstOutputsDataMap{}));
     ASSERT_NO_THROW(data = exeNetwork->GetOutputsInfo());
     ASSERT_EQ(data, InferenceEngine::ConstOutputsDataMap{});
 }
 
-TEST_F(ExecutableNetworkTests, DISABLED_GetInputsInfoThrowsIfReturnErr) {
+TEST_F(ExecutableNetworkTests, GetInputsInfoThrowsIfReturnErr) {
     EXPECT_CALL(*mockIExeNet.get(), GetInputsInfo())
             .Times(1)
             .WillOnce(Throw(InferenceEngine::GeneralError{""}));
@@ -80,7 +80,7 @@ TEST_F(ExecutableNetworkTests, DISABLED_GetInputsInfoThrowsIfReturnErr) {
     ASSERT_THROW(exeNetwork->GetInputsInfo(), InferenceEngine::Exception);
 }
 
-TEST_F(ExecutableNetworkTests, DISABLED_GetInputsInfo) {
+TEST_F(ExecutableNetworkTests, GetInputsInfo) {
     EXPECT_CALL(*mockIExeNet.get(), GetInputsInfo()).Times(1).WillRepeatedly(Return(InferenceEngine::ConstInputsDataMap{}));
 
     InferenceEngine::ConstInputsDataMap info;

@@ -9,37 +9,29 @@
 
 class MockICore : public InferenceEngine::ICore {
 public:
-    MOCK_METHOD((std::shared_ptr<InferenceEngine::ITaskExecutor>), GetTaskExecutor, (), (const));
+    MOCK_CONST_METHOD0(GetTaskExecutor, std::shared_ptr<InferenceEngine::ITaskExecutor>());
 
-    MOCK_METHOD(InferenceEngine::CNNNetwork, ReadNetwork,
-        (const std::string&, const InferenceEngine::Blob::CPtr&), (const));
-    MOCK_METHOD(InferenceEngine::CNNNetwork, ReadNetwork,
-        (const std::string&, const std::string&), (const));
+    MOCK_CONST_METHOD2(ReadNetwork, InferenceEngine::CNNNetwork(const std::string&, const InferenceEngine::Blob::CPtr&));
+    MOCK_CONST_METHOD2(ReadNetwork, InferenceEngine::CNNNetwork(const std::string&, const std::string&));
 
-    MOCK_METHOD(InferenceEngine::SoExecutableNetworkInternal, LoadNetwork,
-        (const InferenceEngine::CNNNetwork&, const std::string&,
-        (const std::map<std::string, std::string>&)));
-    MOCK_METHOD(InferenceEngine::SoExecutableNetworkInternal, LoadNetwork,
-        (const InferenceEngine::CNNNetwork&, const InferenceEngine::RemoteContext::Ptr &,
-        (const std::map<std::string, std::string>&)));
-    MOCK_METHOD(InferenceEngine::SoExecutableNetworkInternal, LoadNetwork,
-        (const std::string &, const std::string &,
-        (const std::map<std::string, std::string>&)));
+    MOCK_METHOD3(LoadNetwork, InferenceEngine::SoExecutableNetworkInternal(
+        const InferenceEngine::CNNNetwork&, const std::string&, const std::map<std::string, std::string>&));
+    MOCK_METHOD3(LoadNetwork, InferenceEngine::SoExecutableNetworkInternal(
+        const InferenceEngine::CNNNetwork&, const InferenceEngine::RemoteContext::Ptr &, const std::map<std::string, std::string>&));
+    MOCK_METHOD3(LoadNetwork, InferenceEngine::SoExecutableNetworkInternal(
+        const std::string &, const std::string &, const std::map<std::string, std::string>&));
 
-    MOCK_METHOD(InferenceEngine::SoExecutableNetworkInternal, ImportNetwork,
-        (std::istream&, const std::string&,
-        (const std::map<std::string, std::string>&)));
-    MOCK_METHOD(InferenceEngine::SoExecutableNetworkInternal, ImportNetwork,
-        (std::istream&, const InferenceEngine::RemoteContext::Ptr&,
-        (const std::map<std::string, std::string>&)));
+    MOCK_METHOD3(ImportNetwork, InferenceEngine::SoExecutableNetworkInternal(
+        std::istream&, const std::string&, const std::map<std::string, std::string>&));
+    MOCK_METHOD3(ImportNetwork, InferenceEngine::SoExecutableNetworkInternal(
+        std::istream&, const InferenceEngine::RemoteContext::Ptr&, const std::map<std::string, std::string>&));
 
-    MOCK_METHOD(InferenceEngine::QueryNetworkResult, QueryNetwork,
-        (const InferenceEngine::CNNNetwork&, const std::string&,
-        (const std::map<std::string, std::string>&)), (const));
+    MOCK_CONST_METHOD3(QueryNetwork, InferenceEngine::QueryNetworkResult(
+        const InferenceEngine::CNNNetwork&, const std::string&, const std::map<std::string, std::string>&));
 
-    MOCK_METHOD(InferenceEngine::Parameter, GetMetric, (const std::string&, const std::string&), (const));
-    MOCK_METHOD(std::vector<std::string>, GetAvailableDevices, (), (const));
-    MOCK_METHOD(bool, DeviceSupportsImportExport, (const std::string&), (const)); // NOLINT not a cast to bool
+    MOCK_CONST_METHOD2(GetMetric, InferenceEngine::Parameter(const std::string&, const std::string&));
+    MOCK_CONST_METHOD0(GetAvailableDevices, std::vector<std::string>());
+    MOCK_CONST_METHOD1(DeviceSupportsImportExport, bool(const std::string&)); // NOLINT not a cast to bool
 
     ~MockICore() = default;
 };

@@ -14,9 +14,8 @@
 class MockIVariableStateInternal : public InferenceEngine::IVariableStateInternal {
 public:
     MockIVariableStateInternal() : InferenceEngine::IVariableStateInternal{"MockIVariableStateInternal"} {}
-
-    MOCK_METHOD(std::string, GetName, ());
-    MOCK_METHOD(void, Reset, ());
-    MOCK_METHOD(void, SetState, (const InferenceEngine::Blob::Ptr&));
-    MOCK_METHOD(InferenceEngine::Blob::CPtr, GetState, ());
+    MOCK_CONST_METHOD0(GetName, std::string());
+    MOCK_METHOD0(Reset, void());
+    MOCK_METHOD1(SetState, void(const InferenceEngine::Blob::Ptr&));
+    MOCK_CONST_METHOD0(GetState, InferenceEngine::Blob::CPtr());
 };
