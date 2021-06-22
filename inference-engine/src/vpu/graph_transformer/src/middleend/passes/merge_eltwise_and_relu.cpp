@@ -30,7 +30,7 @@ private:
 };
 
 void PassImpl::run(const Model& model) {
-    const bool enableEarlyEltwiseReLUFusion = CompileEnv::get().config.enableEarlyEltwiseReLUFusion;
+    const bool enableEarlyEltwiseReLUFusion = CompileEnv::get().config.compileConfig().enableEarlyEltwiseReLUFusion;
     if (enableEarlyEltwiseReLUFusion) {
         if (m_mode == MergeMode::DYNAMIC_NETWORK) {
             VPU_PROFILE(mergeEltwiseAndReLUDynamic);

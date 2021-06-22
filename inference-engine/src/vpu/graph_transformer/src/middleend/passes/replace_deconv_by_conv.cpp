@@ -148,7 +148,7 @@ void PassImpl::run(const Model& model) {
         auto output = stage->output(0);
         const auto& env = CompileEnv::get();
 
-        if (env.config.hwDisabled(stage->origLayer()->name)) {
+        if (env.config.compileConfig().hwDisabled(stage->origLayer()->name)) {
             continue;
         }
 

@@ -50,26 +50,6 @@ public:
     }
 
     /**
-     * @deprecated Use ngraph::Variant directly
-     * @brief Creates parameter from variant.
-     * This method creates empty parameter if variant doesn't contain Parameter
-     *
-     * @param var ngraph variant
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
-    Parameter(const std::shared_ptr<ngraph::Variant>& var);
-
-    /**
-     * @deprecated Use ngraph::Variant directly
-     * @brief Creates parameter from variant.
-     * This method creates empty parameter if variant doesn't contain Parameter
-     *
-     * @param var ngraph variant
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
-    Parameter(std::shared_ptr<ngraph::Variant>& var);
-
-    /**
      * @brief Copy constructor
      *
      * @param parameter Parameter object
@@ -86,7 +66,8 @@ public:
      * @param parameter object
      */
     template <class T,
-              typename = typename std::enable_if<!std::is_same<typename std::decay<T>::type, Parameter>::value>::type>
+              typename = typename std::enable_if<!std::is_same<typename std::decay<T>::type, Parameter>::value &&
+                                                 !std::is_abstract<typename std::decay<T>::type>::value>::type>
     Parameter(T&& parameter) {  // NOLINT
         static_assert(!std::is_same<typename std::decay<T>::type, Parameter>::value, "To prevent recursion");
         ptr = new RealData<typename std::decay<T>::type>(std::forward<T>(parameter));
@@ -204,28 +185,6 @@ public:
     }
 
     /**
-     * @deprecated Use ngraph::Variant directly
-     * @brief Converts parameter to shared pointer on ngraph::Variant
-     *
-     * @return shared pointer on ngraph::Variant
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
-    std::shared_ptr<ngraph::Variant> asVariant() const;
-
-    /**
-     * @deprecated Use ngraph::Variant directly
-     * @brief Casts to shared pointer on ngraph::Variant
-     *
-     * @return shared pointer on ngraph::Variant
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
-    operator std::shared_ptr<ngraph::Variant>() const {
-        IE_SUPPRESS_DEPRECATED_START
-        return asVariant();
-        IE_SUPPRESS_DEPRECATED_END
-    }
-
-    /**
      * Dynamic cast to specified type
      * @tparam T type
      * @return casted object
@@ -254,6 +213,21 @@ public:
         return !(*this == rhs);
     }
 
+    /**
+     * @brief Prints underlying object to the given output stream.
+     * Uses operator<< if it is defined, leaves stream unchanged otherwise.
+     * In case of empty parameter or nullptr stream immediately returns.
+     *
+     * @param object Object to be printed to the given output stream.
+     * @param stream Output stream object will be printed to.
+     */
+    friend void PrintTo(const Parameter& object, std::ostream* stream) {
+        if (object.empty() || !stream) {
+            return;
+        }
+        object.ptr->print(*stream);
+    }
+
 private:
     template <class T, class EqualTo>
     struct CheckOperatorEqual {
@@ -273,6 +247,24 @@ private:
     template <class T, class EqualTo = T>
     struct HasOperatorEqual : CheckOperatorEqual<T, EqualTo>::type {};
 
+    template <class T, class U>
+    struct CheckOutputStreamOperator {
+        template <class V, class W>
+        static auto test(W*) -> decltype(std::declval<V&>() << std::declval<W>(), std::true_type()) {
+            return {};
+        }
+
+        template <typename, typename>
+        static auto test(...) -> std::false_type {
+            return {};
+        }
+
+        using type = typename std::is_same<std::true_type, decltype(test<T, U>(nullptr))>::type;
+    };
+
+    template <class T>
+    struct HasOutputStreamOperator : CheckOutputStreamOperator<std::ostream, T>::type {};
+
     struct Any {
 #ifdef __ANDROID__
         virtual ~Any();
@@ -282,6 +274,7 @@ private:
         virtual bool is(const std::type_info&) const = 0;
         virtual Any* copy() const = 0;
         virtual bool operator==(const Any& rhs) const = 0;
+        virtual void print(std::ostream&) const = 0;
     };
 
     template <class T>
@@ -317,6 +310,20 @@ private:
 
         bool operator==(const Any& rhs) const override {
             return rhs.is(typeid(T)) && equal<T>(*this, rhs);
+        }
+
+        template <class U>
+        typename std::enable_if<!HasOutputStreamOperator<U>::value, void>::type
+        print(std::ostream& stream, const U& object) const {}
+
+        template <class U>
+        typename std::enable_if<HasOutputStreamOperator<U>::value, void>::type
+        print(std::ostream& stream, const U& object) const {
+            stream << object;
+        }
+
+        void print(std::ostream& stream) const override {
+            print<T>(stream, get());
         }
     };
 
