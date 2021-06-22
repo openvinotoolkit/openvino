@@ -44,7 +44,7 @@ const auto gather7Params_1D = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Gather7_1D, Gather7LayerTest, gather7Params_1D, Gather7LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Gather7_1D, Gather7LayerTest, gather7Params_1D, Gather7LayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes_2D = {
         std::vector<size_t>{4, 19},
@@ -74,7 +74,7 @@ const auto gather7Params_2D = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Gather7_2D, Gather7LayerTest, gather7Params_2D, Gather7LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Gather7_2D, Gather7LayerTest, gather7Params_2D, Gather7LayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes4D = {
         std::vector<size_t>{4, 5, 6, 7},
@@ -105,7 +105,7 @@ const auto gather7ParamsSubset_BD0 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Gather7_BD0, Gather7LayerTest, gather7ParamsSubset_BD0, Gather7LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Gather7_BD0, Gather7LayerTest, gather7ParamsSubset_BD0, Gather7LayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> indicesShapes_BD1 = {
         std::vector<size_t>{4, 2},
@@ -132,7 +132,7 @@ const auto gather7ParamsSubset_BD1 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Gather7_BD1, Gather7LayerTest, gather7ParamsSubset_BD1, Gather7LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Gather7_BD1, Gather7LayerTest, gather7ParamsSubset_BD1, Gather7LayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> indicesShapes_BD2 = {
         std::vector<size_t>{4, 5, 4, 3},
@@ -158,7 +158,7 @@ const auto gather7ParamsSubset_BD2 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Gather7_BD2, Gather7LayerTest, gather7ParamsSubset_BD2, Gather7LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Gather7_BD2, Gather7LayerTest, gather7ParamsSubset_BD2, Gather7LayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> indicesShapes_NegativeBD = {
         std::vector<size_t>{4, 5, 4},
@@ -186,6 +186,6 @@ const auto gather7ParamsSubset_NegativeBD = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Gather7_NegativeBD, Gather7LayerTest, gather7ParamsSubset_NegativeBD, Gather7LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Gather7_NegativeBD, Gather7LayerTest, gather7ParamsSubset_NegativeBD, Gather7LayerTest::getTestCaseName);
 
 }  // namespace

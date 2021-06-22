@@ -48,7 +48,7 @@ TEST_P(MyriadProtocolTests, NoErrorsMessagesWhenLoadNetworkSuccessful) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_VPUConfigProtocolTests,
+INSTANTIATE_TEST_SUITE_P(smoke_VPUConfigProtocolTests,
                         MyriadProtocolTests,
                         ::testing::ValuesIn(myriadProtocols),
                         MyriadProtocolTests::getTestCaseName);

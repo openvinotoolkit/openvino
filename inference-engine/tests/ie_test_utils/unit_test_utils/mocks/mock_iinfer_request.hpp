@@ -22,20 +22,22 @@ IE_SUPPRESS_DEPRECATED_START
 
 class MockIInferRequest : public IInferRequest {
 public:
-    MOCK_QUALIFIED_METHOD1(StartAsync, noexcept, StatusCode(ResponseDesc*));
-    MOCK_QUALIFIED_METHOD2(Wait, noexcept, StatusCode(int64_t millis_timeout, ResponseDesc*));
-    MOCK_QUALIFIED_METHOD2(GetUserData, noexcept, StatusCode(void**, ResponseDesc*));
-    MOCK_QUALIFIED_METHOD2(SetUserData, noexcept, StatusCode(void*, ResponseDesc*));
-    MOCK_QUALIFIED_METHOD1(SetCompletionCallback, noexcept, StatusCode(IInferRequest::CompletionCallback));
-    MOCK_QUALIFIED_METHOD1(Infer, noexcept, StatusCode(ResponseDesc*));
-    MOCK_QUALIFIED_METHOD2(GetPerformanceCounts, const noexcept,
-                           StatusCode(std::map<std::string, InferenceEngineProfileInfo> &perfMap, ResponseDesc*));
-    MOCK_QUALIFIED_METHOD3(GetBlob, noexcept, StatusCode(const char*, Blob::Ptr&, ResponseDesc*));
-    MOCK_QUALIFIED_METHOD3(GetPreProcess, const noexcept, StatusCode(const char*, const PreProcessInfo**, ResponseDesc*));
-    MOCK_QUALIFIED_METHOD3(SetBlob, noexcept, StatusCode(const char*, const Blob::Ptr&, ResponseDesc*));
-    MOCK_QUALIFIED_METHOD4(SetBlob, noexcept, StatusCode(const char*, const Blob::Ptr&, const PreProcessInfo&, ResponseDesc*));
-    MOCK_QUALIFIED_METHOD2(SetBatch, noexcept, StatusCode(int batch, ResponseDesc*));
-    MOCK_QUALIFIED_METHOD1(Cancel, noexcept, InferenceEngine::StatusCode(ResponseDesc*));
+    MOCK_METHOD(StatusCode, StartAsync, (ResponseDesc*), (noexcept));
+    MOCK_METHOD(StatusCode, Wait, (int64_t, ResponseDesc*), (noexcept));
+    MOCK_METHOD(StatusCode, GetUserData, (void**, ResponseDesc*), (noexcept));
+    MOCK_METHOD(StatusCode, SetUserData, (void*, ResponseDesc*), (noexcept));
+    MOCK_METHOD(StatusCode, SetCompletionCallback, (IInferRequest::CompletionCallback), (noexcept));
+    MOCK_METHOD(StatusCode, Infer, (ResponseDesc*), (noexcept));
+    MOCK_METHOD(StatusCode, GetPerformanceCounts,
+        ((std::map<std::string, InferenceEngineProfileInfo> &), ResponseDesc*), (const, noexcept));
+    MOCK_METHOD(StatusCode, GetBlob, (const char*, Blob::Ptr&, ResponseDesc*), (noexcept));
+    MOCK_METHOD(StatusCode, GetPreProcess,
+        (const char*, const PreProcessInfo**, ResponseDesc*), (const, noexcept));
+    MOCK_METHOD(StatusCode, SetBlob, (const char*, const Blob::Ptr&, ResponseDesc*), (noexcept));
+    MOCK_METHOD(StatusCode, SetBlob,
+        (const char*, const Blob::Ptr&, const PreProcessInfo&, ResponseDesc*), (noexcept));
+    MOCK_METHOD(StatusCode, SetBatch, (int batch, ResponseDesc*), (noexcept));
+    MOCK_METHOD(StatusCode, Cancel, (ResponseDesc*), (noexcept));
 };
 
 IE_SUPPRESS_DEPRECATED_END

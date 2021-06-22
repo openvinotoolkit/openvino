@@ -24,7 +24,7 @@ std::vector<ReluTestValues> testValues = {
     { { 256ul, ngraph::Shape({}), {-12.8f / 2.f}, {12.7f}, {-12.8f / 2.f}, {12.7f} }, true }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ReluTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReluTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),

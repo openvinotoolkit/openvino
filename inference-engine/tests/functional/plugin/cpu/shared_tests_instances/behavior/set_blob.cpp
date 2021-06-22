@@ -18,4 +18,4 @@ const auto params = ::testing::Combine(::testing::ValuesIn(precisionSet),
                                        ::testing::ValuesIn(typeSet),
                                        ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_SetBlobCPU, SetBlobTest, params, SetBlobTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SetBlobCPU, SetBlobTest, params, SetBlobTest::getTestCaseName);

@@ -38,7 +38,7 @@ const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK, TopKLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK, TopKLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(k),
                 ::testing::ValuesIn(axes),

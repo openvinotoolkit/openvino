@@ -226,7 +226,7 @@ TEST_P(ConvEltwiseDepthwise, CompareWithRefImpl) {
     Run_test();
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepthwise,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepthwise,
     ::testing::Combine(
         ::testing::Values(Precision::FP32),
         ::testing::Values(SizeVector({ 1, 5, 1, 1 })),
@@ -236,7 +236,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepth
         ::testing::Values(std::string("jit_avx512_1x1_BF16"))),
     ConvEltwiseDepthwise::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDepthwise,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDepthwise,
     ::testing::Combine(
         ::testing::Values(Precision::FP32),
         ::testing::Values(SizeVector({ 1, 3, 10, 10 })),
@@ -246,7 +246,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDept
         ::testing::Values(std::string("jit_avx512_BF16"))),
     ConvEltwiseDepthwise::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_conv_depthwise_BF16, ConvEltwiseDepthwise,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_conv_depthwise_BF16, ConvEltwiseDepthwise,
     ::testing::Combine(
         ::testing::Values(Precision::FP32),
         ::testing::Values(SizeVector({ 1, 5, 10, 10 })),

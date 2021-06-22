@@ -269,7 +269,7 @@ TEST_P(BatchedBlob_Test, canInputNV12) {
 
 const std::vector<size_t> num_batches{1, 2, 4};
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlob, BatchedBlob_Test, ::testing::ValuesIn(num_batches), BatchedBlob_Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, BatchedBlob_Test, ::testing::ValuesIn(num_batches), BatchedBlob_Test::getTestCaseName);
 
 class TwoNets_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
     void SetUp() override {
@@ -357,4 +357,4 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
 
 const std::vector<size_t> num_streams{1, 2};
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlob, TwoNets_Test, ::testing::ValuesIn(num_streams), TwoNets_Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, TwoNets_Test, ::testing::ValuesIn(num_streams), TwoNets_Test::getTestCaseName);

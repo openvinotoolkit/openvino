@@ -46,7 +46,7 @@ const auto convParams = ::testing::Combine(
         ::testing::ValuesIn(outputChannels)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvFqReluTest, ConvFqReluTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvFqReluTest, ConvFqReluTest,
                         ::testing::Combine(
                                 fqParams,
                                 convParams,

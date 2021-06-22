@@ -140,7 +140,7 @@ std::vector<std::vector<EltwiseTypes>> eltwiseOps = {
         { EltwiseTypes::DIVIDE, EltwiseTypes::SQUARED_DIFF, EltwiseTypes::ADD },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseChain, EltwiseChainTest,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain, EltwiseChainTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::ValuesIn(inputPrecisions),
@@ -172,7 +172,7 @@ std::vector<std::vector<InferenceEngine::Precision>> inputPrecisionsFQ {
         { Precision::FP32, Precision::FP32, Precision::FP32, Precision::FP32 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseChainWithFQ, EltwiseChainTest,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithFQ, EltwiseChainTest,
                     ::testing::Combine(
                             ::testing::ValuesIn(inputShapesFQ),
                             ::testing::ValuesIn(inputPrecisionsFQ),

@@ -17,21 +17,21 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTests,
                         ::testing::Combine(
                                 ::testing::Values(InferenceEngine::Precision::FP32),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         BehaviorTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestInput,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTestInput,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         BehaviorTestInput::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestOutput,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTestOutput,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),

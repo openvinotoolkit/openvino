@@ -269,7 +269,7 @@ const std::vector<ReduceTransformationTestValues> reduceMeanTransformationTestVa
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ReduceMeanTransformation,
     ::testing::Combine(

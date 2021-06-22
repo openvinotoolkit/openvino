@@ -17,7 +17,7 @@ const std::vector<FuncTestUtils::BlobKind> blobKinds = {
 
 const SetBlobOfKindConfig gpuConfig{}; //nothing special
 
-INSTANTIATE_TEST_CASE_P(smoke_SetBlobOfKindGPU, SetBlobOfKindTest,
+INSTANTIATE_TEST_SUITE_P(smoke_SetBlobOfKindGPU, SetBlobOfKindTest,
     ::testing::Combine(::testing::ValuesIn(blobKinds),
                        ::testing::Values(CommonTestUtils::DEVICE_GPU),
                        ::testing::Values(gpuConfig)),

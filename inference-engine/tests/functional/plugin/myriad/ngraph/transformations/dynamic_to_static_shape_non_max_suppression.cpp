@@ -111,7 +111,7 @@ protected:
 TEST_P(DynamicToStaticShapeNonMaxSuppression, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeNonMaxSuppression, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeNonMaxSuppression, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32),

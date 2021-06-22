@@ -27,7 +27,7 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
 
 std::map<std::string, std::string> additional_config = {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}};
 
-INSTANTIATE_TEST_CASE_P(smoke_MatMul, MatMulTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul, MatMulTest,
         ::testing::Combine(
                 ::testing::ValuesIn(shapeRelatedParams),
                 ::testing::ValuesIn(inputPrecisions),

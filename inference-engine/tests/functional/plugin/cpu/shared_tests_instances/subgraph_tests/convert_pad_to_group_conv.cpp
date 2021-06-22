@@ -16,7 +16,7 @@ namespace {
 
     const std::vector<float> values{0., 1.};
 
-    INSTANTIATE_TEST_CASE_P(smoke_Pad_1D, ConvertPadToConvTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Pad_1D, ConvertPadToConvTests,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::Shape{1, 8, 64}),
                                     ::testing::ValuesIn(pads_1d),
@@ -31,7 +31,7 @@ namespace {
             {0, 0, 10, 10}, {0, 0, 0, 4}, {0, 0, 4, 0}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_Pad_2D, ConvertPadToConvTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Pad_2D, ConvertPadToConvTests,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::Shape{1, 8, 64, 16}),
                                     ::testing::ValuesIn(pads_2d),

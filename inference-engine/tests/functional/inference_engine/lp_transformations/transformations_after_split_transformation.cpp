@@ -213,7 +213,7 @@ const std::vector<std::string> transformationNames = {
     "SubtractMultiplyToMultiplyAddTransformation",
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     TransformationsAfterSplitTransformation,
     ::testing::ValuesIn(transformationNames),

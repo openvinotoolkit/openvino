@@ -209,7 +209,7 @@ const std::vector<std::pair<float, float>> fqStats = {
     {-0.5, 0.5}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulToPointwiseConv,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulToPointwiseConv,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -217,7 +217,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulToP
         ::testing::ValuesIn(inputShape)),
     ConvertMatmulToPointwiseConv::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulToPointwiseConvWithFq,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulToPointwiseConvWithFq,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),

@@ -77,7 +77,7 @@ const auto quantParams_i32 = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::I32)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_QuantMatMul_i8i8, QuantMatMulTest,
+INSTANTIATE_TEST_SUITE_P(smoke_QuantMatMul_i8i8, QuantMatMulTest,
                         ::testing::Combine(
                                 quantParams_i8,
                                 quantParams_i8,
@@ -87,7 +87,7 @@ INSTANTIATE_TEST_CASE_P(smoke_QuantMatMul_i8i8, QuantMatMulTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         QuantMatMulTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_QuantMatMul_u8i8, QuantMatMulTest,
+INSTANTIATE_TEST_SUITE_P(smoke_QuantMatMul_u8i8, QuantMatMulTest,
                         ::testing::Combine(
                                 quantParams_u8,
                                 quantParams_i8,
@@ -97,7 +97,7 @@ INSTANTIATE_TEST_CASE_P(smoke_QuantMatMul_u8i8, QuantMatMulTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         QuantMatMulTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_QuantMatMul_i16i32, QuantMatMulTest,
+INSTANTIATE_TEST_SUITE_P(smoke_QuantMatMul_i16i32, QuantMatMulTest,
                         ::testing::Combine(
                                 quantParams_i16,
                                 quantParams_i32,

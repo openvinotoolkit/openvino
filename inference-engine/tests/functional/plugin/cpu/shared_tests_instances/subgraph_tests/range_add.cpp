@@ -30,7 +30,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 // ------------------------------ V0 ------------------------------
 
-INSTANTIATE_TEST_CASE_P(smoke_BasicPositive, RangeAddSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BasicPositive, RangeAddSubgraphTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(positiveStart),
                                 ::testing::ValuesIn(positiveStop),
@@ -43,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BasicPositive, RangeAddSubgraphTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         RangeAddSubgraphTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BasicNegative, RangeAddSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BasicNegative, RangeAddSubgraphTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(negativeStart),
                                 ::testing::ValuesIn(negativeStop),
@@ -57,7 +57,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BasicNegative, RangeAddSubgraphTest,
                         RangeAddSubgraphTest::getTestCaseName);
 
 // ------------------------------ V4 ------------------------------
-INSTANTIATE_TEST_CASE_P(smoke_BasicPositive, RangeNumpyAddSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BasicPositive, RangeNumpyAddSubgraphTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(positiveStart),
                                 ::testing::ValuesIn(positiveStop),
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BasicPositive, RangeNumpyAddSubgraphTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         RangeNumpyAddSubgraphTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BasicNegative, RangeNumpyAddSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BasicNegative, RangeNumpyAddSubgraphTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(negativeStart),
                                 ::testing::ValuesIn(negativeStop),
@@ -83,7 +83,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BasicNegative, RangeNumpyAddSubgraphTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         RangeNumpyAddSubgraphTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BasicTruncateInputs, RangeNumpyAddSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BasicTruncateInputs, RangeNumpyAddSubgraphTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(trunc_start),
                                 ::testing::ValuesIn(trunc_stop),

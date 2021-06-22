@@ -27,7 +27,7 @@ const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> inputShapes = {
     std::pair<ngraph::Shape, ngraph::Shape>({ 1, 16 }, { 16, 10 })
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

@@ -4,7 +4,7 @@
 
 #include "myriad_layers_normalize_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsNormalize_smoke, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsNormalize_smoke, ::testing::Combine(
     ::testing::Values<Dims>(
         // small size, num_channels is not divisible by 8
         MAKE_STRUCT(tensor_test_params, 1, 33, 1, 1),
@@ -21,7 +21,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsNormalize_smoke, ::testing::C
 ));
 
 
-INSTANTIATE_TEST_CASE_P(accuracy_more, myriadLayersTestsNormalize_smoke, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(accuracy_more, myriadLayersTestsNormalize_smoke, ::testing::Combine(
     ::testing::Values<Dims>(
         //more tests
         MAKE_STRUCT(tensor_test_params, 1, 1, 38, 38),

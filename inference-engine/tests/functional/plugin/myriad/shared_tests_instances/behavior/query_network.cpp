@@ -16,7 +16,7 @@ auto TIwithLSTMcell = ngraph::builder::subgraph::makeTIwithLSTMcell();
 auto SplitConvConcat = ngraph::builder::subgraph::makeNestedSplitConvConcat();
 auto BranchSplitConvConcat = ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch();
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, QueryNetworkTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, QueryNetworkTest,
                         ::testing::Combine(
                                 ::testing::Values("MYRIAD", "HETERO:MYRIAD,CPU", "MULTI:MYRIAD,CPU"),
                                 ::testing::Values(ConvBias, TIwithLSTMcell, SplitConvConcat, BranchSplitConvConcat)),

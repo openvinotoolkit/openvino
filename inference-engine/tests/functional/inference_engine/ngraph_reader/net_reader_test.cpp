@@ -198,7 +198,7 @@ static const auto params = testing::Combine(
         testing::Values(InferenceEngine::SizeVector{1, 3, 227, 227}),
         testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         NetReaderTest,
         NetReaderTest,
         params,

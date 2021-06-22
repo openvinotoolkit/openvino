@@ -737,7 +737,7 @@ const std::vector<ngraph::Shape> shapes = {
     { 4, 3, 9, 9 }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConcatTransformation,
     ::testing::Combine(

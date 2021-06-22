@@ -151,7 +151,7 @@ protected:
 TEST_P(DynamicToStaticShapeBroadcastExplicitTests, compareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeBroadcastExplicitTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeBroadcastExplicitTests, testing::Combine(
         testing::Values(
             ngraph::element::f16,
             ngraph::element::f32,
@@ -297,7 +297,7 @@ protected:
 TEST_P(DynamicToStaticShapeBroadcastBidirectionalTests, compareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeBroadcastBidirectionalTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeBroadcastBidirectionalTests, testing::Combine(
         testing::Values(
             ngraph::element::f16,
             ngraph::element::f32,

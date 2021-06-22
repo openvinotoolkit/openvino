@@ -199,6 +199,6 @@ TEST_P(VPUBlobReaderOutputTests, canGetCorrectOutputNamesFromImportedNetwork) {
 
 const std::vector<size_t> inputShape = {{1, 4, 10, 10}};
 
-INSTANTIATE_TEST_CASE_P(myriadBlobReader_nightly, VPUBlobReaderHeaderTests, ::testing::Values(inputShape));
-INSTANTIATE_TEST_CASE_P(myriadBlobReader_nightly, VPUBlobReaderInputTests, ::testing::Values(inputShape));
-INSTANTIATE_TEST_CASE_P(myriadBlobReader_nightly, VPUBlobReaderOutputTests, ::testing::Values(inputShape));
+INSTANTIATE_TEST_SUITE_P(myriadBlobReader_nightly, VPUBlobReaderHeaderTests, ::testing::Values(inputShape));
+INSTANTIATE_TEST_SUITE_P(myriadBlobReader_nightly, VPUBlobReaderInputTests, ::testing::Values(inputShape));
+INSTANTIATE_TEST_SUITE_P(myriadBlobReader_nightly, VPUBlobReaderOutputTests, ::testing::Values(inputShape));

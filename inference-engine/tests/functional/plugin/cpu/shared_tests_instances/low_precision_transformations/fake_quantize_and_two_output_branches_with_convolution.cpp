@@ -28,7 +28,7 @@ const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolution> testValues = 
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),

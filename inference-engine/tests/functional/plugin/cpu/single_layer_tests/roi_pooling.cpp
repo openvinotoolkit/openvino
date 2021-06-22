@@ -186,14 +186,14 @@ const auto test_ROIPooling_bilinear = ::testing::Combine(::testing::ValuesIn(inS
                                                          ::testing::ValuesIn(netPRCs),
                                                          ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_ROIPoolingCPU_max,
+INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingCPU_max,
                         ROIPoolingCPULayerTest,
                         ::testing::Combine(test_ROIPooling_max,
                                            ::testing::ValuesIn(selectCPUInfoForDevice()),
                                            ::testing::ValuesIn(additionalConfig)),
                         ROIPoolingCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ROIPoolingCPU_bilinear,
+INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingCPU_bilinear,
                         ROIPoolingCPULayerTest,
                         ::testing::Combine(test_ROIPooling_bilinear,
                                            ::testing::ValuesIn(selectCPUInfoForDevice()),

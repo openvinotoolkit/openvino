@@ -722,7 +722,7 @@ public:
 };
 
 typedef ::testing::Types<float, FLOAT16> detection_output_test_types;
-TYPED_TEST_CASE(detection_output_test, detection_output_test_types);
+TYPED_TEST_SUITE(detection_output_test, detection_output_test_types);
 
 TYPED_TEST(detection_output_test, test_setup_basic) {
     this->setup_basic();

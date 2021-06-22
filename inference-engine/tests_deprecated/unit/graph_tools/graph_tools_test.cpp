@@ -7,9 +7,7 @@
 #include <gna_graph_tools.hpp>
 #include "graph_test_base.hpp"
 #include <unordered_set>
-#include <gmock/gmock-generated-function-mockers.h>
-#include <gmock/gmock-generated-matchers.h>
-#include <gmock/gmock-more-actions.h>
+#include <gmock/gmock.h>
 #include "ie_common.h"
 #include <memory>
 #include <legacy/details/ie_cnn_network_iterator.hpp>

@@ -57,7 +57,7 @@ const auto elementiwiseParams = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additionalConfig));
 
-INSTANTIATE_TEST_CASE_P(smoke_ElementwiseSerialization, EltwiseLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ElementwiseSerialization, EltwiseLayerTest,
                         elementiwiseParams,
                         EltwiseLayerTest::getTestCaseName);
 } // namespace

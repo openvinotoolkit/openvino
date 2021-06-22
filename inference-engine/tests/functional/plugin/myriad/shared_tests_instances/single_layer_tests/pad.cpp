@@ -37,7 +37,7 @@ const auto pad4DConstParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_MYRIAD)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Pad4DConst,
         PadLayerTest,
         pad4DConstParams,
@@ -57,7 +57,7 @@ const auto pad4DParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_MYRIAD)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Pad4D,
         PadLayerTest,
         pad4DParams,
@@ -77,7 +77,7 @@ const auto pad3DConstParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_MYRIAD)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Pad3DConst,
         PadLayerTest,
         pad3DConstParams,
@@ -97,7 +97,7 @@ const auto pad3DParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_MYRIAD)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Pad3D,
         PadLayerTest,
         pad3DParams,

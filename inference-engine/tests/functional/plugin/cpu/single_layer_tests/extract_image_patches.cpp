@@ -84,7 +84,7 @@ const auto Layer_params = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU, ExtractImagePatchesLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ExtractImagePatches_CPU, ExtractImagePatchesLayerCPUTest,
                         ::testing::Combine(Layer_params, ::testing::Values(CPUParams)),
                         ExtractImagePatchesLayerCPUTest::getTestCaseName);
 

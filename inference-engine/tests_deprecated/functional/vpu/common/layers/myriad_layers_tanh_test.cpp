@@ -4,11 +4,11 @@
 
 #include "myriad_layers_tanh_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         accuracy, myriadLayersTestsTanh_smoke,
         ::testing::ValuesIn(s_tanhParams));
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithTanH_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerConvolutionWithTanH_smoke,
         ::testing::Combine(
             ::testing::ValuesIn(g_convolutionTensors)
           , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 3, 3))
@@ -20,21 +20,21 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithTanH_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMaxPoolingWithTanh_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsMaxPoolingWithTanh_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_poolingInput),
         ::testing::ValuesIn(g_poolingLayerParamsLite),
         ::testing::ValuesIn(g_poolingLayout))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsAvgPoolingWithTanh_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsAvgPoolingWithTanh_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_poolingInput),
         ::testing::ValuesIn(g_poolingLayerParamsLite),
         ::testing::ValuesIn(g_poolingLayout))
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     accuracy, myriadLayerFullyConnectedWithTanH_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_fcTestParamsSubset),

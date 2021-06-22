@@ -41,7 +41,7 @@ const auto convolutionBackpropData2DParams = ::testing::Combine(
     ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels),
     ::testing::ValuesIn(pad_types), ::testing::ValuesIn(outPadding));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_convolutionBackpropData2D_Serialization, ConvolutionBackpropLayerTest,
     ::testing::Combine(
         convolutionBackpropData2DParams,

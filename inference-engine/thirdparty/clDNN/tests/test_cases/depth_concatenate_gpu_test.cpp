@@ -1282,7 +1282,7 @@ TEST_P(depth_concatenate_test, DEPTHCONCATENATE) {
     run_single_test();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_DEPTHCONCATENATE,
+INSTANTIATE_TEST_SUITE_P(DISABLED_DEPTHCONCATENATE,
                         depth_concatenate_test,
                         ::testing::ValuesIn(depth_concatenate_test::generate_all_test_params()),
                         depth_concatenate_test::custom_param_name);

@@ -84,7 +84,7 @@ TEST_P(TranslateNewWeightFormatToOldOne, ReshapeMatMul) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, TranslateNewWeightFormatToOldOne, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(NGraph, TranslateNewWeightFormatToOldOne, testing::Combine(
         testing::Values(
             FQ_as_Mul_Sub_dequantize{-128, 127, 1, 2, (-128 - 1) * 2, (127 - 1) * 2, 256},
             FQ_as_Mul_Sub_dequantize{-127, 127, 1, 2, (-127 - 1) * 2, (127 - 1) * 2, 255},

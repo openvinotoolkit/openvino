@@ -163,7 +163,7 @@ const auto roiAlignParams = ::testing::Combine(
         ::testing::ValuesIn(inputShapeVector)         // feature map shape
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ROIAlignLayoutTest, ROIAlignLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ROIAlignLayoutTest, ROIAlignLayerCPUTest,
         ::testing::Combine(
                 ::testing::Combine(
                         roiAlignParams,

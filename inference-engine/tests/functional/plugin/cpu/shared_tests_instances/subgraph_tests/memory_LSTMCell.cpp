@@ -33,7 +33,7 @@ namespace SubgraphTestsDefinitions {
     std::map<std::string, std::string> additional_config = {
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(transformation),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),

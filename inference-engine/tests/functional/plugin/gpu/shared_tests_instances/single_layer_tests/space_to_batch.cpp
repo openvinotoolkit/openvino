@@ -119,6 +119,6 @@ spaceToBatchParamsTuple stb_only_test_cases[] = {
                                 CommonTestUtils::DEVICE_GPU),
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_CLDNN, SpaceToBatchLayerTest, ::testing::ValuesIn(stb_only_test_cases),
+INSTANTIATE_TEST_SUITE_P(smoke_CLDNN, SpaceToBatchLayerTest, ::testing::ValuesIn(stb_only_test_cases),
                         SpaceToBatchLayerTest::getTestCaseName);
 }  // namespace

@@ -121,7 +121,7 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
 
 const std::vector<std::string> nameExportModel = {"export2dot1.blob", "export2dot2.blob", "export2dot3.blob", "export2dot4.blob"};
 
-INSTANTIATE_TEST_CASE_P(smoke_OldVersion, BackwardCompatibilityTests,
+INSTANTIATE_TEST_SUITE_P(smoke_OldVersion, BackwardCompatibilityTests,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values("GNA"),

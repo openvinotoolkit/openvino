@@ -339,7 +339,7 @@ TEST_P(cache_version_test, update) {
         .test();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke,
     cache_version_test,
     testing::Values(cache_version::version_1, cache_version::version_1_2, cache_version::version_2),

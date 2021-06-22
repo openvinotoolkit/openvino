@@ -102,7 +102,7 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
 }
 // tests_pipelines/tests_pipelines.cpp
 
-INSTANTIATE_TEST_CASE_P(MemCheckTests, MemCheckTestSuite,
+INSTANTIATE_TEST_SUITE_P(MemCheckTests, MemCheckTestSuite,
                         ::testing::ValuesIn(
                                 generateTestsParams({"devices", "models"})),
                         getTestCaseName);

@@ -19,7 +19,7 @@ namespace {
             InferenceEngine::Precision::FP16
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_ReshapeSerialization, ReshapeLayerTestRevise,
+    INSTANTIATE_TEST_SUITE_P(smoke_ReshapeSerialization, ReshapeLayerTestRevise,
             ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),

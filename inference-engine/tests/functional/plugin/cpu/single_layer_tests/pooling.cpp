@@ -144,7 +144,7 @@ const std::vector<poolSpecificParams> paramsAvg4D_RefOnly = {
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MaxPool_CPU_4D, PoolingLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_4D, PoolingLayerCPUTest,
                         ::testing::Combine(
                             ::testing::Combine(
                                 ::testing::ValuesIn(paramsMax4D),
@@ -159,7 +159,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MaxPool_CPU_4D, PoolingLayerCPUTest,
                         ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         ::testing::ValuesIn(paramsAvg4D),
@@ -174,7 +174,7 @@ INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
                                 ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         ::testing::ValuesIn(paramsAvg4D_RefOnly),
@@ -214,7 +214,7 @@ const std::vector<poolSpecificParams> paramsAvg5D_RefOnly = {
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         ::testing::ValuesIn(paramsMax5D),
@@ -229,7 +229,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
                                 ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         ::testing::ValuesIn(paramsAvg5D),
@@ -244,7 +244,7 @@ INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
                                 ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_5D_NotOptimized, PoolingLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_NotOptimized, PoolingLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         ::testing::ValuesIn(paramsAvg5D_RefOnly),
@@ -279,7 +279,7 @@ std::vector<fusingSpecificParams> fusingParamsSet {
     fusingFakeQuantizePerChannel,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         ::testing::ValuesIn(paramsAvg4D),
@@ -294,7 +294,7 @@ INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
                                 ::testing::ValuesIn(fusingParamsSet)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_CPU_5D_I8, PoolingLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8, PoolingLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         ::testing::ValuesIn(paramsAvg5D),

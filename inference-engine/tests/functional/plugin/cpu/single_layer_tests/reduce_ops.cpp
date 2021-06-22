@@ -282,56 +282,56 @@ const auto params_MultiAxisLogical5D = testing::Combine(
                 testing::Values(CommonTestUtils::DEVICE_CPU)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceOneAxis_CPU,
         ReduceCPULayerTest,
         paramsOneAxis,
         ReduceCPULayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceLogicalOneAxis_CPU,
         ReduceCPULayerTest,
         paramsOneAxisLogical,
         ReduceCPULayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_ReductionTypes_CPU,
         ReduceCPULayerTest,
         params_MultiAxis,
         ReduceCPULayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_ReductionTypes4D_CPU,
         ReduceCPULayerTest,
         params_MultiAxis_4D,
         ReduceCPULayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_ReductionTypes5D_CPU,
         ReduceCPULayerTest,
         params_MultiAxis_5D,
         ReduceCPULayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceLogical_ReductionTypes_CPU,
         ReduceCPULayerTest,
         params_MultiAxisLogical,
         ReduceCPULayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceLogical4D_ReductionTypes_CPU,
         ReduceCPULayerTest,
         params_MultiAxisLogical4D,
         ReduceCPULayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceLogical5D_ReductionTypes_CPU,
         ReduceCPULayerTest,
         params_MultiAxisLogical5D,

@@ -1718,7 +1718,7 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
 
 class permute_tile_fsv_4d: public TiledPermuteTest {};
 
-INSTANTIATE_TEST_CASE_P(, permute_tile_fsv_4d,
+INSTANTIATE_TEST_SUITE_P(, permute_tile_fsv_4d,
     ::testing::ValuesIn(std::vector<TiledPermuteParam> {
         // b_fs_yx_fsv16
         // normal cases
@@ -1762,7 +1762,7 @@ INSTANTIATE_TEST_CASE_P(, permute_tile_fsv_4d,
         // fy_not_aligned
         {{1, 4 - 3, 4 - 1, 2}, format::b_fs_yx_fsv4},
         {{1, 4 - 1, 4 - 3, 2}, format::b_fs_yx_fsv4},
-    }),);
+    }));
 
 TEST_P(permute_tile_fsv_4d, f16) {
     auto p = GetParam();
@@ -1791,7 +1791,7 @@ TEST_P(permute_tile_fsv_4d, i64) {
 
 class permute_tile_fsv_5d: public TiledPermuteTest {};
 
-INSTANTIATE_TEST_CASE_P(, permute_tile_fsv_5d,
+INSTANTIATE_TEST_SUITE_P(, permute_tile_fsv_5d,
     ::testing::ValuesIn(std::vector<TiledPermuteParam> {
         // b_fs_zyx_fsv16
         // normal cases
@@ -1822,7 +1822,7 @@ INSTANTIATE_TEST_CASE_P(, permute_tile_fsv_5d,
         {{1, 32 - 1, 32 - 7, 2, 2}, format::b_fs_zyx_fsv32},
         {{1, 32 - 7, 32 - 9, 2, 2}, format::b_fs_zyx_fsv32},
         {{1, 32 - 9, 32 - 15, 2, 2}, format::b_fs_zyx_fsv32},
-    }),);
+    }));
 
 TEST_P(permute_tile_fsv_5d, f16) {
     auto p = GetParam();

@@ -31,7 +31,7 @@ std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::Rec
 };
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(RNNSequenceCommonZeroClip, RNNSequenceTest,
+INSTANTIATE_TEST_SUITE_P(RNNSequenceCommonZeroClip, RNNSequenceTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(mode),
                                 ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -45,7 +45,7 @@ INSTANTIATE_TEST_CASE_P(RNNSequenceCommonZeroClip, RNNSequenceTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         RNNSequenceTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(RNNSequenceCommonClip, RNNSequenceTest,
+INSTANTIATE_TEST_SUITE_P(RNNSequenceCommonClip, RNNSequenceTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(mode),
                                 ::testing::ValuesIn(seq_lengths_clip_non_zero),

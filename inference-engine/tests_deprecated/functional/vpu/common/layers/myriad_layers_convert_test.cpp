@@ -4,7 +4,7 @@
 
 #include "myriad_layers_convert_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     accuracy, myriadLayersTestsIOConvert_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(inputsDims),
@@ -13,7 +13,7 @@ INSTANTIATE_TEST_CASE_P(
     )
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         accuracy_customu8f16, myriadLayersTestsIOConvert_smoke,
         ::testing::Combine(
                 ::testing::ValuesIn(inputsDims4D),
@@ -22,7 +22,7 @@ INSTANTIATE_TEST_CASE_P(
         )
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     accuracy, myriadLayersTestsConvertWithFP16_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(inputsDims),

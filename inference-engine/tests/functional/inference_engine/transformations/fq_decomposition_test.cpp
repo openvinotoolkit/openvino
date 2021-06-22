@@ -186,28 +186,28 @@ const auto broadcast_6D_fq_basic = ::testing::Combine(::testing::ValuesIn(precis
                                                       ::testing::Values(ngraph::Shape{1, 1, 1, 5, 6, 7}),
                                                       ::testing::ValuesIn(levels));
 
-INSTANTIATE_TEST_CASE_P(SimpleFakeQuantize_Decomposition, FakeQuantizeDecompositionTest,
+INSTANTIATE_TEST_SUITE_P(SimpleFakeQuantize_Decomposition, FakeQuantizeDecompositionTest,
                         ::testing::Combine(
                             simple_fq_basic,
                             ::testing::ValuesIn(input_ranges_supported),
                             ::testing::Values(true)),
                         FakeQuantizeDecompositionTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BroadcastFakeQuantize_Decomposition, FakeQuantizeDecompositionTest,
+INSTANTIATE_TEST_SUITE_P(BroadcastFakeQuantize_Decomposition, FakeQuantizeDecompositionTest,
                         ::testing::Combine(
                             broadcast_fq_basic,
                             ::testing::ValuesIn(input_ranges_supported),
                             ::testing::Values(true)),
                         FakeQuantizeDecompositionTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(ElementwiseFakeQuantize_Decomposition, FakeQuantizeDecompositionTest,
+INSTANTIATE_TEST_SUITE_P(ElementwiseFakeQuantize_Decomposition, FakeQuantizeDecompositionTest,
                         ::testing::Combine(
                             elementwise_fq_basic,
                             ::testing::ValuesIn(input_ranges_supported),
                             ::testing::Values(true)),
                         FakeQuantizeDecompositionTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(FakeQuantize6D_Decomposition, FakeQuantizeDecompositionTest,
+INSTANTIATE_TEST_SUITE_P(FakeQuantize6D_Decomposition, FakeQuantizeDecompositionTest,
                         ::testing::Combine(
                             broadcast_6D_fq_basic,
                             ::testing::ValuesIn(input_ranges_supported),
@@ -220,28 +220,28 @@ const std::vector<std::pair<float, float>> input_ranges_unsupported = {
     {-5.0f, -5.0f}
 };
 
-INSTANTIATE_TEST_CASE_P(SimpleFakeQuantize_NoDecomposition, FakeQuantizeDecompositionTest,
+INSTANTIATE_TEST_SUITE_P(SimpleFakeQuantize_NoDecomposition, FakeQuantizeDecompositionTest,
                         ::testing::Combine(
                             simple_fq_basic,
                             ::testing::ValuesIn(input_ranges_unsupported),
                             ::testing::Values(false)),
                         FakeQuantizeDecompositionTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BroadcastFakeQuantize_NoDecomposition, FakeQuantizeDecompositionTest,
+INSTANTIATE_TEST_SUITE_P(BroadcastFakeQuantize_NoDecomposition, FakeQuantizeDecompositionTest,
                         ::testing::Combine(
                             broadcast_fq_basic,
                             ::testing::ValuesIn(input_ranges_unsupported),
                             ::testing::Values(false)),
                         FakeQuantizeDecompositionTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(ElementwiseFakeQuantize_NoDecomposition, FakeQuantizeDecompositionTest,
+INSTANTIATE_TEST_SUITE_P(ElementwiseFakeQuantize_NoDecomposition, FakeQuantizeDecompositionTest,
                         ::testing::Combine(
                             elementwise_fq_basic,
                             ::testing::ValuesIn(input_ranges_unsupported),
                             ::testing::Values(false)),
                         FakeQuantizeDecompositionTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(FakeQuantize6D_NoDecomposition, FakeQuantizeDecompositionTest,
+INSTANTIATE_TEST_SUITE_P(FakeQuantize6D_NoDecomposition, FakeQuantizeDecompositionTest,
                         ::testing::Combine(
                             broadcast_6D_fq_basic,
                             ::testing::ValuesIn(input_ranges_unsupported),

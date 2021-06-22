@@ -66,7 +66,7 @@ const auto multiply_params = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
 
 
 std::vector<std::vector<std::vector<size_t>>> inShapesSingleThread = {
@@ -96,7 +96,7 @@ const auto single_thread_params = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config_single_thread));
 
-INSTANTIATE_TEST_CASE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);
 
 
 }  // namespace

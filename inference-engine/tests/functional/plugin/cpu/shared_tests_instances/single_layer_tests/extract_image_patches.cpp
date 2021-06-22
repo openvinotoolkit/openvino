@@ -25,7 +25,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::I64
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_layers_CPU, ExtractImagePatchesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_layers_CPU, ExtractImagePatchesTest,
         ::testing::Combine(
             ::testing::ValuesIn(inDataShape),
             ::testing::ValuesIn(kernels),

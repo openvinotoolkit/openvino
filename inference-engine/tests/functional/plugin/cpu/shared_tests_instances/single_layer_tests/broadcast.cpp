@@ -38,7 +38,7 @@ const auto numpyBroadcastParams1 = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_TestNumpyBroadcast1,
         BroadcastLayerTest,
         numpyBroadcastParams1,
@@ -54,7 +54,7 @@ const auto numpyBroadcastParams2 = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_TestNumpyBroadcast2,
         BroadcastLayerTest,
         numpyBroadcastParams2,
@@ -84,7 +84,7 @@ const auto bidirectionalBroadcastParams1 = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_TestBidirectionalBroadcast1,
         BroadcastLayerTest,
         bidirectionalBroadcastParams1,
@@ -100,7 +100,7 @@ const auto bidirectionalBroadcastParams2 = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_TestBidirectionalBroadcast2,
         BroadcastLayerTest,
         bidirectionalBroadcastParams2,
@@ -116,7 +116,7 @@ const auto bidirectionalBroadcastParams3 = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_TestBidirectionalBroadcast3,
         BroadcastLayerTest,
         bidirectionalBroadcastParams3,
@@ -149,7 +149,7 @@ const auto explicitBroadcastParams1 = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_TestExplicitBroadcast1,
         BroadcastLayerTest,
         explicitBroadcastParams1,
@@ -165,7 +165,7 @@ const auto explicitBroadcastParams2 = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_TestExplicitBroadcast2,
         BroadcastLayerTest,
         explicitBroadcastParams2,

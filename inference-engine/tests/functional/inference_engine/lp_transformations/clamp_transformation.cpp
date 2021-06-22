@@ -451,7 +451,7 @@ const std::vector<ClampTransformationTestValues> testValues = {
         true // non dequantization multiply
     },
 };
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ClampTransformation,
     ::testing::ValuesIn(testValues),

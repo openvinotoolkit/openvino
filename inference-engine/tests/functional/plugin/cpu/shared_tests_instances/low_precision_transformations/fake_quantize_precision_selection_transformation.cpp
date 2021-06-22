@@ -56,7 +56,7 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testVa
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizePrecisionSelectionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizePrecisionSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),

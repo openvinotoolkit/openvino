@@ -45,7 +45,7 @@ std::vector<size_t> outputChannels = {
     8
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_FcAfterConvTest, FcAfterConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FcAfterConvTest, FcAfterConvTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -55,7 +55,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FcAfterConvTest, FcAfterConvTest,
                             ::testing::ValuesIn(outputChannels)),
                         FcAfterConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FcBeforeConvTest, FcBeforeConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FcBeforeConvTest, FcBeforeConvTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -65,7 +65,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FcBeforeConvTest, FcBeforeConvTest,
                             ::testing::ValuesIn(outputChannels)),
                         FcBeforeConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FcBetweenConvsTest, FcBetweenConvsTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FcBetweenConvsTest, FcBetweenConvsTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

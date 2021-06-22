@@ -39,7 +39,7 @@ const auto embBagPackedSumArgSet = ::testing::Combine(
     ::testing::ValuesIn(emb_table_shape), ::testing::ValuesIn(indices),
     ::testing::ValuesIn(with_weights));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke, EmbeddingBagPackedSumLayerTest,
     ::testing::Combine(embBagPackedSumArgSet,
                        ::testing::ValuesIn(netPrecisions),

@@ -49,7 +49,7 @@ TEST_P(DSR_Squeeze, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicSqueeze, DSR_Squeeze,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicSqueeze, DSR_Squeeze,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::i32),
         ::testing::Values(

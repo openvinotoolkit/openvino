@@ -31,28 +31,28 @@ namespace {
             {{ InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, PreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                             PreprocessTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Hetero_BehaviorTests, PreprocessTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, PreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                     ::testing::ValuesIn(heteroConfigs)),
                             PreprocessTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, PreprocessTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, PreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
                             PreprocessTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, PreprocessTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, PreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
@@ -74,7 +74,7 @@ namespace {
         InferenceEngine::Layout::NHWC
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessConversionTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, PreprocessConversionTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ioPrecisions),
@@ -88,7 +88,7 @@ namespace {
                                 ::testing::ValuesIn(configs)),
                         PreprocessConversionTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Bool(),
@@ -102,7 +102,7 @@ namespace {
                                 ::testing::ValuesIn(configs)),
                         PreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Hetero_BehaviorTests, PreprocessConversionTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, PreprocessConversionTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ioPrecisions),
@@ -116,7 +116,7 @@ namespace {
                                 ::testing::ValuesIn(heteroConfigs)),
                         PreprocessConversionTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Hetero_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Bool(),
@@ -130,7 +130,7 @@ namespace {
                                 ::testing::ValuesIn(heteroConfigs)),
                         PreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, PreprocessConversionTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, PreprocessConversionTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ioPrecisions),
@@ -144,7 +144,7 @@ namespace {
                                 ::testing::ValuesIn(multiConfigs)),
                         PreprocessConversionTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Bool(),
@@ -158,7 +158,7 @@ namespace {
                                 ::testing::ValuesIn(multiConfigs)),
                         PreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, PreprocessConversionTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, PreprocessConversionTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ioPrecisions),
@@ -172,7 +172,7 @@ namespace {
                                 ::testing::ValuesIn(autoConfigs)),
                         PreprocessConversionTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Bool(),

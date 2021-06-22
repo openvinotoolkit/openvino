@@ -27,7 +27,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizes =
 
 // FakeQuantizeOnData
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeAndMaxPoolTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeAndMaxPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),

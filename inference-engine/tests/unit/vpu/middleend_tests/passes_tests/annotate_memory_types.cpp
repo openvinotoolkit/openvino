@@ -103,7 +103,7 @@ private:
 TEST_P(AnnotateMemoryTypes, SubgraphOf3Stages) {
 }
 
-INSTANTIATE_TEST_CASE_P(unit, AnnotateMemoryTypes, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(unit, AnnotateMemoryTypes, testing::Combine(
     testing::Combine(
         testing::Values(MemoryType::DDR, MemoryType::CMX),
         testing::Values(MemoryType::DDR, MemoryType::CMX),

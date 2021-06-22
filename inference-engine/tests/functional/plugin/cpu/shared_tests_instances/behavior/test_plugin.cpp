@@ -46,63 +46,63 @@ namespace {
     };
 
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestOutput,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTestOutput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configsOutput)),
                             BehaviorTestOutput::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, BehaviorTestOutput,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, BehaviorTestOutput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(MultiConfigsInputOutput)),
                             BehaviorTestOutput::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, BehaviorTestOutput,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, BehaviorTestOutput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(AutoConfigsInputOutput)),
                             BehaviorTestOutput::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTests,
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                             BehaviorTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, BehaviorTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, BehaviorTests,
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(MultiConfigs)),
                             BehaviorTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, BehaviorTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, BehaviorTests,
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(AutoConfigs)),
                             BehaviorTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestInput,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTestInput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configsInput)),
                             BehaviorTestInput::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, BehaviorTestInput,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, BehaviorTestInput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(MultiConfigsInputOutput)),
                             BehaviorTestInput::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, BehaviorTestInput,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, BehaviorTestInput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),

@@ -116,7 +116,7 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases = {
                             { 1, 1, 1, 0, 1 }, { 1, 1, 1, 0, 1 },  { },  { 0, 1, 0, 0, 0 },  { } },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_MKLDNN, StridedSliceLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(ss_only_test_cases),

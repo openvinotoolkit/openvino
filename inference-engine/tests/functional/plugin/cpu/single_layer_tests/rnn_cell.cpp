@@ -107,7 +107,7 @@ std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"ta
 std::vector<float> clip = {0.f};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(smoke_RNNCellCPU,
+INSTANTIATE_TEST_SUITE_P(smoke_RNNCellCPU,
                         RNNCellCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(should_decompose),
                                                               ::testing::ValuesIn(batch),

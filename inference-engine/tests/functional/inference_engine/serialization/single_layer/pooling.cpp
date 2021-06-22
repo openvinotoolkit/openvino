@@ -55,7 +55,7 @@ namespace {
             ::testing::ValuesIn(padTypes),
             ::testing::Values(excludePad[0]));
 
-    INSTANTIATE_TEST_CASE_P(smoke_AvgPoolExcluePad, PoolingLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolExcluePad, PoolingLayerTest,
             ::testing::Combine(
                 avgExcludePadParams,
                 ::testing::ValuesIn(netPrecisions),
@@ -77,7 +77,7 @@ namespace {
             ::testing::ValuesIn(padTypes),
             ::testing::Values(excludePad[1]));
 
-    INSTANTIATE_TEST_CASE_P(smoke_AvgPool, PoolingLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_AvgPool, PoolingLayerTest,
             ::testing::Combine(
                 avgPadParams,
                 ::testing::ValuesIn(netPrecisions),

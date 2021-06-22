@@ -5005,7 +5005,7 @@ struct convolution_general_gpu : public ::testing::TestWithParam<TestParamType_g
     }
 };
 
-INSTANTIATE_TEST_CASE_P(convolution_gpu_test,
+INSTANTIATE_TEST_SUITE_P(convolution_gpu_test,
                         convolution_gpu_fs_byx_fsv32,
                         ::testing::Values(
                                 // Filter size, Input features, Stride, Output padding, With bias
@@ -5278,7 +5278,7 @@ struct convolution_gpu_fs_byx_fsv32_crop : public ::testing::TestWithParam<TestP
     }
 };
 
-INSTANTIATE_TEST_CASE_P(convolution_gpu_with_crop,
+INSTANTIATE_TEST_SUITE_P(convolution_gpu_with_crop,
     convolution_gpu_fs_byx_fsv32_crop,
     ::testing::Values(
         TestParamType_convolution_gpu_with_crop(1, 14, 24, 1, 0, true)
@@ -5742,7 +5742,7 @@ void blockedFormatZeroCheck(cldnn::memory::ptr out_mem) {
     }
 }
 struct convolution_gpu_block_layout3D : public convolution_gpu_block_layout {};
-INSTANTIATE_TEST_CASE_P(convolution_gpu_block3D,
+INSTANTIATE_TEST_SUITE_P(convolution_gpu_block3D,
                         convolution_gpu_block_layout3D,
                         ::testing::Values(
                                 TestParamType_convolution_gpu_block_layout(1, 3, 10, 1, 1, 0, false, 16),
@@ -6196,7 +6196,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
     }
 }
 
-INSTANTIATE_TEST_CASE_P(convolution_gpu_block,
+INSTANTIATE_TEST_SUITE_P(convolution_gpu_block,
                         convolution_gpu_block_layout,
                         ::testing::Values(
                                 TestParamType_convolution_gpu_block_layout(16, 64, 64, 1, 1, 0, false, 0),
@@ -6635,7 +6635,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     }
 }
 
-INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu_fs_b_yx_fsv32,
+INSTANTIATE_TEST_SUITE_P(convolution_depthwise_gpu_fs_b_yx_fsv32,
                         convolution_depthwise_gpu,
                         ::testing::Values(
                                 // Input size, Filter size Y, Filter size X, groups, Stride, Output padding, With bias
@@ -6777,7 +6777,7 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
                 }
 }
 
-INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu_b_fs_yx_fsv16,
+INSTANTIATE_TEST_SUITE_P(convolution_depthwise_gpu_b_fs_yx_fsv16,
                         convolution_depthwise_gpu_fsv16,
                         ::testing::Values(
                             // Input size, Filter size Y, Filter size X, groups, Stride, Output padding, With bias
@@ -7125,7 +7125,7 @@ TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
 }
 
 
-INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu_bfyx,
+INSTANTIATE_TEST_SUITE_P(convolution_depthwise_gpu_bfyx,
                         convolution_depthwise_gpu_bfyx,
                         ::testing::Values(
                             // Input size, Filter size Y, Filter size X, groups, Stride, Output padding, With bias
@@ -7162,7 +7162,7 @@ INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu_bfyx,
                         ),
                         convolution_depthwise_gpu::PrintToStringParamName);
 
-INSTANTIATE_TEST_CASE_P(convolution_grouped_fsv4_fsv16,
+INSTANTIATE_TEST_SUITE_P(convolution_grouped_fsv4_fsv16,
                         convolution_grouped_gpu,
                         ::testing::Values(
                             // Input X size, Input Y size, Input Z size, Input features, Output features,
@@ -7449,7 +7449,7 @@ TEST_P(convolution_grouped_gpu, base) {
                     }
 }
 
-INSTANTIATE_TEST_CASE_P(conv_fp16_cases,
+INSTANTIATE_TEST_SUITE_P(conv_fp16_cases,
                         convolution_general_gpu,
                         ::testing::Values(
                             // Input X size, Input Y size, Input Z size, Input features, Output features,
@@ -8298,7 +8298,7 @@ TEST_P(convolution_random_smoke_test, u8s8f32_fsv4_input) {
     ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     basic,
     convolution_random_smoke_test,
     testing::ValuesIn(
@@ -8343,7 +8343,7 @@ TEST_P(convolution_random_all_test, s8s8f32_scale) {
     ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     DISABLED_basic,
     convolution_random_all_test,
     testing::ValuesIn(
@@ -8633,7 +8633,7 @@ TEST_P(convolution_test, CONVOLUTION) {
     run_single_test();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_CONVOLUTION,
+INSTANTIATE_TEST_SUITE_P(DISABLED_CONVOLUTION,
                         convolution_test,
                         ::testing::ValuesIn(convolution_test::generate_all_test_params()),
                         tests::generic_test::custom_param_name_functor());

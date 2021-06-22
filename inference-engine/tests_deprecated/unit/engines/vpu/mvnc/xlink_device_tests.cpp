@@ -34,6 +34,6 @@ TEST_P(XLinkDeviceTestsWithParam, shouldNotCreateXlinkDeviceWithInvalidInterval)
     xlink_device_destroy(deviceHndl);
 }
 
-INSTANTIATE_TEST_CASE_P(WatchdogDevice,
+INSTANTIATE_TEST_SUITE_P(WatchdogDevice,
     XLinkDeviceTestsWithParam,
     testing::Values(0, -1, -WATCHDOG_MAX_PING_INTERVAL_MS));

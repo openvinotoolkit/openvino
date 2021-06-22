@@ -113,7 +113,7 @@ TEST_P(nGraphFQReshapeFusionTests, ReshapeMatMul) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, nGraphFQReshapeFusionTests, testing::Values(
+INSTANTIATE_TEST_SUITE_P(NGraph, nGraphFQReshapeFusionTests, testing::Values(
     // positive
     FQReshapeFusionTestCase{{1, 2, 1, 3}, {2, 1, 1}, {1}, {1, 1}, {1, 2, 1, 1}, {2, 3}, {2, 1}, {1, 1}, DO_NOT_RESHAPE, {2, 1}, false},
     FQReshapeFusionTestCase{{1, 2, 1, 3}, {2, 1, 1}, {1}, {1, 1}, {1, 2, 1, 1}, {1, 2, 1, 3}, {1, 2, 1, 1}, {1, 1, 1, 1},  {1, 1, 1, 1}, DO_NOT_RESHAPE, false},

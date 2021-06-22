@@ -47,7 +47,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
 
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(smoke_ScaleShift, ScaleShiftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ScaleShift, ScaleShiftLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
                                 ::testing::ValuesIn(netPrecisions),

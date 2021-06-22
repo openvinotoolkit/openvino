@@ -41,7 +41,7 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FullyConnectedTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FullyConnectedTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),

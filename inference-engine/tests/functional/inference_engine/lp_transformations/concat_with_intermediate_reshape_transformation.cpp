@@ -133,7 +133,7 @@ const std::vector<TestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConcatWithIntermediateReshapeTransformation,
     ::testing::Combine(

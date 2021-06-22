@@ -119,7 +119,7 @@ const std::vector<FakeQuantizeOnWeightsWithUnsupportedChildTestValues> testValue
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FakeQuantizeOnWeightsWithUnsupportedChild,
     ::testing::Combine(

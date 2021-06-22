@@ -2389,7 +2389,7 @@ TEST_P(reorder_test, REORDER)
     run_single_test();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_REORDER,
+INSTANTIATE_TEST_SUITE_P(DISABLED_REORDER,
                         reorder_test,
                         ::testing::ValuesIn(reorder_test::generate_specific_test_params()),
                         tests::generic_test::custom_param_name_functor());

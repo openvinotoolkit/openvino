@@ -127,6 +127,6 @@ std::vector<memoryStateParams> memoryStateTestCases = {
         memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_GNA)
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_VariableStateBasic, VariableStateTest,
+INSTANTIATE_TEST_SUITE_P(smoke_VariableStateBasic, VariableStateTest,
         ::testing::ValuesIn(memoryStateTestCases),
         VariableStateTest::getTestCaseName);

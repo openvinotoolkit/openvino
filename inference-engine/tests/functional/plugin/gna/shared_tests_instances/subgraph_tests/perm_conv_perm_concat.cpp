@@ -32,7 +32,7 @@ std::map<std::string, std::string> additional_config = {
 } // namespace
 
 namespace SubgraphTestsDefinitions {
-    INSTANTIATE_TEST_CASE_P(smoke_basic, PermConvPermConcat,
+    INSTANTIATE_TEST_SUITE_P(smoke_basic, PermConvPermConcat,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

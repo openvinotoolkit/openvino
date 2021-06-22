@@ -174,7 +174,7 @@ const auto testParams4D_jit = ::testing::Combine(specificParams4D_jit,
                                                  ::testing::ValuesIn(input_ranges),
                                                  ::testing::Values(false),
                                                  ::testing::ValuesIn(filterCPUSpecificParams(memForm4D_jit)));
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizeLayerCPUTest_4D_jit, FakeQuantizeLayerCPUTest, testParams4D_jit, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_jit, FakeQuantizeLayerCPUTest, testParams4D_jit, FakeQuantizeLayerCPUTest::getTestCaseName);
 
 
 std::vector<CPUSpecificParams> memForm4D_ref = {
@@ -197,7 +197,7 @@ const auto testParams4D_ref = ::testing::Combine(specificParams4D_ref,
                                                  ::testing::ValuesIn(input_ranges),
                                                  ::testing::Values(false),
                                                  ::testing::ValuesIn(memForm4D_ref));
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizeLayerCPUTest_4D_ref, FakeQuantizeLayerCPUTest, testParams4D_ref, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_ref, FakeQuantizeLayerCPUTest, testParams4D_ref, FakeQuantizeLayerCPUTest::getTestCaseName);
 
 
 std::vector<CPUSpecificParams> memForm5D_jit = {
@@ -224,7 +224,7 @@ const auto testParams5D_jit = ::testing::Combine(specificParams5D_jit,
                                                  ::testing::Values(false),
                                                  ::testing::ValuesIn(filterCPUSpecificParams(memForm5D_jit)));
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizeLayerCPUTest_5D_jit, FakeQuantizeLayerCPUTest, testParams5D_jit, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_jit, FakeQuantizeLayerCPUTest, testParams5D_jit, FakeQuantizeLayerCPUTest::getTestCaseName);
 
 
 std::vector<CPUSpecificParams> memForm5D_ref = {
@@ -248,7 +248,7 @@ const auto testParams5D_ref = ::testing::Combine(specificParams5D_ref,
                                                  ::testing::Values(false),
                                                  ::testing::ValuesIn(memForm5D_ref));
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizeLayerCPUTest_5D_ref, FakeQuantizeLayerCPUTest, testParams5D_ref, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_ref, FakeQuantizeLayerCPUTest, testParams5D_ref, FakeQuantizeLayerCPUTest::getTestCaseName);
 
 } // namespace fqImpl
 
@@ -281,7 +281,7 @@ const auto testParams = ::testing::Combine(specificParams,
                                            ::testing::Values(true),
                                            ::testing::Values(CPUSpecificParams{}));
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizeLayerCPUTest_Decompos, FakeQuantizeLayerCPUTest, testParams, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_Decompos, FakeQuantizeLayerCPUTest, testParams, FakeQuantizeLayerCPUTest::getTestCaseName);
 
 } // namespace fqDecompos
 

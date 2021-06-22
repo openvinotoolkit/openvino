@@ -39,7 +39,7 @@ protected:
 };
 
 using uniform_quantized_real_distribution_test_types = ::testing::Types<void, float, double, long double>;
-TYPED_TEST_CASE(uniform_quantized_real_distribution_test, uniform_quantized_real_distribution_test_types);
+TYPED_TEST_SUITE(uniform_quantized_real_distribution_test, uniform_quantized_real_distribution_test_types);
 
 TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_default)
 {

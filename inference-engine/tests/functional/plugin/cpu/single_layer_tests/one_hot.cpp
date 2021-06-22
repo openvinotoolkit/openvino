@@ -100,7 +100,7 @@ const auto testCase_1d = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(emptyCPUSpec)
 );
-INSTANTIATE_TEST_CASE_P(smoke_OneHotCPU_1D, OneHotLayerCPUTest, testCase_1d, OneHotLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_1D, OneHotLayerCPUTest, testCase_1d, OneHotLayerCPUTest::getTestCaseName);
 
 
 // 1d -> 2d, axis default
@@ -116,7 +116,7 @@ const auto testCase_2d = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(emptyCPUSpec)
 );
-INSTANTIATE_TEST_CASE_P(smoke_OneHotCPU_2D, OneHotLayerCPUTest, testCase_2d, OneHotLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_2D, OneHotLayerCPUTest, testCase_2d, OneHotLayerCPUTest::getTestCaseName);
 
 // 2d -> 3d, on_value, off_value
 const auto testCase_3d = ::testing::Combine(
@@ -131,7 +131,7 @@ const auto testCase_3d = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(emptyCPUSpec)
 );
-INSTANTIATE_TEST_CASE_P(smoke_OneHotCPU_3D, OneHotLayerCPUTest, testCase_3d, OneHotLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_3D, OneHotLayerCPUTest, testCase_3d, OneHotLayerCPUTest::getTestCaseName);
 
 // 3d -> 4d
 const auto testCase_4d = ::testing::Combine(
@@ -146,7 +146,7 @@ const auto testCase_4d = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(emptyCPUSpec)
 );
-INSTANTIATE_TEST_CASE_P(smoke_OneHotCPU_4D, OneHotLayerCPUTest, testCase_4d, OneHotLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_4D, OneHotLayerCPUTest, testCase_4d, OneHotLayerCPUTest::getTestCaseName);
 
 // 4d -> 5d
 const auto testCase_5d = ::testing::Combine(
@@ -161,7 +161,7 @@ const auto testCase_5d = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(emptyCPUSpec)
 );
-INSTANTIATE_TEST_CASE_P(smoke_OneHotCPU_5D, OneHotLayerCPUTest, testCase_5d, OneHotLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_5D, OneHotLayerCPUTest, testCase_5d, OneHotLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

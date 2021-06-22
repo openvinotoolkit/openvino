@@ -4,7 +4,7 @@
 
 #include "myriad_layers_deconvolution_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy_deconv_to_conv, myriadLayerDeconvolution_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_deconv_to_conv, myriadLayerDeconvolution_smoke,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 6, 5, 6))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 1), MAKE_STRUCT(param_size, 3, 3))
@@ -17,7 +17,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_deconv_to_conv, myriadLayerDeconvolution_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_deconv_to_conv_2, myriadLayerDeconvolution_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_deconv_to_conv_2, myriadLayerDeconvolution_smoke,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 2, 256, 14, 14))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 2, 2), MAKE_STRUCT(param_size, 3, 3))
@@ -30,7 +30,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_deconv_to_conv_2, myriadLayerDeconvolution_smok
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_group, myriadLayerDeconvolution_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_group, myriadLayerDeconvolution_smoke,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 384, 4, 2))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 2, 2)
@@ -47,7 +47,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_group, myriadLayerDeconvolution_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_depthDeconv, myriadLayerDeconvolution_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_depthDeconv, myriadLayerDeconvolution_smoke,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 384, 4, 2))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 2, 2)
@@ -65,7 +65,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_depthDeconv, myriadLayerDeconvolution_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerDeconvolution_asymm_pad,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerDeconvolution_asymm_pad,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 128, 60, 80),
                                          MAKE_STRUCT(tensor_test_params, 1,   2, 37, 59))
@@ -84,7 +84,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerDeconvolution_asymm_pad,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerDeconvolution_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerDeconvolution_smoke,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 2, 37, 59)
                                        , MAKE_STRUCT(tensor_test_params, 1, 21, 16, 16)
@@ -109,7 +109,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerDeconvolution_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(extra3x3s1, myriadLayerDeconvolution_smoke,
+INSTANTIATE_TEST_SUITE_P(extra3x3s1, myriadLayerDeconvolution_smoke,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 1, 1))
                               , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))

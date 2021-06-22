@@ -47,7 +47,7 @@ const auto MvnCases = ::testing::Combine(
     ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_CLDNN_TestsMVN, MvnLayerTest, MvnCases, MvnLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsMVN, MvnLayerTest, MvnCases, MvnLayerTest::getTestCaseName);
 
 std::vector<InferenceEngine::Precision> dataPrecisions = {
     InferenceEngine::Precision::FP32,
@@ -68,7 +68,7 @@ const std::vector<float> epsilonF = {
     0.0001
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MVN_5D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MVN_5D, Mvn6LayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 10, 5, 7, 8}, {1, 3, 8, 9, 49}}),
                             ::testing::ValuesIn(dataPrecisions),
@@ -80,7 +80,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN_5D, Mvn6LayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_MVN_4D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MVN_4D, Mvn6LayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 10, 5, 17}, {1, 3, 8, 9}}),
                             ::testing::ValuesIn(dataPrecisions),
@@ -92,7 +92,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN_4D, Mvn6LayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_MVN_3D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MVN_3D, Mvn6LayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 32, 17}, {1, 37, 9}}),
                             ::testing::ValuesIn(dataPrecisions),
@@ -104,7 +104,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN_3D, Mvn6LayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_MVN_2D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MVN_2D, Mvn6LayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{3, 5}, {2, 55}}),
                             ::testing::ValuesIn(dataPrecisions),
@@ -116,7 +116,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN_2D, Mvn6LayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Decomposition_1D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_1D, Mvn6LayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{3}, {9}, {55}}),
                             ::testing::ValuesIn(dataPrecisions),
@@ -128,7 +128,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Decomposition_1D, Mvn6LayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Decomposition_3D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_3D, Mvn6LayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 32, 17}, {1, 37, 9}}),
                             ::testing::ValuesIn(dataPrecisions),
@@ -140,7 +140,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Decomposition_3D, Mvn6LayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Decomposition_4D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_4D, Mvn6LayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 16, 5, 8}, {2, 19, 5, 10}}),
                             ::testing::ValuesIn(dataPrecisions),
@@ -152,7 +152,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Decomposition_4D, Mvn6LayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Decomposition_6D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_6D, Mvn6LayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 3, 5, 4, 2, 6}}),
                             ::testing::ValuesIn(dataPrecisions),

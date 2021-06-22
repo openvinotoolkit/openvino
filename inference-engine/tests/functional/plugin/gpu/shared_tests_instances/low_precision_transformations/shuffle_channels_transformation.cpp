@@ -77,7 +77,7 @@ const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> par
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ShuffleChannelsTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ShuffleChannelsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

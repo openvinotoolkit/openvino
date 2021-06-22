@@ -33,11 +33,11 @@ const auto basicCases = ::testing::Combine(
     ::testing::ValuesIn(mergeRepeated),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_set1, CTCGreedyDecoderSeqLenLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_set1, CTCGreedyDecoderSeqLenLayerTest,
                         basicCases,
                         CTCGreedyDecoderSeqLenLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_set2, CTCGreedyDecoderSeqLenLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_set2, CTCGreedyDecoderSeqLenLayerTest,
         ::testing::Combine(
                         ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 8, 11}, {4, 10, 55}}),
                         ::testing::ValuesIn(std::vector<int>{5, 100}),

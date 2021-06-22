@@ -125,7 +125,7 @@ TEST_P(ConvFusionTests, CompareFunctions) {
 using add = ngraph::opset5::Add;
 using mul = ngraph::opset5::Multiply;
 
-INSTANTIATE_TEST_CASE_P(ConvAddFusion, ConvFusionTests,
+INSTANTIATE_TEST_SUITE_P(ConvAddFusion, ConvFusionTests,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{8, 1, 1, 1}, false),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{8, 1, 1, 1}, false),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, add::type_info, EltwiseShape{9, 1, 1, 1}, false),
@@ -143,12 +143,12 @@ INSTANTIATE_TEST_CASE_P(ConvAddFusion, ConvFusionTests,
                         std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{2, 3, 2},       add::type_info, EltwiseShape{2, 1}, false),
                         std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},       add::type_info, EltwiseShape{1, 1}, false)));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_ConvAddFusionNegative, ConvFusionTests,
+INSTANTIATE_TEST_SUITE_P(DISABLED_ConvAddFusionNegative, ConvFusionTests,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{2, 1}, true),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{8, 1, 1}, true),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, add::type_info, EltwiseShape{9, 1, 1, 1, 1}, true)));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_ConvMulFusion, ConvFusionTests,
+INSTANTIATE_TEST_SUITE_P(DISABLED_ConvMulFusion, ConvFusionTests,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{8, 1, 1, 1}, false),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{8, 1, 1, 1}, false),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, mul::type_info, EltwiseShape{9, 1, 1, 1}, false),
@@ -166,7 +166,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_ConvMulFusion, ConvFusionTests,
                         std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{2, 3, 2},       mul::type_info, EltwiseShape{2, 1}, false),
                         std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},       mul::type_info, EltwiseShape{1, 1}, false)));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_ConvMulFusionNegative, ConvFusionTests,
+INSTANTIATE_TEST_SUITE_P(DISABLED_ConvMulFusionNegative, ConvFusionTests,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{2, 1}, true),
                         std::make_tuple(InputShape{DYN, 3, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{8, 1, 1}, true),
                         std::make_tuple(InputShape{2, DYN, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, mul::type_info, EltwiseShape{9, 1, 1, 1, 1}, true)));

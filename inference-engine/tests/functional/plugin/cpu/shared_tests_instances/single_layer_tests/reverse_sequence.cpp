@@ -33,7 +33,7 @@ const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER
 };
 
-INSTANTIATE_TEST_CASE_P(Basic_smoke, ReverseSequenceLayerTest,
+INSTANTIATE_TEST_SUITE_P(Basic_smoke, ReverseSequenceLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(batchAxisIndices),
                             ::testing::ValuesIn(seqAxisIndices),

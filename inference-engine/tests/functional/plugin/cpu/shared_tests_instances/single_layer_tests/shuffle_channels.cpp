@@ -24,7 +24,7 @@ const auto shuffleChannelsParams4D = ::testing::Combine(
         ::testing::ValuesIn(groups)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 shuffleChannelsParams4D,
                 ::testing::ValuesIn(netPrecisions),
@@ -37,7 +37,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerTest,
         ShuffleChannelsLayerTest::getTestCaseName);
 
 // ND support tests
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels6D, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels6D, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 ::testing::Values(std::tuple<int, int>(2, 3)),
                 ::testing::ValuesIn(netPrecisions),
@@ -49,7 +49,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels6D, ShuffleChannelsLayerTest,
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 ::testing::Values(std::tuple<int, int>(2, 3)),
                 ::testing::ValuesIn(netPrecisions),
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerTest,
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels3D, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels3D, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 ::testing::Values(std::tuple<int, int>(1, 3)),
                 ::testing::ValuesIn(netPrecisions),
@@ -73,7 +73,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels3D, ShuffleChannelsLayerTest,
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels2D, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels2D, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 ::testing::Values(std::tuple<int, int>(1, 3)),
                 ::testing::ValuesIn(netPrecisions),
@@ -85,7 +85,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels2D, ShuffleChannelsLayerTest,
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels1D, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels1D, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 ::testing::Values(std::tuple<int, int>(0, 3)),
                 ::testing::ValuesIn(netPrecisions),

@@ -7,9 +7,7 @@
 #include <common_test_utils/test_assertions.hpp>
 #include <common_test_utils/common_utils.hpp>
 #include <unordered_set>
-#include <gmock/gmock-generated-function-mockers.h>
-#include <gmock/gmock-generated-matchers.h>
-#include <gmock/gmock-more-actions.h>
+#include <gmock/gmock.h>
 #include "ie_common.h"
 #include <ie_core.hpp>
 #include "graph_test_base.hpp"

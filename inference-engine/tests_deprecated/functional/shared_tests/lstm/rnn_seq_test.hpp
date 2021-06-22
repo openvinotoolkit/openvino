@@ -75,7 +75,7 @@ TEST_P(RNNSeqTest, DISABLED_SingleRNN) {
     auto resh = std::get<7>(p);
 
     if (device_name == "GPU" && cell.type != LSTM)
-        SKIP();
+        GTEST_SKIP();
 
     cell.clip = clip;
 

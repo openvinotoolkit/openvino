@@ -6,10 +6,6 @@
 	path = inference-engine/thirdparty/mkl-dnn
 	url = https://github.com/openvinotoolkit/oneDNN.git
 	ignore = dirty
-[submodule "inference-engine/tests/ie_test_utils/common_test_utils/gtest"]
-	path = inference-engine/tests/ie_test_utils/common_test_utils/gtest
-	url = https://github.com/openvinotoolkit/googletest.git
-	ignore = dirty
 [submodule "inference-engine/samples/thirdparty/gflags"]
 	path = inference-engine/samples/thirdparty/gflags
 	url = https://github.com/gflags/gflags.git
@@ -21,4 +17,8 @@
 [submodule "thirdparty/zlib/zlib"]
 	path = thirdparty/zlib/zlib
 	url = https://github.com/madler/zlib.git
+	ignore = dirty
+[submodule "thirdparty/gtest"]
+	path = thirdparty/gtest
+	url = https://github.com/openvinotoolkit/googletest.git
 	ignore = dirty

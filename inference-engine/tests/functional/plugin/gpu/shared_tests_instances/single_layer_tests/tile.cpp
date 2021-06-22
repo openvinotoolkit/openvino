@@ -21,7 +21,7 @@ const std::vector<std::vector<int64_t>> repeats = {
         {2, 2, 2},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Tile, TileLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Tile, TileLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(repeats),
                 ::testing::ValuesIn(netPrecisions),
@@ -33,7 +33,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Tile, TileLayerTest,
                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
         TileLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Tile6d, TileLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Tile6d, TileLayerTest,
         ::testing::Combine(
                 ::testing::Values(std::vector<int64_t>({1, 1, 1, 2, 1, 2})),
                 ::testing::ValuesIn(netPrecisions),

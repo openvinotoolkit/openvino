@@ -4,6 +4,6 @@
 
 #include "myriad_layers_bias_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsBias_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsBias_smoke,
         ::testing::ValuesIn(s_biasDims)
 );

@@ -128,7 +128,7 @@ const auto basicCases4D = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Activation4D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
@@ -154,6 +154,6 @@ const auto basicCases5D = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Activation5D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

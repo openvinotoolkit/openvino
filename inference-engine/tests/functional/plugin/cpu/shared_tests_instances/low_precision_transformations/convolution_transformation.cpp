@@ -101,7 +101,7 @@ const std::vector<ngraph::Shape> shapes = {
     { 4, 3, 16, 16 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
@@ -125,7 +125,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionWIthIncorrectWeightsParam> i
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),

@@ -27,7 +27,7 @@ namespace {
     std::vector<size_t> split_axes = { 1 }; // only channels split is currently supported by gna for 4d inputs
     std::vector<size_t> concat_axes = { 1 }; // only channels concat is currently supported by gna for 4d inputs
 
-    INSTANTIATE_TEST_CASE_P(smoke_split_trivial_permute_concat, SplitTrivialPermuteConcatTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_split_trivial_permute_concat, SplitTrivialPermuteConcatTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

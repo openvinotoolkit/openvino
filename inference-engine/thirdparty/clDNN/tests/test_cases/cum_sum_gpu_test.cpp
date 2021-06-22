@@ -207,7 +207,7 @@ namespace {
     };
     std::vector<bool> variants = {false, true};
 }
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_0,
         cum_sum_gpu,
         ::testing::Combine(
@@ -221,9 +221,9 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(axes[0]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_1,
         cum_sum_gpu,
         ::testing::Combine(
@@ -237,9 +237,9 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(axes[1]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_2,
         cum_sum_gpu,
         ::testing::Combine(
@@ -253,9 +253,9 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(axes[2]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_3,
         cum_sum_gpu,
         ::testing::Combine(
@@ -269,9 +269,9 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(axes[3]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_4,
         cum_sum_gpu,
         ::testing::Combine(
@@ -285,9 +285,9 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(axes[4]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         axis_5,
         cum_sum_gpu,
         ::testing::Combine(
@@ -301,7 +301,7 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::ValuesIn(axes[5]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ), );
+            ));
 
 // FIXME: This test fails on some driver versions. Looks like UB in impl or driver issue
 TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {

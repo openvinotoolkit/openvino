@@ -105,7 +105,7 @@ public:
 
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, Single) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddInitialCopyLayer();
@@ -117,7 +117,7 @@ TEST_P(MyriadX_HW_Convolution_Tests_nightly, Single) {
 
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddInitialCopyLayer();
@@ -130,7 +130,7 @@ TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithReLU) {
 
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithLeakyReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvolutionLayer();
@@ -142,7 +142,7 @@ TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithLeakyReLU) {
 
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithClamp) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvolutionLayer();
@@ -154,7 +154,7 @@ TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithClamp) {
 
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, MultipleInfer) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvolutionLayer();
@@ -162,7 +162,7 @@ TEST_P(MyriadX_HW_Convolution_Tests_nightly, MultipleInfer) {
     CompareWithItself(100);
 }
 
-INSTANTIATE_TEST_CASE_P(MaskRcnn101_DILATION, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(MaskRcnn101_DILATION, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 50, 50),
                                                              MAKE_STRUCT(tensor_test_params, 1, 256, 100, 171))
@@ -175,7 +175,7 @@ INSTANTIATE_TEST_CASE_P(MaskRcnn101_DILATION, MyriadX_HW_Convolution_Tests_night
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(kernel_7x7_DILATION, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(kernel_7x7_DILATION, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 90, 90))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 7, 7))
@@ -187,7 +187,7 @@ INSTANTIATE_TEST_CASE_P(kernel_7x7_DILATION, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(Unequal_hw_pad_dilationfactor_DILATION, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(Unequal_hw_pad_dilationfactor_DILATION, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 128, 128))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3),
@@ -201,7 +201,7 @@ INSTANTIATE_TEST_CASE_P(Unequal_hw_pad_dilationfactor_DILATION, MyriadX_HW_Convo
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(Strides_DILATION, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(Strides_DILATION, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 64, 64))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -215,7 +215,7 @@ INSTANTIATE_TEST_CASE_P(Strides_DILATION, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s1p0_extra1, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s1p0_extra1, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 180, 320))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -227,7 +227,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s1p0_extra1, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s1p0_extra2, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s1p0_extra2, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 512, 45, 80))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -239,7 +239,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s1p0_extra2, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s1p0_extra3, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s1p0_extra3, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 45, 80))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -251,7 +251,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s1p0_extra3, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s1p0_extra4, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s1p0_extra4, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 512, 45, 80))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -263,7 +263,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s1p0_extra4, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s2p0_extra1, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s2p0_extra1, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 180, 320))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -275,7 +275,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s2p0_extra1, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s2p0_extra2, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s2p0_extra2, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 128, 90, 160))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -287,7 +287,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s2p0_extra2, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s2p0_extra3, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s2p0_extra3, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 128, 90, 160))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -299,7 +299,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s2p0_extra3, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_extra1, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s2p1_extra1, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 180, 320))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -311,7 +311,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_extra1, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_extra2, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s2p1_extra2, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 128, 90, 160))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -323,7 +323,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_extra2, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_extra3, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s2p1_extra3, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 45, 80))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -335,7 +335,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_extra3, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_extra4, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s2p1_extra4, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 180, 320))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -347,7 +347,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_extra4, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s1p0, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s1p0, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 56, 56))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -359,7 +359,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s1p0, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s1p0_resnet50, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s1p0_resnet50, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 2048, 7, 7))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -372,7 +372,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s1p0_resnet50, MyriadX_HW_Convolution_Tests_nigh
 );
 
 // This case adds extra CopyMakeBorder stage
-INSTANTIATE_TEST_CASE_P(conv_1x1s1p1, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s1p1, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 512, 13, 13))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -384,7 +384,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s1p1, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s2p0, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s2p0, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 56, 56),
                                                              MAKE_STRUCT(tensor_test_params, 1, 512, 28, 28),
@@ -398,7 +398,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s2p0, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s1p1, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s1p1, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 56, 56))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -410,7 +410,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s1p1, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_yolo_tiny_v1_conv1, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s1p1_yolo_tiny_v1_conv1, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 3, 448, 448))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -422,7 +422,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_yolo_tiny_v1_conv1, MyriadX_HW_Convolution_
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_yolo_tiny_v1_conv7, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s1p1_yolo_tiny_v1_conv7, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 512, 7, 7))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -434,7 +434,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_yolo_tiny_v1_conv7, MyriadX_HW_Convolution_
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_yolo_tiny_v1_conv8, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s1p1_yolo_tiny_v1_conv8, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 1024, 7, 7))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -446,7 +446,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_yolo_tiny_v1_conv8, MyriadX_HW_Convolution_
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_vgg, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s1p1_vgg, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 224, 224))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -458,7 +458,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_vgg, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_7x7s2p3, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_7x7s2p3, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 3, 224, 224))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 7, 7))
@@ -472,7 +472,7 @@ INSTANTIATE_TEST_CASE_P(conv_7x7s2p3, MyriadX_HW_Convolution_Tests_nightly,
 
 //  This case for unsymmetric convolution
 
-INSTANTIATE_TEST_CASE_P(conv_3x1s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x1s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 22, 92))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 1))
@@ -484,7 +484,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x1s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x3s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x3s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 22, 92))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 3))
@@ -496,7 +496,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x3s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x5s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x5s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 5, 88))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 5))
@@ -508,7 +508,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x5s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_13x1s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_13x1s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 128, 1, 88))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 13, 1))
@@ -520,7 +520,7 @@ INSTANTIATE_TEST_CASE_P(conv_13x1s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_5x1s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_5x1s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 128, 1, 28))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 5, 1))
@@ -532,7 +532,7 @@ INSTANTIATE_TEST_CASE_P(conv_5x1s1_LPR, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_4x4s2p1, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_4x4s2p1, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 3, 256, 416))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 4, 4))
@@ -544,7 +544,7 @@ INSTANTIATE_TEST_CASE_P(conv_4x4s2p1, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_5x5s2p1, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_5x5s2p1, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 3, 256, 416))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 5, 5))
@@ -556,7 +556,7 @@ INSTANTIATE_TEST_CASE_P(conv_5x5s2p1, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_5x5s2p2, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_5x5s2p2, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 3, 256, 416))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 5, 5))
@@ -568,7 +568,7 @@ INSTANTIATE_TEST_CASE_P(conv_5x5s2p2, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_group1, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s1p1_group1, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 150, 150))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -580,7 +580,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_group1, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_group1, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s2p1_group1, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 150, 150))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -592,7 +592,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_group1, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_group2, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s2p1_group2, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 128, 75, 75))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -604,7 +604,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_group2, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_group3, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s2p1_group3, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 38, 38))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -616,7 +616,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s2p1_group3, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_pva_pvd, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s1p1_pva_pvd, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 6, 208, 368))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -628,7 +628,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_pva_pvd, MyriadX_HW_Convolution_Tests_night
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_1x1s2p0_pva_pvd, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_1x1s2p0_pva_pvd, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 128, 208))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -640,7 +640,7 @@ INSTANTIATE_TEST_CASE_P(conv_1x1s2p0_pva_pvd, MyriadX_HW_Convolution_Tests_night
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_ssd, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s1p1_ssd, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 128, 75, 75))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -652,7 +652,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s1p1_ssd, MyriadX_HW_Convolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_unequal_hw_pad, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_unequal_hw_pad, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 128, 128))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 5, 5),
@@ -665,7 +665,7 @@ INSTANTIATE_TEST_CASE_P(conv_unequal_hw_pad, MyriadX_HW_Convolution_Tests_nightl
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(conv_3x3s3p1_resnet34, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(conv_3x3s3p1_resnet34, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 512, 75, 75))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -677,7 +677,7 @@ INSTANTIATE_TEST_CASE_P(conv_3x3s3p1_resnet34, MyriadX_HW_Convolution_Tests_nigh
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(fc_to_conv_case, MyriadX_HW_Convolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(fc_to_conv_case, MyriadX_HW_Convolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 56, 350))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 7, 7))
@@ -794,7 +794,7 @@ public:
 
 TEST_P(MyriadX_HW_ConvPoolMerged_Tests_nightly, WithReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvLayer();
@@ -807,7 +807,7 @@ TEST_P(MyriadX_HW_ConvPoolMerged_Tests_nightly, WithReLU) {
 
 TEST_P(MyriadX_HW_ConvPoolMerged_Tests_nightly, WithLeakyReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvLayer();
@@ -818,7 +818,7 @@ TEST_P(MyriadX_HW_ConvPoolMerged_Tests_nightly, WithLeakyReLU) {
     CompareWithSW(maxerr);
 }
 
-INSTANTIATE_TEST_CASE_P(yolo_conv1, MyriadX_HW_ConvPoolMerged_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(yolo_conv1, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 3, 448, 448)),
                                 ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3)),
@@ -831,7 +831,7 @@ INSTANTIATE_TEST_CASE_P(yolo_conv1, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(yolov2_tf_conv, MyriadX_HW_ConvPoolMerged_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(yolov2_tf_conv, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 304, 304),
                                                              MAKE_STRUCT(tensor_test_params, 1, 64, 152, 152)),
@@ -845,7 +845,7 @@ INSTANTIATE_TEST_CASE_P(yolov2_tf_conv, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(yolo_conv2, MyriadX_HW_ConvPoolMerged_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(yolo_conv2, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 16, 224, 224)),
                                 ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3)),
@@ -858,7 +858,7 @@ INSTANTIATE_TEST_CASE_P(yolo_conv2, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(yolo_conv4, MyriadX_HW_ConvPoolMerged_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(yolo_conv4, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 56, 56)),
                                 ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3)),
@@ -871,7 +871,7 @@ INSTANTIATE_TEST_CASE_P(yolo_conv4, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(ssd_case1, MyriadX_HW_ConvPoolMerged_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(ssd_case1, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 98, 150)),
                                 ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3)),
@@ -884,7 +884,7 @@ INSTANTIATE_TEST_CASE_P(ssd_case1, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(vgg16_case1, MyriadX_HW_ConvPoolMerged_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(vgg16_case1, MyriadX_HW_ConvPoolMerged_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 512, 28, 28)),
                                 ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3)),
@@ -951,7 +951,7 @@ public:
 
 TEST_P(MyriadX_HW_ConvTF_Tests_nightly, Single) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddConvolutionLayer();
@@ -960,7 +960,7 @@ TEST_P(MyriadX_HW_ConvTF_Tests_nightly, Single) {
     CompareWithSW(maxerr);
 }
 
-INSTANTIATE_TEST_CASE_P(tf, MyriadX_HW_ConvTF_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(tf, MyriadX_HW_ConvTF_Tests_nightly,
     ::testing::Values(
         std::make_tuple(
             MAKE_STRUCT(tensor_test_params, 1, 3, 224, 224),    // input
@@ -1124,7 +1124,7 @@ public:
 
 TEST_P(MyriadX_HW_Deconvolution_Tests_nightly, Single) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddInitialCopyLayer();
@@ -1136,7 +1136,7 @@ TEST_P(MyriadX_HW_Deconvolution_Tests_nightly, Single) {
 
 TEST_P(MyriadX_HW_Deconvolution_Tests_nightly, ScaleTests) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddInitialCopyLayer();
@@ -1146,7 +1146,7 @@ TEST_P(MyriadX_HW_Deconvolution_Tests_nightly, ScaleTests) {
     CompareWithSW(maxerr);
 }
 
-INSTANTIATE_TEST_CASE_P(deconv_tf_ssd, MyriadX_HW_Deconvolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(deconv_tf_ssd, MyriadX_HW_Deconvolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 2, 3, 3))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -1157,7 +1157,7 @@ INSTANTIATE_TEST_CASE_P(deconv_tf_ssd, MyriadX_HW_Deconvolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(deconv_3x3_str1, MyriadX_HW_Deconvolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(deconv_3x3_str1, MyriadX_HW_Deconvolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 3, 3),
                                                              MAKE_STRUCT(tensor_test_params, 1, 128, 5, 5),
@@ -1170,7 +1170,7 @@ INSTANTIATE_TEST_CASE_P(deconv_3x3_str1, MyriadX_HW_Deconvolution_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(hw_accuracy_deconv_3x3, MyriadX_HW_Deconvolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(hw_accuracy_deconv_3x3, MyriadX_HW_Deconvolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 5, 5),
                                                              MAKE_STRUCT(tensor_test_params, 1, 128, 11, 11),
@@ -1185,7 +1185,7 @@ INSTANTIATE_TEST_CASE_P(hw_accuracy_deconv_3x3, MyriadX_HW_Deconvolution_Tests_n
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(hw_accuracy_deconv, MyriadX_HW_Deconvolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(hw_accuracy_deconv, MyriadX_HW_Deconvolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 120, 36, 36),
                                                              MAKE_STRUCT(tensor_test_params, 1, 73, 40, 54),
@@ -1200,7 +1200,7 @@ INSTANTIATE_TEST_CASE_P(hw_accuracy_deconv, MyriadX_HW_Deconvolution_Tests_night
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(hw_accuracy_scale_deconv, MyriadX_HW_Deconvolution_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(hw_accuracy_scale_deconv, MyriadX_HW_Deconvolution_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 120, 36, 36))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 5, 5))

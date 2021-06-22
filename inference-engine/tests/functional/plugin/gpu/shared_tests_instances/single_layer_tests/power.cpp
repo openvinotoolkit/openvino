@@ -34,7 +34,7 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_power, PowerLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_power, PowerLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inShapes),
                                     ::testing::ValuesIn(netPrecisions),

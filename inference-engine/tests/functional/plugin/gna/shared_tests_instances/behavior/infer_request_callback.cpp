@@ -20,14 +20,14 @@ const std::vector<std::map<std::string, std::string>> multiConfigs = {
 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CallbackTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CallbackTests,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs)),
         CallbackTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, CallbackTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CallbackTests,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),

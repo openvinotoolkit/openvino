@@ -74,7 +74,7 @@ std::vector<std::vector<std::size_t>> length = {
         {500, 500}
 };
 
-INSTANTIATE_TEST_CASE_P(SpecialStages, Concat_Split_Transpose,
+INSTANTIATE_TEST_SUITE_P(SpecialStages, Concat_Split_Transpose,
                         ::testing::Combine(
                                 ::testing::Values(ngraph::element::i32),
                                 ::testing::ValuesIn(dims),

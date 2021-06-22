@@ -30,6 +30,6 @@ namespace {
         ::testing::Values(InferenceEngine::Precision::FP32),   // Net precision
         ::testing::Values(CommonTestUtils::DEVICE_CPU));       // Device name
 
-    INSTANTIATE_TEST_CASE_P(smoke_TestsDeformablePSROIPooling, DeformablePSROIPoolingLayerTest, deformablePSROICases_test_params,
+    INSTANTIATE_TEST_SUITE_P(smoke_TestsDeformablePSROIPooling, DeformablePSROIPoolingLayerTest, deformablePSROICases_test_params,
                             DeformablePSROIPoolingLayerTest::getTestCaseName);
 }  // namespace

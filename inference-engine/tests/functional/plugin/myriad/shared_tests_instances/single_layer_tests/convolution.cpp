@@ -60,7 +60,7 @@ const auto conv2DParams_BigDimensionValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_ExplicitPadding, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -72,7 +72,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_ExplicitPadding, ConvolutionLayerTes
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -83,7 +83,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid, ConvolutionLayerTest,
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         ConvolutionLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_BigDimensionValid, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_BigDimensionValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_BigDimensionValid,
                                 ::testing::ValuesIn(netPrecisions),

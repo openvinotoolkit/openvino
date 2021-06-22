@@ -15,7 +15,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_NoReshape, ExecGraphUniqueNodeNames,
+INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ExecGraphUniqueNodeNames,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::SizeVector({1, 2, 5, 5})),

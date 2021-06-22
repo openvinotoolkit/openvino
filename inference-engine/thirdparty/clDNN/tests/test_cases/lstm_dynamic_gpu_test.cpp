@@ -527,8 +527,8 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
 
 };
 typedef ::testing::Types<float, FLOAT16> lstm_dynamic_test_types;
-TYPED_TEST_CASE(lstm_dynamic_single_layer_test, lstm_dynamic_test_types);
-TYPED_TEST_CASE(lstm_dynamic_input_layer_test, lstm_dynamic_test_types);
+TYPED_TEST_SUITE(lstm_dynamic_single_layer_test, lstm_dynamic_test_types);
+TYPED_TEST_SUITE(lstm_dynamic_input_layer_test, lstm_dynamic_test_types);
 
 /*
 ----------------------------------------------

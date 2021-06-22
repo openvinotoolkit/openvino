@@ -559,7 +559,7 @@ TEST_P(general_reduce_gpu_i8_f32, base) { execute(); }
 class general_reduce_gpu_f32_f32 : public ReduceTestBase<data_types::f32, data_types::f32> {};
 TEST_P(general_reduce_gpu_f32_f32, base) { execute(); }
 
-INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
+INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                         general_reduce_gpu_i8_i8,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(2, 12, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::logical_or, {reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, true, data_types::i8),
@@ -571,7 +571,7 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                             ),
                             general_reduce_gpu::PrintToStringParamName);
 
- INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_f32,
+ INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_i8_f32,
                         general_reduce_gpu_i8_f32,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::sum, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
@@ -611,7 +611,7 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                             ),
                             general_reduce_gpu::PrintToStringParamName);
 
- INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_f32_f32,
+ INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_f32_f32,
                         general_reduce_gpu_f32_f32,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
@@ -654,7 +654,7 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                         ),
                         general_reduce_gpu::PrintToStringParamName);
 
- INSTANTIATE_TEST_CASE_P(reduce_gpu_ref_f32_f32,
+ INSTANTIATE_TEST_SUITE_P(reduce_gpu_ref_f32_f32,
                         general_reduce_gpu_f32_f32,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(2, 4, 4, 5, 8, 8, format::bfwzyx, reduce_mode::mean, {reduce::along_f, reduce::along_y, reduce::along_w, reduce::along_z}, "reduce_ref", false, data_types::f32, false, data_types::f32),
@@ -710,7 +710,7 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                             TestParamType_general_reduce_gpu(17, 4, 1, 1, 12, 15, format::bfyx, reduce_mode::mean, {reduce::along_b}, "reduce_ref", true, data_types::f32, false, data_types::f32)
                         ), general_reduce_gpu::PrintToStringParamName);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_reduce_gpu_ref_f32_f32,
+INSTANTIATE_TEST_SUITE_P(DISABLED_reduce_gpu_ref_f32_f32,
                         general_reduce_gpu_f32_f32,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(1, 7, 1, 1, 4, 3,format::bfyx, reduce_mode::mean, {reduce::along_b, reduce::along_f, reduce::along_y}, "reduce_ref", false, data_types::f32, false, data_types::f32),
@@ -1775,7 +1775,7 @@ TEST_P(general_reduce_gpu_xy_f32, base) { execute(); }
 class general_reduce_gpu_xy_i8 : public ReduceXYWithBigTensorTestBase<data_types::i8, data_types::i8> {};
 TEST_P(general_reduce_gpu_xy_i8, base) { execute(); }
 
-INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_xy_f32,
+INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_xy_f32,
                         general_reduce_gpu_xy_f32,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(1, 32, 1, 1,  18,  18, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, true, data_types::f32),
@@ -1783,7 +1783,7 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_xy_f32,
                         ),
                         general_reduce_gpu::PrintToStringParamName);
 
-INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_xy_i8,
+INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_xy_i8,
                         general_reduce_gpu_xy_i8,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(1, 32, 1, 1,  18,  18, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, true, data_types::i8),

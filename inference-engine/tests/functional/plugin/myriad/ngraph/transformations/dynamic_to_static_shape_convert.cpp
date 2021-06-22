@@ -72,7 +72,7 @@ protected:
 TEST_P(DynamicToStaticShapeConvert, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeConvert, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeConvert, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,

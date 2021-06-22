@@ -103,7 +103,7 @@ const std::vector<std::vector<std::vector<size_t>>> input_shapes = {
 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_convert_matmul_to_fc, ConvertMatmulToFcPass,
+INSTANTIATE_TEST_SUITE_P(smoke_convert_matmul_to_fc, ConvertMatmulToFcPass,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_shapes),
                                 ::testing::ValuesIn(netPrecisions),

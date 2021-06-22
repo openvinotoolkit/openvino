@@ -366,7 +366,7 @@ TEST_P(PThreadBinSemaphoreTest, PostWakeUpOnlyOneWaiterOfMany) {
     th3.join();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     PThreadParametrizedTests,
     PThreadBinSemaphoreTest,
     ::testing::Values(

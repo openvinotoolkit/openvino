@@ -20,7 +20,7 @@ namespace {
             { 1, 3 },
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, LayoutTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, LayoutTest,
             ::testing::Combine(
                     ::testing::Values(InferenceEngine::Precision::FP32),
                     ::testing::Values(CommonTestUtils::DEVICE_GPU),

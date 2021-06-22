@@ -171,7 +171,7 @@ const auto Mvn3D = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
 
 const auto Mvn4D = ::testing::Combine(
         ::testing::Combine(
@@ -186,7 +186,7 @@ const auto Mvn4D = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
 
 const auto Mvn5D = ::testing::Combine(
         ::testing::Combine(
@@ -201,7 +201,7 @@ const auto Mvn5D = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerCPUTest, Mvn5D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerCPUTest, Mvn5D, MvnLayerCPUTest::getTestCaseName);
 
 // 1D 2D case
 std::vector<fusingSpecificParams> fusingUnaryEltwiseParamsSet {
@@ -225,7 +225,7 @@ const auto Mvn1D = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerCPUTest, Mvn1D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerCPUTest, Mvn1D, MvnLayerCPUTest::getTestCaseName);
 
 // 2D no transformed
 const auto Mvn2D = ::testing::Combine(
@@ -241,7 +241,7 @@ const auto Mvn2D = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Mvn2D, MvnLayerCPUTest, Mvn2D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2D, MvnLayerCPUTest, Mvn2D, MvnLayerCPUTest::getTestCaseName);
 
 // 2d transformed
 const auto Mvn2DTrans = ::testing::Combine(
@@ -257,7 +257,7 @@ const auto Mvn2DTrans = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_MVN2DTrans, MvnLayerCPUTest, Mvn2DTrans, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_MVN2DTrans, MvnLayerCPUTest, Mvn2DTrans, MvnLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

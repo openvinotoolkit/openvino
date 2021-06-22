@@ -136,7 +136,7 @@ const auto params4D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::ValuesIn(CPUParams4D));
 
-INSTANTIATE_TEST_CASE_P(smoke_Transpose4D_CPU, TransposeLayerCPUTest, params4D, TransposeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Transpose4D_CPU, TransposeLayerCPUTest, params4D, TransposeLayerCPUTest::getTestCaseName);
 
 const auto paramsPerChannels4D = ::testing::Combine(
         ::testing::ValuesIn(inputOrderPerChannels4D),
@@ -146,7 +146,7 @@ const auto paramsPerChannels4D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::Values(cpuParams_nhwc));
 
-INSTANTIATE_TEST_CASE_P(smoke_PermutePerChannels4D_CPU, TransposeLayerCPUTest, paramsPerChannels4D, TransposeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PermutePerChannels4D_CPU, TransposeLayerCPUTest, paramsPerChannels4D, TransposeLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes5D = {
         {2, 32, 5, 10, 20}
@@ -189,7 +189,7 @@ const auto params5D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::ValuesIn(CPUParams5D));
 
-INSTANTIATE_TEST_CASE_P(smoke_Transpose5D_CPU, TransposeLayerCPUTest, params5D, TransposeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Transpose5D_CPU, TransposeLayerCPUTest, params5D, TransposeLayerCPUTest::getTestCaseName);
 
 const auto paramsPerChannels5D = ::testing::Combine(
         ::testing::ValuesIn(inputOrderPerChannels5D),
@@ -199,7 +199,7 @@ const auto paramsPerChannels5D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::Values(cpuParams_ndhwc));
 
-INSTANTIATE_TEST_CASE_P(smoke_PermutePerChannels5D_CPU, TransposeLayerCPUTest, paramsPerChannels5D, TransposeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PermutePerChannels5D_CPU, TransposeLayerCPUTest, paramsPerChannels5D, TransposeLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

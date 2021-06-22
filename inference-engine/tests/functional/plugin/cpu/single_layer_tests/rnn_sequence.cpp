@@ -167,7 +167,7 @@ std::vector<ngraph::op::RecurrentSequenceDirection> direction{ngraph::op::Recurr
 
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCPU,
+INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCPU,
                         RNNSequenceCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
                                                               ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -183,7 +183,7 @@ INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCPU,
                                            ::testing::ValuesIn(additionalConfig)),
                         RNNSequenceCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCPUBatchSizeOne,
+INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCPUBatchSizeOne,
                         RNNSequenceCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
                                                               ::testing::ValuesIn(seq_lengths_zero_clip),

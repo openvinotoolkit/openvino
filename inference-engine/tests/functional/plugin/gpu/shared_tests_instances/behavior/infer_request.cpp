@@ -26,28 +26,28 @@ namespace {
         {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                     ::testing::Values(std::map<std::string, std::string>({}))),
                             InferRequestTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, InferRequestTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(configs)),
                             InferRequestTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, InferRequestTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(autoconfigs)),
                             InferRequestTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_AutoCG_BehaviorTests, InferRequestTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_AutoCG_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),

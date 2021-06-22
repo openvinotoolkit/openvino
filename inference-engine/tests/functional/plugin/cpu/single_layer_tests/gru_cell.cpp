@@ -117,7 +117,7 @@ std::vector<float> clip = {0.f};
 std::vector<bool> linear_before_reset = {true, false};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(smoke_GRUCellCPU,
+INSTANTIATE_TEST_SUITE_P(smoke_GRUCellCPU,
                         GRUCellCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(should_decompose),
                                                               ::testing::ValuesIn(batch),

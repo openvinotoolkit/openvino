@@ -36,7 +36,7 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
     ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels),
     ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Convolution2D_Serialization_ExplicitPadding, ConvolutionLayerTest,
     ::testing::Combine(
         conv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -48,7 +48,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Convolution2D__Serialization_AutoPadValid, ConvolutionLayerTest,
     ::testing::Combine(
         conv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),

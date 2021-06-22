@@ -80,7 +80,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     { {"GNA_DEVICE_MODE", "GNA_SW_EXACT"} }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_const_with_fq, BroadcastConstWithFq,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_const_with_fq, BroadcastConstWithFq,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes1),

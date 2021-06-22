@@ -268,7 +268,7 @@ TEST_P(TensorIteratorWithConfigTest, CompareWithRefs) {
 using namespace LayerTestsDefinitions;
 
 namespace {
-    INSTANTIATE_TEST_CASE_P(smoke_TensorIteratorCommon, TensorIteratorWithConfigTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_TensorIteratorCommon, TensorIteratorWithConfigTest,
         ::testing::Combine(
             ::testing::ValuesIn(std::vector<size_t> {2, 4}), // seq lengths
             ::testing::ValuesIn(std::vector<size_t> {1}), // only single batch supported

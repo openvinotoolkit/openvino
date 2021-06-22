@@ -120,7 +120,7 @@ typedef std::tuple<
  *  TEST_P(ScaleshiftConv_x3_Eltwise, CompareWithRefImpl) {
     test();
 };
- *  3. INSTANTIATE_TEST_CASE_P(smoke_bfloat16_NoReshape, ScaleshiftConv_x3_Eltwise,
+ *  3. INSTANTIATE_TEST_SUITE_P(smoke_bfloat16_NoReshape, ScaleshiftConv_x3_Eltwise,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::FP32),

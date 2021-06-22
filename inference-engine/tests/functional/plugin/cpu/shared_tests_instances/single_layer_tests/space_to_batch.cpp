@@ -37,7 +37,7 @@ const auto SpaceToBatch4D = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_spacetobatch4D, SpaceToBatchLayerTest, SpaceToBatch4D,
         SpaceToBatchLayerTest::getTestCaseName);
 
@@ -67,7 +67,7 @@ const auto SpaceToBatch5D = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_spacetobatch5D, SpaceToBatchLayerTest, SpaceToBatch5D,
         SpaceToBatchLayerTest::getTestCaseName);
 
