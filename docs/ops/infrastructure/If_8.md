@@ -16,9 +16,6 @@
     
     * **Internal networks results** - outputs from the internal network which associated with *If* outputs via *portmap*. The internal network must contain at least one result. Each *If* output is associated with one result from the internal network. It follows that number of `then_body` results is the equal to the number of outputs from the *If* and the number of `else_body` results. Type of the internal network result and type of the associated output from *If* must be equal.
     
-    * **Internal networks attributes**:
-
-            No attributes available.
 
 * **Port maps**:
     
