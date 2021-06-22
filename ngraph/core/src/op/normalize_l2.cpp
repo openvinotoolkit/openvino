@@ -24,7 +24,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 NGRAPH_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
 
 op::NormalizeL2::NormalizeL2()
-    : FusedOp()
+    : Op()
     , m_eps()
     , m_eps_mode()
 {
@@ -34,9 +34,9 @@ op::NormalizeL2::NormalizeL2(const Output<Node>& data,
                              const Output<Node>& axes,
                              float eps,
                              EpsMode eps_mode)
-    : FusedOp({data, axes})
-    , m_eps{eps}
-    , m_eps_mode{eps_mode}
+    : Op({data, axes})
+    , m_eps(eps)
+    , m_eps_mode(eps_mode)
 {
     constructor_validate_and_infer_types();
 }
@@ -49,7 +49,7 @@ bool ngraph::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::NormalizeL2::pre_validate_and_infer_types()
+void op::NormalizeL2::validate_and_infer_types()
 {
     auto axes_node = input_value(1).get_node_shared_ptr();
     const auto& input_pshape = get_input_partial_shape(0);
@@ -95,22 +95,6 @@ AxisSet op::NormalizeL2::get_reduction_axes() const
         axes = const_op->get_axis_set_val();
     }
     return axes;
-}
-
-OutputVector op::NormalizeL2::decompose_op() const
-{
-    Output<Node> data{input_value(0)};
-    const Shape input_shape{data.get_shape()};
-
-    // Calculate l2 norm across axes determined by axes input
-    auto builder_bias_mode =
-        (m_eps_mode == EpsMode::MAX) ? builder::BiasMode::MAX : builder::BiasMode::ADD;
-    const auto axes = input_value(1);
-    Output<Node> norm = builder::opset1::l2_norm(data, axes, m_eps, builder_bias_mode, true);
-
-    data = make_shared<op::v1::Divide>(data, norm, AutoBroadcastSpec(AutoBroadcastType::NUMPY));
-
-    return OutputVector{data};
 }
 
 shared_ptr<Node> op::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const
