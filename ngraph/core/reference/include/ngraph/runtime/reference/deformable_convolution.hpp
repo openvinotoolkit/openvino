@@ -78,6 +78,39 @@ namespace ngraph
                                                     const int x_size,
                                                     const int y_size)
                 {
+                    float w = x_idx;
+                    float h = y_idx;
+                    int width = x_size;
+                    int height = y_size;
+                    int data_width = x_size;
+
+                    int h_low = floor(h);
+                    int w_low = floor(w);
+                    int h_high = h_low + 1;
+                    int w_high = w_low + 1;
+
+                    float lh = h - h_low;
+                    float lw = w - w_low;
+                    float hh = 1 - lh, hw = 1 - lw;
+
+                    float v1 = 0;
+                    if (h_low >= 0 && w_low >= 0)
+                        v1 = data[h_low * data_width + w_low];
+                    float v2 = 0;
+                    if (h_low >=0 && w_high <= width - 1)
+                        v2 = data[h_low * data_width + w_high];
+                    float v3 = 0;
+                    if (h_high <= height - 1 && w_low >= 0)
+                        v3 = data[h_high * data_width + w_low];
+                    float v4 = 0;
+                    if (h_high <= height - 1 && w_high <= width - 1)
+                        v4 = data[h_high * data_width + w_high];
+
+                    float w1 = hh * hw, w2 = hh * lw, w3 = lh * hw, w4 = lh * lw;
+
+                    float val = (w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4);
+
+
                     const int x1 = std::max(static_cast<int>(std::floor(x_idx)), 0);
                     const int x2 = std::min(static_cast<int>(std::ceil(x_idx)), x_size - 1);
                     const int y1 = std::max(static_cast<int>(std::floor(y_idx)), 0);
@@ -87,14 +120,16 @@ namespace ngraph
                     const float distY = y_idx - y1;
 
                     const float value11 = data[y1 * x_size + x1];
-                    const float value12 = data[y2 * x_size + x1];
                     const float value21 = data[y1 * x_size + x2];
+                    const float value12 = data[y2 * x_size + x1];
                     const float value22 = data[y2 * x_size + x2];
 
                     const float value = (1 - distX) * (1 - distY) * value11 +
                                         (1 - distX) * distY * value12 +
                                         distX * (1 - distY) * value21 + distX * distY * value22;
-                    return value;
+                    if (value != val)
+                        std::cout << " failed" <<  std::endl;
+                    return val;
                 }
 
                 template <typename T>
