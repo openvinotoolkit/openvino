@@ -26,7 +26,7 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
     auto sort_result_type = opset8::MulticlassNms::SortResultType::SCORE;
-    auto sort_result_across_batch = false;
+    auto sort_result_across_batch = true;
     auto output_type = ngraph::element::i32;
     int nms_top_k = 100;
     int keep_top_k = 10;

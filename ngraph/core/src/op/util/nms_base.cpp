@@ -33,8 +33,6 @@ op::util::NmsBase::NmsBase(const Output<Node>& boxes,
 
 namespace
 {
-    constexpr size_t max_output_boxes_port = 2;
-
     inline bool is_float_type_admissible(const element::Type& t)
     {
         return t == element::f32 || t == element::f16 || t == element::bf16;
