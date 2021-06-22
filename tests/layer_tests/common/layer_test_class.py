@@ -103,9 +103,11 @@ class CommonLayerTest:
 
     # Feed dict for each input is filled with random number.
     # It is possible to redefine this function and generate your own input
-    def _prepare_input(self, inputs_dict):
+    def _prepare_input(self, inputs_dict, params: dict = None):
+        min_value = -255 if params is None else params.get('min_value', -255)
+        max_value = 255 if params is None else params.get('max_value', 255)
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.float32)
+            inputs_dict[input] = np.random.randint(min_value, max_value, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
     def compare_ie_results_with_framework(self, infer_res, framework_res, mapping_dict, framework_eps):

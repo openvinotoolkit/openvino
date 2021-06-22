@@ -9,6 +9,8 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestLog(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     def create_log_net(self, shape, ir_version):
         """
             Tensorflow net                 IR net
@@ -17,21 +19,13 @@ class TestLog(CommonTFLayerTest):
 
         """
 
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            shapes = shape.copy()
-            # reshaping
-            if len(shapes) >= 3:
-                shapes.append(shapes.pop(1))
-            input = tf.compat.v1.placeholder(tf.float32, shapes, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
 
             tf.math.log(input, name='Operation')
 
@@ -59,13 +53,14 @@ class TestLog(CommonTFLayerTest):
         return tf_net, ref_net
 
     test_data_precommit = [
-        pytest.param(dict(shape=[3, 2, 3, 7, 6]), marks=pytest.mark.skip(reason="Skipped until fixed"))]
+        dict(shape=[3, 2, 3, 7, 6])]
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     def test_log_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_log_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   kwargs_to_prepare_input={'min_value': 1, 'max_value': 255})
 
     test_data = [dict(shape=[1]),
                  dict(shape=[2, 5]),
@@ -76,4 +71,5 @@ class TestLog(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_log(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_log_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   kwargs_to_prepare_input={'min_value': 1, 'max_value': 255})
