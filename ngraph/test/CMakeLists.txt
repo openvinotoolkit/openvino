@@ -284,6 +284,7 @@ set(SRC
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
+    visitors/op/round.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/softmax.cpp
