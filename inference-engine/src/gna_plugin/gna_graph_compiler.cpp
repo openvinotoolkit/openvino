@@ -415,7 +415,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         weight_scale_factor = quantized->_weights_quant.GetScale();
         output_scale_factor = quantized->_dst_quant.GetScale();
     }
-    // uint32_t num_filter_rows = num_filter_coefficients / num_feature_map_columns;
     auto& currentComponent = dnnComponents.addComponent(convolution.name, "convolution");
     dnn->InitConvolutional1DComponent(currentComponent,
         1,
@@ -427,9 +426,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         num_bytes_per_weight,
         num_bytes_per_bias,
         num_filters,
-        //num_filter_rows,
         num_filter_coefficients,
-        //1,
         num_feature_map_rows,
         num_feature_map_columns,
         weight_scale_factor,
