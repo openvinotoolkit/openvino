@@ -521,16 +521,16 @@ set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
 # ---- PaddlePaddle FrontEnd testing ------
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
-    find_package(Python3 COMPONENTS Interpreter)
+    find_package (PythonInterp 3 REQUIRED)
     set(PDPD_PYTHON_OK TRUE)
-    if(NOT Python3_FOUND)
+    if(NOT PYTHON_EXECUTABLE)
         message("Python3 is required to build the PDPD frontend unit tests")
         set(PDPD_PYTHON_OK FALSE)
     endif()
 
     if (PDPD_PYTHON_OK)
         execute_process(
-                COMMAND ${Python3_EXECUTABLE} -m pip show paddlepaddle
+                COMMAND ${PYTHON_EXECUTABLE} -m pip show paddlepaddle
                 RESULT_VARIABLE PIP_EXIT_CODE
                 OUTPUT_QUIET
         )
@@ -655,7 +655,7 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
         set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
-                COMMAND ${Python3_EXECUTABLE}
+                COMMAND ${PYTHON_EXECUTABLE}
                         ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
                         ${GEN_SCRIPT}
                         ${TEST_PDPD_MODELS}
