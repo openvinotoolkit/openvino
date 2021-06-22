@@ -106,6 +106,8 @@ namespace ngraph
                                           const Shape& offset_shape,
                                           const T* filter,
                                           const Shape& filter_shape,
+                                          const T* mask,
+                                          const Shape& mask_shape,
                                           T* out)
                 {
                     const int input_size_y = batch_shape[1];
@@ -123,6 +125,9 @@ namespace ngraph
                     const int offsets_spatial_size = shape_size(shape_reduce(offset_shape));
                     const int offsets_channel_size = 2 * offsets_spatial_size;
                     const int filter_channels_count = filter_shape[0];
+                    const int mask_size = shape_size(mask_shape);
+                    const int mask_spatial_size = shape_size(shape_reduce(mask_shape));
+                    const int mask_channel_size = mask_spatial_size;
 
                     int out_idx = 0;
                     for (int i_y = -p.pads_begin[0];
@@ -136,12 +141,14 @@ namespace ngraph
                             auto input_channel = batch;
                             auto filter_channel = filter;
                             T sum = 0;
+                            auto group_mask_channel = mask;
                             auto group_offsets_channel = offsets;
                             for (int dg = 0; dg < deformable_groups; dg++)
                             {
                                 for (int fc = 0; fc < filter_channels_count / deformable_groups;
                                      fc++)
                                 {
+                                    auto mask_channel = group_mask_channel;
                                     auto offsets_channel = group_offsets_channel;
                                     for (int f_y = 0; f_y < filter_size_y; ++f_y)
                                     {
@@ -153,7 +160,10 @@ namespace ngraph
                                             T rel_i_y = i_y + (f_y * p.dilation[0]) + y_offset;
                                             T rel_i_x = i_x + (f_x * p.dilation[1]) + x_offset;
 
+                                            T mask_val = mask_channel[out_idx];
+
                                             offsets_channel += offsets_channel_size;
+                                            mask_channel += mask_channel_size;
                                             bool padding = !(in_range(rel_i_x, {0, input_size_x}) &&
                                                              in_range(rel_i_y, {0, input_size_y}));
                                             if (padding)
@@ -165,13 +175,14 @@ namespace ngraph
                                                                           rel_i_y,
                                                                           input_size_x,
                                                                           input_size_y) *
-                                                   filter_channel[f_buf_idx];
+                                                   filter_channel[f_buf_idx] * mask_val;
                                         }
                                     }
                                     input_channel += input_channel_size;
                                     filter_channel += filter_channel_size;
                                 }
                                 group_offsets_channel += offsets_size / deformable_groups;
+                                group_mask_channel += mask_size / deformable_groups;
                             }
                             out[out_idx++] = sum;
                         }
@@ -183,10 +194,12 @@ namespace ngraph
             void deformable_convolution(const T* in,
                                         const T* offsets,
                                         const T* filters,
+                                        const T* mask,
                                         T* out,
                                         const Shape& in_shape,
                                         const Shape& o_shape,
                                         const Shape& f_shape,
+                                        const Shape& m_shape,
                                         const Shape& out_shape,
                                         const Strides& strides,
                                         const Strides& dilation,
@@ -228,12 +241,17 @@ namespace ngraph
                 const Shape group_filter_shape = shape_reduce(f_shape);
                 const size_t group_filter_size = shape_size(group_filter_shape);
 
+                const Shape group_mask_shape = shape_scale(shape_reduce(m_shape), groups);
+                const size_t group_mask_size = shape_size(group_mask_shape);
+                const size_t group_mask_batch_size = shape_size(shape_reduce(group_mask_shape));
+
                 const size_t out_ch_size = shape_size(shape_reduce(shape_reduce(out_shape)));
 
                 for (size_t batch_idx = 0; batch_idx < batches_count; ++batch_idx)
                 {
                     const T* group_filters = filters;
                     const T* group_offsets = offsets;
+                    const T* group_mask = mask;
                     for (size_t group_idx = 0; group_idx < groups_count; ++group_idx)
                     {
                         for (size_t f_idx = 0; f_idx < group_filters_count; ++f_idx)
@@ -246,6 +264,8 @@ namespace ngraph
                                                  group_offset_shape,
                                                  group_filters,
                                                  group_filter_shape,
+                                                 group_mask,
+                                                 group_mask_shape,
                                                  out);
                             group_filters += group_filter_size;
                             out += out_ch_size;
@@ -254,9 +274,11 @@ namespace ngraph
                         if (deformable_groups > 1)
                         {
                             group_offsets += (deformable_groups_per_group * group_offset_size);
+                            group_mask += (deformable_groups_per_group * group_mask_size);
                         }
                     }
                     offsets += group_offset_batch_size;
+                    mask += group_mask_batch_size;
                 }
             }
         } // namespace reference
