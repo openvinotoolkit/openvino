@@ -1508,7 +1508,7 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(CachingTest, CachingTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_CachingTest, CachingTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(loadVariants),
                             ::testing::ValuesIn(cacheFolders)),
