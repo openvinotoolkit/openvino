@@ -9,6 +9,8 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestCeil(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     def create_ceil_net(self, shape, ir_version):
         """
             Tensorflow net                 IR net
@@ -16,22 +18,13 @@ class TestCeil(CommonTFLayerTest):
             Input->Ceil       =>       Input->Ceil
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            shapes = shape.copy()
-            # reshaping
-            if len(shapes) >= 3:
-                shapes.append(shapes.pop(1))
-            input = tf.compat.v1.placeholder(tf.float32, shapes, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
 
             tf.math.ceil(input, name='Operation')
 
