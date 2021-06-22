@@ -76,7 +76,7 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {})
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_set1, GatherElementsCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsCPUTest,
             ::testing::Combine(
                 ::testing::Combine(
                     ::testing::Values(std::vector<size_t>({2, 3, 5, 7})),     // Data shape

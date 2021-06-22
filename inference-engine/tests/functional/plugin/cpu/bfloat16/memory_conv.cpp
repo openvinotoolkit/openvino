@@ -105,7 +105,7 @@ TEST_P(MemoryConv, CheckTypeConversion) {
     ASSERT_EQ(ngraph::element::bf16, mem_w->input(0).get_element_type());
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_CPU, MemoryConv,
+INSTANTIATE_TEST_SUITE_P(smoke_CPU, MemoryConv,
                         ::testing::Combine(
                                 ::testing::Values<Precision>(Precision::BF16, Precision::FP32),
                                 ::testing::Values(SizeVector{1, 200}),

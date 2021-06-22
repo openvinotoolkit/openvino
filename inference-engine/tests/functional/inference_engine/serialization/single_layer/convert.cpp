@@ -25,7 +25,7 @@ TEST_P(ConvertLayerTest, Serialize) {
     Serialize();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Serialization_ConvertLayerTest, ConvertLayerTest,
     ::testing::Combine(::testing::Values(inShape),
                        ::testing::ValuesIn(precisions),
