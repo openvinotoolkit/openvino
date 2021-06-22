@@ -9,14 +9,13 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
-
 namespace ngraph
 {
     namespace op
     {
         namespace v0
         {
-            /// \brief  Normalization input tensor with L2 norm.
+            /// \brief  Normalization with L2 norm.
             ///
             class NGRAPH_API NormalizeL2 : public Op
             {
