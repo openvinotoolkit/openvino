@@ -8,6 +8,8 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestELU(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     def create_elu_net(self, shape, ir_version):
         """
             Tensorflow net                 IR net
@@ -15,34 +17,18 @@ class TestELU(CommonTFLayerTest):
             Input->ELU       =>       Input->ELU
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-
-            shapes = shape.copy()
-            # reshaping
-            if len(shapes) >= 4:
-                shapes.append(shapes.pop(1))
-            input = tf.compat.v1.placeholder(tf.float32, shapes, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
 
             tf.nn.elu(input, name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
-
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
 
         ref_net = None
 
