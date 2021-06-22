@@ -14,6 +14,7 @@ Here is the list of models that are tested and guaranteed to be supported. Howev
 * [MobileNetV3](https://github.com/d-li14/mobilenetv3.pytorch) can be converted using [regular instructions](#typical-pytorch).
 * [iSeeBetter](https://github.com/amanchadha/iSeeBetter) can be converted using [regular instructions](#typical-pytorch).
   Please refer to [`iSeeBetterTest.py`](https://github.com/amanchadha/iSeeBetter/blob/master/iSeeBetterTest.py) script for code to initialize the model.
+* [BERT_NER](https://github.com/kamalkraj/BERT-NER) can be converted using [Convert PyTorch* BERT-NER to the IR](pytorch_specific/Convert_Bert_ner.md) instruction.
 * F3Net topology can be converted using steps described in [Convert PyTorch\* F3Net to the IR](pytorch_specific/Convert_F3Net.md)
   instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
 * QuartzNet topologies from [NeMo project](https://github.com/NVIDIA/NeMo) can be converted using steps described in
