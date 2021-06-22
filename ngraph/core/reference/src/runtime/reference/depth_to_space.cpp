@@ -14,11 +14,11 @@ namespace ngraph
     {
         namespace reference
         {
-            void depth_to_space(const char* in,
+            void depth_to_space(const char* const in,
                                 const Shape& in_shape,
-                                char* out,
+                                char* const out,
                                 const Shape& out_shape,
-                                const std::size_t block_size,
+                                const size_t block_size,
                                 const op::DepthToSpace::DepthToSpaceMode mode,
                                 const size_t elem_size)
             {
@@ -36,7 +36,7 @@ namespace ngraph
                 const size_t c_dim = in_shape.at(1);
                 const size_t spatial_dim_index = 2;
                 const size_t spatial_dims = in_shape.size() - spatial_dim_index;
-                const auto c_dim_divider = static_cast<int>(std::pow(block_size, spatial_dims));
+                const size_t c_dim_divider = std::pow(block_size, spatial_dims);
 
                 NGRAPH_CHECK(block_size > 0 && c_dim % c_dim_divider == 0,
                              "DepthToSpace: The input data's 'channels' axis size: ",

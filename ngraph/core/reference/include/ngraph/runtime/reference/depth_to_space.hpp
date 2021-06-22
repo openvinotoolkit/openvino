@@ -13,9 +13,9 @@ namespace ngraph
     {
         namespace reference
         {
-            void depth_to_space(const char* data,
-                                const Shape& data_shape,
-                                char* out,
+            void depth_to_space(const char* const in,
+                                const Shape& in_shape,
+                                char* const out,
                                 const Shape& out_shape,
                                 const size_t block_size,
                                 const op::DepthToSpace::DepthToSpaceMode mode,
