@@ -22,3 +22,6 @@
 	path = thirdparty/zlib/zlib
 	url = https://github.com/madler/zlib.git
 	ignore = dirty
+[submodule "thirdparty/onnx"]
+	path = thirdparty/onnx
+	url = https://github.com/openvinotoolkit/onnx.git
