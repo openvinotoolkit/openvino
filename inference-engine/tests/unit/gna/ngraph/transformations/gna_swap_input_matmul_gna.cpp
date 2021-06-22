@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "swap_input_matmul_gna.hpp"
+#include "transformations/swap_input_matmul_gna.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <ngraph/function.hpp>

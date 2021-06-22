@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "insert_transpose_before_matmul.hpp"
+#include "transformations/insert_transpose_before_matmul.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <ngraph/function.hpp>

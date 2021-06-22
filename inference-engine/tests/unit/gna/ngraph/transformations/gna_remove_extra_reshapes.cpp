@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "remove_extra_reshapes.hpp"
+#include "transformations/remove_extra_reshapes.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <ngraph/function.hpp>
