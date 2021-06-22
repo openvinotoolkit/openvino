@@ -41,20 +41,6 @@ void calcRowArea_CVKL_U8_SSE42(const uchar  * src[],
 #endif
 
 //-----------------------------------------------------------------------------
-#if 0
-// Resize (bi-linear, 8UC1)
-void calcRowLinear_8UC1(uint8_t*       dst[],
-                        const uint8_t* src0[],
-                        const uint8_t* src1[],
-                        const short    alpha[],
-                        const short    clone[],
-                        const short    mapsx[],
-                        const short    beta[],
-                        uint8_t        tmp[],
-                        const Size&    inSz,
-                        const Size&    outSz,
-                        int            lpi);
-#endif
 // Resize (bi-linear, 8UC3)
 void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
                       const uint8_t* src0[],
@@ -95,17 +81,6 @@ void calcRowLinear_8UC(std::array<std::array<uint8_t*, 4>, numChan> &dst,
                         int      lpi) {
     calcRowLinear_8U(std::integral_constant<int, numChan>{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
-
-// Resize (bi-linear, 32F)
-void calcRowLinear_32F(float *dst[],
-                       const float *src0[],
-                       const float *src1[],
-                       const float  alpha[],
-                       const int    mapsx[],
-                       const float  beta[],
-                       const Size & inSz,
-                       const Size & outSz,
-                       int    lpi);
 }  // namespace avx
 
 template<typename isa_tag_t, typename T>
@@ -155,6 +130,16 @@ void calcRowLinear8UC1Impl(isa_tag_t, uint8_t* dst[], const uint8_t* src0[], con
                                    const short beta[], uint8_t tmp[], const Size& inSz,
                                    const Size& outSz, const int lpi, const int l);
 
+template<typename isa_tag_t>
+void calcRowLinear32FC1Impl(isa_tag_t, float* dst[], const float* src0[], const float* src1[],
+                            const float alpha[], const int mapsx[],
+                            const float beta[], const Size& inSz, const Size& outSz,
+                            const int lpi, const int l);
+
+extern template void calcRowLinear32FC1Impl(avx2_tag, float* dst[], const float* src0[], const float* src1[],
+                                            const float alpha[], const int mapsx[],
+                                            const float beta[], const Size& inSz, const Size& outSz,
+                                            const int lpi, const int l);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

@@ -43,19 +43,6 @@ void calcRowArea_32F(float dst[], const float *src[], const Size& inSz,
     calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
 }
 
-// Resize (bi-linear, 32F)
-void calcRowLinear_32F(float* dst[],
-                       const float* src0[],
-                       const float* src1[],
-                       const float  alpha[],
-                       const int    mapsx[],
-                       const float  beta[],
-                       const Size& inSz,
-                       const Size& outSz,
-                       const int   lpi) {
-    calcRowLinear_32FC1(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi);
-}
-
 template<int chanNum>
 CV_ALWAYS_INLINE void channels2planes_store(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
                                             const uchar* src, const int width,
@@ -310,7 +297,7 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
                                            1, 5, 9, 13, 3, 7, 11, 15 };
         if (4 == lpi) {
             // vertical pass
-            vertical_4LPI(src0, src1, tmp, beta, inSz.width * chanNum);
+            neon::vertical_4LPI(src0, src1, tmp, beta, inSz.width * chanNum);
 
             // horizontal pass
             horizontal_4LPI<chanNum>(dst, tmp, mapsx, _mask_horizontal, clone, outSz.width);
@@ -425,34 +412,6 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4>& dst,
                                beta, tmp, inSz, outSz, lpi);
 }
 }  // namespace neon
-
-CV_ALWAYS_INLINE void vertical_anyLPI(const uchar* src0, const uchar* src1,
-                                      uchar* tmp, const int inLength,
-                                      const short beta) {
-    constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
-    GAPI_Assert(inLength >= nlanes);
-
-    const int half_nlanes = nlanes / 2;
-    int w = 0;
-    for (;;) {
-        for (; w <= inLength - nlanes; w += nlanes) {
-            v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(&src0[w]));
-            v_int16 s1 = v_reinterpret_as_s16(vx_load_expand(&src1[w]));
-            v_int16 s2 = v_reinterpret_as_s16(vx_load_expand(&src0[w + half_nlanes]));
-            v_int16 s3 = v_reinterpret_as_s16(vx_load_expand(&src1[w + half_nlanes]));
-            v_int16 res1 = v_mulhrs(s0 - s1, beta) + s1;
-            v_int16 res2 = v_mulhrs(s2 - s3, beta) + s3;
-
-            vx_store(tmp + w, v_pack_u(res1, res2));
-        }
-
-        if (w < inLength) {
-            w = inLength - nlanes;
-            continue;
-        }
-        break;
-    }
-}
 
 CV_ALWAYS_INLINE void horizontal_4LPI(uint8_t* dst[],
                                       const uchar* tmp, const short mapsx[],
@@ -573,7 +532,7 @@ void calcRowLinear8UC1Impl(neon_tag,
     if (!xRatioEq && !yRatioEq) {
         if (4 == lpi) {
             // vertical pass
-            vertical_4LPI(src0, src1, tmp, beta, inSz.width);
+            neon::vertical_4LPI(src0, src1, tmp, beta, inSz.width);
 
             // horizontal pass
             horizontal_4LPI(dst, tmp, mapsx, clone, outSz.width);
@@ -585,7 +544,7 @@ void calcRowLinear8UC1Impl(neon_tag,
                 uchar* _dst = dst[l];
 
                 // vertical pass
-                vertical_anyLPI(s0, s1, tmp, inSz.width, beta0);
+                neon::vertical_anyLPI(s0, s1, tmp, inSz.width, beta0);
 
                 // horizontal pass
                 horizontal_anyLPI(_dst, tmp, mapsx, alpha, outSz.width);
@@ -638,7 +597,7 @@ void calcRowLinear8UC1Impl(neon_tag,
             const uchar* s1 = src1[l];
 
             // vertical pass
-            vertical_anyLPI(s0, s1, dst[l], length, beta0);
+            neon::vertical_anyLPI(s0, s1, dst[l], length, beta0);
         }
 
     } else {
@@ -672,6 +631,10 @@ template void mergeRowImpl<neon_tag, uint8_t, 3>(neon_tag, const std::array<cons
 template void mergeRowImpl<neon_tag, float, 3>(neon_tag, const std::array<const float*, 3>& ins, float* out, const int length);
 template void mergeRowImpl<neon_tag, uint8_t, 4>(neon_tag, const std::array<const uint8_t*, 4>& ins, uint8_t* out, const int length);
 template void mergeRowImpl<neon_tag, float, 4>(neon_tag, const std::array<const float*, 4>& ins, float* out, const int length);
+
+template void calcRowLinear32FC1Impl(neon_tag, float* dst[], const float* src0[], const float* src1[],
+                                     const float alpha[], const int mapsx[], const float beta[],
+                                     const Size& inSz, const Size& outSz, const int lpi, const int l);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

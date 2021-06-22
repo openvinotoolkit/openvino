@@ -577,15 +577,18 @@ CV_ALWAYS_INLINE void copyRow_Impl(const T in[], T out[], int length) {
 }
 
 // Resize (bi-linear, 32FC1)
-CV_ALWAYS_INLINE void calcRowLinear_32FC1(float *dst[],
-                                          const float *src0[],
-                                          const float *src1[],
-                                          const float  alpha[],
-                                          const int    mapsx[],
-                                          const float  beta[],
-                                          const Size& inSz,
-                                          const Size& outSz,
-                                          const int   lpi) {
+template<typename isa_tag_t>
+CV_ALWAYS_INLINE void calcRowLinear32FC1Impl(isa_tag_t,
+                                             float *dst[],
+                                             const float *src0[],
+                                             const float *src1[],
+                                             const float  alpha[],
+                                             const int    mapsx[],
+                                             const float  beta[],
+                                             const Size& inSz,
+                                             const Size& outSz,
+                                             const int   lpi,
+                                             const int) {
     bool xRatioEq1 = inSz.width == outSz.width;
     bool yRatioEq1 = inSz.height == outSz.height;
 
