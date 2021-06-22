@@ -15,6 +15,7 @@
 #include <ngraph_ops/matrix_nms_ie_internal.hpp>
 #include "utils/general_utils.h"
 #include <ie_ngraph_utils.hpp>
+#include <chrono>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -212,9 +213,9 @@ public:
                     const float sigma,
                     const int64_t top_k,
                     const bool normalized,
-                    std::vector<int> *selected_indices,
+                    std::vector<int64_t> *selected_indices,
                     std::vector<T> *decayed_scores) {
-        std::vector<int32_t> candidate_index(boxes_num);
+        std::vector<int64_t> candidate_index(boxes_num);
         std::iota(candidate_index.begin(), candidate_index.end(), 0);
         auto end = std::remove_if(candidate_index.begin(),
                                   candidate_index.end(),
@@ -241,19 +242,20 @@ public:
         std::vector<T> iou_max(original_size);
 
         iou_max[0] = 0.;
-        for (int64_t i = 1; i < original_size; i++) {
+        InferenceEngine::parallel_for(original_size - 1, [&](size_t i){
             T max_iou = 0.;
-            auto idx_a = candidate_index[i];
-            for (int64_t j = 0; j < i; j++) {
+            size_t actual_index = i + 1;
+            auto idx_a = candidate_index[actual_index];
+            for (int64_t j = 0; j < actual_index; j++) {
                 auto idx_b = candidate_index[j];
                 auto iou = intersectionOverUnion<T>(boxes_data + idx_a * box_size,
                                                     boxes_data + idx_b * box_size,
                                                     normalized);
                 max_iou = std::max(max_iou, iou);
-                iou_matrix[i * (i - 1) / 2 + j] = iou;
+                iou_matrix[actual_index * (actual_index - 1) / 2 + j] = iou;
             }
-            iou_max[i] = max_iou;
-        }
+            iou_max[actual_index] = max_iou;
+        });
 
         if (scores_data[candidate_index[0]] > post_threshold) {
             selected_indices->push_back(candidate_index[0]);
@@ -279,6 +281,8 @@ public:
 
     StatusCode execute(std::vector<Blob::Ptr> &inputs, std::vector<Blob::Ptr> &outputs,
                        ResponseDesc *resp) noexcept override {
+        std::cout << "***Matrix NMS start to run " << std::endl;
+        auto start = std::chrono::high_resolution_clock::now();
         const float *boxes = inputs[NMS_BOXES]->cbuffer().as<const float *>() +
                              inputs[NMS_BOXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         const float *scores = inputs[NMS_SCORES]->cbuffer().as<const float *>() +
@@ -287,14 +291,17 @@ public:
         const int box_shape = 4;
         std::vector<int64_t> num_per_batch;
         std::vector<BoxInfo> filtered_boxes;
-        filtered_boxes.reserve(6 * num_batches * num_classes * num_boxes);
+        filtered_boxes.reserve(num_batches * num_classes * num_boxes);
 
         bool normalized = true;
         for (int64_t batch = 0; batch < num_batches; batch++) {
             const float *boxesPtr = boxes + batch * num_boxes * 4;
-            std::vector<int> all_indices;
+            std::vector<int64_t> all_indices;
+            all_indices.reserve(num_classes * num_boxes);
             std::vector<float> all_scores;
+            all_scores.reserve(num_classes * num_boxes);
             std::vector<int64_t> all_classes;
+            all_classes.reserve(num_classes * num_boxes);
             size_t num_det = 0;
 
             for (int64_t class_idx = 0; class_idx < num_classes; class_idx++) {
@@ -343,7 +350,7 @@ public:
                     num_det = k;
             }
 
-            std::vector<int32_t> perm(all_indices.size());
+            std::vector<int64_t> perm(all_indices.size());
             std::iota(perm.begin(), perm.end(), 0);
 
             std::partial_sort(perm.begin(),
@@ -420,7 +427,8 @@ public:
             selected_base[4] = filtered_boxes[i].box.x2;
             selected_base[5] = filtered_boxes[i].box.y2;
         }
-
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << " NMSMatrix_parallel " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
         return OK;
     }
 
