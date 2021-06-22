@@ -15,9 +15,8 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::DeformableConvolutionBase, "DeformableConvolutionBase", 0);
 
-op::util::DeformableConvolutionBase::DeformableConvolutionBase(const Output<Node>& arg,
-                                                     const Output<Node>& offsets,
-                                                     const Output<Node>& filters,
+op::util::DeformableConvolutionBase::DeformableConvolutionBase(
+        const OutputVector& arguments,
                                                      const Strides& strides,
                                                      const CoordinateDiff& pads_begin,
                                                      const CoordinateDiff& pads_end,
@@ -25,7 +24,7 @@ op::util::DeformableConvolutionBase::DeformableConvolutionBase(const Output<Node
                                                      const PadType& auto_pad,
                                                      const int64_t group,
                                                      const int64_t deformable_group)
-    : Op({arg, offsets, filters})
+    : Op(arguments)
     , m_strides(strides)
     , m_dilations(dilations)
     , m_pads_begin(pads_begin)
@@ -219,21 +218,4 @@ void op::util::DeformableConvolutionBase::validate_and_infer_types()
         }
     }
     set_output_type(0, result_et, result_shape);
-}
-
-shared_ptr<Node>
-    op::util::DeformableConvolutionBase::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    NGRAPH_OP_SCOPE(DeformableConvolutionBase_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    return make_shared<util::DeformableConvolutionBase>(new_args.at(0),
-                                                  new_args.at(1),
-                                                  new_args.at(2),
-                                                  m_strides,
-                                                  m_pads_begin,
-                                                  m_pads_end,
-                                                  m_dilations,
-                                                  m_auto_pad,
-                                                  m_group,
-                                                  m_deformable_group);
 }

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ngraph/runtime/reference/deformable_convolution.hpp>
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
@@ -54,6 +53,8 @@ namespace ngraph
                                       const PadType& auto_pad = PadType::EXPLICIT,
                                       const int64_t group = 1,
                                       const int64_t deformable_group = 1);
+
+                std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
             };
         } // namespace v1
 
@@ -96,7 +97,22 @@ namespace ngraph
                                       const Strides& dilations,
                                       const PadType& auto_pad = PadType::EXPLICIT,
                                       const int64_t group = 1,
-                                      const int64_t deformable_group = 1);
+                                      const int64_t deformable_group = 1,
+                                      const int64_t offset = 0);
+
+                DeformableConvolution(const Output<Node>& arg,
+                                      const Output<Node>& offsets,
+                                      const Output<Node>& filters,
+                                      const Output<Node>& scalars,
+                                      const Strides& strides,
+                                      const CoordinateDiff& pads_begin,
+                                      const CoordinateDiff& pads_end,
+                                      const Strides& dilations,
+                                      const PadType& auto_pad = PadType::EXPLICIT,
+                                      const int64_t group = 1,
+                                      const int64_t deformable_group = 1,
+                                      const int64_t offset = 0
+                                      );
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 void validate_and_infer_types() override;
@@ -105,6 +121,10 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+            private:
+                int64_t m_offset;
+
             };
         }
     }     // namespace op

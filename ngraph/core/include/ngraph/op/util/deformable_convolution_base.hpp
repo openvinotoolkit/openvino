@@ -24,11 +24,6 @@ namespace ngraph
                 DeformableConvolutionBase() = default;
 
                 /// \brief Constructs a conversion operation.
-                ///
-                /// \param arg                Node that produces the input tensor.
-                /// \param offsets            Node producing the deformable values tensor.
-                /// \param filters            Node producing the filters(kernels) tensor with OIZYX
-                ///                           layout.
                 /// \param strides            Convolution strides.
                 /// \param pads_begin         Amount of padding to be added to the beginning along
                 ///                           each axis. For example in case of a 2D input the value
@@ -44,10 +39,9 @@ namespace ngraph
                 ///                           should be split into.
                 /// \param deformable_group   The number of groups which deformable values and
                 ///                           output should be split into along the channel axis.
-                DeformableConvolutionBase(const Output<Node>& arg,
-                                      const Output<Node>& offsets,
-                                      const Output<Node>& filters,
-                                      const Strides& strides,
+                DeformableConvolutionBase
+                        (const OutputVector& arguments,
+                         const Strides& strides,
                                       const CoordinateDiff& pads_begin,
                                       const CoordinateDiff& pads_end,
                                       const Strides& dilations,
@@ -72,8 +66,6 @@ namespace ngraph
                 void set_group(const int64_t group) { m_group = group; }
                 int64_t get_deformable_group() const { return m_deformable_group; }
                 void set_deformable_group(const int64_t deformable_group) { m_deformable_group = deformable_group; }
-
-                std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
             protected:
                 Strides m_strides;
