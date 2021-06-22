@@ -54,6 +54,7 @@ endforeach()
 if(ENABLE_SYSTEM_PUGIXML)
     find_dependency(PugiXML)
     set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+    add_library(IE::pugixml ALIAS pugixml)
 endif()
 
 # inherit OpenCV from main IE project if enabled

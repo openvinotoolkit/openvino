@@ -34,7 +34,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES}
                                              inference_engine_plugin_api
                                              inference_engine
                                              inference_engine_transformations
-                                             pugixml
+                                             pugixml::static
                                              openvino::itt)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})

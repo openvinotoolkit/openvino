@@ -16,11 +16,11 @@ addIeTargetTest(
         INCLUDES
             ${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/tests/functional/plugin/conformance/subgraphs_dumper/include
             $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-        DEPENDENCIES
-            ${DEPENDENCIES}
         LINK_LIBRARIES
             PRIVATE
-                ${DEPENDENCIES}
+                unitTestUtils
+                ngraph
+                pugixml::static
         ADD_CPPLINT
 )
 

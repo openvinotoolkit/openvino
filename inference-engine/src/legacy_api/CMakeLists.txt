@@ -43,7 +43,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
 
@@ -61,7 +61,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Legacy library")
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
-                                     PRIVATE pugixml openvino::itt
+                                     PRIVATE pugixml::static openvino::itt
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})

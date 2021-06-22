@@ -99,7 +99,7 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt)
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt)
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
@@ -123,7 +123,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE
                                                       $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-                                                             $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
+                                                             $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -159,7 +159,7 @@ if (TBBBIND_2_4_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
+target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE
@@ -201,7 +201,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_transformations pugixml)
+                                               inference_engine_transformations pugixml::static)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 

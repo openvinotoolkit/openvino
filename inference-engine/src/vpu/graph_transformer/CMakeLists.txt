@@ -38,14 +38,14 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
 
     target_include_directories(${TARGET_NAME}
         SYSTEM PUBLIC
-            $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include")
 
     if(STATIC_IE)
         target_link_libraries(${TARGET_NAME} PUBLIC vpu_common_lib_test_static)
     else()
-        target_link_libraries(${TARGET_NAME} PUBLIC pugixml vpu_common_lib)
+        target_link_libraries(${TARGET_NAME} PUBLIC pugixml::static vpu_common_lib)
     endif()
 
     target_link_libraries(${TARGET_NAME}
