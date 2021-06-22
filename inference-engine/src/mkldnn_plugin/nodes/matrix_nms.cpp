@@ -204,7 +204,7 @@ public:
     };
 
     template<typename T, bool gaussian>
-    void nms_matrix(const T *boxes_data,
+    size_t nms_matrix(const T *boxes_data,
                     const int64_t boxes_num,
                     const int64_t box_size,
                     const T *scores_data,
@@ -213,10 +213,11 @@ public:
                     const float sigma,
                     const int64_t top_k,
                     const bool normalized,
-                    std::vector<int64_t> *selected_indices,
-                    std::vector<T> *decayed_scores) {
+                    int64_t *selected_indices,
+                    T *decayed_scores) {
         std::vector<int64_t> candidate_index(boxes_num);
         std::iota(candidate_index.begin(), candidate_index.end(), 0);
+        size_t num_det = 0;
         auto end = std::remove_if(candidate_index.begin(),
                                   candidate_index.end(),
                                   [&scores_data, score_threshold](int32_t idx) {
@@ -225,7 +226,7 @@ public:
 
         int64_t original_size = std::distance(candidate_index.begin(), end);
         if (original_size <= 0) {
-            return;
+            return 0;
         }
         if (top_k > -1 && original_size > top_k) {
             original_size = top_k;
@@ -258,8 +259,9 @@ public:
         });
 
         if (scores_data[candidate_index[0]] > post_threshold) {
-            selected_indices->push_back(candidate_index[0]);
-            decayed_scores->push_back(scores_data[candidate_index[0]]);
+            selected_indices[0] = candidate_index[0];
+            decayed_scores[0] = scores_data[candidate_index[0]];
+            num_det++;
         }
 
         decay_score<T, gaussian> decay_fn;
@@ -274,9 +276,11 @@ public:
             auto ds = min_decay * scores_data[candidate_index[i]];
             if (ds <= post_threshold)
                 continue;
-            selected_indices->push_back(candidate_index[i]);
-            decayed_scores->push_back(ds);
+            num_det++;
+            selected_indices[i] = candidate_index[i];
+            decayed_scores[i] = ds;
         }
+        return num_det;
     }
 
     StatusCode execute(std::vector<Blob::Ptr> &inputs, std::vector<Blob::Ptr> &outputs,
@@ -297,12 +301,16 @@ public:
         bool normalized = true;
         for (int64_t batch = 0; batch < num_batches; batch++) {
             const float *boxesPtr = boxes + batch * num_boxes * 4;
-            std::vector<int64_t> all_indices;
-            all_indices.reserve(real_num_classes * real_num_boxes);
-            std::vector<float> all_scores;
-            all_scores.reserve(real_num_classes * real_num_boxes);
-            std::vector<int64_t> all_classes;
-            all_classes.reserve(real_num_classes * real_num_boxes);
+            std::vector<int64_t> all_indices(real_num_classes * real_num_boxes, -1);
+            std::vector<float> all_scores(real_num_classes * real_num_boxes, 0);
+            std::vector<int64_t> all_classes(real_num_classes * real_num_boxes, -1);
+            std::vector<int> class_offset(num_classes, 0);
+            for (size_t i = 0, count = 0; i < num_classes; i++) {
+                if (i == m_background_class)
+                    continue;
+                class_offset[i] = (count++) * real_num_boxes;
+            }
+
             size_t num_det = 0;
 
             for (int64_t class_idx = 0; class_idx < num_classes; class_idx++) {
@@ -310,8 +318,9 @@ public:
                     continue;
                 const float *scoresPtr =
                         scores + batch * (num_classes * num_boxes) + class_idx * num_boxes;
+                size_t class_num_det = 0;
                 if (m_decay_function == ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN) {
-                    nms_matrix<float, true>(boxesPtr,
+                    class_num_det = nms_matrix<float, true>(boxesPtr,
                                             num_boxes,
                                             box_shape,
                                             scoresPtr,
@@ -320,10 +329,10 @@ public:
                                             m_gaussian_sigma,
                                             m_nms_top_k,
                                             normalized,
-                                            &all_indices,
-                                            &all_scores);
+                                            all_indices.data() + class_offset[class_idx],
+                                            all_scores.data() + class_offset[class_idx]);
                 } else {
-                    nms_matrix<float, false>(boxesPtr,
+                    class_num_det = nms_matrix<float, false>(boxesPtr,
                                              num_boxes,
                                              box_shape,
                                              scoresPtr,
@@ -332,13 +341,14 @@ public:
                                              m_gaussian_sigma,
                                              m_nms_top_k,
                                              normalized,
-                                             &all_indices,
-                                             &all_scores);
+                                             all_indices.data() + class_offset[class_idx],
+                                             all_scores.data() + class_offset[class_idx]);
                 }
-                for (size_t i = 0; i < all_indices.size() - num_det; i++) {
-                    all_classes.push_back(class_idx);
+                for (size_t i = 0; i < class_num_det; i++) {
+                    auto class_index_base = all_classes.data() + class_offset[class_idx];
+                    class_index_base[i] = class_idx;
                 }
-                num_det = all_indices.size();
+                num_det += class_num_det;
             }
 
             if (num_det <= 0) {
