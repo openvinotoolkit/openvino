@@ -61,6 +61,47 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
     test_case.add_expected_output<float>(outputs_shape, outputs);
     test_case.run(tolerance_bits);
 }
+
+static void DeformableConvolutionV8Test(const std::vector<float>& inputs,
+                                      const Shape inputs_shape,
+                                      const std::vector<float>& offsets,
+                                      const Shape offsets_shape,
+                                      const std::vector<float>& filter,
+                                      const Shape filter_shape,
+                                      const std::vector<float>& outputs,
+                                      const Shape outputs_shape,
+                                      const Strides& strides,
+                                      const CoordinateDiff& padding,
+                                      const Strides& dilations,
+                                      const int64_t group = 1,
+                                      const int64_t deformable_group = 1,
+                                      const size_t tolerance_bits = 2)
+{
+    const CoordinateDiff pads_begin{padding};
+    const CoordinateDiff pads_end{padding};
+    const op::PadType auto_pad{op::PadType::EXPLICIT};
+    auto inputs_param = make_shared<op::Parameter>(element::f32, inputs_shape);
+    auto offsets_param = make_shared<op::Parameter>(element::f32, offsets_shape);
+    auto filter_param = make_shared<op::Parameter>(element::f32, filter_shape);
+    auto conv = make_shared<op::v8::DeformableConvolution>(inputs_param,
+                                                           offsets_param,
+                                                           filter_param,
+                                                           strides,
+                                                           pads_begin,
+                                                           pads_end,
+                                                           dilations,
+                                                           auto_pad,
+                                                           group,
+                                                           deformable_group);
+    auto f =
+            make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs);
+    test_case.add_input<float>(offsets);
+    test_case.add_input<float>(filter);
+    test_case.add_expected_output<float>(outputs_shape, outputs);
+    test_case.run(tolerance_bits);
+}
 // clang-format off
 
 // regular convolution attributes (zeroed offsets)
@@ -89,6 +130,36 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_zeroed_offsets_default)
                                      -12.0f, -12.0f, -12.0f};
 
     DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
+                              filter_shape, outputs, outputs_shape,strides, padding, dilations);
+}
+
+
+// regular convolution attributes (zeroed offsets)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_v8_zeroed_offsets_default)
+{
+    const Strides strides{1, 1};
+    const CoordinateDiff padding{0, 0};
+    const Strides dilations{1, 1};
+
+    const Shape inputs_shape{1, 1, 4, 4};
+    const std::vector<float> inputs{1.0f, 2.0f, 3.0f, 4.0f,
+                                    5.0f, 6.0f, 7.0f, 8.0f,
+                                    9.0f, 10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f, 16.0f};
+
+    const Shape filter_shape{1, 1, 2, 2};
+    const std::vector<float> filter{1.0f, 2.0f,
+                                    -1.0f, -2.0f};
+
+    const Shape offsets_shape{1, 8, 3, 3};
+    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+
+    const Shape outputs_shape{1, 1, 3, 3};
+    const std::vector<float> outputs{-12.0f, -12.0f, -12.0f,
+                                     -12.0f, -12.0f, -12.0f,
+                                     -12.0f, -12.0f, -12.0f};
+
+    DeformableConvolutionV8Test(inputs, inputs_shape, offsets, offsets_shape, filter,
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
 }
 
