@@ -18,3 +18,7 @@
 	path = thirdparty/ade
 	url = https://github.com/opencv/ade.git
 	ignore = dirty
+[submodule "thirdparty/gflags"]
+	path = thirdparty/gflags
+	url = https://github.com/gflags/gflags.git
+	ignore = dirty

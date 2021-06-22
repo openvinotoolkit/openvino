@@ -25,9 +25,6 @@ foreach(option IN LISTS ie_options)
 endforeach()
 message("")
 
-# for samples in 3rd party projects
-set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
-
 #
 # Content
 #

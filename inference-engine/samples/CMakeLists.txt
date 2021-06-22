@@ -110,18 +110,15 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-set (GFLAGS_IS_SUBPROJECT TRUE)
-set (HAVE_SYS_STAT_H 1)
-set (HAVE_INTTYPES_H 1)
-set (INTTYPES_FORMAT C99)
-set (BUILD_TESTING OFF)
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
     function(add_gflags)
-        if(NOT WIN32)
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-all")
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
-        endif()
+        # common gflags settings
+        set (GFLAGS_IS_SUBPROJECT TRUE)
+        set (HAVE_SYS_STAT_H 1)
+        set (HAVE_INTTYPES_H 1)
+        set (INTTYPES_FORMAT C99)
+        set (BUILD_TESTING OFF)
+
         set(BUILD_SHARED_LIBS OFF)
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
         set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
