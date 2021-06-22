@@ -510,7 +510,7 @@ std::unique_ptr<MemoryDesc> MKLDNNEdge::getSpecifiedOutputDesc(std::map<memory::
         IE_THROW() << "Primitive descriptor for node " << childPtr->getName() << " is not selected.";
 
     int outputIdx = getOutputNum();
-    int inputIdx = getInputNum();
+//    int inputIdx = getInputNum();
     if (outputIdx < 0) {
         IE_THROW() << "Edge cannot be found for node" << childPtr->getName() << ".";
     }
