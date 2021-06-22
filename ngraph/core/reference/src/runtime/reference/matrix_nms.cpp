@@ -198,11 +198,19 @@ namespace ngraph
                     }
                     iou_max[i] = max_iou;
                 }
+                std::cout << "sorted: ";
+                for (size_t i = 0; i < candidate_index.size(); i++)
+                {
+                    std::cout << candidate_index[i] << " ";
+                }
 
+                std::cout << "\nout(i,score): ";
                 if (scores_data[candidate_index[0]] > post_threshold)
                 {
                     selected_indices->push_back(candidate_index[0]);
                     decayed_scores->push_back(scores_data[candidate_index[0]]);
+                    std::cout << "(" << candidate_index[0] << "," << scores_data[candidate_index[0]]
+                              << ") ";
                 }
 
                 matrix_nms_v8::decay_score<T, gaussian> decay_fn;
@@ -217,11 +225,13 @@ namespace ngraph
                         min_decay = std::min(min_decay, decay);
                     }
                     auto ds = min_decay * scores_data[candidate_index[i]];
+                    std::cout << "(" << candidate_index[i] << "," << ds << ") ";
                     if (ds <= post_threshold)
                         continue;
                     selected_indices->push_back(candidate_index[i]);
                     decayed_scores->push_back(ds);
                 }
+                std::cout << "\n";
             }
 
             void matrix_nms(const float* boxes_data,
@@ -382,6 +392,7 @@ namespace ngraph
                 }
 
                 std::copy(num_per_batch.begin(), num_per_batch.end(), valid_outputs);
+                std::cout << "result(i, score): ";
                 for (size_t i = 0; i < filtered_boxes.size(); i++)
                 {
                     selected_indices[i] = filtered_boxes[i].index;
@@ -392,7 +403,9 @@ namespace ngraph
                     selected_base[3] = filtered_boxes[i].box.y1;
                     selected_base[4] = filtered_boxes[i].box.x2;
                     selected_base[5] = filtered_boxes[i].box.y2;
+                    std::cout << "(" << selected_indices[i] << "," << selected_base[1] << ") ";
                 }
+                std::cout << "\n";
             }
 
             void matrix_nms_postprocessing(const HostTensorVector& outputs,
