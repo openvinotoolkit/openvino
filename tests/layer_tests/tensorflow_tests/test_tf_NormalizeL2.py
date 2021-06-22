@@ -11,6 +11,8 @@ from tensorflow_tests.permutation_utils import permute_nchw_to_nhwc, permute_nhw
 
 
 class TestNormalizeL2(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     @staticmethod
     def build_tf_graph(shape, axes):
         import tensorflow as tf
@@ -19,14 +21,9 @@ class TestNormalizeL2(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            # Permute NCHW -> NHWC for TF network creation
-            net_shape = permute_nchw_to_nhwc(shape)
+            data = tf.compat.v1.placeholder(tf.float32, shape=shape, name='data')
 
-            data = tf.compat.v1.placeholder(tf.float32, shape=net_shape, name='data')
-
-            result = tf.math.l2_normalize(data,
-                                          axes,
-                                          name='Operation')
+            tf.math.l2_normalize(data, axes, name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -63,10 +60,9 @@ class TestNormalizeL2(CommonTFLayerTest):
     def create_normalize_l2_net_non_fusable(shape, axes, output_axes, ir_version):
         tf_net = TestNormalizeL2.build_tf_graph(shape, axes)
 
-        reduced_shape = permute_nchw_to_nhwc(shape).copy()
+        reduced_shape = shape.copy()
         for axis in axes:
             reduced_shape[axis] = 1
-        reduced_shape = permute_nhwc_to_nchw(reduced_shape)
 
         eltwise_shapes = int64_array(np.ones(len(shape)))
         nodes_attributes = {
@@ -139,10 +135,8 @@ class TestNormalizeL2(CommonTFLayerTest):
         return tf_net, ref_net
 
     test_data_fusable_precommit = [
-        pytest.param(dict(shape=[2, 3, 5], axes=[1, -1], output_axes=[1, 2]),
-                     marks=pytest.mark.skip(reason="Skipped until fixed")),
-        pytest.param(dict(shape=[2, 3, 5, 7], axes=[1, 2, 3], output_axes=[2, 3, 1]),
-                     marks=pytest.mark.skip(reason="Skipped until fixed"))
+        dict(shape=[2, 3, 5], axes=[1, -1], output_axes=[1, 2]),
+        dict(shape=[2, 3, 5, 7], axes=[1, 2, 3], output_axes=[1, 2, 3]),
     ]
 
     @pytest.mark.parametrize("params", test_data_fusable_precommit)
@@ -152,12 +146,9 @@ class TestNormalizeL2(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_non_fusable_precommit = [
-        pytest.param(dict(shape=[2, 3, 5], axes=[0, 1, 2], output_axes=[0, 1, 2]),
-                     marks=pytest.mark.skip(reason="Skipped until fixed")),
-        pytest.param(dict(shape=[2, 3, 5, 7, 9], axes=[-1], output_axes=[1]),
-                     marks=pytest.mark.skip(reason="Skipped until fixed")),
-        pytest.param(dict(shape=[2, 3, 5, 7, 9], axes=[1, 2, 3, 4], output_axes=[2, 3, 4, 1]),
-                     marks=pytest.mark.skip(reason="Skipped until fixed"))
+        dict(shape=[2, 3, 5], axes=[0, 1, 2], output_axes=[0, 1, 2]),
+        dict(shape=[2, 3, 5, 7, 9], axes=[-1], output_axes=[-1]),
+        dict(shape=[2, 3, 5, 7, 9], axes=[1, 2, 3, 4], output_axes=[1, 2, 3, 4])
     ]
 
     @pytest.mark.parametrize("params", test_data_non_fusable_precommit)
@@ -172,8 +163,8 @@ class TestNormalizeL2(CommonTFLayerTest):
         dict(shape=[2, 3, 5], axes=[1], output_axes=[1]),
         dict(shape=[2, 3, 5], axes=[-2], output_axes=[1]),
         dict(shape=[2, 3, 5], axes=[1, -1], output_axes=[1, 2]),
-        dict(shape=[2, 3, 5, 7], axes=[-1], output_axes=[1]),
-        dict(shape=[2, 3, 5, 7], axes=[1, 2, 3], output_axes=[2, 3, 1]),
+        dict(shape=[2, 3, 5, 7], axes=[1], output_axes=[1]),
+        dict(shape=[2, 3, 5, 7], axes=[1, 2, 3], output_axes=[1, 2, 3]),
     ]
 
     @pytest.mark.parametrize("params", test_data_fusable)
@@ -190,13 +181,12 @@ class TestNormalizeL2(CommonTFLayerTest):
         dict(shape=[2, 3, 5], axes=[2], output_axes=[2]),
         dict(shape=[2, 3, 5], axes=[0, 1, 2], output_axes=[0, 1, 2]),
         dict(shape=[2, 3, 5, 7], axes=[0], output_axes=[0]),
-        dict(shape=[2, 3, 5, 7], axes=[1], output_axes=[2]),
-        dict(shape=[2, 3, 5, 7], axes=[2], output_axes=[3]),
-        dict(shape=[2, 3, 5, 7], axes=[1, 2], output_axes=[2, 3]),
-        dict(shape=[2, 3, 5, 7], axes=[1, 3], output_axes=[2, 1]),
-        dict(shape=[2, 3, 5, 7], axes=[0, 1, 2], output_axes=[0, 2, 3]),
-        dict(shape=[2, 3, 5, 7, 9], axes=[-1], output_axes=[1]),
-        dict(shape=[2, 3, 5, 7, 9], axes=[1, 2, 3, 4], output_axes=[2, 3, 4, 1]),
+        dict(shape=[2, 3, 5, 7], axes=[2], output_axes=[2]),
+        dict(shape=[2, 3, 5, 7], axes=[1, 2], output_axes=[1, 2]),
+        dict(shape=[2, 3, 5, 7], axes=[1, 3], output_axes=[1, 3]),
+        dict(shape=[2, 3, 5, 7], axes=[0, 1, 2], output_axes=[0, 1, 2]),
+        dict(shape=[2, 3, 5, 7, 9], axes=[-1], output_axes=[-1]),
+        dict(shape=[2, 3, 5, 7, 9], axes=[1, 2, 3, 4], output_axes=[1, 2, 3, 4]),
     ]
 
     @pytest.mark.parametrize("params", test_data_non_fusable)
