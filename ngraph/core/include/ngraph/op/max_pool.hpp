@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/util/max_pool_base.hpp"
 
 namespace ngraph
 {
@@ -14,7 +13,7 @@ namespace ngraph
         namespace v1
         {
             /// \brief Batched max pooling operation.
-            class NGRAPH_API MaxPool : public Op
+            class NGRAPH_API MaxPool : public op::util::MaxPoolBase
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -37,7 +36,7 @@ namespace ngraph
                         const Shape& pads_begin,
                         const Shape& pads_end,
                         const Shape& kernel,
-                        op::RoundingType rounding_mode = op::RoundingType::FLOOR,
+                        op::RoundingType rounding_type = op::RoundingType::FLOOR,
                         const PadType& auto_pad = op::PadType::EXPLICIT);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -46,27 +45,6 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                /// \return The kernel shape.
-                const Shape& get_kernel() const { return m_kernel; }
-                void set_kernel(const Shape& kernel) { m_kernel = kernel; }
-                /// \return The strides.
-                const Strides& get_strides() const { return m_strides; }
-                void set_strides(const Strides& strides) { m_strides = strides; }
-                /// \return The beginning of padding shape.
-                const Shape& get_pads_begin() const { return m_pads_begin; }
-                void set_pads_begin(const Shape& pads_begin) { m_pads_begin = pads_begin; }
-                /// \return The end of padding shape.
-                const Shape& get_pads_end() const { return m_pads_end; }
-                void set_adding_above(const Shape& pads_end) { m_pads_end = pads_end; }
-                /// \return The pad type for pooling.
-                const PadType& get_auto_pad() const { return m_auto_pad; }
-                void set_auto_pad(const PadType& auto_pad) { m_auto_pad = auto_pad; }
-                /// \return The ceiling mode being used for output shape computations
-                op::RoundingType get_rounding_type() const { return m_rounding_type; }
-                void set_rounding_type(op::RoundingType rounding_mode)
-                {
-                    m_rounding_type = rounding_mode;
-                }
                 /// \return The default value for MaxPool.
                 NGRAPH_SUPPRESS_DEPRECATED_START
                 virtual std::shared_ptr<Node> get_default_value() const override;
@@ -75,14 +53,6 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
                 bool has_evaluate() const override;
-
-            protected:
-                Shape m_kernel;
-                Strides m_strides;
-                Shape m_pads_begin;
-                Shape m_pads_end;
-                PadType m_auto_pad;
-                op::RoundingType m_rounding_type;
 
             private:
                 bool update_auto_padding(const PartialShape& in_shape,

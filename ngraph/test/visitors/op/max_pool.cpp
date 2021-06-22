@@ -46,11 +46,11 @@ TEST(attributes, max_pool_v8_op)
     NodeBuilder::get_ops().register_factory<opset8::MaxPool>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 3, 37, 37});
 
-    const auto strides = Strides{1};
+    const auto strides = Strides{1, 1};
     const auto dilations = Strides{1};
-    const auto pads_begin = Shape{1};
-    const auto pads_end = Shape{1};
-    const auto kernel = Shape{1};
+    const auto pads_begin = Shape{1, 1};
+    const auto pads_end = Shape{1, 1};
+    const auto kernel = Shape{2, 2};
     const auto rounding_mode = op::RoundingType::CEIL;
     const auto auto_pad = op::PadType::EXPLICIT;
     const element::Type& index_element_type = element::i32;
