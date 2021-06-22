@@ -135,7 +135,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
 
                     // set output name to Tensor to store it for ngraph to cnn conversion
                     auto names = concat->output(0).get_tensor().get_names();
-                    names.insert(op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
+                    names.insert("__ov_generated_tensor__" + op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
                     concat->output(0).get_tensor().set_names(names);
                     // connect the Concat layer to the corresponding TI outputs
                     for (auto &input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
@@ -148,7 +148,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                     const auto& input_to_res = result->get_input_source_output(0);
                     // set output name to Tensor to store it for ngraph to cnn conversion
                     auto names = input_to_res.get_tensor().get_names();
-                    names.insert(op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
+                    names.insert("__ov_generated_tensor__" + op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
                     input_to_res.get_tensor().set_names(names);
                     for (auto &input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(input_to_res);
@@ -164,7 +164,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
 
                 // set output name to Tensor to store it for ngraph to cnn conversion
                 auto names = in_value.get_tensor().get_names();
-                names.insert(op::util::create_ie_output_name(sub_graph_op->output(output_desc->m_output_index)));
+                names.insert("__ov_generated_tensor__" + op::util::create_ie_output_name(sub_graph_op->output(output_desc->m_output_index)));
                 in_value.get_tensor().set_names(names);
                 for (const auto &input : sub_graph_op->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(result->get_input_source_output(0));

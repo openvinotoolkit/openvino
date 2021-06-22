@@ -1789,6 +1789,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                                   CNNNetworkImpl* cnnNetworkImpl,
                                   bool keep_constant_inputs) {
     OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "details::convertFunctionToICNNNetwork");
+    const std::string ov_service_name = "__ov_generated_tensor__";
 
     const auto createCNNLayer = [](const std::shared_ptr<::ngraph::Node> &node) -> CNNLayerPtr {
         class NGraphCNNLayer: public CNNLayer {
@@ -2036,10 +2037,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
             auto names = layer->output(i).get_tensor().get_names();
             std::string outName;
-            if (names.empty()) {
+            for (const auto& name : names) {
+                if (name.find(ov_service_name) != std::string::npos)
+                    outName = name.substr(ov_service_name.length());
+            }
+            if (outName.empty()) {
                 outName = ngraph::op::util::create_ie_output_name(layer->output(i));
-            } else {
-                outName = *layer->output(i).get_tensor().get_names().begin();
             }
 
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
@@ -2092,10 +2095,15 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
             auto names = input.get_tensor().get_names();
-            if (!names.empty())
-                cnnNetworkImpl->addOutput(*names.begin());
-            else
-                cnnNetworkImpl->addOutput(ngraph::op::util::create_ie_output_name(input));
+            std::string inName;
+            for (const auto& name : names) {
+                if (name.find(ov_service_name) != std::string::npos)
+                    inName = name.substr(ov_service_name.length());
+            }
+            if (inName.empty()) {
+                inName = ngraph::op::util::create_ie_output_name(input);
+            }
+            cnnNetworkImpl->addOutput(inName);
             continue;
         }
 

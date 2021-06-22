@@ -181,7 +181,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
                     input.replace_source_output(outputs[i]->output(0));
                 }
                 auto names = outputs[i]->get_output_tensor(0).get_names();
-                names.insert(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
+                names.insert("__ov_generated_tensor__" + op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
                 outputs[i]->get_output_tensor(0).set_names(names);
             }
         }
@@ -337,7 +337,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
                     input.replace_source_output(outputs[i]->output(0));
                 }
                 auto names = outputs[i]->get_output_tensor(0).get_names();
-                names.insert(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
+                names.insert("__ov_generated_tensor__" + op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
                 outputs[i]->get_output_tensor(0).set_names(names);
             }
         }
@@ -494,7 +494,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
                     input.replace_source_output(outputs[i]->output(0));
                 }
                 auto names = outputs[i]->get_output_tensor(0).get_names();
-                names.insert(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
+                names.insert("__ov_generated_tensor__" + op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
                 outputs[i]->get_output_tensor(0).set_names(names);
             }
         }
