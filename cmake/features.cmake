@@ -36,6 +36,8 @@ ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" OFF "PYTHONL
 find_package(PythonInterp 3 QUIET)
 ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FOUND" OFF)
 
+ie_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
+
 #
 # enable or disable output from NGRAPH_DEBUG statements
 #

@@ -45,12 +45,6 @@ endfunction()
 
 add_gtest_libraries()
 
-if (MSVC)
-    set(PUGI pugixml_mt)
-else ()
-    set(PUGI pugixml)
-endif ()
-
 list(APPEND EXPORT_DEPENDENCIES
         gtest
         gtest_main
@@ -73,7 +67,7 @@ function(add_common_utils ADD_TARGET_NAME)
                 ${EXPORT_DEPENDENCIES}
             LINK_LIBRARIES
                 PUBLIC
-                    ${PUGI}
+                    pugixml
                     ${NGRAPH_LIBRARIES}
                     ${EXPORT_DEPENDENCIES}
                     inference_engine_transformations

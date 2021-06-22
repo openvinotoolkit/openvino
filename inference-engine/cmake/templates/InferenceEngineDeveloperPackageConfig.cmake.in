@@ -51,7 +51,7 @@ foreach(component @openvino_export_components@)
     include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
 endforeach()
 
-if(USE_SYSTEM_PUGIXML)
+if(ENABLE_SYSTEM_PUGIXML)
     find_dependency(PugiXML)
     set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
 endif()
