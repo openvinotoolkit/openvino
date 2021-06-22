@@ -18,360 +18,204 @@ namespace gapi {
 
 namespace kernels {
 
-CV_ALWAYS_INLINE void mergeRow_8UC2_Impl(const uint8_t in0[], const uint8_t in1[],
-                                         uint8_t out[], int length) {
-    int l = 0;
+template <typename VecT, typename T>
+CV_ALWAYS_INLINE void mergeRowC2_Impl(const T in0[], const T in1[],
+                                      T out[], const int length) {
+    int x = 0;
 
 #if MANUAL_SIMD
-    constexpr int nlanes = v_uint8::nlanes;
+    constexpr int nlanes = VecT::nlanes;
+    GAPI_DbgAssert(length >= nlanes);
 
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_uint8 r0, r1;
-        r0 = vx_load(&in0[l]);
-        r1 = vx_load(&in1[l]);
-        v_store_interleave(&out[2*l], r0, r1);
-    }
+    VecT r0, r1;
+    for (; length >= nlanes;) {
+        for (; x <= length - nlanes; x += nlanes) {
+            r0 = vx_load(&in0[x]);
+            r1 = vx_load(&in1[x]);
+            v_store_interleave(&out[2*x], r0, r1);
+        }
 
-    // to think about how to remove those ifs
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
+        if (x < length) {
+            x = length - nlanes;
+            continue;
+        }
+        break;
     }
 #endif
 
-    for (; l < length; ++l) {
-        out[2*l + 0] = in0[l];
-        out[2*l + 1] = in1[l];
+    for (; x < length; ++x) {
+        out[2*x + 0] = in0[x];
+        out[2*x + 1] = in1[x];
     }
 }
 
-CV_ALWAYS_INLINE void mergeRow_8UC3_Impl(const uint8_t in0[], const uint8_t in1[],
-                                         const uint8_t in2[], uint8_t out[], int length) {
-    int l = 0;
+template <typename VecT, typename T>
+CV_ALWAYS_INLINE void mergeRowC3_Impl(const T in0[], const T in1[],
+                                      const T in2[], T out[], const int length) {
+    int x = 0;
 
 #if MANUAL_SIMD
-    constexpr int nlanes = v_uint8::nlanes;
+    constexpr int nlanes = VecT::nlanes;
+    GAPI_DbgAssert(length >= nlanes);
 
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_uint8 r0, r1, r2;
-        r0 = vx_load(&in0[l]);
-        r1 = vx_load(&in1[l]);
-        r2 = vx_load(&in2[l]);
-        v_store_interleave(&out[3*l], r0, r1, r2);
-    }
+    VecT r0, r1, r2;
+    for (; length >= nlanes;) {
+        for (; x <= length - nlanes; x += nlanes) {
+            r0 = vx_load(&in0[x]);
+            r1 = vx_load(&in1[x]);
+            r2 = vx_load(&in2[x]);
+            v_store_interleave(&out[3*x], r0, r1, r2);
+        }
 
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
+        if (x < length) {
+            x = length - nlanes;
+            continue;
+        }
+        break;
     }
 #endif
 
-    for (; l < length; ++l) {
-        out[3*l + 0] = in0[l];
-        out[3*l + 1] = in1[l];
-        out[3*l + 2] = in2[l];
+    for (; x < length; ++x) {
+        out[3*x + 0] = in0[x];
+        out[3*x + 1] = in1[x];
+        out[3*x + 2] = in2[x];
     }
 }
 
-CV_ALWAYS_INLINE void mergeRow_8UC4_Impl(const uint8_t in0[], const uint8_t in1[],
-                                         const uint8_t in2[], const uint8_t in3[],
-                                         uint8_t out[], int length) {
-    int l = 0;
+template <typename VecT, typename T>
+CV_ALWAYS_INLINE void mergeRowC4_Impl(const T in0[], const T in1[],
+                                      const T in2[], const T in3[],
+                                      T out[], const int length) {
+    int x = 0;
 
 #if MANUAL_SIMD
-    constexpr int nlanes = v_uint8::nlanes;
+    constexpr int nlanes = VecT::nlanes;
+    GAPI_DbgAssert(length >= nlanes);
 
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_uint8 r0, r1, r2, r3;
-        r0 = vx_load(&in0[l]);
-        r1 = vx_load(&in1[l]);
-        r2 = vx_load(&in2[l]);
-        r3 = vx_load(&in3[l]);
-        v_store_interleave(&out[4*l], r0, r1, r2, r3);
-    }
+    VecT r0, r1, r2, r3;
+    for (; length >= nlanes;) {
+        for (; x <= length - nlanes; x += nlanes) {
+            r0 = vx_load(&in0[x]);
+            r1 = vx_load(&in1[x]);
+            r2 = vx_load(&in2[x]);
+            r3 = vx_load(&in3[x]);
+            v_store_interleave(&out[4* x], r0, r1, r2, r3);
+        }
 
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
+        if (x < length) {
+            x = length - nlanes;
+            continue;
+        }
+        break;
     }
 #endif
 
-    for (; l < length; ++l) {
-        out[4*l + 0] = in0[l];
-        out[4*l + 1] = in1[l];
-        out[4*l + 2] = in2[l];
-        out[4*l + 3] = in3[l];
+    for (; x < length; ++x) {
+        out[4*x + 0] = in0[x];
+        out[4*x + 1] = in1[x];
+        out[4*x + 2] = in2[x];
+        out[4*x + 3] = in3[x];
     }
 }
-
-CV_ALWAYS_INLINE void mergeRow_32FC2_Impl(const float in0[], const float in1[],
-                                          float out[], int length) {
-    int l = 0;
-
-#if MANUAL_SIMD
-    constexpr int nlanes = v_float32::nlanes;
-
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_float32 r0, r1;
-        r0 = vx_load(&in0[l]);
-        r1 = vx_load(&in1[l]);
-        v_store_interleave(&out[2*l], r0, r1);
-    }
-
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; ++l) {
-        out[2*l + 0] = in0[l];
-        out[2*l + 1] = in1[l];
-    }
-}
-
-CV_ALWAYS_INLINE void mergeRow_32FC3_Impl(const float in0[], const float in1[], const float in2[],
-                                          float out[], int length) {
-    int l = 0;
-
-#if MANUAL_SIMD
-    constexpr int nlanes = v_float32::nlanes;
-
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_float32 r0, r1, r2;
-        r0 = vx_load(&in0[l]);
-        r1 = vx_load(&in1[l]);
-        r2 = vx_load(&in2[l]);
-        v_store_interleave(&out[3*l], r0, r1, r2);
-    }
-
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; ++l) {
-        out[3*l + 0] = in0[l];
-        out[3*l + 1] = in1[l];
-        out[3*l + 2] = in2[l];
-    }
-}
-
-CV_ALWAYS_INLINE void mergeRow_32FC4_Impl(const float in0[], const float in1[],
-                                          const float in2[], const float in3[],
-                                          float out[], int length) {
-    int l = 0;
-
-#if MANUAL_SIMD
-    constexpr int nlanes = v_float32::nlanes;
-
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_float32 r0, r1, r2, r3;
-        r0 = vx_load(&in0[l]);
-        r1 = vx_load(&in1[l]);
-        r2 = vx_load(&in2[l]);
-        r3 = vx_load(&in3[l]);
-        v_store_interleave(&out[4*l], r0, r1, r2, r3);
-    }
-
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; ++l) {
-        out[4*l + 0] = in0[l];
-        out[4*l + 1] = in1[l];
-        out[4*l + 2] = in2[l];
-        out[4*l + 3] = in3[l];
-    }
-}
-
 //------------------------------------------------------------------------------
-
-CV_ALWAYS_INLINE void splitRow_8UC2_Impl(const uint8_t in[], uint8_t out0[],
-                                         uint8_t out1[], int length) {
-    int l = 0;
+template <typename VecT, typename T>
+CV_ALWAYS_INLINE void splitRowC2_Impl(const T in[], T out0[],
+                                      T out1[], const int length) {
+    int x = 0;
 
 #if MANUAL_SIMD
-    constexpr int nlanes = v_uint8::nlanes;
+    constexpr int nlanes = VecT::nlanes;
+    GAPI_DbgAssert(length >= nlanes);
 
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_uint8 r0, r1;
-        v_load_deinterleave(&in[2*l], r0, r1);
-        vx_store(&out0[l], r0);
-        vx_store(&out1[l], r1);
-    }
+    VecT r0, r1;
+    for (; length >= nlanes;) {
+        for (; x <= length - nlanes; x += nlanes) {
+            v_load_deinterleave(&in[2*x], r0, r1);
+            vx_store(&out0[x], r0);
+            vx_store(&out1[x], r1);
+        }
 
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
+        if (x < length) {
+            x = length - nlanes;
+            continue;
+        }
+        break;
     }
 #endif
 
-    for (; l < length; ++l) {
-        out0[l] = in[2*l + 0];
-        out1[l] = in[2*l + 1];
+    for (; x < length; ++x) {
+        out0[x] = in[2*x + 0];
+        out1[x] = in[2*x + 1];
     }
 }
 
-CV_ALWAYS_INLINE void splitRow_8UC3_Impl(const uint8_t in[], uint8_t out0[],
-                                         uint8_t out1[], uint8_t out2[], int length) {
-    int l = 0;
+template <typename VecT, typename T>
+CV_ALWAYS_INLINE void splitRowC3_Impl(const T in[], T out0[],
+                                      T out1[], T out2[], const int length) {
+    int x = 0;
 
 #if MANUAL_SIMD
-    constexpr int nlanes = v_uint8::nlanes;
+    constexpr int nlanes = VecT::nlanes;
+    GAPI_DbgAssert(length >= nlanes);
 
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-         v_uint8 r0, r1, r2;
-         v_load_deinterleave(&in[3*l], r0, r1, r2);
-         vx_store(&out0[l], r0);
-         vx_store(&out1[l], r1);
-         vx_store(&out2[l], r2);
-    }
+    VecT r0, r1, r2;
+    for (; length >= nlanes;) {
+        for (; x <= length - nlanes; x += nlanes) {
+             v_load_deinterleave(&in[3*x], r0, r1, r2);
+             vx_store(&out0[x], r0);
+             vx_store(&out1[x], r1);
+             vx_store(&out2[x], r2);
+        }
 
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
+        if (x < length) {
+            x = length - nlanes;
+            continue;
+        }
+        break;
     }
 #endif
 
-    for (; l < length; ++l) {
-        out0[l] = in[3*l + 0];
-        out1[l] = in[3*l + 1];
-        out2[l] = in[3*l + 2];
+    for (; x < length; ++x) {
+        out0[x] = in[3*x + 0];
+        out1[x] = in[3*x + 1];
+        out2[x] = in[3*x + 2];
     }
 }
 
-CV_ALWAYS_INLINE void splitRow_8UC4_Impl(const uint8_t in[], uint8_t out0[], uint8_t out1[],
-                                         uint8_t out2[], uint8_t out3[], int length) {
-    int l = 0;
+template <typename VecT, typename T>
+CV_ALWAYS_INLINE void splitRowC4_Impl(const T in[], T out0[], T out1[],
+                                      T out2[], T out3[], const int length) {
+    int x = 0;
 
 #if MANUAL_SIMD
-    constexpr int nlanes = v_uint8::nlanes;
+    constexpr int nlanes = VecT::nlanes;
+    GAPI_DbgAssert(length >= nlanes);
 
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_uint8 r0, r1, r2, r3;
-        v_load_deinterleave(&in[4*l], r0, r1, r2, r3);
-        vx_store(&out0[l], r0);
-        vx_store(&out1[l], r1);
-        vx_store(&out2[l], r2);
-        vx_store(&out3[l], r3);
-    }
+    VecT r0, r1, r2, r3;
+    for (; length >= nlanes;) {
+        for (; x <= length - nlanes; x += nlanes) {
+            v_load_deinterleave(&in[4*x], r0, r1, r2, r3);
+            vx_store(&out0[x], r0);
+            vx_store(&out1[x], r1);
+            vx_store(&out2[x], r2);
+            vx_store(&out3[x], r3);
+        }
 
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
+        if (x < length) {
+            x = length - nlanes;
+            continue;
+        }
+        break;
     }
 #endif
 
-    for (; l < length; ++l) {
-        out0[l] = in[4*l + 0];
-        out1[l] = in[4*l + 1];
-        out2[l] = in[4*l + 2];
-        out3[l] = in[4*l + 3];
+    for (; x < length; ++x) {
+        out0[x] = in[4*x + 0];
+        out1[x] = in[4*x + 1];
+        out2[x] = in[4*x + 2];
+        out3[x] = in[4*x + 3];
     }
 }
-
-CV_ALWAYS_INLINE void splitRow_32FC2_Impl(const float in[], float out0[],
-                                float out1[], int length) {
-    int l = 0;
-
-#if MANUAL_SIMD
-    constexpr int nlanes = v_float32::nlanes;
-
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_float32 r0, r1;
-        v_load_deinterleave(&in[2*l], r0, r1);
-        vx_store(&out0[l], r0);
-        vx_store(&out1[l], r1);
-    }
-
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
-    }
-
-#endif
-
-    for (; l < length; ++l) {
-        out0[l] = in[2*l + 0];
-        out1[l] = in[2*l + 1];
-    }
-}
-
-CV_ALWAYS_INLINE void splitRow_32FC3_Impl(const float in[], float out0[], float out1[],
-                                          float out2[], int length) {
-    int l = 0;
-
-#if MANUAL_SIMD
-    constexpr int nlanes = v_float32::nlanes;
-
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_float32 r0, r1, r2;
-        v_load_deinterleave(&in[3*l], r0, r1, r2);
-        vx_store(&out0[l], r0);
-        vx_store(&out1[l], r1);
-        vx_store(&out2[l], r2);
-    }
-
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; ++l) {
-        out0[l] = in[3*l + 0];
-        out1[l] = in[3*l + 1];
-        out2[l] = in[3*l + 2];
-    }
-}
-
-CV_ALWAYS_INLINE void splitRow_32FC4_Impl(const float in[], float out0[], float out1[],
-                                          float out2[], float out3[], int length) {
-    int l = 0;
-
-#if MANUAL_SIMD
-    constexpr int nlanes = v_float32::nlanes;
-
-    cycle:
-    for (; l <= length - nlanes; l += nlanes) {
-        v_float32 r0, r1, r2, r3;
-        v_load_deinterleave(&in[4*l], r0, r1, r2, r3);
-        vx_store(&out0[l], r0);
-        vx_store(&out1[l], r1);
-        vx_store(&out2[l], r2);
-        vx_store(&out3[l], r3);
-    }
-
-    if (l < length && length >= nlanes) {
-        l = length - nlanes;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; ++l) {
-        out0[l] = in[4*l + 0];
-        out1[l] = in[4*l + 1];
-        out2[l] = in[4*l + 2];
-        out3[l] = in[4*l + 3];
-    }
-}
-
 //------------------------------------------------------------------------------
 
 CV_ALWAYS_INLINE void uvToRGBuv(const v_uint8& u, const v_uint8& v,
@@ -878,6 +722,38 @@ CV_ALWAYS_INLINE void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan,
 
     for (int x = 0; x < length; x++) {
         out[x] = in[x*chs + chan];
+    }
+}
+
+template<typename isa_tag_t, typename T, int chs>
+CV_ALWAYS_INLINE void splitRowImpl(isa_tag_t, const T* in, std::array<T*, chs>& outs, const int length) {
+    static_assert(chs > 1 && chs < 5, "This number of channels isn't supported.");
+
+    if (chs == 2) {
+        splitRowC2_Impl<vector_type_of_t<isa_tag_t, T>, T>(in, outs[0], outs[1], length);
+        return;
+    } else if (chs == 3) {
+        splitRowC3_Impl<vector_type_of_t<isa_tag_t, T>, T>(in, outs[0], outs[1], outs[2], length);
+        return;
+    } else {
+        splitRowC4_Impl<vector_type_of_t<isa_tag_t, T>, T>(in, outs[0], outs[1], outs[2], outs[3], length);
+        return;
+    }
+}
+
+template<typename isa_tag_t, typename T, int chs>
+CV_ALWAYS_INLINE void mergeRowImpl(isa_tag_t, const std::array<const T*, chs>& ins, T* out, const int length) {
+    static_assert(chs > 1 && chs < 5, "This number of channels isn't supported.");
+
+    if (chs == 2) {
+        mergeRowC2_Impl<vector_type_of_t<isa_tag_t, T>, T>(ins[0], ins[1], out, length);
+        return;
+    } else if (chs == 3) {
+        mergeRowC3_Impl<vector_type_of_t<isa_tag_t, T>, T>(ins[0], ins[1], ins[2], out, length);
+        return;
+    } else {
+        mergeRowC4_Impl<vector_type_of_t<isa_tag_t, T>, T>(ins[0], ins[1], ins[2], ins[3], out, length);
+        return;
     }
 }
 }  // namespace kernels
