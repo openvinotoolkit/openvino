@@ -181,22 +181,7 @@ Layout TensorDesc::getLayoutByRank(size_t rank) {
 }
 
 Layout TensorDesc::getLayoutByDims(const SizeVector& dims) {
-    switch (dims.size()) {
-        case 0:
-            return Layout::SCALAR;
-        case 1:
-            return Layout::C;
-        case 2:
-            return Layout::NC;
-        case 3:
-            return Layout::CHW;
-        case 4:
-            return Layout::NCHW;
-        case 5:
-            return Layout::NCDHW;
-        default:
-            return Layout::BLOCKED;
-    }
+    return getLayoutByRank(dims.size());
 }
 
 size_t TensorDesc::offset(const SizeVector& v) const {

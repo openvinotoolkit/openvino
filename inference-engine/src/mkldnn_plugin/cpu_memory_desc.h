@@ -52,7 +52,7 @@ public:
         T* casted = dynamic_cast<T*>(this);
         if (!casted)
             IE_THROW() << "Cannot dynamically cast MemoryDesc";
-        return dynamic_cast<T*>(this);
+        return casted;
     }
 
     template <typename T,
@@ -62,10 +62,10 @@ public:
         T* casted = dynamic_cast<T*>(this);
         if (!casted)
             IE_THROW() << "Cannot dynamically cast MemoryDesc";
-        return dynamic_cast<const T*>(this);
+        return casted;
     }
 
-    const void setPrecision(InferenceEngine::Precision prc) {
+    void setPrecision(InferenceEngine::Precision prc) {
         precision = prc;
     }
 
@@ -236,5 +236,8 @@ private:
     std::vector<size_t> offsetPaddingToData;
     size_t offsetPadding;
 };
+
+using MemoryDescPtr = std::unique_ptr<MemoryDesc>;
+using MemoryDescConsPtr = std::unique_ptr<const MemoryDesc>;
 
 }  // namespace MKLDNNPlugin
