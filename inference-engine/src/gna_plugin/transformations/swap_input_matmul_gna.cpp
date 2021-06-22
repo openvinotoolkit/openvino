@@ -10,6 +10,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <numeric>
 #include <transformations/swap_input_matmul_gna.hpp>
@@ -22,9 +23,16 @@ NGRAPH_RTTI_DEFINITION(SwapInputMatMul, "SwapInputMatMul", 0);
 
 SwapInputMatMul::SwapInputMatMul() {
     MATCHER_SCOPE(SwapInputMatMul);
-    auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({ngraph::pattern::any_input(
-            ngraph::pattern::has_static_shape()), ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
-                                                                     ngraph::pattern::has_static_shape());
+    auto constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>({}, ngraph::pattern::rank_equals(2));
+    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({constant,
+        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset7::Constant>()});
+    auto matmul_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{constant, fake_quantize});
+    auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({matmul_input, ngraph::pattern::any_input()},
+                                                                      ngraph::pattern::has_static_shape());
+
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset7::MatMul>(m.get_match_root());
         if (!matmul) {
@@ -86,6 +94,7 @@ SwapInputMatMul::SwapInputMatMul() {
                 for (auto input : consumers) {
                     input.replace_source_output(traspose_output);
                 }
+
                 return true;
             }
         }
@@ -95,6 +104,7 @@ SwapInputMatMul::SwapInputMatMul() {
 
         ngraph::copy_runtime_info(matmul, new_ops);
         ngraph::replace_node(matmul, traspose_output);
+
         return true;
     };
 
