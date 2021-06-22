@@ -280,11 +280,11 @@ namespace SubgraphTestsDefinitions {
         for (auto& state : states) {
             auto name = state.GetName();
             if (name.find("cell_state_1") != std::string::npos) {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            cell_memory_init.data(), cell_memory_init.size());
                 state.SetState(blob);
             } else if (name.find("hidden_state_1") != std::string::npos) {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            hidden_memory_init.data(), hidden_memory_init.size());
                 state.SetState(blob);
             } else {

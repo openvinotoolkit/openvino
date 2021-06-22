@@ -117,18 +117,12 @@ public:
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
 
 #if GNA_LIB_VER == 1
-    void propagateSync(const intel_nnet_type_t *pNeuralNetwork,
-                       const uint32_t *pActiveIndices,
-                       uint32_t nActiveIndices,
-                       intel_gna_proc_t nGNAProcType);
-
     uint32_t propagate(const intel_nnet_type_t *pNeuralNetwork,
                        const uint32_t *pActiveIndices,
                        uint32_t nActiveIndices,
                        intel_gna_proc_t nGNAProcType);
 #else
     void setUpActiveList(unsigned req_config_id, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices);
-    void propagateSync(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
     uint32_t propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
     uint32_t createModel(Gna2Model& gnaModel) const;
     void releaseModel(const uint32_t model_id);
