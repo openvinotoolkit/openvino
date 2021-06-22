@@ -131,7 +131,7 @@ public:
 
     template<typename T>
     struct decay_score<T, false> {
-        T operator()(T iou, T max_iou, T sigma) { return (1. - iou) / (1. - max_iou); }
+        T operator()(T iou, T max_iou, T sigma) { return (1. - iou) / (1. - max_iou + 1e-10f); }
     };
 
     template<class T>
@@ -289,19 +289,20 @@ public:
                               inputs[NMS_SCORES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         const int box_shape = 4;
+        size_t  real_num_classes = m_background_class == -1 ? num_classes : num_classes - 1;
+        size_t  real_num_boxes = m_nms_top_k == -1 ? num_boxes : std::min(m_nms_top_k, static_cast<int>(num_boxes));
         std::vector<int64_t> num_per_batch;
-        std::vector<BoxInfo> filtered_boxes;
-        filtered_boxes.reserve(num_batches * num_classes * num_boxes);
+        std::vector<BoxInfo> filtered_boxes(num_batches * real_num_classes * real_num_boxes);
 
         bool normalized = true;
         for (int64_t batch = 0; batch < num_batches; batch++) {
             const float *boxesPtr = boxes + batch * num_boxes * 4;
             std::vector<int64_t> all_indices;
-            all_indices.reserve(num_classes * num_boxes);
+            all_indices.reserve(real_num_classes * real_num_boxes);
             std::vector<float> all_scores;
-            all_scores.reserve(num_classes * num_boxes);
+            all_scores.reserve(real_num_classes * real_num_boxes);
             std::vector<int64_t> all_classes;
-            all_classes.reserve(num_classes * num_boxes);
+            all_classes.reserve(real_num_classes * real_num_boxes);
             size_t num_det = 0;
 
             for (int64_t class_idx = 0; class_idx < num_classes; class_idx++) {
@@ -359,20 +360,18 @@ public:
                               [&all_scores](int lhs, int rhs) {
                                   return all_scores[lhs] > all_scores[rhs];
                               });
-
+            size_t offset = batch * real_num_classes * real_num_boxes;
             for (size_t i = 0; i < num_det; i++) {
                 auto p = perm[i];
                 auto idx = all_indices[p];
                 auto cls = all_classes[p];
                 auto score = all_scores[p];
                 auto bbox = boxesPtr + idx * box_shape;
-
-                filtered_boxes.push_back(
-                        BoxInfo{Rectangle{bbox[0], bbox[1], bbox[2], bbox[3]},
-                                batch * num_boxes + idx,
-                                score,
-                                batch,
-                                cls});
+                filtered_boxes[offset + i] = BoxInfo{Rectangle{bbox[0], bbox[1], bbox[2], bbox[3]},
+                                                     batch * num_boxes + idx,
+                                                     score,
+                                                     batch,
+                                                     cls};
             }
             num_per_batch.push_back(num_det);
         }
@@ -410,15 +409,19 @@ public:
         float * selected_outputs = outputs[NMS_SELECTED_OUTPUTS]->buffer().as<float *>() +
                                 outputs[NMS_SELECTED_OUTPUTS]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
-        int64_t *selected_indices = outputs[NMS_SELECTED_INDICES]->buffer().as<int64_t *>() +
+        int *selected_indices = outputs[NMS_SELECTED_INDICES]->buffer().as<int *>() +
                                     outputs[NMS_SELECTED_INDICES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
-        int64_t *valid_outputs = outputs[NMS_VALID_OUTPUTS]->buffer().as<int64_t *>() +
+        int *valid_outputs = outputs[NMS_VALID_OUTPUTS]->buffer().as<int *>() +
                                  outputs[NMS_VALID_OUTPUTS]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         std::copy(num_per_batch.begin(), num_per_batch.end(), valid_outputs);
+
+        for (size_t i = 0; i < num_batches; i++) {
+            valid_outputs[i] = static_cast<int>(num_per_batch[i]);
+        }
         for (size_t i = 0; i < filtered_boxes.size(); i++) {
-            selected_indices[i] = filtered_boxes[i].index;
+            selected_indices[i] = static_cast<int>(filtered_boxes[i].index);
             auto selected_base = selected_outputs + i * 6;
             selected_base[0] = filtered_boxes[i].class_index;
             selected_base[1] = filtered_boxes[i].score;
