@@ -17,12 +17,12 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
     auto constant = as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
-    if (NetworkHelper::isScalarLike(constant)) {
+    auto constantShape = constant->get_shape();
+    if (shape_size(constantShape) == 1ul) {
         return NetworkHelper::toScalar(constant);
     }
 
     const auto stridedSlicePShape = strSlice->get_input_partial_shape(0);
-    auto constantShape = constant->get_shape();
     const size_t rank = stridedSlicePShape.rank().get_length();
     if (rank != constantShape.size()) {
         ngraph::Shape newConstantShape;
