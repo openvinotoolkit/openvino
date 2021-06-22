@@ -10,8 +10,6 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestBucketize(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def create_bucketize_net(self, input_shape, input_type, boundaries_size, ir_version):
         """
             Tensorflow net:                     IR net:

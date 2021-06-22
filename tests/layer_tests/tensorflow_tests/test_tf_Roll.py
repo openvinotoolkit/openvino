@@ -4,8 +4,6 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestTFRoll(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def create_tf_roll_net(self, shift, axis, x_shape, input_type, ir_version):
         tf.compat.v1.reset_default_graph()
 

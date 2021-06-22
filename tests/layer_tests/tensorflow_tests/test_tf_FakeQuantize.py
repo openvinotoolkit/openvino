@@ -12,8 +12,6 @@ from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, con
 
 
 class TestFakeQuantize(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def _prepare_input(self, inputs_dict, kwargs):
         assert len(inputs_dict) == 1
         assert np.array(list(inputs_dict.values())[0]) == np.array([11])

@@ -7,12 +7,9 @@ import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 from mo.front.common.partial_infer.utils import int64_array
 from unit_tests.utils.graph import build_graph
-from tensorflow_tests.permutation_utils import permute_nchw_to_nhwc, permute_nhwc_to_nchw
 
 
 class TestNormalizeL2(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     @staticmethod
     def build_tf_graph(shape, axes):
         import tensorflow as tf

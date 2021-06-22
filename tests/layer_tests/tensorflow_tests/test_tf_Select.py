@@ -8,8 +8,6 @@ from tensorflow_tests.permutation_utils import permute_nchw_to_nhwc
 
 
 class TestSelect(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def create_select_net(self, shape_condition, shape_input, ir_version):
         """
             Tensorflow net                 IR net

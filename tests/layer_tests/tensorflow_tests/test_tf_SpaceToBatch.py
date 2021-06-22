@@ -7,8 +7,6 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestSpaceToBatch(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def create_space_to_batch_net(self, in_shape, pads_value, block_shape_value, out_shape, ir_version):
         """
             Tensorflow net               IR net

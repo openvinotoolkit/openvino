@@ -29,10 +29,7 @@ class TestResamplePattern(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_shape = shape.copy()
-            tf_shape = np.array(tf_shape)[[0, 2, 3, 1]]
-
-            input = tf.compat.v1.placeholder(tf.float32, tf_shape, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
 
             transpose_1 = tf.transpose(a=input, perm=[1, 2, 3, 0])
             expand_dims = tf.expand_dims(transpose_1, 0)
@@ -61,6 +58,7 @@ class TestResamplePattern(CommonTFLayerTest):
             'resample_data': {'shape': new_shape, 'kind': 'data'},
         }
 
+        # TODO ref_net is incorrect. It should contain Interpolate instead
         ref_net = build_graph(nodes_attributes,
                               [('input', 'input_data'),
                                ('input_data', 'resample'),
@@ -69,13 +67,13 @@ class TestResamplePattern(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    test_data = [dict(shape=[1, 1, 100, 200], factor=2),
-                 dict(shape=[1, 1, 200, 300], factor=3)]
+    test_data = [pytest.param(dict(shape=[1, 100, 200, 1], factor=2), marks=pytest.mark.xfail(reason="*-58478")),
+                 pytest.param(dict(shape=[1, 200, 300, 1], factor=3), marks=pytest.mark.xfail(reason="*-58478")),
+                 ]
 
-    # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason="*-22273")
+    @pytest.mark.precommit
     def test_resample(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_resample_net(params['shape'], params['factor']),
                    ie_device, precision, ir_version, temp_dir=temp_dir)

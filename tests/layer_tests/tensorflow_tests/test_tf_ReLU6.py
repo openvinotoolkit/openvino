@@ -9,8 +9,6 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestReLU6(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def create_relu6_net(self, shape, ir_version):
         """
             Tensorflow net                 IR net

@@ -7,8 +7,6 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestOneHot(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     @staticmethod
     def create_one_hot_net(shape, depth, on_value, off_value, axis, ir_version):
         """

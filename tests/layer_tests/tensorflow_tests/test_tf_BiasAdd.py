@@ -7,8 +7,6 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestBiasAdd(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def create_bias_add_placeholder_const_net(self, shape, ir_version):
         """
             Tensorflow net                      IR net

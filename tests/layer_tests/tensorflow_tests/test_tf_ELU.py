@@ -8,8 +8,6 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestELU(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def create_elu_net(self, shape, ir_version):
         """
             Tensorflow net                 IR net

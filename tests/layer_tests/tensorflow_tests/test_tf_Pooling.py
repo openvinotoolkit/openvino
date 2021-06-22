@@ -8,6 +8,7 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestPooling(CommonTFLayerTest):
+    disable_input_layout_conversion = False
     def create_pooling_net(self, kernel_size, strides, pads, in_shape, out_shape, method, ir_version):
         """
             Tensorflow net                 IR net

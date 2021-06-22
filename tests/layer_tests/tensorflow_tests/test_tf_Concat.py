@@ -7,8 +7,6 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestConcat(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def create_concat_net(self, shape, axis, ir_version):
         """
             Tensorflow net               IR net

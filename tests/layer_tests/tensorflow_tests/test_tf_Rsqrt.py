@@ -8,8 +8,6 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestRsqrt(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
             inputs_dict[input] = np.random.randint(1, 256, inputs_dict[input]).astype(np.float32)

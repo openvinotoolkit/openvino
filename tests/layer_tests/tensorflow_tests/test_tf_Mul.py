@@ -8,8 +8,6 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class Testmul(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def create_mul_placeholder_const_net(self, x_shape, y_shape, ir_version):
         """
             Tensorflow net                  IR net

@@ -17,7 +17,7 @@ def save_to_pb(tf_model, path_to_saved_tf_model):
 
 
 class CommonTFLayerTest(CommonLayerTest):
-    disable_input_layout_conversion = False
+    disable_input_layout_conversion = True
 
     def produce_model_path(self, framework_model, save_path):
         return save_to_pb(framework_model, save_path)

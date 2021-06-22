@@ -12,8 +12,6 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestLogSoftmax(CommonTFLayerTest):
-    disable_input_layout_conversion = True
-
     def create_log_softmax_net(self, shape, reduction_axis, ir_version):
         """
             Tensorflow net                 IR net
