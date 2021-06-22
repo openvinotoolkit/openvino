@@ -120,13 +120,13 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
 
         if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
             dequantization.subtract->get_output_partial_shape(0),
-            dequantization.subtractConstant->get_shape()))) {
+            dequantization.subtract->get_input_shape(1)))) {
             return false;
         }
 
         if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
             dequantization.multiply->get_output_partial_shape(0),
-            dequantization.multiplyConstant->get_shape()))) {
+            dequantization.multiply->get_input_shape(1)))) {
             return false;
         }
     }
