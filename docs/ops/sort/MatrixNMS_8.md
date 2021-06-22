@@ -84,6 +84,16 @@ The Matrix NMS algorithm is described below:
   * **Default value**: `-1` meaning to keep all classes
   * **Required**: *No*
 
+* *normalized*
+
+  * **Description**: *normalized* is a flag that indicates whether `boxes` are normalized or not.
+  * **Range of values**: true or false
+    * *true* - the box coordinates are normalized.
+    * *false* - the box coordinates are not normalized.
+  * **Type**: boolean
+  * **Default value**: True
+  * **Required**: *No*
+
 * *decay_function*
 
   * **Description**: decay function used to decay scores.
