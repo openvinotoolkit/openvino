@@ -8,7 +8,6 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestPooling(CommonTFLayerTest):
-    disable_input_layout_conversion = False
     def create_pooling_net(self, kernel_size, strides, pads, in_shape, out_shape, method, ir_version):
         """
             Tensorflow net                 IR net
@@ -16,24 +15,16 @@ class TestPooling(CommonTFLayerTest):
             Input->Pooling        =>       Input->Pooling
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-
             pads_begin, pads_end, padding = pads
-
             # 4D tensors
             if len(in_shape) == 4:
-                input_shape = [in_shape[0], in_shape[2], in_shape[3], in_shape[1]]
-                input = tf.compat.v1.placeholder(tf.float32, input_shape, 'Input')
+                input = tf.compat.v1.placeholder(tf.float32, in_shape, 'Input')
 
                 stride = [1, strides[0], strides[1], 1]
                 kernel = [1, kernel_size[0], kernel_size[1], 1]
@@ -59,12 +50,6 @@ class TestPooling(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
-
         ref_net = None
 
         if check_ir_version(10, None, ir_version):
@@ -89,65 +74,68 @@ class TestPooling(CommonTFLayerTest):
                                    ('pooling_data', 'result')
                                    ])
 
-        return tf_net, ref_net
+        # TODO ref_net is incorrect *-58478
+        return tf_net, None
 
     test_data_4D = []
     for method in ['max', 'avg']:
         test_data_4D.extend([dict(kernel_size=[1, 1], strides=[1, 1], pads=[[0, 0], [0, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 224, 224], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 224, 224, 3], method=method),
                              dict(kernel_size=[2, 2], strides=[2, 2], pads=[[0, 0], [0, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 112, 112, 3], method=method),
                              dict(kernel_size=[2, 4], strides=[2, 4], pads=[[0, 0], [0, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 56], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 112, 56, 3], method=method),
                              dict(kernel_size=[4, 2], strides=[4, 2], pads=[[0, 0], [0, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 56, 112], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 56, 112, 3], method=method),
                              dict(kernel_size=[2, 3], strides=[2, 3], pads=[[0, 0], [0, 1], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 75], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 112, 75, 3], method=method),
                              dict(kernel_size=[3, 2], strides=[3, 2], pads=[[0, 0], [1, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 75, 112], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 75, 112, 3], method=method),
                              dict(kernel_size=[3, 3], strides=[2, 2], pads=[[0, 0], [1, 1], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 112, 112, 3], method=method),
                              dict(kernel_size=[3, 2], strides=[2, 2], pads=[[0, 0], [1, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 112, 112, 3], method=method),
                              dict(kernel_size=[2, 3], strides=[2, 3], pads=[[0, 0], [0, 1], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 75], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 112, 75, 3], method=method),
                              dict(kernel_size=[111, 111], strides=[111, 111], pads=[[54, 54], [55, 55], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 3, 3], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 3, 3, 3], method=method),
                              dict(kernel_size=[111, 113], strides=[111, 113], pads=[[54, 1], [55, 1], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 3, 2], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 2, 3, 3], method=method),
                              dict(kernel_size=[113, 113], strides=[113, 113], pads=[[1, 1], [1, 1], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 2, 2], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 2, 2, 3], method=method),
                              dict(kernel_size=[113, 113], strides=[111, 111], pads=[[55, 55], [56, 56], 'SAME'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 3, 3], method=method)])
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 3, 3, 3], method=method)
+                             ])
 
         test_data_4D.extend([dict(kernel_size=[1, 1], strides=[1, 1], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 224, 224], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 224, 224, 3], method=method),
                              dict(kernel_size=[2, 2], strides=[2, 2], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 112, 112, 3], method=method),
                              dict(kernel_size=[2, 4], strides=[2, 4], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 56], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 112, 56, 3], method=method),
                              dict(kernel_size=[4, 2], strides=[4, 2], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 56, 112], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 56, 112, 3], method=method),
                              dict(kernel_size=[2, 3], strides=[2, 3], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 74], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 112, 74, 3], method=method),
                              dict(kernel_size=[3, 2], strides=[3, 2], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 74, 112], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 74, 112, 3], method=method),
                              dict(kernel_size=[3, 3], strides=[2, 2], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 111, 111], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 111, 111, 3], method=method),
                              dict(kernel_size=[3, 2], strides=[2, 2], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 111, 112], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 111, 112, 3], method=method),
                              dict(kernel_size=[2, 3], strides=[2, 3], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 112, 74], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 112, 74, 3], method=method),
                              dict(kernel_size=[111, 111], strides=[111, 111], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 2, 2], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 2, 2, 3], method=method),
                              dict(kernel_size=[111, 113], strides=[111, 113], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 2, 1], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 2, 1, 3], method=method),
                              dict(kernel_size=[113, 113], strides=[113, 113], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 1, 1], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 1, 1, 3], method=method),
                              dict(kernel_size=[113, 113], strides=[111, 111], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 2, 2], method=method),
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 2, 2, 3], method=method),
                              dict(kernel_size=[224, 224], strides=[1, 1], pads=[[0, 0], [0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224], out_shape=[1, 3, 1, 1], method=method)])
+                                  in_shape=[1, 224, 224, 3], out_shape=[1, 1, 1, 3], method=method),
+                             ])
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
@@ -155,76 +143,90 @@ class TestPooling(CommonTFLayerTest):
         self._test(*self.create_pooling_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
+    @pytest.mark.parametrize("params", test_data_4D[:2])
+    @pytest.mark.precommit
+    def test_pool_4D_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_pooling_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
+
     test_data_5D = []
     for method in ['max', 'avg']:
         test_data_5D.extend([dict(kernel_size=[1, 1, 1], strides=[1, 1, 1], pads=[[0, 0, 0], [0, 0, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 224, 224, 224], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 224, 224, 224, 3], method=method),
                              dict(kernel_size=[2, 2, 2], strides=[2, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 112, 112, 112, 3], method=method),
                              dict(kernel_size=[2, 2, 4], strides=[2, 2, 4], pads=[[0, 0, 0], [0, 0, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 56], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 112, 112, 56, 3], method=method),
                              dict(kernel_size=[4, 2, 2], strides=[4, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 56, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 56, 112, 112, 3], method=method),
                              dict(kernel_size=[2, 2, 3], strides=[2, 2, 3], pads=[[0, 0, 0], [0, 0, 1], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 75], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 112, 112, 75, 3], method=method),
                              dict(kernel_size=[3, 2, 2], strides=[3, 2, 2], pads=[[0, 0, 0], [1, 0, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 75, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 75, 112, 112, 3], method=method),
                              dict(kernel_size=[3, 3, 3], strides=[2, 2, 2], pads=[[0, 0, 0], [1, 1, 1], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 112, 112, 112, 3], method=method),
                              dict(kernel_size=[3, 2, 2], strides=[2, 2, 2], pads=[[0, 0, 0], [1, 0, 0], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 112, 112, 112, 3], method=method),
                              dict(kernel_size=[2, 2, 3], strides=[2, 2, 3], pads=[[0, 0, 0], [0, 0, 1], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 75], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 112, 112, 75, 3], method=method),
                              dict(kernel_size=[111, 111, 111], strides=[111, 111, 111],
                                   pads=[[54, 54, 54], [55, 55, 55], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 3, 3, 3], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 3, 3, 3, 3], method=method),
                              dict(kernel_size=[111, 111, 113], strides=[111, 111, 113],
                                   pads=[[54, 54, 1], [55, 55, 1], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 3, 3, 2], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 3, 3, 2, 3], method=method),
                              dict(kernel_size=[113, 113, 113], strides=[113, 113, 113],
                                   pads=[[1, 1, 1], [1, 1, 1], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 2, 2, 2], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 2, 2, 2, 3], method=method),
                              dict(kernel_size=[113, 113, 113], strides=[111, 111, 111],
                                   pads=[[55, 55, 55], [56, 56, 56], 'SAME'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 3, 3, 3], method=method)])
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 3, 3, 3, 3], method=method)])
 
         test_data_5D.extend([dict(kernel_size=[1, 1, 1], strides=[1, 1, 1], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 224, 224, 224], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 224, 224, 224, 3], method=method),
                              dict(kernel_size=[2, 2, 2], strides=[2, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 112, 112, 112, 3], method=method),
                              dict(kernel_size=[2, 2, 4], strides=[2, 2, 4], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 56], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 112, 112, 56, 3], method=method),
                              dict(kernel_size=[4, 2, 2], strides=[4, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 56, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 56, 112, 112, 3], method=method),
                              dict(kernel_size=[2, 2, 3], strides=[2, 2, 3], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 74], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 112, 112, 74, 3], method=method),
                              dict(kernel_size=[3, 2, 2], strides=[3, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 74, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 74, 112, 112, 3], method=method),
                              dict(kernel_size=[3, 3, 3], strides=[2, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 111, 111, 111], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 111, 111, 111, 3], method=method),
                              dict(kernel_size=[3, 2, 2], strides=[2, 2, 2], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 111, 112, 112], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 111, 112, 112, 3], method=method),
                              dict(kernel_size=[2, 2, 3], strides=[2, 2, 3], pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 112, 112, 74], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 112, 112, 74, 3], method=method),
                              dict(kernel_size=[111, 111, 111], strides=[111, 111, 111],
                                   pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 2, 2, 2], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 2, 2, 2, 3], method=method),
                              dict(kernel_size=[111, 111, 113], strides=[111, 111, 113],
                                   pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 2, 2, 1], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 2, 2, 1, 3], method=method),
                              dict(kernel_size=[113, 113, 113], strides=[113, 113, 113],
                                   pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 1, 1, 1], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 1, 1, 1, 3], method=method),
                              dict(kernel_size=[113, 113, 113], strides=[111, 111, 111],
                                   pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 2, 2, 2], method=method),
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 2, 2, 2, 3], method=method),
                              dict(kernel_size=[224, 224, 224], strides=[1, 1, 1],
                                   pads=[[0, 0, 0], [0, 0, 0], 'VALID'],
-                                  in_shape=[1, 3, 224, 224, 224], out_shape=[1, 3, 1, 1, 1], method=method)])
+                                  in_shape=[1, 224, 224, 224, 3], out_shape=[1, 1, 1, 1, 3], method=method)])
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_pool_5D(self, params, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU':
+            pytest.skip("5D tensors is not supported on GPU")
+        self._test(*self.create_pooling_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
+
+    @pytest.mark.parametrize("params", test_data_5D[:2])
+    @pytest.mark.precommit
+    def test_pool_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_pooling_net(**params, ir_version=ir_version),
