@@ -29,6 +29,11 @@
 # Common functions
 #
 
+if(NOT DEFINED CMAKE_FIND_PACKAGE_NAME)
+    set(CMAKE_FIND_PACKAGE_NAME InferenceEngine)
+    set(_need_package_name_reset ON)
+endif()
+
 # we have to use our own version of find_dependency because of support cmake 3.7
 macro(_ie_find_dependency dep)
     set(cmake_fd_quiet_arg)
@@ -138,3 +143,8 @@ unset(IE_PACKAGE_PREFIX_DIR)
 set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_IE_INCLUDE_DIR@")
 
 check_required_components(${CMAKE_FIND_PACKAGE_NAME})
+
+if(_need_package_name_reset)
+    unset(CMAKE_FIND_PACKAGE_NAME)
+    unset(_need_package_name_reset)
+endif()

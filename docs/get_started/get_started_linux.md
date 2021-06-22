@@ -227,7 +227,7 @@ You must have a model that is specific for you inference task. Example model typ
 - Custom (Often based on SSD)
 
 Options to find a model suitable for the OpenVINO™ toolkit are:
-- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
+- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
 - Download from GitHub*, Caffe* Zoo, TensorFlow* Zoo, etc.
 - Train your own model.
         

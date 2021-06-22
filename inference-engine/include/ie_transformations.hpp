@@ -16,6 +16,7 @@
 namespace InferenceEngine {
 
 /**
+ * @deprecated Use InferenceEngine::lowLatency2 instead
  * @brief The transformation finds all TensorIterator layers in the network, processes all back
  * edges that describe a connection between Result and Parameter of the TensorIterator body,
  * and inserts ReadValue layer between Parameter and the next layers after this Parameter,
@@ -50,7 +51,6 @@ namespace InferenceEngine {
  *    network->infer (...)  // Using stored states, calculating new values for states.
  *
  * @param network A network to apply LowLatency transformation
- * *
  */
 
 INFERENCE_ENGINE_DEPRECATED("This transformation will be removed in 2023.1. "
@@ -84,7 +84,6 @@ INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
           If "true", then the transformation inserts Constant before ReadValue operation.
           If "false, then the transformation leaves existed initializing subgraph for ReadValue operation.
  * Loop operation by a given number. Does not affect TensorIterators.
- * *
  */
 INFERENCE_ENGINE_API_CPP(void) lowLatency2(InferenceEngine::CNNNetwork& network,
                                            bool use_const_initializer = true);
