@@ -245,7 +245,7 @@ TEST_P(binary_convolution_test, conv) {
 }
 
 // Batch, groups, IC, IW, IH, OC, OW, OH, KH, KW, SH, SW, PH, PW
-INSTANTIATE_TEST_CASE_P(BinaryConvTest, binary_convolution_test, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(BinaryConvTest, binary_convolution_test, ::testing::Values(
         TestParams{1, 1,  16,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f32, "small"},
         TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f32, "small"},
         TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1,  0.0f, data_types::f32, "small"},
@@ -300,7 +300,7 @@ INSTANTIATE_TEST_CASE_P(BinaryConvTest, binary_convolution_test, ::testing::Valu
         TestParams{1, 1,  264,24,42, 192,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_5_sep_BIN"}, // back_bone_seq_conv5_5_sep_BIN
         TestParams{1, 1,  192,12,21, 208,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_6_sep_BIN"}, // back_bone_seq_conv5_6_sep_BIN
         TestParams{1, 1,  208,12,21,  88,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv6_sep_BN"} // back_bone_seq_conv6_sep_BN
-),);
+));
 
 template <typename T>
 static void set_binary_values(cldnn::memory::ptr mem, std::vector<T> args) {

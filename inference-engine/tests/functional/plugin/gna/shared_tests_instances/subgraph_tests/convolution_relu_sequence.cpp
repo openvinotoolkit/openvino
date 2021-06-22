@@ -190,7 +190,7 @@ const std::vector<std::map<std::string, std::string> > configs = {
 };
 
 // Enable when using GNA 2.1 library
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionReluSequenceTest, GnaConvolutionReluSequenceTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionReluSequenceTest, GnaConvolutionReluSequenceTest,
     ::testing::Combine(
         ::testing::ValuesIn(convReluSpecificParamsAllAll),
         ::testing::ValuesIn(netPrecisions),
