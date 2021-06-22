@@ -3,8 +3,9 @@
 //
 
 #include "unary_ops.hpp"
-using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Sqrt, element::f32>,
-                               UnaryOperatorType<ngraph::op::v0::Sqrt, element::f16>>;
+
+using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Negative, element::f32>,
+                               UnaryOperatorType<ngraph::op::v0::Negative, element::i32>>;
 
 INSTANTIATE_TYPED_TEST_CASE_P(visitor_without_attribute,
                               UnaryOperatorVisitor,
