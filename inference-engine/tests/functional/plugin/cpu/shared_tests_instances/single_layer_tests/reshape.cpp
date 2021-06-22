@@ -15,7 +15,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheckDynBatch, ReshapeLayerTestRevise,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheckDynBatch, ReshapeLayerTestRevise,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
@@ -29,7 +29,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheckDynBatch, ReshapeLayerTestRevise,
                 ::testing::Values(std::map<std::string, std::string>({{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(YES)}}))),
                 ReshapeLayerTestRevise::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck, ReshapeLayerTestRevise,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck, ReshapeLayerTestRevise,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
@@ -43,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck, ReshapeLayerTestRevise,
                 ::testing::Values(std::map<std::string, std::string>({}))),
                 ReshapeLayerTestRevise::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheckNegative, ReshapeLayerTestRevise,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheckNegative, ReshapeLayerTestRevise,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),

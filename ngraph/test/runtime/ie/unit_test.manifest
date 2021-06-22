@@ -723,9 +723,6 @@ cum_sum_2dim
 cum_sum_3d
 cum_sum_2dim_allmodes
 
-# Unsupported primitive of type: Ceiling
-ceiling
-
 # Incorrect dimensions for broadcasting for Add
 auto_bcast_binary_elementwise_pdpd_dynamic
 

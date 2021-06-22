@@ -42,7 +42,7 @@ Please report questions, issues and suggestions using:
 ---
 \* Other names and brands may be claimed as the property of others.
 
-[Open Model Zoo]:https://github.com/opencv/open_model_zoo
+[Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
 [Inference Engine]:https://software.intel.com/en-us/articles/OpenVINO-InferEngine
 [Model Optimizer]:https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer
 [nGraph]:https://docs.openvinotoolkit.org/latest/openvino_docs_nGraph_DG_DevGuide.html

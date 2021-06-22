@@ -94,7 +94,7 @@ TEST_P(TransposeSinkingFQ, TransposeFQReduce) {
 }
 
 
-INSTANTIATE_TEST_CASE_P(TransformationTest, TransposeSinkingFQ, testing::Values(
+INSTANTIATE_TEST_SUITE_P(TransformationTest, TransposeSinkingFQ, testing::Values(
         TransposeFQReduceParams{{1, 3, 240, 140}, {0, 2, 3, 1}, {1}, {3}, {1, 1, 1, 1}, {1, 1, 1, 3}, {1, 2}, true,
                                 {1, 1, 1, 1}, {1, 3, 1, 1}, {1, 1, 1, 1}, {1, 3, 1, 1}, {2, 3}, {0, 2, 3, 1}},
         TransposeFQReduceParams{{1, 3, 240, 140}, {0, 2, 3, 1}, {1}, {3}, {1, 1, 1, 1}, {1, 1, 1, 3}, {1, 2}, false,
@@ -175,7 +175,7 @@ ASSERT_TRUE(res.first) << res.second;
 }
 
 
-INSTANTIATE_TEST_CASE_P(TransposeSinkingReduces, TransposeSinking, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingReduces, TransposeSinking, testing::Combine(
         testing::Values(
             TransposeReduceParams{{1, 3, 240, 140}, {0, 2, 3, 1}, {1, 2}, true, {2, 3}, {0, 2, 3, 1}},
             TransposeReduceParams{{10, 20, 30, 40, 50, 60, 70}, {0, 6, 1, 5, 2, 4, 3}, {1, 3, 6}, true, {6, 5, 3}, {0, 6, 1, 5, 2, 4, 3}},
@@ -194,7 +194,7 @@ INSTANTIATE_TEST_CASE_P(TransposeSinkingReduces, TransposeSinking, testing::Comb
             ngraph::opset6::ReduceLogicalAnd::type_info,
             ngraph::opset6::ReduceLogicalOr::type_info)));
 
-INSTANTIATE_TEST_CASE_P(TransposeSinkingSqueeze, TransposeSinking, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingSqueeze, TransposeSinking, testing::Combine(
         testing::Values(
             TransposeReduceParams{{2, 3, 1, 1}, {0, 2, 3, 1}, {1, 2}, false, {2, 3}, {0, 1}},
             TransposeReduceParams{{10, 20, 30, 1, 50, 1, 1}, {0, 6, 1, 5, 2, 4, 3}, {1, 3, 6}, false, {6, 5, 3}, {0, 1, 2, 3}}),
