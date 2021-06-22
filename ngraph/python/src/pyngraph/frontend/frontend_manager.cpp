@@ -24,33 +24,33 @@ void regclass_pyngraph_FrontEndManager(py::module m)
     fem.def("get_available_front_ends",
             &ngraph::frontend::FrontEndManager::get_available_front_ends,
             R"(
-                Gets list of registered frontends
+                Gets list of registered frontends.
 
                 Returns
                 ----------
                 get_available_front_ends : List[str]
-                    List of available frontend names
+                    List of available frontend names.
              )");
     fem.def("load_by_framework",
             &ngraph::frontend::FrontEndManager::load_by_framework,
             py::arg("framework"),
             py::arg("capabilities") = ngraph::frontend::FrontEndCapabilities::FEC_DEFAULT,
             R"(
-                Loads frontend by name of framework and capabilities
+                Loads frontend by name of framework and capabilities.
 
                 Parameters
                 ----------
                 framework : str
-                    Framework name. Throws exception if name is not in list of available frontends
+                    Framework name. Throws exception if name is not in list of available frontends.
 
                 capabilities : int
                     Frontend capabilities. Default is FrontEndCapabilities.FEC_DEFAULT. It is recommended to use only
-                    those capabilities which are needed to minimize load time
+                    those capabilities which are needed to minimize load time.
 
                 Returns
                 ----------
                 load_by_framework : FrontEnd
-                    Frontend interface for further loading of models
+                    Frontend interface for further loading of models.
              )");
 }
 

@@ -99,6 +99,9 @@ set(SRC
     span.cpp
     specialize_function.cpp
     tensor.cpp
+    type_prop/abs.cpp
+    type_prop/acos.cpp
+    type_prop/asin.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
@@ -107,6 +110,7 @@ set(SRC
     type_prop/binary_elementwise.cpp
     type_prop/broadcast.cpp
     type_prop/bucketize.cpp
+    type_prop/ceiling.cpp
     type_prop/clamp.cpp
     type_prop/concat.cpp
     type_prop/constant.cpp
@@ -123,6 +127,7 @@ set(SRC
     type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/einsum.cpp
+    type_prop/exp.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
     type_prop/experimental_detectron_topkrois.cpp
@@ -135,6 +140,7 @@ set(SRC
     type_prop/embeddingbag_packedsum.cpp
     type_prop/embedding_segments_sum.cpp
     type_prop/fake_quantize.cpp
+    type_prop/floor.cpp
     type_prop/floor_mod.cpp
     type_prop/gather.cpp
     type_prop/gather_elements.cpp
@@ -201,11 +207,13 @@ set(SRC
     type_prop/selu.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/sin.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
     type_prop/split.cpp
+    type_prop/sqrt.cpp
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/swish.cpp
@@ -214,7 +222,6 @@ set(SRC
     type_prop/top_k.cpp
     type_prop/transpose.cpp
     type_prop/unary_elementwise.cpp
-    type_prop/unary_ops.cpp
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
@@ -224,6 +231,7 @@ set(SRC
     visitors/op/batch_norm.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
+    visitors/op/ceiling.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
     visitors/op/convolution_backprop.cpp
@@ -288,6 +296,7 @@ set(SRC
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     visitors/op/unsqueeze.cpp
+    visitors/op/variadic_split.cpp
     uint4.cpp
     util.cpp
 )
@@ -295,7 +304,7 @@ set(SRC
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
 
-if (ENABLE_MKL_DNN)
+if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
@@ -305,7 +314,7 @@ if (ENABLE_MKL_DNN)
     endif()
 endif()
 
-if (ENABLE_CLDNN)
+if (ENABLE_CLDNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
     if (ENABLE_STRICT_DEPENDENCIES)
@@ -315,7 +324,7 @@ if (ENABLE_CLDNN)
     endif()
 endif()
 
-if (NGRAPH_INTERPRETER_ENABLE)
+if (NGRAPH_INTERPRETER_ENABLE AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     list(APPEND SRC
         builder.cpp
         backend_api.cpp)
@@ -466,6 +475,7 @@ set(MULTI_TEST_SRC
     backend/unhandled_op.in.cpp
     backend/unsqueeze.in.cpp
     backend/validate_call.in.cpp
+    backend/variadic_split.in.cpp
     backend/zero_sized.in.cpp
 )
 

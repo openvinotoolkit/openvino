@@ -23,17 +23,17 @@ void regclass_pyngraph_FrontEnd(py::module m)
             &ngraph::frontend::FrontEnd::load_from_file,
             py::arg("path"),
             R"(
-                Loads an input model by specified model file path
+                Loads an input model by specified model file path.
 
                 Parameters
                 ----------
                 path : str
-                    Main model file path
+                    Main model file path.
 
                 Returns
                 ----------
                 load_from_file : InputModel
-                    Loaded input model
+                    Loaded input model.
              )");
 
     fem.def("convert",
@@ -41,17 +41,17 @@ void regclass_pyngraph_FrontEnd(py::module m)
                 ngraph::frontend::InputModel::Ptr) const>(&ngraph::frontend::FrontEnd::convert),
             py::arg("model"),
             R"(
-                Completely convert and normalize entire function, throws if it is not possible
+                Completely convert and normalize entire function, throws if it is not possible.
 
                 Parameters
                 ----------
                 model : InputModel
-                    Input model
+                    Input model.
 
                 Returns
                 ----------
                 convert : Function
-                    Fully converted nGraph function
+                    Fully converted nGraph function.
              )");
 
     fem.def("convert",
@@ -59,17 +59,17 @@ void regclass_pyngraph_FrontEnd(py::module m)
                 std::shared_ptr<ngraph::Function>) const>(&ngraph::frontend::FrontEnd::convert),
             py::arg("function"),
             R"(
-                Completely convert the remaining, not converted part of a function
+                Completely convert the remaining, not converted part of a function.
 
                 Parameters
                 ----------
                 function : Function
-                    Partially converted nGraph function
+                    Partially converted nGraph function.
 
                 Returns
                 ----------
                 convert : Function
-                    Fully converted nGraph function
+                    Fully converted nGraph function.
              )");
 
     fem.def("convert_partially",
@@ -83,12 +83,12 @@ void regclass_pyngraph_FrontEnd(py::module m)
                 Parameters
                 ----------
                 model : InputModel
-                    Input model
+                    Input model.
 
                 Returns
                 ----------
                 convert_partially : Function
-                    Partially converted nGraph function
+                    Partially converted nGraph function.
              )");
 
     fem.def("decode",
@@ -97,28 +97,28 @@ void regclass_pyngraph_FrontEnd(py::module m)
             R"(
                 Convert operations with one-to-one mapping with decoding nodes.
                 Each decoding node is an nGraph node representing a single FW operation node with
-                all attributes represented in FW-independent way
+                all attributes represented in FW-independent way.
 
                 Parameters
                 ----------
                 model : InputModel
-                    Input model
+                    Input model.
 
                 Returns
                 ----------
                 decode : Function
-                    nGraph function after decoding
+                    nGraph function after decoding.
              )");
 
     fem.def("normalize",
             &ngraph::frontend::FrontEnd::normalize,
             py::arg("function"),
             R"(
-                Runs normalization passes on function that was loaded with partial conversion
+                Runs normalization passes on function that was loaded with partial conversion.
 
                 Parameters
                 ----------
                 function : Function
-                    Partially converted nGraph function
+                    Partially converted nGraph function.
              )");
 }
