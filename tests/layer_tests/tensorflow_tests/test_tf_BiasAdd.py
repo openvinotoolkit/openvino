@@ -7,20 +7,17 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestBiasAdd(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     def create_bias_add_placeholder_const_net(self, shape, ir_version):
         """
             Tensorflow net                      IR net
 
-            Placeholder->BiasAdd       =>       Placeholder->Power or ScaleShift
+            Placeholder->BiasAdd       =>       Placeholder->Add
                          /                                   /
             Const-------/                       Const-------/
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
         import numpy as np
 
@@ -28,14 +25,10 @@ class TestBiasAdd(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = shape.copy()
-            # reshaping
-            if len(tf_x_shape) >= 3:
-                tf_x_shape.append(tf_x_shape.pop(1))
-            tf_y_shape = tf_x_shape[-1:]
+            y_shape = shape[-1:]
 
-            x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
-            constant_value = np.random.randint(0, 1, tf_y_shape).astype(np.float32)
+            x = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
+            constant_value = np.random.randint(0, 1, y_shape).astype(np.float32)
             if (constant_value == 0).all():
                 # Avoid elimination of the layer from IR
                 constant_value = constant_value + 1
@@ -45,13 +38,6 @@ class TestBiasAdd(CommonTFLayerTest):
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
-
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
-
         ref_net = None
 
         return tf_net, ref_net
@@ -67,11 +53,6 @@ class TestBiasAdd(CommonTFLayerTest):
             Placeholder---/
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
         import numpy as np
 
@@ -82,9 +63,6 @@ class TestBiasAdd(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             tf_x_shape = shape.copy()
-            # reshaping
-            if len(tf_x_shape) >= 3:
-                tf_x_shape.append(tf_x_shape.pop(1))
             tf_y_shape = tf_x_shape[-1:]
 
             constant_value_x = np.random.randint(-256, 256, tf_x_shape).astype(np.float32)
@@ -93,39 +71,21 @@ class TestBiasAdd(CommonTFLayerTest):
             y = tf.constant(constant_value_y)
 
             add = tf.nn.bias_add(x, y, name="Operation")
-            add_shape = add.shape.as_list()
-            add_value = add.eval()
 
             placeholder = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')  # Input_1 in graph_def
 
-            concat = tf.concat([placeholder, add], axis=tf_concat_axis, name='Operation')
-            concat_shape = concat.shape.as_list()
+            tf.concat([placeholder, add], axis=tf_concat_axis, name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
-
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
-
-        # Format axis to positive value
-        concat_ax = tf_concat_axis if tf_concat_axis >= 0 else tf_concat_axis + len(shape)
-        if len(shape) >= 3:
-            # Permute shapes to (N,C,...) format
-            order = [0, len(concat_shape) - 1] + list(range(1, len(concat_shape) - 1))
-            concat_shape = [concat_shape[i] for i in order]
-            concat_ax = order.index(concat_ax)
-            add_value = np.transpose(add_value, order)
 
         ref_net = None
 
         return tf_net, ref_net
 
     test_data_2D = [
-        dict(shape=[1, 1]),
-        dict(shape=[1, 224])
+        dict(shape=[2, 1]),
+        dict(shape=[2, 224])
     ]
 
     @pytest.mark.parametrize("params", test_data_2D)
@@ -141,8 +101,7 @@ class TestBiasAdd(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_3D = [
-        pytest.param(dict(shape=[1, 1, 224]), marks=pytest.mark.xfail(reason="*-19053")),
-        pytest.param(dict(shape=[1, 3, 224]), marks=pytest.mark.xfail(reason="*-19053"))
+        dict(shape=[2, 3, 5]),
     ]
 
     @pytest.mark.parametrize("params", test_data_3D)
@@ -158,8 +117,7 @@ class TestBiasAdd(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_4D = [
-        dict(shape=[1, 1, 100, 224]),
-        dict(shape=[1, 3, 100, 224])
+        dict(shape=[2, 3, 5, 7])
     ]
 
     @pytest.mark.parametrize("params", test_data_4D)
@@ -176,8 +134,7 @@ class TestBiasAdd(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_5D = [
-        dict(shape=[1, 1, 50, 100, 224]),
-        dict(shape=[1, 3, 220, 222, 224])
+        dict(shape=[2, 3, 5, 7, 9])
     ]
 
     @pytest.mark.parametrize("params", test_data_5D)

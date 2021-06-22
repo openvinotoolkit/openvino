@@ -19,11 +19,6 @@ class TestAdd(CommonTFLayerTest):
             Const-------/                   Const-------/
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
