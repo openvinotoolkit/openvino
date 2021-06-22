@@ -300,7 +300,6 @@ TEST_P(MvncOpenDevice, WatchdogShouldResetDeviceWithoutConnection) {
     if (availableDevices_ == 0)
         GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
 
-    ncDeviceHandle_t*   deviceHandle = nullptr;
     std::string         deviceName;
     deviceDesc_t deviceDescToBoot = {};
     deviceDesc_t in_deviceDesc = {};

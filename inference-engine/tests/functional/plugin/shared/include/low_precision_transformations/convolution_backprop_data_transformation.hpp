@@ -43,7 +43,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type, // netPrecision
-    ngraph::Shape,         // inputShape
+    std::pair<ngraph::Shape, bool>, // input shape and shape support flag
     ngraph::Shape,         // outputShape
     std::string,           // targetDevice
     ngraph::pass::low_precision::LayerTransformation::Params,
