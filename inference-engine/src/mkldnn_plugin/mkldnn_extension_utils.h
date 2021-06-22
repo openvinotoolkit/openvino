@@ -12,6 +12,7 @@
 
 #include "mkldnn.hpp"
 #include "cpu_memory_desc.h"
+#include "cpu_blocked_memory_desc.h"
 #include "mkldnn_memory.h"
 
 namespace MKLDNNPlugin {
