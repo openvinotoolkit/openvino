@@ -4,17 +4,15 @@
 
 **Category**: Infrastructure
 
-**Short description**: *If* operation, depending on `cond` value, performs the internal network, which is described in the `then_body` (if `cond` is `True`) or `else_body` (if `cond` is `False`). 
+**Description**: *If* operation, depending on `cond` value, performs the internal network, which is described in the `then_body` (if `cond` is `True`) or `else_body` (if `cond` is `False`). 
 
 **If attributes**:
-
-**Detailed description**:
 
 * **Internal networks**:
 
     `then_body`/`else_body` is a network that will be executed depending on the `cond` value. The network is described operation by operation as a typical IR network. The internal networks have parameters (`Parameter` operations) and results (`Result` operations).
     
-    * **Internal networks parameters** - inputs() to the internal network which associated with *If* inputs via *portmap*. The number of parameters for the internal network can be any (even zero).
+    * **Internal networks parameters** - inputs to the internal network which associated with *If* inputs via *portmap*. The number of parameters for the internal network can be any (even zero).
     
     * **Internal networks results** - outputs from the internal network which associated with *If* outputs via *portmap*. The internal network must contain at least one result. Each *If* output is associated with one result from the internal network. It follows that number of `then_body` results is the equal to the number of outputs from the *If* and the number of `else_body` results. Type of the internal network result and type of the associated output from *If* must be equal.
     
