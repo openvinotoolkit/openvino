@@ -101,6 +101,8 @@ set(SRC
     tensor.cpp
     type_prop/abs.cpp
     type_prop/acos.cpp
+    type_prop/adaptive_avg_pool.cpp
+    type_prop/adaptive_max_pool.cpp
     type_prop/asin.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
@@ -229,6 +231,8 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/adaptive_avg_pool.cpp
+    visitors/op/adaptive_max_pool.cpp
     visitors/op/batch_norm.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp

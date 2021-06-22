@@ -9,6 +9,8 @@
 #include "ngraph/op/abs.hpp"
 #include "ngraph/op/acos.hpp"
 #include "ngraph/op/acosh.hpp"
+#include "ngraph/op/adaptive_avg_pool.hpp"
+#include "ngraph/op/adaptive_max_pool.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/and.hpp"
 #include "ngraph/op/asin.hpp"
