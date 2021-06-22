@@ -8,6 +8,8 @@ from tensorflow_tests.permutation_utils import permute_nchw_to_nhwc
 
 
 class TestSelect(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     def create_select_net(self, shape_condition, shape_input, ir_version):
         """
             Tensorflow net                 IR net
@@ -30,23 +32,14 @@ class TestSelect(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             # Permute shapes NCHW -> NHWC for TF network creation
-            shape_condition_net = permute_nchw_to_nhwc(shape_condition)
-            shape_input_net = permute_nchw_to_nhwc(shape_input)
-
-            condition = tf.compat.v1.placeholder(tf.bool, shape_condition_net, 'Input_condition')
-            input_1 = tf.compat.v1.placeholder(tf.float32, shape_input_net, 'Input_1')
-            input_2 = tf.compat.v1.placeholder(tf.float32, shape_input_net, 'Input_2')
+            condition = tf.compat.v1.placeholder(tf.bool, shape_condition, 'Input_condition')
+            input_1 = tf.compat.v1.placeholder(tf.float32, shape_input, 'Input_1')
+            input_2 = tf.compat.v1.placeholder(tf.float32, shape_input, 'Input_2')
 
             tf.compat.v1.where(condition, input_1, input_2, name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
-
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
 
         ref_net = None
 
