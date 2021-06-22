@@ -22,3 +22,7 @@
 	path = thirdparty/zlib/zlib
 	url = https://github.com/madler/zlib.git
 	ignore = dirty
+[submodule "thirdparty/pugixml"]
+	path = thirdparty/pugixml
+	url = https://github.com/zeux/pugixml.git
+	ignore = dirty
