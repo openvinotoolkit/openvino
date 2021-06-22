@@ -167,6 +167,7 @@ set(SRC
     type_prop/mish.cpp
     type_prop/mod.cpp
     type_prop/mvn.cpp
+    type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
     type_prop/non_zero.cpp
     type_prop/normalize.cpp
@@ -257,6 +258,7 @@ set(SRC
     visitors/op/max_pool.cpp
     visitors/op/mod.cpp
     visitors/op/mvn.cpp
+    visitors/op/negative.cpp
     visitors/op/non_max_suppression.cpp
     visitors/op/normalize_l2.cpp
     visitors/op/one_hot.cpp
@@ -282,9 +284,11 @@ set(SRC
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
+    visitors/op/round.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/softmax.cpp
+    visitors/op/softplus.cpp
     visitors/op/space_to_batch.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
@@ -304,7 +308,7 @@ set(SRC
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
 
-if (ENABLE_MKL_DNN)
+if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
@@ -314,7 +318,7 @@ if (ENABLE_MKL_DNN)
     endif()
 endif()
 
-if (ENABLE_CLDNN)
+if (ENABLE_CLDNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
     if (ENABLE_STRICT_DEPENDENCIES)
@@ -324,7 +328,7 @@ if (ENABLE_CLDNN)
     endif()
 endif()
 
-if (NGRAPH_INTERPRETER_ENABLE)
+if (NGRAPH_INTERPRETER_ENABLE AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     list(APPEND SRC
         builder.cpp
         backend_api.cpp)
@@ -461,6 +465,7 @@ set(MULTI_TEST_SRC
     backend/sin.in.cpp
     backend/sinh.in.cpp
     backend/softmax.in.cpp
+    backend/softplus.in.cpp
     backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp

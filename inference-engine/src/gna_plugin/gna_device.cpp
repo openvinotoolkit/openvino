@@ -96,14 +96,12 @@ void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t l
     const auto status = Gna2RequestConfigEnableActiveList(requestConfigId, layerIndex, num_active_indices, ptr_active_indices);
     checkGna2Status(status, "Gna2RequestConfigEnableActiveList");
 }
-void GNADeviceHelper::propagateSync(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
-    wait(propagate(requestConfigId, gna2AccelerationMode));
-}
 
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqId{};
-    if (gna2AccelerationMode == Gna2AccelerationModeHardware &&
+    if ((gna2AccelerationMode == Gna2AccelerationModeHardware ||
+         gna2AccelerationMode == Gna2AccelerationModeHardwareWithSoftwareFallback) &&
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
@@ -541,6 +539,8 @@ void GNADeviceHelper::updateGnaPerfCounters() {
 #if GNA_LIB_VER == 2
     instrumentationTotal[0] = instrumentationResults[0];
     instrumentationTotal[1] = instrumentationResults[1];
+    instrumentationResults[0] = 0;
+    instrumentationResults[1] = 0;
 #else
     nGNAPerfResultsTotal.hw.stall = nGNAPerfResults.hw.stall;
     nGNAPerfResultsTotal.hw.total = nGNAPerfResults.hw.total;

@@ -17,7 +17,10 @@
 #include "pyngraph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyngraph/dimension.hpp"
-#include "pyngraph/frontend_manager.hpp"
+#include "pyngraph/frontend/frontend.hpp"
+#include "pyngraph/frontend/frontend_manager.hpp"
+#include "pyngraph/frontend/inputmodel.hpp"
+#include "pyngraph/frontend/place.hpp"
 #include "pyngraph/ops/constant.hpp"
 #include "pyngraph/ops/parameter.hpp"
 #include "pyngraph/ops/result.hpp"

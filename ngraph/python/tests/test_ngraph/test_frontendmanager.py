@@ -543,7 +543,3 @@ def test_place_get_source_tensor():
     stat = get_place_stat(place)
     assert stat.get_source_tensor == 2
     assert stat.lastArgInt == 22
-
-
-# if __name__ == '__main__':
-#     test_frontendmanager()
