@@ -9,6 +9,8 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestIdentity(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     def create_identity_net(self, shape, ir_version):
         """
             Tensorflow net                 IR net
@@ -16,34 +18,18 @@ class TestIdentity(CommonTFLayerTest):
             Input->Identity->ReLU     =>     Input->ReLU
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            x_shape = shape.copy()
-            # reshaping
-            if len(x_shape) >= 3:
-                x_shape.append(x_shape.pop(1))
-
-            x = tf.compat.v1.placeholder(tf.float32, x_shape, 'Input')
+            x = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
             id = tf.identity(x, name="Operation")
             tf.nn.relu(id, name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
-
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
 
         ref_net = None
 
@@ -64,7 +50,7 @@ class TestIdentity(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    test_data_precommit = [dict(shape=[1, 3, 50, 100, 224])]
+    test_data_precommit = [dict(shape=[1, 5, 7, 9, 3])]
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
@@ -73,10 +59,10 @@ class TestIdentity(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data = [dict(shape=[1]),
-                 dict(shape=[1, 224]),
-                 pytest.param(dict(shape=[1, 3, 224]), marks=pytest.mark.xfail(reason="*-19053")),
-                 dict(shape=[1, 3, 100, 224]),
-                 dict(shape=[1, 3, 50, 100, 224])]
+                 dict(shape=[1, 5]),
+                 dict(shape=[1, 3, 5]),
+                 dict(shape=[1, 5, 7, 3]),
+                 dict(shape=[1, 5, 7, 9, 3])]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
