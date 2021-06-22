@@ -261,11 +261,6 @@ public:
         implementationType = type;
     }
 
-    NodeDesc(const NodeDesc &descInfo) = default;
-    NodeDesc(NodeDesc &&descInfo) = default;
-
-    NodeDesc &operator=(const NodeDesc &descInfo) = default;
-
     const NodeConfig& getConfig() const {
         return config;
     }

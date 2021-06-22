@@ -58,6 +58,9 @@ public:
     const std::vector<size_t>& getDims() const {
         return dims;
     }
+    bool isStatic() const {
+        return type == ShapeType::Static;
+    }
 
     size_t getRank() const {
         return minDims.size();
@@ -94,15 +97,7 @@ public:
 
     bool operator == (const Shape& rhs) const {
         // TODO [DS]: Shouldn't we check dims as well?
-        if (minDims.size() != rhs.minDims.size()) {
-            return false;
-        }
-        if (maxDims.size() != rhs.maxDims.size()) {
-            return false;
-        }
-
-        return std::equal(rhs.minDims.begin(), rhs.minDims.end(), minDims.begin()) &&
-               std::equal(rhs.maxDims.begin(), rhs.maxDims.end(), maxDims.begin());
+        return minDims == rhs.minDims && maxDims == rhs.maxDims;
     }
 
     bool operator != (const Shape& rhs) const {
