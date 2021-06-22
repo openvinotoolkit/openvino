@@ -145,9 +145,7 @@ typedef struct {
     uint32_t num_bytes_per_weight;
     uint32_t num_bytes_per_bias;
     uint32_t num_filters;
-    //uint32_t num_filter_rows;
     uint32_t num_filter_coefficients;
-    //uint32_t num_feature_maps;
     uint32_t num_feature_map_rows;
     uint32_t num_feature_map_columns;
     float weight_scale_factor;
