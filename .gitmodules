@@ -6,10 +6,6 @@
 	path = inference-engine/tests/ie_test_utils/common_test_utils/gtest
 	url = https://github.com/openvinotoolkit/googletest.git
 	ignore = dirty
-[submodule "inference-engine/samples/thirdparty/gflags"]
-	path = inference-engine/samples/thirdparty/gflags
-	url = https://github.com/gflags/gflags.git
-	ignore = dirty
 [submodule "thirdparty/xbyak"]
 	path = thirdparty/xbyak
 	url = https://github.com/herumi/xbyak.git
