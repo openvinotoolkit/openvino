@@ -58,6 +58,7 @@ set(SRC
     ngraph_api.cpp
     node_input_output.cpp
     op.cpp
+    op_eval/atan.cpp
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
@@ -229,6 +230,7 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp

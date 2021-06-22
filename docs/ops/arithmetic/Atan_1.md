@@ -2,9 +2,15 @@
 
 **Versioned name**: *Atan-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Atan* performs element-wise inverse tangent (arctangent) operation with given tensor.
+
+**Detailed description**:  Operation takes one input tensor and performs the element-wise inverse tangent function on a given input tensor, based on the following mathematical formula:
+
+\f[
+a_{i} = atan(a_{i})
+\f]
 
 **Attributes**:
 
@@ -21,12 +27,6 @@
 **Types**
 
 * *T*: any numeric type.
-
-*atan* does the following with the input tensor *a*:
-
-\f[
-a_{i} = atan(a_{i})
-\f]
 
 **Examples**
 
