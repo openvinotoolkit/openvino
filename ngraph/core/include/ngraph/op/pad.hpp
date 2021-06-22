@@ -57,7 +57,6 @@ namespace ngraph
                 Pad() = default;
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                size_t get_version() const override { return 1; }
                 void validate_and_infer_types() override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
