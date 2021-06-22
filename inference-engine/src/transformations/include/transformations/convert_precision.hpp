@@ -49,6 +49,7 @@ class NGRAPH_API ConvertPrecision;
  *     opset4::Parameter
  *     opset4::Convert
  *     opset4::ShapeOf
+ *     opset4::Range
  *     opset3::NonMaxSuppression
  *     opset4::NonMaxSuppression
  *     opset4::TopK

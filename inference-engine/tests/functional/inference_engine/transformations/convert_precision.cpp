@@ -119,6 +119,32 @@ TEST(TransformationTests, ConvertPrecision_ShapeOf) {
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
 }
 
+
+TEST(TransformationTests, ConvertPrecision_Range) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto start = std::make_shared<opset4::Parameter>(element::f16, Shape{});
+        auto stop = std::make_shared<opset4::Parameter>(element::f16, Shape{});
+        auto shift = std::make_shared<opset4::Parameter>(element::f16, Shape{});
+        auto range = std::make_shared<opset4::Range>(start, stop, shift, element::i64);
+
+        f = std::make_shared<Function>(NodeVector{range}, ParameterVector{start, stop, shift});
+
+        pass::Manager manager;
+
+        static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f16, ngraph::element::f32 }
+        };
+
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+}
+
 TEST(TransformationTests, ConvertPrecision_ConstantRelu) {
     std::shared_ptr<Function> f(nullptr);
     {
