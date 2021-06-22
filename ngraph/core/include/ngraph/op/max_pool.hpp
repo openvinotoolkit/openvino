@@ -55,9 +55,6 @@ namespace ngraph
                 bool has_evaluate() const override;
 
             private:
-                bool update_auto_padding(const PartialShape& in_shape,
-                                         Shape& new_pads_end,
-                                         Shape& new_pads_begin) const;
                 bool evaluate_maxpool(const HostTensorVector& outputs,
                                       const HostTensorVector& inputs) const;
             };
@@ -66,7 +63,7 @@ namespace ngraph
         namespace v8
         {
             /// \brief MaxPooling operation with values and indices calculated as individual outputs
-            class NGRAPH_API MaxPool : public Op
+            class NGRAPH_API MaxPool : public op::util::MaxPoolBase
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -103,30 +100,10 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                /// \return The kernel shape.
-                const Shape& get_kernel() const noexcept { return m_kernel; }
-                void set_kernel(const Shape& kernel) { m_kernel = kernel; }
-                /// \return The strides.
-                const Strides& get_strides() const noexcept { return m_strides; }
-                void set_strides(const Strides& strides) { m_strides = strides; }
                 /// \return The dilations.
                 const Strides& get_dilations() const noexcept { return m_dilations; }
                 void set_dilations(const Strides& dilations) { m_dilations = dilations; }
-                /// \return The beginning of padding shape.
-                const Shape& get_pads_begin() const noexcept { return m_pads_begin; }
-                void set_pads_begin(const Shape& pads_begin) { m_pads_begin = pads_begin; }
-                /// \return The end of padding shape.
-                const Shape& get_pads_end() const noexcept { return m_pads_end; }
-                void set_adding_above(const Shape& pads_end) { m_pads_end = pads_end; }
-                /// \return The pad type for pooling.
-                const PadType& get_auto_pad() const noexcept { return m_auto_pad; }
-                void set_auto_pad(const PadType& auto_pad) { m_auto_pad = auto_pad; }
-                /// \return The ceiling mode being used for output shape computations
-                op::RoundingType get_rounding_type() const noexcept { return m_rounding_type; }
-                void set_rounding_type(op::RoundingType rounding_mode)
-                {
-                    m_rounding_type = rounding_mode;
-                }
+
                 const element::Type& get_index_element_type() const noexcept
                 {
                     return m_index_element_type;
@@ -136,26 +113,14 @@ namespace ngraph
                     m_index_element_type = index_element_type;
                 }
 
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
-
             protected:
-                Strides m_strides;
                 Strides m_dilations;
-                Shape m_pads_begin;
-                Shape m_pads_end;
-                Shape m_kernel;
-                op::RoundingType m_rounding_type;
-                PadType m_auto_pad;
                 element::Type m_index_element_type{element::i32};
 
             private:
                 // bool update_auto_padding(const PartialShape& in_shape,
                 //                          Shape& new_pads_end,
                 //                          Shape& new_pads_begin) const;
-                bool evaluate_maxpool(const HostTensorVector& outputs,
-                                      const HostTensorVector& inputs) const;
             };
         } // namespace v8
     }     // namespace op

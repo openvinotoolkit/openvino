@@ -14,28 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-bool op::v1::MaxPool::update_auto_padding(const PartialShape& in_shape,
-                                          Shape& new_pads_end,
-                                          Shape& new_pads_begin) const
-{
-    bool update_auto_padding_succeed = true;
-    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
-    {
-        CoordinateDiff pads_end, pads_begin;
-        update_auto_padding_succeed =
-            try_apply_auto_padding(in_shape,
-                                   m_kernel,
-                                   m_strides,
-                                   Strides(m_kernel.size(), 1), // No dilation
-                                   m_auto_pad,
-                                   pads_end,
-                                   pads_begin);
-        new_pads_end = Shape(pads_end.begin(), pads_end.end());
-        new_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
-    }
-    return update_auto_padding_succeed;
-}
-
 NGRAPH_RTTI_DEFINITION(op::v1::MaxPool, "MaxPool", 1);
 
 op::v1::MaxPool::MaxPool(const Output<Node>& arg,
@@ -287,14 +265,8 @@ op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const op::RoundingType rounding_type,
                          const PadType& auto_pad,
                          const element::Type& index_element_type)
-    : Op({arg})
-    , m_strides(strides)
+    : op::util::MaxPoolBase(arg, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
     , m_dilations(dilations)
-    , m_pads_begin(pads_begin)
-    , m_pads_end(pads_end)
-    , m_kernel(kernel)
-    , m_rounding_type(rounding_type)
-    , m_auto_pad(auto_pad)
     , m_index_element_type(index_element_type)
 {
     constructor_validate_and_infer_types();
@@ -424,53 +396,4 @@ shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_
                                     m_rounding_type,
                                     m_auto_pad,
                                     m_index_element_type);
-}
-
-bool op::v8::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
-                                       const HostTensorVector& inputs) const
-{
-    auto arg_shape = inputs[0]->get_partial_shape();
-    auto pads_begin_s = get_pads_begin();
-    auto pads_end_s = get_pads_end();
-    // update_auto_padding(arg_shape, pads_begin_s, pads_end_s);
-    CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
-    CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
-    auto out_shape = infer_batched_pooling_forward(this,
-                                                   arg_shape,
-                                                   pads_begin,
-                                                   pads_end,
-                                                   get_kernel(),
-                                                   get_strides(),
-                                                   true,
-                                                   get_rounding_type() == op::RoundingType::CEIL);
-
-    return maxpool::evaluate_maxpool(inputs[0],
-                                     outputs[0],
-                                     out_shape.get_shape(),
-                                     get_kernel(),
-                                     get_strides(),
-                                     get_pads_begin(),
-                                     get_pads_end());
-}
-bool op::v8::MaxPool::evaluate(const HostTensorVector& outputs,
-                               const HostTensorVector& inputs) const
-{
-    NGRAPH_OP_SCOPE(v8_MaxPool_evaluate);
-    return evaluate_maxpool(outputs, inputs);
-}
-
-bool op::v8::MaxPool::has_evaluate() const
-{
-    NGRAPH_OP_SCOPE(v8_MaxPool_has_evaluate);
-    switch (get_input_element_type(0))
-    {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
-    default: break;
-    }
-    return false;
 }

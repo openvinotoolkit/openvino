@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "ngraph/op/util/max_pool_base.hpp"
+#include "itt.hpp"
 #include "ngraph/shape.hpp"
 
 #include <ngraph/validation_util.hpp>
@@ -29,4 +29,26 @@ op::util::MaxPoolBase::MaxPoolBase(const Output<Node>& arg,
     , m_rounding_type(rounding_type)
 {
     constructor_validate_and_infer_types();
+}
+
+bool op::util::MaxPoolBase::update_auto_padding(const PartialShape& in_shape,
+                                                Shape& new_pads_end,
+                                                Shape& new_pads_begin) const
+{
+    bool update_auto_padding_succeed = true;
+    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
+    {
+        CoordinateDiff pads_end, pads_begin;
+        update_auto_padding_succeed =
+            try_apply_auto_padding(in_shape,
+                                   m_kernel,
+                                   m_strides,
+                                   Strides(m_kernel.size(), 1), // No dilation
+                                   m_auto_pad,
+                                   pads_end,
+                                   pads_begin);
+        new_pads_end = Shape(pads_end.begin(), pads_end.end());
+        new_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
+    }
+    return update_auto_padding_succeed;
 }

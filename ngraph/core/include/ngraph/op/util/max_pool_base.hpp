@@ -34,6 +34,7 @@ namespace ngraph
                             const Shape& kernel,
                             op::RoundingType rounding_mode = op::RoundingType::FLOOR,
                             const PadType& auto_pad = op::PadType::EXPLICIT);
+
                 /// \return The kernel shape.
                 const Shape& get_kernel() const { return m_kernel; }
                 void set_kernel(const Shape& kernel) { m_kernel = kernel; }
@@ -57,6 +58,10 @@ namespace ngraph
                 }
 
             protected:
+                bool update_auto_padding(const PartialShape& in_shape,
+                                         Shape& new_pads_end,
+                                         Shape& new_pads_begin) const;
+
                 Shape m_kernel;
                 Strides m_strides;
                 Shape m_pads_begin;
