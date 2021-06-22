@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, normalize_axes_input_not_constant)
+TEST(type_prop, normalize_l2_axes_input_not_constant)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -33,7 +33,7 @@ TEST(type_prop, normalize_axes_input_not_constant)
     }
 }
 
-TEST(type_prop, normalize_invalid_axes_rank)
+TEST(type_prop, normalize_l2_invalid_axes_rank)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -58,7 +58,7 @@ TEST(type_prop, normalize_invalid_axes_rank)
     }
 }
 
-TEST(type_prop, normalize_axes_out_of_bounds)
+TEST(type_prop, normalize_l2_axes_out_of_bounds)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
