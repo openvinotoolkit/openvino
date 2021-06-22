@@ -173,11 +173,11 @@ def prepare_ir(argv: argparse.Namespace):
     if argv.legacy_ir_generation and len(argv.transform) != 0:
         raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
-    if not new_front_ends or argv.framework not in new_front_ends:
-        ret_code = check_requirements(framework=argv.framework)
-        if ret_code:
-            raise Error('check_requirements exit with return code {}'.format(ret_code))
-    # TODO: should we check some 'generic' requirements if 'framework' belongs to FrontEndManager?
+    use_legacy_fe = argv.framework not in new_front_ends
+    # For C++ frontends there is no specific python installation requirements, thus check only generic ones
+    ret_code = check_requirements(framework=argv.framework if use_legacy_fe else None)
+    if ret_code:
+        raise Error('check_requirements exit with return code {}'.format(ret_code))
 
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config

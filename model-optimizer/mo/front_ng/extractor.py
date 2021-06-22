@@ -16,27 +16,19 @@ from ngraph.frontend import InputModel  # pylint: disable=no-name-in-module,impo
 def decode_name_with_port(input_model: InputModel, node_name: str):
     """
     Decode name with optional port specification w/o traversing all the nodes in the graph
+    TODO: in future node_name can specify input/output port groups and indexes
     :param input_model: Input Model
-    :param node_name:
+    :param node_name: user provided node name
     :return: decoded place in the graph
     """
     # Check exact match with one of the names in the graph first
     node = input_model.get_place_by_tensor_name(node_name)
     if node:
         return node
-    # TODO: not tested for available frontends
-    regexpPost = r'(.*)(:(\d+))'
-    matchPost = re.search(regexpPost, node_name)
-    nodePost = input_model.get_place_by_tensor_name(matchPost.group(1)) if matchPost else None
-    regexpPre = r'((\d+):)(.*)'
-    matchPre = re.search(regexpPre, node_name)
-    nodePre = input_model.get_place_by_tensor_name(matchPre.group(3)) if matchPost else None
-    if nodePost and nodePre:
-        raise Error('Name collision for {}'.format(node_name))
-    if nodePost:
-        return node.get_output_port(int(matchPost.group(3)))
-    if nodePre:
-        return node.get_input_port(int(matchPre.group(1)))
+
+    # TODO: Add support for input/output group name and port index here
+    # Legacy frontends use format "number:name:number" to specify input and output port indexes
+    # For new frontends this logic shall be extended to additionally support input and output group names
     raise Error('There is no node with name {}'.format(node_name))
 
 
@@ -45,7 +37,7 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
     """
     Restructures user input cutting request. Splits ports out of node names.
         Transforms node names to node ids.
-    :param input_model: ngraph.frontend.InputModel - current model
+    :param input_model: current input model
     :param input_user_shapes: data structure representing user input cutting request. It may be:
     # None value if user did not provide neither --input nor --input_shape keys
     # list instance which contains input layer names with or without ports if user provided
@@ -86,7 +78,7 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
             if node is None:
                 raise Error('Cannot find location {} in the input model'.format(input_name))
             shape = None if isinstance(input_user_shapes, list) else input_user_shapes[input_name]
-            if input_name in input_user_data_types and input_user_data_types[input_name] is not None:
+            if input_user_data_types.get(input_name) is not None:
                 data_type = input_user_data_types[input_name]
                 _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type})
             else:
@@ -97,7 +89,7 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
         _input_shapes.append({'node': model_inputs[0], 'shape': input_user_shapes})
     else:
         assert input_user_shapes is None
-    # TODO: add logic for freeze_placeholder
+    # TODO: implement freeze_placeholder
     return _input_shapes, dict()
 
 
@@ -126,7 +118,7 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list):
     }
     """
     _outputs = []
-    if outputs is not None and len(outputs) > 0:
+    if outputs is not None:
         for output in outputs:
             node = decode_name_with_port(input_model, output)
             if node is None:
@@ -140,6 +132,7 @@ def fe_user_data_repack(input_model: InputModel, input_user_shapes: [None, list,
     """
     :param input_model: Input Model to operate on
     :param input_user_shapes: data structure representing user input cutting request
+    :param input_user_data_types: dictionary with input nodes and its data types
     :param outputs: list of node names to treat as outputs
     :param freeze_placeholder: dictionary with placeholder names as keys and freezing value as values
     :return: restructured input, output and freeze placeholder dictionaries or None values
@@ -147,11 +140,5 @@ def fe_user_data_repack(input_model: InputModel, input_user_shapes: [None, list,
     _input_shapes, _freeze_placeholder = fe_input_user_data_repack(
         input_model, input_user_shapes, freeze_placeholder, input_user_data_types=input_user_data_types)
     _outputs = fe_output_user_data_repack(input_model, outputs)
-
-    print('---------- Inputs/outputs/freezePlaceholder -----------')
-    print(_input_shapes)
-    print(_outputs)
-    print(freeze_placeholder)
-    print('------------------------------------')
 
     return _input_shapes, _outputs, _freeze_placeholder
