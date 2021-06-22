@@ -28,7 +28,6 @@ ner_model, tknizr, model_config = ner.load_model("out_base")
 
 with torch.no_grad():
     logits = ner_model(input_ids, segment_ids, input_mask, valid_ids)
-print(logits.shape)
 torch.onnx.export(ner_model,
                   (input_ids, segment_ids, input_mask, valid_ids),
                   "bert-ner.onnx",
