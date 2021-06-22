@@ -96,11 +96,12 @@ std::shared_ptr<Node> op::v8::DeformableConvolution::clone_with_new_inputs(const
 namespace deformable_convolution {
 
 }
-bool op::v8::DeformableConvolution::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) const {
+
+/*bool op::v8::DeformableConvolution::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) const {
     NGRAPH_OP_SCOPE(v8_DeformableConvolution);
 
     return true;
-}
+}*/
 
 op::v1::DeformableConvolution::DeformableConvolution(const Output<Node> &arg,
                                                      const Output<Node> &offsets,
