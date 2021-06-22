@@ -5,13 +5,9 @@
 #pragma once
 
 #include <ie_blob.h>
-//#include <memory>
-//#include "mkldnn_memory.h"
 #include "cpu_shape.h"
 #include "cpu_memory_desc.h"
 #include "mkldnn_weights_cache.hpp"
-
-//#include "mkldnn/ie_mkldnn.h"
 
 #include <map>
 #include <memory>
@@ -60,7 +56,6 @@ public:
     InferenceEngine::TensorDesc getTensorDesc();
 
     const Shape &getShape();
-    const MemoryDesc& getDesc();
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
 
@@ -77,35 +72,22 @@ public:
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
-    const MemoryDesc& getInputDescRO() const;
-    const MemoryDesc& getOutputDescRO() const;
-
 private:
-    std::string name();
+    std::string name() const;
 
     std::weak_ptr<MKLDNNNode> parent;
     std::weak_ptr<MKLDNNNode> child;
     int parent_port;
     int child_port;
 
-    bool externalMemoryPtr = false;
+    bool useEternalMemory = false;
     MKLDNNEdgeWeakPtr memoryFromEdge;
     Shape shape;
     MKLDNNMemoryPtr memoryPtr;
     Status status = Status::Uninitialized;
 
-    const MemoryDesc& getInputDesc();
-    const MemoryDesc& getOutputDesc();
-
-    std::unique_ptr<MemoryDesc> getSpecifiedInputDesc(std::map<mkldnn::memory::format_tag, size_t> formats,
-                                                      size_t enterCountUp = 1, size_t enterCountDown = 0);
-    std::unique_ptr<MemoryDesc> getSpecifiedOutputDesc(std::map<mkldnn::memory::format_tag, size_t> formats,
-                                                       size_t enterCountUp = 0, size_t enterCountDown = 1);
-
-    std::unique_ptr<MemoryDesc> inputDesc;
-    std::unique_ptr<MemoryDesc> outputDesc;
-
-    bool nodeCanChangeDesc(const std::shared_ptr<MKLDNNPlugin::MKLDNNNode>& node) const;
+    const MemoryDesc& getInputDesc() const;
+    const MemoryDesc& getOutputDesc() const;
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 
