@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <threading/ie_istreams_executor.hpp>
+#include "utils/debug_capabilities.h"
+
 #include <string>
 #include <map>
-#include <threading/ie_istreams_executor.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -22,8 +24,6 @@ struct Config {
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
     std::string dumpToDot = "";
-    std::string dumpQuantizedGraphToDot = "";
-    std::string dumpQuantizedGraphToIr = "";
     int batchLimit = 0;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
 
@@ -34,6 +34,11 @@ struct Config {
 #else
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
+    bool manualEnforceBF16 = false;
+#endif
+
+#ifdef CPU_DEBUG_CAPS
+    DebugCaps::Config debugCaps;
 #endif
 
     void readProperties(const std::map<std::string, std::string> &config);

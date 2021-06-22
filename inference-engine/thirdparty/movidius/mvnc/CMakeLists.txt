@@ -35,8 +35,6 @@ endif()
 if(NOT WIN32)
     target_compile_options(${TARGET_NAME}
             PRIVATE
-            -MMD
-            -MP
             -Wformat
             -Wformat-security
             -Wall)
@@ -72,6 +70,9 @@ if(NOT WIN32)
             ${CMAKE_DL_LIBS}
             ${LIBUSB_LIBRARY})
 endif()
+
+# TODO: remove once all options are migrated
+ie_developer_export_targets(${TARGET_NAME})
 
 if(ENABLE_TESTS AND ENABLE_MYRIAD_MVNC_TESTS)
     add_subdirectory(tests)

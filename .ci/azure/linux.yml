@@ -29,6 +29,7 @@ jobs:
     MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
+    BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
@@ -56,6 +57,7 @@ jobs:
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
+      rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
       echo TargetBranch: $(System.PullRequest.TargetBranch)
       echo SourceBranch: $(Build.SourceBranch)
     displayName: 'Make dir'
@@ -80,9 +82,10 @@ jobs:
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
       # For opencv-python: setuptools and upgrade
-      sudo apt-get install python3-setuptools
+      sudo apt-get install python3-setuptools patchelf
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/wheel/requirements-dev.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
       # Speed up build
@@ -104,8 +107,12 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/bin/python3.6
+        -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
+        -DNGRAPH_ONNX_IMPORT_ENABLE=ON
+        -DNGRAPH_ONNX_EDITOR_ENABLE=ON
         -DENABLE_FASTER_BUILD=ON
+        -DENABLE_STRICT_DEPENDENCIES=OFF
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
@@ -115,16 +122,28 @@ jobs:
     displayName: 'Build Lin'
 
   - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List files'
+    displayName: 'List bin files'
 
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
+  - script: ls -alR $(INSTALL_DIR)
+    displayName: 'List install files'
+
+  - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/cpp/build_samples.sh
+    workingDirectory: $(BUILD_SAMPLES_DIR)
+    displayName: 'Build cpp samples'
+
+  - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
+    workingDirectory: $(BUILD_SAMPLES_DIR)
+    displayName: 'Build c samples'
+
   - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
     continueOnError: false
 
+    # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(BIN_DIR)/InferenceEngineUnitTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: false
@@ -159,18 +178,6 @@ jobs:
 
   - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
-    continueOnError: false
-
-  - script: $(BIN_DIR)/MklDnnBehaviorTests --gtest_output=xml:TEST-MklDnnBehaviorTests.xml
-    displayName: 'MklDnnBehaviorTests'
-    continueOnError: false
-
-  - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
-      python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
-    workingDirectory: $(WORK_DIR)
-    displayName: 'MklDnnFunctionalTests'
     continueOnError: false
 
   - script: |

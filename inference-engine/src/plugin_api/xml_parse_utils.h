@@ -25,7 +25,7 @@
 
 /**
  * @ingroup    ie_dev_api_xml
- * @brief      Defines convinient for-each based cycle to iterate over node childs
+ * @brief      Defines convinient for-each based cycle to iterate over node children
  *
  * @param      c     Child node name
  * @param      p     Parent node name

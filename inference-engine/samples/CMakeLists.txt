@@ -129,18 +129,16 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
     add_gflags()
 endif()
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
+    add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
 endif()
 
-if(IE_NOT_FOUND_MESSAGE)
-    # the flag is used to throw a custom message in case if the IE package is not found.
-    find_package(InferenceEngine 2.1 QUIET)
-    if (NOT(InferenceEngine_FOUND))
-        message(FATAL_ERROR ${IE_NOT_FOUND_MESSAGE})
-    endif()
-else()
-    find_package(InferenceEngine 2.1 REQUIRED)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
+    add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
@@ -151,8 +149,8 @@ endif()
 # exactly the same OpenCV_DIR path which was used for the InferenceEngine build
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")
     add_subdirectory(common/format_reader)
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wraper")
-    add_subdirectory(common/opencv_c_wraper)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wrapper")
+    add_subdirectory(common/opencv_c_wrapper)
 endif()
 
 # samples build can be switched off during whole IE build
@@ -227,6 +225,14 @@ macro(ie_add_sample)
         set(c_sample ON)
         set(folder_name c_samples)
     endif()
+
+    if(c_sample)
+        set(ie_component inference_engine_c_api)
+    else()
+        set(ie_component inference_engine)
+    endif()
+
+    find_package(InferenceEngine REQUIRED COMPONENTS ${ie_component})
 
     set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
                                                        COMPILE_PDB_NAME ${IE_SAMPLE_NAME})

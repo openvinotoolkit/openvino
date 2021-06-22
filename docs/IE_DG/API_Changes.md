@@ -4,12 +4,25 @@ The sections below contain detailed list of changes made to the Inference Engine
 
 ## 2021.4
 
+### New API
+
+* InferenceEngine::Core::LoadNetwork(modelPath, deviceName, config) simplified API to read and load network in one call
+
 ### Deprecated API
 
  * InferenceEngine::Parameter(const std::shared_ptr<ngraph::Variant>&)
  * InferenceEngine::Parameter(std::shared_ptr<ngraph::Variant>& var)
  * std::shared_ptr<ngraph::Variant> InferenceEngine::Parameter::asVariant() const
  * InferenceEngine::Parameter::operator std::shared_ptr<ngraph::Variant>() const
+ * KEY_CLDNN_NV12_TWO_INPUTS GPU plugin option. Use KEY_GPU_NV12_TWO_INPUTS instead
+ * KEY_CLDNN_PLUGIN_PRIORITY GPU plugin option. Use KEY_GPU_PLUGIN_PRIORITY instead
+ * KEY_CLDNN_PLUGIN_THROTTLE GPU plugin option. Use KEY_GPU_PLUGIN_THROTTLE instead
+ * KEY_CLDNN_MEM_POOL GPU plugin option
+ * KEY_CLDNN_GRAPH_DUMPS_DIR GPU plugin option
+ * KEY_CLDNN_SOURCES_DUMPS_DIR GPU plugin option
+ * KEY_DUMP_KERNELS GPU plugin option
+ * KEY_TUNING_MODE GPU plugin option
+ * KEY_TUNING_FILE GPU plugin option
 
 ## 2021.3
 
@@ -524,7 +537,7 @@ The sections below contain detailed list of changes made to the Inference Engine
  * DLIA_CONFIG_KEY(ENABLE_STREAMING) config key
 
 ### Removed API
- 
+
  * InferenceEngine::EltwiseLayer::Select from InferenceEngine::EltwiseLayer::eOperation enumeration
 
 ## 2019 R2
@@ -573,7 +586,7 @@ The sections below contain detailed list of changes made to the Inference Engine
  * DLIA_CONFIG_KEY(IO_TRANSFORMATIONS_NATIVE) config key
  * DLIA_CONFIG_KEY(DUMP_SUPPORTED_LAYERS_INFORMATION) config key
  * GNA_CONFIG_VALUE(SW_FP32) config value for GNA_CONFIG_KEY(DEVICE_MODE) key
- * MULTI_CONFIG_KEY(DEVICE_PRIORITIES) config key for `MULTI` device 
+ * MULTI_CONFIG_KEY(DEVICE_PRIORITIES) config key for `MULTI` device
  * InferenceEngine::CNNNetReader::ReadNetwork(const std::wstring &filepath) new method
  * InferenceEngine::CNNNetReader::ReadWeights(const std::wstring &filepath) new method
  * InferenceEngine::ExecutableNetwork::ExecutableNetwork(IExecutableNetwork::Ptr actual, InferenceEnginePluginPtr plg) constructor with additional `plg` parameter
@@ -589,7 +602,7 @@ The sections below contain detailed list of changes made to the Inference Engine
  * InferenceEngine::EltwiseLayer::Logical_NOT, InferenceEngine::EltwiseLayer::Mean, InferenceEngine::EltwiseLayer::Select extensions to InferenceEngine::EltwiseLayer::eOperation enumeration
  * InferenceEngine::OneHotLayer new class
  * InferenceEngine::SelectLayer new class
- * InferenceEngine::BroadcastLayer new class 
+ * InferenceEngine::BroadcastLayer new class
  * InferenceEngine::MathLayer new class
  * InferenceEngine::ReduceLayer new class
  * InferenceEngine::TopKLayer new class

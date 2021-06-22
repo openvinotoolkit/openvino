@@ -44,7 +44,8 @@ class VariadicSplitBase(Op):
 
         axis = node.in_port(1).data.get_value() if op == 'VariadicSplit' else node.soft_get('axis', None)
         assert axis is not None, '{} `axis` is unknown for node {}'.format(op, name)
-        assert axis.ndim == 0, '{} `axis` should be scalar, but it`s not for node {}'.format(op, name)
+        assert axis.ndim == 0 or (axis.ndim == 1 and axis.shape[0] == 1), \
+            '{} `axis` should be scalar or tensor with shape [1], but it`s not for node {}'.format(op, name)
 
         split_lengths = node.in_port(2).data.get_value() if op == 'VariadicSplit' else node.soft_get('split_lengths',
                                                                                                      None)

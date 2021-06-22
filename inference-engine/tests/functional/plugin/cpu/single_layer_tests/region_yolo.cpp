@@ -67,13 +67,16 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        selectedType = std::string("unknown_") + inPrc.name();
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-        auto param = std::make_shared<ngraph::op::Parameter>(ngPrc, inputShape);
-        auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(param, attributes.coordinates, attributes.classes, attributes.num_regions,
-                                                                        attributes.do_softmax, mask, attributes.start_axis, attributes.end_axis);
-        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(region_yolo), ngraph::ParameterVector{param}, "RegionYolo");
+        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        auto paramRegionYolo = ngraph::builder::makeParams(ngPrc, {inputShape});
+
+        const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
+                                                                              attributes.coordinates, attributes.classes, attributes.num_regions,
+                                                                              attributes.do_softmax, mask, attributes.start_axis, attributes.end_axis);
+
+        function = makeNgraphFunction(ngPrc, paramRegionYolo, region_yolo, "RegionYolo");
     }
 };
 
@@ -99,7 +102,10 @@ const std::vector<ngraph::Shape> inShapes_mxnet = {
         {1, 75, 26, 26},
         {1, 75, 16, 16},
         {1, 75, 13, 13},
-        {1, 75, 8, 8}
+        {1, 75, 8, 8},
+        {1, 303, 7, 7},
+        {1, 303, 14, 14},
+        {1, 303, 28, 28},
 };
 
 const std::vector<ngraph::Shape> inShapes_v3 = {

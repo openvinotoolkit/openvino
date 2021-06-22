@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
 #include <ie_algorithm.hpp>
 
-#include <hetero/hetero_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 
 #include <ngraph/op/util/op_types.hpp>
@@ -22,7 +22,9 @@
 #include "template_plugin.hpp"
 #include "template_executable_network.hpp"
 #include "template_infer_request.hpp"
-#include "template_pattern_transformation.hpp"
+#include "transformations/template_pattern_transformation.hpp"
+#include "transformations/preprocessing/preprocessing.hpp"
+// clang-format on
 
 using namespace TemplatePlugin;
 
@@ -52,16 +54,20 @@ Plugin::~Plugin() {
 
 // ! [plugin:transform_network]
 
-std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function) {
+std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function, const InferenceEngine::InputsDataMap& inputInfoMap,
+                                                   const InferenceEngine::OutputsDataMap& outputsInfoMap) {
     // 1. Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
     auto transformedNetwork = ngraph::clone_function(*function);
 
     // 2. Perform common optimizations and device-specific transformations
     ngraph::pass::Manager passManager;
+    // Example: register transformation to convert preprocessing information to graph nodes
+    passManager.register_pass<ngraph::pass::AddPreprocessing>(inputInfoMap);
+    // TODO: add post-processing based on outputsInfoMap
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
     // Template plugin handles only FP32 networks
-    passManager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+    passManager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ngraph::element::f16, ngraph::element::f32}});
     // Example: register plugin specific transformation
     passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
     passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
@@ -77,69 +83,33 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
 // ! [plugin:transform_network]
 
 // ! [plugin:load_exe_network_impl]
-InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork & network,
-                                                                           const ConfigMap &config) {
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network, const ConfigMap& config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::LoadExeNetworkImpl");
 
-    auto cfg = Configuration{ config, _cfg };
     InferenceEngine::InputsDataMap networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap networkOutputs = network.getOutputsInfo();
 
-    // TODO: check with precisions supported by Template device
-
-    for (auto networkOutput : networkOutputs) {
-        auto output_precision = networkOutput.second->getPrecision();
-
-        if (output_precision != InferenceEngine::Precision::FP32 &&
-            output_precision != InferenceEngine::Precision::FP16 &&
-            output_precision != InferenceEngine::Precision::U8) {
-            IE_THROW() << "Template device supports only U8, FP16 and FP32 output precision.";
-        }
-    }
-
-    for (auto networkInput : networkInputs) {
-        auto input_precision = networkInput.second->getTensorDesc().getPrecision();
-
-        if (input_precision != InferenceEngine::Precision::FP32 &&
-            input_precision != InferenceEngine::Precision::FP16 &&
-            input_precision != InferenceEngine::Precision::I16 &&
-            input_precision != InferenceEngine::Precision::U8) {
-            IE_THROW() << "Input image format " << input_precision << " is not supported yet.\n"
-                       << "Supported formats are: FP32, FP16, I16 and U8.";
-        }
-    }
-
-    auto function = network.getFunction();
-    if (function == nullptr) {
-        IE_THROW() << "TEMPLATE plugin can compile only IR v10 networks";
-    }
-
-    return std::make_shared<ExecutableNetwork>(function, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
+    auto fullConfig = Configuration {config, _cfg};
+    return std::make_shared<ExecutableNetwork>(network.getFunction(), networkInputs, networkOutputs, fullConfig,
+                                               std::static_pointer_cast<Plugin>(shared_from_this()));
 }
 // ! [plugin:load_exe_network_impl]
 
-// ! [plugin:import_network_impl]
-InferenceEngine::ExecutableNetworkInternal::Ptr
-Plugin::ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetworkImpl");
+// ! [plugin:import_network]
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& modelStream, const std::map<std::string, std::string>& config) {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetwork");
 
-    Configuration cfg(config);
-    return std::make_shared<ExecutableNetwork>(model, cfg,
-        std::static_pointer_cast<Plugin>(shared_from_this()));
+    auto fullConfig = Configuration {config, _cfg};
+    return std::make_shared<ExecutableNetwork>(modelStream, fullConfig, std::static_pointer_cast<Plugin>(shared_from_this()));
 }
-// ! [plugin:import_network_impl]
+// ! [plugin:import_network]
 
 // ! [plugin:query_network]
-InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::CNNNetwork &network, const ConfigMap& config) const {
+InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::CNNNetwork& network, const ConfigMap& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::QueryNetwork");
 
-    InferenceEngine::QueryNetworkResult res;
-    Configuration cfg{config, _cfg, false};
-
+    Configuration fullConfig {config, _cfg, false};
     auto function = network.getFunction();
-    if (function == nullptr) {
-         IE_THROW() << "Template Plugin supports only ngraph cnn network representation";
-    }
 
     // 1. First of all we should store initial input operation set
     std::unordered_set<std::string> originalOps;
@@ -150,7 +120,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
     }
 
     // 2. It is needed to apply all transformations as it is done in LoadExeNetworkImpl
-    auto transformedFunction = TransformNetwork(function);
+    auto transformedFunction = TransformNetwork(function, network.getInputsInfo(), network.getOutputsInfo());
 
     // 3. The same input node can be transformed into supported and unsupported backend node
     // So we need store as supported either unsupported node sets
@@ -207,6 +177,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
     }
 
     // 7. Produce the result
+    InferenceEngine::QueryNetworkResult res;
     for (auto&& layerName : supported) {
         res.supportedLayersMap.emplace(layerName, GetName());
     }
@@ -216,43 +187,35 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 // ! [plugin:query_network]
 
 // ! [plugin:add_extension]
-void Plugin::AddExtension(InferenceEngine::IExtensionPtr /*extension*/) {
+void Plugin::AddExtension(const InferenceEngine::IExtensionPtr& /*extension*/) {
     // TODO: add extensions if plugin supports extensions
     IE_THROW(NotImplemented);
 }
 // ! [plugin:add_extension]
 
 // ! [plugin:set_config]
-void Plugin::SetConfig(const ConfigMap &config) {
-    _cfg = Configuration{config, _cfg};
+void Plugin::SetConfig(const ConfigMap& config) {
+    _cfg = Configuration {config, _cfg};
 }
 // ! [plugin:set_config]
 
 // ! [plugin:get_config]
-InferenceEngine::Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & /*options*/) const {
+InferenceEngine::Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& /*options*/) const {
     return _cfg.Get(name);
 }
 // ! [plugin:get_config]
 
 // ! [plugin:get_metric]
-InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const {
+InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const {
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        std::vector<std::string> supportedMetrics = {
-            METRIC_KEY(AVAILABLE_DEVICES),
-            METRIC_KEY(SUPPORTED_METRICS),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-            METRIC_KEY(FULL_DEVICE_NAME),
-            METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-            METRIC_KEY(DEVICE_ARCHITECTURE),
-            METRIC_KEY(OPTIMIZATION_CAPABILITIES),
-            METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) };
+        std::vector<std::string> supportedMetrics = {METRIC_KEY(AVAILABLE_DEVICES),         METRIC_KEY(SUPPORTED_METRICS),
+                                                     METRIC_KEY(SUPPORTED_CONFIG_KEYS),     METRIC_KEY(FULL_DEVICE_NAME),
+                                                     METRIC_KEY(IMPORT_EXPORT_SUPPORT),     METRIC_KEY(DEVICE_ARCHITECTURE),
+                                                     METRIC_KEY(OPTIMIZATION_CAPABILITIES), METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)};
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, supportedMetrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        std::vector<std::string> configKeys = {
-            CONFIG_KEY(DEVICE_ID),
-            CONFIG_KEY(PERF_COUNT),
-            TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
-        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
+        std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID), CONFIG_KEY(PERF_COUNT), TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
+        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config {}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
             if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
                 configKeys.emplace_back(configKey);
@@ -261,7 +224,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (METRIC_KEY(AVAILABLE_DEVICES) == name) {
         // TODO: fill list of available devices
-        std::vector<std::string> availableDevices = { "" };
+        std::vector<std::string> availableDevices = {""};
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
         std::string name = "Template Device Full Name";
@@ -274,14 +237,14 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
         IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, arch);
     } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
-        std::vector<std::string> capabilities = { METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/ };
+        std::vector<std::string> capabilities = {METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/};
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) == name) {
         // TODO: fill with actual values
         using uint = unsigned int;
-        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, std::make_tuple(uint{1}, uint{1}, uint{1}));
-    } else  {
-        IE_THROW() << "Unsupported device metric: " << name;
+        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, std::make_tuple(uint {1}, uint {1}, uint {1}));
+    } else {
+        IE_THROW(NotFound) << "Unsupported device metric: " << name;
     }
 }
 // ! [plugin:get_metric]

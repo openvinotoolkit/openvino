@@ -4,10 +4,11 @@
 
 #include "mkldnn_depth_to_space_node.h"
 
-#include <legacy/ie_layers.h>
 #include <cpu/x64/jit_generator.hpp>
 #include <mkldnn_extension_utils.h>
 #include "common/tensor_desc_creator.h"
+#include <utils/general_utils.h>
+#include <ngraph/opsets/opset1.hpp>
 
 #include <string>
 #include <cmath>
@@ -20,51 +21,68 @@ using namespace mkldnn;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 
-MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+bool MKLDNNDepthToSpaceNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto depthToSpace = std::dynamic_pointer_cast<const ngraph::opset1::DepthToSpace>(op);
+        if (!depthToSpace) {
+            errorMessage = "Only opset1 DepthToSpace operation is supported";
+            return false;
+        }
+        const auto mode = depthToSpace->get_mode();
+        if (!one_of(mode, ngraph::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, ngraph::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST)) {
+            errorMessage = "Does not support mode: " + ngraph::as_string(mode);
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        const auto depthToSpace = std::dynamic_pointer_cast<const ngraph::opset1::DepthToSpace>(op);
+
+        const auto modeNgraph = depthToSpace->get_mode();
+        if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST) {
+            mode = Mode::BLOCKS_FIRST;
+        } else if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST) {
+            mode = Mode::DEPTH_FIRST;
+        } else {
+            THROW_ERROR << "doesn't support mode: " << ngraph::as_string(modeNgraph);
+        }
+
+        blockSize = depthToSpace->get_block_size();
+        if (blockSize == 0)
+            THROW_ERROR << "has incorrect block_size parameter is zero!";
+
+        size_t nSpatialDims = inDims[0].ndims() - 2;
+        blockStep = static_cast<size_t>(std::pow(blockSize, nSpatialDims));
+    } else {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+}
 
 void MKLDNNDepthToSpaceNode::getSupportedDescriptors() {
-    auto* depthToSpaceLayer = dynamic_cast<DepthToSpaceLayer*>(getCnnLayer().get());
-    if (depthToSpaceLayer == nullptr)
-        THROW_ERROR << "cannot convert from CNN layer";
-
-    if (depthToSpaceLayer->insData[0].lock() == nullptr)
-        THROW_ERROR << "has nullable input data";
-
-    SizeVector srcDims = depthToSpaceLayer->insData[0].lock()->getTensorDesc().getDims();
+    SizeVector srcDims = inDims[0].ToSizeVector();
     if (srcDims.size() < 3)
         THROW_ERROR << "has incorrect number of input dimensions";
     if (srcDims.size() > 5)
         THROW_ERROR << "doesn't support dimensions with rank greater than 5";
 
-    if (depthToSpaceLayer->outData[0] == nullptr)
-        THROW_ERROR << "has nullable output data";
-
-    SizeVector dstDims = depthToSpaceLayer->outData[0]->getTensorDesc().getDims();
+    SizeVector dstDims = outDims[0].ToSizeVector();
     if (srcDims.size() != dstDims.size())
         THROW_ERROR << "has incorrect number of input/output dimensions";
 
-    std::string modeString = depthToSpaceLayer->GetParamAsString("mode");
-    if (modeString == "blocks_first") {
-        mode = Mode::BLOCKS_FIRST;
-    } else if (modeString == "depth_first") {
-        mode = Mode::DEPTH_FIRST;
-    } else {
-        THROW_ERROR << "doesn't support mode: " << modeString;
-    }
-
-    blockSize = depthToSpaceLayer->GetParamAsUInt("block_size", 1);
-    if (blockSize == 0)
-        THROW_ERROR << "has incorrect block_size parameter is zero!";
-
-    size_t nSpatialDims = srcDims.size() - 2;
-    blockStep = static_cast<size_t>(std::pow(blockSize, nSpatialDims));
     if (srcDims[1] % blockStep)
         THROW_ERROR << "has block_size parameter which is incompatible with input tensor channels dimension size";
 
     if (srcDims[1] / blockStep != dstDims[1])
         THROW_ERROR << "has incompatible input/output channels";
 
+    size_t nSpatialDims = srcDims.size() - 2;
     for (size_t i = 0; i < nSpatialDims; ++i) {
         if (srcDims[i + 2] * blockSize != dstDims[i + 2])
             THROW_ERROR << "has incompatible spatial dims";
@@ -80,7 +98,7 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
     auto srcDims = getParentEdgeAt(0)->getDims();
     const size_t nDims = srcDims.ndims();
 
@@ -107,7 +125,8 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     std::vector<TensorDescCreatorTypes> supportedTypes;
     if (nDims > 2) {
         auto canUseBlocked = [=](const size_t block) {
-            return srcDims[1] % block == 0 && (mode == Mode::BLOCKS_FIRST ? (srcDims[1] / block) % blockStep == 0 : block % blockStep == 0);
+            return srcDims[1] % block == 0 && (srcDims[1] / block) % blockStep == 0 &&
+                   (mode == Mode::DEPTH_FIRST ? block % blockStep == 0 : true);
         };
 
         supportedTypes.push_back(TensorDescCreatorTypes::nspc);
@@ -192,7 +211,7 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
             orderShiftForDims = 3;
 
             size_t newBlockSize = srcBlockedDims.back() / blockStep;
-            size_t newBlocksCount = srcBlockedDims[1] * newBlockSize / srcBlockedDims.back();
+            size_t newBlocksCount = srcBlockedDims[1] / blockStep;
             params.src_block_dims[1] = newBlocksCount;
             params.src_block_dims[2] = srcBlockedDims[1] / newBlocksCount;
             params.src_block_dims[lastIdx - nSpatialDims] = newBlockSize;

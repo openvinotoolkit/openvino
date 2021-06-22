@@ -40,6 +40,12 @@ void op::v0::BatchNormInference::validate_and_infer_types()
     PartialShape result_batch_shape;
     PartialShape result_channel_shape; // unused here
 
+    NODE_VALIDATION_CHECK(
+        this,
+        m_epsilon >= 0,
+        "Attribute 'epsilon' must be a floating-point value greater than or equal to zero. Got: ",
+        m_epsilon);
+
     set_output_size(1);
     std::tie(result_et, result_batch_shape, result_channel_shape) =
         infer_batch_norm_forward(this,
@@ -93,6 +99,12 @@ void op::v5::BatchNormInference::validate_and_infer_types()
     element::Type result_et;
     PartialShape result_batch_shape;
     PartialShape result_channel_shape; // unused here
+
+    NODE_VALIDATION_CHECK(
+        this,
+        m_epsilon >= 0,
+        "Attribute 'epsilon' must be a floating-point value greater than or equal to zero. Got: ",
+        m_epsilon);
 
     set_output_size(1);
     std::tie(result_et, result_batch_shape, result_channel_shape) =

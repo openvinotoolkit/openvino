@@ -31,5 +31,5 @@ class GatherV2FrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        Gather.update_node_stat(node, {})
+        Gather.update_node_stat(node, {'batch_dims': node.pb.attr['batch_dims'].i})
         return cls.enabled

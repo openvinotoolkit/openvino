@@ -31,8 +31,8 @@ namespace ngraph
             throw ngraph_error("Couldn't find operator set's version for domain: " + domain + ".");
         }
 
-        Model::Model(const ONNX_NAMESPACE::ModelProto& model_proto)
-            : m_model_proto{&model_proto}
+        Model::Model(std::unique_ptr<ONNX_NAMESPACE::ModelProto>&& model_proto)
+            : m_model_proto{std::move(model_proto)}
         {
             // Walk through the elements of opset_import field and register operator sets
             // for each domain. An exception UnknownDomain() will raise if the domain is

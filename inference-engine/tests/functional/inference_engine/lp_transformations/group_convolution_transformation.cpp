@@ -53,6 +53,7 @@ public:
     ngraph::Shape inputShape;
     ngraph::Shape outputShape;
     size_t group;
+    int groupCalculationDimention;
     Actual actual;
     Expected expected;
 };
@@ -67,6 +68,7 @@ public:
             testValues.inputShape,
             testValues.outputShape,
             testValues.group,
+            testValues.groupCalculationDimention,
             testValues.actual.dequantization,
             testValues.actual.weights,
             testValues.actual.fakeQuantizeOnWeights,
@@ -84,6 +86,7 @@ public:
             testValues.inputShape,
             testValues.outputShape,
             testValues.group,
+            testValues.groupCalculationDimention,
             testValues.expected.dequantizationBefore,
             testValues.expected.weights,
             testValues.expected.fakeQuantizeOnWeights,
@@ -101,6 +104,7 @@ public:
             testValues.inputShape << "_" <<
             testValues.outputShape << "_" <<
             testValues.group << "_" <<
+            testValues.groupCalculationDimention << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" << "_weights_" <<
             testValues.actual.weights->get_element_type() << "_" << "{ " <<
@@ -123,6 +127,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 24, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -142,12 +147,68 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
+
+    // group convolution, tensor quantization, with zero point
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        { 1, 6, 224, 224 },
+        { 1, 24, 218, 218 },
+        3ul,
+        0,
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, { 128.f }, { 0.02f }},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{}, { { 128.f }, ngraph::element::f32, { 1, 6, 1, 1 }, false }, {}},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
+            {},
+            ngraph::element::f32,
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+        }
+    },
+
+    // group convolution, tensor quantization, with zero point
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        { 1, 6, 224, 224 },
+        { 1, 24, 218, 218 },
+        3ul,
+        1,
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, { 128.f }, { 0.02f }},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{}, { { 128.f }, ngraph::element::f32, { 1, 6, 1, 1 }, false }, {}},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
+            {},
+            ngraph::element::f32,
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+        }
+    },
+
     // group convolution, tensor quantization, with zero point
     {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
         { 1, 6, 224, 224 },
         { 1, 24, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -160,8 +221,8 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         {
             ngraph::element::u8,
             {{ ngraph::element::f32 }, { 128.f }, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -1.25f }),
+            {},
             {},
             ngraph::element::f32,
             {}
@@ -173,6 +234,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 24, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::f32,
@@ -198,6 +260,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 24, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -241,6 +304,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 24, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -274,6 +338,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 24, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::f32,
@@ -286,8 +351,8 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         {
             ngraph::element::f32,
             {{}, {}, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -1.25f }),
+            {},
             {},
             ngraph::element::f32,
             {}
@@ -299,6 +364,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 24, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -324,6 +390,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 6, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -349,6 +416,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 6, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::f32,
@@ -374,6 +442,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 6, 218, 218 },
         6ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -414,6 +483,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 6, 218, 218 },
         6ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -447,6 +517,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 6, 218, 218 },
         6ul,
+        -1,
         // ActualValues
         {
             ngraph::element::f32,
@@ -459,8 +530,8 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         {
             ngraph::element::f32,
             {{}, {}, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -1.25f }),
+            {},
             {},
             ngraph::element::f32,
             {}
@@ -472,6 +543,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 6, 218, 218 },
         6ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -497,6 +569,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 6, 218, 218 },
         6ul,
+        -1,
         // ActualValues
         {
             ngraph::element::f32,
@@ -523,6 +596,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 24, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -567,6 +641,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         { 1, 6, 224, 224 },
         { 1, 24, 218, 218 },
         3ul,
+        -1,
         // ActualValues
         {
             ngraph::element::u8,
@@ -595,7 +670,16 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {},
             {
                 {},
-                {std::vector<float>(24ul, 127.f), ngraph::element::f32, {24, 1, 1, 1}, false, 1, ngraph::element::i8, false, {"DISABLED_CONSTANT_FOLDING"}},
+                {
+                    std::vector<float>(24ul, 127.f),
+                    ngraph::element::f32,
+                    {24, 1, 1, 1},
+                    false,
+                    1,
+                    ngraph::element::i8,
+                    false,
+                    {"DEQUANTIZATION", "DISABLED_CONSTANT_FOLDING"}
+                },
                 {}
             },
             ngraph::element::f32,

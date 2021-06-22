@@ -4,6 +4,7 @@
 
 #include "offline_transformations_api_impl.hpp"
 
+#include <generate_mapping_file.hpp>
 #include <moc_transformations.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -25,21 +26,21 @@ void InferenceEnginePython::ApplyPOTTransformations(InferenceEnginePython::IENet
     manager.run_passes(network.actual->getFunction());
 }
 
-void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network) {
+void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network, bool use_const_initializer) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::LowLatency>();
-    manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-
-    auto pass_config = manager.get_pass_config();
-    pass_config->set_callback<ngraph::pass::UnrollTensorIterator>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-        return node->get_rt_info().count("UNROLL_TI") == 0;
-    });
+    manager.register_pass<ngraph::pass::LowLatency2>(use_const_initializer);
     manager.run_passes(network.actual->getFunction());
 }
 
 void InferenceEnginePython::ApplyPruningTransformation(InferenceEnginePython::IENetwork network) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Pruning>();
+    manager.run_passes(network.actual->getFunction());
+}
+
+void InferenceEnginePython::GenerateMappingFile(InferenceEnginePython::IENetwork network, std::string path, bool extract_names) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::GenerateMappingFile>(path, extract_names);
     manager.run_passes(network.actual->getFunction());
 }
 

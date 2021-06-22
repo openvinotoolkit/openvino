@@ -103,6 +103,35 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
 
+// weight for this convolution have Acdb16a layout
+// for [96,1,7,7] shape strides for 1 and 3 dimensions equals, but not default order
+namespace specificWeightLayout {
+    const std::vector<size_t> kernels = {7, 7};
+    const std::vector<size_t> strides = {2, 2};
+    const std::vector<ptrdiff_t> padBegins = {1, 1};
+    const std::vector<ptrdiff_t> padEnds = {1, 1};
+    const std::vector<size_t> dilations = {1, 1};
+    const size_t numOutChannels = {96};
+    const auto conv2DParams_WeightLayout = ::testing::Combine(::testing::Values(kernels),
+                                                              ::testing::Values(strides),
+                                                              ::testing::Values(padBegins),
+                                                              ::testing::Values(padEnds),
+                                                              ::testing::Values(dilations),
+                                                              ::testing::Values(numOutChannels),
+                                                              ::testing::Values(ngraph::op::PadType::EXPLICIT));
+
+    INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_SpecificWeightLayout, ConvolutionLayerTest,
+                                ::testing::Combine(conv2DParams_WeightLayout,
+                                                   ::testing::ValuesIn(netPrecisions),
+                                                   ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                                   ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                                   ::testing::Values(InferenceEngine::Layout::ANY),
+                                                   ::testing::Values(InferenceEngine::Layout::ANY),
+                                                   ::testing::Values(std::vector<size_t>({1, 1, 50, 75})),
+                                                   ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ConvolutionLayerTest::getTestCaseName);
+} // namespace specificWeightLayout
+
 /* ============= 3D Convolution ============= */
 const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {3, 5, 3}};
 const std::vector<std::vector<ptrdiff_t>> paddings3d = {{0, 0, 0}, {0, 2, 0}};

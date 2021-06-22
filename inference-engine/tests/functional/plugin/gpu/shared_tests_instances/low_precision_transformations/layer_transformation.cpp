@@ -11,13 +11,12 @@
 
 #include <ie_core.hpp>
 
-#include <legacy/net_pass.h>
-#include <legacy/graph_transformer.h>
-#include <legacy/convert_function_to_cnn_network.hpp>
+
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
+#include <legacy/net_pass.h>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/init_node_info.hpp>

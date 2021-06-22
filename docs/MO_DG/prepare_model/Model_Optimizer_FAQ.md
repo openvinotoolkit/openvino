@@ -174,7 +174,7 @@ Model Optimizer tried to infer a specified layer via the Caffe\* framework, howe
 
 #### 13. What does the message "Cannot infer shapes due to exception in Caffe" mean? <a name="question-13"></a>
 
-Model Optimizer tried to infer a custom layer via the Caffe\* framework, however an error occurred, meaning that the model could not be inferred using the Caffe. It might happen if you try to convert the model with some noise weights and biases resulting in problems with layers with dynamic shapes. You should write your own extension for every custom layer you topology might have. For more details, refer to [Extending Model Optimizer with New Primitives](customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
+Model Optimizer tried to infer a custom layer via the Caffe\* framework, but an error occurred, meaning that the model could not be inferred using Caffe. This might happen if you try to convert the model with some noise weights and biases that result in problems with layers that have dynamic shapes. You should write your own extension for every custom layer you topology might have. For more details, refer to [Model Optimizer Extensibility](customize_model_optimizer/Customize_Model_Optimizer.md).
 
 #### 14. What does the message "Cannot infer shape for node {} because there is no Caffe available. Please register python infer function for op or use Caffe for shape inference" mean? <a name="question-14"></a>
 
@@ -200,7 +200,7 @@ You might have specified negative values with `--mean_file_offsets`. Only positi
 
 `--scale` sets a scaling factor for all channels. `--scale_values` sets a scaling factor per each channel. Using both of them simultaneously produces ambiguity, so you must use only one of them. For more information, refer to the Using Framework-Agnostic Conversion Parameters: for <a href="ConvertFromCaffe.html#using-framework-agnostic-conv-param">Converting a Caffe* Model</a>, <a href="ConvertFromTensorFlow.html#using-framework-agnostic-conv-param">Converting a TensorFlow* Model</a>, <a href="ConvertFromMXNet.html#using-framework-agnostic-conv-param">Converting an MXNet* Model</a>.
 
-#### 20. What does the message "Cannot find prototxt file: for Caffe please specify --input_proto - a protobuf file that stores topology and --input_model that stores pretrained weights" mean? <a name="question-20"></a>
+#### 20. What does the message "Cannot find prototxt file: for Caffe please specify --input_proto - a protobuf file that stores topology and --input_model that stores pre-trained weights" mean? <a name="question-20"></a>
 
 Model Optimizer cannot find a `.prototxt` file for a specified model. By default, it must be located in the same directory as the input model with the same name (except extension). If any of these conditions is not satisfied, use `--input_proto` to specify the path to the `.prototxt` file.
 
@@ -258,7 +258,7 @@ This error occurs when the `SubgraphMatch._add_output_node` function is called m
 
 #### 35. What does the message "Unsupported match kind.... Match kinds "points" or "scope" are supported only" mean? <a name="question-35"></a>
 
-While using configuration file to implement a TensorFlow\* front replacement extension, an incorrect match kind was used. Only `points` or `scope` match kinds are supported. Please, refer to [Sub-Graph Replacement in the Model Optimizer](customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md) for more details.
+While using configuration file to implement a TensorFlow\* front replacement extension, an incorrect match kind was used. Only `points` or `scope` match kinds are supported. Please refer to [Model Optimizer Extensibility](customize_model_optimizer/Customize_Model_Optimizer.md) for more details.
 
 #### 36. What does the message "Cannot write an event file for the TensorBoard to directory" mean? <a name="question-36"></a>
 
@@ -628,3 +628,15 @@ It means that you trying to convert the topology which contains '_contrib_box_nm
 </script>
 
 \endhtmlonly
+
+#### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean? <a name="question-103"></a>
+
+If a '*.caffemodel' file exists and it is correct, the error possibly occured due to the use of Python protobuf implementation. In some cases, it shows error message during model parsing, for example: "'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.6/3.7 or build 'cpp' implementation of protobuf yourself for your version of Python. For the complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
+
+#### 104. What does the message "SyntaxError: 'yield' inside list comprehension" during MxNet\* model conversion mean? <a name="question-104"></a>
+
+The issue "SyntaxError: 'yield' inside list comprehension" might occur during converting MXNet\* models (mobilefacedet-v1-mxnet, brain-tumor-segmentation-0001) on Windows* platform with Python* 3.8 environment. This issue is caused by API changes for `yield expression` in Python 3.8.
+The following workarounds are suggested to resolve this issue:
+1. Use Python 3.6/3.7 to convert MXNet\* models on Windows
+2. Update MXNet: pip install mxnet=1.7.0.post2
+Note that you might have conflicts between previously installed PyPI dependencies.

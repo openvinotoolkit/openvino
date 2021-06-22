@@ -11,11 +11,23 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
-from ngraph.impl import Node
+
+from ngraph.impl import Dimension
 from ngraph.impl import Function
+from ngraph.impl import Node
+from ngraph.impl import PartialShape
+from ngraph.frontend import FrontEnd
+from ngraph.frontend import FrontEndCapabilities
+from ngraph.frontend import FrontEndManager
+from ngraph.frontend import GeneralFailure
+from ngraph.frontend import NotImplementedFailure
+from ngraph.frontend import InitializationFailure
+from ngraph.frontend import InputModel
+from ngraph.frontend import OpConversionFailure
+from ngraph.frontend import OpValidationFailure
+from ngraph.frontend import Place
 from ngraph.helpers import function_from_cnn
 from ngraph.helpers import function_to_cnn
-
 from ngraph.opset7 import absolute
 from ngraph.opset7 import absolute as abs
 from ngraph.opset7 import acos
@@ -52,7 +64,9 @@ from ngraph.opset7 import deformable_convolution
 from ngraph.opset7 import deformable_psroi_pooling
 from ngraph.opset7 import depth_to_space
 from ngraph.opset7 import detection_output
+from ngraph.opset7 import dft
 from ngraph.opset7 import divide
+from ngraph.opset7 import einsum
 from ngraph.opset7 import elu
 from ngraph.opset7 import embedding_bag_offsets_sum
 from ngraph.opset7 import embedding_bag_packed_sum
@@ -79,6 +93,7 @@ from ngraph.opset7 import gru_sequence
 from ngraph.opset7 import hard_sigmoid
 from ngraph.opset7 import hsigmoid
 from ngraph.opset7 import hswish
+from ngraph.opset7 import idft
 from ngraph.opset7 import interpolate
 from ngraph.opset7 import less
 from ngraph.opset7 import less_equal

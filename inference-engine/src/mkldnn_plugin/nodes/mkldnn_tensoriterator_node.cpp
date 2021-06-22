@@ -4,13 +4,12 @@
 
 #include "mkldnn_tensoriterator_node.h"
 
-#include <legacy/ie_layers.h>
-#include <legacy/ie_layers_internal.hpp>
 #include <string>
 #include <vector>
 #include <map>
-#include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include <ie_ngraph_utils.hpp>
+#include <utils/general_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -18,28 +17,24 @@ using namespace InferenceEngine::details;
 
 namespace MKLDNNPlugin {
 
-static InferenceEngine::LayerConfig make_plain_config(const InferenceEngine::CNNLayerPtr &layer) {
-    using namespace InferenceEngine;
+static InferenceEngine::LayerConfig make_plain_config(const std::shared_ptr<ngraph::Node>& op) {
+    InferenceEngine::LayerConfig config;
 
-    LayerConfig config;
+    for (size_t i = 0; i < op->get_input_size(); i++) {
+        const auto& dims = op->get_input_shape(i);
+        const auto prec = InferenceEngine::details::convertPrecision(op->get_input_element_type(i));
 
-    for (const auto &in_w : layer->insData) {
-        const auto in = in_w.lock();
-
-        const auto dims = in->getDims();
-        const auto prec = in->getPrecision();
-
-        DataConfig data_conf {};
-        data_conf.desc = TensorDesc { prec, dims, TensorDesc::getLayoutByDims(dims) };
+        InferenceEngine::DataConfig data_conf {};
+        data_conf.desc = InferenceEngine::TensorDesc { prec, dims, InferenceEngine::TensorDesc::getLayoutByDims(dims) };
         config.inConfs.push_back(data_conf);
     }
 
-    for (const auto &out : layer->outData) {
-        const auto dims = out->getDims();
-        const auto prec = out->getPrecision();
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        const auto& dims = op->get_output_shape(i);
+        const auto prec = InferenceEngine::details::convertPrecision(op->get_output_element_type(i));
 
-        DataConfig data_conf {};
-        data_conf.desc = TensorDesc { prec, dims, TensorDesc::getLayoutByDims(dims) };
+        InferenceEngine::DataConfig data_conf {};
+        data_conf.desc = InferenceEngine::TensorDesc { prec, dims, InferenceEngine::TensorDesc::getLayoutByDims(dims) };
         config.outConfs.push_back(data_conf);
     }
 
@@ -50,7 +45,7 @@ static InferenceEngine::LayerConfig make_plain_config(const InferenceEngine::CNN
 class PortIteratorHelper : public PortMapHelper {
 public:
     PortIteratorHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, bool sliced_src,
-                       const InferenceEngine::TensorIterator::PortMap &slice_rule, const mkldnn::engine& eng)
+                       const PortMap &slice_rule, const mkldnn::engine& eng)
                        : sliced_src(sliced_src) {
         const auto &full_blob = sliced_src ? from : to;
         const auto &part_blob = !sliced_src ? from : to;
@@ -141,6 +136,9 @@ public:
     void execute(mkldnn::stream strm, int n_iter) override {
         auto mem = mem_holder_dst;
         auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
+        if (data_ptr == nullptr) {
+            IE_THROW() << "TensorIterator node has not allocated memory for IterCountPortHelper";
+        }
         *data_ptr = n_iter;
     }
 };
@@ -155,6 +153,9 @@ public:
 
     int getStatus() override {
         auto data_ptr = static_cast<uint8_t*>(mem_holder.get_data_handle());
+        if (data_ptr == nullptr) {
+            IE_THROW() << "TensorIterator node has not allocated memory for asBoolCheck";
+        }
         return *data_ptr == static_cast<uint8_t>(0) ? 0 : 1;
     }
 };
@@ -169,6 +170,9 @@ public:
 
     int getStatus() override {
         auto data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
+        if (data_ptr == nullptr) {
+            IE_THROW() << "TensorIterator node has not allocated memory for asIntCheck";
+        }
         return *data_ptr;
     }
 };
@@ -186,52 +190,217 @@ private:
 
 }  // namespace MKLDNNPlugin
 
-MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {}
+int getNumIteration(const std::shared_ptr<const ngraph::Node>& op, const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) {
+    const auto isIterable = [](const PortMap& rule) { return rule.axis != -1; };
+
+    const auto getNumIterations = [](const PortMap& rule, const std::vector<size_t>& dimensions) -> int {
+        const auto axis = rule.axis;
+        if (axis < 0 || static_cast<std::size_t>(axis) >= dimensions.size()) {
+            IE_THROW() << R"(: Invalid "axis" value in an iteration component: )"
+                               << rule.axis  << ", dimensions number = " << dimensions.size() << " (out of range)";
+        }
+        const auto space = dimensions[axis];
+        const int start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
+        const int end   = static_cast<int>((rule.end   < 0 ? (space + 1) : 0) + rule.end);
+
+        const auto stride = rule.stride;
+        if (stride == 0) {
+            IE_THROW() << R"(: Invalid "stride" value in an iteration component: )" << rule.stride << " (infinite loop)";
+        }
+        const auto step = std::abs(stride);
+
+        const auto src = stride < 0 ? end : start;
+        const auto dst = stride < 0 ? start : end;
+        const auto length = dst - src;
+        if (src < 0 || src >= dst || dst > static_cast<int64_t>(space) || length < step) {
+            IE_THROW() << R"(: Invalid "start"/"stride"/"end" values in an iteration component)"
+                               << ": \"start\" = " << rule.start << ", \"stride\" = " << rule.stride  << ", \"end\" = " << rule.end;
+        }
+
+        if (length % step != 0) {
+            IE_THROW() << ": Each iteration must be the same size: length (" << length << ") is not divisible by step (" << step << ")";
+        }
+
+        return static_cast<int>(length / step);
+    };
+
+
+    int numIterations = 1;
+    bool isDefault = true;
+    for (const auto& rule : inputPortMap) {
+        if (!isIterable(rule)) {
+            continue;
+        }
+
+        if (rule.from < 0 || rule.from >= static_cast<int64_t>(op->get_input_size())) {
+            IE_THROW() << R"(: Invalid "from" value: "from" = )" << rule.from
+                               << " inputs number = " << op->get_input_size() << " (out of range)";
+        }
+
+        const auto currentNumIterations = getNumIterations(rule, op->get_input_shape(rule.from));
+        if (isDefault) {
+            isDefault = false;
+            numIterations = currentNumIterations;
+        } else if (numIterations != currentNumIterations) {
+            IE_THROW() << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
+        }
+    }
+
+    for (const auto& rule : outputPortMap) {
+        if (!isIterable(rule)) {
+            continue;
+        }
+
+        if (rule.from < 0 || rule.from >= static_cast<int64_t>(op->get_output_size())) {
+            IE_THROW() << R"(: Invalid "from" value: "from" = )" << rule.from
+                               << " inputs number = " << op->get_output_size() << " (out of range)";
+        }
+
+        const auto currentNumIterations = getNumIterations(rule, op->get_output_shape(rule.from));
+        if (isDefault) {
+            isDefault = false;
+            numIterations = currentNumIterations;
+        } else if (numIterations != currentNumIterations) {
+            IE_THROW() << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
+        }
+    }
+
+    return numIterations;
+}
+
+bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (!one_of(op->get_type_info(),
+                ngraph::op::v0::TensorIterator::type_info,
+                ngraph::op::v5::Loop::type_info)) {
+            errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache), ngraphOp(op) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+}
 
 void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
-    auto *ti = dynamic_cast<class InferenceEngine::TensorIterator*>(getCnnLayer().get());
-    if (ti == nullptr)
-        IE_THROW() << "Cannot convert to TensorIterator layer.";
+    auto tiOp = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(ngraphOp);
+    if (tiOp == nullptr) {
+        IE_THROW() << "Can't cast TensorIterator node with name: " << getName() << " to ngraph::op::util::SubGraphOp";
+    }
+    const std::shared_ptr<const ngraph::Function> body = tiOp->get_function();
+    sub_graph.CreateGraph(body, ext_mng, weightCache);
 
-    n_iter = getNumIteration(*ti);
-    sub_graph.CreateGraph(ti->body, ext_mng, weightCache);
-
-    // Try to detect inputs and outputs by indexes
-    const auto &in_map = sub_graph.GetInputNodes();
-    for (const auto &in_data : ti->body.inputs) {
-        if (in_data->getName() == "const_holder") continue;
-
-        auto &in_node = in_map.at(in_data->getName());
-        auto in_mem = in_node->getChildEdgeAt(0)->getMemoryPtr();
-        input_mem.push_back(in_mem);
+    const auto &inMap = sub_graph.GetInputNodesMap();
+    for (const auto &param : tiOp->get_function()->get_parameters()) {
+        auto inNode = inMap.find(param->get_friendly_name());
+        if (inNode != inMap.end()) {
+            auto inMem = inNode->second->getChildEdgeAt(0)->getMemoryPtr();
+            input_mem.push_back(inMem);
+        }
     }
 
-    // Assume that order of outputs in original TI and produces sub_graph is same
-    const auto &out_vec = sub_graph.GetOutputNodes();
-    for (size_t i = 0; i < out_vec.size(); i++) {
-        auto out_mem = out_vec[i]->getParentEdgeAt(0)->getMemoryPtr();
-        output_mem.push_back(out_mem);
+    const auto &outMap = sub_graph.GetOutputNodesMap();
+    for (const auto &out : tiOp->get_function()->get_results()) {
+        auto prev = out->get_input_node_shared_ptr(0);
+        std::string inputID = prev->get_friendly_name();
+        if (prev->get_output_size() > 1) {
+            inputID += "." + std::to_string(out->get_input_source_output(0).get_index());
+        }
+        auto outNode = outMap.find(inputID);
+        if (outNode != outMap.end()) {
+            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
+            output_mem.push_back(outMem);
+        }
     }
+
+    // Port map: outputs
+    for (const auto& desc : tiOp->get_output_descriptions()) {
+        auto body_output_idx = desc->m_body_value_index;
+
+        std::string type_name = desc->get_type_info().name;
+        if (type_name == "ConcatOutputDescription") {
+            auto output_desc = ::ngraph::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(desc);
+            IE_ASSERT(output_desc != nullptr);
+
+            outputPortMap.emplace_back(PortMap {
+                static_cast<int>(output_desc->m_output_index), static_cast<int>(body_output_idx),
+                static_cast<int>(output_desc->m_axis), static_cast<int>(output_desc->m_stride),
+                static_cast<int>(output_desc->m_start), static_cast<int>(output_desc->m_end),
+                static_cast<int>(output_desc->m_part_size)});
+        } else if (type_name == "BodyOutputDescription") {
+            auto output_desc = ::ngraph::as_type_ptr<ngraph::op::util::SubGraphOp::BodyOutputDescription>(desc);
+            IE_ASSERT(output_desc != nullptr);
+
+            outputPortMap.emplace_back(PortMap {
+                static_cast<int>(output_desc->m_output_index), static_cast<int>(body_output_idx), -1, 1, 0, -1, 1});
+        } else {
+            IE_THROW() << "Incorrect type of the output description.";
+        }
+    }
+
+    // Port map : inputs and back edges
+    for (const auto& desc : tiOp->get_input_descriptions()) {
+        auto body_input_index = desc->m_body_parameter_index;
+
+        if (const auto slice_desc = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::SliceInputDescription>(desc)) {
+            inputPortMap.emplace_back(PortMap {
+                static_cast<int>(slice_desc->m_input_index), static_cast<int>(body_input_index),
+                static_cast<int>(slice_desc->m_axis), static_cast<int>(slice_desc->m_stride),
+                static_cast<int>(slice_desc->m_start), static_cast<int>(slice_desc->m_end),
+                static_cast<int>(slice_desc->m_part_size)});
+        } else if (const auto merge_desc = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::MergedInputDescription>(desc)) {
+            inputPortMap.emplace_back(PortMap {
+                static_cast<int>(merge_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
+
+            auto body_output_idx = merge_desc->m_body_value_index;
+
+            backEdges.emplace_back(PortMap {
+                static_cast<int>(body_output_idx), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
+        } else if (const auto inv_desc = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::InvariantInputDescription>(desc)) {
+            inputPortMap.emplace_back(PortMap {
+                    static_cast<int>(inv_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
+        } else {
+            IE_THROW() << "Incorrect type of the input description.";
+        }
+    }
+
+    n_iter = getNumIteration(ngraphOp, inputPortMap, outputPortMap);
+
+    if (const auto loopOp = std::dynamic_pointer_cast<const ngraph::op::v5::Loop>(ngraphOp)) {
+        auto spec_port = loopOp->get_special_body_ports();
+        if (spec_port.current_iteration_input_idx != -1) {
+            loopBodyCurrentIterationIdx.push_back(spec_port.current_iteration_input_idx);
+        }
+        if (spec_port.body_condition_output_idx != -1) {
+            loopBodyConditionOutputIdx = spec_port.body_condition_output_idx;
+        }
+        loopTripCountIdx = 0;
+        loopExecutionConditionIdx = 1;
+    }
+
+    config = make_plain_config(ngraphOp);
 }
 
 void MKLDNNTensorIteratorNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto config = make_plain_config(getCnnLayer());
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 
 void MKLDNNTensorIteratorNode::createPrimitive() {
-    auto ti = dynamic_cast<class InferenceEngine::TensorIterator*>(getCnnLayer().get());
-    if (ti == nullptr)
-        IE_THROW() << "Cannot convert to TensorIterator layer.";
-
     const auto &eng = getEngine();
 
-    for (auto map_rule : ti->input_port_map) {
+    for (auto map_rule : inputPortMap) {
         auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &to_mem = input_mem[map_rule.to];
 
@@ -241,7 +410,7 @@ void MKLDNNTensorIteratorNode::createPrimitive() {
             before_mappers.emplace_back(new PortIteratorHelper(from_mem, to_mem, true, map_rule, eng));
     }
 
-    for (auto map_rule : ti->output_port_map) {
+    for (auto map_rule : outputPortMap) {
         auto &to_mem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &from_mem = output_mem[map_rule.to];
 
@@ -251,7 +420,7 @@ void MKLDNNTensorIteratorNode::createPrimitive() {
             after_mappers.emplace_back(new PortIteratorHelper(from_mem, to_mem, false, map_rule, eng));
     }
 
-    for (auto map_rule : ti->back_edges) {
+    for (auto map_rule : backEdges) {
         auto from_mem = output_mem[map_rule.from];
         auto to_mem = input_mem[map_rule.to];
 
@@ -259,38 +428,29 @@ void MKLDNNTensorIteratorNode::createPrimitive() {
     }
 
     // special purpose ports
-    constexpr auto key_cur_iter_port = "loop_body_current_iteration_idx";
-    constexpr auto key_cond_port = "loop_body_condition_output_idx";
-    constexpr auto key_trip_count_port = "loop_trip_count_idx";
-    constexpr auto key_init_cond_port = "loop_execution_condition_idx";
-
-    auto iter_idx_ports = ti->GetParamAsInts(key_cur_iter_port, {});
-    for (auto idx : iter_idx_ports) {
+    for (auto idx : loopBodyCurrentIterationIdx) {
         auto to_mem = input_mem[idx];
         before_mappers.emplace_back(new IterCountPortHelper(to_mem, eng));
     }
 
-    auto condition_port_idx = ti->GetParamAsInt(key_cond_port, -1);
-    if (condition_port_idx == -1) {
+    if (loopBodyConditionOutputIdx == -1) {
         continue_cond_check.reset(new staticValueCheck(true)); // always true
     } else {
-        auto mem = output_mem[condition_port_idx];
+        auto mem = output_mem[loopBodyConditionOutputIdx];
         continue_cond_check.reset(new asBoolCheck(mem));
     }
 
-    auto trip_count_port_idx = ti->GetParamAsInt(key_trip_count_port, -1);
-    if (trip_count_port_idx == -1) {
+    if (loopTripCountIdx == -1) {
         trip_count_check.reset(new staticValueCheck(n_iter)); // use statically calculated num of iteration
     } else {
-        auto mem = getParentEdgesAtPort(trip_count_port_idx)[0]->getMemoryPtr();
+        auto mem = getParentEdgesAtPort(loopTripCountIdx)[0]->getMemoryPtr();
         trip_count_check.reset(new asIntCheck(mem));
     }
 
-    auto init_cond_port_idx = ti->GetParamAsInt(key_init_cond_port, -1);
-    if (init_cond_port_idx == -1) {
+    if (loopExecutionConditionIdx == -1) {
         initial_cond_check.reset(new staticValueCheck(true));
     } else {
-        auto mem = getParentEdgesAtPort(init_cond_port_idx)[0]->getMemoryPtr();
+        auto mem = getParentEdgesAtPort(loopExecutionConditionIdx)[0]->getMemoryPtr();
         initial_cond_check.reset(new asBoolCheck(mem));
     }
 }

@@ -21,7 +21,7 @@ if(ENABLE_CLDNN)
 endif()
 
 if(ENABLE_VPU)
-  add_subdirectory(vpu)
+    add_subdirectory(vpu)
 endif()
 
 if(ENABLE_GNA)
@@ -29,6 +29,8 @@ if(ENABLE_GNA)
 endif()
 
 add_subdirectory(hetero_plugin)
+
+add_subdirectory(auto_plugin)
 
 add_subdirectory(multi_device)
 

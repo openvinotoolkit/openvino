@@ -54,7 +54,7 @@ namespace ngraph
                 ///       value) or ignored (1 value)
                 ///
                 /// \param[in] axes                 Axes input of ONNX Slice operator
-                /// \param[in] slice_indices_length Lenght of Slice indices
+                /// \param[in] slice_indices_length Length of Slice indices
                 ///                                 (starts, ends, steps)
                 ///
                 /// \return Mask attribute in format required by StridedSlice:v1

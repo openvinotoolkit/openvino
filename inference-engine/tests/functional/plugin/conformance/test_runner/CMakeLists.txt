@@ -27,6 +27,4 @@ addIeTargetTest(
             CONFORMANCE
 )
 
-ie_faster_build(${TARGET_NAME}
-        PCH PRIVATE "src/precomp.hpp"
-        )
+ie_faster_build(${TARGET_NAME} UNITY)

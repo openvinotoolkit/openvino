@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
 #include "behavior/exec_graph_info.hpp"
+#include "ie_plugin_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -18,6 +18,9 @@ namespace {
     const std::vector<std::map<std::string, std::string>> multiConfigs = {
             {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
     };
+    const std::vector<std::map<std::string, std::string>> autoConfigs = {
+            {{ InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}}
+    };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, ExecGraphTests,
                             ::testing::Combine(
@@ -31,5 +34,12 @@ namespace {
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
+                            ExecGraphTests::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, ExecGraphTests,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(autoConfigs)),
                             ExecGraphTests::getTestCaseName);
 }  // namespace

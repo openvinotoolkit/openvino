@@ -6,6 +6,7 @@
 
 #include <onnx/onnx_pb.h>
 
+#include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
 #include "ngraph/except.hpp"
 
@@ -231,6 +232,32 @@ namespace ngraph
                     }
                 }
 
+                template <>
+                inline SparseTensor get_value(const ONNX_NAMESPACE::AttributeProto& attribute)
+                {
+                    if (attribute.type() !=
+                        ONNX_NAMESPACE::AttributeProto_AttributeType_SPARSE_TENSOR)
+                    {
+                        throw error::attribute::InvalidData{attribute.type()};
+                    }
+                    return SparseTensor{attribute.sparse_tensor()};
+                }
+
+                template <>
+                inline std::vector<SparseTensor>
+                    get_value(const ONNX_NAMESPACE::AttributeProto& attribute)
+                {
+                    switch (attribute.type())
+                    {
+                    case ONNX_NAMESPACE::AttributeProto_AttributeType_SPARSE_TENSOR:
+                        return {SparseTensor{attribute.sparse_tensor()}};
+                    case ONNX_NAMESPACE::AttributeProto_AttributeType_SPARSE_TENSORS:
+                        return {std::begin(attribute.sparse_tensors()),
+                                std::end(attribute.sparse_tensors())};
+                    default: throw error::attribute::InvalidData{attribute.type()};
+                    }
+                }
+
             } // namespace attribute
 
         } // namespace detail
@@ -246,10 +273,12 @@ namespace ngraph
                 string = ONNX_NAMESPACE::AttributeProto_AttributeType_STRING,
                 tensor = ONNX_NAMESPACE::AttributeProto_AttributeType_TENSOR,
                 graph = ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPH,
+                sparse_tensor = ONNX_NAMESPACE::AttributeProto_AttributeType_SPARSE_TENSOR,
                 float_point_array = ONNX_NAMESPACE::AttributeProto_AttributeType_FLOATS,
                 integer_array = ONNX_NAMESPACE::AttributeProto_AttributeType_INTS,
                 string_array = ONNX_NAMESPACE::AttributeProto_AttributeType_STRINGS,
                 tensor_array = ONNX_NAMESPACE::AttributeProto_AttributeType_TENSORS,
+                sparse_tensor_array = ONNX_NAMESPACE::AttributeProto_AttributeType_SPARSE_TENSORS,
                 graph_array = ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPHS
             };
 
@@ -269,6 +298,8 @@ namespace ngraph
             Type get_type() const { return static_cast<Type>(m_attribute_proto->type()); }
             bool is_tensor() const { return get_type() == Type::tensor; }
             bool is_tensor_array() const { return get_type() == Type::tensor_array; }
+            bool is_sparse_tensor() const { return get_type() == Type::sparse_tensor; }
+            bool is_sparse_tensor_array() const { return get_type() == Type::sparse_tensor_array; }
             bool is_float() const { return get_type() == Type::float_point; }
             bool is_float_array() const { return get_type() == Type::float_point_array; }
             bool is_integer() const { return get_type() == Type::integer; }
@@ -278,15 +309,27 @@ namespace ngraph
             bool is_graph() const { return get_type() == Type::graph; }
             bool is_graph_array() const { return get_type() == Type::graph_array; }
             Tensor get_tensor() const { return Tensor{m_attribute_proto->t()}; }
+            SparseTensor get_sparse_tensor() const
+            {
+                return SparseTensor{m_attribute_proto->sparse_tensor()};
+            }
             float get_float() const { return m_attribute_proto->f(); }
             int64_t get_integer() const { return m_attribute_proto->i(); }
             const std::string& get_string() const { return m_attribute_proto->s(); }
-            Subgraph get_subgraph(const Graph& parent_graph) const;
+            Subgraph get_subgraph(
+                const Graph& parent_graph,
+                const std::map<std::size_t, std::string>& carried_dependencies_map) const;
 
             std::vector<Tensor> get_tensor_array() const
             {
                 return {std::begin(m_attribute_proto->tensors()),
                         std::end(m_attribute_proto->tensors())};
+            }
+
+            std::vector<SparseTensor> get_sparse_tensor_array() const
+            {
+                return {std::begin(m_attribute_proto->sparse_tensors()),
+                        std::end(m_attribute_proto->sparse_tensors())};
             }
 
             std::vector<float> get_float_array() const
@@ -305,8 +348,6 @@ namespace ngraph
                 return {std::begin(m_attribute_proto->strings()),
                         std::end(m_attribute_proto->strings())};
             }
-
-            std::vector<Graph> get_graph_array(Model&) const;
 
             /* explicit */ operator ONNX_NAMESPACE::AttributeProto_AttributeType() const
             {

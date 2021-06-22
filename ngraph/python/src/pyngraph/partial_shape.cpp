@@ -35,19 +35,149 @@ void regclass_pyngraph_PartialShape(py::module m)
 
     shape.def_static("dynamic", &ngraph::PartialShape::dynamic, py::arg("r") = ngraph::Dimension());
 
-    shape.def_property_readonly("is_dynamic", &ngraph::PartialShape::is_dynamic);
-    shape.def_property_readonly("is_static", &ngraph::PartialShape::is_static);
-    shape.def_property_readonly("rank", &ngraph::PartialShape::rank);
-    shape.def_property_readonly("all_non_negative", &ngraph::PartialShape::all_non_negative);
+    shape.def_property_readonly("is_dynamic",
+                                &ngraph::PartialShape::is_dynamic,
+                                R"(
+                                    False if this shape is static, else True.
+                                    A shape is considered static if it has static rank,
+                                    and all dimensions of the shape are static.
+                                )");
+    shape.def_property_readonly("is_static",
+                                &ngraph::PartialShape::is_static,
+                                R"(
+                                    True if this shape is static, else False.
+                                    A shape is considered static if it has static rank, 
+                                    and all dimensions of the shape are static.
+                                )");
+    shape.def_property_readonly("rank",
+                                &ngraph::PartialShape::rank,
+                                R"(
+                                    The rank of the shape.
+                                )");
+    shape.def_property_readonly("all_non_negative",
+                                &ngraph::PartialShape::all_non_negative,
+                                R"(
+                                    True if all static dimensions of the tensor are 
+                                    non-negative, else False.
+                                )");
 
-    shape.def("compatible", &ngraph::PartialShape::compatible);
-    shape.def("refines", &ngraph::PartialShape::refines);
-    shape.def("relaxes", &ngraph::PartialShape::relaxes);
-    shape.def("same_scheme", &ngraph::PartialShape::same_scheme);
-    shape.def("get_max_shape", &ngraph::PartialShape::get_max_shape);
-    shape.def("get_min_shape", &ngraph::PartialShape::get_min_shape);
-    shape.def("get_shape", &ngraph::PartialShape::get_shape);
-    shape.def("to_shape", &ngraph::PartialShape::to_shape);
+    shape.def("compatible",
+              &ngraph::PartialShape::compatible,
+              py::arg("s"),
+              R"(
+                Check whether this shape is compatible with the argument, i.e.,
+                whether it is possible to merge them.
+                
+                Parameters
+                ----------
+                s : PartialShape
+                    The shape to be checked for compatibility with this shape.
+
+
+                Returns
+                ----------
+                compatible : bool
+                    True if this shape is compatible with s, else False.
+              )");
+    shape.def("refines",
+              &ngraph::PartialShape::refines,
+              py::arg("s"),
+              R"(
+                Check whether this shape is a refinement of the argument.
+
+                Parameters
+                ----------
+                s : PartialShape
+                    The shape which is being compared against this shape.        
+        
+                Returns
+                ----------
+                refines : bool
+                    True if this shape refines s, else False.
+              )");
+    shape.def("relaxes",
+              &ngraph::PartialShape::relaxes,
+              py::arg("s"),
+              R"(
+                Check whether this shape is a relaxation of the argument.
+
+                Parameters
+                ----------
+                s : PartialShape
+                    The shape which is being compared against this shape.        
+        
+                Returns
+                ----------
+                relaxes : bool
+                    True if this shape relaxes s, else False.
+              )");
+    shape.def("same_scheme",
+              &ngraph::PartialShape::same_scheme,
+              py::arg("s"),
+              R"(
+                Check whether this shape represents the same scheme as the argument.
+
+                Parameters
+                ----------
+                s : PartialShape
+                    The shape which is being compared against this shape.        
+        
+                Returns
+                ----------
+                same_scheme : bool
+                    True if shape represents the same scheme as s, else False.
+              )");
+    shape.def("get_max_shape",
+              &ngraph::PartialShape::get_max_shape,
+              R"(
+                Returns
+                ----------
+                get_max_shape : Shape
+                    Get the max bounding shape.
+              )");
+    shape.def("get_min_shape",
+              &ngraph::PartialShape::get_min_shape,
+              R"(
+                Returns
+                ----------
+                get_min_shape : Shape
+                    Get the min bounding shape.
+              )");
+    shape.def("get_shape",
+              &ngraph::PartialShape::get_shape,
+              R"(
+                Returns
+                ----------
+                get_shape : Shape
+                    Get the unique shape.
+              )");
+    shape.def("to_shape",
+              &ngraph::PartialShape::to_shape,
+              R"(
+                Returns
+                ----------
+                to_shapess : Shape
+                    Get the unique shape.
+              )");
+    shape.def(
+        "get_dimension",
+        [](const ngraph::PartialShape& self, size_t index) -> ngraph::Dimension {
+            return self[index];
+        },
+        py::arg("index"),
+        R"(
+                Get the dimension at specified index of a partial shape.
+
+                Parameters
+                ----------
+                index : int
+                    The index of dimension
+
+                Returns
+                ----------
+                get_dimension : Dimension
+                    Get the particular dimension of a partial shape.
+              )");
 
     shape.def(
         "__eq__",

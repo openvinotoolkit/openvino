@@ -71,7 +71,7 @@ struct DnnActivation {
         return type;
     }
     static DnnActivation fromType(DnnActivationType type) {
-        DnnActivation activation;
+        DnnActivation activation{};
         activation.type = type;
         activation.args = {};
         return activation;
@@ -197,7 +197,6 @@ typedef struct {
     uint32_t num_copy_rows;            // number of rows to copy
 } intel_copy_t;
 
-#if GNA_LIB_VER == 2
 enum OvGnaType {
     OvGnaTypeInt8 = 1,
     OvGnaTypeInt16 = 2,
@@ -205,6 +204,7 @@ enum OvGnaType {
     OvGnaTypePwl = 8,
 };
 
+#if GNA_LIB_VER == 2
 enum OvGnaMode {
     OvGnaModeDefault = 0,
     OvGnaModeDisabled = -1
