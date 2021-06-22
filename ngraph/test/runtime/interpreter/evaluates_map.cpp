@@ -8,6 +8,8 @@
 #include "ngraph/ops.hpp"
 
 #include <ngraph/runtime/reference/abs.hpp>
+#include <ngraph/runtime/reference/adaptive_avg_pool.hpp>
+#include <ngraph/runtime/reference/adaptive_max_pool.hpp>
 #include <ngraph/runtime/reference/avg_pool.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
 #include <ngraph/runtime/reference/binary_convolution.hpp>
@@ -2472,6 +2474,34 @@ namespace
         return true;
     }
 
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v8::AdaptiveAvgPool>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::adaptive_avg_pool(inputs[0]->get_data_ptr<T>(),
+                                              outputs[0]->get_data_ptr<T>(),
+                                              inputs[0]->get_shape(),
+                                              op->get_output_shape(0));
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v8::AdaptiveMaxPool>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        //op->get_element_type().
+        runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
+                                              outputs[0]->get_data_ptr<T>(),
+                                              outputs[1]->get_data_ptr<int64_t>(),
+                                              inputs[0]->get_shape(),
+                                              op->get_output_shape(0));
+        return true;
+    }
+
     template <typename T>
     bool evaluate_node(std::shared_ptr<Node> node,
                        const HostTensorVector& outputs,
@@ -2489,7 +2519,9 @@ namespace
         for (size_t i = 1; i < node->outputs().size(); i++)
         {
             if ((is_type<op::v5::NonMaxSuppression>(node) ||
-                 is_type<op::v6::ExperimentalDetectronDetectionOutput>(node)) && i == 1)
+                 is_type<op::v6::ExperimentalDetectronDetectionOutput>(node) ||
+                 is_type<op::v8::AdaptiveMaxPool>(node)) &&
+                i == 1)
             {
                 continue;
             }
