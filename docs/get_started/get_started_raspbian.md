@@ -13,7 +13,7 @@ On Raspbian* OS, the OpenVINO™ toolkit consists of the following components:
 
 > **NOTE**:
 > * The OpenVINO™ package for Raspberry* does not include the [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To convert models to Intermediate Representation (IR), you need to install it separately to your host machine.
-> * The package does not include the Open Model Zoo demo applications. You can download them separately from the [Open Models Zoo repository](https://github.com/opencv/open_model_zoo).
+> * The package does not include the Open Model Zoo demo applications. You can download them separately from the [Open Models Zoo repository](https://github.com/openvinotoolkit/open_model_zoo).
 
 In addition, [code samples](../IE_DG/Samples_Overview.md) are provided to help you get up and running with the toolkit.
 
@@ -43,7 +43,7 @@ The primary tools for deploying your models and applications are installed to th
 The OpenVINO™ workflow on Raspbian* OS is as follows:
 1. **Get a pre-trained model** for your inference task. If you want to use your model for inference, the model must be converted to the `.bin` and `.xml` Intermediate Representation (IR) files, which are used as input by Inference Engine. On Raspberry PI, OpenVINO™ toolkit includes only the Inference Engine module. The Model Optimizer is not supported on this platform. To get the optimized models you can use one of the following options:
    
-   * Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
+   * Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
     <br> For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_group_intel)
    
    * Convert a model using the Model Optimizer from a full installation of Intel® Distribution of OpenVINO™ toolkit on one of the supported platforms. Installation instructions are available:

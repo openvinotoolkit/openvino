@@ -471,7 +471,7 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
         {1, 32, 1, 8}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPassTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPassTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -479,7 +479,7 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             ::testing::ValuesIn(inputShapes)),
         RemovePermutationsNHWCToNCHWPassTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPass4DOutputTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPass4DOutputTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -487,7 +487,7 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             ::testing::ValuesIn(inputShapes)),
         RemovePermutationsNHWCToNCHWPass4DOutputTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsWithPoolAndActTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsWithPoolAndActTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -496,7 +496,7 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             ::testing::ValuesIn(std::vector<bool>{false, true})), // with activation
         RemovePermutationsWithPoolAndActTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsWithTwoConvTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsWithTwoConvTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -504,7 +504,7 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             ::testing::ValuesIn(inputShapes)),
         RemovePermutationsWithTwoConvTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsWithEltwiseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsWithEltwiseTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

@@ -30,7 +30,7 @@ namespace {
         },
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseMultiplyToFakeQuantizeTransformation,
+    INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseMultiplyToFakeQuantizeTransformation,
         ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_GPU),
             ::testing::ValuesIn(testValues)),
