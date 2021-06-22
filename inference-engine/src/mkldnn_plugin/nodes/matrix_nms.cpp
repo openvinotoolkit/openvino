@@ -305,52 +305,52 @@ public:
             std::vector<float> all_scores(real_num_classes * real_num_boxes, 0);
             std::vector<int64_t> all_classes(real_num_classes * real_num_boxes, -1);
             std::vector<int> class_offset(num_classes, 0);
+            std::vector<int64_t> num_per_class(num_classes, 0);
             for (size_t i = 0, count = 0; i < num_classes; i++) {
                 if (i == m_background_class)
                     continue;
                 class_offset[i] = (count++) * real_num_boxes;
             }
 
-            size_t num_det = 0;
-
-            for (int64_t class_idx = 0; class_idx < num_classes; class_idx++) {
+            int64_t num_det = 0;
+            InferenceEngine::parallel_for(num_classes, [&](size_t class_idx){
                 if (class_idx == m_background_class)
-                    continue;
+                    return;
                 const float *scoresPtr =
                         scores + batch * (num_classes * num_boxes) + class_idx * num_boxes;
                 size_t class_num_det = 0;
                 if (m_decay_function == ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN) {
                     class_num_det = nms_matrix<float, true>(boxesPtr,
-                                            num_boxes,
-                                            box_shape,
-                                            scoresPtr,
-                                            m_score_threshold,
-                                            m_post_threshold,
-                                            m_gaussian_sigma,
-                                            m_nms_top_k,
-                                            normalized,
-                                            all_indices.data() + class_offset[class_idx],
-                                            all_scores.data() + class_offset[class_idx]);
+                                                            num_boxes,
+                                                            box_shape,
+                                                            scoresPtr,
+                                                            m_score_threshold,
+                                                            m_post_threshold,
+                                                            m_gaussian_sigma,
+                                                            m_nms_top_k,
+                                                            normalized,
+                                                            all_indices.data() + class_offset[class_idx],
+                                                            all_scores.data() + class_offset[class_idx]);
                 } else {
                     class_num_det = nms_matrix<float, false>(boxesPtr,
-                                             num_boxes,
-                                             box_shape,
-                                             scoresPtr,
-                                             m_score_threshold,
-                                             m_post_threshold,
-                                             m_gaussian_sigma,
-                                             m_nms_top_k,
-                                             normalized,
-                                             all_indices.data() + class_offset[class_idx],
-                                             all_scores.data() + class_offset[class_idx]);
+                                                             num_boxes,
+                                                             box_shape,
+                                                             scoresPtr,
+                                                             m_score_threshold,
+                                                             m_post_threshold,
+                                                             m_gaussian_sigma,
+                                                             m_nms_top_k,
+                                                             normalized,
+                                                             all_indices.data() + class_offset[class_idx],
+                                                             all_scores.data() + class_offset[class_idx]);
                 }
                 for (size_t i = 0; i < class_num_det; i++) {
                     auto class_index_base = all_classes.data() + class_offset[class_idx];
                     class_index_base[i] = class_idx;
                 }
-                num_det += class_num_det;
-            }
-
+                num_per_class[class_idx] = class_num_det;
+            });
+            num_det = std::accumulate(num_per_class.begin(), num_per_class.end(), 0);
             if (num_det <= 0) {
                 break;
             }
