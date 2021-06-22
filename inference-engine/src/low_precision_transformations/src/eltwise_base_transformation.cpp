@@ -16,9 +16,14 @@ using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
 bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) noexcept {
-    const size_t rank = shape.rank().get_length();
-    const size_t spatialIndex = rank == 1 ? 0ul : (rank == 2ul ? 1ul : 2ul);
-    for (size_t i = spatialIndex; i < rank; ++i) {
+    const auto rank = shape.rank();
+    if (rank.is_dynamic()) {
+        return false;
+    }
+
+    const size_t rankValue = rank.get_length();
+    const size_t spatialIndex = rankValue == 1 ? 0ul : (rankValue == 2ul ? 1ul : 2ul);
+    for (size_t i = spatialIndex; i < rankValue; ++i) {
         if (shape[i].is_dynamic() || shape[i].get_length() != 1ul) {
             return false;
         }

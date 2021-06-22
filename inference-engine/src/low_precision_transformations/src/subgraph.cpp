@@ -45,6 +45,10 @@ bool operationIsSupportedInConcat(const std::shared_ptr<ngraph::Node>& node) {
 
         const auto inRank = in.rank().get_length();
         const auto outRank = out.rank().get_length();
+        if (inRank < 2 || outRank < 2) {
+            return false;
+        }
+
         for (int i = 0; i < 2; ++i) {
             if ((i >= inRank) || (i >= outRank)) {
                 // all previous dimensions are equal

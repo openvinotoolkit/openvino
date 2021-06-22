@@ -167,20 +167,6 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
             {{ ngraph::element::i32 }, {}, {3.f}}
         }
     },
-
-    // issue #40611: unexpected input precision
-    {
-        false,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::i32,
-            {{ ngraph::element::f32 }, {}, {3.f}}
-        },
-        {
-            ngraph::element::i32,
-            {{ ngraph::element::f32 }, {}, {3.f}}
-        }
-    },
 };
 
 INSTANTIATE_TEST_CASE_P(
