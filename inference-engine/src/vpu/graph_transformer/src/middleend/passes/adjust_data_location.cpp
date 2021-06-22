@@ -48,7 +48,7 @@ void PassImpl::run(const Model& model) {
     allocNonIntermediateData(model);
     adjustModelForMemReqs(model);
     copyHwMisalignedInput(model);
-    if (env.config.packDataInCmx.getOrDefault(true)) {
+    if (env.config.compileConfig().packDataInCmx.getOrDefault(true)) {
         packDataInCmx(model);
     }
 }
@@ -147,7 +147,7 @@ void PassImpl::collectMemReqs(const Model& model) {
 }
 
 void PassImpl::resetStageOrder(const Model& model) {
-    if (!CompileEnv::get().config.hwOptimization)
+    if (!CompileEnv::get().config.compileConfig().hwOptimization)
         return;
 
     static const std::string s_expectCMXOutput {"expectCMXOutput"};
