@@ -102,7 +102,7 @@ TEST_P(RoundTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LPT,
     RoundTransformation,
     ::testing::ValuesIn(testValues),
