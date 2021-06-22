@@ -12,6 +12,8 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestLogSoftmax(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     def create_log_softmax_net(self, shape, reduction_axis, ir_version):
         """
             Tensorflow net                 IR net
@@ -19,22 +21,13 @@ class TestLogSoftmax(CommonTFLayerTest):
             Input->LogSoftmax       =>       Input->Softmax->Log
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            shapes = shape.copy()
-            # reshaping
-            if len(shapes) >= 3:
-                shapes.append(shapes.pop(1))
-            input = tf.compat.v1.placeholder(tf.float32, shapes, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
             if LooseVersion(tf.__version__) < LooseVersion('2.0.0'):
                 tf.nn.log_softmax(input, name='Operation', axis=reduction_axis)
             else:
@@ -43,23 +36,12 @@ class TestLogSoftmax(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        ref_net = None
-
         reduce_sum_shape = np.copy(shape)
-        rank = len(shape)
-        if rank in {4, 5}:
-            reduction_axis = reduction_axis if reduction_axis >= 0 else rank + reduction_axis
-            if rank == 4:
-                reduction_axis = {0: 0, 1: 2, 2: 3, 3: 1}[reduction_axis]
-            else:
-                reduction_axis = {0: 0, 1: 2, 2: 3, 3: 4, 4: 1}[reduction_axis]
-
         reduce_sum_shape[reduction_axis] = 1
 
-        converted_shape = shape if rank != 1 else shape[0]
         if check_ir_version(10, None, ir_version):
             ref_nodes_attributes = {
-                'input': {'kind': 'op', 'type': 'Parameter', 'shape': converted_shape},
+                'input': {'kind': 'op', 'type': 'Parameter', 'shape': shape},
                 'input_data': {'shape': shape, 'kind': 'data', 'value': None},
                 'reduce_max_axis_val': {'shape': int64_array([reduction_axis]).shape,
                                         'kind': 'data',
@@ -113,18 +95,20 @@ class TestLogSoftmax(CommonTFLayerTest):
 
             ref_net = build_graph(ref_nodes_attributes, ref_edges)
 
+        # TODO ref graph is incorrect
+        ref_net = None
         return tf_net, ref_net
 
     test_data_precommit = [
-        pytest.param(dict(shape=[3, 2, 3, 7, 6], reduction_axis=-1),
-                     marks=pytest.mark.skip(reason="Skipped until fixed"))
+        dict(shape=[3, 2, 3, 7, 6], reduction_axis=-1),
     ]
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     def test_log_softmax_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_log_softmax_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   kwargs_to_prepare_input={'min_value': 1, 'max_value': 255})
 
     test_data = [dict(shape=[1], reduction_axis=-1),
                  dict(shape=[2, 5], reduction_axis=-1),
@@ -135,4 +119,5 @@ class TestLogSoftmax(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_log_softmax(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_log_softmax_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   kwargs_to_prepare_input={'min_value': 1, 'max_value': 255})
