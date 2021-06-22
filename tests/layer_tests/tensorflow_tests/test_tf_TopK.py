@@ -5,9 +5,7 @@ import pytest
 
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-from mo.ops.op import PermuteAttrs
 from unit_tests.utils.graph import build_graph
-from tensorflow_tests.permutation_utils import permute_nchw_to_nhwc, permute_axis
 
 
 class Test_TopK(CommonTFLayerTest):
@@ -28,31 +26,20 @@ class Test_TopK(CommonTFLayerTest):
                           |-> Indices
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            shape_net = permute_nchw_to_nhwc(shape)
-
-            input_tensor = tf.compat.v1.placeholder(tf.int32, shape=shape_net, name='Input')
-            values, indices = tf.nn.top_k(input_tensor, k=k, sorted=True, name='Operation')
+            input_tensor = tf.compat.v1.placeholder(tf.int32, shape=shape, name='Input')
+            tf.nn.top_k(input_tensor, k=k, sorted=True, name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #
         topk_output_shape = shape.copy()
-        inverse_nhwc_nchw = PermuteAttrs.get_nhwc_to_nchw_permutation(len(topk_output_shape)).inv
-        topk_axis = permute_axis(len(topk_output_shape) - 1, inverse_nhwc_nchw)  # we need to permute axis attribute
+        topk_axis = len(topk_output_shape) - 1
         topk_output_shape[topk_axis] = k
 
         ref_net = None
@@ -61,7 +48,7 @@ class Test_TopK(CommonTFLayerTest):
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': shape, 'kind': 'data'},
-                'Const_k_input_data': {'shape': [], 'kind': 'data'},
+                'Const_k_input_data': {'shape': [1], 'kind': 'data'},
                 'Const_k': {'kind': 'op', 'type': 'Const'},
                 'Const_k_data': {'shape': [], 'kind': 'data'},
                 'TopK': {'kind': 'op', 'type': 'TopK', 'axis': topk_axis, 'mode': 'max', 'sort': 'value'},
@@ -94,6 +81,7 @@ class Test_TopK(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
+    @pytest.mark.xfail(reason='*-58478. Output IE vs FW comparator does not support 2 outputs.')
     def test_TopK_1D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_topK_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
@@ -105,6 +93,7 @@ class Test_TopK(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
+    @pytest.mark.xfail(reason='*-58478. Output IE vs FW comparator does not support 2 outputs.')
     def test_TopK_2D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_topK_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
@@ -116,6 +105,7 @@ class Test_TopK(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
+    @pytest.mark.xfail(reason='*-58478. Output IE vs FW comparator does not support 2 outputs.')
     def test_TopK_3D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_topK_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
@@ -127,6 +117,7 @@ class Test_TopK(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
+    @pytest.mark.xfail(reason='*-58478. Output IE vs FW comparator does not support 2 outputs.')
     def test_TopK_4D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_topK_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
@@ -138,6 +129,7 @@ class Test_TopK(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
+    @pytest.mark.xfail(reason='*-58478. Output IE vs FW comparator does not support 2 outputs.')
     def test_TopK_5D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_topK_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
