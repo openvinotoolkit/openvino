@@ -28,6 +28,7 @@ addIeTarget(
             inference_engine
         PRIVATE
             ngraphFunctions
+            pugixml
     INCLUDES
         PUBLIC
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>

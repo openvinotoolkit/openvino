@@ -8,6 +8,7 @@ list(APPEND DEPENDENCIES
         gflags
         inference_engine
         commonTestUtils
+        pugixml
         )
 
 addIeTargetTest(
