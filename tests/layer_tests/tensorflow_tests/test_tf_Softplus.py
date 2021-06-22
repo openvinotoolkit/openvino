@@ -9,6 +9,8 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestSoftplus(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     def create_softplus_net(self, shape, ir_version):
         """
             Tensorflow net                 IR net
@@ -16,33 +18,18 @@ class TestSoftplus(CommonTFLayerTest):
             Input->Softplus       =>       Input->Softplus
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
-        with tf.Session() as sess:
-            shapes = shape.copy()
-            # reshaping
-            if len(shapes) > 3:
-                shapes.append(shapes.pop(1))
-            input = tf.placeholder(tf.float32, shapes, 'Input')
+        with tf.compat.v1.Session() as sess:
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
 
             tf.math.softplus(input, name='Operation')
 
-            tf.global_variables_initializer()
+            tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
-
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
 
         ref_net = None
 
@@ -65,10 +52,8 @@ class TestSoftplus(CommonTFLayerTest):
         return tf_net, ref_net
 
     test_data_precommit = [
-        pytest.param(dict(shape=[1, 3, 100, 224]),
-                     marks=pytest.mark.skip(reason="Skipped until fixed")),
-        pytest.param(dict(shape=[1, 3, 50, 100, 224]),
-                     marks=pytest.mark.skip(reason="Skipped until fixed"))
+        dict(shape=[1, 3, 5, 7]),
+        dict(shape=[1, 3, 5, 7, 9]),
     ]
 
     @pytest.mark.parametrize("params", test_data_precommit)
