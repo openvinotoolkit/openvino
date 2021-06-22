@@ -2034,9 +2034,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 cnnLayer->outData.clear();
                 continue;
             }
-            auto outName = *layer->output(i).get_tensor().get_names().begin();
-            if (outName.empty()) {
+            auto names = layer->output(i).get_tensor().get_names();
+            std::string outName;
+            if (names.empty()) {
                 outName = ngraph::op::util::create_ie_output_name(layer->output(i));
+            } else {
+                outName = *layer->output(i).get_tensor().get_names().begin();
             }
 
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
@@ -2088,9 +2091,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
-            auto name = *input.get_tensor().get_names().begin();
-            if (!name.empty())
-                cnnNetworkImpl->addOutput(name);
+            auto names = input.get_tensor().get_names();
+            if (!names.empty())
+                cnnNetworkImpl->addOutput(*names.begin());
             else
                 cnnNetworkImpl->addOutput(ngraph::op::util::create_ie_output_name(input));
             continue;
