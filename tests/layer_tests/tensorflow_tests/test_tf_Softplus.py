@@ -57,6 +57,8 @@ class TestSoftplus(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     def test_softplus_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU':
+            pytest.skip("Incorrect inference results on GPU. *-58478")
         self._test(*self.create_softplus_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 

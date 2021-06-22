@@ -151,6 +151,8 @@ class TestNormalizeL2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_non_fusable_precommit)
     @pytest.mark.precommit
     def test_NormalizeL2_non_fusable_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU':
+            pytest.skip("Incorrect inference results on GPU. *-58478")
         self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
                    temp_dir=temp_dir)

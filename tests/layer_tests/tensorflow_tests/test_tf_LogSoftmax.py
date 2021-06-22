@@ -12,6 +12,11 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestLogSoftmax(CommonTFLayerTest):
+    def _prepare_input(self, inputs_dict, params: dict = None):
+        for input in inputs_dict.keys():
+            inputs_dict[input] = np.random.uniform(size=inputs_dict[input]).astype(np.float32)
+        return inputs_dict
+
     def create_log_softmax_net(self, shape, reduction_axis, ir_version):
         """
             Tensorflow net                 IR net
@@ -104,9 +109,10 @@ class TestLogSoftmax(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     def test_log_softmax_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU':
+            pytest.skip("Incorrect inference results on GPU. *-58478")
         self._test(*self.create_log_softmax_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   kwargs_to_prepare_input={'min_value': 1, 'max_value': 255})
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data = [dict(shape=[1], reduction_axis=-1),
                  dict(shape=[2, 5], reduction_axis=-1),
@@ -116,6 +122,7 @@ class TestLogSoftmax(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_log_softmax(self, params, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU':
+            pytest.skip("Incorrect inference results on GPU. *-58478")
         self._test(*self.create_log_softmax_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   kwargs_to_prepare_input={'min_value': 1, 'max_value': 255})
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
