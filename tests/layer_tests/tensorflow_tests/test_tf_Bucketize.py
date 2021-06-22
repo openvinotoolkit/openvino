@@ -10,6 +10,8 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestBucketize(CommonTFLayerTest):
+    disable_input_layout_conversion = True
+
     def create_bucketize_net(self, input_shape, input_type, boundaries_size, ir_version):
         """
             Tensorflow net:                     IR net:
@@ -24,6 +26,7 @@ class TestBucketize(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(input_type, input_shape, 'Input')
             constant_value = np.arange(-boundaries_size * 5, boundaries_size * 5, 10, dtype=np.float32)
+            tf.raw_ops.Bucketize(input=x, boundaries=constant_value.tolist(), name='Operation')
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
