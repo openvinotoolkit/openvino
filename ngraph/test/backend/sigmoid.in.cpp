@@ -2,78 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// clang-format off
-#ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#define DEFAULT_FLOAT_TOLERANCE_BITS ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#endif
-
-#ifdef ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#endif
-// clang-format on
-
-#include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
-#include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
-
-using namespace std;
-using namespace ngraph;
+#include "backend/unary_test.hpp"
 
 static string s_manifest = "${MANIFEST}";
 
+template <typename T>
+static T f_sigmoid(T x)
+{
+    return 1.0f / (1.0f + std::exp(-x));
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h2w2)
 {
-    auto input = make_shared<op::Parameter>(element::f32, Shape{1, 1, 2, 2});
-    auto sigmoid_node = make_shared<op::Sigmoid>(input);
-    auto func = make_shared<Function>(sigmoid_node, ParameterVector{input});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, input->get_shape());
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, input->get_shape());
-
-    float x1 = 1.0f;
-    float x2 = 4.0f;
-    float sigma1 = 1.0f / (1.0f + std::exp(-x1));
-    float sigma2 = 1.0f / (1.0f + std::exp(-x2));
-
-    vector<float> dataA{x1, x2, x1, x2};
-    copy_data(a, dataA);
-
-    auto handle = backend->compile(func);
-    handle->call_with_validate({result}, {a});
-    vector<float> expected{sigma1, sigma2, sigma1, sigma2};
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected));
+    test_unary<element::f32>("${BACKEND_NAME}",
+                             unary_func<op::Sigmoid>(),
+                             {1.0f, 4.0f, 1.0f, 4.0f},
+                             f_sigmoid,
+                             Shape{1, 1, 2, 2},
+                             Shape{1, 1, 2, 2});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h4)
 {
-    auto input = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
-    auto sigmoid_node = make_shared<op::Sigmoid>(input);
-    auto func = make_shared<Function>(sigmoid_node, ParameterVector{input});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, input->get_shape());
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, input->get_shape());
-
-    float x1 = 1.0f;
-    float x2 = 4.0f;
-    float sigma1 = 1.0f / (1.0f + std::exp(-x1));
-    float sigma2 = 1.0f / (1.0f + std::exp(-x2));
-
-    vector<float> dataA{x1, x2, x1, x2};
-    copy_data(a, dataA);
-
-    auto handle = backend->compile(func);
-    handle->call_with_validate({result}, {a});
-    vector<float> expected{sigma1, sigma2, sigma1, sigma2};
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected));
+    test_unary<element::f32>("${BACKEND_NAME}",
+                             unary_func<op::Sigmoid>(),
+                             {1.0f, 4.0f, 1.0f, 4.0f},
+                             f_sigmoid,
+                             Shape{1, 1, 4},
+                             Shape{1, 1, 4});
 }
