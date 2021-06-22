@@ -22,3 +22,7 @@
 	path = thirdparty/zlib/zlib
 	url = https://github.com/madler/zlib.git
 	ignore = dirty
+[submodule "thirdparty/ade"]
+	path = thirdparty/ade
+	url = https://github.com/opencv/ade.git
+	ignore = dirty
