@@ -4,11 +4,12 @@
 
 To download a pre-trained model or train the model yourself, refer
 to the [instruction](https://github.com/kamalkraj/BERT-NER/blob/dev/README.md) in the
-BERT-NER model repository. The model with config files is stored in the directory with name `out_base`.
+BERT-NER model repository. The model with config files is stored in the `out_base` directory.
 
-To convert the model to ONNX* format create and run the script with the following content in the root
-directory of the model repository. If you download the pre-trained model, you will need
+To convert the model to ONNX* format, create and run the script with the following content in the root
+directory of the model repository. If you download the pre-trained model, you need
 to download [`bert.py`](https://github.com/kamalkraj/BERT-NER/blob/dev/bert.py) to run the script.
+The instruction was tested with the repository hash commit `e5be564156f194f1becb0d82aeaf6e762d9eb9ed`.
 
 ```python
 import torch
@@ -51,3 +52,5 @@ The script generates ONNX* model file `bert-ner.onnx`.
 ```bash
 python mo.py --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"
 ```
+
+where `1` is `batch_size` and `128` is `sequence_length`.
