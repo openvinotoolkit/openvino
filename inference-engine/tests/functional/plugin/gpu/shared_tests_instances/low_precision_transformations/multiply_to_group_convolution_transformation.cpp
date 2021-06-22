@@ -23,7 +23,7 @@ const std::vector<builder::subgraph::FakeQuantizeOnData> fqOnData = {
     { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { -12.8f }, { 12.7f } }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(inputShapes),
