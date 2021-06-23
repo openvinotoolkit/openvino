@@ -86,7 +86,8 @@ namespace ngraph
                     {
                         auto i = input_batch_transform.index(input_batch_coord);
                         T x = arg[i];
-                        if (x > result) {
+                        if (x > result)
+                        {
                             result = x;
                             index = static_cast<int64_t>(i);
                         }

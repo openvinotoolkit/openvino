@@ -21,8 +21,10 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void adaptive_avg_pool(
-                const T* arg, T* out, const Shape& arg_shape, const Shape& out_shape)
+            void adaptive_avg_pool(const T* arg,
+                                   T* out,
+                                   const Shape& arg_shape,
+                                   const Shape& out_shape)
             {
                 // At the outermost level we will walk over every output coordinate O.
                 CoordinateTransform output_transform(out_shape);
@@ -63,9 +65,7 @@ namespace ngraph
                     }
 
                     CoordinateTransform input_batch_transform(
-                        arg_shape,
-                        input_batch_transform_start,
-                        input_batch_transform_end);
+                        arg_shape, input_batch_transform_start, input_batch_transform_end);
 
                     // As we go, we compute the sum value:
                     //
@@ -80,7 +80,7 @@ namespace ngraph
 
                     for (const Coordinate& input_batch_coord : input_batch_transform)
                     {
-                        result += arg[input_batch_transform.index(input_batch_coord)];                        
+                        result += arg[input_batch_transform.index(input_batch_coord)];
                         n_elements++;
                     }
 
