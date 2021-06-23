@@ -9,9 +9,9 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNMathNode : public MKLDNNNode {
+class MKLDNNRangeNode : public MKLDNNNode {
 public:
-    MKLDNNMathNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNRangeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -21,12 +21,12 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    template <typename data_t>
+    InferenceEngine::StatusCode rangeKernel() noexcept;
 private:
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNMathNode& node)>> initializers;
-
-    float alpha = 0.0f;
-    float beta = 0.0f;
-    float gamma = 0.0f;
+    static const size_t RANGE_START = 0;
+    static const size_t RANGE_LIMIT = 1;
+    static const size_t RANGE_DELTA = 2;
 
     std::string errorPrefix;
 };

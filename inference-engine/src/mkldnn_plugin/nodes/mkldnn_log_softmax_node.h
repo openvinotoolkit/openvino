@@ -9,9 +9,10 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNMathNode : public MKLDNNNode {
+class MKLDNNLogSoftmaxNode : public MKLDNNNode {
 public:
-    MKLDNNMathNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNLogSoftmaxNode(const std::shared_ptr<ngraph::Node>& op,
+        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -22,11 +23,10 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNMathNode& node)>> initializers;
-
-    float alpha = 0.0f;
-    float beta = 0.0f;
-    float gamma = 0.0f;
+    size_t reducedAxisSize;
+    size_t reducedAxisStride = 1;
+    size_t axisStep = 1;
+    bool isLastDim = false;
 
     std::string errorPrefix;
 };
