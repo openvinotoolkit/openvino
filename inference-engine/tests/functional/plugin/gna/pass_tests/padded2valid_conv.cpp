@@ -18,18 +18,18 @@
 #include "../shared_tests_instances/skip_tests_check.hpp"
 
 using namespace ngraph;
-using namespace ngraph::opset1;
+using namespace ngraph::opset7;
 
 namespace LayerTestsDefinitions {
 
 enum class modelType {
-    TranspConvTransp = 0,               /* Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) */
-    TranspConvBcastAddTransp,           /* Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => Transpose(NCHW->NHWC) */
-    TranspConvBcastAddMaxPoolTransp,    /* Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPooling => Transpose(NCHW->NHWC) (2d max pool case) */
-    TranspConvBcastAddActTransp,        /* Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => ActivationFunction => Transpose(NCHW->NHWC) */
-    TranspConvBcastAddMaxPoolActTransp, /* Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPool => ActivationFunction => Transpose(NCHW->NHWC) */
-    TranspConvTranspBcastAdd,           /* Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS (output of MO --disable_nhwc_to_nchw option) */
-    TranspConvTranspBcastAddAct         /* Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS => AF (output of MO --disable_nhwc_to_nchw option) */
+    TranspConvTransp = 0,               /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) */
+    TranspConvBcastAddTransp,           /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Transpose(NCHW->NHWC) */
+    TranspConvBcastAddMaxPoolTransp,    /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPooling => Transpose(NCHW->NHWC) (2D Max Pool case) */
+    TranspConvBcastAddActTransp,        /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Activation Function => Transpose(NCHW->NHWC) */
+    TranspConvBcastAddMaxPoolActTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPool => Activation Function => Transpose(NCHW->NHWC) */
+    TranspConvTranspBcastAdd,           /* Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => Bias */
+    TranspConvTranspBcastAddAct         /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) => Bias => Activation Function */
 };
 
 typedef std::tuple<
@@ -102,7 +102,7 @@ public:
 
 protected:
     void SetUp() override {
-        threshold = 0.015;
+        threshold = 0.015f;
         convSpecificParams convParams;
         miscSpecificParams miscParams;
         InferenceEngine::Precision netPrecision;
@@ -125,7 +125,7 @@ protected:
         auto input = builder::makeParams(ngPrc, { inputShape });
         auto transposeInOrder = op::Constant::create(element::i64, Shape{ 4 }, { 0, 3, 1, 2 });
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
-        auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
+        auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());
         auto filterWeights = CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.05f, 0.05f);
         auto conv = builder::makeConvolution(transposeIn, ngPrc, kernel, stride, padBegin,
             padEnd, dilation, padType, numOutChannels, false, filterWeights);
