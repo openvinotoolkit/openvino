@@ -1625,5 +1625,9 @@ IE_CPU.deformable_convolution_2D_real_offsets_groups_complex
 IE_CPU.deformable_convolution_2D_real_offsets_groups_and_deforgroups
 
 # No plugin support for AdaptiveAvgPool and AdaptiveMaxPool
+adaptive_avg_pool_1d
 adaptive_avg_pool_2d
+adaptive_avg_pool_3d
+adaptive_max_pool_1d
 adaptive_max_pool_2d
+adaptive_max_pool_3d
