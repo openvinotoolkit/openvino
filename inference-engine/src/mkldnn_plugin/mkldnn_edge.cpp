@@ -125,14 +125,6 @@ void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
     status = Status::Allocated;
 }
 
-InferenceEngine::TensorDesc MKLDNNEdge::getTensorDesc() {
-    if (!getInputDesc().isCompatible(getOutputDesc()))
-        IE_THROW() << "Cannot get descriptor for edge: " << getParent()->getName() << "->"
-                           << getChild()->getName();
-
-    return MemoryDescUtils::convertToTensorDesc(getInputDesc());
-}
-
 int MKLDNNEdge::getInputNum() const {
     return parent_port;
 }
@@ -308,6 +300,14 @@ const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
     return *(inConfs[outputIdx].desc);
 }
 
+const MemoryDesc& MKLDNNEdge::getDesc() const {
+    if (!getInputDesc().isCompatible(getOutputDesc()))
+        IE_THROW() << "Cannot get descriptor for edge: " << getParent()->getName() << "->"
+                   << getChild()->getName();
+
+    return getInputDesc();
+}
+
 const MKLDNNMemory &MKLDNNEdge::getMemory() {
     if (status == Status::NotAllocated) {
         memoryPtr.reset(new MKLDNNMemory(getParent()->getEngine()));
@@ -328,19 +328,6 @@ MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
     }
 
     return memoryPtr;
-}
-
-InferenceEngine::Blob::Ptr MKLDNNEdge::getBlob() {
-    if (!memoryPtr)
-        IE_THROW() << "Cannot get blob! Edge isn't initialized.";
-    InferenceEngine::TensorDesc desc = getTensorDesc();
-
-    if (desc.getLayout() == InferenceEngine::Layout::ANY)
-        desc = InferenceEngine::TensorDesc(desc.getPrecision(), getShape().getStaticDims(), desc.getLayout());
-    else
-        desc = InferenceEngine::TensorDesc(desc.getPrecision(), getShape().getStaticDims(), desc.getBlockingDesc());
-
-    return isEmptyTensorDesc(desc) ? make_blob_with_precision(desc) : make_blob_with_precision(desc, memoryPtr->GetData());
 }
 
 void MKLDNNEdge::sharedMemFrom(const MKLDNNEdgePtr &edge) {

@@ -232,6 +232,7 @@ private:
     std::vector<MKLDNNNodePtr> mutableGraphNodes;
 
     void EnforceBF16();
+    InferenceEngine::Blob::Ptr convertMemToBlob(const MKLDNNMemory& mem) const;
 };
 
 }  // namespace MKLDNNPlugin

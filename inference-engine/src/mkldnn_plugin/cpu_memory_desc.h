@@ -42,6 +42,9 @@ public:
     // Checks that all dimensions, offsets, strides, etc are defined (!= UNDEFINED_DIM)
     virtual bool isDefined() const = 0;
 
+    // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding, layout, blocking etc.
+    virtual size_t getOffset(size_t elemNumber) const = 0;
+
     // TODO [DS]: Can we generalize this? Like isCompatible(format::ncsp) or smt like that.
     bool isPlainFormat() const {
         IE_THROW() << "[DS] Unimplemented";
@@ -71,7 +74,7 @@ public:
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
             typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
     const T* as() const {
-        T* casted = dynamic_cast<T*>(this);
+        const T* casted = dynamic_cast<const T*>(this);
         if (!casted)
             IE_THROW() << "Cannot dynamically cast MemoryDesc";
         return casted;
@@ -94,6 +97,7 @@ protected:
 
 public:
     static constexpr size_t UNDEFINED_SIZE = std::numeric_limits<size_t>::max();
+
 protected:
     MemoryDescType type;
     Shape shape;

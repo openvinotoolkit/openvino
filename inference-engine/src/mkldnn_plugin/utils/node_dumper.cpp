@@ -65,15 +65,16 @@ void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
         auto dump_file = dumpDirName + "/#" + exec_order + "_" + file_name;
         std::cout << "Dump inputs: " << dump_file << std::endl;
 
-        TensorDesc desc = prEdge->getDesc();
+        auto& desc = prEdge->getMemory().GetDesc();
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        BlobDumper dumper(prEdge->getBlob());
-        if (pr->ext_scales)
-            dumper.withScales(pr->ext_scales);
-
-        dump(dumper, dump_file);
+        // TODO [mkutakov]: rewrite BlobDumper to use MKLDNNMemory
+//        BlobDumper dumper(prEdge->getBlob());
+//        if (pr->ext_scales)
+//            dumper.withScales(pr->ext_scales);
+//
+//        dump(dumper, dump_file);
     }
 
     dumpInternalBlobs(node);
@@ -101,15 +102,16 @@ void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node) const {
         auto dump_file = dumpDirName + "/#" + exec_order + "_" + file_name;
         std::cout << "Dump outputs:  " << dump_file << std::endl;
 
-        TensorDesc desc = childEdge->getDesc();
+        auto& desc = childEdge->getMemory().GetDesc();
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        BlobDumper dumper(childEdge->getBlob());
-        if (node->ext_scales)
-            dumper.withScales(node->ext_scales);
-
-        dump(dumper, dump_file);
+        // TODO [mkutakov]: rewrite BlobDumper to use MKLDNNMemory
+//        BlobDumper dumper(childEdge->getBlob());
+//        if (node->ext_scales)
+//            dumper.withScales(node->ext_scales);
+//
+//        dump(dumper, dump_file);
     }
 }
 

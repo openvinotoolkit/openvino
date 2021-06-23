@@ -245,15 +245,17 @@ void MKLDNNSplitNode::createPrimitive() {
     if (axis != 1)
         canUseOptimizedNspc2Ncsp = false;
 
-    if (getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NHWC &&
-        getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NDHWC)
-        canUseOptimizedNspc2Ncsp = false;
+    // TODO [mkutakov]: rewrite using MemDesc and layout check functions
 
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
-        if (getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCHW &&
-            getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCDHW)
-            canUseOptimizedNspc2Ncsp = false;
-    }
+//    if (getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NHWC &&
+//        getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NDHWC)
+//        canUseOptimizedNspc2Ncsp = false;
+//
+//    for (size_t i = 0; i < getChildEdges().size(); i++) {
+//        if (getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCHW &&
+//            getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCDHW)
+//            canUseOptimizedNspc2Ncsp = false;
+//    }
 
     if (!isOptimized()) {
         initializeDstMemPtrs();
@@ -531,8 +533,9 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
         auto outputEdge = this->getChildEdgesAtPort(i).front();
         optimizedParams.dataSize[i] = srcDataSize;
 
+        auto desc = outputEdge->getMemory().GetDesc().as<BlockedMemoryDesc>();
         for (size_t j = axisOrderPos; j < getRank; j++)
-            optimizedParams.dataSize[i] *= outputEdge->getTensorDesc().getBlockingDesc().getBlockDims()[j];
+            optimizedParams.dataSize[i] *= desc->getBlockDims()[j];
 
         optimizedParams.srcDataStride += optimizedParams.dataSize[i];
     }
@@ -553,9 +556,9 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     const size_t H = parentDims[rank - 2];
     const size_t W = parentDims[rank - 1];
 
-    auto srcBlob = parentEdge->getBlob();
-    auto srcData = srcBlob->cbuffer().as<const uint8_t*>();
-    const auto dataSize = srcBlob->getTensorDesc().getPrecision().size();
+    auto srcMem = parentEdge->getMemory();
+    auto srcData = reinterpret_cast<const uint8_t*>(srcMem.GetPtr());
+    const auto dataSize = srcMem.GetDesc().getPrecision().size();
 
     const size_t DHW = D*H*W;
     const size_t strideIB = DHW * IC * dataSize;
@@ -571,7 +574,7 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
         for (size_t j = axis; j < dims.size(); j++) {
             innerSize *= dims[j];
         }
-        auto srcPtr = srcData + srcBlob->getTensorDesc().offset(sIdx) * dataSize;
+        auto srcPtr = srcData + srcMem.GetDesc().getOffset(sIdx) * dataSize;
 
         const size_t OC = dims[1];
         const size_t strideOB = OC * strideOC;

@@ -617,22 +617,7 @@ void MKLDNNGraph::AllocateWithReuse() {
             int e_start = edge->getParent()->execIndex;
             int e_finish = edge->getChild()->execIndex;
 
-            const BlockingDesc block_desk = edge->getTensorDesc().getBlockingDesc();
-
-            int64_t e_size = block_desk.getOffsetPadding() + 1;  // size in bytes (from begin of data to last element)
-            for (int j = 0; j < block_desk.getBlockDims().size(); j++)
-                e_size += (block_desk.getBlockDims()[j] - 1) * block_desk.getStrides()[j];
-
-            // In some cases computational formula above doesn't work properly (e.g. for OhIw8o4i layout).
-            // This WA allows to limit the size of allocated memory from below.
-            // TODO: need to properly investigate the root cause of incorrect computations
-            int64_t min_size = 1;
-            for (int64_t dim : block_desk.getBlockDims()) {
-                min_size *= dim;
-            }
-            e_size = std::max(e_size, min_size);
-
-            e_size *= edge->getTensorDesc().getPrecision() == Precision::BIN ? 1 : edge->getTensorDesc().getPrecision().size();
+            int64_t e_size = edge->getDesc().getMemSize();  // size in bytes (from begin of data to last element)
 
             box.start = std::min(e_start, box.start);
             box.finish = std::max(e_finish, box.finish);
@@ -791,7 +776,7 @@ void MKLDNNGraph::PullOutputData(const BlobMap &out) {
             MB_to_process = std::min<int>(config.batchLimit, MB_to_process);
         size_t size_to_copy = intr_blob.GetElementsCount() * MB_to_process / MB;
 
-        const auto actualDesc = node->getParentEdgeAt(0)->getTensorDesc();
+        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(node->getParentEdgeAt(0)->getDesc());
         const auto expectedDesc = ext_blob->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
@@ -1157,8 +1142,8 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
     // Using the method MKLDNNEdge::getTensorDesc() we can check that input and output tensor descriptors are equal.
     // Due to the specificity of MKLDNNGraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't do these checks.
     if (!isOptimized) {
-        newReorder->getParentEdgeAt(0)->getTensorDesc();
-        newReorder->getChildEdgeAt(0)->getTensorDesc();
+        newReorder->getParentEdgeAt(0)->getDesc();
+        newReorder->getChildEdgeAt(0)->getDesc();
     }
 
     return newReorder;
@@ -1233,4 +1218,13 @@ void MKLDNNGraph::EnforceBF16() {
 
 InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
+}
+
+InferenceEngine::Blob::Ptr MKLDNNGraph::convertMemToBlob(const MKLDNNMemory &mem) const {
+    // TODO [mkutakov]: Rewrite when IE is moved to the new TensorDescriptor
+    auto& memDesc = mem.GetDesc();
+    InferenceEngine::TensorDesc desc = MemoryDescUtils::convertToTensorDesc(memDesc);
+
+    desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
+    return isEmptyTensorDesc(desc) ? make_blob_with_precision(desc) : make_blob_with_precision(desc, mem.GetData());
 }
