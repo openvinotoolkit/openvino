@@ -15,15 +15,14 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::DeformableConvolutionBase, "DeformableConvolutionBase", 0);
 
-op::util::DeformableConvolutionBase::DeformableConvolutionBase(
-        const OutputVector& arguments,
-                                                     const Strides& strides,
-                                                     const CoordinateDiff& pads_begin,
-                                                     const CoordinateDiff& pads_end,
-                                                     const Strides& dilations,
-                                                     const PadType& auto_pad,
-                                                     const int64_t group,
-                                                     const int64_t deformable_group)
+op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputVector& arguments,
+                                                               const Strides& strides,
+                                                               const CoordinateDiff& pads_begin,
+                                                               const CoordinateDiff& pads_end,
+                                                               const Strides& dilations,
+                                                               const PadType& auto_pad,
+                                                               const int64_t group,
+                                                               const int64_t deformable_group)
     : Op(arguments)
     , m_strides(strides)
     , m_dilations(dilations)

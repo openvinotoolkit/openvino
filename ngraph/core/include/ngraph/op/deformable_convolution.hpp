@@ -54,14 +54,15 @@ namespace ngraph
                                       const int64_t group = 1,
                                       const int64_t deformable_group = 1);
 
-                std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
             };
         } // namespace v1
 
-
         namespace v8
         {
-            class NGRAPH_API DeformableConvolution : public op::util::DeformableConvolutionBase {
+            class NGRAPH_API DeformableConvolution : public op::util::DeformableConvolutionBase
+            {
             public:
                 NGRAPH_RTTI_DECLARATION;
 
@@ -111,23 +112,30 @@ namespace ngraph
                                       const PadType& auto_pad = PadType::EXPLICIT,
                                       const int64_t group = 1,
                                       const int64_t deformable_group = 1,
-                                      const bool use_bilinear_interpolation_padding = false
-                                      );
+                                      const bool use_bilinear_interpolation_padding = false);
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 void validate_and_infer_types() override;
 
-                std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
 
-/*                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override { return true; }*/
-                bool get_use_bilinear_interpolation_padding() const { return m_use_bilinear_interpolation_padding; }
-                void set_use_bilinear_interpolation_padding(const bool use_bilinear_interpolation_padding) { m_use_bilinear_interpolation_padding = use_bilinear_interpolation_padding; }
+                /*                bool evaluate(const HostTensorVector& outputs,
+                                              const HostTensorVector& inputs) const override;
+                                bool has_evaluate() const override { return true; }*/
+                bool get_use_bilinear_interpolation_padding() const
+                {
+                    return m_use_bilinear_interpolation_padding;
+                }
+                void set_use_bilinear_interpolation_padding(
+                    const bool use_bilinear_interpolation_padding)
+                {
+                    m_use_bilinear_interpolation_padding = use_bilinear_interpolation_padding;
+                }
+
             private:
                 int64_t m_use_bilinear_interpolation_padding;
-
             };
-        }
+        } // namespace v8
     }     // namespace op
 } // namespace ngraph
