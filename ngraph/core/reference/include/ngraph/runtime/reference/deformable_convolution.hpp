@@ -221,7 +221,6 @@ namespace ngraph
 
                 const Shape group_offset_shape =
                     shape_scale(shape_reduce(o_shape), deformable_groups);
-                const size_t group_offset_size = shape_size(group_offset_shape);
                 const size_t group_offset_batch_size = shape_size(shape_reduce(o_shape));
 
                 const size_t group_filters_count = f_shape[filter_out_ch_axis] / groups;
