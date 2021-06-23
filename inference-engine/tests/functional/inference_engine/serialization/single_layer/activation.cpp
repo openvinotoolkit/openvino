@@ -52,6 +52,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Ceiling,               {}},
         {Mish,                  {}},
         {HSwish,                {}},
+        {Swish,                 {{0.3f}}},
         {SoftPlus,              {}},
         {HSigmoid,              {}},
         {RoundHalfToEven,       {}},

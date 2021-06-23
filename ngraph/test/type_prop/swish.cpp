@@ -81,3 +81,17 @@ TEST(type_prop, swish_2_inputs)
     ASSERT_TRUE(swish_func->get_output_partial_shape(0).same_scheme(data->get_output_shape(0)));
     ASSERT_TRUE(swish_func->get_output_partial_shape(0).rank().is_static());
 }
+
+TEST(type_prop, swish_incompatible_type_boolean)
+{
+    auto data = make_shared<op::Parameter>(element::boolean, Shape{1, 3, 6});
+    auto beta = make_shared<op::Parameter>(element::f32, Shape{});
+    ASSERT_THROW(make_shared<op::v4::Swish>(data, beta);, ngraph::NodeValidationFailure);
+}
+
+TEST(type_prop, swish_incompatible_types_u32)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
+    auto beta = make_shared<op::Parameter>(element::u32, Shape{});
+    ASSERT_THROW(make_shared<op::v4::Swish>(data, beta);, ngraph::NodeValidationFailure);
+}

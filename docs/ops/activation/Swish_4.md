@@ -9,7 +9,8 @@
 **Detailed description**
 
 *Swish* operation is introduced in this [article](https://arxiv.org/abs/1710.05941).
-It performs element-wise activation function on a given input tensor, based on the following mathematical formula:
+
+*Swish* is a smooth, non-monotonic function. The non-monotonicity property of *Swish* distinguishes itself from most common activation functions. It performs element-wise activation function on a given input tensor,  based on the following mathematical formula:
 
 \f[
 Swish(x) = x\cdot \sigma(\beta x) = x \left(1 + e^{-(\beta x)}\right)^{-1}
