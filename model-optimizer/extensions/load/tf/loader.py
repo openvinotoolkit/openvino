@@ -106,7 +106,7 @@ class TFLoader(Loader):
 
         # try to detect layout from the nodes of the graph. If there are no convolution nodes in N(D)HWC layout then we
         # consider that the graph is in NCHW layout and no layout conversion should be performed
-        if not argv.force_nhwc_to_nchw:
+        if not argv.force_nhwc_to_nchw and not argv.disable_nhwc_to_nchw:
             NHWC_conv_detected = graph_or_sub_graph_has_nhwc_ops(graph)
             if not NHWC_conv_detected:
                 if not argv.silent and not argv.disable_nhwc_to_nchw:
