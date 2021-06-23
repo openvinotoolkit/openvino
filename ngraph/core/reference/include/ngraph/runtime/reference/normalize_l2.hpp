@@ -25,9 +25,17 @@ namespace ngraph
                 AxisSet axes = reduction_axes;
                 if (reduction_axes.empty())
                 {
-                    std::vector<size_t> axes_vec(data_shape.size());
-                    std::iota(axes_vec.begin(), axes_vec.end(), 0);
-                    axes = AxisSet(axes_vec);
+                    // One of the corner cases is when axes is an empty list,
+                    // then we divide each input element by itself resulting value 1 for all
+                    // non-zero elements
+                    for (size_t i = 0; i < shape_size(data_shape); ++i)
+                    {
+                        T zero = 0;
+                        const bool is_equal_zero =
+                            std::fabs(data[i] - zero) <= std::numeric_limits<T>::epsilon();
+                        out[i] = is_equal_zero ? zero : static_cast<T>(1);
+                    }
+                    return;
                 }
                 std::vector<T> sqr_data(shape_size(data_shape));
                 for (size_t i = 0; i < shape_size(data_shape); i++)
