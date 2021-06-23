@@ -151,7 +151,7 @@ struct GnaConv2DNegativeTest##whats_wrong : GnaConv2DNegativeTest {             
 TEST_P(GnaConv2DNegativeTest##whats_wrong, ThrowAsNotSupported) {                                               \
     Run();                                                                                                      \
 }                                                                                                               \
-INSTANTIATE_TEST_CASE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaConv2DNegativeTest##whats_wrong,    \
+INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaConv2DNegativeTest##whats_wrong,    \
 ::testing::Combine(                                                                                             \
     conv2DParameters##suffix_params,                                                                            \
     ::testing::ValuesIn(netPrecisions),                                                                         \

@@ -134,11 +134,8 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
 template<typename T>
 static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node> node) {
     if (auto op = std::dynamic_pointer_cast<const T>(node)) {
-        auto reduction_axes = op->get_reduction_axes().to_vector();
-        bool reduce_along_f = op->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
         bool fp16_batch_not_1 = op->get_element_type() == ngraph::element::f16 && op->input(0).get_shape()[0] != 1;
-        bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
-        return can_use_reduce;
+        return !fp16_batch_not_1;
     }
     return false;
 }

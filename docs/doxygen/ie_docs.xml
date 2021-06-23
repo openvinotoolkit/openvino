@@ -60,6 +60,8 @@ limitations under the License.
                             <tab type="user" title="Convert PyTorch* RNN-T Model " url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RNNT"/>
                             <tab type="user" title="Convert PyTorch* YOLACT Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT"/>
                             <tab type="user" title="Convert PyTorch* F3Net Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net"/>
+                            <tab type="user" title="Convert PyTorch* RCAN Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN">
+                            <tab type="user" title="Convert PyTorch* BERT-NER Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner"/>
                             </tab>
                         </tab>
                         <tab type="user" title="Model Optimizations Techniques" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques"/>
@@ -283,6 +285,7 @@ limitations under the License.
                 <tab type="user" title="Inference Engine API Changes History" url="@ref openvino_docs_IE_DG_API_Changes"/>
                 <tab type="user" title="Inference Engine Memory primitives" url="@ref openvino_docs_IE_DG_Memory_primitives"/>
                 <tab type="user" title="Inference Engine Device Query API" url="@ref openvino_docs_IE_DG_InferenceEngine_QueryAPI"/>
+                <tab type="user" title="Inference Engine Model Caching" url="@ref openvino_docs_IE_DG_Model_caching_overview"/>
                 <tab type="usergroup" title="Inference Engine Extensibility Mechanism" url="@ref openvino_docs_IE_DG_Extensibility_DG_Intro">
                     <tab type="user" title="Extension Library" url="@ref openvino_docs_IE_DG_Extensibility_DG_Extension"/>
                     <tab type="user" title="Custom Operations" url="@ref openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps"/>

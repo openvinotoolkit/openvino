@@ -102,6 +102,8 @@ set(SRC
     tensor.cpp
     type_prop/abs.cpp
     type_prop/acos.cpp
+    type_prop/adaptive_avg_pool.cpp
+    type_prop/adaptive_max_pool.cpp
     type_prop/asin.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
@@ -230,6 +232,8 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/adaptive_avg_pool.cpp
+    visitors/op/adaptive_max_pool.cpp
     visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
     visitors/op/broadcast.cpp
@@ -286,6 +290,7 @@ set(SRC
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
+    visitors/op/round.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/softmax.cpp
@@ -297,6 +302,7 @@ set(SRC
     visitors/op/squeeze.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/swish.cpp
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
@@ -473,6 +479,7 @@ set(MULTI_TEST_SRC
     backend/squared_difference.in.cpp
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
+    backend/swish.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
     backend/tile.in.cpp

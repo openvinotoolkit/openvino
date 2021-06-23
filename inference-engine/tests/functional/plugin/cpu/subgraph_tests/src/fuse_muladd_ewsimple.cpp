@@ -59,7 +59,7 @@ TEST_P(FuseMulAddAndEwSimpleTest1, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic, FuseMulAddAndEwSimpleTest1, mulAddAndEwSimpleCommonParams, FuseMulAddAndEwSimpleTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseMulAddAndEwSimpleTest1, mulAddAndEwSimpleCommonParams, FuseMulAddAndEwSimpleTest::getTestCaseName);
 
 
 // Fused EltwiseAndSimple comes on the 2nd input into MulAdd
@@ -84,7 +84,7 @@ TEST_P(FuseMulAddAndEwSimpleTest2, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic, FuseMulAddAndEwSimpleTest2, mulAddAndEwSimpleCommonParams, FuseMulAddAndEwSimpleTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseMulAddAndEwSimpleTest2, mulAddAndEwSimpleCommonParams, FuseMulAddAndEwSimpleTest::getTestCaseName);
 
 
 // Fused MulAdd with more than 3 inputs
@@ -108,5 +108,5 @@ TEST_P(FuseMulAddAndEwSimpleTest3, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic, FuseMulAddAndEwSimpleTest3, mulAddAndEwSimpleCommonParams, FuseMulAddAndEwSimpleTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseMulAddAndEwSimpleTest3, mulAddAndEwSimpleCommonParams, FuseMulAddAndEwSimpleTest::getTestCaseName);
 }  // namespace SubgraphTestsDefinitions
