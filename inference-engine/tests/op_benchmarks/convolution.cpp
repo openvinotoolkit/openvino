@@ -11,9 +11,12 @@
 using namespace ngraph;
 
 namespace {
+// helper type needed to use templated benchmarks feature
 enum class DeviceType { CPU, TEMPLATE };
+
+// description of Convolution input/output tensors & attributes
 template <typename T>
-struct BenchmarkConfig {
+struct ConvolutionConfiguration {
     Strides strides;
     CoordinateDiff pads_begin;
     CoordinateDiff pads_end;
@@ -23,12 +26,13 @@ struct BenchmarkConfig {
     Shape filter_shape;
     std::vector<T> filters;
     Shape outputs_shape;
-    std::vector<T> outputs;
     op::PadType auto_pad;
 };
 
+// creates ngraph::Function with single Convolution node
 template <typename T>
-std::shared_ptr<ngraph::Function> getFunction(const BenchmarkConfig<T>& cfg) {
+std::shared_ptr<ngraph::Function> ConvolutionModel(
+    const ConvolutionConfiguration<T>& cfg) {
     auto inputs_param =
         std::make_shared<op::Parameter>(element::f32, cfg.inputs_shape);
     inputs_param->set_friendly_name("inputs");
@@ -43,42 +47,35 @@ std::shared_ptr<ngraph::Function> getFunction(const BenchmarkConfig<T>& cfg) {
         conv, ParameterVector{inputs_param, filters_param});
 }
 
-BenchmarkConfig<float> getConfig() {
+// creates configuration used in ConvolutionModel() benchmarking
+ConvolutionConfiguration<float> ConvolutionModelConfiguration() {
     using T = float;
 
-    BenchmarkConfig<T> cfg;
+    // specific configuration for benchmarks bellow
+    ConvolutionConfiguration<T> cfg;
     cfg.strides = Strides{1, 1};
     cfg.pads_begin = cfg.pads_end = CoordinateDiff{0, 0};
     cfg.dilations = Strides{1, 1};
     cfg.auto_pad = op::PadType::EXPLICIT;
-
-#if 1
     cfg.inputs_shape = Shape{1, 1, 512, 512};
     cfg.inputs = std::vector<T>(shape_size(cfg.inputs_shape));
     std::iota(cfg.inputs.begin(), cfg.inputs.end(), 0);
-    cfg.outputs_shape =
-        Shape{1, 1, cfg.inputs_shape[2] - 2, cfg.inputs_shape[3] - 2};
-    cfg.outputs = std::vector<T>(shape_size(cfg.outputs_shape));
-#else
-    cfg.inputs_shape = Shape{1, 1, 4, 4};
-    cfg.inputs = std::vector<T>{1.0f, 3.0f, 5.0f, 7.0f, 7.0f, 5.0f, 3.0f, 1.0f,
-                                2.0f, 4.0f, 6.0f, 8.0f, 8.0f, 6.0f, 4.0f, 2.0f};
-    cfg.outputs_shape = Shape{1, 1, 2, 2};
-    cfg.outputs = std::vector<T>{47.0f, 69.0f, 70.0f, 48.0f};
-#endif
     cfg.filter_shape = Shape{1, 1, 3, 3};
     cfg.filters =
         std::vector<T>{1.0f, 2.0f, 3.0f, 0.0f, 1.0f, 0.0f, 3.0f, 2.0f, 1.0f};
+    cfg.outputs_shape =
+        Shape{1, 1, cfg.inputs_shape[2] - 2, cfg.inputs_shape[3] - 2};
 
     return cfg;
 }
+
 }  // namespace
 
 // benchmark for pure runtime::reference::convolution()
 // (can be written if there is no evaluate())
 static void convolution_2D_reference(benchmark::State& state) {
     // setup
-    const auto cfg = getConfig();
+    const auto cfg = ConvolutionModelConfiguration();
     std::vector<float> out(shape_size(cfg.outputs_shape));
 
     // benchmark
@@ -91,32 +88,20 @@ static void convolution_2D_reference(benchmark::State& state) {
 
         benchmark::ClobberMemory();
     }
-
-// sanity check: generated output should be the same as expected
-#if 0
-    for (size_t i = 0; i < cfg.outputs.size(); i++) {
-        if (cfg.outputs[i] != out[i]) {
-            std::cout << "convolution_2D_reference failed!" << std::endl;
-            exit(-1);
-        }
-    }
-#endif
 }
 BENCHMARK(convolution_2D_reference)->Unit(benchmark::kMicrosecond);
 
 // benchmark for InferenceEngine::InferRequest::Infer()
-// (can be used for plugins & reference if it has evaluate() via TEMPLATE plugin)
+// (can be used for plugins & reference if it has evaluate() via TEMPLATE
+// plugin)
 template <DeviceType dev>
 static void convolution_2D_plugin(benchmark::State& state) {
-    using namespace InferenceEngine;
-
     // setup
-    const auto cfg = getConfig();
-    const auto f = getFunction(cfg);
-
+    const auto cfg = ConvolutionModelConfiguration();
+    const auto f = ConvolutionModel(cfg);
     const auto network = InferenceEngine::CNNNetwork(f);
     InferenceEngine::Core ie;
-    auto exe_network = dev == DeviceType::TEMPLATE
+    auto exe_network = (dev == DeviceType::TEMPLATE)
                            ? ie.LoadNetwork(network, "TEMPLATE")
                            : ie.LoadNetwork(network, "CPU");
     auto inference_req = exe_network.CreateInferRequest();
@@ -138,7 +123,8 @@ static void convolution_2D_plugin(benchmark::State& state) {
     }
 
     {
-        DataPtr output_info = network.getOutputsInfo()["convolution"];
+        InferenceEngine::DataPtr output_info =
+            network.getOutputsInfo()["convolution"];
         output_info->setPrecision(InferenceEngine::Precision::FP32);
     }
 
@@ -146,22 +132,7 @@ static void convolution_2D_plugin(benchmark::State& state) {
     for (auto _ : state) {
         inference_req.Infer();
     }
-
-// sanity check: generated output should be the same as expected
-#if 0   
-    auto output_blob = inference_req.GetBlob("convolution");
-    auto const memLocker = output_blob->cbuffer();  // use const memory locker
-    const float* out = memLocker.as<const float*>();
-     
-    for (size_t i = 0; i < cfg.outputs.size(); i++) {
-        if (cfg.outputs[i] != out[i]) {
-            std::cout << "convolution_2D_template_plugin failed!" << std::endl;
-            exit(-1);
-        }
-    }
-#endif
 }
-
 BENCHMARK_TEMPLATE(convolution_2D_plugin, DeviceType::TEMPLATE)
     ->Unit(benchmark::kMicrosecond);
 BENCHMARK_TEMPLATE(convolution_2D_plugin, DeviceType::CPU)
