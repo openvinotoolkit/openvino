@@ -22,6 +22,9 @@ using namespace ngraph::frontend;
 
 ////////////////////////////////
 
+/// \brief This structure holds number of calls of particular methods of Place objects
+/// It will be used by Python unit tests to verify that appropriate API
+/// was called with correct arguments during test execution
 struct MOCK_API PlaceStat
 {
     int m_get_names = 0;
@@ -50,15 +53,24 @@ struct MOCK_API PlaceStat
     Place::Ptr get_lastArgPlace() const { return m_lastArgPlace; }
 };
 
+/// \brief Mock implementation of Place
+/// Every call increments appropriate counters in statistic and stores argument values to statistics
+/// as well
 class MOCK_API PlaceMockPy : public Place
 {
     static PlaceStat m_stat;
+    std::string m_name;
 
 public:
+    PlaceMockPy(const std::string& name = {})
+        : m_name(name)
+    {
+    }
+
     std::vector<std::string> get_names() const override
     {
         m_stat.m_get_names++;
-        return {};
+        return {m_name};
     }
 
     Place::Ptr get_input_port() const override
@@ -124,20 +136,20 @@ public:
     bool is_input() const override
     {
         m_stat.m_is_input++;
-        return false;
+        return m_name.find("input") != std::string::npos;
     }
 
     bool is_output() const override
     {
         m_stat.m_is_output++;
-        return false;
+        return m_name.find("output") != std::string::npos;
     }
 
     bool is_equal(Ptr another) const override
     {
         m_stat.m_is_equal++;
         m_stat.m_lastArgPlace = another;
-        return false;
+        return m_name == another->get_names().at(0);
     }
 
     //---------------Stat--------------------
@@ -147,6 +159,9 @@ public:
 
 ////////////////////////////////
 
+/// \brief This structure holds number of calls of particular methods of InputModel objects
+/// It will be used by Python unit tests to verify that appropriate API
+/// was called with correct arguments during test execution
 struct MOCK_API ModelStat
 {
     int m_get_inputs = 0;
@@ -190,6 +205,10 @@ struct MOCK_API ModelStat
     ngraph::PartialShape get_lastArgPartialShape() const { return m_lastArgPartialShape; }
 };
 
+/// \brief Mock implementation of InputModel
+/// Every call increments appropriate counters in statistic and stores argument values to statistics
+/// as well
+/// ("mock_output1", "mock_output2")
 class MOCK_API InputModelMockPy : public InputModel
 {
     static ModelStat m_stat;
@@ -199,20 +218,22 @@ public:
     std::vector<Place::Ptr> get_inputs() const override
     {
         m_stat.m_get_inputs++;
-        return {std::make_shared<PlaceMockPy>()};
+        return {std::make_shared<PlaceMockPy>("mock_input1"),
+                std::make_shared<PlaceMockPy>("mock_input2")};
     }
 
     std::vector<Place::Ptr> get_outputs() const override
     {
         m_stat.m_get_outputs++;
-        return {std::make_shared<PlaceMockPy>()};
+        return {std::make_shared<PlaceMockPy>("mock_output1"),
+                std::make_shared<PlaceMockPy>("mock_output2")};
     }
 
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override
     {
         m_stat.m_get_place_by_tensor_name++;
         m_stat.m_lastArgString = tensorName;
-        return std::make_shared<PlaceMockPy>();
+        return std::make_shared<PlaceMockPy>(tensorName);
     }
 
     void override_all_outputs(const std::vector<Place::Ptr>& outputs) override
@@ -266,6 +287,9 @@ public:
 
 /////////////////////////////////////////////////////////
 
+/// \brief This structure holds number of calls of particular methods of FrontEnd objects
+/// It will be used by Python unit tests to verify that appropriate API
+/// was called with correct arguments during test execution
 struct MOCK_API FeStat
 {
     FrontEndCapFlags m_load_flags;
@@ -277,6 +301,9 @@ struct MOCK_API FeStat
     int convert_model() const { return m_convert_model; }
 };
 
+/// \brief Mock implementation of FrontEnd
+/// Every call increments appropriate counters in statistic and stores argument values to statistics
+/// as well
 class MOCK_API FrontEndMockPy : public FrontEnd
 {
     static FeStat m_stat;
@@ -297,5 +324,6 @@ public:
     }
 
     static FeStat get_stat() { return m_stat; }
+
     static void clear_stat() { m_stat = {}; }
 };

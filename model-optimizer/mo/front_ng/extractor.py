@@ -16,7 +16,7 @@ from ngraph.frontend import InputModel  # pylint: disable=no-name-in-module,impo
 def decode_name_with_port(input_model: InputModel, node_name: str):
     """
     Decode name with optional port specification w/o traversing all the nodes in the graph
-    TODO: in future node_name can specify input/output port groups and indexes
+    TODO: in future node_name can specify input/output port groups and indices (58562)
     :param input_model: Input Model
     :param node_name: user provided node name
     :return: decoded place in the graph
@@ -26,8 +26,8 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     if node:
         return node
 
-    # TODO: Add support for input/output group name and port index here
-    # Legacy frontends use format "number:name:number" to specify input and output port indexes
+    # TODO: Add support for input/output group name and port index here (58562)
+    # Legacy frontends use format "number:name:number" to specify input and output port indices
     # For new frontends this logic shall be extended to additionally support input and output group names
     raise Error('There is no node with name {}'.format(node_name))
 
@@ -89,7 +89,7 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
         _input_shapes.append({'node': model_inputs[0], 'shape': input_user_shapes})
     else:
         assert input_user_shapes is None
-    # TODO: implement freeze_placeholder
+    # TODO: implement freeze_placeholder (issue 58560)
     return _input_shapes, dict()
 
 

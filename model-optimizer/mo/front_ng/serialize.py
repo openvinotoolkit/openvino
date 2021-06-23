@@ -27,7 +27,6 @@ def ngraph_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
                    mean_data=None,
                    input_names=None)
 
-    print('[ SUCCESS ] Converted with nGraph Serializer')
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
     print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))

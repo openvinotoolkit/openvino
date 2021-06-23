@@ -13,12 +13,11 @@ from mo.utils.error import FrameworkError
 ngraph_available = True
 try:
     from mo.main import main
-
 except Exception:
     ngraph_available = False
 
 ngraph_needed = pytest.mark.skipif(not ngraph_available,
-                                 reason="mock MO fe is not available")
+                                   reason="mock MO fe is not available")
 
 
 class TestMainErrors(unittest.TestCase):

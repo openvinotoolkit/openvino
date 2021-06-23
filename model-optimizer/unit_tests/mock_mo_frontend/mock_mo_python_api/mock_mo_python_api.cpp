@@ -13,8 +13,8 @@ using namespace ngraph::frontend;
 
 static void register_mock_frontend_stat(py::module m)
 {
-    m.def("get_fe_stat", &FrontEndMockPy::get_stat);
-    m.def("clear_fe_stat", &FrontEndMockPy::clear_stat);
+    m.def("get_frontend_statistic", &FrontEndMockPy::get_stat);
+    m.def("clear_frontend_statistic", &FrontEndMockPy::clear_stat);
 
     py::class_<FeStat> feStat(m, "FeStat", py::dynamic_attr());
     feStat.def_property_readonly("load_flags", &FeStat::load_flags);
@@ -24,8 +24,8 @@ static void register_mock_frontend_stat(py::module m)
 
 static void register_mock_model_stat(py::module m)
 {
-    m.def("get_mdl_stat", &InputModelMockPy::get_stat);
-    m.def("clear_mdl_stat", &InputModelMockPy::clear_stat);
+    m.def("get_model_statistic", &InputModelMockPy::get_stat);
+    m.def("clear_model_statistic", &InputModelMockPy::clear_stat);
     m.def("mock_return_partial_shape", &InputModelMockPy::mock_return_partial_shape);
 
     py::class_<ModelStat> mdlStat(m, "ModelStat", py::dynamic_attr());
@@ -52,8 +52,8 @@ static void register_mock_model_stat(py::module m)
 
 static void register_mock_place_stat(py::module m)
 {
-    m.def("get_place_stat", &PlaceMockPy::get_stat);
-    m.def("clear_place_stat", &PlaceMockPy::clear_stat);
+    m.def("get_place_statistic", &PlaceMockPy::get_stat);
+    m.def("clear_place_statistic", &PlaceMockPy::clear_stat);
 
     py::class_<PlaceStat> placeStat(m, "PlaceStat", py::dynamic_attr());
 

@@ -30,29 +30,24 @@ def moc_pipeline(argv: argparse.Namespace):
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
         argv.output, argv.freeze_placeholder_with_value)
 
-    def check_places(places_original: List[Place], places_new: List[Place]):
+    def check_places_are_same(places_original: List[Place], places_new: List[Place]):
         """
         Check if set of new places is same as original or not.
         :param places_original: List[Place] Original model places
         :param places_new: List[Place] New list of places
         :return: True if new list of places is same as original
         """
-        eq = len(places_original) == len(places_new)
-        if eq:
-            for item in places_original:
-                found = [x for x in places_new if x['node'].is_equal(item)]
-                if not found:
-                    eq = False
-                    break
-        return eq
+        return len(places_original) == len(places_new) and len(
+            [item for item in places_original if any(
+                [item.is_equal(item2['node']) for item2 in places_new])]) == len(places_original)
 
     inputs_equal = True
     if user_shapes:
-        inputs_equal = check_places(input_model.get_inputs(), user_shapes)
+        inputs_equal = check_places_are_same(input_model.get_inputs(), user_shapes)
 
     outputs_equal = True
     if outputs:
-        outputs_equal = check_places(input_model.get_outputs(), outputs)
+        outputs_equal = check_places_are_same(input_model.get_outputs(), outputs)
     log.debug('Inputs are same: {}, outputs are same: {}'.format(
         inputs_equal, outputs_equal))
 
@@ -81,32 +76,28 @@ def moc_pipeline(argv: argparse.Namespace):
                 log.debug('Set data type: {}'.format(data_type))
                 input_model.set_element_type(user_shape['node'], data_type)
 
+    def shape_to_array(shape: PartialShape):
+        return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
+        return
+
     # Set batch size
     if argv.batch is not None and argv.batch > 0:
         log.debug('Setting batch size to {}'.format(argv.batch))
         for place in input_model.get_inputs():
             old_partial_shape = input_model.get_partial_shape(place)
-            new_shape = []
-            old_shape_converted = []
+            old_shape_array = shape_to_array(old_partial_shape) if old_partial_shape.rank.is_static else []
             joined_name = ' '.join(place.get_names())
-            if old_partial_shape.rank.is_static:
-                for i in range(old_partial_shape.rank.get_length()):
-                    # Assume batch size is always 1-st dimension in shape
-                    # Keep other dimensions unchanged
-                    new_shape.append(Dimension(argv.batch) if i == 0 else
-                                     old_partial_shape.get_dimension(i))
-                    old_shape_converted.append(
-                        old_partial_shape.get_dimension(i))
+            validate_batch_in_shape(old_shape_array, joined_name)
 
-                validate_batch_in_shape(old_shape_converted, joined_name)
-            else:
-                # In case of fully dynamic shape raise the same error
-                # as for invalid batch dimension
-                validate_batch_in_shape(old_shape_converted, joined_name)
+            # Assume batch size is always 1-st dimension in shape
+            # Keep other dimensions unchanged
+            new_shape = [old_partial_shape.get_dimension(i)
+                         for i in range(old_partial_shape.rank.get_length())]
+            new_shape[0] = Dimension(argv.batch)
 
             new_partial_shape = PartialShape(new_shape)
             log.debug('Input: {}, Old shape: {}, New shape: {}'.format(
-                joined_name, old_shape_converted, new_shape))
+                joined_name, old_shape_array, new_shape))
             input_model.set_partial_shape(place, new_partial_shape)
 
     ngraph_function = fe.convert(input_model)
