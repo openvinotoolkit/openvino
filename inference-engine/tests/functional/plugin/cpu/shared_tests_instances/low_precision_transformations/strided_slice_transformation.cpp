@@ -89,7 +89,7 @@ const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, StridedSliceTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, StridedSliceTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 24, 24 })),

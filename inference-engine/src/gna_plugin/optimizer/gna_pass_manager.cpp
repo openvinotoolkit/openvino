@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gna_plugin_policy.hpp"
 #include <vector>
 #include <string>
 #include <memory>
@@ -613,99 +612,6 @@ void SubstitutePReluPass::run() {
     }
 }
 
-void ReversePermutationsPass::run() {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ReversePermutationsPass");
-    std::function<CNNLayerPtr(CNNLayerPtr, std::function<bool(CNNLayerPtr)>)> prevLayerSkipCertain
-        = [&prevLayerSkipCertain](CNNLayerPtr layer, std::function<bool(CNNLayerPtr)> shouldSkip) -> CNNLayerPtr {
-        if (CNNNetHasPrevLayer(layer.get())) {
-            return nullptr;
-        }
-        auto prev = CNNNetPrevLayer(layer);
-
-        if (!shouldSkip(prev)) return prevLayerSkipCertain(prev, shouldSkip);
-
-        return prev;
-    };
-
-    std::function<CNNLayerPtr(CNNLayerPtr)> nextLayerSkipReshape = [&nextLayerSkipReshape](CNNLayerPtr layer) -> CNNLayerPtr {
-        if (layer->outData.empty()) {
-            return nullptr;
-        }
-        if (getInputTo(layer->outData.front()).size() != 1) {
-            return nullptr;
-        }
-        auto next = getInputTo(layer->outData.front()).begin()->second;
-
-        if (LayerInfo(next).isNonFunctional()) return nextLayerSkipReshape(next);
-
-        return next;
-    };
-
-    auto prevConv = [&prevLayerSkipCertain](CNNLayerPtr layer) -> CNNLayerPtr {
-        return prevLayerSkipCertain(layer, [] (CNNLayerPtr l2) {
-            return
-                LayerInfo(l2).isNonFunctional() ||
-                LayerInfo(l2).isPooling() ||
-                LayerInfo(l2).isActivation();
-        });
-    };
-
-    std::unordered_set<std::string> affineWithPermutedWeights;
-    std::list<CNNLayerPtr> permutationstoRemove;
-
-    for (auto & l : *pLayers) {
-        if (!LayerInfo(l).isPermute()) {
-            continue;
-        }
-
-        auto layerOrder = l->GetParamAsInts("order");
-
-        if (layerOrder != std::vector<int>({0, 3, 2, 1})) {
-            THROW_GNA_EXCEPTION << "Unsupported permute layer: " << l->name << ", order: was " << l->GetParamAsString("order") <<
-                               ", but support order is 0,3,2,1";
-        }
-
-        // search for it's input convolution
-        auto prev = prevConv(l);
-
-        // pooling no used in speech models without convolution
-        if (!prev) {
-            THROW_GNA_EXCEPTION << "Unsupported permute layer: " << l->name << " no valid input to that layer";
-        }
-
-        // we can remove that permutation if it is input to ScaleShift or FC layer
-        auto next = nextLayerSkipReshape(l);
-        if (!next || !LayerInfo(next).isFullyConnected()) {
-            THROW_GNA_EXCEPTION << "Unsupported permute layer: " << l->name << " no valid output of that layer";
-        }
-
-        permutationstoRemove.push_back(l);
-
-        // removing that permutation layer and saving information about affine
-        affineWithPermutedWeights.insert(next->name);
-    }
-
-    for (auto && toRemove : permutationstoRemove) {
-        CNNNetworkRemoveLayer(toRemove);
-    }
-
-    // search for conv->affine sequences
-    for (auto & l : *pLayers) {
-        if (!LayerInfo(l).isFullyConnected() || 0 != affineWithPermutedWeights.count(l->name)) {
-            continue;
-        }
-        // found an affine layer that not involved in permutations removing
-        // searching whether it has direct input from convolution
-        auto prevConvLayer = prevConv(l);
-        if (!prevConvLayer) continue;
-
-        auto directPrev = CNNNetPrevLayer(l);
-
-        // TODO : make new permute
-        CNNNetworkInsertLayer(l, directPrev, CNNLayerPtr(nullptr));
-    }
-}
-
 void RemovePermutationsNHWCToNCHWPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "RemovePermutationsNHWCToNCHWPass");
     std::set<CNNLayerPtr> permutations_to_remove;
@@ -720,7 +626,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 
         if (prev == nullptr || next == nullptr) continue;
 
-        if (LayerInfo(prev).isPermute() && getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+        if (LayerInfo(prev).isPermute()) {
             permutations_to_remove.insert(prev);
         }
 
@@ -1040,9 +946,6 @@ void FlattenTrivialConcatPass::run() {
     // 1, 1, 5, 3 then for axis 0, 1, 2 the change will be made and inputs will be reshaped to 1, 15,
     // but for shape 2, 1, 5, 3 only axis 0 is valid and inputs will reshape to 1, 30
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
-    if (getPassManager()->getPolicy().ConcatConversionPolicy == Policy::FlattenTrivialConcatConversion::DISABLED) return;
-    if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED) return;
-    if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED_FOR_FP32 && !quantized) return;
 
     auto getLayerByIndex = [](int idx, ConcatLayer* concatLayer) {
         auto input = concatLayer->insData[idx];
@@ -1118,14 +1021,6 @@ void FlattenTrivialConcatPass::run() {
 void InsertConcatAligningFilterPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertConcatAligningFilterPass");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
-
-    if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED) {
-        return;
-    }
-    // aligning specific not required in fp32 mode
-    if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED_FOR_FP32 && !quantized) {
-        return;
-    }
     // currently concat layer only supports 2 bytes in int16 and int8 mode. In fp32 mode this no necessary but usefull for testing
     const int bytesPerConcatElement = 2;
 
@@ -1216,8 +1111,8 @@ void InsertConcatAligningFilterPass::run() {
                 // modifying output rows to be used - to avoid modification to original concat we are store num of elements in params
                 dims[1] = num_rows_out;
 
-                if (concatInput->getLayout() == Layout::NC && dims[0] > 8 ||
-                    concatInput->getLayout() == Layout::CN && dims[1] > 8) {
+                if ((concatInput->getLayout() == Layout::NC && dims[0] > 8) ||
+                    (concatInput->getLayout() == Layout::CN && dims[1] > 8)) {
                     THROW_GNA_EXCEPTION << "unsupported batch number '" <<
                         (concatInput->getLayout() == Layout::NC ? dims[0] : dims[1]) <<
                         "' in layer '" << concatLayer->name << "'";
@@ -1244,10 +1139,6 @@ void InsertConcatAligningFilterPass::run() {
 void ReorderConcatInputsPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ReorderConcatInputsPass");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
-    // aligning specific not required in fp32 mode
-    if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED_FOR_FP32 && !quantized) {
-        return;
-    }
     int numOfLinkLayers = 0;
 
     for (auto& l : *pLayers) {
@@ -1461,9 +1352,6 @@ static InferenceEngine::Blob::Ptr tileBlob(Blob::Ptr& blob, size_t TileTo) {
 
 void EltwiseSplitOverChannelsPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "EltwiseSplitOverChannelsPass");
-    if (getPassManager()->getPolicy().GNAAffineDiagonalPolicy.limitedTo == Policy::GNAAffineDiagonal::UNLIMIT) {
-        return;
-    }
 
     for (auto & l : *pLayers) {
         if (!LayerInfo(l).isEltwise()) {
@@ -1478,7 +1366,8 @@ void EltwiseSplitOverChannelsPass::run() {
         auto oData = l->outData.front();
         auto out_width = GetDataDimSize(oData, DataDimName::W);
         auto totalElementsForOutput = details::product(oData->getDims().begin(), oData->getDims().end());
-        auto maxAffineElements = getPassManager()->getPolicy().GNAAffineDiagonalPolicy.limitedTo;
+         // gna limit this to be OxFFFF
+        auto maxAffineElements = 65536 - 64;
         if (totalElementsForOutput <= maxAffineElements) {
             continue;
         }
@@ -1629,31 +1518,25 @@ void SubstituteScaleShiftBroadCastPass::run() {
         }
 
         gnalog() << "Substitution ScaleShift broadcast for layer: " << l->name << "\n";
-        // approach 1 - weights tiling
-        if (getPassManager()->getPolicy().ScaleShiftPolicy == Policy::ScaleShift::WEIGHTS_TILING) {
-            if (nElements % scaleShift->_weights->size()) {
-                THROW_GNA_EXCEPTION << "Cannot tile weights for layer: " << l->name << ", due to weights size not GCD of dims product";
-            }
-            scaleShift->_weights = tileBlob(scaleShift->_weights, nElements);
-            if (scaleShift->_biases) {
-                if (nElements % scaleShift->_biases->size()) {
-                    THROW_GNA_EXCEPTION << "Cannot tile biases for layer: " << l->name << ", due to biases size not GCD of dims product";
-                }
-                scaleShift->_biases = tileBlob(scaleShift->_biases, nElements);
-            }
-
-            auto tensor = InferenceEngine::TensorDesc(insData->getTensorDesc());
-            tensor.reshape(SizeVector{ batchSize, nElements }, Layout::NC);
-            auto reshapeName = scaleShift->name + "_input_" + std::to_string(0) + "_reshape";
-            auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
-            auto layer_before_scale_shift = getCreatorLayer(insData);
-
-            CNNNetworkInsertLayer(layer_before_scale_shift.lock(), l, reshape);
-            gnalog() << "\tInserted " << reshapeName << " between " << layer_before_scale_shift.lock()->name << " and " << l->name << std::endl;
-        } else {
-            THROW_GNA_EXCEPTION << "Not implemented substitution of scaleshift broadcast policy of "
-                                << getPassManager()->getPolicy().ScaleShiftPolicy <<  "using layers tiling, layer: " << l->name;
+        if (nElements % scaleShift->_weights->size()) {
+            THROW_GNA_EXCEPTION << "Cannot tile weights for layer: " << l->name << ", due to weights size not GCD of dims product";
         }
+        scaleShift->_weights = tileBlob(scaleShift->_weights, nElements);
+        if (scaleShift->_biases) {
+            if (nElements % scaleShift->_biases->size()) {
+                THROW_GNA_EXCEPTION << "Cannot tile biases for layer: " << l->name << ", due to biases size not GCD of dims product";
+            }
+            scaleShift->_biases = tileBlob(scaleShift->_biases, nElements);
+        }
+
+        auto tensor = InferenceEngine::TensorDesc(insData->getTensorDesc());
+        tensor.reshape(SizeVector{ batchSize, nElements }, Layout::NC);
+        auto reshapeName = scaleShift->name + "_input_" + std::to_string(0) + "_reshape";
+        auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
+        auto layer_before_scale_shift = getCreatorLayer(insData);
+
+        CNNNetworkInsertLayer(layer_before_scale_shift.lock(), l, reshape);
+        gnalog() << "\tInserted " << reshapeName << " between " << layer_before_scale_shift.lock()->name << " and " << l->name << std::endl;
     }
 }
 
@@ -1669,7 +1552,7 @@ void BroadcastConstPass::run() {
         };
 
         auto nextLayer = CNNNetCheckNextLayerSkipCertain(constLayer, 0, 0, true, isNonFunctional).first;
-        if (!nextLayer || !LayerInfo(nextLayer).isEltwise() && !LayerInfo(nextLayer).isFakeQuantize()) {
+        if (!nextLayer || (!LayerInfo(nextLayer).isEltwise() && !LayerInfo(nextLayer).isFakeQuantize())) {
             continue;
         }
 
