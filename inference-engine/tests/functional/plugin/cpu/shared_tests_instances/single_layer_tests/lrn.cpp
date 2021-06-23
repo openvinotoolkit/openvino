@@ -22,7 +22,7 @@ namespace LRN2D {
 
 const std::vector<std::vector<int64_t>> axes = {{1}};
 
-INSTANTIATE_TEST_CASE_P(smoke_LrnCheck_2D, LrnLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck_2D, LrnLayerTest,
                         ::testing::Combine(::testing::Values(alpha),
                                            ::testing::Values(beta),
                                            ::testing::Values(bias),
@@ -41,7 +41,7 @@ namespace LRN3D {
 
 const std::vector<std::vector<int64_t>> axes = {{1}, {2}};
 
-INSTANTIATE_TEST_CASE_P(smoke_LrnCheck_3D, LrnLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck_3D, LrnLayerTest,
                         ::testing::Combine(::testing::Values(alpha),
                                            ::testing::Values(beta),
                                            ::testing::Values(bias),
@@ -60,7 +60,7 @@ namespace LRN4D {
 
 const std::vector<std::vector<int64_t>> axes = {{1}, {2, 3}, {3, 2}};
 
-INSTANTIATE_TEST_CASE_P(smoke_LrnCheck_4D, LrnLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck_4D, LrnLayerTest,
                         ::testing::Combine(::testing::Values(alpha),
                                            ::testing::Values(beta),
                                            ::testing::Values(bias),
@@ -79,7 +79,7 @@ namespace LRN5D {
 
 const std::vector<std::vector<int64_t>> axes = {{1}, {2, 3, 4}, {4, 2, 3}};
 
-INSTANTIATE_TEST_CASE_P(smoke_LrnCheck_5D, LrnLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck_5D, LrnLayerTest,
                         ::testing::Combine(::testing::Values(alpha),
                                            ::testing::Values(beta),
                                            ::testing::Values(bias),

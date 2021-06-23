@@ -28,7 +28,7 @@ std::map<std::string, std::string> additional_config = {
 };
 } // namespace
 
-INSTANTIATE_TEST_CASE_P(OutputBeforeActivation, OutputBeforeActivation,
+INSTANTIATE_TEST_SUITE_P(OutputBeforeActivation, OutputBeforeActivation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),

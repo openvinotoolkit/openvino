@@ -15,7 +15,7 @@ auto ConvBias = ngraph::builder::subgraph::makeConvBias();
 auto SplitConvConcat = ngraph::builder::subgraph::makeNestedSplitConvConcat();
 auto BranchSplitConvConcat = ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch();
 
-INSTANTIATE_TEST_CASE_P(smoke_FullySupportedTopologies, QueryNetworkTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FullySupportedTopologies, QueryNetworkTest,
                         ::testing::Combine(
                                 ::testing::Values("GPU", "HETERO:GPU,CPU", "MULTI:GPU,CPU"),
                                 ::testing::Values(ConvBias, SplitConvConcat, BranchSplitConvConcat)),

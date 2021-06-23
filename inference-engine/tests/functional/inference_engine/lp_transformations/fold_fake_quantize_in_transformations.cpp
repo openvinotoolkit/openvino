@@ -206,7 +206,7 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FoldFakeQuantizeInTransformations,
     ::testing::ValuesIn(testValues),

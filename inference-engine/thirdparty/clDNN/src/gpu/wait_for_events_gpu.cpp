@@ -10,7 +10,6 @@
 #include "register_gpu.hpp"
 
 #include "network_impl.h"
-#include "events_waiter.h"
 #include <vector>
 
 namespace cldnn {
@@ -20,13 +19,16 @@ class wait_for_events_gpu : public primitive_impl {
 public:
     explicit wait_for_events_gpu(const program_node& /*node*/) {}
 
-    void set_arguments(primitive_inst& /*instance*/) override {}
-    void cleanup(primitive_inst& /*instance*/) override {}
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<wait_for_events_gpu>(*this);
+    }
 
-    event_impl::ptr execute(const std::vector<event_impl::ptr>& events, primitive_inst& instance) override {
-        uint32_t net_id = instance.get_network().get_id();
-        events_waiter events_waiter(instance.get_network().get_engine().get_context());
-        return events_waiter.run(net_id, events);
+    void init_kernels() override {}
+    void set_arguments(primitive_inst& /*instance*/) override {}
+
+    event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+        auto& stream = instance.get_network().get_stream();
+        return stream.enqueue_marker(events);
     }
 
     bool validate(const primitive_inst&) const override { return true; }

@@ -29,4 +29,4 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})

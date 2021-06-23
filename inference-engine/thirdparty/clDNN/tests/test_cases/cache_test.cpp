@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-
 #include "test_utils.h"
 
-#include <api/engine.hpp>
-#include <api/program.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/input_layout.hpp>
-#include <api/convolution.hpp>
-#include <api/data.hpp>
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/convolution.hpp>
+#include <cldnn/primitives/data.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -172,13 +165,13 @@ void remove(const std::string& filename) {
 
 class cache_test_helper {
 public:
-    cache_test_helper(cldnn::engine engine, cache_version v)
+    cache_test_helper(cldnn::engine& engine, cache_version v)
         : _engine(engine)
         , _mode(cldnn::tuning_mode::tuning_disabled)
         , cache_filename(get_temporary_cache_file())
     {
         auto cache = get_cache_version(v);
-        auto eus = engine.get_info().cores_count;
+        auto eus = engine.get_device_info().execution_units_count;
         replace(cache, eus_marker, eus);
 
         write(cache_filename, cache);
@@ -210,7 +203,7 @@ public:
     }
 
     void test() {
-        auto w_mem = cldnn::memory::allocate(_engine, cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 16, 16, 1, 1 }));
+        auto w_mem = _engine.allocate_memory(cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 16, 16, 1, 1 }));
         auto topology = cldnn::topology(
             cldnn::input_layout("input", cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 16, 3, 3 })),
             cldnn::data("weights", w_mem),
@@ -225,7 +218,7 @@ public:
             cldnn::build_option::optimize_data(true)
         );
         auto network = cldnn::network(_engine, topology, build_opts);
-        auto in_mem = cldnn::memory::allocate(_engine, cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 16, 3, 3 }));
+        auto in_mem = _engine.allocate_memory(cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 16, 3, 3 }));
         network.set_input_data("input", in_mem);
         network.execute();
 
@@ -247,7 +240,7 @@ public:
         if (compare_cache.compare) {
             auto cache = read(cache_filename);
             auto expected_cache = get_cache_version(compare_cache.value);
-            auto eus = _engine.get_info().cores_count;
+            auto eus = _engine.get_device_info().execution_units_count;
             replace(expected_cache, eus_marker, eus);
 
             EXPECT_EQ(cache, expected_cache);
@@ -266,7 +259,7 @@ private:
         optional_compare(T v, bool neq) : compare(true), not_equal(neq), value(v) {}
     };
 
-    cldnn::engine _engine;
+    cldnn::engine& _engine;
 
     cldnn::tuning_mode _mode;
 
@@ -311,7 +304,7 @@ public:
 
 TEST(cache_test, no_cache_baseline) {
     SCOPED_TRACE("default implementation same as reference, cache tests may provide invalid pass");
-    auto engine = tests::get_test_engine();
+    auto& engine = tests::get_test_engine();
     auto helper = cache_test_helper(engine, cache_version::version_2);
 
     helper.with_mode(cldnn::tuning_mode::tuning_disabled)
@@ -321,7 +314,7 @@ TEST(cache_test, no_cache_baseline) {
 
 TEST_P(cache_version_test, use_only) {
     auto version = GetParam();
-    auto engine = tests::get_test_engine();
+    auto& engine = tests::get_test_engine();
 
     cache_test_helper helper(engine, version);
     helper.with_mode(cldnn::tuning_mode::tuning_use_cache)
@@ -337,7 +330,7 @@ TEST_P(cache_version_test, update) {
         ex_version = cache_version::version_2_from_1;
     }
 
-    auto engine = tests::get_test_engine();
+    auto& engine = tests::get_test_engine();
 
     cache_test_helper helper(engine, version);
     helper.with_mode(cldnn::tuning_mode::tuning_use_and_update)
@@ -346,14 +339,14 @@ TEST_P(cache_version_test, update) {
         .test();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke,
     cache_version_test,
     testing::Values(cache_version::version_1, cache_version::version_1_2, cache_version::version_2),
     cache_version_test::to_string);
 
 TEST(cache_test, remove_invalid) {
-    auto engine = tests::get_test_engine();
+    auto& engine = tests::get_test_engine();
 
     cache_test_helper helper(engine, cache_version::version_2_invalid);
     helper.with_mode(cldnn::tuning_mode::tuning_use_and_update)
