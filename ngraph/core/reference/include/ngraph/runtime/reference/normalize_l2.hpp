@@ -30,10 +30,7 @@ namespace ngraph
                     // non-zero elements
                     for (size_t i = 0; i < shape_size(data_shape); ++i)
                     {
-                        T zero = 0;
-                        const bool is_equal_zero =
-                            std::fabs(data[i] - zero) <= std::numeric_limits<T>::epsilon();
-                        out[i] = is_equal_zero ? zero : static_cast<T>(1);
+                        out[i] = data[i] == 0 ? 0 : 1;
                     }
                     return;
                 }
