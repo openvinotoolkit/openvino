@@ -51,10 +51,6 @@ public:
     const std::shared_ptr<MKLDNNNode> getParent() const;
     const std::shared_ptr<MKLDNNNode> getChild() const;
 
-    // TODO [DS]: conversion to IE::TensorDesc shouldn't be part of the Edge class
-    InferenceEngine::Blob::Ptr getBlob();
-    InferenceEngine::TensorDesc getTensorDesc();
-
     const Shape &getShape();
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
@@ -88,6 +84,7 @@ private:
 
     const MemoryDesc& getInputDesc() const;
     const MemoryDesc& getOutputDesc() const;
+    const MemoryDesc& getDesc() const;
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 

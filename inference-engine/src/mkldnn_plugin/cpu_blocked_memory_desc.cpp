@@ -114,3 +114,37 @@ size_t BlockedMemoryDesc::getMemSizeImp() const {
 
     return e_size;
 }
+
+size_t BlockedMemoryDesc::getOffset(const InferenceEngine::SizeVector& v) const {
+    InferenceEngine::SizeVector off_v = v;
+
+    size_t n_blocked_dims = order.size();
+    if (blockedDims.size() != n_blocked_dims || strides.size() != n_blocked_dims) {
+        IE_THROW() << "Cannot calculate offset. Incorrect primitive descriptor!";
+    }
+    InferenceEngine::SizeVector blockedShift(n_blocked_dims);
+    for (size_t i = 1; i <= n_blocked_dims; i++) {
+        blockedShift[n_blocked_dims - i] = off_v[order[n_blocked_dims - i]] % blockedDims[n_blocked_dims - i];
+        off_v[order[n_blocked_dims - i]] /= blockedDims[n_blocked_dims - i];
+    }
+    size_t offset = getOffsetPadding();
+    for (size_t d = 0; d < n_blocked_dims; ++d) {
+        const size_t p = blockedShift[d] + getOffsetPaddingToData()[d];
+        offset += p * strides[d];
+    }
+    return offset;
+}
+
+size_t BlockedMemoryDesc::getOffset(size_t elemNumber) const {
+    // TODO [mkutakov]: rewrite to support dynamic shapes
+    auto& dims = shape.getStaticDims();
+    size_t n_dims = dims.size();
+    InferenceEngine::SizeVector pos(n_dims);
+    for (size_t rd = 1; rd <= n_dims; ++rd) {
+        const size_t d = n_dims - rd;
+        const size_t cur_dim = dims[d];
+        pos[d] = elemNumber % cur_dim;
+        elemNumber /= cur_dim;
+    }
+    return getOffset(pos);
+}

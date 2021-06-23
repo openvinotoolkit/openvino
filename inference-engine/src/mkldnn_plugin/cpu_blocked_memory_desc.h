@@ -74,8 +74,11 @@ public:
         return strides;
     }
 
+    size_t getOffset(size_t elemNumber) const override;
+
 private:
-    virtual size_t getMemSizeImp() const override;
+    size_t getMemSizeImp() const override;
+    size_t getOffset(const InferenceEngine::SizeVector& v) const;
 
 private:
     std::vector<size_t> blockedDims;

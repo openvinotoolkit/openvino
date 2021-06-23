@@ -64,6 +64,7 @@ public:
     }
 
     size_t GetElementSize() const;
+    size_t getOffset(size_t elemNumber) const override;
 
     MKLDNNDims getDims() const {
         return MKLDNNDims(desc.data.dims, desc.data.ndims);
@@ -89,9 +90,9 @@ public:
 
     dnnl_format_kind_t getFormatKind() const {
         return desc.data.format_kind;
-    };
+    }
 
-    virtual std::unique_ptr<MemoryDesc> clone() const override {
+    std::unique_ptr<MemoryDesc> clone() const override {
         return make_unique<MKLDNNMemoryDesc>(*this);
     }
 
@@ -104,7 +105,7 @@ public:
     }
 
 private:
-    virtual size_t getMemSizeImp() const override;
+    size_t getMemSizeImp() const override;
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();
     mkldnn::memory::desc desc;
 };

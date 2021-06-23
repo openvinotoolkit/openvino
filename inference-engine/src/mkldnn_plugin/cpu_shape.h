@@ -81,6 +81,15 @@ public:
         return size;
     }
 
+    ngraph::PartialShape toPartialShape() const {
+        std::vector<ngraph::Dimension> nGraphDims;
+        nGraphDims.reserve(minDims.size());
+        for (int i = 0; i < minDims.size(); i++) {
+            nGraphDims.emplace_back(minDims[i], maxDims[i]);
+        }
+        return ngraph::PartialShape(nGraphDims);
+    }
+
     // TODO [DS]: Added for migration period. Should be deleted once we will get rid of MKLDNNDims.
     operator MKLDNNDims() const {
         return MKLDNNDims(getStaticDims());

@@ -14,6 +14,7 @@
 
 #include <mkldnn_types.h>
 #include <dnnl_types.h>
+#include <common/memory_desc_wrapper.hpp>
 #include "mkldnn_memory.h"
 #include "mkldnn_extension_utils.h"
 #include "nodes/common/cpu_memcpy.h"
@@ -915,5 +916,10 @@ bool MKLDNNMemoryDesc::blocksExtended() const {
 
 size_t MKLDNNMemoryDesc::getMemSizeImp() const {
     return desc.get_size();
+}
+
+size_t MKLDNNMemoryDesc::getOffset(size_t elemNumber) const {
+    mkldnn::impl::memory_desc_wrapper wrapped(desc.data);
+    return wrapped.off_l(elemNumber);
 }
 }  // namespace MKLDNNPlugin
