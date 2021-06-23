@@ -72,9 +72,8 @@ if(NOT WIN32)
 endif()
 
 # TODO: remove once all options are migrated
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
 
 if(ENABLE_TESTS AND ENABLE_MYRIAD_MVNC_TESTS)
     add_subdirectory(tests)
 endif()
-

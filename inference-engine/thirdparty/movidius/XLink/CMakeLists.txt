@@ -42,4 +42,4 @@ endif()
 set_property(TARGET ${TARGET_NAME} PROPERTY C_STANDARD 99)
 
 # TODO: remove once all options are migrated
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
