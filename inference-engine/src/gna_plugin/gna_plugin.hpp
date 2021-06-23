@@ -21,7 +21,6 @@
 #include "backend/am_intel_dnn.hpp"
 #include "gna_data_types.hpp"
 #include "gna_graph_compiler.hpp"
-#include "gna_plugin_policy.hpp"
 #include "gna_plugin_log.hpp"
 #include "gna_plugin_config.hpp"
 #include <legacy/ie_util_internal.hpp>
@@ -68,8 +67,6 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     std::vector<GNAPluginNS::OutputDesc> outputsDesc = std::vector<OutputDesc>();
 
     intel_dnn_number_type_t output_type = kDnnInt;
-
-    GNAPluginNS::Policy policy;
 
 #if GNA_LIB_VER == 2
     void createRequestConfigsForGnaModels();
@@ -157,11 +154,6 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState();
-
-     /**
-      * test-wise API
-      */
-     void SetPolicy(GNAPluginNS::Policy p) {policy = p;}
 
      /**
       * QueryMetrics API

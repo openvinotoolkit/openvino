@@ -34,7 +34,6 @@
 #include "layers/gna_crop_layer.hpp"
 #include "layers/gna_fake_quantize_layer.hpp"
 #include "round_float_define.hpp"
-#include "gna_plugin_policy.hpp"
 #include "gna_groups.hpp"
 #include "backend/gna_limitations.hpp"
 
@@ -60,10 +59,6 @@ void GNAGraphCompiler::setInputDescPtr(std::shared_ptr<GNAPluginNS::InputDesc> i
 
 void GNAGraphCompiler::setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr) {
     this->gnaFlags = std::move(gnaFlagsPtr);
-}
-
-void GNAGraphCompiler::setPolicy(GNAPluginNS::Policy policyToSet) {
-    this->policy = policyToSet;
 }
 
 intel_dnn_component_t * GNAGraphCompiler::find_first_unused_input(InferenceEngine::CNNLayerPtr current) {
@@ -547,10 +542,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     auto effectiveInputWidth = in_width;
     auto effectiveInputHeight = in_height;
 
-    if (policy.cnn2dInputPaddingSupported) {
-        effectiveInputWidth += convolution._padding_x * 2;
-        effectiveInputHeight += convolution._padding_y * 2;
-    } else if (convolution._padding_x != 0 || convolution._padding_y != 0 ||
+    if (convolution._padding_x != 0 || convolution._padding_y != 0 ||
         convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not supported";
     }
@@ -1641,7 +1633,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     uint32_t num_rows_copied = 0;
     // in case of left alignment succeed, but due to number of elements not multiple of 8 we need to insert align_filter
     // we are improving it by inserting copy layer of size that covers most of elements - remained max of 32x31 affine filter
-    if (policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST &&  0 == numRowsPadded && ALIGN(num_rows_in, 32) > 32) {
+    if (0 == numRowsPadded && ALIGN(num_rows_in, 32) > 32) {
         // can we use copy at all
         num_rows_copied = ALIGN(num_rows_in, 32) - 32;
 

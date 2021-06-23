@@ -27,7 +27,6 @@
 #include "backend/gna_limitations.hpp"
 #include "gna_device.hpp"
 #include "gna_data_types.hpp"
-#include "gna_plugin_policy.hpp"
 
 namespace GNAPluginNS {
 class GNAGraphCompiler {
@@ -36,7 +35,6 @@ private:
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
     std::shared_ptr<GNAPluginNS::InputDesc> inputDesc;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
-    Policy policy;
 
     // layers with extra storage for connections and additional
     // non trivial processing
@@ -64,7 +62,6 @@ public:
     void setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnnPtr);
     void setInputDescPtr(std::shared_ptr<GNAPluginNS::InputDesc> inputDescPtr);
     void setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr);
-    void setPolicy(GNAPluginNS::Policy policy);
 
     void fillMemoryConnections(std::unordered_map<std::string,
             std::vector<InferenceEngine::CNNLayerPtr>> &memoryPairs);
