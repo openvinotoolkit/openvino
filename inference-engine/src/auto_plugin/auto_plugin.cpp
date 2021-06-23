@@ -79,7 +79,7 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
     auto fullConfig = mergeConfigs(_config, config);
     CheckConfig(fullConfig);
     auto metaDevices = GetDeviceList(fullConfig);
-    auto core = GetCore();
+    auto core = GetCore(); // shared_ptr that holds the Core while the lambda below (which captures that by val) works
     auto LoadNetworkAsync =
         [core, modelPath, network](const std::string& device)
             -> IE::SoExecutableNetworkInternal {
@@ -111,8 +111,6 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
     if (isAccelerator) {
         acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, accelerator);
     }
-
-    // TODO: FIXME: revert the exception handling logic back to gracefully handle LoadNetwork failures
 
     bool enablePerfCount = fullConfig.find(IE::PluginConfigParams::KEY_PERF_COUNT) != fullConfig.end();
 
