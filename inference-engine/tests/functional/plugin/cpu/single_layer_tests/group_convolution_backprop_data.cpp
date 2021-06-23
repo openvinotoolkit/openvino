@@ -181,7 +181,7 @@ const auto groupConvParams_ExplicitPadding_Planar_2D = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Planar_FP32, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Planar_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Planar_2D,
@@ -198,7 +198,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Planar_FP32, GroupDeconvolutionLaye
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Planar_BF16, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Planar_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Planar_2D,
@@ -228,7 +228,7 @@ const auto groupConvParams_ExplicitPadding_Planar_3D = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Planar_FP32, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_Planar_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Planar_3D,
@@ -245,7 +245,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Planar_FP32, GroupDeconvolutionLaye
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Planar_BF16, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_Planar_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Planar_3D,
@@ -275,7 +275,7 @@ const auto groupConvParams_ExplicitPadding_Blocked_2D = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Blocked_FP32, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Blocked_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Blocked_2D,
@@ -292,7 +292,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Blocked_FP32, GroupDeconvolutionLay
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Blocked_BF16, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Blocked_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Blocked_2D,
@@ -322,7 +322,7 @@ const auto groupConvParams_ExplicitPadding_Blocked_3D = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Blocked_FP32, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_Blocked_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Blocked_3D,
@@ -339,7 +339,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Blocked_FP32, GroupDeconvolutionLay
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Blocked_BF16, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_Blocked_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Blocked_3D,
@@ -369,7 +369,7 @@ const auto groupConvParams_ExplicitPadding_DW_2D = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_DW_FP32, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_DW_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_DW_2D,
@@ -386,7 +386,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_DW_FP32, GroupDeconvolutionLayerCPU
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_DW_BF16, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_DW_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_DW_2D,
