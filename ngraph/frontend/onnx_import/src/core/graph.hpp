@@ -20,7 +20,7 @@ namespace ngraph
 {
     namespace onnx_import
     {
-        class Graph
+        class Graph : public std::enable_shared_from_this<Graph>
         {
         public:
             Graph(std::unique_ptr<Model>&& model);
@@ -31,13 +31,13 @@ namespace ngraph
 
             Graph& operator=(const Graph&) = delete;
             Graph& operator=(Graph&&) = default;
+            virtual std::shared_ptr<Function> decode_model();
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
             OutputVector get_ng_outputs() const;
             const ParameterVector& get_ng_parameters() const { return m_parameters; }
-            bool is_node_in_cache(const std::string& name) const;
-            Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
+            virtual Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
             const std::string& get_name() const { return m_model->get_graph().name(); }
             OutputVector make_ng_nodes(const Node& onnx_node) const;
             const GraphCache& get_graph_cache() const;
@@ -60,11 +60,16 @@ namespace ngraph
                                      const OutputVector& ng_node_vector) const;
 
         protected:
+            void convert_to_framework_nodes();
+            std::shared_ptr<Function> create_ng_function();
+
             ParameterVector m_parameters;
             std::unique_ptr<Model> m_model;
             std::unique_ptr<GraphCache> m_cache;
 
         private:
+            std::shared_ptr<Function> decode_subgraph(const Node& node);
+
             std::vector<Node> m_nodes;
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
@@ -82,9 +87,9 @@ namespace ngraph
             /// \param[in]  parent_graph   The reference to the parent graph.
             Subgraph(std::unique_ptr<Model>&& model, const Graph& parent_graph);
 
-            /// \brief      Return outputs which are on the edge the subgraph and the parent graph.
+            /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
             /// \return     Vector of edge nodes from parent scope.
-            const std::vector<Output<ngraph::Node>> get_outputs_from_parent() const;
+            const std::vector<Output<ngraph::Node>> get_inputs_from_parent() const;
 
             Subgraph() = delete;
 
@@ -94,8 +99,14 @@ namespace ngraph
             Subgraph& operator=(const Subgraph&) = delete;
             Subgraph& operator=(Subgraph&&) = default;
 
+            Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const override;
+            std::shared_ptr<Function> decode_model() override;
+            void infer_inputs_from_parent();
+
         private:
-            std::vector<Output<ngraph::Node>> m_outputs_from_parent;
+            const GraphCache* m_parent_graph_cache;
+            std::vector<std::string> m_inputs_from_parent;
+            std::unordered_map<std::shared_ptr<ngraph::op::Parameter>, std::string> m_parameter_to_parent_node_map;
         };
 
         inline std::ostream& operator<<(std::ostream& outs, const Graph& graph)

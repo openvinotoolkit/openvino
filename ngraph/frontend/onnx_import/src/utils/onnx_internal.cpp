@@ -6,8 +6,10 @@
 
 #include "core/graph.hpp"
 #include "core/model.hpp"
+#include "core/null_node.hpp"
 #include "core/transform.hpp"
 #include "onnx_import/utils/onnx_internal.hpp"
+#include "onnx_import/onnx_framework_node.hpp"
 
 namespace ngraph
 {
@@ -15,21 +17,76 @@ namespace ngraph
     {
         namespace detail
         {
-            std::shared_ptr<Function>
-                convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
+            std::shared_ptr<Function> decode_model(const ONNX_NAMESPACE::ModelProto& model_proto)
             {
                 auto p_model_proto = common::make_unique<ONNX_NAMESPACE::ModelProto>(model_proto);
                 auto model = common::make_unique<Model>(std::move(p_model_proto));
 
-                Graph graph{std::move(model)};
-                auto function = std::make_shared<Function>(
-                    graph.get_ng_outputs(), graph.get_ng_parameters(), graph.get_name());
-                for (std::size_t i{0}; i < function->get_output_size(); ++i)
+                auto graph = std::make_shared<Graph>(std::move(model));
+                return graph->decode_model();
+            }
+
+            void remove_dangling_parameters(std::shared_ptr<Function>& function)
+            {
+                auto parameters = function->get_parameters();
+                for (auto parameter : parameters)
                 {
-                    function->get_output_op(i)->set_friendly_name(
-                        graph.get_outputs().at(i).get_name());
+                    auto parameter_users = parameter->get_users();
+                    bool is_dangling_parameter = std::all_of(parameter_users.begin(), parameter_users.end(),
+                            [] (const std::shared_ptr<ngraph::Node>& node) -> bool {
+                                return std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node) != nullptr;
+                            });
+                    if (is_dangling_parameter)
+                    {
+                        function->remove_parameter(parameter);
+                    }
                 }
-                return function;
+            }
+
+            void remove_dangling_results(std::shared_ptr<Function>& function)
+            {
+                auto results = function->get_results();
+                for (auto result : results)
+                {
+                    auto result_users = result->input_values();
+                    bool is_dangling_result = std::all_of(result_users.begin(), result_users.end(),
+                            [] (const Output<ngraph::Node>& node) -> bool {
+                                return ngraph::op::is_null(node);
+                            });
+                    if (is_dangling_result)
+                    {
+                        function->remove_result(result);
+                    }
+                }
+            }
+
+            void convert_function(std::shared_ptr<Function> function)
+            {
+                for (const auto& node : function->get_ordered_ops())
+                {
+                    if (auto raw_node = std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node))
+                    {
+                        if (auto subgraph_node = std::dynamic_pointer_cast<frontend::ONNXSubgraphFrameworkNode>(node))
+                        {
+                            subgraph_node->infer_inputs_from_parent();
+                            convert_function(subgraph_node->get_subgraph_body());
+                        }
+                        const auto& onnx_node = raw_node->get_onnx_node();
+                        OutputVector ng_nodes{onnx_node.get_ng_nodes()};
+                        if (ng_nodes.size() > raw_node->get_output_size())
+                        {
+                            ng_nodes.resize(raw_node->get_output_size());
+                        }
+                        replace_node(raw_node, ng_nodes);
+                    }
+                    else
+                    {
+                        // Have to revalidate node because new intpus can affect shape/type propagation for already translated nodes
+                        node->revalidate_and_infer_types();
+                    }
+                }
+                remove_dangling_parameters(function);
+                remove_dangling_results(function);
             }
 
             std::shared_ptr<Function> import_onnx_model(ONNX_NAMESPACE::ModelProto& model_proto,
@@ -39,7 +96,9 @@ namespace ngraph
                 transform::fixup_legacy_operators(model_proto);
                 transform::update_external_data_paths(model_proto, model_path);
 
-                return detail::convert_to_ng_function(model_proto);
+                auto function = detail::decode_model(model_proto);
+                detail::convert_function(function);
+                return function;
             }
         } // namespace detail
     }     // namespace onnx_import
