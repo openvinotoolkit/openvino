@@ -18,7 +18,7 @@ const std::vector<std::vector<int64_t>> axes = {
         {},
         {1},
 };
-const std::vector<float> eps = {1e-7f, 1e-6f, 1e-5f, 1e-4f};
+const std::vector<float> eps = {1e-7f, 1e-6f, 1e-5f, 1e-4f, 0.1};
 
 const std::vector<ngraph::op::EpsMode> epsMode = {
         ngraph::op::EpsMode::ADD,
