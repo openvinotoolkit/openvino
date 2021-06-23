@@ -23,6 +23,5 @@ NGRAPH_TEST(${BACKEND_NAME}, sin)
          -0.90929743f,
          -0.75680250f,
          0.75680250f},
-        Shape{11},
         Shape{11});
 }

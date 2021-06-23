@@ -19,6 +19,5 @@ NGRAPH_TEST(${BACKEND_NAME}, log)
                                           1.38629436f,
                                           2.07944154f,
                                           2.77258872f},
-                                         Shape{2, 2, 2},
                                          Shape{2, 2, 2});
 }

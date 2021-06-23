@@ -19,6 +19,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_erf_mode_inference_f32_8D)
                                           0.8413447,
                                           1.9544997,
                                           2.9959507},
+                                         {},
                                          1e-4);
 }
 
@@ -34,13 +35,17 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_tanh_mode_inference_f32_8D)
                                           0.8413447,
                                           1.9544997,
                                           2.9959507},
+                                         {},
                                          1e-3f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, gelu_erf_mode_inference_f32_3D)
 {
-    test_unary<TestEngine, element::f32>(
-        unary_func<op::v7::Gelu>(), {-0.5, 0.1, 0.4}, {-0.15426877, 0.05398279, 0.2621686}, 1e-4f);
+    test_unary<TestEngine, element::f32>(unary_func<op::v7::Gelu>(),
+                                         {-0.5, 0.1, 0.4},
+                                         {-0.15426877, 0.05398279, 0.2621686},
+                                         {},
+                                         1e-4f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, gelu_tanh_mode_inference_f32_3D)
@@ -48,5 +53,6 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_tanh_mode_inference_f32_3D)
     test_unary<TestEngine, element::f32>(unary_func<op::v7::Gelu>(op::GeluApproximationMode::TANH),
                                          {-0.5, 0.1, 0.4},
                                          {-0.15428599, 0.053982753, 0.262161165},
+                                         {},
                                          1e-4f);
 }

@@ -13,7 +13,6 @@ NGRAPH_TEST(${BACKEND_NAME}, ceiling)
                                          {-2.5f, -2.0f, 0.3f, 4.8f},
                                          {-2.0f, -2.0f, 1.0f, 5.0f},
                                          Shape{2, 2},
-                                         Shape{2, 2},
                                          MIN_FLOAT_TOLERANCE_BITS);
 }
 
@@ -22,5 +21,6 @@ NGRAPH_TEST(${BACKEND_NAME}, ceiling_int64)
     test_unary<TestEngine, element::i64>(unary_func<op::Ceiling>(),
                                          {0, 1, 0x4000000000000001},
                                          {0, 1, 0x4000000000000001},
+                                         Shape{3},
                                          MIN_FLOAT_TOLERANCE_BITS);
 }

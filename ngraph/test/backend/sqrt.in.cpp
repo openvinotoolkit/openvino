@@ -9,11 +9,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, sqrt_basic)
 {
-    test_unary<TestEngine, element::f32>(unary_func<op::Sqrt>(),
-                                         {16, 4, 81, 100, 10000, 0},
-                                         {4, 2, 9, 10, 100, 0},
-                                         Shape{2, 3},
-                                         Shape{2, 3});
+    test_unary<TestEngine, element::f32>(
+        unary_func<op::Sqrt>(), {16, 4, 81, 100, 10000, 0}, {4, 2, 9, 10, 100, 0}, Shape{2, 3});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, sqrt_negative_inputs)
@@ -28,7 +25,6 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_integral_inputs)
         unary_func<op::Sqrt>(),
         {4, 7, 9, 10, 80, 55, 6, 1, 23, 233, 256, 474, 1024, 110889},
         {2, 3, 3, 3, 9, 7, 2, 1, 5, 15, 16, 22, 32, 333},
-        Shape{2, 7},
         Shape{2, 7});
 }
 
@@ -51,6 +47,5 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_floating_inputs)
          21.766697,
          32.,
          333.33},
-        Shape{2, 7},
         Shape{2, 7});
 }

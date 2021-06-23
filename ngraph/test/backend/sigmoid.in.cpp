@@ -15,18 +15,12 @@ static T f_sigmoid(T x)
 
 NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h2w2)
 {
-    test_unary<TestEngine, element::f32>(unary_func<op::Sigmoid>(),
-                                         {1.0f, 4.0f, 1.0f, 4.0f},
-                                         f_sigmoid,
-                                         Shape{1, 1, 2, 2},
-                                         Shape{1, 1, 2, 2});
+    test_unary<TestEngine, element::f32>(
+        unary_func<op::Sigmoid>(), {1.0f, 4.0f, 1.0f, 4.0f}, f_sigmoid, Shape{1, 1, 2, 2});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h4)
 {
-    test_unary<TestEngine, element::f32>(unary_func<op::Sigmoid>(),
-                                         {1.0f, 4.0f, 1.0f, 4.0f},
-                                         f_sigmoid,
-                                         Shape{1, 1, 4},
-                                         Shape{1, 1, 4});
+    test_unary<TestEngine, element::f32>(
+        unary_func<op::Sigmoid>(), {1.0f, 4.0f, 1.0f, 4.0f}, f_sigmoid, Shape{1, 1, 4});
 }

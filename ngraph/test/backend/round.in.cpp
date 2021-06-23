@@ -15,6 +15,7 @@ NGRAPH_TEST(${BACKEND_NAME}, round_half_to_even)
         unary_func<op::v5::Round>(op::v5::Round::RoundMode::HALF_TO_EVEN),
         {0.9f, 2.5f, 2.3f, 1.5f, -4.5f},
         {1.0f, 2.0f, 2.0f, 2.0f, -4.0f},
+        {},
         MIN_FLOAT_TOLERANCE_BITS);
 }
 
@@ -24,6 +25,7 @@ NGRAPH_TEST(${BACKEND_NAME}, round_away_from_zero)
         unary_func<op::v5::Round>(op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO),
         {0.9f, 2.5f, 2.3f, 1.5f, -4.5f},
         {1.0f, 3.0f, 2.0f, 2.0f, -5.0f},
+        {},
         MIN_FLOAT_TOLERANCE_BITS);
 }
 
@@ -47,7 +49,6 @@ NGRAPH_TEST(${BACKEND_NAME}, round_2D)
          -2.5f,
          -2.8f},
         {0.f, 0.f, 1.f, 1.f, 2.f, 2.f, 2.f, 2.f, 3.f, -1.f, -2.f, -2.f, -2.f, -2.f, -3.f},
-        Shape{3, 5},
         Shape{3, 5},
         MIN_FLOAT_TOLERANCE_BITS);
 }

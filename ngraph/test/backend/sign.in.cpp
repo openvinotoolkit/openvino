@@ -13,6 +13,5 @@ NGRAPH_TEST(${BACKEND_NAME}, sign)
                                          {1, -2, 0, -4.8f, 4.8f, -0.0f},
                                          {1, -1, 0, -1, 1, 0},
                                          Shape{2, 3},
-                                         Shape{2, 3},
                                          MIN_FLOAT_TOLERANCE_BITS);
 }

@@ -21,7 +21,7 @@ NGRAPH_TEST(${BACKEND_NAME}, exp_negative)
 NGRAPH_TEST(${BACKEND_NAME}, exp_scalar)
 {
     test_unary<TestEngine, element::f32>(
-        unary_func<op::Exp>(), {13}, std::exp, Shape{}, Shape{}, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
+        unary_func<op::Exp>(), {13}, std::exp, {}, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
 
 template <typename T>
@@ -41,5 +41,5 @@ NGRAPH_TEST(${BACKEND_NAME}, exp_in_place)
     };
 
     test_unary<TestEngine, element::f32>(
-        creator, {1, 3}, exp_exp, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
+        creator, {1, 3}, exp_exp, {}, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
