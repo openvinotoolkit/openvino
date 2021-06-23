@@ -1810,28 +1810,6 @@ TEST(eval, topk_v1_param_dyn_k0)
     ASSERT_EQ(result1_val, expec1);
 }
 
-TEST(eval, reduce_logical_and__neg_axis)
-{
-    const auto data = make_shared<op::Parameter>(element::boolean, Shape{2, 2, 2});
-    const auto axes = make_shared<op::Parameter>(element::i64, Shape{});
-
-    const auto op = make_shared<op::v1::ReduceLogicalAnd>(data, axes);
-
-    auto fun = make_shared<Function>(op, ParameterVector{data, axes});
-
-    auto result = make_shared<HostTensor>();
-
-    // when ReduceLogicalAnd node evaluator returns false -> the Function object throws
-    EXPECT_THROW(
-        fun->evaluate({result},
-                      {
-                          make_host_tensor<element::Type_t::boolean>(
-                              Shape{2, 2, 2}, {true, false, true, false, true, false, true, false}),
-                          make_host_tensor<element::Type_t::i64>(Shape{}, {-1}),
-                      }),
-        ngraph::ngraph_error);
-}
-
 TEST(eval, evaluate_static_scatter_update_basic_axes_indices_i32)
 {
     const Shape data_shape{3, 3};

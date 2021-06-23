@@ -5,7 +5,7 @@
 #include "grn_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "grn/grn_kernel_selector.h"
 #include "grn/grn_kernel_base.h"
@@ -20,6 +20,10 @@ namespace gpu {
 struct grn_gpu : typed_primitive_gpu_impl<grn> {
     using parent = typed_primitive_gpu_impl<grn>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<grn_gpu>(*this);
+    }
 
 public:
     static primitive_impl* create(const grn_node& arg) {

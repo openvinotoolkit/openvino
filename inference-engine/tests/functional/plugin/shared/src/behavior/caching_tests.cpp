@@ -139,7 +139,7 @@ void LoadNetworkCacheTestBase::SetUp() {
     try {
         function = fGen(m_precision, m_batchSize);
     } catch (...) {
-        SKIP();
+        GTEST_SKIP();
     }
 
     std::stringstream ss;
@@ -168,11 +168,11 @@ void LoadNetworkCacheTestBase::Run() {
     };
     if (!function) {
         GTEST_COUT << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        SKIP();
+        GTEST_SKIP();
     }
     if (!importExportSupported(*core)) {
         GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
-        SKIP();
+        GTEST_SKIP();
     }
     cnnNetwork = CNNNetwork{function};
     ConfigureNetwork();
@@ -183,10 +183,10 @@ void LoadNetworkCacheTestBase::Run() {
     } catch (const Exception &ex) {
         GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
         GTEST_COUT << "Exception [" << ex.what() << "]" << std::endl;
-        SKIP();
+        GTEST_SKIP();
     } catch (...) {
         GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        SKIP(); // skip caching test if such network is not supported by device at all
+        GTEST_SKIP(); // skip caching test if such network is not supported by device at all
     }
     auto originalOutputs = GetOutputs();
 

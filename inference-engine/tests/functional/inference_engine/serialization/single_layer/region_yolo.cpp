@@ -33,7 +33,7 @@ namespace {
     const int start_axis = 1;
     const int end_axis = 3;
 
-    INSTANTIATE_TEST_CASE_P(smoke_RegionYolov3Serialization, RegionYoloLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_RegionYolov3Serialization, RegionYoloLayerTest,
     ::testing::Combine(
         ::testing::ValuesIn(inShapes_v3),
         ::testing::Values(classes[0]),
