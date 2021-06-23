@@ -39,14 +39,15 @@ namespace ngraph
                             float eps,
                             EpsMode eps_mode);
 
+                void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                float get_eps() const { return m_eps; }
-                EpsMode get_eps_mode() const { return m_eps_mode; }
-                virtual void validate_and_infer_types() override;
-                AxisSet get_reduction_axes() const;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                float get_eps() const { return m_eps; }
+                EpsMode get_eps_mode() const { return m_eps_mode; }
+                AxisSet get_reduction_axes() const;
 
             protected:
                 float m_eps;

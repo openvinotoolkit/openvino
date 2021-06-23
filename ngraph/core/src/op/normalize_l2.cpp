@@ -14,13 +14,12 @@
 using namespace std;
 using namespace ngraph;
 
-
 NGRAPH_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
 
-op::NormalizeL2::NormalizeL2(const Output<Node>& data,
-                             const Output<Node>& axes,
-                             float eps,
-                             EpsMode eps_mode)
+op::v0::NormalizeL2::NormalizeL2(const Output<Node>& data,
+                                 const Output<Node>& axes,
+                                 float eps,
+                                 EpsMode eps_mode)
     : Op({data, axes})
     , m_eps(eps)
     , m_eps_mode(eps_mode)
@@ -28,7 +27,7 @@ op::NormalizeL2::NormalizeL2(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_NormalizeL2_visit_attributes);
     visitor.on_attribute("eps", m_eps);
@@ -36,7 +35,7 @@ bool ngraph::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::NormalizeL2::validate_and_infer_types()
+void op::v0::NormalizeL2::validate_and_infer_types()
 {
     auto axes_node = input_value(1).get_node_shared_ptr();
     const auto& input_pshape = get_input_partial_shape(0);
@@ -74,7 +73,7 @@ void op::NormalizeL2::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-AxisSet op::NormalizeL2::get_reduction_axes() const
+AxisSet op::v0::NormalizeL2::get_reduction_axes() const
 {
     AxisSet axes;
     if (auto const_op = get_constant_from_source(input_value(1)))
@@ -84,12 +83,12 @@ AxisSet op::NormalizeL2::get_reduction_axes() const
     return axes;
 }
 
-shared_ptr<Node> op::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs);
     if (new_args.size() != 2)
     {
         throw ngraph_error("Incorrect number of new arguments");
     }
-    return make_shared<NormalizeL2>(new_args.at(0), new_args.at(1), m_eps, m_eps_mode);
+    return make_shared<op::v0::NormalizeL2>(new_args.at(0), new_args.at(1), m_eps, m_eps_mode);
 }
