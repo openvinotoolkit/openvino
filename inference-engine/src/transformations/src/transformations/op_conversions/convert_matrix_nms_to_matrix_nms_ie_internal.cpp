@@ -62,7 +62,8 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIEInternal::ConvertMatrixNmsToMatrixNms
                 nms->get_background_class(),
                 (int32_t)nms->get_decay_function(),
                 nms->get_gaussian_sigma(),
-                nms->get_post_threshold());
+                nms->get_post_threshold(),
+                nms->get_normalized());
         new_ops.emplace_back(nms_legacy);
 
         Output<Node> output_0 = nms_legacy->output(0);

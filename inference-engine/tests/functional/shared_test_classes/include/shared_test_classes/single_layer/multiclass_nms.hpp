@@ -28,6 +28,7 @@ using NmsParams = std::tuple<InputShapeParams,                                  
                              int,                                                // Maximum number of boxes to be selected per class
                              int,                                                // Maximum number of boxes to be selected per batch element
                              int,                                                // Background class id
+                             bool,                                               // Boxes normalized or not
                              std::string>;                                       // Device name
 
 class MulticlassNmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {

@@ -26,6 +26,7 @@ const std::vector<element::Type> outType = {element::i32, element::i64};
 const std::vector<int> nmsTopK = {-1, 100};
 const std::vector<int> keepTopK = {-1, 5};
 const std::vector<int> backgroudClass = {-1, 0};
+const std::vector<bool> normalized = {true, false};
 
 const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                           ::testing::Combine(::testing::Values(Precision::FP32),
@@ -37,6 +38,7 @@ const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                           ::testing::ValuesIn(nmsTopK),
                                           ::testing::ValuesIn(keepTopK),
                                           ::testing::ValuesIn(backgroudClass),
+                                          ::testing::ValuesIn(normalized),
                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 

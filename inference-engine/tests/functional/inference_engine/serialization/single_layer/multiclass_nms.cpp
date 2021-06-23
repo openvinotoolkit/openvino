@@ -35,6 +35,7 @@ namespace {
     const std::vector<int> nmsTopK = {10, 100};
     const std::vector<int> keepTopK = {10, 5};
     const std::vector<int> backgroudClass = {-1, 0};
+    const std::vector<bool> normalized = {true, false};
 
     const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                             ::testing::Combine(::testing::Values(InferenceEngine::Precision::FP32),
@@ -46,6 +47,7 @@ namespace {
                                             ::testing::ValuesIn(nmsTopK),
                                             ::testing::ValuesIn(keepTopK),
                                             ::testing::ValuesIn(backgroudClass),
+                                            ::testing::ValuesIn(normalized),
                                             ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
     INSTANTIATE_TEST_CASE_P(smoke_MulticlassNmsLayerTest, MulticlassNmsLayerTest, nmsParams, MulticlassNmsLayerTest::getTestCaseName);

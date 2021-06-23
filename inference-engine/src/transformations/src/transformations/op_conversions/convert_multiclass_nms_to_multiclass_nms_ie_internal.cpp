@@ -61,7 +61,8 @@ ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIEInternal::ConvertMulticlassNm
                 nms->get_nms_top_k(),
                 nms->get_keep_top_k(),
                 nms->get_background_class(),
-                nms->get_nms_eta());
+                nms->get_nms_eta(),
+                nms->get_normalized());
         new_ops.emplace_back(nms_legacy);
 
         Output<Node> output_0 = nms_legacy->output(0);

@@ -18,8 +18,9 @@ std::string MulticlassNmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsPa
     element::Type outType;
     int nmsTopK, keepTopK, backgroudClass;
     std::string targetDevice;
+    bool normalized;
     std::tie(inShapeParams, inPrecisions, sortResultType, sortResultAcrossBatch, outType, nmsTopK,
-        keepTopK, backgroudClass, targetDevice) = obj.param;
+        keepTopK, backgroudClass, normalized, targetDevice) = obj.param;
 
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -32,7 +33,7 @@ std::string MulticlassNmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsPa
     result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
     result << "sortResultAcrossBatch=" << sortResultAcrossBatch << "_sortResultType=" << sortResultType << "_";
     result << "outType=" << outType << "_nmsTopK=" << nmsTopK << "_keepTopK=" << keepTopK <<  "_";
-    result << "backgroudClass=" << backgroudClass << "_TargetDevice=" << targetDevice;
+    result << "backgroudClass=" << backgroudClass << "_normalized=" << normalized << "_TargetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -137,8 +138,9 @@ void MulticlassNmsLayerTest::SetUp() {
     op::v8::MulticlassNms::SortResultType sortResultType;
     element::Type outType;
     int nmsTopK, keepTopK, backgroudClass;
+    bool normalized;
     std::tie(inShapeParams, inPrecisions, sortResultType, sortResultAcrossBatch, outType, nmsTopK, keepTopK,
-        backgroudClass, targetDevice) = this->GetParam();
+        backgroudClass, normalized, targetDevice) = this->GetParam();
 
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -151,7 +153,7 @@ void MulticlassNmsLayerTest::SetUp() {
     auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
     auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], sortResultType, sortResultAcrossBatch, outType,
-        0.1f, 0.2f, nmsTopK, keepTopK, backgroudClass, 0.5f);
+        0.1f, 0.2f, nmsTopK, keepTopK, backgroudClass, 0.5f, normalized);
     auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
     auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape{1}, {1}));
     auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape{1}, {1}));
