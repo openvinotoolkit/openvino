@@ -57,7 +57,8 @@ namespace kernels {
 
 // 8UC1 Resize (bi-linear)
 template<>
-void calcRowLinear8UC1Impl(sse42_tag, uint8_t  *dst[],
+bool calcRowLinear8UC1Impl(sse42_tag,
+                                 uint8_t *dst[],
                            const uint8_t *src0[],
                            const uint8_t *src1[],
                            const short    alpha[],
@@ -69,6 +70,12 @@ void calcRowLinear8UC1Impl(sse42_tag, uint8_t  *dst[],
                             const Size&   outSz,
                             const int     lpi,
                             const int) {
+    constexpr int nlanes = v_uint8::nlanes;
+    constexpr int half_nlanes = (v_uint8::nlanes / 2);
+
+    if (inSz.width < nlanes || outSz.width < half_nlanes)
+        return false;
+
     bool xRatioEq1 = inSz.width  == outSz.width;
     bool yRatioEq1 = inSz.height == outSz.height;
 
@@ -505,6 +512,7 @@ void calcRowLinear8UC1Impl(sse42_tag, uint8_t  *dst[],
             memcpy(dst[l], src0[l], length);
         }
     }
+    return true;
 }
 
 // Resize 3C/4C universal intrinsic implementation for SSE42 version is a bit slower than original sometimes.

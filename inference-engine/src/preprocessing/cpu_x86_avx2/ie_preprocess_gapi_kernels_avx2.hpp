@@ -52,7 +52,7 @@ void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
                           uint8_t    tmp[],
                       const Size&    inSz,
                       const Size&    outSz,
-                              int    lpi);
+                        const int    lpi);
 
 // Resize (bi-linear, 8UC4)
 void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
@@ -65,20 +65,20 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
                           uint8_t    tmp[],
                       const Size&    inSz,
                       const Size&    outSz,
-                              int    lpi);
+                        const int    lpi);
 
 template<int numChan>
 void calcRowLinear_8UC(std::array<std::array<uint8_t*, 4>, numChan> &dst,
-                       const uint8_t *src0[],
-                       const uint8_t *src1[],
+                       const uint8_t* src0[],
+                       const uint8_t* src1[],
                        const short    alpha[],
                        const short    clone[],
                        const short    mapsx[],
                        const short    beta[],
-                        uint8_t  tmp[],
-                       const Size    &inSz,
-                       const Size    &outSz,
-                        int      lpi) {
+                           uint8_t    tmp[],
+                       const Size&    inSz,
+                       const Size&    outSz,
+                       const int      lpi) {
     calcRowLinear_8U(std::integral_constant<int, numChan>{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 }  // namespace avx
@@ -125,10 +125,10 @@ extern template void mergeRowImpl<avx2_tag, uint8_t, 4>(avx2_tag, const std::arr
 extern template void mergeRowImpl<avx2_tag, float, 4>(avx2_tag, const std::array<const float*, 4>& ins, float* out, const int length);
 
 template<typename isa_tag_t>
-void calcRowLinear8UC1Impl(isa_tag_t, uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
-                                   const short alpha[], const short clone[], const short mapsx[],
-                                   const short beta[], uint8_t tmp[], const Size& inSz,
-                                   const Size& outSz, const int lpi, const int l);
+bool calcRowLinear8UC1Impl(isa_tag_t, uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
+                           const short alpha[], const short clone[], const short mapsx[],
+                           const short beta[], uint8_t tmp[], const Size& inSz,
+                           const Size& outSz, const int lpi, const int l);
 
 template<typename isa_tag_t>
 void calcRowLinear32FC1Impl(isa_tag_t, float* dst[], const float* src0[], const float* src1[],

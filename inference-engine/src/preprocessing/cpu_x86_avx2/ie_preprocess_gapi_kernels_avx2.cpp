@@ -112,7 +112,7 @@ CV_ALWAYS_INLINE void verticalPass_lpi4_8U(const uint8_t* src0[], const uint8_t*
                                            uint8_t tmp[], const short beta[],
                                            const int& length) {
     constexpr int half_nlanes = (v_uint8::nlanes / 2);
-    GAPI_Assert(length >= half_nlanes);
+    GAPI_DbgAssert(length >= half_nlanes);
 
     v_int16 b0 = vx_setall_s16(beta[0]);
     v_int16 b1 = vx_setall_s16(beta[1]);
@@ -185,7 +185,7 @@ CV_ALWAYS_INLINE void verticalPass_anylpi_8U(const uint8_t* src0[], const uint8_
                                              uint8_t tmp[], const int& beta0,
                                              const int l, const int length1, const int length2) {
     constexpr int half_nlanes = (v_uint8::nlanes / 2);
-    GAPI_Assert(length1 >= half_nlanes);
+    GAPI_DbgAssert(length1 >= half_nlanes);
 
     for (int w = 0; w < length2; ) {
         for (; w <= length1 - half_nlanes; w += half_nlanes) {
@@ -202,17 +202,17 @@ CV_ALWAYS_INLINE void verticalPass_anylpi_8U(const uint8_t* src0[], const uint8_
 }
 
 template<int chanNum>
-void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
-                            const uint8_t *src0[],
-                            const uint8_t *src1[],
-                            const short    alpha[],
-                            const short    clone[],  // 4 clones of alpha
-                            const short    mapsx[],
-                            const short    beta[],
-                                uint8_t    tmp[],
-                             const Size    &inSz,
-                             const Size    &outSz,
-                                    int    lpi) {
+CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
+                                             const uint8_t* src0[],
+                                             const uint8_t* src1[],
+                                             const short    alpha[],
+                                             const short    clone[],  // 4 clones of alpha
+                                             const short    mapsx[],
+                                             const short    beta[],
+                                                 uint8_t    tmp[],
+                                             const Size&    inSz,
+                                             const Size&    outSz,
+                                               const int    lpi) {
     constexpr int half_nlanes = (v_uint8::nlanes / 2);
     const int shift = (half_nlanes / 4);
 
@@ -263,7 +263,6 @@ void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
             short beta0 = beta[l];
 
             // vertical pass
-            GAPI_DbgAssert(inSz.width*chanNum >= half_nlanes);
             verticalPass_anylpi_8U(src0, src1, tmp, beta0, l,
                                    inSz.width*chanNum, inSz.width*chanNum);
 
@@ -322,31 +321,16 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
 
     calcRowLinear_8UC_Impl<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
-}  // namespace avx
-
-CV_ALWAYS_INLINE v_uint8 setHorizontalShufMask1() {
-    return v_setr_s8(0, 4, 8, 12, 2, 6, 10, 14,
-                    1, 5, 9, 13, 3, 7, 11, 15,
-                    0, 4, 8, 12, 2, 6, 10, 14,
-                    1, 5, 9, 13, 3, 7, 11, 15);
-}
-
-CV_ALWAYS_INLINE v_uint8 setHorizontalShufMask2() {
-    return v_setr_s8(0, 1, 8, 9, 2, 3, 10, 11,
-                    4, 5, 12, 13, 6, 7, 14, 15,
-                    0, 1, 8, 9, 2, 3, 10, 11,
-                    4, 5, 12, 13, 6, 7, 14, 15);
-}
 
 CV_ALWAYS_INLINE void horizontalPass_lpi4_8UC1(const short clone[], const short mapsx[],
                                                uint8_t tmp[], uint8_t* dst[], const int& length) {
     constexpr int half_nlanes = (v_uint8::nlanes / 2);
-    GAPI_Assert(length >= half_nlanes);
+    GAPI_DbgAssert(length >= half_nlanes);
 
     v_uint8 val_0, val_1, val_2, val_3, res1, res2;
     constexpr int shift = 4;
-    v_uint8 shuf_mask1 = setHorizontalShufMask1();
-    v_uint8 shuf_mask2 = setHorizontalShufMask2();
+    v_uint8 shuf_mask1 = avx::setHorizontalShufMask1();
+    v_uint8 shuf_mask2 = avx::setHorizontalShufMask2();
 
     v_uint32 idxs = v_setr_s32(0, 2, 4, 6, 1, 3, 5, 7);
 
@@ -364,9 +348,9 @@ CV_ALWAYS_INLINE void horizontalPass_lpi4_8UC1(const short clone[], const short 
             val_3 = v_permute32(val_3, idxs);
 
             avx::main_computation_horizontalPass_lpi4(val_0, val_1, val_2, val_3,
-                                                a10, a32, a54, a76,
-                                                shuf_mask1, shuf_mask2,
-                                                res1, res2);
+                                                      a10, a32, a54, a76,
+                                                      shuf_mask1, shuf_mask2,
+                                                      res1, res2);
 
             v_store_low(&dst[0][x], res1);
             v_store_high(&dst[1][x], res1);
@@ -384,7 +368,7 @@ CV_ALWAYS_INLINE void horizontalPass_anylpi_8U(const short alpha[], const short 
                                                uint8_t* dst[], const uchar tmp[], const int l,
                                                const int length) {
     constexpr int half_nlanes = (v_uint8::nlanes / 2);
-    GAPI_Assert(length >= half_nlanes);
+    GAPI_DbgAssert(length >= half_nlanes);
 
     v_int16 t0, t1;
     for (int x = 0; x < length; ) {
@@ -403,10 +387,12 @@ CV_ALWAYS_INLINE void horizontalPass_anylpi_8U(const short alpha[], const short 
         }
     }
 }
+}  // namespace avx
+
 
 // 8UC1 Resize (bi-linear)
 template<>
-void calcRowLinear8UC1Impl(avx2_tag,
+bool calcRowLinear8UC1Impl(avx2_tag,
                            uint8_t*       dst[],
                            const uint8_t* src0[],
                            const uint8_t* src1[],
@@ -419,10 +405,14 @@ void calcRowLinear8UC1Impl(avx2_tag,
                            const Size&    outSz,
                            const int      lpi,
                            const int) {
+    constexpr int nlanes = v_uint8::nlanes;
+    constexpr int half_nlanes = (v_uint8::nlanes / 2);
+
+    if (inSz.width < nlanes || outSz.width < half_nlanes)
+        return false;
+
     bool xRatioEq = inSz.width == outSz.width;
     bool yRatioEq = inSz.height == outSz.height;
-
-    constexpr int nlanes = v_uint8::nlanes;
 
     if (!xRatioEq && !yRatioEq) {
         if (4 == lpi) {
@@ -430,7 +420,7 @@ void calcRowLinear8UC1Impl(avx2_tag,
             avx::verticalPass_lpi4_8U(src0, src1, tmp, beta, inSz.width);
 
             // horizontal pass
-            horizontalPass_lpi4_8UC1(clone, mapsx, tmp, dst, outSz.width);
+            avx::horizontalPass_lpi4_8UC1(clone, mapsx, tmp, dst, outSz.width);
 
         } else {  // if any lpi
             int inLength = inSz.width;
@@ -442,7 +432,7 @@ void calcRowLinear8UC1Impl(avx2_tag,
                 avx::verticalPass_anylpi_8U(src0, src1, tmp, beta0, l, inLength, inLength);
 
                 // horizontal pass
-                horizontalPass_anylpi_8U(alpha, mapsx, dst, tmp, l, outLength);
+                avx::horizontalPass_anylpi_8U(alpha, mapsx, dst, tmp, l, outLength);
             }
         }  // if lpi == 4
 
@@ -451,7 +441,7 @@ void calcRowLinear8UC1Impl(avx2_tag,
 
         if (4 == lpi) {
             // vertical pass
-            GAPI_Assert(inSz.width >= nlanes);
+            GAPI_DbgAssert(inSz.width >= nlanes);
             v_uint8 s0, s1, s2, s3;
             for (int w = 0; w < inSz.width; ) {
                 for (; w <= inSz.width - nlanes; w += nlanes) {
@@ -468,14 +458,14 @@ void calcRowLinear8UC1Impl(avx2_tag,
             }
 
             // horizontal pass
-            horizontalPass_lpi4_8UC1(clone, mapsx, tmp, dst, outSz.width);
+            avx::horizontalPass_lpi4_8UC1(clone, mapsx, tmp, dst, outSz.width);
 
         } else {  // any LPI
             for (int l = 0; l < lpi; ++l) {
                 const uchar* src = src0[l];
 
                 // horizontal pass
-                horizontalPass_anylpi_8U(alpha, mapsx, dst, src, l, outSz.width);
+                avx::horizontalPass_anylpi_8U(alpha, mapsx, dst, src, l, outSz.width);
             }
         }
 
@@ -499,6 +489,7 @@ void calcRowLinear8UC1Impl(avx2_tag,
             memcpy(dst[l], src0[l], length);
         }
     }
+    return true;
 }
 
 template void chanToPlaneRowImpl(avx2_tag, const uint8_t* in, const int chan, const int chs, uint8_t* out, const int length);

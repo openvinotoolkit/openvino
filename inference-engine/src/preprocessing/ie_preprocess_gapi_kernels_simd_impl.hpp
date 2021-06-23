@@ -717,7 +717,8 @@ template<typename isa_tag_t> struct vector_type_of<isa_tag_t, uint8_t> { using t
 template<typename isa_tag_t> struct vector_type_of<isa_tag_t, float>   { using type = v_float32;};
 
 template<typename isa_tag_t, typename T>
-CV_ALWAYS_INLINE void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan, const int chs, T* out, const int length) {
+CV_ALWAYS_INLINE void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan,
+                                         const int chs, T* out, const int length) {
     if (chs == 1) {
         copyRow_Impl<vector_type_of_t<isa_tag_t, T>, T>(in, out, length);
         return;

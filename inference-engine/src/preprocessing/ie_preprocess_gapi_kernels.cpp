@@ -168,7 +168,7 @@ struct remove<list<>, t> {
 
 template <typename typelist, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t,
           typename result_t = decltype(std::declval<type_to_value_t>()(type_to_type<head_t<typelist>> {}))>
-result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value = {}) {
+inline result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value = {}) {
     return type_dispatch_impl<typelist>::template dispatch<result_t>(std::forward<type_id_t>(type_id),
                                                                      std::forward<type_to_id_t>(type_to_id),
                                                                      std::forward<type_to_value_t>(type_to_value),
@@ -177,7 +177,7 @@ result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_val
 
 template <typename typelist, typename default_t, typename pred_t, typename type_to_value_t,
           typename result_t = decltype(std::declval<type_to_value_t>()(type_to_type<head_t<typelist>> {}))>
-result_t type_dispatch(pred_t&& pred, type_to_value_t&& type_to_value, default_t default_value = {}) {
+inline result_t type_dispatch(pred_t&& pred, type_to_value_t&& type_to_value, default_t default_value = {}) {
     return type_dispatch_impl<typelist>::template dispatch<result_t>(std::forward<pred_t>(pred),
                                                                      std::forward<type_to_value_t>(type_to_value),
                                                                      std::forward<default_t>(default_value));
@@ -214,7 +214,7 @@ namespace {
 using merge_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float, fp_16_t>;
 
 template<typename T, int chs>
-void mergeRowImpl(scalar_tag, const std::array<const T*, chs>& ins, T* out, const int length) {
+inline void mergeRowImpl(scalar_tag, const std::array<const T*, chs>& ins, T* out, const int length) {
     for (int x = 0; x < length; ++x) {
         for (int c = 0; c < chs; ++c) {
             out[chs * x + c] = ins[c][x];
@@ -227,9 +227,10 @@ struct typed_merge_row {
     using p_f = void (*)(const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length);
 
     template <typename type>
-    typename std::enable_if<std::is_same<isa_tag_t, scalar_tag>::value ||
-            (!std::is_same<isa_tag_t, scalar_tag>::value && !std::is_same<type, uint8_t>::value &&
-             !std::is_same<type, float>::value), p_f>::type
+    inline typename std::enable_if<std::is_same<isa_tag_t, scalar_tag>::value ||
+                                  (!std::is_same<isa_tag_t, scalar_tag>::value &&
+                                   !std::is_same<type, uint8_t>::value &&
+                                   !std::is_same<type, float>::value), p_f>::type
     operator()(type_to_type<type> ) {
         return [](const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length) {
             const auto inT = reinterpret_cast<const std::array<const type*, chs>&>(ins);
@@ -240,7 +241,7 @@ struct typed_merge_row {
     }
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
     operator()(type_to_type<uint8_t>) {
         return [](const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length) {
             tag t;
@@ -249,7 +250,7 @@ struct typed_merge_row {
     }
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
     operator()(type_to_type<float>) {
         return [](const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length) {
             const auto inT = reinterpret_cast<const std::array<const float*, chs>&>(ins);
@@ -266,7 +267,7 @@ namespace {
 using split_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float, fp_16_t>;
 
 template<typename T, int chs>
-void splitRowImpl(scalar_tag, const T* in, std::array<T*, chs>& outs, const int length) {
+inline void splitRowImpl(scalar_tag, const T* in, std::array<T*, chs>& outs, const int length) {
     for (int x = 0; x < length; ++x) {
         for (int c = 0; c < chs; ++c) {
             outs[c][x] = in[chs * x + c];
@@ -279,9 +280,10 @@ struct typed_split_row {
     using p_f = void (*)(const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length);
 
     template <typename type>
-    typename std::enable_if<std::is_same<isa_tag_t, scalar_tag>::value ||
-            (!std::is_same<isa_tag_t, scalar_tag>::value && !std::is_same<type, uint8_t>::value &&
-             !std::is_same<type, float>::value), p_f>::type
+    inline typename std::enable_if<std::is_same<isa_tag_t, scalar_tag>::value ||
+                                   (!std::is_same<isa_tag_t, scalar_tag>::value &&
+                                    !std::is_same<type, uint8_t>::value &&
+                                    !std::is_same<type, float>::value), p_f>::type
     operator()(type_to_type<type> ) {
         return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
             const auto inT = reinterpret_cast<const type*>(in);
@@ -292,7 +294,7 @@ struct typed_split_row {
     }
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
     operator()(type_to_type<uint8_t>) {
         return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
             tag t;
@@ -301,7 +303,7 @@ struct typed_split_row {
     }
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
     operator()(type_to_type<float>) {
         return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
             const auto inT = reinterpret_cast<const float*>(in);
@@ -391,7 +393,7 @@ namespace {
 using chan_to_plane_supported_types = typelist<uint8_t, float>;
 
 template<typename T>
-void chanToPlaneRowImpl(scalar_tag, const T* in, int chan, int chs, T* out, int length) {
+inline void chanToPlaneRowImpl(scalar_tag, const T* in, int chan, int chs, T* out, int length) {
     for (int x = 0; x < length; x++) {
         out[x] = in[x*chs + chan];
     }
@@ -417,8 +419,8 @@ namespace {
 
 using nv12_to_rgb_supported_types = typelist<uint8_t>;
 
-void nv12ToRgbRowImpl(scalar_tag, const uint8_t** y_rows, const uint8_t* uv_row,
-    uint8_t** out_rows, const int buf_width) {
+inline void nv12ToRgbRowImpl(scalar_tag, const uint8_t** y_rows, const uint8_t* uv_row,
+                             uint8_t** out_rows, const int buf_width) {
     for (int i = 0; i < buf_width; i += 2) {
         uint8_t u = uv_row[i];
         uint8_t v = uv_row[i + 1];
@@ -442,17 +444,17 @@ void nv12ToRgbRowImpl(scalar_tag, const uint8_t** y_rows, const uint8_t* uv_row,
 template<typename isa_tag_t>
 struct typed_nv12_to_rgb_row {
     using p_f = void (*)(const uint8_t** y_rows, const uint8_t* uv_row,
-        uint8_t** out_rows, const int buf_width);
+                         uint8_t** out_rows, const int buf_width);
 
     template <typename type>
     p_f operator()(type_to_type<type>) {
         return [](const uint8_t** y_rows, const uint8_t* uv_row,
-            uint8_t** out_rows, const int buf_width) {
-                const auto inT1 = reinterpret_cast<const type**>(y_rows);
-                const auto inT2 = reinterpret_cast<const type*>(uv_row);
-                auto outT = reinterpret_cast<type**>(out_rows);
+                  uint8_t** out_rows, const int buf_width) {
+            const auto inT1 = reinterpret_cast<const type**>(y_rows);
+            const auto inT2 = reinterpret_cast<const type*>(uv_row);
+            auto outT = reinterpret_cast<type**>(out_rows);
 
-                nv12ToRgbRowImpl(isa_tag_t{}, inT1, inT2, outT, buf_width);
+            nv12ToRgbRowImpl(isa_tag_t{}, inT1, inT2, outT, buf_width);
         };
     }
 };
@@ -462,11 +464,11 @@ namespace {
 
 using i420_to_rgb_supported_types = typelist<uint8_t>;
 
-static void i420ToRgbRowImpl(scalar_tag, const  uint8_t** y_rows,
-                            const  uint8_t* u_row,
-                            const  uint8_t* v_row,
-                            uint8_t** out_rows,
-                            const int buf_width) {
+inline void i420ToRgbRowImpl(scalar_tag, const  uint8_t** y_rows,
+                             const  uint8_t* u_row,
+                             const  uint8_t* v_row,
+                             uint8_t** out_rows,
+                             const int buf_width) {
     for (int i = 0; i < buf_width; i += 2) {
         uchar u = u_row[i / 2];
         uchar v = v_row[i / 2];
@@ -591,6 +593,7 @@ struct linearScratchDesc {
         return static_cast<int>(size);
     }
 };
+
 static inline double invRatio(int inSz, int outSz) {
     return static_cast<double>(outSz) / inSz;
 }
@@ -600,10 +603,10 @@ static inline double ratio(int inSz, int outSz) {
 }
 
 template<typename T, typename Mapper, int chanNum = 1>
-static void initScratchLinear(const cv::GMatDesc& in,
-                              const         Size& outSz,
-                              cv::gapi::fluid::Buffer& scratch,
-                                             int  lpi) {
+static inline void initScratchLinear(const cv::GMatDesc& in,
+                                     const         Size& outSz,
+                                     cv::gapi::fluid::Buffer& scratch,
+                                     int  lpi) {
     using alpha_type = typename Mapper::alpha_type;
     static const auto unity = Mapper::unity;
 
@@ -681,16 +684,16 @@ static void initScratchLinear(const cv::GMatDesc& in,
 }
 
 template<typename T, typename IT, typename AT, class Mapper>
-void calcRowLinearC1Impl(T*    dst[],
-                         const T*    src0[],
-                         const T*    src1[],
-                         const AT    alpha[],
-                         const IT    mapsx[],
-                         const AT    beta[],
-                         const Size& inSz,
-                         const Size& outSz,
-                         const int   lpi,
-                         const int   length) {
+inline void calcRowLinearC1Impl(T*    dst[],
+                                const T*    src0[],
+                                const T*    src1[],
+                                const AT    alpha[],
+                                const IT    mapsx[],
+                                const AT    beta[],
+                                const Size& inSz,
+                                const Size& outSz,
+                                const int   lpi,
+                                const int   length) {
     using alpha_type = typename Mapper::alpha_type;
     for (int l = 0; l < lpi; l++) {
         constexpr static const auto unity = Mapper::unity;
@@ -715,19 +718,21 @@ namespace {
 using resizeLinearU8C1_suptypes = typelist<uint8_t>;
 
 template<class Mapper>
-void calcRowLinear8UC1Impl(scalar_tag, uint8_t* dst[],
-                           const uint8_t* src0[],
-                           const uint8_t* src1[],
-                           const short    alpha[],
-                           const short    clone[],  // 4 clones of alpha
-                           const short    mapsx[],
-                           const short    beta[],
-                           uint8_t        tmp[],
-                           const Size& inSz,
-                           const Size& outSz,
-                           const int   lpi,
-                           const int  length) {
-    calcRowLinearC1Impl<uint8_t, short, short, Mapper>(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi, length);
+inline void calcRowLinear8UC1Impl(scalar_tag, uint8_t* dst[],
+                                  const uint8_t* src0[],
+                                  const uint8_t* src1[],
+                                  const short    alpha[],
+                                  const short    clone[],  // 4 clones of alpha
+                                  const short    mapsx[],
+                                  const short    beta[],
+                                  uint8_t        tmp[],
+                                  const Size&    inSz,
+                                  const Size&    outSz,
+                                  const int      lpi,
+                                  const int      length) {
+    calcRowLinearC1Impl<uint8_t, short,
+                        short, Mapper>(dst, src0, src1, alpha, mapsx,
+                                       beta, inSz, outSz, lpi, length);
 }
 
 template<typename isa_tag_t, class Mapper>
@@ -738,19 +743,23 @@ struct typed_resizeLinearU8C1 {
                          const Size& outSz, const int lpi, const int length);
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
     operator()(type_to_type<uint8_t>) {
         return [](uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
                   const short alpha[], const short clone[], const short mapsx[],
                   const short beta[], uint8_t tmp[], const Size& inSz,
                   const Size& outSz, const int lpi, const int length) {
-            calcRowLinear8UC1Impl(isa_tag_t{}, dst, src0, src1, alpha, clone,
-                                  mapsx, beta, tmp, inSz, outSz, lpi, length);
+            if (!calcRowLinear8UC1Impl(isa_tag_t{}, dst, src0,
+                                    src1, alpha, clone,
+                                    mapsx, beta, tmp,
+                                    inSz, outSz, lpi, length))
+                calcRowLinear8UC1Impl<Mapper>(scalar_tag{}, dst, src0, src1, alpha, clone,
+                                              mapsx, beta, tmp, inSz, outSz, lpi, length);
         };
     }
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<std::is_same<tag, scalar_tag>::value, p_f>::type
     operator()(type_to_type<uint8_t>) {
         return [](uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
                   const short alpha[], const short clone[], const short mapsx[],
@@ -768,17 +777,19 @@ namespace {
 using resizeLinearF32C1_suptypes = typelist<float>;
 
 template<class Mapper>
-void calcRowLinear32FC1Impl(scalar_tag, float* dst[],
-                            const float* src0[],
-                            const float* src1[],
-                            const float  alpha[],
-                            const int    mapsx[],
-                            const float    beta[],
-                            const Size& inSz,
-                            const Size& outSz,
-                            const int   lpi,
-                            const int  length) {
-    calcRowLinearC1Impl<float, int, float, Mapper>(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi, length);
+inline void calcRowLinear32FC1Impl(scalar_tag, float* dst[],
+                                   const float* src0[],
+                                   const float* src1[],
+                                   const float  alpha[],
+                                   const int    mapsx[],
+                                   const float  beta[],
+                                   const Size& inSz,
+                                   const Size& outSz,
+                                   const int   lpi,
+                                   const int  length) {
+    calcRowLinearC1Impl<float, int,
+                        float, Mapper>(dst, src0, src1, alpha, mapsx,
+                                       beta, inSz, outSz, lpi, length);
 }
 
 template<typename isa_tag_t, class Mapper>
@@ -789,24 +800,24 @@ struct typed_resizeLinearF32C1 {
                          const Size& outSz, const int lpi, const int length);
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
         operator()(type_to_type<float>) {
         return [](float* dst[], const float* src0[], const float* src1[],
                   const float alpha[], const int mapsx[],
                   const float beta[], const Size& inSz,
                   const Size& outSz, const int lpi, const int length) {
                 calcRowLinear32FC1Impl(isa_tag_t{}, dst, src0, src1, alpha,
-                                      mapsx, beta, inSz, outSz, lpi, length);
+                                       mapsx, beta, inSz, outSz, lpi, length);
         };
     }
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<std::is_same<tag, scalar_tag>::value, p_f>::type
         operator()(type_to_type<float>) {
         return [](float* dst[], const float* src0[], const float* src1[],
-                const float alpha[], const int mapsx[],
-                const float beta[], const Size& inSz,
-                const Size& outSz, const int lpi, const int length) {
+                  const float alpha[], const int mapsx[],
+                  const float beta[], const Size& inSz,
+                  const Size& outSz, const int lpi, const int length) {
                 calcRowLinear32FC1Impl<Mapper>(isa_tag_t{}, dst, src0, src1, alpha,
                                                mapsx, beta, inSz, outSz, lpi, length);
         };
@@ -860,9 +871,9 @@ GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
     static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
 
     static void run(const cv::gapi::fluid::View & in_y,
-        const cv::gapi::fluid::View & in_u,
-        const cv::gapi::fluid::View & in_v,
-        cv::gapi::fluid::Buffer & out) {
+                    const cv::gapi::fluid::View & in_u,
+                    const cv::gapi::fluid::View & in_v,
+                    cv::gapi::fluid::Buffer & out) {
         GAPI_DbgAssert(is_cv_type_in_list<i420_to_rgb_supported_types>(out.meta().depth));
 
         const uchar* u_row = in_u.InLineB(0);
@@ -885,8 +896,8 @@ GAPI_FLUID_KERNEL(FSplit2, Split2, false) {
     static const int LPI = 4;
     static const int Window = 1;
     static void run(const cv::gapi::fluid::View & in,
-        cv::gapi::fluid::Buffer & out1,
-        cv::gapi::fluid::Buffer & out2) {
+                    cv::gapi::fluid::Buffer & out1,
+                    cv::gapi::fluid::Buffer & out2) {
         GAPI_DbgAssert(2 == in.meta().chan);
         GAPI_DbgAssert(1 == out1.meta().chan);
         GAPI_DbgAssert(1 == out2.meta().chan);
@@ -906,9 +917,9 @@ GAPI_FLUID_KERNEL(FSplit3, Split3, false) {
     static const int LPI = 4;
     static const int Window = 1;
     static void run(const cv::gapi::fluid::View & in,
-        cv::gapi::fluid::Buffer & out1,
-        cv::gapi::fluid::Buffer & out2,
-        cv::gapi::fluid::Buffer & out3) {
+                    cv::gapi::fluid::Buffer & out1,
+                    cv::gapi::fluid::Buffer & out2,
+                    cv::gapi::fluid::Buffer & out3) {
         GAPI_DbgAssert(3 == in.meta().chan);
         GAPI_DbgAssert(1 == out1.meta().chan);
         GAPI_DbgAssert(1 == out2.meta().chan);
@@ -932,10 +943,10 @@ GAPI_FLUID_KERNEL(FSplit4, Split4, false) {
     static const int LPI = 4;
     static const int Window = 1;
     static void run(const cv::gapi::fluid::View & in,
-        cv::gapi::fluid::Buffer & out1,
-        cv::gapi::fluid::Buffer & out2,
-        cv::gapi::fluid::Buffer & out3,
-        cv::gapi::fluid::Buffer & out4) {
+                    cv::gapi::fluid::Buffer & out1,
+                    cv::gapi::fluid::Buffer & out2,
+                    cv::gapi::fluid::Buffer & out3,
+                    cv::gapi::fluid::Buffer & out4) {
         GAPI_DbgAssert(4 == in.meta().chan);
         GAPI_DbgAssert(1 == out1.meta().chan);
         GAPI_DbgAssert(1 == out2.meta().chan);
@@ -960,8 +971,8 @@ GAPI_FLUID_KERNEL(FMerge2, Merge2, false) {
     static const int LPI = 4;
     static const int Window = 1;
     static void run(const cv::gapi::fluid::View & a,
-        const cv::gapi::fluid::View & b,
-        cv::gapi::fluid::Buffer & out) {
+                    const cv::gapi::fluid::View & b,
+                    cv::gapi::fluid::Buffer & out) {
         GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
 
         const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 2>{}, nullptr);
@@ -975,9 +986,9 @@ GAPI_FLUID_KERNEL(FMerge3, Merge3, false) {
     static const int LPI = 4;
     static const int Window = 1;
     static void run(const cv::gapi::fluid::View & a,
-        const cv::gapi::fluid::View & b,
-        const cv::gapi::fluid::View & c,
-        cv::gapi::fluid::Buffer & out) {
+                    const cv::gapi::fluid::View & b,
+                    const cv::gapi::fluid::View & c,
+                    cv::gapi::fluid::Buffer & out) {
         GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
 
         const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 3>{}, nullptr);
@@ -1005,9 +1016,11 @@ GAPI_FLUID_KERNEL(FMerge4, Merge4, false) {
 };
 
 template<typename KT, typename TL>
-static void callRowFunc(uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[], const short alpha[],
-                        const short clone[], const short mapsx[], const short beta[], uint8_t tmp[],
-                        const Size& inSz, const Size& outSz, const int lpi, const int length, const int depth) {
+static inline void callRowFunc(uint8_t* dst[], const uint8_t* src0[],
+                               const uint8_t* src1[], const short alpha[],
+                               const short clone[], const short mapsx[],
+                               const short beta[], uint8_t tmp[], const Size& inSz,
+                               const Size& outSz, const int lpi, const int length, const int depth) {
     const auto rowFunc = type_dispatch<TL>(depth, cv_type_id{}, KT{}, nullptr);
 
     GAPI_DbgAssert(rowFunc);
@@ -1016,9 +1029,10 @@ static void callRowFunc(uint8_t* dst[], const uint8_t* src0[], const uint8_t* sr
 }
 
 template<typename KT, typename TL>
-static void callRowFunc(float* dst[], const float* src0[], const float* src1[], const float alpha[],
-                        const float clone[], const int mapsx[], const float beta[], float tmp[],
-                        const Size& inSz, const Size& outSz, const int lpi, const int length, const int depth) {
+static inline void callRowFunc(float* dst[], const float* src0[], const float* src1[],
+                               const float alpha[], const float clone[], const int mapsx[],
+                               const float beta[], float tmp[], const Size& inSz,
+                               const Size& outSz, const int lpi, const int length, const int depth) {
     const auto rowFunc = type_dispatch<TL>(depth, cv_type_id{}, KT{}, nullptr);
 
     GAPI_DbgAssert(rowFunc);
@@ -1027,9 +1041,9 @@ static void callRowFunc(float* dst[], const float* src0[], const float* src1[], 
 }
 
 template<typename T, class Mapper, typename KT, typename LT>
-static void calcRowLinear(const cv::gapi::fluid::View& in,
-                          cv::gapi::fluid::Buffer& out,
-                          cv::gapi::fluid::Buffer& scratch) {
+static inline void calcRowLinear(const cv::gapi::fluid::View& in,
+                                 cv::gapi::fluid::Buffer& out,
+                                 cv::gapi::fluid::Buffer& scratch) {
     GAPI_DbgAssert(is_cv_type_in_list<LT>(out.meta().depth));
 
     auto  inSz = in.meta().size;
@@ -1043,7 +1057,8 @@ static void calcRowLinear(const cv::gapi::fluid::View& in,
 
     GAPI_DbgAssert(lpi <= 4);
 
-    linearScratchDesc<T, Mapper, 1> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
+    linearScratchDesc<T, Mapper, 1> scr(inSz.width, inSz.height, outSz.width,
+                                        outSz.height, scratch.OutLineB());
 
     const auto* alpha = scr.alpha;
     const auto* clone = scr.clone;
@@ -1084,8 +1099,10 @@ GAPI_FLUID_KERNEL(FScalePlane8u, ScalePlane8u, true) {
     }
 
     static void run(const cv::gapi::fluid::View & in, Size /*sz*/, int /*interp*/,
-        cv::gapi::fluid::Buffer & out, cv::gapi::fluid::Buffer & scratch) {
-        calcRowLinear<uint8_t, linear::Mapper, typed_resizeLinearU8C1<isa_tag_t, linear::Mapper>, resizeLinearU8C1_suptypes>(in, out, scratch);
+                    cv::gapi::fluid::Buffer & out, cv::gapi::fluid::Buffer & scratch) {
+        calcRowLinear<uint8_t, linear::Mapper,
+                      typed_resizeLinearU8C1<isa_tag_t, linear::Mapper>,
+                      resizeLinearU8C1_suptypes>(in, out, scratch);
     }
 };
 
@@ -1095,8 +1112,8 @@ GAPI_FLUID_KERNEL(FScalePlane32f, ScalePlane32f, true) {
     static const auto Kind = cv::GFluidKernel::Kind::Resize;
 
     static void initScratch(const cv::GMatDesc & in,
-        Size outSz, int /*interp*/,
-        cv::gapi::fluid::Buffer & scratch) {
+                            Size outSz, int /*interp*/,
+                            cv::gapi::fluid::Buffer & scratch) {
         GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
 
         initScratchLinear<float, linear32f::Mapper>(in, outSz, scratch, 0);
@@ -1106,8 +1123,10 @@ GAPI_FLUID_KERNEL(FScalePlane32f, ScalePlane32f, true) {
     }
 
     static void run(const cv::gapi::fluid::View & in, Size /*sz*/, int /*interp*/,
-        cv::gapi::fluid::Buffer & out, cv::gapi::fluid::Buffer & scratch) {
-        calcRowLinear<float, linear32f::Mapper, typed_resizeLinearF32C1<isa_tag_t, linear32f::Mapper>, resizeLinearF32C1_suptypes>(in, out, scratch);
+                    cv::gapi::fluid::Buffer & out, cv::gapi::fluid::Buffer & scratch) {
+        calcRowLinear<float, linear32f::Mapper,
+                      typed_resizeLinearF32C1<isa_tag_t, linear32f::Mapper>,
+                      resizeLinearF32C1_suptypes>(in, out, scratch);
     }
 };
 };
@@ -1119,7 +1138,7 @@ struct CC_and_MergeISA {
     CC_and_MergeISA(cv::gapi::GKernelPackage& _pckg) : pckg(_pckg) {}
 
     template<typename isa_tag_t>
-    bool operator()(type_to_type<isa_tag_t>) {
+    inline bool operator()(type_to_type<isa_tag_t>) {
         pckg.include<typename choose_impl<isa_tag_t>::FI420toRGB>();
         pckg.include<typename choose_impl<isa_tag_t>::FNV12toRGB>();
         pckg.include<typename choose_impl<isa_tag_t>::FChanToPlane>();
@@ -1137,7 +1156,7 @@ struct Split_ResizeISA {
     Split_ResizeISA(cv::gapi::GKernelPackage& _pckg) : pckg(_pckg) {}
 
     template<typename isa_tag_t>
-    bool operator()(type_to_type<isa_tag_t>) {
+    inline bool operator()(type_to_type<isa_tag_t>) {
         pckg.include<typename choose_impl<isa_tag_t>::FSplit2>();
         pckg.include<typename choose_impl<isa_tag_t>::FSplit3>();
         pckg.include<typename choose_impl<isa_tag_t>::FSplit4>();
@@ -1149,7 +1168,7 @@ struct Split_ResizeISA {
 };
 }  //namespace
 
-cv::gapi::GKernelPackage FKernelsChooseISA() {
+inline cv::gapi::GKernelPackage FKernelsChooseISA() {
     // At the moment AVX512 implementation of wide universal intrinsics is slower than AVX2.
     // So, disable it for now.
     using isas = remove_t<isas_set, avx512_tag>;
