@@ -224,7 +224,3 @@ add_subdirectory(test)
 if (NGRAPH_PYTHON_BUILD_ENABLE)
     add_subdirectory(python)
 endif()
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/VERSION
-    DESTINATION "deployment_tools/ngraph"
-    COMPONENT ngraph)
