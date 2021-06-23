@@ -1,18 +1,49 @@
 # Converting YOLO* Models to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow}
 
-This tutorial explains how to convert real-time object detection YOLOv1\*, YOLOv2\*, and YOLOv3\* public models to the Intermediate Representation (IR). All YOLO\* models are originally implemented in the DarkNet\* framework and consist of two files:
+This document explains how to convert real-time object detection YOLOv1\*, YOLOv2\*, YOLOv3\* and YOLOv4\* public models to the Intermediate Representation (IR). All YOLO\* models are originally implemented in the DarkNet\* framework and consist of two files:
 * `.cfg` file with model configurations  
 * `.weights` file with model weights
 
 Depending on a YOLO model version, the Model Optimizer converts it differently:
 
-- YOLOv3 has several implementations. This tutorial uses a TensorFlow implementation of YOLOv3 model, which can be directly converted to the IR.
+- YOLOv4 must be first converted from Keras\* to TensorFlow 2\*.
+- YOLOv3 has several implementations. This tutorial uses a TensorFlow implementation of YOLOv3 model, which can be directly converted to an IR.
 - YOLOv1 and YOLOv2 models must be first converted to TensorFlow\* using DarkFlow\*.
+
+## <a name="yolov4-to-ir"></a>Convert YOLOv4 Model to IR
+
+This section explains how to convert the YOLOv4 Keras\* model from the [https://github.com/Ma-Dan/keras-yolo4](https://github.com/Ma-Dan/keras-yolo4]) repository to an IR. To convert the YOLOv4 model, follow the instructions below:
+
+1. Download YOLOv4 weights from [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT).
+
+2. Clone the repository with the YOLOv4 model.
+```sh
+git clone https://github.com/Ma-Dan/keras-yolo4.git
+```
+
+3. Convert the model to the TensorFlow 2\* format. Save the code below to the `converter.py` file in the same folder as you downloaded `yolov4.weights` and run it.
+```python
+from keras-yolo4.model import Mish
+
+model = tf.keras.models.load_model('yolo4_weight.h5', custom_objects={'Mish': Mish})
+tf.saved_model.save(model, 'yolov4')
+```
+
+```sh
+python converter.py 
+```
+
+4. Run Model Optimizer to converter the model from the TensorFlow 2 format to an IR:
+
+> **NOTE:** Before you run the convertion, make sure you have installed all the Model Optimizer dependencies for TensorFlow 2.
+```sh
+python mo.py --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4 
+```
 
 ## <a name="yolov3-to-ir"></a>Convert YOLOv3 Model to IR
 
-On GitHub*, you can find several public versions of TensorFlow YOLOv3 model implementation. This tutorial explains how to convert YOLOv3 model from
-the [https://github.com/mystic123/tensorflow-yolo-v3](https://github.com/mystic123/tensorflow-yolo-v3) repository (commit ed60b90) to IR , but the process is similar for other versions of TensorFlow YOLOv3 model.
+On GitHub*, you can find several public versions of TensorFlow YOLOv3 model implementation. This section explains how to convert YOLOv3 model from
+the [https://github.com/mystic123/tensorflow-yolo-v3](https://github.com/mystic123/tensorflow-yolo-v3) repository (commit ed60b90) to an IR , but the process is similar for other versions of TensorFlow YOLOv3 model.
 
 ### <a name="yolov3-overview"></a>Overview of YOLOv3 Model Architecture
 Originally, YOLOv3 model includes feature extractor called `Darknet-53` with three branches at the end that make detections at three different scales. These branches must end with the YOLO `Region` layer.
@@ -45,7 +76,7 @@ python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weig
 ```sh
 python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weights_file yolov3-tiny.weights --tiny
 ```
-At this step, you may receive a warning like `WARNING:tensorflow:Entity <...> could not be transformed and will be executed as-is.`. To workaround this issue, switch to gast 0.2.2 with the following command:
+At this step, you may receive a warning like `WARNING:tensorflow:Entity <...> could not be transformed and will be executed as-is.`. To work around this issue, switch to gast 0.2.2 with the following command:
 ```sh
 pip3 install --user gast==0.2.2
 ```
@@ -55,7 +86,7 @@ If you have YOLOv3 weights trained for an input image with the size different fr
 python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weights_file yolov3_608.weights --size 608
 ```
 
-### Convert YOLOv3 TensorFlow Model to the IR
+### Convert YOLOv3 TensorFlow Model to IR
 
 To solve the problems explained in the <a href="#yolov3-overview">YOLOv3 architecture overview</a> section, use the `yolo_v3.json` or `yolo_v3_tiny.json` (depending on a model) configuration file with custom operations located in the `<OPENVINO_INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf` repository.
 
@@ -79,7 +110,7 @@ It consists of several attributes:<br>
 where:
 - `id` and `match_kind` are parameters that you cannot change.
 - `custom_attributes` is a parameter that stores all the YOLOv3 specific attributes:
-    - `classes`, `coords`, `num`, and `masks` are attributes that you should copy from the configuration file
+    - `classes`, `coords`, `num`, and `masks` are attributes that you should copy from the configuration 
     file that was used for model training. If you used DarkNet officially shared weights,
     you can use `yolov3.cfg` or `yolov3-tiny.cfg` configuration file from https://github.com/pjreddie/darknet/tree/master/cfg. Replace the default values in `custom_attributes` with the parameters that
     follow the `[yolo]` titles in the configuration file.
@@ -87,7 +118,7 @@ where:
     - `entry_points` is a node name list to cut off the model and append the Region layer with custom attributes specified above.
 
 
-To generate the IR of the YOLOv3 TensorFlow model, run:<br>
+To generate an IR of the YOLOv3 TensorFlow model, run:<br>
 ```sh
 python3 mo_tf.py                                                   \
 --input_model /path/to/yolo_v3.pb                                  \
@@ -96,7 +127,7 @@ python3 mo_tf.py                                                   \
 --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-To generate the IR of the YOLOv3-tiny TensorFlow model, run:<br>
+To generate an IR of the YOLOv3-tiny TensorFlow model, run:<br>
 ```sh
 python3 mo_tf.py                                                        \
 --input_model /path/to/yolo_v3_tiny.pb                                  \
