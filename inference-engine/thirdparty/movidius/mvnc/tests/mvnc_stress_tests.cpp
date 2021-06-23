@@ -151,7 +151,7 @@ TEST_P(MvncStressTests, FullCycleOfWork101Times) {
 
 }
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncStressTests,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());

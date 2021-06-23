@@ -209,7 +209,7 @@ const std::vector<std::vector<size_t>> inputShape = {
     {1, 4, 1, 128}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_InsertTransposeBetweenConvsTest, InsertTransposeBetweenConvs,
+INSTANTIATE_TEST_SUITE_P(smoke_InsertTransposeBetweenConvsTest, InsertTransposeBetweenConvs,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -217,7 +217,7 @@ INSTANTIATE_TEST_CASE_P(smoke_InsertTransposeBetweenConvsTest, InsertTransposeBe
         ::testing::ValuesIn(inputShape)),
     InsertTransposeBetweenConvs::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_InsertTransposeBetweenConvsWithPoolTest, InsertTransposeBetweenConvsWithPool,
+INSTANTIATE_TEST_SUITE_P(smoke_InsertTransposeBetweenConvsWithPoolTest, InsertTransposeBetweenConvsWithPool,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),

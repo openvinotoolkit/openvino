@@ -192,7 +192,7 @@ static auto params = ::testing::Values(Precision::FP32);  // network precision
 static auto params_myriad = ::testing::Values(Precision::FP16);  // network precision
 
 #define PLUGING_CASE(_device, _test, _params) \
-    INSTANTIATE_TEST_CASE_P(_device##_run, _test, ::testing::Combine(::testing::Values(#_device), _params) )
+    INSTANTIATE_TEST_SUITE_P(_device##_run, _test, ::testing::Combine(::testing::Values(#_device), _params) )
 
 #define PLUGING_CASE_WITH_SUFFIX(_device, _suffix, _test, _params) \
-    INSTANTIATE_TEST_CASE_P(_device##_run##_suffix, _test, ::testing::Combine(::testing::Values(#_device), _params) )
+    INSTANTIATE_TEST_SUITE_P(_device##_run##_suffix, _test, ::testing::Combine(::testing::Values(#_device), _params) )

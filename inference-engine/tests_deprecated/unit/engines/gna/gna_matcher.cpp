@@ -17,7 +17,7 @@
 #include "matchers/pool_matcher.hpp"
 #include "matchers/fill_with_data.hpp"
 #include "matchers/weights_matcher.hpp"
-#include <gmock/gmock-generated-actions.h>
+#include <gmock/gmock.h>
 #include <debug.h>
 
 #include <gmock/gmock-more-actions.h>
@@ -107,7 +107,6 @@ void GNAPropagateMatcher :: match() {
     try {
         // matching gna propagate forward call.
         GNAPlugin plugin(_env.config);
-        plugin.SetPolicy(_env.policy);
         size_t inputSize = 10;
         size_t outputSize = 10;
         InputsDataMap inputsInfo;
@@ -508,7 +507,7 @@ void GNAPluginCreationMatcher :: match() {
 void GNAPluginAOTMatcher :: match() {
     // matching gna_propagate forward call.
     MockICNNNetwork net;
-    
+
     size_t weightsSize = 656384;
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {weightsSize}, Layout::C });
     weights->allocate();
@@ -744,7 +743,7 @@ void GNAQueryStateMatcher :: match() {
         auto weights = make_shared_blob<uint8_t>({ Precision::U8, {weightsSize}, Layout::C });
         weights->allocate();
         fillWeights(weights);
-        
+
         InferenceEngine::Core core;
         InferenceEngine::CNNNetwork network;
         ASSERT_NO_THROW_IE_EXCEPTION(network = core.ReadNetwork(_env.model, weights));
