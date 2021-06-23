@@ -12,12 +12,12 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
-> **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare 
-> performance of deep learning models on various Intel® architecture
-> configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components.
+> **TIP**: You can quick start with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is an official OpenVINO™ UI that enables you to
+> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
+> deployment on various Intel® platforms.
 > <br>
-> Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
+> Begin your journey with [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Install).
 
 ## What's New in the Model Optimizer in this Release?
 
