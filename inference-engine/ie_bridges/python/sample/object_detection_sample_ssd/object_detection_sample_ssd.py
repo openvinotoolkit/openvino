@@ -148,7 +148,7 @@ def main():  # noqa
 
     cv2.imwrite('out.bmp', output_image)
     if os.path.exists('out.bmp'):
-        log.info('Image out.bmp was created!')
+        log.info('Image out.bmp created!')
     else:
         log.error('Image out.bmp was not created. Check your permissions.')
 

@@ -137,7 +137,7 @@ def main():
 
         cv2.imwrite(f'out_{i}.bmp', output_image)
         if os.path.exists(f'out_{i}.bmp'):
-            log.info(f'Image out_{i}.bmp was created!')
+            log.info(f'Image out_{i}.bmp created!')
         else:
             log.error(f'Image out_{i}.bmp was not created. Check your permissions.')
 
