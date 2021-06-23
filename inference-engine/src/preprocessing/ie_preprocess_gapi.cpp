@@ -184,6 +184,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const BatchedBlob::Ptr
     for (size_t i = 0; i < blob->size(); ++i) {
         auto inBlob = blob->getBlob(i);
 
+        //TODO reuse `underlied_blob_plane` memory
         std::vector<std::vector<cv::gapi::own::Mat>> underlied_blob_plane;
 
         if (inBlob->is<NV12Blob>()) {
@@ -1060,8 +1061,7 @@ void PreprocEngine::preprocessBatchedBlob(const BatchedBlob::Ptr &inBlob, Memory
         ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
         int batch_size) {
     batch_size = inBlob->size();
-    preprocessTypedBlob(inBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
-            batch_size);
+    preprocessTypedBlob(inBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial, batch_size);
 }
 
 void PreprocEngine::preprocessBlob(const Blob::Ptr &inBlob, MemoryBlob::Ptr &outMemoryBlob, const ResizeAlgorithm &algorithm,
