@@ -25,6 +25,8 @@ It is not a full list of models that can be converted to ONNX\* and to IR.
 * F3Net topology can be converted using [Convert PyTorch\* F3Net to the IR](pytorch_specific/Convert_F3Net.md) instruction.
 * QuartzNet topologies from [NeMo project](https://github.com/NVIDIA/NeMo) can be converted using [Convert PyTorch\* QuartzNet to the IR](pytorch_specific/Convert_QuartzNet.md) instruction.
 * YOLACT topology can be converted using [Convert PyTorch\* YOLACT to the IR](pytorch_specific/Convert_YOLACT.md) instruction.
+* [RCAN](https://github.com/yulunzhang/RCAN) topologies can be converted using [Convert PyTorch\* RCAN to the IR](pytorch_specific/Convert_RCAN.md) instruction.
+* [BERT_NER](https://github.com/kamalkraj/BERT-NER) can be converted using [Convert PyTorch* BERT-NER to the IR](pytorch_specific/Convert_Bert_ner.md) instruction.
 
 ## Export PyTorch\* Model to ONNX\* Format <a name="export-to-onnx"></a>
 
