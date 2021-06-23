@@ -22,6 +22,8 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -83,6 +85,11 @@ bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) cons
         return false;
 
     const auto& input = params.inputs[0];
+
+    if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
+        params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
+        params.resampleType != ResampleType::BILINEAR_INTERP)
+        return false;
 
     if (input.GetLayout() != DataLayout::fs_b_yx_fsv32 && input.GetLayout() != DataLayout::b_fs_yx_fsv16)
         return false;

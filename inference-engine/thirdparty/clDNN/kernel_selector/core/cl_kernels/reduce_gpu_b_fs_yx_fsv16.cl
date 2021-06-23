@@ -256,7 +256,7 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
             for (uint yi = y_out; yi < y_max_val; ++yi) {
                 for (uint xi = x_out; xi < x_max_val; ++xi) {
                     INPUT_VEC input = (INPUT_VEC)(INPUT_INIT_VAL);
-                    #if (REDUCE_MAX_MODE || REDUCE_MIN_MODE || REDUCE_PROD_MODE || REDUCE_AND_MODE || REDUCE_LOG_SUM_EXP_MODE) && REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
+                    #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
                         if (fi + FSV <= INPUT0_FEATURE_NUM)
                             input = BLOCK_READ(data, offset);
                         else
@@ -273,7 +273,7 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
                 #if INPUT0_SIZE_X % READ_OFFSET != 0
                     for (uint xi = x_leftover_start; xi < x_leftover_end; ++xi) {
                         INPUT0_TYPE leftovers = INIT_VAL;
-                        #if (REDUCE_MAX_MODE || REDUCE_MIN_MODE || REDUCE_PROD_MODE || REDUCE_AND_MODE || REDUCE_LOG_SUM_EXP_MODE) && REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
+                        #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
                             if (fi + FSV <= INPUT0_FEATURE_NUM)
                                 leftovers = DT_INPUT_BLOCK_READ(data, offset);
                             else
@@ -341,7 +341,7 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
             for (uint yi = y_out; yi < y_max_val; ++yi) {
                 for (uint xi = x_out; xi < x_max_val; ++xi) {
                     INPUT_VEC input = (INPUT_VEC)(INPUT_INIT_VAL);
-                    #if (REDUCE_MAX_MODE || REDUCE_MIN_MODE || REDUCE_PROD_MODE || REDUCE_AND_MODE || REDUCE_LOG_SUM_EXP_MODE) && REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
+                    #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
                         if (fi + FSV <= INPUT0_FEATURE_NUM)
                             input = BLOCK_READ(data, offset);
                         else
