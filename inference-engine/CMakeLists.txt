@@ -4,13 +4,6 @@
 
 project(InferenceEngine)
 
-if(CMAKE_SOURCE_DIR STREQUAL "${InferenceEngine_SOURCE_DIR}")
-    message(FATAL_ERROR "Cmake source directory must point to <openvino_root>")
-endif()
-
-# resolving dependencies for the project
-include(cmake/dependencies.cmake)
-
 add_subdirectory(thirdparty)
 add_subdirectory(src)
 add_subdirectory(ie_bridges/c)
@@ -25,14 +18,6 @@ add_subdirectory(samples)
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
     add_subdirectory(tests)
-endif()
-
-#
-# Coverage
-#
-
-if(ENABLE_COVERAGE)
-    include(cmake/coverage.cmake)
 endif()
 
 #
