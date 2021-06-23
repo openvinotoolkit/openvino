@@ -199,7 +199,7 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirements() const {
 
     // return max for Myriad2
     const auto& compileEnv = CompileEnv::get();
-    if (compileEnv.platform == Platform::MYRIAD_2) {
+    if (compileEnv.platform == ncDevicePlatform_t::NC_MYRIAD_2) {
         return StageSHAVEsRequirements::NeedMax;
     }
 

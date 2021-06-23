@@ -4,7 +4,7 @@
 
 #include "myriad_layers_gemm_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerGEMM_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerGEMM_smoke,
         ::testing::Combine(
         ::testing::Values<gemm_parameters>(
                 MAKE_STRUCT(gemm_parameters, 4.7f, 2.3f, 5,  7,   11,  1, 2,   3, 4,  5, 6,  7, 8),

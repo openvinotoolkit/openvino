@@ -1,26 +1,18 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#include <gtest/gtest.h>
-#include <api/memory.hpp>
-#include <api/input_layout.hpp>
-#include "api/binary_convolution.hpp"
-#include "api/reorder.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <iostream>
-#include <api/data.hpp>
-#include <src/include/to_string_utils.h>
-#include "float16.h"
 #include "test_utils.h"
 
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/binary_convolution.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/data.hpp>
+
+#include <iostream>
+
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 // Batch, groups, IC, IW, IH, OC, OW, OH, KH, KW, SH, SW, PH, PW
 struct TestParams {
@@ -74,23 +66,23 @@ struct TestParams {
     }
 };
 
-static void fill(cldnn::memory& mem) {
-    auto ptr = mem.pointer<uint32_t>();
-    for (size_t i = 0; i < div_up(mem.get_layout().count(), 32); i++) {
+static void fill(cldnn::memory::ptr mem) {
+    cldnn::mem_lock<uint32_t> ptr(mem, get_test_stream());
+    for (size_t i = 0; i < div_up(mem->get_layout().count(), 32); i++) {
         ptr[i] = (uint32_t)rand() % (1 << 31);
     }
 }
 
 template <typename data_t_src, typename data_t_wei,
           typename data_t_acc, typename data_t_dst>
-void compute_ref_conv_bin(const cldnn::memory &src,
-                          const cldnn::memory &weights,
-                          cldnn::memory &dst,
-                          TestParams &p)
-{
-    auto src_data     = src.pointer<data_t_src>();
-    auto weights_data = weights.pointer<data_t_wei>();
-    auto dst_data     = dst.pointer<data_t_dst>();
+void compute_ref_conv_bin(const cldnn::memory::ptr src,
+                          const cldnn::memory::ptr weights,
+                          cldnn::memory::ptr dst,
+                          TestParams &p) {
+
+    cldnn::mem_lock<data_t_src> src_data(src, get_test_stream());
+    cldnn::mem_lock<data_t_wei> weights_data(weights, get_test_stream());
+    cldnn::mem_lock<data_t_dst> dst_data(dst, get_test_stream());
 
     int pack_size = sizeof(data_t_src) * 8;
 
@@ -117,7 +109,7 @@ void compute_ref_conv_bin(const cldnn::memory &src,
         return (data_t_src)((val >> bit) & 0x1);
     };
 
-    auto ker = [=](data_t_acc &d, int g, int mb, int oc,int oh, int ow, int& ks) {
+    auto ker = [&](data_t_acc &d, int g, int mb, int oc,int oh, int ow, int& ks) {
         for (int ic = 0; ic < IC / NG; ++ic) {
             for (int kh = 0; kh < KH; ++kh)
                 for (int kw = 0; kw < KW; ++kw) {
@@ -133,15 +125,12 @@ void compute_ref_conv_bin(const cldnn::memory &src,
                     uint8_t w = extract_bit(weights_data[widx / pack_size], widx % pack_size);
                     uint8_t s = 0;
 
-                    if ((ih < 0 || ih >= IH || iw < 0 || iw >= IW))
-                    {
+                    if ((ih < 0 || ih >= IH || iw < 0 || iw >= IW)) {
                         if (p.pad_value == 0.0f)
                             continue;
                         else
                             s = (p.pad_value == -1.0f) ? 0 : 1;
-                    }
-                    else
-                    {
+                    } else {
                         if (ic == 0) ks++;
                         iidx = mb * div_up(IC, pack_size) * IH * IW
                                + g * div_up(IC, pack_size) / NG * IH * IW
@@ -180,18 +169,15 @@ void compute_ref_conv_bin(const cldnn::memory &src,
     }
 }
 
-class binary_convolution_test : public ::testing::TestWithParam<TestParams>
-{
-    void SetUp()
-    {
+class binary_convolution_test : public ::testing::TestWithParam<TestParams> {
+    void SetUp() {
         std::cout << GetParam() << std::endl;
         ASSERT_TRUE(GetParam().isConsistent());
     }
 };
 
-TEST_P(binary_convolution_test, conv)
-{
-    const auto& engine = get_test_engine();
+TEST_P(binary_convolution_test, conv) {
+    auto& engine = get_test_engine();
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
     topology topology_bin;
@@ -217,9 +203,9 @@ TEST_P(binary_convolution_test, conv)
                             cldnn::feature(p.oc),
                             cldnn::spatial(p.ow, p.oh)};
 
-    auto input       = memory::allocate(engine, { cldnn::data_types::bin, cldnn::format::b_fs_yx_32fp, is_size });
-    auto weights     = memory::allocate(engine, { cldnn::data_types::bin, cldnn::format::bfyx, wei_size });
-    auto output_ref  = memory::allocate(engine, { cldnn::data_types::f32, cldnn::format::bfyx, os_size });
+    auto input       = engine.allocate_memory({ cldnn::data_types::bin, cldnn::format::b_fs_yx_32fp, is_size });
+    auto weights     = engine.allocate_memory({ cldnn::data_types::bin, cldnn::format::bfyx, wei_size });
+    auto output_ref  = engine.allocate_memory({ cldnn::data_types::f32, cldnn::format::bfyx, os_size });
 
     fill(input);
     fill(weights);
@@ -231,7 +217,7 @@ TEST_P(binary_convolution_test, conv)
 //    print_bin_blob(weights, "weights");
 //    print_blob(output_ref, "ref_out");
 
-    topology_bin.add(input_layout(input_name, input.get_layout()));
+    topology_bin.add(input_layout(input_name, input->get_layout()));
     topology_bin.add(data(output_name + weights_suffix, weights));
 
     topology_bin.add(binary_convolution(output_name, input_name, {output_name + weights_suffix},
@@ -243,18 +229,15 @@ TEST_P(binary_convolution_test, conv)
     std::map<primitive_id, network_output> outputs = network_bin.execute();
     auto outputMemory = outputs.at(output_name).get_memory();
 
-    for (size_t i = 0; i < output_ref.count(); i++) {
-        if (p.dt == data_types::f32)
-        {
-            auto ref = output_ref.pointer<float>();
-            auto opt = outputMemory.pointer<float>();
+    for (size_t i = 0; i < output_ref->count(); i++) {
+        if (p.dt == data_types::f32) {
+            cldnn::mem_lock<float> ref(output_ref, get_test_stream());
+            cldnn::mem_lock<float> opt(outputMemory, get_test_stream());
 
             ASSERT_EQ(ref[i], opt[i]) << i;
-        }
-        else if (p.dt == data_types::f16)
-        {
-            auto ref = output_ref.pointer<float>();
-            auto opt = outputMemory.pointer<uint16_t>();
+        } else if (p.dt == data_types::f16) {
+            cldnn::mem_lock<float> ref(output_ref, get_test_stream());
+            cldnn::mem_lock<uint16_t> opt(outputMemory, get_test_stream());
 
             ASSERT_EQ(ref[i], float16_to_float32(opt[i])) << i;
         }
@@ -262,7 +245,7 @@ TEST_P(binary_convolution_test, conv)
 }
 
 // Batch, groups, IC, IW, IH, OC, OW, OH, KH, KW, SH, SW, PH, PW
-INSTANTIATE_TEST_CASE_P(BinaryConvTest, binary_convolution_test, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(BinaryConvTest, binary_convolution_test, ::testing::Values(
         TestParams{1, 1,  16,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f32, "small"},
         TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f32, "small"},
         TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1,  0.0f, data_types::f32, "small"},
@@ -317,23 +300,22 @@ INSTANTIATE_TEST_CASE_P(BinaryConvTest, binary_convolution_test, ::testing::Valu
         TestParams{1, 1,  264,24,42, 192,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_5_sep_BIN"}, // back_bone_seq_conv5_5_sep_BIN
         TestParams{1, 1,  192,12,21, 208,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_6_sep_BIN"}, // back_bone_seq_conv5_6_sep_BIN
         TestParams{1, 1,  208,12,21,  88,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv6_sep_BN"} // back_bone_seq_conv6_sep_BN
-),);
+));
 
 template <typename T>
-static void set_binary_values(const cldnn::memory& mem, std::vector<T> args) {
-    auto ptr = mem.pointer<T>();
+static void set_binary_values(cldnn::memory::ptr mem, std::vector<T> args) {
+    cldnn::mem_lock<T> ptr(mem, get_test_stream());
 
     auto it = ptr.begin();
     for (auto x : args)
         *it++ = x;
 }
 
-TEST(binary_convolution, basic_convolution_1x1_single_packed_channel)
-{
-    const auto& engine = get_test_engine();
+TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
-    auto weights = memory::allocate(engine, { data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
 
     // 0 0 1 0  0 1 0 0  1 0 1 0  1 0 1 0
     // 1 0 0 0  0 1 1 0  0 1 1 0  1 0 1 0
@@ -373,7 +355,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel)
              4.0f,  2.0f, -6.0f,  14.0f };
 
     topology topology(
-            input_layout("input", input.get_layout()),
+            input_layout("input", input->get_layout()),
             data("weights", weights),
             binary_convolution("binary_conv", "input", { "weights" },
                                { 1,1,1,1 },
@@ -396,8 +378,8 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel)
     EXPECT_EQ(outputs.begin()->first, "binary_conv");
 
     auto output_memory = outputs.at("binary_conv").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<float>();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(output_layout.data_type, data_types::f32);
@@ -413,10 +395,10 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel)
 }
 
 TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
-    auto weights = memory::allocate(engine, { data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
 
     // 0 0 1 0  0 1 0 0  1 0 1 0  1 0 1 0
     // 1 0 0 0  0 1 1 0  0 1 1 0  1 0 1 0
@@ -456,7 +438,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
              4.0f,  2.0f, -6.0f,  14.0f };
 
     topology topology(
-            input_layout("input", input.get_layout()),
+            input_layout("input", input->get_layout()),
             data("weights", weights),
             binary_convolution("binary_conv", "input", { "weights" },
                                { 1,1,1,1 },
@@ -479,8 +461,8 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     EXPECT_EQ(outputs.begin()->first, "binary_conv");
 
     auto output_memory = outputs.at("binary_conv").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<uint16_t>();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<uint16_t> output_ptr(output_memory, get_test_stream());
 
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(output_layout.data_type, data_types::f16);
@@ -489,9 +471,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     EXPECT_EQ(output_layout.size.spatial[1], 2);
     EXPECT_EQ(output_layout.size.spatial[0], 2);
 
-    for (size_t i = 0; i < output_layout.count(); i++)
-    {
+    for (size_t i = 0; i < output_layout.count(); i++) {
         EXPECT_EQ(float16_to_float32(output_ptr[i]), output_vec[i]) << "index="<< i;
     }
 }
-

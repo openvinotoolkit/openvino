@@ -50,14 +50,6 @@ public:
      */
     virtual Blob::CPtr GetState() const;
 
-    /**
-     * @deprecated Use IVariableStateInternal::GetState method instead
-     * @brief Returns the value of the variable state.
-     * @return The value of the variable state
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use IVariableStateInternal::GetState method instead")
-    virtual Blob::CPtr GetLastState() const;
-
 protected:
     /**
      * @brief A default dtor

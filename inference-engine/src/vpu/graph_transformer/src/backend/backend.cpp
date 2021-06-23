@@ -85,12 +85,12 @@ void BackEnd::dumpModel(
 
     std::string fileName;
 
-    if (!env.config.dumpInternalGraphFileName.empty()) {
-        fileName = fileNameNoExt(env.config.dumpInternalGraphFileName);
-    } else if (!env.config.dumpInternalGraphDirectory.empty()) {
+    if (!env.config.compileConfig().dumpInternalGraphFileName.empty()) {
+        fileName = fileNameNoExt(env.config.compileConfig().dumpInternalGraphFileName);
+    } else if (!env.config.compileConfig().dumpInternalGraphDirectory.empty()) {
         fileName = formatString(
             "%s/vpu_graph_%f%f%i_%s",
-            env.config.dumpInternalGraphDirectory,
+            env.config.compileConfig().dumpInternalGraphDirectory,
             std::setw(2), std::setfill('0'),
             model->attrs().get<int>("index"),
             replaceBadCharacters(model->name()));
@@ -99,7 +99,7 @@ void BackEnd::dumpModel(
     }
 
     if (!postfix.empty()) {
-        if (!env.config.dumpAllPasses) {
+        if (!env.config.compileConfig().dumpAllPasses) {
             return;
         }
 
