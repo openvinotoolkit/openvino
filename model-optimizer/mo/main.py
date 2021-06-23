@@ -21,8 +21,8 @@ except ImportError:
 
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
-from mo.front_ng.pipeline import moc_pipeline
-from mo.front_ng.serialize import ngraph_emit_ir
+from mo.moc_frontend.pipeline import moc_pipeline
+from mo.moc_frontend.serialize import moc_emit_ir
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
@@ -358,7 +358,7 @@ def driver(argv: argparse.Namespace):
     if graph is not None:
         ret_res = emit_ir(graph, argv)
     else:
-        ret_res = ngraph_emit_ir(ngraph_function, argv)
+        ret_res = moc_emit_ir(ngraph_function, argv)
 
     if ret_res != 0:
         return ret_res

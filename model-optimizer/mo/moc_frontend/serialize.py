@@ -11,7 +11,7 @@ from ngraph import Function         # pylint: disable=no-name-in-module,import-e
 from ngraph import function_to_cnn  # pylint: disable=no-name-in-module,import-error
 
 
-def ngraph_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
+def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
 
     network = function_to_cnn(ngraph_function)

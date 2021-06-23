@@ -937,10 +937,10 @@ mo/front/tf/partial_infer/__init__.py
 mo/front/tf/partial_infer/tf.py
 mo/front/tf/register_custom_ops.py
 mo/front/tf/replacement.py
-mo/front_ng/__init__.py
-mo/front_ng/extractor.py
-mo/front_ng/pipeline.py
-mo/front_ng/serialize.py
+mo/moc_frontend/__init__.py
+mo/moc_frontend/extractor.py
+mo/moc_frontend/pipeline.py
+mo/moc_frontend/serialize.py
 mo/graph/__init__.py
 mo/graph/connection.py
 mo/graph/graph.py
