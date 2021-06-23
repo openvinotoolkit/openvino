@@ -174,6 +174,8 @@ class Core::Impl : public ICore {
     ITaskExecutor::Ptr _taskExecutor = nullptr;
 
     mutable std::map<std::string, InferencePlugin> plugins;
+    mutable std::vector<std::string> _availableDevices;
+    mutable std::once_flag  _onceFlag;
 
     class CoreConfig final {
     public:
@@ -631,34 +633,37 @@ public:
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> GetAvailableDevices() const override {
-        std::vector<std::string> devices;
-        const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
+        std::call_once(_onceFlag, [&](){
+            std::vector<std::string> devices;
+            const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
 
-        for (auto&& deviceName : GetListOfDevicesInRegistry()) {
-            std::vector<std::string> devicesIDs;
-            try {
-                const Parameter p = GetMetric(deviceName, propertyName);
-                devicesIDs = p.as<std::vector<std::string>>();
-            } catch (Exception&) {
-                // plugin is not created by e.g. invalid env
-            } catch (const std::exception& ex) {
-                IE_THROW() << "An exception is thrown while trying to create the " << deviceName
-                                << " device and call GetMetric: " << ex.what();
-            } catch (...) {
-                IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
-                                << " device and call GetMetric";
-            }
-
-            if (devicesIDs.size() > 1) {
-                for (auto&& deviceID : devicesIDs) {
-                    devices.push_back(deviceName + '.' + deviceID);
+            for (auto&& deviceName : GetListOfDevicesInRegistry()) {
+                std::vector<std::string> devicesIDs;
+                try {
+                    const Parameter p = GetMetric(deviceName, propertyName);
+                    devicesIDs = p.as<std::vector<std::string>>();
+                } catch (Exception&) {
+                    // plugin is not created by e.g. invalid env
+                } catch (const std::exception& ex) {
+                    IE_THROW() << "An exception is thrown while trying to create the " << deviceName
+                                    << " device and call GetMetric: " << ex.what();
+                } catch (...) {
+                    IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
+                                    << " device and call GetMetric";
                 }
-            } else if (!devicesIDs.empty()) {
-                devices.push_back(deviceName);
-            }
-        }
 
-        return devices;
+                if (devicesIDs.size() > 1) {
+                    for (auto&& deviceID : devicesIDs) {
+                        devices.push_back(deviceName + '.' + deviceID);
+                    }
+                } else if (!devicesIDs.empty()) {
+                    devices.push_back(deviceName);
+                }
+            }
+            _availableDevices = devices;
+        });
+
+        return _availableDevices;
     }
 
     /**
