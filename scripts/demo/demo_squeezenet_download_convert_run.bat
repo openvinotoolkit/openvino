@@ -86,8 +86,21 @@ if not "%python_ver%"=="okay" (
 )
 
 :: install yaml python modules required for downloader.py
-python -m pip install -U pip
-python -m pip install --user -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requirements.in"
+if exist "%ROOT_DIR%venv" (
+    echo.
+    echo ###############^|^| Using the existing python virtual environment ^|^|###############
+    echo.
+    call "%ROOT_DIR%venv\Scripts\activate.bat"
+) else (
+    echo.
+    echo ###############^|^| Creating the python virtual environment ^|^|###############
+    echo.
+    python -m venv "%ROOT_DIR%venv"
+    call "%ROOT_DIR%venv\Scripts\activate.bat"
+    python -m pip install -U pip
+    python -m pip install -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requirements.in"
+)
+
 if ERRORLEVEL 1 GOTO errorHandling
 
 set downloader_dir=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader
