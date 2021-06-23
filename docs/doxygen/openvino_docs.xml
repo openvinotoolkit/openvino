@@ -75,7 +75,7 @@ limitations under the License.
             <!-- Security -->
             <tab type="usergroup" title="Security" url="@ref openvino_docs_security_guide_introduction"><!--automatically generated-->
                 <tab type="user" title="Introduction" url="@ref openvino_docs_security_guide_introduction"/>
-                <tab type="user" title="Using DL Workbench Securely" url="@ref openvino_docs_security_guide_introduction"/>
+                <tab type="user" title="Using DL Workbench Securely" url="@ref openvino_docs_security_guide_workbench"/>
                 <tab type="user" title="Using Encrypted Models" url="@ref openvino_docs_IE_DG_protecting_model_guide"/>
                 <tab type="user" title="Security Add-on" url="@ref ovsa_get_started"/>
             </tab>
