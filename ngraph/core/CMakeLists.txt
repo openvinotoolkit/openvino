@@ -45,11 +45,6 @@ ie_mark_target_as_cc(ngraph)
 
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    message(STATUS "Enable Address Sanitizer")
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
-
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
 endif()

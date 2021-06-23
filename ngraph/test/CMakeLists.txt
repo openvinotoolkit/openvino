@@ -550,10 +550,6 @@ if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
-
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
                                         openvino::conditional_compilation)
