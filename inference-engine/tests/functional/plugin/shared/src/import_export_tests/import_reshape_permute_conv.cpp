@@ -9,9 +9,8 @@
 namespace LayerTestsDefinitions {
 
 void ImportReshapePermuteConv::SetUp() {
-    std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) = this->GetParam();
+    std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, { {1, 336} });
