@@ -20,6 +20,10 @@ include(cmake/features.cmake)
 # These options are shared with 3rdparty plugins by means of developer package
 include(cmake/dependencies.cmake)
 
+if(ENABLE_COVERAGE)
+    include(cmake/coverage.cmake)
+endif()
+
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})

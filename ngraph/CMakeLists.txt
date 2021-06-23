@@ -15,53 +15,7 @@ set(FRONTEND_BASE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/frontend
 )
 
-if (APPLE)
-    # Enable MACOS_RPATH by default.
-    cmake_policy(SET CMP0042 NEW)
-endif()
-
 project (ngraph)
-
-# APPLE: Set CMAKE_OSX_SYSROOT if not set already.
-if (APPLE)
-    execute_process(COMMAND sw_vers -productVersion
-        OUTPUT_VARIABLE OSX_FULL_VERSION
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-    string(REGEX REPLACE "^([0-9]+\\.[0-9]+).*$" "\\1"
-        OSX_SHORT_VERSION "${OSX_FULL_VERSION}")
-
-    message(STATUS "Detected: OSX ${OSX_SHORT_VERSION}")
-
-    if (CMAKE_OSX_SYSROOT)
-        message(STATUS "Using CMAKE_OSX_SYSROOT: ${CMAKE_OSX_SYSROOT}")
-    else()
-        execute_process(COMMAND xcode-select -p
-            OUTPUT_VARIABLE APPLE_DEV_DIR
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-        if("${APPLE_DEV_DIR}" STREQUAL "/Library/Developer/CommandLineTools")
-            # Command line tools only
-            set(XCODE_ISYSROOT ${APPLE_DEV_DIR}/SDKs/MacOSX.sdk)
-            message(STATUS "Trying command line tool sdk at ${XCODE_ISYSROOT}.")
-            if(NOT EXISTS ${XCODE_ISYSROOT})
-                message(FATAL_ERROR "Cannot find macos sdk.")
-            endif()
-        else()
-            # Xcode is installed
-            set(XCODE_ISYSROOT ${APPLE_DEV_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${OSX_SHORT_VERSION}.sdk)
-            message(STATUS "Trying Xcode sdk at ${XCODE_ISYSROOT}.")
-            if(NOT EXISTS ${XCODE_ISYSROOT})
-                set(XCODE_ISYSROOT ${APPLE_DEV_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk)
-                if(NOT EXISTS ${XCODE_ISYSROOT})
-                    message(FATAL_ERROR "Cannot find macos sdk.")
-                endif()
-            endif()
-        endif()
-        message(STATUS "Setting CMAKE_OSX_SYSROOT for macos ${OSX_SHORT_VERSION} to ${XCODE_ISYSROOT}")
-        set(CMAKE_OSX_SYSROOT ${XCODE_ISYSROOT})
-    endif()
-endif()
 
 option(NGRAPH_UNIT_TEST_ENABLE "Control the building of unit tests" ON)
 option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of unit tests using backends" ON)
@@ -134,14 +88,6 @@ if (NOT MSVC)
             )
 endif()
 message(STATUS "NGRAPH_FORWARD_CMAKE_ARGS ${NGRAPH_FORWARD_CMAKE_ARGS}")
-
-#-----------------------------------------------------------------------------------------------
-# Coverage
-#-----------------------------------------------------------------------------------------------
-
-if(ENABLE_COVERAGE)
-    include(cmake/coverage.cmake)
-endif()
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...

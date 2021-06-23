@@ -216,7 +216,6 @@ if (ENABLE_OPENCV)
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
                     SHA256 ${OPENCV_HASH})
         endif()
-
     endif()
 
     if(ANDROID)

@@ -8,8 +8,6 @@ if(CMAKE_SOURCE_DIR STREQUAL "${InferenceEngine_SOURCE_DIR}")
     message(FATAL_ERROR "Cmake source directory must point to <openvino_root>")
 endif()
 
-include(cmake/features.cmake)
-
 # resolving dependencies for the project
 include(cmake/dependencies.cmake)
 
@@ -167,14 +165,6 @@ function(ie_generate_dev_package_config)
 endfunction()
 
 ie_generate_dev_package_config()
-
-#
-# Coverage
-#
-
-if(ENABLE_COVERAGE)
-    include(cmake/coverage.cmake)
-endif()
 
 #
 # Add extra modules
