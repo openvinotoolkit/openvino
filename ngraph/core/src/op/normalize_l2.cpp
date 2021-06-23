@@ -8,18 +8,12 @@
 #include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/builder/norm.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/divide.hpp"
-#include "ngraph/op/multiply.hpp"
 #include "ngraph/op/normalize_l2.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
 
