@@ -22,7 +22,7 @@ void static test_mode(opset5::Round::RoundMode mode)
 {
     NodeBuilder::get_ops().register_factory<opset5::Round>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{200});
-    auto round = make_shared<opset5::Round>(data, opset5::Round::RoundMode::HALF_TO_EVEN);
+    auto round = make_shared<opset5::Round>(data, mode);
     NodeBuilder builder(round);
     auto g_round = as_type_ptr<opset5::Round>(builder.create());
 
