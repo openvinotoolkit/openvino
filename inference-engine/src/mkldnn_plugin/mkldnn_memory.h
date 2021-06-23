@@ -104,6 +104,7 @@ public:
     }
 
 private:
+    virtual size_t getMemSizeImp() const override;
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();
     mkldnn::memory::desc desc;
 };

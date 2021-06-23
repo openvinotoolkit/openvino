@@ -912,4 +912,8 @@ bool MKLDNNMemoryDesc::blocksExtended() const {
     }
     return false;
 }
+
+size_t MKLDNNMemoryDesc::getMemSizeImp() const {
+    return desc.get_size();
+}
 }  // namespace MKLDNNPlugin

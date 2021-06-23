@@ -47,6 +47,16 @@ public:
         IE_THROW() << "[DS] Unimplemented";
     }
 
+
+    // Get minimal requared memory size in bytes. Can be undefined
+    size_t getMemSize() const {
+        size_t retVal = UNDEFINED_SIZE;
+        if (isDefined()) {
+            retVal = getMemSizeImp();
+        }
+        return retVal;
+    }
+
     template <typename T,
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
             typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
@@ -80,6 +90,11 @@ protected:
     MemoryDesc(const std::vector<size_t>& dims, const InferenceEngine::Precision& precision, MemoryDescType type)
             : shape(dims), precision(precision), type(type) {}
 
+    virtual size_t getMemSizeImp() const = 0;
+
+public:
+    static constexpr size_t UNDEFINED_SIZE = std::numeric_limits<size_t>::max();
+protected:
     MemoryDescType type;
     Shape shape;
     InferenceEngine::Precision precision;
