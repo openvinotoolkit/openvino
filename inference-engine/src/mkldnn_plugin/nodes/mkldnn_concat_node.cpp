@@ -33,7 +33,7 @@ namespace {
 
 bool MKLDNNConcatNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto concatOp = ngraph::as_type_ptr<const ngraph::op::v0::Concat>(op);
+        const auto concatOp = ngraph::as_type_ptr<const ngraph::op::v0::Concat>(op);
         if (!concatOp) {
             errorMessage = "Node is not an instance of the Concat operation.";
             return false;

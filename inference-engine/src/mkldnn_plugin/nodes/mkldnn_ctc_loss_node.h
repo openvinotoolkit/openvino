@@ -9,9 +9,9 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNMathNode : public MKLDNNNode {
+class MKLDNNCTCLossNode : public MKLDNNNode {
 public:
-    MKLDNNMathNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNCTCLossNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -22,11 +22,9 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNMathNode& node)>> initializers;
-
-    float alpha = 0.0f;
-    float beta = 0.0f;
-    float gamma = 0.0f;
+    bool ctcMergeRepeated;
+    bool preprocessCollapseRepeated;
+    bool unique;
 
     std::string errorPrefix;
 };

@@ -18,7 +18,7 @@ using namespace InferenceEngine;
 
 bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v5::GatherND>(op);
+        const auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v5::GatherND>(op);
         if (!gatherElementsOp) {
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5.";
             return false;
