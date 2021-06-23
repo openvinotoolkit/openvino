@@ -75,7 +75,8 @@ def deformable_convolution(
     @param group: The number of groups which both output and input should be split into.
     @param deformable_group: The number of groups which deformable values and output should be split
                              into along the channel axis.
-    @param use_bilinear_interpolation_padding: The flag that determines the mode of bilinear interpolation execution.
+    @param use_bilinear_interpolation_padding: The flag that determines the mode of bilinear interpolation
+                                               execution.
     @param name: The optional new name for output node.
     @return New node performing deformable convolution operation.
     """
@@ -109,4 +110,3 @@ def deformable_convolution(
                 "use_bilinear_interpolation_padding": use_bilinear_interpolation_padding
             },
         )
-
