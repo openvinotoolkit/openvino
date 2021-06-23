@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "api/program.hpp"
-
-#include "refcounted_obj.h"
-#include "engine_impl.h"
+#include "cldnn/graph/program.hpp"
+#include "cldnn/runtime/engine.hpp"
+#include "cldnn/runtime/stream.hpp"
+#include "runtime/kernels_cache.hpp"
 
 #include <list>
 #include <string>
@@ -18,6 +18,10 @@
 #include <map>
 #include <utility>
 #include <set>
+
+namespace kernel_selector {
+class TuningCache;
+}  // namespace kernel_selector
 
 namespace cldnn {
 
@@ -28,10 +32,19 @@ class layout_optimizer;
 class pass_manager;
 class base_pass;
 class program_impl_wrapper;
+
+struct gpu_program_state {
+    kernels_cache _kernels_cache;
+
+    gpu_program_state(engine& engine) : _kernels_cache(engine) {}
+};
+
 /*
     cldnn_program implementation
 */
-struct program_impl : public refcounted_obj<program_impl> {
+struct program_impl {
+    using ptr = std::shared_ptr<program_impl>;
+    using cptr = std::shared_ptr<const program_impl>;
     friend class calculate_prior_boxes;      // to be removed when possible
     friend class graph_initializations;      // to be removed when possible
     friend class prepare_padding;            // to be removed when possible
@@ -121,18 +134,19 @@ public:
     typedef std::vector<std::pair<std::string, primitives_info>> graph_optimizer_info;
     typedef std::pair<primitive_id, std::vector<primitive_id>> optimized_info;
 
-    program_impl(engine_impl& engine_ref,
+    program_impl(engine& engine_ref,
                  topology_impl const& topology,
                  build_options const& options,
                  bool is_internal,
-                 bool no_optimizations = false);
+                 bool no_optimizations = false,
+                 bool is_body_program = false);
     /* constructor used to build a program from subset of nodes of other program (used in propagate_constants) */
-    program_impl(engine_impl& engine_ref,
+    program_impl(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
                  build_options const& options,
                  bool is_internal);
     ~program_impl();
-    engine_impl& get_engine() const { return *engine; }
+    engine& get_engine() const { return _engine; }
     const build_options& get_options() const { return options; }
     std::list<program_node*>& get_inputs() {
         return inputs;
@@ -140,10 +154,12 @@ public:
     std::vector<program_node*>& get_outputs() {
         return outputs;
     }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
+    bool is_loop_body() const { return is_body_program; }
     bool is_debug_build() const { return options.get<build_option_type::debug>()->enabled(); }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
+    stream& get_stream() { return *_stream; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     const std::list<optimized_info>& get_optimized() const { return optimized; }
     bool has_node(const primitive_id& prim) const { return nodes_map.count(prim) > 0; }
@@ -151,7 +167,6 @@ public:
     program_node const& get_node(primitive_id const& id) const;
     std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) { return nodes_map.at(prim); }
     std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) const { return nodes_map.at(prim); }
-    void dump_memory_pool() const;
 
     // returns already existing program_node for given primitive 'prim' (lookup in 'nodes_map')
     // if it was previously created, otherwise creates and then returns program_node
@@ -211,14 +226,38 @@ public:
     void reset_program();
     uint32_t get_id() const { return prog_id; }
 
+    static ptr build_program(engine& engine,
+                             const topology_impl& topology,
+                             const build_options& options,
+                             bool is_internal = false,
+                             bool no_optimizations = false,
+                             bool is_body_program = false);
+    static ptr build_program(engine& engine,
+                             const std::set<std::shared_ptr<program_node>>& nodes,
+                             const build_options& options,
+                             bool is_internal);
+    static void init_primitives();
+    void compile();
+    void init_kernels();
+    kernel_id add_kernel(const std::shared_ptr<kernel_string> kernel_sring);
+    kernel::ptr get_kernel(kernel_id id);
+
+    void load_tuning_cache();
+    std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
+
 private:
     uint32_t prog_id = 0;
-    engine_impl::ptr engine;
+    engine& _engine;
+    stream::ptr _stream;
+    gpu_program_state program_state;
     build_options options;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;
     std::unique_ptr<pass_manager> pm;
+    std::shared_ptr<kernel_selector::TuningCache> tuning_cache;
+    bool is_body_program;
+
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;

@@ -70,7 +70,7 @@ const std::vector<ngraph::Shape> dequantizationOnWeightElementwiseConstantShapes
     { ngraph::Shape({1, 16}) }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, PullReshapeThroughDequantizationTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, PullReshapeThroughDequantizationTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

@@ -2,25 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
+#include "test_utils.h"
+
+#include <cldnn/primitives/lrn.hpp>
+#include <cldnn/primitives/convolution.hpp>
+#include <cldnn/primitives/fully_connected.hpp>
+#include <cldnn/primitives/pooling.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/scale.hpp>
+#include <cldnn/primitives/eltwise.hpp>
+#include <cldnn/primitives/softmax.hpp>
+#include <cldnn/primitives/activation.hpp>
+#include <cldnn/primitives/concatenation.hpp>
+
 #include <include/topology_impl.h>
+
 #include <iostream>
-#include "api/memory.hpp"
-#include <api/lrn.hpp>
-#include <api/convolution.hpp>
-#include <api/fully_connected.hpp>
-#include <api/pooling.hpp>
-#include <api/data.hpp>
-#include <api/reorder.hpp>
-#include <api/scale.hpp>
-#include <api/eltwise.hpp>
-#include <api/softmax.hpp>
-#include <api/activation.hpp>
-#include <api/concatenation.hpp>
 #include <deque>
 #include <set>
 
@@ -55,6 +53,7 @@ protected:
         public:
             // return false for invalid output_layout
             virtual bool AddPrimitive(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout output_layout, std::deque<named_layout>& input_layouts) = 0;
+            virtual ~topology_layer_type() = default;
         };
         static std::vector<std::shared_ptr<topology_layer_type>> layer_types;
         static cldnn::topology* CreateTopology(cldnn::layout output_layout, const std::vector<unsigned> generator_vec)
@@ -112,7 +111,7 @@ protected:
         static void AddRandomMemory(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout layout)
         {
             //todo: allocate mem, randomize values by type, add to topology
-            auto mem_primitive = cldnn::memory::allocate(topology_test::engine, layout);
+            auto mem_primitive = topology_test::engine.allocate_memory(layout);
             switch (layout.data_type)
             {
             case cldnn::data_types::f32:
@@ -368,8 +367,8 @@ public:
         EXPECT_NE(topology, nullptr);
         cldnn::build_options options;
         options.set_option(cldnn::build_option::optimize_data(true));
-        cldnn::engine temp_engine;// using temp_engine since reusing the same one does not free all resources (network build becomes slower and slower)
-        cldnn::network network(temp_engine, *topology, options);
+        auto& engine = tests::get_test_engine();
+        cldnn::network network(engine, *topology, options);
         auto outputs = network.execute();
         EXPECT_NE(outputs.find(topology_generator::output_layer_id), outputs.end());
 
@@ -443,11 +442,11 @@ protected:
     cldnn::layout output_layout;
     std::vector<unsigned> generator;
 
-    static const cldnn::engine& engine;
+    static cldnn::engine& engine;
     static std::vector<cldnn::layout> all_output_layouts;//just for tear-down
 };
 
-const cldnn::engine& topology_test::engine = tests::get_test_engine();
+cldnn::engine& topology_test::engine = tests::get_test_engine();
 std::vector<cldnn::layout> topology_test::all_output_layouts = {};
 
 std::vector<std::shared_ptr<topology_test::topology_generator::topology_layer_type>> topology_test::topology_generator::layer_types = {
@@ -482,7 +481,7 @@ TEST_P(topology_test, TOPOLOGY)
      }
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TOPOLOGY,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TOPOLOGY,
     topology_test,
     ::testing::Combine( ::testing::ValuesIn(topology_test::generate_all_output_layouts()),
                         ::testing::ValuesIn(topology_test::all_generator_vectors<3>())),
