@@ -721,11 +721,21 @@ void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::o
 }
 
 void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
+    const std::string ov_service_name = "__ov_generated_tensor__";
     for (int i = 0; i < node1->outputs().size(); ++i) {
         const auto& tensor1 = node1->output(i).get_tensor();
         const auto& tensor2 = node2->output(i).get_tensor();
+        std::unordered_set<std::string> tensorNames1, tensorNames2;
+        for (const auto& name : tensor1.get_names()) {
+            if (name.find(ov_service_name) == std::string::npos)
+                tensorNames1.insert(name);
+        }
+        for (const auto& name : tensor2.get_names()) {
+            if (name.find(ov_service_name) == std::string::npos)
+                tensorNames2.insert(name);
+        }
 
-        if (tensor1.get_names() != tensor2.get_names()) {
+        if (tensorNames1 != tensorNames2) {
             err_log << "Output tensors names " << tensor_names(tensor1) << " and "
                     << tensor_names(tensor2)
                     << " are different for nodes: " << node1->get_friendly_name() << " and "
