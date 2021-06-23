@@ -5,28 +5,27 @@
 #include "backend/unary_test.hpp"
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, exp)
 {
-    test_unary<element::f32>(
-        "${BACKEND_NAME}", unary_func<op::Exp>(), {-4, -3, -2, -1, 0, 1, 2, 3}, std::exp);
+    test_unary<TestEngine, element::f32>(
+        unary_func<op::Exp>(), {-4, -3, -2, -1, 0, 1, 2, 3}, std::exp);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, exp_negative)
 {
-    test_unary<element::f32>(
-        "${BACKEND_NAME}", unary_func<op::Exp>(), {-4, -3, -2, -1, -5}, std::exp);
+    test_unary<TestEngine, element::f32>(unary_func<op::Exp>(), {-4, -3, -2, -1, -5}, std::exp);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, exp_scalar)
 {
-    Shape shape{};
-    test_unary<element::f32>(
-        "${BACKEND_NAME}", unary_func<op::Exp>(), {13}, std::exp, shape, shape);
+    test_unary<TestEngine, element::f32>(
+        unary_func<op::Exp>(), {13}, std::exp, Shape{}, Shape{}, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
 
 template <typename T>
-T exp_exp(T x)
+static T exp_exp(T x)
 {
     return std::exp(std::exp(x));
 }
@@ -41,5 +40,6 @@ NGRAPH_TEST(${BACKEND_NAME}, exp_in_place)
         return make_shared<Function>(T2, ParameterVector{A});
     };
 
-    test_unary<element::f32>("${BACKEND_NAME}", creator, {1, 3}, exp_exp);
+    test_unary<TestEngine, element::f32>(
+        creator, {1, 3}, exp_exp, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }

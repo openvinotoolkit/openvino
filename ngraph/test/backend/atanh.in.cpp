@@ -5,13 +5,12 @@
 #include "backend/unary_test.hpp"
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, atanh)
 {
-    test_unary<element::f32>("${BACKEND_NAME}",
-                             unary_func<op::Atanh>(),
-                             {0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f},
-                             std::atanh,
-                             0,
-                             0);
+    test_unary<TestEngine, element::f32>(
+        unary_func<op::Atanh>(),
+        {0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f},
+        std::atanh);
 }

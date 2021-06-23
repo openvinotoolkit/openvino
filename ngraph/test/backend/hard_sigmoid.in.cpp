@@ -5,6 +5,7 @@
 #include "backend/unary_test.hpp"
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 namespace
 {
@@ -34,16 +35,16 @@ namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_1d)
 {
-    test_unary<element::f32>(
-        "${BACKEND_NAME}", HardSigmoid(0.5f, 0.6f), {-1.0f, 0.0f, 1.0f}, {0.1f, 0.6f, 1.f});
+    test_unary<TestEngine, element::f32>(
+        HardSigmoid(0.5f, 0.6f), {-1.0f, 0.0f, 1.0f}, {0.1f, 0.6f, 1.f});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_2d)
 {
-    test_unary<element::f32>("${BACKEND_NAME}",
-                             HardSigmoid(0.2f, 0.5f),
-                             {-3.0f, -1.0f, 0.0f, 1.0f, 3.0f, 0.5f, -0.2f, 6.0f, 8.0f, 0.1f},
-                             {0.0f, 0.3f, 0.5f, 0.7f, 1.0f, 0.6f, 0.46f, 1.0f, 1.0f, 0.52f},
-                             {2, 5},
-                             {2, 5});
+    test_unary<TestEngine, element::f32>(
+        HardSigmoid(0.2f, 0.5f),
+        {-3.0f, -1.0f, 0.0f, 1.0f, 3.0f, 0.5f, -0.2f, 6.0f, 8.0f, 0.1f},
+        {0.0f, 0.3f, 0.5f, 0.7f, 1.0f, 0.6f, 0.46f, 1.0f, 1.0f, 0.52f},
+        Shape{2, 5},
+        Shape{2, 5});
 }

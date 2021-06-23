@@ -5,41 +5,36 @@
 #include "backend/unary_test.hpp"
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, sqrt_basic)
 {
-    test_unary<element::f32>("${BACKEND_NAME}",
-                             unary_func<op::Sqrt>(),
-                             {16, 4, 81, 100, 10000, 0},
-                             {4, 2, 9, 10, 100, 0},
-                             Shape{2, 3},
-                             Shape{2, 3},
-                             0,
-                             0);
+    test_unary<TestEngine, element::f32>(unary_func<op::Sqrt>(),
+                                         {16, 4, 81, 100, 10000, 0},
+                                         {4, 2, 9, 10, 100, 0},
+                                         Shape{2, 3},
+                                         Shape{2, 3});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, sqrt_negative_inputs)
 {
-    test_unary<element::f32>(
-        "${BACKEND_NAME}", unary_func<op::Sqrt>(), {-1, 4, -81, 100}, {NAN, 2, NAN, 10}, 0, 0);
+    test_unary<TestEngine, element::f32>(
+        unary_func<op::Sqrt>(), {-1, 4, -81, 100}, {NAN, 2, NAN, 10});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, sqrt_integral_inputs)
 {
-    test_unary<element::i32>("${BACKEND_NAME}",
-                             unary_func<op::Sqrt>(),
-                             {4, 7, 9, 10, 80, 55, 6, 1, 23, 233, 256, 474, 1024, 110889},
-                             {2, 3, 3, 3, 9, 7, 2, 1, 5, 15, 16, 22, 32, 333},
-                             Shape{2, 7},
-                             Shape{2, 7},
-                             0,
-                             0);
+    test_unary<TestEngine, element::i32>(
+        unary_func<op::Sqrt>(),
+        {4, 7, 9, 10, 80, 55, 6, 1, 23, 233, 256, 474, 1024, 110889},
+        {2, 3, 3, 3, 9, 7, 2, 1, 5, 15, 16, 22, 32, 333},
+        Shape{2, 7},
+        Shape{2, 7});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, sqrt_floating_inputs)
 {
-    test_unary<element::f32>(
-        "${BACKEND_NAME}",
+    test_unary<TestEngine, element::f32>(
         unary_func<op::Sqrt>(),
         {4, 7, 9, 10, 80, 55, 6.25, 0.9, 23.33, 233, 256, 473.7891, 1024, 111108.88},
         {2.,
@@ -57,7 +52,5 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_floating_inputs)
          32.,
          333.33},
         Shape{2, 7},
-        Shape{2, 7},
-        0,
-        0);
+        Shape{2, 7});
 }

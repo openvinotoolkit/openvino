@@ -5,14 +5,12 @@
 #include "backend/unary_test.hpp"
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, asin)
 {
-    test_unary<element::f32>(
-        "${BACKEND_NAME}",
+    test_unary<TestEngine, element::f32>(
         unary_func<op::Asin>(),
         {-1.f, -0.75f, -0.5f, -0.25f, -0.125f, 0.f, 0.125f, 0.25f, 0.5f, 0.75f, 1.f},
-        std::asin,
-        0,
-        0);
+        std::asin);
 }

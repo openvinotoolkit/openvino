@@ -5,11 +5,11 @@
 #include "backend/unary_test.hpp"
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, acos)
 {
-    test_unary<element::f32>(
-        "${BACKEND_NAME}",
+    test_unary<TestEngine, element::f32>(
         unary_func<op::Acos>(),
         {-1.f, -0.75f, -0.5f, -0.25f, -0.125f, 0.f, 0.125f, 0.25f, 0.5f, 0.75f, 1.f},
         {3.14159265f,
@@ -22,7 +22,5 @@ NGRAPH_TEST(${BACKEND_NAME}, acos)
          1.31811607f,
          1.04719755f,
          0.72273425f,
-         0.00000000f},
-        0,
-        0);
+         0.00000000f});
 }
