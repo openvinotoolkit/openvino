@@ -2754,10 +2754,6 @@ namespace
             {
                 continue;
             }
-            //if (element_type != node->get_output_element_type(i))
-            //{
-            //    throw std::logic_error("Output node element types is not equal");
-            //}
         }
         switch (element_type)
         {

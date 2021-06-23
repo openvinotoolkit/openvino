@@ -20,7 +20,7 @@ namespace ngraph
     {
         namespace reference
         {
-            namespace
+            namespace matrix_nms_v8
             {
                 template <typename T, bool gaussian>
                 struct decay_score;
@@ -37,7 +37,10 @@ namespace ngraph
                 template <typename T>
                 struct decay_score<T, false>
                 {
-                    T operator()(T iou, T max_iou, T sigma) { return (1. - iou) / (1. - max_iou); }
+                    T operator()(T iou, T max_iou, T sigma)
+                    {
+                        return (1. - iou) / (1. - max_iou + 1e-10f);
+                    }
                 };
 
                 template <class T>
@@ -132,7 +135,7 @@ namespace ngraph
                     float score = 0.0f;
                 };
 
-            } // namespace
+            } // namespace matrix_nms_v8
 
             template <typename T, bool gaussian>
             void nms_matrix(const T* boxes_data,
@@ -186,9 +189,10 @@ namespace ngraph
                     for (int64_t j = 0; j < i; j++)
                     {
                         auto idx_b = candidate_index[j];
-                        auto iou = intersectionOverUnion<T>(boxes_data + idx_a * box_size,
-                                                            boxes_data + idx_b * box_size,
-                                                            normalized);
+                        auto iou =
+                            matrix_nms_v8::intersectionOverUnion<T>(boxes_data + idx_a * box_size,
+                                                                    boxes_data + idx_b * box_size,
+                                                                    normalized);
                         max_iou = std::max(max_iou, iou);
                         iou_matrix[i * (i - 1) / 2 + j] = iou;
                     }
@@ -201,7 +205,7 @@ namespace ngraph
                     decayed_scores->push_back(scores_data[candidate_index[0]]);
                 }
 
-                decay_score<T, gaussian> decay_fn;
+                matrix_nms_v8::decay_score<T, gaussian> decay_fn;
                 for (int64_t i = 1; i < original_size; i++)
                 {
                     T min_decay = 1.;
@@ -239,6 +243,9 @@ namespace ngraph
                             const Shape& selected_indices_shape,
                             int64_t* valid_outputs)
             {
+                using BoxInfo = matrix_nms_v8::BoxInfo;
+                using Rectangle = matrix_nms_v8::Rectangle;
+
                 // boxes shape: {num_batches, num_boxes, 4}
                 // scores shape: {num_batches, num_classes, num_boxes}
                 int64_t num_batches = static_cast<int64_t>(scores_data_shape[0]);

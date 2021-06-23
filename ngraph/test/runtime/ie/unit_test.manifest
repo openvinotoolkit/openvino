@@ -1145,7 +1145,6 @@ IE_CPU.matrix_nms_nms_top_k
 IE_CPU.matrix_nms_single_box
 IE_CPU.matrix_nms_no_output
 
-
 # Unsupported dynamic op
 IE_CPU.range_v4_trunc_inputs
 IE_CPU.onnx_model_reduce_sum_13_axes_as_input

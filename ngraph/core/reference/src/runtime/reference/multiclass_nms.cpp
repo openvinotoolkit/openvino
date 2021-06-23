@@ -20,7 +20,7 @@ namespace ngraph
     {
         namespace reference
         {
-            namespace
+            namespace multiclass_nms_v8
             {
                 struct Rectangle
                 {
@@ -153,30 +153,7 @@ namespace ngraph
                     s << "}";
                     return s;
                 }
-            } // namespace
-
-            template <typename T>
-            void print_queue(T q)
-            { // NB: pass by value so the print uses a copy
-                std::cout << "\n{";
-                while (!q.empty())
-                {
-                    std::cout << q.top() << ", ";
-                    q.pop();
-                }
-                std::cout << "}\n";
-            }
-
-            template <typename T>
-            void print_list(T& q)
-            {
-                std::cout << "\n{";
-                for (auto& v : q)
-                {
-                    std::cout << v << ", ";
-                }
-                std::cout << "}\n";
-            }
+            } // namespace multiclass_nms_v8
 
             void multiclass_nms(const float* boxes_data,
                                 const Shape& boxes_data_shape,
@@ -196,6 +173,11 @@ namespace ngraph
                                 const Shape& selected_indices_shape,
                                 int64_t* valid_outputs)
             {
+                using SelectedIndex = multiclass_nms_v8::SelectedIndex;
+                using SelectedOutput = multiclass_nms_v8::SelectedOutput;
+                using BoxInfo = multiclass_nms_v8::BoxInfo;
+                using Rectangle = multiclass_nms_v8::Rectangle;
+
                 auto func = [](float iou, float adaptive_threshold) {
                     return iou <= adaptive_threshold ? 1.0f : 0.0f;
                 };
@@ -264,20 +246,14 @@ namespace ngraph
                                           candidate_boxes.end(),
                                           std::greater<BoxInfo>());
 
-                        // print_list(candidate_boxes);
-
                         std::priority_queue<BoxInfo> sorted_boxes(candidate_boxes.begin(),
                                                                   candidate_boxes.begin() +
                                                                       candiate_size,
                                                                   std::less<BoxInfo>());
 
-                        // print_list(candidate_boxes);
-
-                        // print_queue(sorted_boxes);
-
                         std::vector<BoxInfo> selected; // container for a class
-                        // Get the next box with top score, filter by iou_threshold
 
+                        // Get the next box with top score, filter by iou_threshold
                         BoxInfo next_candidate;
                         float original_score;
 
@@ -292,8 +268,8 @@ namespace ngraph
                                  j >= next_candidate.suppress_begin_index;
                                  --j)
                             {
-                                float iou =
-                                    intersectionOverUnion(next_candidate.box, selected[j].box);
+                                float iou = multiclass_nms_v8::intersectionOverUnion(
+                                    next_candidate.box, selected[j].box);
                                 next_candidate.score *= func(iou, adaptive_threshold);
 
                                 if (iou >= adaptive_threshold)

@@ -50,7 +50,7 @@ namespace ngraph
                 MatrixNms(const Output<Node>& boxes,
                           const Output<Node>& scores,
                           const SortResultType sort_result_type = SortResultType::NONE,
-                          const bool sort_result_across_batch = true,
+                          const bool sort_result_across_batch = false,
                           const ngraph::element::Type& output_type = ngraph::element::i64,
                           const float score_threshold = 0.0f,
                           const int nms_top_k = -1,
