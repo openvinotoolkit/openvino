@@ -213,9 +213,9 @@ public:
                     const float sigma,
                     const int64_t top_k,
                     const bool normalized,
-                    int64_t *selected_indices,
-                    T *decayed_scores,
-                    int64_t *selected_classes,
+                    std::vector<int64_t>& selected_indices,
+                    std::vector<T>& decayed_scores,
+                    std::vector<int64_t>& selected_classes,
                     int64_t class_index) {
         std::vector<int64_t> candidate_index(boxes_num);
         std::iota(candidate_index.begin(), candidate_index.end(), 0);
@@ -261,9 +261,9 @@ public:
         });
 
         if (scores_data[candidate_index[0]] > post_threshold) {
-            selected_indices[0] = candidate_index[0];
-            selected_classes[0] = class_index;
-            decayed_scores[0] = scores_data[candidate_index[0]];
+            selected_indices.push_back(candidate_index[0]);
+            selected_classes.push_back(class_index);
+            decayed_scores.push_back(scores_data[candidate_index[0]]);
             num_det++;
         }
 
@@ -280,9 +280,104 @@ public:
             if (ds <= post_threshold)
                 continue;
             num_det++;
-            selected_indices[i] = candidate_index[i];
-            selected_classes[i] = class_index;
-            decayed_scores[i] = ds;
+            selected_indices.push_back(candidate_index[i]);
+            selected_classes.push_back(class_index);
+            selected_classes.push_back(ds);
+        }
+        return num_det;
+    }
+
+    template<typename T, bool gaussian>
+    size_t nms_matrix_new(const T *boxes_data,
+                      const int64_t boxes_num,
+                      const int64_t box_size,
+                      const T *scores_data,
+                      const T score_threshold,
+                      const T post_threshold,
+                      const float sigma,
+                      const int64_t top_k,
+                      const bool normalized,
+                      const int64_t batch_idx,
+                      const int64_t class_idx,
+                      BoxInfo* filtBoxes) {
+        std::vector<std::pair<float, int>> sorted_boxes;
+        int64_t original_size = 0;
+
+        for (int box_idx = 0; box_idx < boxes_num; box_idx++) {
+            if (scores_data[box_idx] > score_threshold) {
+                original_size++;
+                sorted_boxes.emplace_back(std::make_pair(scores_data[box_idx], box_idx));
+            }
+        }
+        int64_t  num_det = 0;
+        if (original_size <= 0) {
+            return 0;
+        }
+        if (top_k > -1 && original_size > top_k) {
+            original_size = top_k;
+        }
+
+        parallel_sort(sorted_boxes.begin(), sorted_boxes.end(),
+                      [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
+                          return (l.first > r.first);
+                      });
+
+        std::vector<T> iou_matrix((original_size * (original_size - 1)) >> 1);
+        std::vector<T> iou_max(original_size);
+
+        iou_max[0] = 0.;
+        InferenceEngine::parallel_for(original_size - 1, [&](size_t i){
+            T max_iou = 0.;
+            size_t actual_index = i + 1;
+            auto idx_a = sorted_boxes[actual_index].second;
+            for (int64_t j = 0; j < actual_index; j++) {
+                auto idx_b = sorted_boxes[j].second;
+                auto iou = intersectionOverUnion<T>(boxes_data + idx_a * box_size,
+                                                    boxes_data + idx_b * box_size,
+                                                    normalized);
+                max_iou = std::max(max_iou, iou);
+                iou_matrix[actual_index * (actual_index - 1) / 2 + j] = iou;
+            }
+            iou_max[actual_index] = max_iou;
+        });
+
+        if (scores_data[sorted_boxes[0].second] > post_threshold) {
+            auto box_index = sorted_boxes[0].second;
+            auto box = boxes_data + box_index * box_size;
+            filtBoxes[0].box.x1 = box[0];
+            filtBoxes[0].box.y1 = box[1];
+            filtBoxes[0].box.x2 = box[2];
+            filtBoxes[0].box.y2 = box[3];
+            filtBoxes[0].index = batch_idx * num_boxes + box_index;
+            filtBoxes[0].score = sorted_boxes[0].first;
+            filtBoxes[0].batch_index = batch_idx;
+            filtBoxes[0].class_index = class_idx;
+            num_det++;
+        }
+
+        decay_score<T, gaussian> decay_fn;
+        for (int64_t i = 1; i < original_size; i++) {
+            T min_decay = 1.;
+            for (int64_t j = 0; j < i; j++) {
+                auto max_iou = iou_max[j];
+                auto iou = iou_matrix[i * (i - 1) / 2 + j];
+                auto decay = decay_fn(iou, max_iou, sigma);
+                min_decay = std::min(min_decay, decay);
+            }
+            auto ds = min_decay * scores_data[sorted_boxes[i].second];
+            if (ds <= post_threshold)
+                continue;
+            num_det++;
+            auto box_index = sorted_boxes[i].second;
+            auto box = boxes_data + box_index * box_size;
+            filtBoxes[i].box.x1 = box[0];
+            filtBoxes[i].box.y1 = box[1];
+            filtBoxes[i].box.x2 = box[2];
+            filtBoxes[i].box.y2 = box[3];
+            filtBoxes[i].index = batch_idx * num_boxes + box_index;
+            filtBoxes[i].score = ds;
+            filtBoxes[i].batch_index = batch_idx;
+            filtBoxes[i].class_index = class_idx;
         }
         return num_det;
     }
@@ -304,9 +399,7 @@ public:
         bool normalized = true;
         InferenceEngine::parallel_for(num_classes, [&](size_t batch) {
             const float *boxes_ptr = boxes + batch * num_boxes * 4;
-            std::vector<int64_t> all_indices(real_num_classes * real_num_boxes, -1);
-            std::vector<float> all_scores(real_num_classes * real_num_boxes, 0);
-            std::vector<int64_t> all_classes(real_num_classes * real_num_boxes, -1);
+            std::vector<BoxInfo> batch_filtered_box(real_num_classes * real_num_boxes);
             std::vector<int> class_offset(num_classes, 0);
             std::vector<int64_t> num_per_class(num_classes, 0);
             for (size_t i = 0, count = 0; i < num_classes; i++) {
@@ -323,21 +416,20 @@ public:
                         scores + batch * (num_classes * num_boxes) + class_idx * num_boxes;
                 size_t class_num_det = 0;
                 if (m_decay_function == ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN) {
-                    class_num_det = nms_matrix<float, true>(boxes_ptr,
-                                                            num_boxes,
-                                                            box_shape,
-                                                            scores_ptr,
-                                                            m_score_threshold,
-                                                            m_post_threshold,
-                                                            m_gaussian_sigma,
-                                                            m_nms_top_k,
-                                                            normalized,
-                                                            all_indices.data() + class_offset[class_idx],
-                                                            all_scores.data() + class_offset[class_idx],
-                                                            all_classes.data() + class_offset[class_idx],
-                                                            class_idx);
+                    class_num_det = nms_matrix_new<float, true>(boxes_ptr,
+                                                                 num_boxes,
+                                                                 box_shape,
+                                                                 scores_ptr,
+                                                                 m_score_threshold,
+                                                                 m_post_threshold,
+                                                                 m_gaussian_sigma,
+                                                                 m_nms_top_k,
+                                                                 normalized,
+                                                                 batch,
+                                                                 class_idx,
+                                                                 batch_filtered_box.data() + class_offset[class_idx]);
                 } else {
-                    class_num_det = nms_matrix<float, false>(boxes_ptr,
+                    class_num_det = nms_matrix_new<float, false>(boxes_ptr,
                                                              num_boxes,
                                                              box_shape,
                                                              scores_ptr,
@@ -346,10 +438,9 @@ public:
                                                              m_gaussian_sigma,
                                                              m_nms_top_k,
                                                              normalized,
-                                                             all_indices.data() + class_offset[class_idx],
-                                                             all_scores.data() + class_offset[class_idx],
-                                                             all_classes.data() + class_offset[class_idx],
-                                                             class_idx);
+                                                             batch,
+                                                             class_idx,
+                                                                 batch_filtered_box.data() + class_offset[class_idx]);
                 }
                 num_per_class[class_idx] = class_num_det;
             });
@@ -358,35 +449,37 @@ public:
                 return;
             }
 
+            auto start_offset = 0;
+            for (size_t i = 0; i < num_per_class.size(); i++) {
+                auto offset_class = class_offset[i];
+                for (size_t j = 0; j < num_per_class[i]; j++) {
+                    batch_filtered_box[start_offset + j] = batch_filtered_box[offset_class + j];
+                }
+                start_offset += num_per_class[i];
+            }
+
+            batch_filtered_box.resize(start_offset);
+
             if (m_keep_top_k > -1) {
                 auto k = static_cast<size_t>(m_keep_top_k);
                 if (num_det > k)
                     num_det = k;
             }
 
-            std::vector<int64_t> perm(all_indices.size());
-            std::iota(perm.begin(), perm.end(), 0);
 
-            std::partial_sort(perm.begin(),
-                              perm.begin() + num_det,
-                              perm.end(),
-                              [&all_scores](int lhs, int rhs) {
-                                  return all_scores[lhs] > all_scores[rhs];
+            std::partial_sort(batch_filtered_box.begin(),
+                              batch_filtered_box.begin() + num_det,
+                              batch_filtered_box.end(),
+                              [](BoxInfo& lhs, BoxInfo& rhs) {
+                                  return lhs.score > rhs.score;
                               });
-            size_t offset = batch * real_num_classes * real_num_boxes;
+
+            auto offset = batch * real_num_classes * real_num_boxes;
+
             for (size_t i = 0; i < num_det; i++) {
-                auto p = perm[i];
-                auto idx = all_indices[p];
-                auto cls = all_classes[p];
-                auto score = all_scores[p];
-                auto bbox = boxes_ptr + idx * box_shape;
-                filtered_boxes[offset + i] = BoxInfo{Rectangle{bbox[0], bbox[1], bbox[2], bbox[3]},
-                                                     batch * num_boxes + idx,
-                                                     score,
-                                                     batch,
-                                                     cls};
+                filtered_boxes[offset + i] = batch_filtered_box[i];
             }
-            num_per_batch[batch] = (num_det);
+            num_per_batch[batch] = num_det;
         });
 
         if (m_sort_result_across_batch) { /* sort across batch */
