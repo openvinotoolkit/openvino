@@ -278,7 +278,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
             COMPONENT ngraph_dev)
     endif()
 
-    configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/share/ngraphConfig.cmake.in
+    configure_package_config_file(${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
         INSTALL_DESTINATION cmake)
 
