@@ -26,21 +26,21 @@ const std::vector<std::map<std::string, std::string>> heteroConfigs = {
         {{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE }}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, PreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         PreprocessTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, PreprocessTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, PreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                 ::testing::ValuesIn(multiConfigs)),
                         PreprocessTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Hetero_BehaviorTests, PreprocessTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, PreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
@@ -61,7 +61,7 @@ const std::vector<InferenceEngine::Layout> ioLayouts = {
     InferenceEngine::Layout::NHWC
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessConversionTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, PreprocessConversionTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ioPrecisions),
@@ -75,7 +75,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessConversionTest,
                                 ::testing::ValuesIn(configs)),
                         PreprocessConversionTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Bool(),

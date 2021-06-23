@@ -25,7 +25,7 @@ std::vector<PReluTestValues> testValues = {
 };
 
 // PRelu in low precision is not supported in GPU
-INSTANTIATE_TEST_CASE_P(DISABLED_LPT, PReluTransformation,
+INSTANTIATE_TEST_SUITE_P(DISABLED_LPT, PReluTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),

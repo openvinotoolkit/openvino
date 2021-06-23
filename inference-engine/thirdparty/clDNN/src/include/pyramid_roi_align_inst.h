@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "api/pyramid_roi_align.hpp"
+#include "cldnn/primitives/pyramid_roi_align.hpp"
 #include "primitive_inst.h"
 
 #include <memory>
@@ -36,11 +36,11 @@ public:
     static std::string to_string(pyramid_roi_align_node const& node);
     typed_primitive_inst(network_impl& network, pyramid_roi_align_node const& node);
 
-    memory_impl& input() const { return dep_memory(0); }
-    memory_impl& P2() const { return dep_memory(1); }
-    memory_impl& P3() const { return dep_memory(2); }
-    memory_impl& P4() const { return dep_memory(3); }
-    memory_impl& P5() const { return dep_memory(4); }
+    memory& input() const { return dep_memory(0); }
+    memory& P2() const { return dep_memory(1); }
+    memory& P3() const { return dep_memory(2); }
+    memory& P4() const { return dep_memory(3); }
+    memory& P5() const { return dep_memory(4); }
 };
 
 using pyramid_roi_align_inst = typed_primitive_inst<pyramid_roi_align>;

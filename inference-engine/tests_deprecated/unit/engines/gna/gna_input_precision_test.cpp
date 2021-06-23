@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <gmock/gmock-generated-actions.h>
+#include <gmock/gmock.h>
 #include "gna_matcher.hpp"
 #include "matchers/input_data_matcher.hpp"
 #include "test_irs.hpp"
