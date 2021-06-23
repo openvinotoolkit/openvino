@@ -117,10 +117,11 @@ std::shared_ptr<Node>
                                                        m_use_bilinear_interpolation_padding);
     }
 }
-
+/*
 namespace deformable_convolution
 {
-}
+ // evaluate method
+}*/
 
 /*bool op::v8::DeformableConvolution::evaluate(const HostTensorVector &outputs, const
 HostTensorVector &inputs) const { NGRAPH_OP_SCOPE(v8_DeformableConvolution);
