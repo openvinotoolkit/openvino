@@ -18,6 +18,7 @@ from mo.ops.crop import Crop
 from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
 from mo.utils.graph import bfs_search
+from mo.utils.error import Error
 
 
 class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
@@ -38,13 +39,23 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
 
     @staticmethod
     def calculate_frame_time(graph: Graph):
-        # in Kaldi main input always have name 'input'
-        assert 'input' in graph and Node(graph, 'input').op == 'Parameter'
-        try:
-            nodes = list(bfs_search(graph, ['input']))
-        except:
-            return
+        # in Kaldi can be 1 or 2 inputs. Only main input can change delay in network.
+        # Usually ivector input have name 'ivector'.
+        inputs = graph.get_op_nodes(op='Parameter')
+        if len(inputs) == 1:
+            inp_name = inputs[0].name
+        elif len(inputs) == 2:
+            if inputs[0].name == 'ivector':
+                inp_name = inputs[1].name
+            elif inputs[1].name == 'ivector':
+                inp_name = inputs[0].name
+            else:
+                raise Error("There are 2 inputs for Kaldi model but we can't find out which one is ivector. " +
+                            "Use name \'ivector\' for according input")
+        else:
+            raise Error("There are {} inputs for Kaldi model but we expect only 1 or 2".format(len(inputs)))
 
+        nodes = list(bfs_search(graph, [inp_name]))
         nx.set_node_attributes(G=graph, name='frame_time', values=-1)
 
         for n in nodes:
