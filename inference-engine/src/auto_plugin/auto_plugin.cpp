@@ -211,14 +211,19 @@ ConfigType AutoInferencePlugin::GetSupportedConfig(const ConfigType&  config,
 
 void AutoInferencePlugin::CheckConfig(const ConfigType& config) {
     std::vector<std::string> supportedConfigKeys = GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
-    for (auto&& c : config) {
-        auto itKey = std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), c.first);
-        if (supportedConfigKeys.end() == itKey) {
-            // CVS-57233
-            if (c.first.find("AUTO_") == 0) {
+    for (auto&& kvp : config) {
+        if (kvp.first.find("AUTO_") == 0) {
+            continue;
+        } else if (kvp.first == IE::PluginConfigParams::KEY_PERF_COUNT) {
+            if (kvp.second == IE::PluginConfigParams::YES ||
+                kvp.second == IE::PluginConfigParams::NO) {
                 continue;
+            } else {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
             }
-            IE_THROW() << "AUTO plugin doesn't support config key " << c.first;
+        } else {
+            IE_THROW() << "Unsupported config key: " << kvp.first;
         }
     }
 }
