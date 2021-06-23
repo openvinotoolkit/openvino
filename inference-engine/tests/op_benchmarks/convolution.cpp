@@ -3,7 +3,6 @@
 #include <benchmark/benchmark.h>
 
 #include <ie_core.hpp>
-#include <numeric>
 #include <vector>
 
 #include "ngraph/ngraph.hpp"

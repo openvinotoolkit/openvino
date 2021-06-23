@@ -18,11 +18,8 @@ conan_cmake_run(CONANFILE conanfile.txt
                 BASIC_SETUP CMAKE_TARGETS
                 BUILD missing)
 
-# 
 add_executable(op_benchmarks convolution.cpp)
 target_link_libraries(op_benchmarks PRIVATE CONAN_PKG::benchmark
-                                        ngraph_test_util
                                         ngraph
-                                        ngraph::builder
                                         ngraph_backend
                                         inference_engine)
