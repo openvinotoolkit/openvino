@@ -121,17 +121,25 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-"$python_binary" -m pip install --user -U pip
-"$python_binary" -m pip install --user -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
+if [ -e "$ROOT_DIR/venv" ]; then
+    printf "\nUsing the existing python virtual environment\n\n"
+    . "$ROOT_DIR/venv/bin/activate"
+else
+    printf "\nCreating the python virtual environment\n\n"
+    "$python_binary" -m venv "$ROOT_DIR/venv"
+    . "$ROOT_DIR/venv/bin/activate"
+    python -m pip install -U pip
+    python -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
+fi
 
 downloader_dir="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/tools/downloader"
 
-model_dir=$("$python_binary" "$downloader_dir/info_dumper.py" --name "$model_name" |
-    "$python_binary" -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
+model_dir=$(python "$downloader_dir/info_dumper.py" --name "$model_name" |
+    python -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
 
 downloader_path="$downloader_dir/downloader.py"
 
-print_and_run "$python_binary" "$downloader_path" --name "$model_name" --output_dir "${models_path}" --cache_dir "${models_cache}"
+print_and_run python "$downloader_path" --name "$model_name" --output_dir "${models_path}" --cache_dir "${models_cache}"
 
 ir_dir="${irs_path}/${model_dir}/${target_precision}"
 
@@ -140,7 +148,7 @@ if [ ! -e "$ir_dir" ]; then
     printf "${dashes}"
     printf "Install Model Optimizer dependencies\n\n"
     cd "${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer"
-    "$python_binary" -m pip install --user -r requirements.txt
+    python -m pip install -r requirements.txt
     cd "$cur_path"
 
     # Step 3. Convert a model with Model Optimizer
@@ -150,7 +158,7 @@ if [ ! -e "$ir_dir" ]; then
     mo_path="${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer/mo.py"
 
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
-    print_and_run "$python_binary" "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
+    print_and_run python "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
 else
     printf "\n\nTarget folder ${ir_dir} already exists. Skipping IR generation  with Model Optimizer."
     printf "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"

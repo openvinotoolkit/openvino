@@ -94,9 +94,6 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-"$python_binary" -m pip install --user -U pip
-"$python_binary" -m pip install --user -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
-
 if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
     setupvars_path="$ROOT_DIR/../../bin/setupvars.sh"
 else
@@ -105,6 +102,17 @@ fi
 if ! . "$setupvars_path" ; then
     printf "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
     exit 1
+fi
+
+if [ -e "$ROOT_DIR/venv" ]; then
+    printf "\nUsing the existing python virtual environment\n\n"
+    . "$ROOT_DIR/venv/bin/activate"
+else
+    printf "\nCreating the python virtual environment\n\n"
+    "$python_binary" -m venv "$ROOT_DIR/venv"
+    . "$ROOT_DIR/venv/bin/activate"
+    python -m pip install -U pip
+    python -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 fi
 
 # Step 1. Downloading Intel models
@@ -125,12 +133,12 @@ models_cache="$HOME/openvino_models/cache"
 declare -a model_args
 
 while read -r model_opt model_name; do
-    model_subdir=$("$python_binary" "$downloader_dir/info_dumper.py" --name "$model_name" |
-        "$python_binary" -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
+    model_subdir=$(python "$downloader_dir/info_dumper.py" --name "$model_name" |
+        python -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
 
     model_path="$models_path/$model_subdir/$target_precision/$model_name"
 
-    print_and_run "$python_binary" "$downloader_path" --name "$model_name" --output_dir "$models_path" --cache_dir "$models_cache"
+    print_and_run python "$downloader_path" --name "$model_name" --output_dir "$models_path" --cache_dir "$models_cache"
 
     model_args+=("$model_opt" "${model_path}.xml")
 done < "$ROOT_DIR/demo_security_barrier_camera.conf"
