@@ -54,7 +54,7 @@ const auto deformableConv2DParams_DeformableGroups_AutoPadExplicit = ::testing::
     ::testing::ValuesIn(multiple_defor_groups), ::testing::ValuesIn(numOutChannels),
     ::testing::Values(ngraph::op::PadType::EXPLICIT));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_DeformableConvolution2D_ExplicitPadding, DeformableConvolutionLayerTest,
     ::testing::Combine(
         deformableConv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -66,7 +66,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     DeformableConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_DeformableConvolution2D_AutoPadValid, DeformableConvolutionLayerTest,
     ::testing::Combine(
         deformableConv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
@@ -78,7 +78,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     DeformableConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_DeformableConvolution2D_DeformableGroups_ExplicitPadding, DeformableConvolutionLayerTest,
     ::testing::Combine(
         deformableConv2DParams_DeformableGroups_AutoPadExplicit, ::testing::ValuesIn(netPrecisions),

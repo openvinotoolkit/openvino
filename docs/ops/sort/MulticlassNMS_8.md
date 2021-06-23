@@ -93,6 +93,16 @@ Boxes of `background_class` are skipped and thus eliminated.
   * **Default value**: `-1` meaning to keep all classes.
   * **Required**: *No*
 
+* *normalized*
+
+  * **Description**: *normalized* is a flag that indicates whether `boxes` are normalized or not.
+  * **Range of values**: true or false
+    * *true* - the box coordinates are normalized.
+    * *false* - the box coordinates are not normalized.
+  * **Type**: boolean
+  * **Default value**: True
+  * **Required**: *No*
+
 * *nms_eta*
 
   * **Description**: eta parameter for adaptive NMS.

@@ -21,7 +21,7 @@ std::vector<InferenceEngine::Precision> inputPrecisions = {
 
 ConfigMap config;
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_ResultLayerTest, ResultLayerTest,
     ::testing::Combine(::testing::ValuesIn(inputDims),
                        ::testing::ValuesIn(inputPrecisions),
