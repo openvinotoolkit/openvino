@@ -95,3 +95,22 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs) const {
     return !(this->getOffsetPadding() != rhs.getOffsetPadding() &&
              this->getOffsetPadding() != Shape::UNDEFINED_DIM && rhs.getOffsetPadding() != Shape::UNDEFINED_DIM);
 }
+
+size_t BlockedMemoryDesc::getMemSizeImp() const {
+    int64_t e_size = getOffsetPadding() + 1;  // size in bytes (from begin of data to last element)
+    for (int j = 0; j < getBlockDims().size(); j++)
+        e_size += (getBlockDims()[j] - 1) * getStrides()[j];
+
+    // In some cases computational formula above doesn't work properly (e.g. for OhIw8o4i layout).
+    // This WA allows to limit the size of allocated memory from below.
+    // TODO: need to properly investigate the root cause of incorrect computations
+    int64_t min_size = 1;
+    for (int64_t dim : getBlockDims()) {
+        min_size *= dim;
+    }
+    e_size = std::max(e_size, min_size);
+
+    e_size *= getPrecision() == InferenceEngine::Precision::BIN ? 1 : getPrecision().size();
+
+    return e_size;
+}

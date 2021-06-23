@@ -75,6 +75,9 @@ public:
     }
 
 private:
+    virtual size_t getMemSizeImp() const override;
+
+private:
     std::vector<size_t> blockedDims;
     std::vector<size_t> strides;
     std::vector<size_t> order;
