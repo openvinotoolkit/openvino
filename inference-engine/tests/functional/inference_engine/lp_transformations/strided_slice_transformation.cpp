@@ -545,7 +545,7 @@ const std::vector<StridedSliceTransformationTestValues> testValuesWithDQBySpatia
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     StridedSliceTransformation,
     ::testing::Combine(
@@ -593,7 +593,7 @@ const std::vector<StridedSliceTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     StridedSliceTransformation,
     ::testing::Combine(

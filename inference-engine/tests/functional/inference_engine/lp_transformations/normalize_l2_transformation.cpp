@@ -305,7 +305,7 @@ const std::vector<NormalizeL2TransformationTestValues> normalizeL2Transformation
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     NormalizeL2Transformation,
     ::testing::Combine(
@@ -338,7 +338,7 @@ const std::vector<NormalizeL2TransformationTestValues> normalizeL2Transformation
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     NormalizeL2Transformation,
     ::testing::Combine(

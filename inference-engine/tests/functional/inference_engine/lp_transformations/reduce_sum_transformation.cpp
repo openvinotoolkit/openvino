@@ -357,7 +357,7 @@ const std::vector<ReduceTransformationTestValues> reduceSumTransformationTestVal
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ReduceSumTransformation,
     ::testing::Combine(
@@ -389,7 +389,7 @@ const std::vector<ReduceTransformationTestValues> reduceSumTransformationTestVal
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ReduceSumTransformation,
     ::testing::Combine(

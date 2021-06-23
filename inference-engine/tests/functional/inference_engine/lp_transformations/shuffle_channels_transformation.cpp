@@ -334,7 +334,7 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ShuffleChannelsTransformation,
     ::testing::Combine(
@@ -367,7 +367,7 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ShuffleChannelsTransformation,
     ::testing::Combine(

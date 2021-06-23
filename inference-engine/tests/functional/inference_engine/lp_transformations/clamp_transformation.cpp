@@ -402,7 +402,7 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ClampTransformation,
     ::testing::Combine(
@@ -463,7 +463,7 @@ const std::vector<ClampTransformationTestValues> testValuesDeqBySpatialDimension
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ClampTransformation,
     ::testing::Combine(
@@ -518,7 +518,7 @@ const std::vector<ClampTransformationTestValues> testValues = {
      },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ClampTransformation,
     ::testing::Combine(
@@ -551,7 +551,7 @@ const std::vector<ClampTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ClampTransformation,
     ::testing::Combine(

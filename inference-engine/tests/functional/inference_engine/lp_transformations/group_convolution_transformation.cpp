@@ -489,7 +489,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     GroupConvolutionTransformation,
     ::testing::Combine(
@@ -701,7 +701,7 @@ const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     GroupConvolutionTransformation,
     ::testing::Combine(
