@@ -56,6 +56,6 @@ TEST_P(DSR_Split, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicSplit, DSR_Split, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicSplit, DSR_Split, combinations);
 
 }  // namespace

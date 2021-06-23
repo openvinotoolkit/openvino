@@ -34,7 +34,7 @@ const auto normL2params = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         NormalizeL2,
         NormalizeL2LayerTest,
         normL2params,
