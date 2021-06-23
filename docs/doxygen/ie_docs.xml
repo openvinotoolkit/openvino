@@ -285,6 +285,7 @@ limitations under the License.
                 <tab type="user" title="Inference Engine API Changes History" url="@ref openvino_docs_IE_DG_API_Changes"/>
                 <tab type="user" title="Inference Engine Memory primitives" url="@ref openvino_docs_IE_DG_Memory_primitives"/>
                 <tab type="user" title="Inference Engine Device Query API" url="@ref openvino_docs_IE_DG_InferenceEngine_QueryAPI"/>
+                <tab type="user" title="Inference Engine Model Caching" url="@ref openvino_docs_IE_DG_Model_caching_overview"/>
                 <tab type="usergroup" title="Inference Engine Extensibility Mechanism" url="@ref openvino_docs_IE_DG_Extensibility_DG_Intro">
                     <tab type="user" title="Extension Library" url="@ref openvino_docs_IE_DG_Extensibility_DG_Extension"/>
                     <tab type="user" title="Custom Operations" url="@ref openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps"/>

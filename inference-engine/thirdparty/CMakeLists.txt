@@ -46,15 +46,6 @@ if (ENABLE_CLDNN)
     set_target_properties(docs PROPERTIES EXCLUDE_FROM_ALL ON FOLDER docs)
 endif()
 
-add_subdirectory(ade EXCLUDE_FROM_ALL)
-add_subdirectory(fluid/modules/gapi)
-
-set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
-
-# developer package
-
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
-
 if(ENABLE_MKL_DNN)
     set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
     set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
