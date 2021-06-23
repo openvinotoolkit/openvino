@@ -31,23 +31,6 @@ op::util::MaxPoolBase::MaxPoolBase(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-bool op::util::MaxPoolBase::update_auto_padding(const PartialShape& in_shape,
-                                                const Strides& filter_dilations,
-                                                Shape& new_pads_end,
-                                                Shape& new_pads_begin) const
-{
-    bool update_auto_padding_succeed = true;
-    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
-    {
-        CoordinateDiff pads_end, pads_begin;
-        update_auto_padding_succeed = try_apply_auto_padding(
-            in_shape, m_kernel, m_strides, filter_dilations, m_auto_pad, pads_end, pads_begin);
-        new_pads_end = Shape(pads_end.begin(), pads_end.end());
-        new_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
-    }
-    return update_auto_padding_succeed;
-}
-
 void op::util::MaxPoolBase::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(util_MaxPoolBase_validate_and_infer_types);
@@ -101,36 +84,19 @@ void op::util::MaxPoolBase::validate_and_infer_types()
     }
 }
 
-PartialShape op::util::MaxPoolBase::infer_output_shape_from_arg() const
+PartialShape op::util::MaxPoolBase::infer_output_shape(const Strides& dilations)
 {
+    NGRAPH_OP_SCOPE(util_MaxPoolBase_infer_output_shape);
+
     const auto& arg_shape = get_input_partial_shape(0);
 
-    auto output_shape = PartialShape::dynamic();
-    if (arg_shape.rank().is_static())
-    {
-        output_shape =
-            std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
-        if (arg_shape[0].is_static())
-        {
-            output_shape[0] = arg_shape[0]; // batch size
-        }
-        if (arg_shape[1].is_static())
-        {
-            output_shape[1] = arg_shape[1]; // channel size
-        }
-    }
-
-    return output_shape;
-}
-
-bool op::util::MaxPoolBase::update_paddings(const Strides& dilations)
-{
     bool update_auto_padding_succeed = true;
 
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
     {
+        const auto filter_dilations = dilations.empty() ? Strides(m_kernel.size(), 1) : dilations;
         update_auto_padding_succeed =
-            update_auto_padding(get_input_partial_shape(0), dilations, m_pads_end, m_pads_begin);
+            update_auto_padding(arg_shape, filter_dilations, m_pads_end, m_pads_begin);
     }
     if (m_auto_pad == PadType::VALID)
     {
@@ -138,5 +104,54 @@ bool op::util::MaxPoolBase::update_paddings(const Strides& dilations)
         m_pads_begin = Shape(m_pads_begin.size(), 0);
     }
 
+    auto output_shape = PartialShape::dynamic();
+    if (update_auto_padding_succeed)
+    {
+        CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
+        CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
+        output_shape = infer_batched_pooling_forward(this,
+                                                     get_input_partial_shape(0),
+                                                     pads_begin,
+                                                     pads_end,
+                                                     m_kernel,
+                                                     m_strides,
+                                                     dilations,
+                                                     true,
+                                                     m_rounding_type == op::RoundingType::CEIL);
+    }
+    else
+    {
+        if (arg_shape.rank().is_static())
+        {
+            output_shape =
+                std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
+            if (arg_shape[0].is_static())
+            {
+                output_shape[0] = arg_shape[0]; // batch size
+            }
+            if (arg_shape[1].is_static())
+            {
+                output_shape[1] = arg_shape[1]; // channel size
+            }
+        }
+    }
+
+    return output_shape;
+}
+
+bool op::util::MaxPoolBase::update_auto_padding(const PartialShape& in_shape,
+                                                const Strides& filter_dilations,
+                                                Shape& new_pads_end,
+                                                Shape& new_pads_begin) const
+{
+    bool update_auto_padding_succeed = true;
+    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
+    {
+        CoordinateDiff pads_end, pads_begin;
+        update_auto_padding_succeed = try_apply_auto_padding(
+            in_shape, m_kernel, m_strides, filter_dilations, m_auto_pad, pads_end, pads_begin);
+        new_pads_end = Shape(pads_end.begin(), pads_end.end());
+        new_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
+    }
     return update_auto_padding_succeed;
 }

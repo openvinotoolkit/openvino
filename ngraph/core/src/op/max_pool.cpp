@@ -46,51 +46,10 @@ void op::v1::MaxPool::validate_and_infer_types()
 
     MaxPoolBase::validate_and_infer_types();
 
-    const auto& arg_shape = get_input_partial_shape(0);
-    auto output_shape = PartialShape::dynamic();
-    if (arg_shape.rank().is_static())
-    {
-        output_shape =
-            std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
-        if (arg_shape[0].is_static())
-        {
-            output_shape[0] = arg_shape[0]; // batch size
-        }
-        if (arg_shape[1].is_static())
-        {
-            output_shape[1] = arg_shape[1]; // channel size
-        }
-    }
+    const PartialShape output_shape =
+        infer_output_shape(Strides{}); // no dilations of the filter window
 
-    bool update_auto_padding_succeed = true;
-    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
-    {
-        update_auto_padding_succeed =
-            update_auto_padding(arg_shape, Strides(m_kernel.size(), 1), m_pads_end, m_pads_begin);
-    }
-    if (m_auto_pad == PadType::VALID)
-    {
-        m_pads_end = Shape(m_pads_end.size(), 0);
-        m_pads_begin = Shape(m_pads_begin.size(), 0);
-    }
-    // infer_batched_forward_pooling wants CoordinateDiffs for these, while the pooling ops for
-    // now still take Shape (no negative padding).
-    CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
-    CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
-
-    set_output_type(0,
-                    get_input_element_type(0),
-                    update_auto_padding_succeed
-                        ? infer_batched_pooling_forward(this,
-                                                        arg_shape,
-                                                        pads_begin,
-                                                        pads_end,
-                                                        m_kernel,
-                                                        m_strides,
-                                                        Strides{}, // no dilation of the window
-                                                        true,
-                                                        m_rounding_type == op::RoundingType::CEIL)
-                        : output_shape);
+    set_output_type(0, get_input_element_type(0), output_shape);
 }
 
 shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const
@@ -251,27 +210,7 @@ void op::v8::MaxPool::validate_and_infer_types()
 
     MaxPoolBase::validate_and_infer_types();
 
-    const bool update_auto_padding_succeed = update_paddings(m_dilations);
-
-    PartialShape output_shape;
-    if (update_auto_padding_succeed)
-    {
-        CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
-        CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
-        output_shape = infer_batched_pooling_forward(this,
-                                                     get_input_partial_shape(0),
-                                                     pads_begin,
-                                                     pads_end,
-                                                     m_kernel,
-                                                     m_strides,
-                                                     m_dilations,
-                                                     true,
-                                                     m_rounding_type == op::RoundingType::CEIL);
-    }
-    else
-    {
-        output_shape = infer_output_shape_from_arg();
-    }
+    const PartialShape output_shape = infer_output_shape(m_dilations);
 
     set_output_type(0, get_input_element_type(0), output_shape);
     set_output_type(1, m_index_element_type, output_shape);

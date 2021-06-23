@@ -65,9 +65,7 @@ namespace ngraph
                                          Shape& new_pads_end,
                                          Shape& new_pads_begin) const;
 
-                PartialShape infer_output_shape_from_arg() const;
-
-                bool update_paddings(const Strides& dilations);
+                PartialShape infer_output_shape(const Strides& dilations);
 
                 Shape m_kernel;
                 Strides m_strides;

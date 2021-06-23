@@ -539,7 +539,8 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
         Strides data_dilation(data_spatial_shape.rank().get_length(), 1);
         Strides dilations = window_dilation;
         // if the window_dilation was not specified, generate the default value (no dilations)
-        if (window_dilation.empty()) {
+        if (window_dilation.empty())
+        {
             // dilations equal to 1 for each spatial axis mean that the window is not dilated
             dilations = Strides(data_spatial_shape.rank().get_length(), 1);
         }
