@@ -59,7 +59,7 @@ const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
     // { 256ul, { 1ul }, { -1.28f} , { 1.27f } }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),
