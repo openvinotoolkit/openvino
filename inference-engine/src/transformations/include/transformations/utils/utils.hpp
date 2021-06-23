@@ -49,12 +49,7 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
 inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
     const auto& prev_layer = output.get_node_shared_ptr();
     std::string out_name = prev_layer->get_friendly_name();
-    size_t connected_outputs(0);
-    for (size_t i = 0; i < prev_layer->get_output_size(); i++) {
-        if (!prev_layer->get_output_target_inputs(i).empty())
-            connected_outputs++;
-    }
-    if (connected_outputs > 1)
+    if (prev_layer->get_output_size() != 1)
         out_name += "." + std::to_string(output.get_index());
     return out_name;
 }
