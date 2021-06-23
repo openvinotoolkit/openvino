@@ -19,7 +19,7 @@ struct ReduceParams
     bool keep_dims;
 };
 
-template<class T>
+template <class T>
 static std::shared_ptr<Node> makeReduceOp(const ReduceParams& p, bool axes_as_param = false)
 {
     auto in_data = make_shared<op::Parameter>(p.data_et, p.data_ps);
@@ -39,12 +39,12 @@ static std::shared_ptr<Node> makeReduceOp(const ReduceParams& p, bool axes_as_pa
     return make_shared<T>(in_data, in_axes, p.keep_dims);
 }
 
-template<class T>
+template <class T>
 class ReduceTest : public testing::Test
 {
 };
 
-TYPED_TEST_CASE_P(ReduceTest);
+TYPED_TEST_SUITE_P(ReduceTest);
 
 TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer)
 {
@@ -290,27 +290,26 @@ TYPED_TEST_P(ReduceTest, reduce_invalid_axes_et)
     }
 }
 
-REGISTER_TYPED_TEST_CASE_P(
-    ReduceTest,
-    reduce_basic_shape_infer,
-    reduce_basic_shape_infer_keep_dims,
-    reduce_basic_shape_infer_scalar_axis,
-    reduce_basic_shape_infer_axes_as_param,
-    reduce_dynamic_shape_data,
-    reduce_dynamic_shape_reduced_axes_static,
-    reduce_dynamic_shape_reduced_axes_static_keep_dims,
-    reduce_dynamic_shape_reduced_axes_not_static,
-    reduce_dynamic_shape_reduced_axes_not_static_keep_dims,
-    reduce_invalid_axis_out_of_range,
-    reduce_invalid_axes_shape,
-    reduce_invalid_axes_et);
+REGISTER_TYPED_TEST_SUITE_P(ReduceTest,
+                            reduce_basic_shape_infer,
+                            reduce_basic_shape_infer_keep_dims,
+                            reduce_basic_shape_infer_scalar_axis,
+                            reduce_basic_shape_infer_axes_as_param,
+                            reduce_dynamic_shape_data,
+                            reduce_dynamic_shape_reduced_axes_static,
+                            reduce_dynamic_shape_reduced_axes_static_keep_dims,
+                            reduce_dynamic_shape_reduced_axes_not_static,
+                            reduce_dynamic_shape_reduced_axes_not_static_keep_dims,
+                            reduce_invalid_axis_out_of_range,
+                            reduce_invalid_axes_shape,
+                            reduce_invalid_axes_et);
 
-template<class T>
+template <class T>
 class ReduceArithmeticTest : public testing::Test
 {
 };
 
-TYPED_TEST_CASE_P(ReduceArithmeticTest);
+TYPED_TEST_SUITE_P(ReduceArithmeticTest);
 
 TYPED_TEST_P(ReduceArithmeticTest, reduce_arithmetic_invalid_data_et)
 {
@@ -339,23 +338,18 @@ TYPED_TEST_P(ReduceArithmeticTest, reduce_arithmetic_invalid_data_et)
     }
 }
 
-REGISTER_TYPED_TEST_CASE_P(
-    ReduceArithmeticTest,
-    reduce_arithmetic_invalid_data_et);
+REGISTER_TYPED_TEST_SUITE_P(ReduceArithmeticTest, reduce_arithmetic_invalid_data_et);
 
-template<class T>
+template <class T>
 class ReduceLogicalTest : public testing::Test
 {
 };
 
-TYPED_TEST_CASE_P(ReduceLogicalTest);
+TYPED_TEST_SUITE_P(ReduceLogicalTest);
 
 TYPED_TEST_P(ReduceLogicalTest, reduce_logical_invalid_data_et)
 {
-    std::vector<element::Type> element_types{
-        element::f32,
-        element::i32,
-        element::u32};
+    std::vector<element::Type> element_types{element::f32, element::i32, element::u32};
     PartialShape data_ps{1, 2, 3};
 
     element::Type axes_et = element::i32;
@@ -380,9 +374,7 @@ TYPED_TEST_P(ReduceLogicalTest, reduce_logical_invalid_data_et)
         {
             FAIL() << "Data input element type validation check failed for unexpected reason";
         }
-    }  
+    }
 }
 
-REGISTER_TYPED_TEST_CASE_P(
-    ReduceLogicalTest,
-    reduce_logical_invalid_data_et);
+REGISTER_TYPED_TEST_SUITE_P(ReduceLogicalTest, reduce_logical_invalid_data_et);

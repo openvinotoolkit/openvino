@@ -5,5 +5,5 @@
 #include "reduce_ops.hpp"
 
 using Type = ::testing::Types<op::v4::ReduceL1>;
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop_reduce_l1, ReduceTest, Type);
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop_reduce_l1_et, ReduceArithmeticTest, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_l1, ReduceTest, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_l1_et, ReduceArithmeticTest, Type);

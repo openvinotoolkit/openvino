@@ -124,7 +124,7 @@ TEST_P(ROIFeatureIntervalsTest, detectron_roi_feature_extractor_intervals_1)
     ASSERT_TRUE(roi->get_output_partial_shape(0).same_scheme(ref_out_shape));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     type_prop,
     ROIFeatureIntervalsTest,
     ::testing::Values(
@@ -310,7 +310,7 @@ TEST_P(ROIFeatureIntervalsSameFirstDimsTest, detectron_roi_feature_extractor_int
     ASSERT_TRUE(roi->get_output_partial_shape(0).same_scheme(ref_out_shape));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     type_prop,
     ROIFeatureIntervalsSameFirstDimsTest,
     ::testing::Values(

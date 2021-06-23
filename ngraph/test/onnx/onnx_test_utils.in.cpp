@@ -29,7 +29,7 @@ template <typename T>
 class ElemTypesTests : public ::testing::Test
 {
 };
-TYPED_TEST_CASE_P(ElemTypesTests);
+TYPED_TEST_SUITE_P(ElemTypesTests);
 
 TYPED_TEST_P(ElemTypesTests, onnx_test_add_abc_set_precission)
 {
@@ -69,14 +69,14 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_split_multioutput_set_precission)
     test_case.run();
 }
 
-REGISTER_TYPED_TEST_CASE_P(ElemTypesTests,
-                           onnx_test_add_abc_set_precission,
-                           onnx_test_split_multioutput_set_precission);
+REGISTER_TYPED_TEST_SUITE_P(ElemTypesTests,
+                            onnx_test_add_abc_set_precission,
+                            onnx_test_split_multioutput_set_precission);
 typedef ::testing::Types<int8_t, int16_t, int32_t, uint8_t, float> ElemTypes;
-INSTANTIATE_TYPED_TEST_CASE_P(${BACKEND_NAME}, ElemTypesTests, ElemTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(${BACKEND_NAME}, ElemTypesTests, ElemTypes);
 
-
-NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir) {
+NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir)
+{
     const auto ir_xml = file_util::path_join(SERIALIZED_ZOO, "ir/add_abc.xml");
     const auto function = test::function_from_ir(ir_xml);
 
@@ -89,7 +89,8 @@ NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir_with_bin_path) {
+NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir_with_bin_path)
+{
     const auto ir_xml = file_util::path_join(SERIALIZED_ZOO, "ir/add_abc.xml");
     const auto ir_bin = file_util::path_join(SERIALIZED_ZOO, "ir/weights/add_abc.bin");
     const auto function = test::function_from_ir(ir_xml, ir_bin);

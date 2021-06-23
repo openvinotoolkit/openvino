@@ -6,4 +6,4 @@
 
 using Type = ::testing::Types<ngraph::op::Abs>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop_abs, UnaryOperator, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_abs, UnaryOperator, Type);

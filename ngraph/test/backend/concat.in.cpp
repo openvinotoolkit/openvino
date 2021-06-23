@@ -185,10 +185,10 @@ NGRAPH_TEST_P(${BACKEND_NAME}, concat_vector_params, concat_vector_large)
 // Add thhosw tests to cover paramter space overflow:
 // cuda kernel parameter space have limit, if there is large number of parameters,
 // there will be overflow for parameter space.
-NGRAPH_INSTANTIATE_TEST_CASE_P(${BACKEND_NAME},
-                               input_sizes,
-                               concat_vector_params,
-                               testing::Values(100, 128, 999));
+NGRAPH_INSTANTIATE_TEST_SUITE_P(${BACKEND_NAME},
+                                input_sizes,
+                                concat_vector_params,
+                                testing::Values(100, 128, 999));
 
 NGRAPH_TEST(${BACKEND_NAME}, concat_vector)
 {
