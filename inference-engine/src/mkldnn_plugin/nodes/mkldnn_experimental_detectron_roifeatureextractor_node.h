@@ -9,9 +9,9 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNMathNode : public MKLDNNNode {
+class MKLDNNExperimentalDetectronROIFeatureExtractorNode : public MKLDNNNode {
 public:
-    MKLDNNMathNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNExperimentalDetectronROIFeatureExtractorNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -22,11 +22,18 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNMathNode& node)>> initializers;
+    const int INPUT_ROIS {0};
+    const int INPUT_FEATURES_START {1};
 
-    float alpha = 0.0f;
-    float beta = 0.0f;
-    float gamma = 0.0f;
+    const int OUTPUT_ROI_FEATURES {0};
+    const int OUTPUT_ROIS {1};
+
+    int output_dim_ = 0;
+    int pooled_height_ = 0;
+    int pooled_width_ = 0;
+    std::vector<int64_t> pyramid_scales_;
+    int sampling_ratio_ = 0;
+    bool aligned_ = false;
 
     std::string errorPrefix;
 };

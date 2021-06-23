@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 
 bool MKLDNNEmbeddingBagOffsetSumNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto embBagOffsetSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagOffsetsSum>(op);
+        const auto embBagOffsetSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagOffsetsSum>(op);
         if (!embBagOffsetSumOp) {
             errorMessage = "Node is not an instance of the EmbeddingBagOffsetsSum operation from opset v3.";
             return false;

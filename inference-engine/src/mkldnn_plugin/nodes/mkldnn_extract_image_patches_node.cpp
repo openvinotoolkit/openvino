@@ -1,22 +1,22 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "extract_image_patches.hpp"
-#include "caseless.hpp"
-#include "ie_parallel.hpp"
-#include "list.hpp"
-#include <cpu/x64/jit_generator.hpp>
+#include "base.hpp"
+
 #include <cstring>
 #include <string>
 #include <cmath>
+
 #include <ngraph/opsets/opset3.hpp>
+#include "ie_parallel.hpp"
+#include "mkldnn_extract_image_patches_node.h"
+#include "list.hpp"
+#include <cpu/x64/jit_generator.hpp>
+#include "caseless.hpp"
 
 using namespace MKLDNNPlugin;
-
-namespace InferenceEngine {
-namespace Extensions {
-namespace Cpu {
+using namespace InferenceEngine;
 
 using details::CaselessEq;
 
@@ -266,11 +266,11 @@ private:
         align(64);
         L(gather_index_table);
         for (int32_t i = 0; i < vlen / sizeof(int32_t); i++)
-                dd(i * jpp.SW * jpp.dtype_size);
+            dd(i * jpp.SW * jpp.dtype_size);
     }
 };
 
-bool ExtractImagePatchesImpl::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNExtractImagePatchesNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto extImgPatcher = std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(op);
         if (!extImgPatcher) {
@@ -292,140 +292,141 @@ bool ExtractImagePatchesImpl::isSupportedOperation(const std::shared_ptr<ngraph:
     return true;
 }
 
-ExtractImagePatchesImpl::ExtractImagePatchesImpl(const std::shared_ptr<ngraph::Node>& op) {
-    try {
-        std::string errorMessage;
-        if (!isSupportedOperation(op, errorMessage)) {
-            IE_THROW(NotImplemented) << errorMessage;
-        }
-
-        errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
-        const auto extImgPatcher = std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(op);
-
-        if (op->get_input_size() != 1 || op->get_output_size() != 1)
-                IE_THROW() << errorPrefix << "has incorrect number of input or output edges!"
-                           << " Input: " << op->get_input_size() << "; Output: " << op->get_output_size();
-
-        if (op->get_input_shape(0).size() != 4)
-                IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << op->get_input_shape(0).size();
-
-        if (op->get_output_shape(0).size() != 4)
-            IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << op->get_output_shape(0).size();
-
-        const auto precision = details::convertPrecision(op->get_input_element_type(0));
-            if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
-                IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
-
-        auto ksizes = extImgPatcher->get_sizes();
-        auto strides = extImgPatcher->get_strides();
-        auto rates = extImgPatcher->get_rates();
-        if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::VALID) {
-            _auto_pad = ExtImgPatcherPadType::VALID;
-        } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_LOWER) {
-            _auto_pad = ExtImgPatcherPadType::SAME_LOWER;
-        } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_UPPER) {
-            _auto_pad = ExtImgPatcherPadType::SAME_UPPER;
-        } else {
-            IE_THROW() << errorPrefix << "has unsupported pad type: " << extImgPatcher->get_auto_pad();
-        }
-
-        if (ksizes.size() != 2 || strides.size() != 2 || rates.size() != 2)
-            IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
-        _ksizes.clear();
-        _strides.clear();
-        _rates.clear();
-        for (const auto& x :  ksizes) {
-            if (x < 0)
-                IE_THROW() << "Kernel sizes must be non-negative, got '" << x << "'.";
-            _ksizes.push_back(static_cast<size_t>(x));
-        }
-        for (const auto& x :  strides) {
-            if (x < 0)
-                IE_THROW() << "Strides must be non-negative, got '" << x << "'.";
-            _strides.push_back(static_cast<size_t>(x));
-        }
-        for (const auto& x :  rates) {
-            if (x < 0)
-                IE_THROW() << "Rates must be non-negative, got '" << x << "'.";
-            _rates.push_back(static_cast<size_t>(x));
-        }
-
-        SizeVector in_dims = op->get_input_shape(0);
-        _pad_left = 0;
-        _pad_top = 0;
-        jit_extract_image_patches_params jpp;
-        jpp.need_padding = false;
-        if (_auto_pad != ExtImgPatcherPadType::VALID) {
-            const size_t iheight = in_dims[2];
-            const size_t iwidth = in_dims[3];
-            const int64_t ihStep = _ksizes[0] + (_rates[0] - 1) * (_ksizes[0] - 1);
-            const int64_t iwStep = _ksizes[1] + (_rates[1] - 1) * (_ksizes[1] - 1);
-
-            int64_t PW = (std::ceil(1.f * iwidth/_strides[1]) - 1) * _strides[1] + iwStep - iwidth;
-            int64_t PH = (std::ceil(1.f * iheight/_strides[0]) - 1) * _strides[0] + ihStep - iheight;
-
-            int64_t increment_sign = 0;
-            if (_auto_pad == ExtImgPatcherPadType::SAME_LOWER) {
-                increment_sign = 1;
-            } else if (_auto_pad == ExtImgPatcherPadType::SAME_UPPER) {
-                increment_sign = -1;
-            }
-
-            if ((PW > 0) && (PW < iwStep)) {
-                _pad_left = static_cast<size_t>((PW + increment_sign * (PW % 2)) / 2);
-                jpp.need_padding = true;
-            }
-            if ((PH > 0) && (PH < ihStep)) {
-                _pad_top = static_cast<size_t>((PH + increment_sign * (PH % 2)) / 2);
-                jpp.need_padding = true;
-            }
-        }
-
-        jpp.IW = in_dims[3];
-        SizeVector out_dims = op->get_output_shape(0);
-        jpp.OH = out_dims[2];
-        jpp.OW = out_dims[3];
-        jpp.KH = _ksizes[0];
-        jpp.KW = _ksizes[1];
-        jpp.SH = _strides[0];
-        jpp.SW = _strides[1];
-        jpp.dtype_size = precision.size();
-        jpp.block_size = 1;
-
-        if (mayiuse(x64::avx512_common)) {
-            jpp.block_size = cpu_isa_traits<x64::avx512_common>::vlen / jpp.dtype_size;
-            extract_image_patches_kernel.reset(new jit_extract_image_patches_kernel<x64::avx512_common>(jpp));
-        } else if (mayiuse(x64::avx2)) {
-            jpp.block_size = cpu_isa_traits<x64::avx2>::vlen / jpp.dtype_size;
-            extract_image_patches_kernel.reset(new jit_extract_image_patches_kernel<x64::avx2>(jpp));
-        } else if (mayiuse(x64::sse41)) {
-            jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
-            extract_image_patches_kernel.reset(new jit_extract_image_patches_kernel<x64::sse41>(jpp));
-        }
-
-        if (extract_image_patches_kernel)
-            extract_image_patches_kernel->create_ker();
-
-        addConfig(op, {{TensorDescCreatorTypes::ncsp, precision}},
-                      {{TensorDescCreatorTypes::ncsp, precision}});
-    } catch (InferenceEngine::Exception &ex) {
-        errorMsg = ex.what();
+MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
     }
+
+    errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
+    const auto extImgPatcher = std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(op);
+
+    if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
+        IE_THROW() << errorPrefix << "has incorrect number of input or output edges!"
+                   << " Input: " << getOriginalInputsNumber() << "; Output: " << getOriginalOutputsNumber();
+
+    if (op->get_input_shape(0).size() != 4)
+        IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << op->get_input_shape(0).size();
+
+    if (op->get_output_shape(0).size() != 4)
+        IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << op->get_output_shape(0).size();
+
+    auto ksizes = extImgPatcher->get_sizes();
+    auto strides = extImgPatcher->get_strides();
+    auto rates = extImgPatcher->get_rates();
+    if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::VALID) {
+        _auto_pad = ExtImgPatcherPadType::VALID;
+    } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_LOWER) {
+        _auto_pad = ExtImgPatcherPadType::SAME_LOWER;
+    } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_UPPER) {
+        _auto_pad = ExtImgPatcherPadType::SAME_UPPER;
+    } else {
+        IE_THROW() << errorPrefix << "has unsupported pad type: " << extImgPatcher->get_auto_pad();
+    }
+
+    if (ksizes.size() != 2 || strides.size() != 2 || rates.size() != 2)
+        IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
+    _ksizes.clear();
+    _strides.clear();
+    _rates.clear();
+    for (const auto& x :  ksizes) {
+        if (x < 0)
+            IE_THROW() << "Kernel sizes must be non-negative, got '" << x << "'.";
+        _ksizes.push_back(static_cast<size_t>(x));
+    }
+    for (const auto& x :  strides) {
+        if (x < 0)
+            IE_THROW() << "Strides must be non-negative, got '" << x << "'.";
+        _strides.push_back(static_cast<size_t>(x));
+    }
+    for (const auto& x :  rates) {
+        if (x < 0)
+            IE_THROW() << "Rates must be non-negative, got '" << x << "'.";
+        _rates.push_back(static_cast<size_t>(x));
+    }
+
+    SizeVector in_dims = op->get_input_shape(0);
+    _pad_left = 0;
+    _pad_top = 0;
+    jit_extract_image_patches_params jpp;
+    jpp.need_padding = false;
+    if (_auto_pad != ExtImgPatcherPadType::VALID) {
+        const size_t iheight = in_dims[2];
+        const size_t iwidth = in_dims[3];
+        const int64_t ihStep = _ksizes[0] + (_rates[0] - 1) * (_ksizes[0] - 1);
+        const int64_t iwStep = _ksizes[1] + (_rates[1] - 1) * (_ksizes[1] - 1);
+
+        int64_t PW = (std::ceil(1.f * iwidth/_strides[1]) - 1) * _strides[1] + iwStep - iwidth;
+        int64_t PH = (std::ceil(1.f * iheight/_strides[0]) - 1) * _strides[0] + ihStep - iheight;
+
+        int64_t increment_sign = 0;
+        if (_auto_pad == ExtImgPatcherPadType::SAME_LOWER) {
+            increment_sign = 1;
+        } else if (_auto_pad == ExtImgPatcherPadType::SAME_UPPER) {
+            increment_sign = -1;
+        }
+
+        if ((PW > 0) && (PW < iwStep)) {
+            _pad_left = static_cast<size_t>((PW + increment_sign * (PW % 2)) / 2);
+            jpp.need_padding = true;
+        }
+        if ((PH > 0) && (PH < ihStep)) {
+            _pad_top = static_cast<size_t>((PH + increment_sign * (PH % 2)) / 2);
+            jpp.need_padding = true;
+        }
+    }
+
+    jpp.IW = in_dims[3];
+    SizeVector out_dims = op->get_output_shape(0);
+    jpp.OH = out_dims[2];
+    jpp.OW = out_dims[3];
+    jpp.KH = _ksizes[0];
+    jpp.KW = _ksizes[1];
+    jpp.SH = _strides[0];
+    jpp.SW = _strides[1];
+    jpp.dtype_size = getOriginalInputPrecisionAtPort(0).size();
+    jpp.block_size = 1;
+
+    if (mayiuse(x64::avx512_common)) {
+        jpp.block_size = cpu_isa_traits<x64::avx512_common>::vlen / jpp.dtype_size;
+        extract_image_patches_kernel.reset(new jit_extract_image_patches_kernel<x64::avx512_common>(jpp));
+    } else if (mayiuse(x64::avx2)) {
+        jpp.block_size = cpu_isa_traits<x64::avx2>::vlen / jpp.dtype_size;
+        extract_image_patches_kernel.reset(new jit_extract_image_patches_kernel<x64::avx2>(jpp));
+    } else if (mayiuse(x64::sse41)) {
+        jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
+        extract_image_patches_kernel.reset(new jit_extract_image_patches_kernel<x64::sse41>(jpp));
+    }
+
+    if (extract_image_patches_kernel)
+        extract_image_patches_kernel->create_ker();
 }
 
-StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept {
-    const char *src_data = inputs[0]->cbuffer().as<const char *>() +
-            inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    char *dst_data = outputs[0]->buffer().as<char *>() +
-            outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    const size_t dtype_size = inputs[0]->getTensorDesc().getPrecision().size();
+void MKLDNNExtractImagePatchesNode::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
 
-    const auto& inDims = inputs[0]->getTensorDesc().getDims();
+    precision = getOriginalInputPrecisionAtPort(0);
+    if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
+        IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
+
+    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, precision}},
+                         {{TensorDescCreatorTypes::ncsp, precision}},
+                         impl_desc_type::ref_any);
+}
+
+void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
+    const char *src_data = reinterpret_cast<const char *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    char *dst_data = reinterpret_cast<char *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const size_t dtype_size = getOriginalInputPrecisionAtPort(0).size();
+
+    const auto& inDims = getParentEdgeAt(0)->getDims().ToSizeVector();
     const size_t IC = inDims[1];
     const size_t IH = inDims[2];
     const size_t IW = inDims[3];
 
-    const auto& outDims = outputs[0]->getTensorDesc().getDims();
+    const auto& outDims = getChildEdgesAtPort(0)[0]->getDims().ToSizeVector();
     const size_t OB = outDims[0];
     const size_t OH = outDims[2];
     const size_t OW = outDims[3];
@@ -435,8 +436,8 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
     const size_t RH = _rates[0], RW = _rates[1];
     const size_t PT = _pad_top, PL = _pad_left;
 
-    const std::vector<size_t> istrides = inputs[0]->getTensorDesc().getBlockingDesc().getStrides();
-    const std::vector<size_t> ostrides = outputs[0]->getTensorDesc().getBlockingDesc().getStrides();
+    const std::vector<size_t> istrides = getParentEdgeAt(0)->getDesc().getBlockingDesc().getStrides();
+    const std::vector<size_t> ostrides = getChildEdgesAtPort(0)[0]->getDesc().getBlockingDesc().getStrides();
     const std::vector<size_t> ostrides_partial = {ostrides[0], KW * IC * ostrides[1], IC * ostrides[1], ostrides[1]};
 
     if (extract_image_patches_kernel) {
@@ -471,7 +472,7 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
             const size_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
             char *my_dst_ptr = dst_data +
-                    (ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3]) * dtype_size;
+                               (ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3]) * dtype_size;
             const char *my_src_ptr = src_data + (ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start) * dtype_size;
 
             size_t num_bytes_to_set = ih_lpad * OW * dtype_size;
@@ -480,14 +481,14 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
 
             const char* src_ptr_h_stop = my_src_ptr + ih_hpad * SH * IW * dtype_size;
             for (const char *src_h_ptr = my_src_ptr + ih_lpad * SH * IW * dtype_size;
-                src_h_ptr < src_ptr_h_stop; src_h_ptr += SH * IW * dtype_size) {
+                 src_h_ptr < src_ptr_h_stop; src_h_ptr += SH * IW * dtype_size) {
                 num_bytes_to_set = iw_lpad * dtype_size;
                 memset(my_dst_ptr, 0, num_bytes_to_set);
                 my_dst_ptr += num_bytes_to_set;
 
                 const char* src_ptr_w_stop = src_h_ptr + iw_hpad * SW * dtype_size;
                 for (const char* src_w_ptr = src_h_ptr + iw_lpad * SW * dtype_size;
-                    src_w_ptr < src_ptr_w_stop; src_w_ptr += SW * dtype_size) {
+                     src_w_ptr < src_ptr_w_stop; src_w_ptr += SW * dtype_size) {
                     num_bytes_to_set = dtype_size;
                     memcpy(my_dst_ptr, src_w_ptr, num_bytes_to_set);
                     my_dst_ptr += num_bytes_to_set;
@@ -500,11 +501,12 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
             memset(my_dst_ptr, 0, num_bytes_to_set);
         });
     }
-    return OK;
 }
 
-const std::set<size_t> ExtractImagePatchesImpl::_supported_precisions_sizes = {1, 2, 4};
+const std::set<size_t> MKLDNNExtractImagePatchesNode::_supported_precisions_sizes = {1, 2, 4};
 
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace InferenceEngine
+bool MKLDNNExtractImagePatchesNode::created() const {
+    return getType() == ExtractImagePatches;
+}
+
+REG_MKLDNN_PRIM_FOR(MKLDNNExtractImagePatchesNode, ExtractImagePatches)
