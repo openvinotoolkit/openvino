@@ -23,7 +23,7 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                NormalizeL2();
+                NormalizeL2() = default;
                 ///
                 /// \brief      Constructs a NormalizeL2 operation.
                 ///
