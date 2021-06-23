@@ -14,7 +14,8 @@ namespace ngraph
     {
         namespace util
         {
-            /// \brief Base class for operations DeformableConvolution v1 and DeformableConvolution v8.
+            /// \brief Base class for operations DeformableConvolution v1 and DeformableConvolution
+            /// v8.
             class NGRAPH_API DeformableConvolutionBase : public Op
             {
             public:
@@ -39,15 +40,14 @@ namespace ngraph
                 ///                           should be split into.
                 /// \param deformable_group   The number of groups which deformable values and
                 ///                           output should be split into along the channel axis.
-                DeformableConvolutionBase
-                        (const OutputVector& arguments,
-                         const Strides& strides,
-                                      const CoordinateDiff& pads_begin,
-                                      const CoordinateDiff& pads_end,
-                                      const Strides& dilations,
-                                      const PadType& auto_pad = PadType::EXPLICIT,
-                                      int64_t group = 1,
-                                      int64_t deformable_group = 1);
+                DeformableConvolutionBase(const OutputVector& arguments,
+                                          const Strides& strides,
+                                          const CoordinateDiff& pads_begin,
+                                          const CoordinateDiff& pads_end,
+                                          const Strides& dilations,
+                                          const PadType& auto_pad = PadType::EXPLICIT,
+                                          int64_t group = 1,
+                                          int64_t deformable_group = 1);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -65,7 +65,10 @@ namespace ngraph
                 int64_t get_group() const { return m_group; }
                 void set_group(const int64_t group) { m_group = group; }
                 int64_t get_deformable_group() const { return m_deformable_group; }
-                void set_deformable_group(const int64_t deformable_group) { m_deformable_group = deformable_group; }
+                void set_deformable_group(const int64_t deformable_group)
+                {
+                    m_deformable_group = deformable_group;
+                }
 
             protected:
                 Strides m_strides;
