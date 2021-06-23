@@ -98,7 +98,7 @@ namespace ngraph
                                       const PadType& auto_pad = PadType::EXPLICIT,
                                       const int64_t group = 1,
                                       const int64_t deformable_group = 1,
-                                      const int64_t offset = 0);
+                                      const bool use_bilinear_interpolation_padding = false);
 
                 DeformableConvolution(const Output<Node>& arg,
                                       const Output<Node>& offsets,
@@ -111,7 +111,7 @@ namespace ngraph
                                       const PadType& auto_pad = PadType::EXPLICIT,
                                       const int64_t group = 1,
                                       const int64_t deformable_group = 1,
-                                      const int64_t offset = 0
+                                      const bool use_bilinear_interpolation_padding = false
                                       );
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -122,9 +122,10 @@ namespace ngraph
 /*                bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
                 bool has_evaluate() const override { return true; }*/
-
+                bool get_use_bilinear_interpolation_padding() const { return m_use_bilinear_interpolation_padding; }
+                void set_use_bilinear_interpolation_padding(const bool use_bilinear_interpolation_padding) { m_use_bilinear_interpolation_padding = use_bilinear_interpolation_padding; }
             private:
-                int64_t m_offset;
+                int64_t m_use_bilinear_interpolation_padding;
 
             };
         }

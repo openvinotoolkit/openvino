@@ -17,6 +17,7 @@ namespace ngraph
                 inline void validate_deformable_convolution_params(const Shape& in_shape,
                                                                    const Shape& o_shape,
                                                                    const Shape& f_shape,
+                                                                   const Shape& m_shape,
                                                                    const Shape& out_shape,
                                                                    const Strides& strides,
                                                                    const Strides& dilations,
@@ -29,6 +30,7 @@ namespace ngraph
                     NGRAPH_CHECK(in_shape.size() == 4, "Unsupported input rank: ", in_shape);
                     NGRAPH_CHECK(o_shape.size() == 4, "Unsupported offset rank: ", o_shape);
                     NGRAPH_CHECK(f_shape.size() == 4, "Unsupported kernel rank: ", f_shape);
+                    NGRAPH_CHECK(m_shape.size() == 4, "Unsupported mask rank: ", m_shape);
 
                     NGRAPH_CHECK(in_shape[1] % groups == 0,
                                  "Input channels of data batch input must be evenly divisible by "
@@ -53,14 +55,20 @@ namespace ngraph
 
                     const Shape f_spatial_shape{std::next(f_shape.begin(), 2), std::end(f_shape)};
                     const Shape o_spatial_shape{std::next(o_shape.begin(), 2), std::end(o_shape)};
+                    const Shape m_spatial_shape{std::next(m_shape.begin(), 2), std::end(m_shape)};
                     const Shape out_spatial_shape{std::next(out_shape.begin(), 2),
                                                   std::end(out_shape)};
 
                     NGRAPH_CHECK(o_shape[1] == deformable_groups * shape_size(f_spatial_shape) * 2,
                                  "The channels dimension of offsets input is not "
                                  "compatible with filters and 'deformable group' attribute");
+                    NGRAPH_CHECK(m_shape[1] == deformable_groups * shape_size(f_spatial_shape),
+                                 "The channels dimension of mask input is not "
+                                 "compatible with filters and 'deformable group' attribute");
                     NGRAPH_CHECK(out_spatial_shape == o_spatial_shape,
                                  "Spatial dimensions of output and offsets values must be equal");
+                    NGRAPH_CHECK(out_spatial_shape == m_spatial_shape,
+                                 "Spatial dimensions of output and mask values must be equal");
                 }
 
                 inline Shape shape_reduce(const Shape& s) { return Shape(++s.begin(), s.end()); }
@@ -76,64 +84,45 @@ namespace ngraph
                                                     const float x_idx,
                                                     const float y_idx,
                                                     const int x_size,
-                                                    const int y_size)
+                                                    const int y_size,
+                                                    const bool use_bilinear_interpolation_padding)
                 {
-                    float w = x_idx;
-                    float h = y_idx;
-                    int width = x_size;
-                    int height = y_size;
-                    int data_width = x_size;
-
-                    int h_low = floor(h);
-                    int w_low = floor(w);
-                    int h_high = h_low + 1;
-                    int w_high = w_low + 1;
-
-                    float lh = h - h_low;
-                    float lw = w - w_low;
-                    float hh = 1 - lh, hw = 1 - lw;
-
-                    float v1 = 0;
-                    if (h_low >= 0 && w_low >= 0)
-                        v1 = data[h_low * data_width + w_low];
-                    float v2 = 0;
-                    if (h_low >=0 && w_high <= width - 1)
-                        v2 = data[h_low * data_width + w_high];
-                    float v3 = 0;
-                    if (h_high <= height - 1 && w_low >= 0)
-                        v3 = data[h_high * data_width + w_low];
-                    float v4 = 0;
-                    if (h_high <= height - 1 && w_high <= width - 1)
-                        v4 = data[h_high * data_width + w_high];
-
-                    float w1 = hh * hw, w2 = hh * lw, w3 = lh * hw, w4 = lh * lw;
-
-                    float val = (w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4);
-
-
-                    const int x1 = std::max(static_cast<int>(std::floor(x_idx)), 0);
-                    const int x2 = std::min(static_cast<int>(std::ceil(x_idx)), x_size - 1);
                     const int y1 = std::max(static_cast<int>(std::floor(y_idx)), 0);
-                    const int y2 = std::min(static_cast<int>(std::ceil(y_idx)), y_size - 1);
+                    const int x1 = std::max(static_cast<int>(std::floor(x_idx)), 0);
+
+                    const int y2 = use_bilinear_interpolation_padding? y1 + 1 : std::min(static_cast<int>(std::ceil(y_idx)), y_size - 1);
+                    const int x2 = use_bilinear_interpolation_padding? x1 + 1 : std::min(static_cast<int>(std::ceil(x_idx)), x_size - 1);
 
                     const float distX = x_idx - x1;
                     const float distY = y_idx - y1;
 
-                    const float value11 = data[y1 * x_size + x1];
-                    const float value21 = data[y1 * x_size + x2];
-                    const float value12 = data[y2 * x_size + x1];
-                    const float value22 = data[y2 * x_size + x2];
+                    float value11 = 0;
+                    if (y1 >= 0 && x1 >= 0)
+                        value11 = data[y1 * x_size + x1];
+
+                    float value21 = 0;
+                    if (y1 >= 0 && x2 < x_size)
+                        value21 = data[y1 * x_size + x2];
+
+
+                    float value12 = 0;
+                    if (y2 < y_size && x1 >= 0)
+                        value12 = data[y2 * x_size + x1];
+
+                    float value22 = 0;
+                    if (y2 < y_size && x2 < x_size)
+                        value22 = data[y2 * x_size + x2];
 
                     const float value = (1 - distX) * (1 - distY) * value11 +
                                         (1 - distX) * distY * value12 +
                                         distX * (1 - distY) * value21 + distX * distY * value22;
-                    if (value != val)
-                        std::cout << " failed" <<  std::endl;
-                    return val;
+                    return value;
                 }
+
 
                 template <typename T>
                 void convolve_2D_channels(const ConvolutionParams& p,
+                                          const bool use_bilinear_interpolation_padding,
                                           const int64_t deformable_groups,
                                           const T* batch,
                                           const Shape& batch_shape,
@@ -209,7 +198,8 @@ namespace ngraph
                                                                           rel_i_x,
                                                                           rel_i_y,
                                                                           input_size_x,
-                                                                          input_size_y) *
+                                                                          input_size_y,
+                                                                          use_bilinear_interpolation_padding) *
                                                    filter_channel[f_buf_idx] * mask_val;
                                         }
                                     }
@@ -225,6 +215,7 @@ namespace ngraph
                 }
 
             } // namespace def_conv_impl
+
             template <typename T>
             void deformable_convolution(const T* in,
                                         const T* offsets,
@@ -241,7 +232,8 @@ namespace ngraph
                                         const CoordinateDiff& pads_begin,
                                         const CoordinateDiff& pads_end,
                                         const int64_t groups,
-                                        const int64_t deformable_groups)
+                                        const int64_t deformable_groups,
+                                        const bool use_bilinear_interpolation_padding)
 
             {
                 using namespace def_conv_impl;
@@ -249,6 +241,7 @@ namespace ngraph
                 validate_deformable_convolution_params(in_shape,
                                                        o_shape,
                                                        f_shape,
+                                                       m_shape,
                                                        out_shape,
                                                        strides,
                                                        dilation,
@@ -270,7 +263,7 @@ namespace ngraph
                 const size_t group_offset_size = shape_size(group_offset_shape);
                 const size_t group_offset_batch_size = shape_size(shape_reduce(o_shape));
                 const size_t deformable_groups_per_group =
-                    std::ceil(static_cast<float>(deformable_groups) / static_cast<float>(groups));
+                        std::ceil(static_cast<float>(deformable_groups) / static_cast<float>(groups));
 
                 const size_t group_filters_count = f_shape[filter_out_ch_axis] / groups;
                 const Shape group_filter_shape = shape_reduce(f_shape);
@@ -292,6 +285,7 @@ namespace ngraph
                         for (size_t f_idx = 0; f_idx < group_filters_count; ++f_idx)
                         {
                             convolve_2D_channels(params,
+                                                 use_bilinear_interpolation_padding,
                                                  deformable_groups_per_group,
                                                  in,
                                                  group_in_shape,
@@ -315,6 +309,30 @@ namespace ngraph
                     offsets += group_offset_batch_size;
                     mask += group_mask_batch_size;
                 }
+            }
+
+            template <typename T>
+            void deformable_convolution(const T* in,
+                                        const T* offsets,
+                                        const T* filters,
+                                        T* out,
+                                        const Shape& in_shape,
+                                        const Shape& o_shape,
+                                        const Shape& f_shape,
+                                        const Shape& out_shape,
+                                        const Strides& strides,
+                                        const Strides& dilation,
+                                        const CoordinateDiff& pads_begin,
+                                        const CoordinateDiff& pads_end,
+                                        const int64_t groups,
+                                        const int64_t deformable_groups,
+                                        const bool use_bilinear_interpolation_padding = false) {
+
+                Shape m_shape = {o_shape[0], o_shape[1]/2, o_shape[2], o_shape[3]};
+                std::vector<T> mask(ngraph::shape_size(m_shape), 1);
+                deformable_convolution(in, offsets, filters, mask.data(), out, in_shape, o_shape, f_shape, m_shape,
+                                       out_shape, strides, dilation, pads_begin, pads_end, groups, deformable_groups,
+                                       use_bilinear_interpolation_padding);
             }
         } // namespace reference
     }     // namespace runtime

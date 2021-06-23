@@ -26,10 +26,10 @@ op::v8::DeformableConvolution::DeformableConvolution(const Output<Node> &arg,
                                                      const op::PadType &auto_pad,
                                                      const int64_t group,
                                                      const int64_t deformable_group,
-                                                     const int64_t offset)
+                                                     const bool use_bilinear_interpolation_padding)
         : DeformableConvolutionBase({arg, offsets, filters}, strides, pads_begin, pads_end, dilations, auto_pad, group,
                                     deformable_group),
-                                    m_offset(offset)
+                                    m_use_bilinear_interpolation_padding(use_bilinear_interpolation_padding)
 {
 }
 
@@ -38,19 +38,19 @@ op::v8::DeformableConvolution::DeformableConvolution(const Output<Node> &arg, co
                                                      const Strides &strides, const CoordinateDiff &pads_begin,
                                                      const CoordinateDiff &pads_end, const Strides &dilations,
                                                      const op::PadType &auto_pad, const int64_t group,
-                                                     const int64_t deformable_group, const int64_t offset)
+                                                     const int64_t deformable_group, const bool use_bilinear_interpolation_padding)
         : DeformableConvolutionBase({arg, offsets, filters, scalars},
                                     strides,
                                     pads_begin,
                                     pads_end, dilations, auto_pad, group,
                                     deformable_group),
-          m_offset(offset)
+          m_use_bilinear_interpolation_padding(use_bilinear_interpolation_padding)
 {
 
 }
 
 bool op::v8::DeformableConvolution::visit_attributes(AttributeVisitor &visitor) {
-    visitor.on_attribute("offset", m_offset);
+    visitor.on_attribute("use_bilinear_interpolation_padding", m_use_bilinear_interpolation_padding);
     return DeformableConvolutionBase::visit_attributes(visitor);
 }
 
@@ -76,7 +76,7 @@ std::shared_ptr<Node> op::v8::DeformableConvolution::clone_with_new_inputs(const
                                                            m_auto_pad,
                                                            m_group,
                                                            m_deformable_group,
-                                                           m_offset);
+                                                           m_use_bilinear_interpolation_padding);
         default:
             return std::make_shared<DeformableConvolution>(new_args.at(0),
                                                            new_args.at(1),
@@ -89,7 +89,7 @@ std::shared_ptr<Node> op::v8::DeformableConvolution::clone_with_new_inputs(const
                                                            m_auto_pad,
                                                            m_group,
                                                            m_deformable_group,
-                                                           m_offset);
+                                                           m_use_bilinear_interpolation_padding);
     }
 }
 
