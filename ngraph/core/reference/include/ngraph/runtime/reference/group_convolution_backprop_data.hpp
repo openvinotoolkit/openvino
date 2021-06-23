@@ -134,13 +134,10 @@ namespace ngraph
                                                               pads_end);
             }
 
-            template <typename INPUT,
-                      typename FILTER,
-                      typename OUTPUT,
-                      typename ACCU = typename widen<OUTPUT>::type>
-            void group_convolution_backprop_data(const INPUT* in,
-                                                 const FILTER* f,
-                                                 OUTPUT* out,
+            template <typename T>
+            void group_convolution_backprop_data(const T* in,
+                                                 const T* f,
+                                                 T* out,
                                                  const Shape& in_shape,
                                                  const Shape& filter_shape,
                                                  const Shape& out_shape,
@@ -153,7 +150,7 @@ namespace ngraph
             {
                 const size_t group_count = filter_shape[filter_group_axis];
 
-                const INPUT* group_batch = in;
+                const T* group_batch = in;
                 const Shape group_batch_shape = [&]() {
                     Shape new_shape{in_shape};
                     new_shape[in_batch_axis] = 1;
@@ -162,14 +159,14 @@ namespace ngraph
                 }();
                 const size_t group_batch_size = shape_size(group_batch_shape);
 
-                const FILTER* group_filter = f;
+                const T* group_filter = f;
                 const Shape group_filter_shape = [&]() {
                     Shape new_shape{++filter_shape.begin(), filter_shape.end()};
                     return new_shape;
                 }();
                 const size_t group_filter_size = shape_size(group_filter_shape);
 
-                OUTPUT* group_out = out;
+                T* group_out = out;
                 const Shape group_out_shape = [&]() {
                     Shape new_shape{out_shape};
                     new_shape[out_batch_axis] = 1;
