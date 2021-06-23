@@ -15,7 +15,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_ReshapeCheckDynBatch, ReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true), ::testing::ValuesIn(netPrecisions),
@@ -29,7 +29,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(std::map<std::string, std::string>({}))),
     ReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_ReshapeCheck, ReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true), ::testing::ValuesIn(netPrecisions),
@@ -43,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(std::map<std::string, std::string>({}))),
     ReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_ReshapeCheckNegative, ReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true), ::testing::ValuesIn(netPrecisions),

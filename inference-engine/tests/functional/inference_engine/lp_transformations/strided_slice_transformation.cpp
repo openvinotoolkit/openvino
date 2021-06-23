@@ -117,7 +117,8 @@ public:
             testValues.inputShape << testValues.actual.inputPrecision << "_" << toString(testValues.params) <<
             testValues.actual.dequantization << "_strided_slice_params_" << testValues.layerParams.begin <<
             testValues.layerParams.end << testValues.layerParams.beginMask <<
-            testValues.layerParams.endMask << testValues.layerParams.strides;
+            testValues.layerParams.endMask << testValues.layerParams.strides <<
+            testValues.layerParams.shrinkAxisMask << testValues.layerParams.newAxisMask;
         return result.str();
     }
 };
@@ -159,6 +160,28 @@ StridedSliceTransformationTestValues::LayerParams specialDimensionEndSlice = {
     {},
     {},
     {}
+};
+
+StridedSliceTransformationTestValues::LayerParams sliceWithRemovedAxis = {
+    { 0, 1, 0, 0 }, // begin
+    { 1, 2, 1, 1 }, // end
+    { 1, 1, 1, 1 }, // strided
+    { 1, 0, 1, 1 }, // beginMask
+    { 1, 0, 1, 1 }, // endMask
+    { 0, 0, 0, 0 }, // newAxisMask
+    { 0, 1, 0, 0 }, // shrinkAxisMask
+    { 0, 0, 0, 0 } // elipsisMask
+};
+
+StridedSliceTransformationTestValues::LayerParams sliceWithAdditionalAxis = {
+    { 0, 1, 0, 0 }, // begin
+    { 1, 2, 1, 1 }, // end
+    { 1, 1, 1, 1 }, // strided
+    { 1, 0, 1, 1 }, // beginMask
+    { 1, 0, 1, 1 }, // endMask
+    { 0, 1, 0, 0 }, // newAxisMask
+    { 0, 0, 0, 0 }, // shrinkAxisMask
+    { 0, 0, 0, 0 } // elipsisMask
 };
 
 const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformationTestValues = {
@@ -442,9 +465,77 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
             {{ngraph::element::f32}, {}, { {0.1f, 0.01f}, ngraph::element::f32, {1, 2, 1, 1} }}
         }
     },
+    // U8: channel slice, per-tensor quantization
+    {
+        ngraph::Shape{1, 3, 16, 1200},
+        LayerTransformation::createParamsU8I8(),
+        sliceWithRemovedAxis,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        }
+    },
+    // U8: channel slice, per-channel quantization
+    {
+        ngraph::Shape{1, 3, 16, 1200},
+        LayerTransformation::createParamsU8I8(),
+        sliceWithRemovedAxis,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, { {128.f, 64.f, 32.f} }, { {0.1f, 0.2f, 0.3f} }}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {64.f}, {0.2f}},
+        }
+    },
+    // U8: channel slice, per-tensor quantization
+    {
+        ngraph::Shape{1, 3, 16, 1200},
+        LayerTransformation::createParamsU8I8(),
+        sliceWithAdditionalAxis,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        }
+    },
+    // U8: channel slice, per-channel quantization
+    {
+        ngraph::Shape{1, 3, 16, 1200},
+        LayerTransformation::createParamsU8I8(),
+        sliceWithAdditionalAxis,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, { {128.f, 64.f, 32.f} }, { {0.1f, 0.2f, 0.3f} }}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                { {128.f, 64.f, 32.f}, ngraph::element::f32, {1, 1, 3, 1, 1} },
+                { {0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 1, 3, 1, 1} }
+            },
+        }
+    },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     StridedSliceTransformation,
     ::testing::ValuesIn(stridedSliceTransformationTestValues),
