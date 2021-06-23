@@ -31,7 +31,7 @@ const auto gatherNDArgsSubset1 = ::testing::Combine(
             {{2, 1}, {2, 1, 1}})),                                // Indices shape
         ::testing::ValuesIn(std::vector<int>({0, 1}))             // Batch dims
 );
-INSTANTIATE_TEST_CASE_P(smoke_Set1, GatherNDLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Set1, GatherNDLayerTest,
                         ::testing::Combine(
                             gatherNDArgsSubset1,
                             ::testing::ValuesIn(dPrecisions),
@@ -47,7 +47,7 @@ const auto gatherNDArgsSubset2 = ::testing::Combine(
             {{15, 12, 2}, {15, 12, 5, 9, 1, 3}})),                 // Indices shape
         ::testing::ValuesIn(std::vector<int>({0, 1, 2}))           // Batch dims
 );
-INSTANTIATE_TEST_CASE_P(smoke_Set2, GatherNDLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Set2, GatherNDLayerTest,
                         ::testing::Combine(
                             gatherNDArgsSubset2,
                             ::testing::ValuesIn(dPrecisions),

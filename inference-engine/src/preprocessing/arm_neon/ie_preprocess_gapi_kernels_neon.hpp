@@ -92,87 +92,6 @@ void calcRowLinear_32F(float       *dst[],
                        const Size& inSz,
                        const Size& outSz,
                                int lpi);
-
-//----------------------------------------------------------------------
-
-void mergeRow_8UC2(const uint8_t in0[],
-                   const uint8_t in1[],
-                         uint8_t out[],
-                             int length);
-
-void mergeRow_8UC3(const uint8_t in0[],
-                   const uint8_t in1[],
-                   const uint8_t in2[],
-                         uint8_t out[],
-                             int length);
-
-void mergeRow_8UC4(const uint8_t in0[],
-                   const uint8_t in1[],
-                   const uint8_t in2[],
-                   const uint8_t in3[],
-                         uint8_t out[],
-                             int length);
-
-void mergeRow_32FC2(const float in0[],
-                    const float in1[],
-                          float out[],
-                            int length);
-
-void mergeRow_32FC3(const float in0[],
-                    const float in1[],
-                    const float in2[],
-                          float out[],
-                            int length);
-
-void mergeRow_32FC4(const float in0[],
-                    const float in1[],
-                    const float in2[],
-                    const float in3[],
-                          float out[],
-                            int length);
-
-void splitRow_8UC2(const uint8_t in[],
-                         uint8_t out0[],
-                         uint8_t out1[],
-                             int length);
-
-void splitRow_8UC3(const uint8_t in[],
-                         uint8_t out0[],
-                         uint8_t out1[],
-                         uint8_t out2[],
-                             int length);
-
-void splitRow_8UC4(const uint8_t in[],
-                         uint8_t out0[],
-                         uint8_t out1[],
-                         uint8_t out2[],
-                         uint8_t out3[],
-                             int length);
-
-void splitRow_32FC2(const float in[],
-                          float out0[],
-                          float out1[],
-                            int length);
-
-void splitRow_32FC3(const float in[],
-                          float out0[],
-                          float out1[],
-                          float out2[],
-                            int length);
-
-void splitRow_32FC4(const float in[],
-                          float out0[],
-                          float out1[],
-                          float out2[],
-                          float out3[],
-                            int length);
-
-void calculate_i420_to_rgb(const  uchar **srcY,
-                           const  uchar *srcU,
-                           const  uchar *srcV,
-                                  uchar **dstRGBx,
-                                    int width);
-
 }  // namespace neon
 
 template<typename isa_tag_t, typename T>
@@ -192,6 +111,26 @@ void i420ToRgbRowImpl(isa_tag_t, const uint8_t** y_rows, const uint8_t* u_row,
 
 extern template void i420ToRgbRowImpl(neon_tag, const uint8_t** y_rows, const uint8_t* u_row,
                                       const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
+
+template<typename isa_tag_t, typename T, int chs>
+void splitRowImpl(isa_tag_t, const T* in, std::array<T*, chs>& outs, const int length);
+
+extern template void splitRowImpl<neon_tag, uint8_t, 2>(neon_tag, const uint8_t* in, std::array<uint8_t*, 2>& outs, const int length);
+extern template void splitRowImpl<neon_tag, float, 2>(neon_tag, const float* in, std::array<float*, 2>& outs, const int length);
+extern template void splitRowImpl<neon_tag, uint8_t, 3>(neon_tag, const uint8_t* in, std::array<uint8_t*, 3>& outs, const int length);
+extern template void splitRowImpl<neon_tag, float, 3>(neon_tag, const float* in, std::array<float*, 3>& outs, const int length);
+extern template void splitRowImpl<neon_tag, uint8_t, 4>(neon_tag, const uint8_t* in, std::array<uint8_t*, 4>& outs, const int length);
+extern template void splitRowImpl<neon_tag, float, 4>(neon_tag, const float* in, std::array<float*, 4>& outs, const int length);
+
+template<typename isa_tag_t, typename T, int chs>
+void mergeRowImpl(isa_tag_t, const std::array<const T*, chs>& ins, T* out, const int length);
+
+extern template void mergeRowImpl<neon_tag, uint8_t, 2>(neon_tag, const std::array<const uint8_t*, 2>& ins, uint8_t* out, const int length);
+extern template void mergeRowImpl<neon_tag, float, 2>(neon_tag, const std::array<const float*, 2>& ins, float* out, const int length);
+extern template void mergeRowImpl<neon_tag, uint8_t, 3>(neon_tag, const std::array<const uint8_t*, 3>& ins, uint8_t* out, const int length);
+extern template void mergeRowImpl<neon_tag, float, 3>(neon_tag, const std::array<const float*, 3>& ins, float* out, const int length);
+extern template void mergeRowImpl<neon_tag, uint8_t, 4>(neon_tag, const std::array<const uint8_t*, 4>& ins, uint8_t* out, const int length);
+extern template void mergeRowImpl<neon_tag, float, 4>(neon_tag, const std::array<const float*, 4>& ins, float* out, const int length);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

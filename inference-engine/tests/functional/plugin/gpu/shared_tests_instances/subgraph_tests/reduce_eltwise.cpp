@@ -14,7 +14,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ReduceEltwise6D, ReduceEltwiseTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReduceEltwise6D, ReduceEltwiseTest,
                         testing::Combine(
                                 testing::Values(std::vector<size_t>{2, 3, 4, 5, 6, 7}),
                                 testing::Values(std::vector<int>{2, 3, 4}),
@@ -24,7 +24,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReduceEltwise6D, ReduceEltwiseTest,
                                 testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ReduceEltwiseTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReduceEltwise5D, ReduceEltwiseTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReduceEltwise5D, ReduceEltwiseTest,
                         testing::Combine(
                                 testing::Values(std::vector<size_t>{2, 3, 4, 5, 6}),
                                 testing::Values(std::vector<int>{2, 3}),
@@ -34,7 +34,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReduceEltwise5D, ReduceEltwiseTest,
                                 testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ReduceEltwiseTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReduceEltwise4D, ReduceEltwiseTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReduceEltwise4D, ReduceEltwiseTest,
                         testing::Combine(
                                 testing::Values(std::vector<size_t>{2, 3, 4, 5}),
                                 testing::Values(std::vector<int>{2}),
