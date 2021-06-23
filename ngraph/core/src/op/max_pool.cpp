@@ -386,6 +386,8 @@ void op::v8::MaxPool::validate_and_infer_types()
                                                         true,
                                                         m_rounding_type == op::RoundingType::CEIL)
                         : output_shape);
+
+    set_output_type(1, m_index_element_type, get_output_partial_shape(0));
 }
 
 shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const
