@@ -93,10 +93,11 @@ namespace ngraph
                 ///                           The flag that determines the mode of bilinear
                 ///                           interpolation execution.
                 ///                           If the flag is `true` and the sampling location is
-                ///                           within one pixel outside of the feature map boundary, then bilinear
-                ///                           interpolation is performed on the zero padded feature map.
-                ///                           If the flag is `false` and the sampling location is
-                ///                           within one pixel outside of the feature map boundary, then the sampling location
+                ///                           within one pixel outside of the feature map boundary,
+                ///                           then bilinear interpolation is performed on the zero
+                ///                           padded feature map. If the flag is `false` and the
+                ///                           sampling location is within one pixel outside of the
+                ///                           feature map boundary, then the sampling location
                 ///                           shifts to the inner boundary of the feature map.`
                 DeformableConvolution(const Output<Node>& arg,
                                       const Output<Node>& offsets,
@@ -136,10 +137,11 @@ namespace ngraph
                 ///                           The flag that determines the mode of bilinear
                 ///                           interpolation execution.
                 ///                           If the flag is `true` and the sampling location is
-                ///                           within one pixel outside of the feature map boundary, then bilinear
-                ///                           interpolation is performed on the zero padded feature map.
-                ///                           If the flag is `false` and the sampling location is
-                ///                           within one pixel outside of the feature map boundary, then the sampling location
+                ///                           within one pixel outside of the feature map boundary,
+                ///                           then bilinear interpolation is performed on the zero
+                ///                           padded feature map. If the flag is `false` and the
+                ///                           sampling location is within one pixel outside of the
+                ///                           feature map boundary, then the sampling location
                 ///                           shifts to the inner boundary of the feature map.
                 DeformableConvolution(const Output<Node>& arg,
                                       const Output<Node>& offsets,

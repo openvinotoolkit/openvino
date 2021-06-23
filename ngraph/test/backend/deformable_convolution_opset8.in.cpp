@@ -2671,10 +2671,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_group
                               dilations, group, deformable_group, tolerance_bits);
 }
 
-
-// new tests
-// regular convolution attributes (zeroed offsets)
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_v8_zeroed_offsets_default)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_v8_zeroed_offsets_default_modulation_scalars)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -2711,12 +2708,13 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_v8_zeroed_offsets_
                                   0.5f, 0.5f, 0.5f,
                                   0.5f, 0.5f, 0.5f,
                                   0.5f, 0.5f, 0.5f};
+    const size_t tolerance_bits = 6;
     DeformableConvolutionOpset8Test(inputs, inputs_shape, offsets, offsets_shape, filter,
-                                filter_shape, mask, mask_shape, outputs, outputs_shape,strides, padding, dilations);
+                                filter_shape, mask, mask_shape, outputs, outputs_shape,strides, padding, dilations,
+                                1, 1, tolerance_bits, true);
 }
 
-// new tests
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_v8_2D_zeroed_offsets_groups_and_deforgroups)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_groups_and_deforgroups_modulation_scalars)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -2753,48 +2751,49 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_v8_2D_zeroed_offsets_
     const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1);
 
     const Shape outputs_shape{1, 2, 2, 2};
-    const std::vector<float> outputs{356.0f, 392.0f,
-                                     464.0f, 500.0f,
-                                     -1004.0f, -1040.0f,
-                                     -1112.0f, -1148.0f};
+    const std::vector<float> outputs{220.15443f ,   38.199608f,
+                                     32.643005f,   59.340614f,
+                                     -419.0005f  , -252.08015f,
+                                     -182.44444f , -165.99335f};
 
     const Shape mask_shape{1, 8, 2, 2};
-    const std::vector<float> mask{0.648208498954773f,
-                                  0.18978585302829742f,
-                                  0.2379469871520996f,
-                                  0.747797429561615f,
-                                  0.899503767490387f,
-                                  0.7072142362594604f,
-                                  0.13651159405708313f,
-                                  0.995832622051239f,
-                                  0.4841736853122711f,
-                                  0.20904861390590668f,
-                                  0.672175943851471f,
-                                  0.88753741979599f,
-                                  0.01137313712388277f,
-                                  0.19091595709323883f,
-                                  0.5325360298156738f,
-                                  0.2231711447238922f,
-                                  0.5021026730537415f,
-                                  0.07518625259399414f,
-                                  0.21268275380134583f,
-                                  0.9908575415611267f,
-                                  0.09940242022275925f,
-                                  0.2851734161376953f,
-                                  0.6675529479980469f,
-                                  0.9159452319145203f,
-                                  0.2863422930240631f,
-                                  0.8994581699371338f,
-                                  0.9167612195014954f,
-                                  0.39420026540756226f,
-                                  0.7085269093513489f,
-                                  0.6797423362731934f,
-                                  0.26942428946495056f,
-                                  0.09253321588039398f,
+    const std::vector<float> mask{0.64f,
+                                  0.18f,
+                                  0.23f,
+                                  0.74f,
+                                  0.89f,
+                                  0.70f,
+                                  0.13f,
+                                  0.99f,
+                                  0.48f,
+                                  0.20f,
+                                  0.67f,
+                                  0.88f,
+                                  0.17f,
+                                  0.19f,
+                                  0.53f,
+                                  0.22f,
+                                  0.50f,
+                                  0.07f,
+                                  0.21f,
+                                  0.99f,
+                                  0.09f,
+                                  0.28f,
+                                  0.66f,
+                                  0.91f,
+                                  0.28f,
+                                  0.89f,
+                                  0.91f,
+                                  0.39f,
+                                  0.70f,
+                                  0.67f,
+                                  0.26f,
+                                  0.09f
     };
 
+    const size_t tolerance_bits = 6;
     DeformableConvolutionOpset8Test(inputs, inputs_shape, offsets, offsets_shape, filter,
                                 filter_shape, mask, mask_shape, outputs, outputs_shape, strides, padding,
-                                dilations, group, deformable_group);
+                                dilations, group, deformable_group, tolerance_bits, true);
 }
 
