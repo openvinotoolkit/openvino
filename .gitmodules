@@ -25,3 +25,6 @@
 [submodule "thirdparty/onnx"]
 	path = thirdparty/onnx
 	url = https://github.com/openvinotoolkit/onnx.git
+[submodule "thirdparty/protobuf"]
+	path = thirdparty/protobuf
+	url = https://github.com/protocolbuffers/protobuf.git

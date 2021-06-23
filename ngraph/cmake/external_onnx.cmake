@@ -3,7 +3,7 @@
 #
 
 #------------------------------------------------------------------------------
-# Download and install libonnx ...
+# Configure and install libonnx ...
 #------------------------------------------------------------------------------
 
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
