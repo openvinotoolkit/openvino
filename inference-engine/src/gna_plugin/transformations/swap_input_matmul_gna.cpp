@@ -94,7 +94,6 @@ SwapInputMatMul::SwapInputMatMul() {
                 for (auto input : consumers) {
                     input.replace_source_output(traspose_output);
                 }
-
                 return true;
             }
         }
@@ -104,7 +103,6 @@ SwapInputMatMul::SwapInputMatMul() {
 
         ngraph::copy_runtime_info(matmul, new_ops);
         ngraph::replace_node(matmul, traspose_output);
-
         return true;
     };
 
