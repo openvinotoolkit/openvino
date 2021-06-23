@@ -161,7 +161,3 @@ onnx_model_deformable_conv_2d
 
 # No support for unsigned types
 INTERPRETER.zero_sized_negative
-
-# No CPU support for AdaptiveAvgPool and AdaptiveMaxPool
-adaptive_avg_pool_2d
-adaptive_max_pool_2d
