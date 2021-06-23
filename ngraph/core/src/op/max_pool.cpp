@@ -355,7 +355,7 @@ void op::v8::MaxPool::validate_and_infer_types()
     bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
     {
-        // update_auto_padding_succeed = update_auto_padding(arg_shape, m_pads_end, m_pads_begin);
+        update_auto_padding_succeed = update_auto_padding(arg_shape, m_pads_end, m_pads_begin);
     }
     if (m_auto_pad == PadType::VALID)
     {

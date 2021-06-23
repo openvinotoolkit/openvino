@@ -104,6 +104,7 @@ namespace ngraph
                 const Strides& get_dilations() const noexcept { return m_dilations; }
                 void set_dilations(const Strides& dilations) { m_dilations = dilations; }
 
+                /// \return The data type of the second output tensor (indices).
                 const element::Type& get_index_element_type() const noexcept
                 {
                     return m_index_element_type;
@@ -113,14 +114,9 @@ namespace ngraph
                     m_index_element_type = index_element_type;
                 }
 
-            protected:
+            private:
                 Strides m_dilations;
                 element::Type m_index_element_type{element::i32};
-
-            private:
-                // bool update_auto_padding(const PartialShape& in_shape,
-                //                          Shape& new_pads_end,
-                //                          Shape& new_pads_begin) const;
             };
         } // namespace v8
     }     // namespace op
