@@ -14,26 +14,17 @@
 
 namespace testing {
 
-using ConstPtr = std::shared_ptr<ngraph::opset7::Constant>;
-using FakeQuantizePtr = std::shared_ptr<ngraph::opset7::FakeQuantize>;
-using MatMulPtr = std::shared_ptr<ngraph::opset7::MatMul>;
-using ParameterPtr = std::shared_ptr<ngraph::opset7::Parameter>;
-using ReshapePtr = std::shared_ptr<ngraph::opset7::Reshape>;
-using ResultPtr = std::shared_ptr<ngraph::opset7::Result>;
-using TransposePtr = std::shared_ptr<ngraph::opset7::Transpose>;
-
-
 TEST(TransformationTests, SwapInputMatMulTestValidConstShape) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
     const ngraph::Shape data_shape{8, 8};
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
 
-        ConstPtr constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1, 8}, {1});
-        MatMulPtr matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
+        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1, 8}, {1});
+        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
 
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params});
 
@@ -45,14 +36,14 @@ TEST(TransformationTests, SwapInputMatMulTestValidConstShape) {
     }
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
 
-        ConstPtr constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1, 8}, {1});
-        MatMulPtr matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
+        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1, 8}, {1});
+        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
 
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params});
+                                                            ngraph::ParameterVector{input_params});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -65,12 +56,12 @@ TEST(TransformationTests, SwapInputMatMulTest) {
     const ngraph::Shape data_shape{8, 8};
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
 
-        ConstPtr constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{16, 8}, {1});
-        MatMulPtr matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
+        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{16, 8}, {1});
+        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
 
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params});
 
@@ -82,16 +73,16 @@ TEST(TransformationTests, SwapInputMatMulTest) {
     }
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
 
-        ConstPtr constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{16, 8}, {1});
-        MatMulPtr matmul_operation = std::make_shared<ngraph::opset7::MatMul>(input_params, constant, 1, 1);
+        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{16, 8}, {1});
+        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(input_params, constant, 1, 1);
 
-        ConstPtr transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
-                                                                    std::vector<size_t>{1, 0});
-        TransposePtr transpose_operation = std::make_shared<ngraph::opset7::Transpose>(matmul_operation, transpose_order);
+        auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+                                                                std::vector<size_t>{1, 0});
+        auto transpose_operation = std::make_shared<ngraph::opset7::Transpose>(matmul_operation, transpose_order);
 
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(transpose_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(transpose_operation);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                             ngraph::ParameterVector{input_params});
     }
@@ -106,20 +97,20 @@ TEST(TransformationTests, SwapInputMatMulTestFakeQuantize) {
     const ngraph::Shape data_shape{8, 8};
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
 
-        ConstPtr constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{16, 8}, {1});
+        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{16, 8}, {1});
 
         auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
         auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
         auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
         auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-        FakeQuantizePtr fake_quantize_op = std::make_shared<ngraph::opset7::FakeQuantize>(constant, input_low,
-                                                                                          input_high, output_low,
-                                                                                          output_high, 11);
-        MatMulPtr matmul_operation = std::make_shared<ngraph::opset7::MatMul>(fake_quantize_op, input_params);
+        auto fake_quantize_op = std::make_shared<ngraph::opset7::FakeQuantize>(constant, input_low,
+                                                                                input_high, output_low,
+                                                                                output_high, 11);
+        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(fake_quantize_op, input_params);
 
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params});
 
@@ -131,24 +122,24 @@ TEST(TransformationTests, SwapInputMatMulTestFakeQuantize) {
     }
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
 
-        ConstPtr constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{16, 8}, {1});
+        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{16, 8}, {1});
 
         auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
         auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
         auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
         auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-        FakeQuantizePtr fake_quantize_op = std::make_shared<ngraph::opset7::FakeQuantize>(constant, input_low,
-                                                                                          input_high, output_low,
-                                                                                          output_high, 11);
-        MatMulPtr matmul_operation = std::make_shared<ngraph::opset7::MatMul>(input_params, fake_quantize_op, 1 , 1);
+        auto fake_quantize_op = std::make_shared<ngraph::opset7::FakeQuantize>(constant, input_low,
+                                                                                input_high, output_low,
+                                                                                output_high, 11);
+        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(input_params, fake_quantize_op, 1 , 1);
 
-        ConstPtr transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+        auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
                                                                     std::vector<size_t>{1, 0});
-        TransposePtr transpose_operation = std::make_shared<ngraph::opset7::Transpose>(matmul_operation, transpose_order);
+        auto transpose_operation = std::make_shared<ngraph::opset7::Transpose>(matmul_operation, transpose_order);
 
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(transpose_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(transpose_operation);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                             ngraph::ParameterVector{input_params});
     }
@@ -163,12 +154,12 @@ TEST(TransformationTests, SwapInputMatMulTestRank1) {
     const ngraph::Shape data_shape{8, 8};
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
 
-        ConstPtr constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{8}, {1});
-        MatMulPtr matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
+        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{8}, {1});
+        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
 
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params});
 
@@ -180,14 +171,14 @@ TEST(TransformationTests, SwapInputMatMulTestRank1) {
     }
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
 
-        ConstPtr constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{8}, {1});
-        MatMulPtr matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
+        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{8}, {1});
+        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
 
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params});
+                                                            ngraph::ParameterVector{input_params});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);

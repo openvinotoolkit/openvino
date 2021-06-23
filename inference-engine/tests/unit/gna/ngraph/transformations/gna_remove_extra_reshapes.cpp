@@ -14,27 +14,20 @@
 
 namespace testing {
 
-using ConstPtr = std::shared_ptr<ngraph::opset7::Constant>;
-using MaxPoolPtr = std::shared_ptr<ngraph::opset7::MaxPool>;
-using ParameterPtr = std::shared_ptr<ngraph::opset7::Parameter>;
-using ReshapePtr = std::shared_ptr<ngraph::opset7::Reshape>;
-using ResultPtr = std::shared_ptr<ngraph::opset7::Result>;
-
-
 TEST(TransformationTests, RemoveExtraReshapesTestReshapeNotEqualInputOutput) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
     const ngraph::Shape data_shape{1, 3, 64, 64};
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, data_shape);
-        ConstPtr new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 3, 64 * 64});
-        ReshapePtr reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
-        MaxPoolPtr max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(reshape_operation,
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, data_shape);
+        auto new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 3, 64 * 64});
+        auto reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
+        auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(reshape_operation,
                                                                             ngraph::Strides{1},
                                                                             ngraph::Shape{0},
                                                                             ngraph::Shape{0},
                                                                             ngraph::Shape{3});
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params});
 
@@ -46,15 +39,15 @@ TEST(TransformationTests, RemoveExtraReshapesTestReshapeNotEqualInputOutput) {
     }
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, data_shape);
-        ConstPtr new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 3, 64 * 64});
-        ReshapePtr reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
-        MaxPoolPtr max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(reshape_operation,
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, data_shape);
+        auto new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 3, 64 * 64});
+        auto reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
+        auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(reshape_operation,
                                                                             ngraph::Strides{1},
                                                                             ngraph::Shape{0},
                                                                             ngraph::Shape{0},
                                                                             ngraph::Shape{3});
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                             ngraph::ParameterVector{input_params});
     }
@@ -69,15 +62,15 @@ TEST(TransformationTests, RemoveExtraReshapesTestReshapeEqualInputOutput) {
     const ngraph::Shape data_shape{1, 3, 64, 64};
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, data_shape);
-        ConstPtr new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 3, 64, 64});
-        ReshapePtr reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
-        MaxPoolPtr max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(reshape_operation,
-                                                                                  ngraph::Strides{1, 1},
-                                                                                  ngraph::Shape{0, 0},
-                                                                                  ngraph::Shape{0, 0},
-                                                                                  ngraph::Shape{3, 3});
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, data_shape);
+        auto new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 3, 64, 64});
+        auto reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
+        auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(reshape_operation,
+                                                                            ngraph::Strides{1, 1},
+                                                                            ngraph::Shape{0, 0},
+                                                                            ngraph::Shape{0, 0},
+                                                                            ngraph::Shape{3, 3});
+        auto result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params});
 
@@ -89,13 +82,13 @@ TEST(TransformationTests, RemoveExtraReshapesTestReshapeEqualInputOutput) {
     }
 
     {
-        ParameterPtr input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, data_shape);
-        MaxPoolPtr max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(input_params,
+        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, data_shape);
+        auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(input_params,
                                                                             ngraph::Strides{1, 1},
                                                                             ngraph::Shape{0, 0},
                                                                             ngraph::Shape{1, 1},
                                                                             ngraph::Shape{4, 4});
-        ResultPtr result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
+        auto result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                             ngraph::ParameterVector{input_params});
     }
