@@ -24,6 +24,7 @@
 
 #include "emitters/cpu_generator.hpp"
 
+
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
@@ -33,10 +34,9 @@ MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, co
         dnnl::impl::cpu::x64::avx512_common : dnnl::impl::cpu::x64::avx2;
     if ((snippet_ref = ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(op))) {
         ngraph::OutputVector subgraph_node_inputs;
-        ngraph::NodeMap nm;
-        auto snippet_ref_copy = ngraph::clone_nodes(std::vector<std::shared_ptr<ngraph::Node>>{snippet_ref}, nm)[0];
-        for (auto input : snippet_ref_copy->input_values()) {
-            subgraph_node_inputs.push_back(input);
+        for (const auto &input : snippet_ref->input_values()) {
+            auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+            subgraph_node_inputs.push_back(new_input);
         }
         auto new_body = ngraph::clone_function(*snippet_ref->get_body().get());
         snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
@@ -823,3 +823,4 @@ void MKLDNNSnippetNode::interpret() const {
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNSnippetNode, Subgraph);
+
