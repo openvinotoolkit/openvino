@@ -17,6 +17,22 @@ TEST(type_prop, non_zero)
     ASSERT_EQ(non_zero->get_output_partial_shape(0), (PartialShape{4, {0, 451584}}));
 }
 
+TEST(type_prop, non_zero_partial_input)
+{
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{3, 4}, {5, 6}, {7, 8}});
+    auto non_zero = make_shared<op::v3::NonZero>(data);
+    EXPECT_EQ(non_zero->get_element_type(), element::i64);
+    ASSERT_EQ(non_zero->get_output_partial_shape(0), (PartialShape{3, {0, 192}}));
+}
+
+TEST(type_prop, non_zero_partial_with_negative)
+{
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{3, 4}, {5, 6}, -1});
+    auto non_zero = make_shared<op::v3::NonZero>(data);
+    EXPECT_EQ(non_zero->get_element_type(), element::i64);
+    ASSERT_EQ(non_zero->get_output_partial_shape(0), (PartialShape{3, -1}));
+}
+
 TEST(type_prop, non_zero_dynamic)
 {
     auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
