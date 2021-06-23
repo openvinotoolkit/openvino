@@ -25,21 +25,21 @@ namespace {
             {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestOutputTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestOutputTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                             InferRequestOutputTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, InferRequestOutputTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestOutputTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
                             InferRequestOutputTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, InferRequestOutputTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestOutputTests,
                             ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),

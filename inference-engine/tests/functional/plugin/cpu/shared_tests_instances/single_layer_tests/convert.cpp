@@ -24,7 +24,7 @@ const std::vector<Precision> precisions = {
         Precision::FP32
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvertLayerTest, ConvertLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertLayerTest, ConvertLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(inShape),
                                 ::testing::ValuesIn(precisions),

@@ -8,7 +8,7 @@
 using namespace SubgraphTestsDefinitions;
 
 namespace {
-    INSTANTIATE_TEST_CASE_P(smoke_Check, ParameterResultSubgraphTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Check, ParameterResultSubgraphTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
                             ParameterResultSubgraphTest::getTestCaseName);
 }  // namespace

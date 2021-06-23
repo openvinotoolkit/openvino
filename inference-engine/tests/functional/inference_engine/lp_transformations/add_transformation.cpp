@@ -942,7 +942,7 @@ const std::vector<AddTransformationTestValues> specialTestValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     AddTransformation,
     ::testing::Combine(

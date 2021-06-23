@@ -177,3 +177,5 @@ NGRAPH_OP(Roll, ngraph::op::v7)
 
 // New operations added in opset8
 NGRAPH_OP(Gather, ngraph::op::v8)
+NGRAPH_OP(AdaptiveAvgPool, ngraph::op::v8)
+NGRAPH_OP(AdaptiveMaxPool, ngraph::op::v8)

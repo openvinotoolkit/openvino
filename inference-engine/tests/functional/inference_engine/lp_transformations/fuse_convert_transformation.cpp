@@ -169,7 +169,7 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FuseConvertTransformation,
     ::testing::Combine(
@@ -207,7 +207,7 @@ const std::vector<FuseConvertTransformationTestValues> testValuesWithConstant = 
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FuseConvertTransformation,
     ::testing::Combine(

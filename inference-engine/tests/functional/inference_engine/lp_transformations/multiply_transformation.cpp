@@ -925,7 +925,7 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     MultiplyTransformation,
     ::testing::Combine(

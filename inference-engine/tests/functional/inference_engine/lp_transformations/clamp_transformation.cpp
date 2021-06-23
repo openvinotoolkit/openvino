@@ -517,6 +517,14 @@ const std::vector<ClampTransformationTestValues> testValues = {
          }
      },
 };
+
+INSTANTIATE_TEST_CASE_P(
+    smoke_LPT,
+    ClampTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicChannels),
+        ::testing::ValuesIn(testValues)),
+    ClampTransformation::getTestCaseName);
 } // namespace testValues3
 
 namespace testValues4 {
@@ -542,5 +550,13 @@ const std::vector<ClampTransformationTestValues> testValues = {
         }
     }
 };
+
+INSTANTIATE_TEST_CASE_P(
+    smoke_LPT,
+    ClampTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicRank),
+        ::testing::ValuesIn(testValues)),
+    ClampTransformation::getTestCaseName);
 } // namespace testValues4
 } // namespace

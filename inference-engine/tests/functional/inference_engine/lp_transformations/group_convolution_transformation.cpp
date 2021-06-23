@@ -746,7 +746,7 @@ const std::vector<GroupConvolutionTestValues> testValuesWithDynamicChannel = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     GroupConvolutionTransformation,
     ::testing::Combine(

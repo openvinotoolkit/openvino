@@ -311,7 +311,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConcatWithIntermediateWithConstantTransformation,
     ::testing::Combine(
