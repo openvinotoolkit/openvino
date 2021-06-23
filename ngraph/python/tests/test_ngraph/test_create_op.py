@@ -128,6 +128,7 @@ def test_deformable_convolution_opset1(dtype):
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
 
+
 @pytest.mark.parametrize("dtype", np_types)
 def test_deformable_convolution(dtype):
     strides = np.array([1, 1])
@@ -172,12 +173,14 @@ def test_deformable_convolution_modulation_scalars(dtype):
     parameter_input3 = ng.parameter(input3_shape, name="Input3", dtype=dtype)
 
     node = ng.deformable_convolution(
-        parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations, parameter_input3
+        parameter_input0, parameter_input1, parameter_input2, strides,
+        pads_begin, pads_end, dilations, parameter_input3
     )
 
     assert node.get_type_name() == "DeformableConvolution"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
+
 
 @pytest.mark.parametrize("dtype", np_types)
 def test_deformable_psroi_pooling(dtype):
