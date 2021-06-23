@@ -89,6 +89,15 @@ namespace ngraph
                 ///                           should be split into.
                 /// \param deformable_group   The number of groups which deformable values and
                 ///                           output should be split into along the channel axis.
+                /// \param use_bilinear_interpolation_padding
+                ///                           The flag that determines the mode of bilinear
+                ///                           interpolation execution.
+                ///                           If the flag is `true` and the sampling location is
+                ///                           within one pixel outside of the feature map boundary, then bilinear
+                ///                           interpolation is performed on the zero padded feature map.
+                ///                           If the flag is `false` and the sampling location is
+                ///                           within one pixel outside of the feature map boundary, then the sampling location
+                ///                           shifts to the inner boundary of the feature map.`
                 DeformableConvolution(const Output<Node>& arg,
                                       const Output<Node>& offsets,
                                       const Output<Node>& filters,
@@ -101,10 +110,41 @@ namespace ngraph
                                       const int64_t deformable_group = 1,
                                       const bool use_bilinear_interpolation_padding = false);
 
+                /// \brief Constructs a conversion operation.
+                ///
+                /// \param arg                Node that produces the input tensor.
+                /// \param offsets            Node producing the deformable values tensor.
+                /// \param filters            Node producing the filters(kernels) tensor with OIZYX
+                ///                           layout.
+                /// \param modulation_scalars Node producing the modulation_scalars(mask) tensor.
+                /// \param strides            Convolution strides.
+                /// \param pads_begin         Amount of padding to be added to the beginning along
+                ///                           each axis. For example in case of a 2D input the value
+                ///                           of (1, 2) means that 1 element will be added to the
+                ///                           top and 2 elements to the left.
+                /// \param pads_end           Amount of padding to be added to the end along each
+                ///                           axis.
+                /// \param dilations          The distance in width and height between the weights
+                ///                           in the filters tensor.
+                /// \param auto_pad           Specifies how the automatic calculation of padding
+                ///                           should be done.
+                /// \param group              The number of groups which both output and input
+                ///                           should be split into.
+                /// \param deformable_group   The number of groups which deformable values and
+                ///                           output should be split into along the channel axis.
+                /// \param use_bilinear_interpolation_padding
+                ///                           The flag that determines the mode of bilinear
+                ///                           interpolation execution.
+                ///                           If the flag is `true` and the sampling location is
+                ///                           within one pixel outside of the feature map boundary, then bilinear
+                ///                           interpolation is performed on the zero padded feature map.
+                ///                           If the flag is `false` and the sampling location is
+                ///                           within one pixel outside of the feature map boundary, then the sampling location
+                ///                           shifts to the inner boundary of the feature map.
                 DeformableConvolution(const Output<Node>& arg,
                                       const Output<Node>& offsets,
                                       const Output<Node>& filters,
-                                      const Output<Node>& scalars,
+                                      const Output<Node>& modulation_scalars,
                                       const Strides& strides,
                                       const CoordinateDiff& pads_begin,
                                       const CoordinateDiff& pads_end,
