@@ -27,8 +27,7 @@ namespace ngraph
             class NGRAPH_API BatchToSpace : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"BatchToSpace", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 BatchToSpace() = default;
                 /// \brief Constructs a BatchToSpace operation.
                 ///
