@@ -53,7 +53,7 @@ TEST_P(ParameterResultCustomBlobTest, CompareWithRefs) {
     Run();
 }
 namespace {
-    INSTANTIATE_TEST_CASE_P(smoke_Check_Custom_Blob, ParameterResultCustomBlobTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Check_Custom_Blob, ParameterResultCustomBlobTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
                             ParameterResultSubgraphTest::getTestCaseName);
 } // namespace
@@ -79,7 +79,7 @@ TEST_P(ParameterResultSameBlobTest, CompareWithRefs) {
     Run();
 }
 namespace {
-    INSTANTIATE_TEST_CASE_P(smoke_Check_Same_Blob, ParameterResultSameBlobTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Check_Same_Blob, ParameterResultSameBlobTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
                             ParameterResultSubgraphTest::getTestCaseName);
 } // namespace

@@ -539,22 +539,22 @@ TEST_P(MvncInference, DISABLED_DoOneIterationOfInference) {
 }
 
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncOpenDevice,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncLoggingTests,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncGraphAllocations,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncInference,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
