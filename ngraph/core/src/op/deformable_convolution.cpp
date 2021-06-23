@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ngraph/runtime/reference/deformable_convolution.hpp>
 #include "ngraph/op/deformable_convolution.hpp"
 #include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
@@ -71,6 +72,7 @@ op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
 
 bool op::v8::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(DeformableConvolution_v8_visit_attributes);
     visitor.on_attribute("use_bilinear_interpolation_padding",
                          m_use_bilinear_interpolation_padding);
     return DeformableConvolutionBase::visit_attributes(visitor);
@@ -78,13 +80,14 @@ bool op::v8::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
 
 void op::v8::DeformableConvolution::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(DeformableConvolution_v8_validate_and_infer_types);
     DeformableConvolutionBase::validate_and_infer_types();
 }
 
 std::shared_ptr<Node>
     op::v8::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(DeformableConvolutionBase_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(DeformableConvolution_v8_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(
         this, new_args.size() >= 3 && new_args.size() <= 4, "Number of inputs must be 3 or 4");
@@ -117,17 +120,112 @@ std::shared_ptr<Node>
                                                        m_use_bilinear_interpolation_padding);
     }
 }
-/*
+
 namespace deformable_convolution
 {
- // evaluate method
-}*/
+    template <element::Type_t ET>
+    inline bool evaluate(const HostTensorVector& inputs,
+                         const HostTensorPtr& out,
+                         const Strides& strides,
+                         const CoordinateDiff& pads_begin,
+                         const CoordinateDiff& pads_end,
+                         const Strides& dilations,
+                         const ngraph::op::PadType& auto_pad,
+                         const int64_t group,
+                         const int64_t deformable_group,
+                         const bool use_bilinear_interpolation_padding)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        if (inputs.size() == 3) {
+            runtime::reference::deformable_convolution<T>(inputs[0]->get_data_ptr<ET>(),
+                                                          inputs[1]->get_data_ptr<ET>(),
+                                                          inputs[2]->get_data_ptr<ET>(),
+                                                          out->get_data_ptr<ET>(),
+                                                          inputs[0]->get_shape(),
+                                                          inputs[1]->get_shape(),
+                                                          inputs[2]->get_shape(),
+                                                          out->get_shape(),
+                                                          strides,
+                                                          dilations,
+                                                          pads_begin,
+                                                          pads_end,
+                                                          group,
+                                                          deformable_group,
+                                                          use_bilinear_interpolation_padding);
+        } else if (inputs.size() == 4) {
+            runtime::reference::deformable_convolution<T>(inputs[0]->get_data_ptr<ET>(),
+                                                          inputs[1]->get_data_ptr<ET>(),
+                                                          inputs[2]->get_data_ptr<ET>(),
+                                                          inputs[3]->get_data_ptr<ET>(),
+                                                          out->get_data_ptr<ET>(),
+                                                          inputs[0]->get_shape(),
+                                                          inputs[1]->get_shape(),
+                                                          inputs[2]->get_shape(),
+                                                          inputs[3]->get_shape(),
+                                                          out->get_shape(),
+                                                          strides,
+                                                          dilations,
+                                                          pads_begin,
+                                                          pads_end,
+                                                          group,
+                                                          deformable_group,
+                                                          use_bilinear_interpolation_padding);
+        }
 
-/*bool op::v8::DeformableConvolution::evaluate(const HostTensorVector &outputs, const
-HostTensorVector &inputs) const { NGRAPH_OP_SCOPE(v8_DeformableConvolution);
+        return true;
+    }
 
+    bool evaluate_deformable_convolution(const HostTensorVector& inputs,
+                                         const HostTensorPtr& out,
+                                         const Strides& strides,
+                                         const Strides& dilations,
+                                         const CoordinateDiff& pads_begin,
+                                         const CoordinateDiff& pads_end,
+                                         const ngraph::op::PadType& auto_pad,
+                                         const int64_t group,
+                                         const int64_t deformable_group,
+                                         const bool use_bilinear_interpolation_padding) {
+        bool rc = true;
+        switch (inputs[0]->get_element_type()) {
+            NGRAPH_TYPE_CASE(evaluate_deformable_convolution, f32, inputs, out, strides,
+                             pads_begin, pads_end, dilations, auto_pad, group, deformable_group,
+                             use_bilinear_interpolation_padding);
+            NGRAPH_TYPE_CASE(evaluate_deformable_convolution, f16, inputs, out, strides,
+                             pads_begin, pads_end, dilations, auto_pad, group, deformable_group,
+                             use_bilinear_interpolation_padding);
+        default:
+            rc = false;
+            break;
+        }
+        return rc;
+    }
+}
+
+bool op::v8::DeformableConvolution::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) const {
+    NGRAPH_OP_SCOPE(DeformableConvolution_v8_evaluate);
+    deformable_convolution::evaluate_deformable_convolution(inputs,
+                                                            outputs[0],
+                                                            get_strides(),
+                                                            get_dilations(),
+                                                            get_pads_begin(),
+                                                            get_pads_end(),
+                                                            get_auto_pad(),
+                                                            get_group(),
+                                                            get_deformable_group(),
+                                                            get_use_bilinear_interpolation_padding());
     return true;
-}*/
+}
+
+bool op::v8::DeformableConvolution::has_evaluate() const {
+    NGRAPH_OP_SCOPE(DeformableConvolution_v8_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+        case ngraph::element::f16:
+        case ngraph::element::f32: return true;
+        default: break;
+    }
+    return false;
+}
 
 op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,
@@ -153,7 +251,7 @@ op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
 std::shared_ptr<Node>
     op::v1::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(DeformableConvolutionBase_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(DeformableConvolution_v1_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<DeformableConvolution>(new_args.at(0),
                                                    new_args.at(1),
