@@ -4,7 +4,19 @@
 
 #include "include/include_all.cl"
 
-#define INPUT_AXIS_INDEX (uint)indices[indices_idx]
+#ifdef INDEX_DIM
+inline const uint GET_POSITIVE_INDEX(int in)
+{
+    if(in < 0)
+        return in + INDEX_DIM;
+    else
+        return in;
+}
+#else
+#define GET_POSITIVE_INDEX(a) a
+#endif
+
+#define INPUT_AXIS_INDEX (uint)GET_POSITIVE_INDEX(indices[indices_idx])
 #define GET_DICTIONARY_INDEX(idx_order) INPUT0_GET_INDEX(idx_order)
 #define GET_INDICES_INDEX(idx_order) INPUT1_GET_INDEX(idx_order)
 #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
