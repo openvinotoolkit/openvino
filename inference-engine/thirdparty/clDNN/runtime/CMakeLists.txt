@@ -65,7 +65,7 @@ if(COMMAND set_ie_threading_interface_for)
 endif()
 
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
-    clDNN_OpenCL
+    OpenCL
     openvino::itt
   )
 
