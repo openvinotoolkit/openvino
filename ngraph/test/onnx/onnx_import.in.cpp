@@ -4663,3 +4663,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_einsum_sum)
         Shape{3}, {5.3838407376420845, 1.689011319501448, 1.9056967282686674});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_unsqueeze_const_scalar)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze_const_scalar.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<float>(Shape{1}, {3.14});
+    test_case.run();
+}
