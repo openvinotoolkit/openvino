@@ -16,7 +16,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, adaptive_avg_pool_1d)
 {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 7});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 7});
     auto output_shape = op::Constant::create<int64_t>(element::i64, Shape{1}, {3});
     auto adaptive_pool = make_shared<op::v8::AdaptiveAvgPool>(data, output_shape);
     auto fun = make_shared<Function>(OutputVector{adaptive_pool}, ParameterVector{data});

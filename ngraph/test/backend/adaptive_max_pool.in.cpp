@@ -15,7 +15,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, adaptive_max_pool_1d)
 {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 7});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 7});
     auto output_shape = op::Constant::create<int64_t>(element::i64, Shape{1}, {3});
     auto adaptive_pool = make_shared<op::v8::AdaptiveMaxPool>(data, output_shape);
     auto fun = make_shared<Function>(adaptive_pool->outputs(), ParameterVector{data});
@@ -44,7 +44,7 @@ NGRAPH_TEST(${BACKEND_NAME}, adaptive_max_pool_1d)
     auto test_case = test::TestCase<TestEngine>(fun);
     test_case.add_input<float>(Shape{2, 3, 7}, inputs);
     test_case.add_expected_output<float>(Shape{2, 3, 3}, expected_result);
-    test_case.add_expected_output<int64_t>(Shape{1, 3, 3, 3}, expected_indices);
+    test_case.add_expected_output<int64_t>(Shape{2, 3, 3}, expected_indices);
     test_case.run();
 }
 
@@ -148,7 +148,7 @@ NGRAPH_TEST(${BACKEND_NAME}, adaptive_max_pool_3d)
                                           18, 14, 22, 14,
 
                                           0 , 13, 12, 13,
-                                          12, 13, 12, 13
+                                          12, 13, 12, 13,
 
                                           3 , 2 , 7 , 7 ,
                                           22, 22, 24, 22};
