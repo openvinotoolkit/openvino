@@ -69,6 +69,10 @@ stream& network::get_stream() const {
     return _impl->get_stream();
 }
 
+stream::ptr network::get_stream_ptr() const {
+    return _impl->get_stream_ptr();
+}
+
 uint32_t network::get_id() {
     return _impl->get_id();
 }
