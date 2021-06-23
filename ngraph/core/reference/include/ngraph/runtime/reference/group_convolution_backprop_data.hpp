@@ -206,8 +206,8 @@ namespace ngraph
                       typename INPUT,
                       typename ACCUMULATION = typename widen<INPUT>::type>
             NGRAPH_DEPRECATED(
-                "group_convolution_backprop_data function without output_paddings is deprecated, use "
-                "the one with output_padding.")
+                "group_convolution_backprop_data function without output_paddings is deprecated, "
+                "use the one with output_padding.")
             void group_convolution_backprop_data(const INPUT* in,
                                                  const FILTER* f,
                                                  OUTPUT* out,
