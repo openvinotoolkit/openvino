@@ -59,6 +59,7 @@ namespace ngraph
 
             protected:
                 bool update_auto_padding(const PartialShape& in_shape,
+                                         const Strides& filter_dilations,
                                          Shape& new_pads_end,
                                          Shape& new_pads_begin) const;
 

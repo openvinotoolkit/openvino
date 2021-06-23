@@ -109,7 +109,8 @@ void op::v1::MaxPool::validate_and_infer_types()
     bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
     {
-        update_auto_padding_succeed = update_auto_padding(arg_shape, m_pads_end, m_pads_begin);
+        update_auto_padding_succeed =
+            update_auto_padding(arg_shape, Strides(m_kernel.size(), 1), m_pads_end, m_pads_begin);
     }
     if (m_auto_pad == PadType::VALID)
     {
@@ -130,6 +131,7 @@ void op::v1::MaxPool::validate_and_infer_types()
                                                         pads_end,
                                                         m_kernel,
                                                         m_strides,
+                                                        Strides{}, // no dilation of the window
                                                         true,
                                                         m_rounding_type == op::RoundingType::CEIL)
                         : output_shape);
@@ -209,7 +211,7 @@ bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
     auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();
     auto pads_end_s = get_pads_end();
-    update_auto_padding(arg_shape, pads_begin_s, pads_end_s);
+    update_auto_padding(arg_shape, Strides(m_kernel.size(), 1), pads_begin_s, pads_end_s);
     CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
     CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
     auto out_shape = infer_batched_pooling_forward(this,
@@ -218,6 +220,7 @@ bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
                                                    pads_end,
                                                    get_kernel(),
                                                    get_strides(),
+                                                   Strides{}, // no dilation of the window
                                                    true,
                                                    get_rounding_type() == op::RoundingType::CEIL);
 
@@ -355,7 +358,8 @@ void op::v8::MaxPool::validate_and_infer_types()
     bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
     {
-        update_auto_padding_succeed = update_auto_padding(arg_shape, m_pads_end, m_pads_begin);
+        update_auto_padding_succeed =
+            update_auto_padding(arg_shape, m_dilations, m_pads_end, m_pads_begin);
     }
     if (m_auto_pad == PadType::VALID)
     {
@@ -378,6 +382,7 @@ void op::v8::MaxPool::validate_and_infer_types()
                                                         pads_end,
                                                         m_kernel,
                                                         m_strides,
+                                                        m_dilations,
                                                         true,
                                                         m_rounding_type == op::RoundingType::CEIL)
                         : output_shape);

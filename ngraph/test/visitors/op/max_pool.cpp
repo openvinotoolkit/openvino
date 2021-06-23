@@ -47,7 +47,7 @@ TEST(attributes, max_pool_v8_op)
     const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 3, 37, 37});
 
     const auto strides = Strides{1, 1};
-    const auto dilations = Strides{1};
+    const auto dilations = Strides{1, 1};
     const auto pads_begin = Shape{1, 1};
     const auto pads_end = Shape{1, 1};
     const auto kernel = Shape{2, 2};
@@ -55,8 +55,15 @@ TEST(attributes, max_pool_v8_op)
     const auto auto_pad = op::PadType::EXPLICIT;
     const element::Type& index_element_type = element::i32;
 
-    const auto max_pool = make_shared<opset8::MaxPool>(
-        data, strides, dilations, pads_begin, pads_end, kernel, rounding_mode, auto_pad, index_element_type);
+    const auto max_pool = make_shared<opset8::MaxPool>(data,
+                                                       strides,
+                                                       dilations,
+                                                       pads_begin,
+                                                       pads_end,
+                                                       kernel,
+                                                       rounding_mode,
+                                                       auto_pad,
+                                                       index_element_type);
     NodeBuilder builder(max_pool);
     auto g_max_pool = as_type_ptr<opset8::MaxPool>(builder.create());
 

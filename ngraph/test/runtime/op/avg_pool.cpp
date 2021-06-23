@@ -129,6 +129,7 @@ void op::v0::AvgPool::validate_and_infer_types()
                                                   padding_above,
                                                   m_window_shape,
                                                   m_window_movement_strides,
+                                                  Strides{}, // no dilation of the window
                                                   m_include_padding_in_avg_computation,
                                                   m_ceil_mode));
 }

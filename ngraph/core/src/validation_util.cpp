@@ -478,6 +478,7 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
                                                    const CoordinateDiff& data_padding_above,
                                                    const PartialShape& window_shape,
                                                    const Strides& window_strides,
+                                                   const Strides& window_dilation,
                                                    bool is_window_all_in_padding_allowed,
                                                    bool ceil_mode)
 {
@@ -536,7 +537,13 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
 
         // For pooling ops we don't need dilation, so we fill in the identity value (all 1).
         Strides data_dilation(data_spatial_shape.rank().get_length(), 1);
-        Strides window_dilation(data_spatial_shape.rank().get_length(), 1);
+        Strides dilations = window_dilation;
+        // if the window_dilation was not specified, generate the default value (no dilations)
+        if (window_dilation.empty()) {
+            // dilations equal to 1 for each spatial axis mean that the window is not dilated
+            dilations = Strides(data_spatial_shape.rank().get_length(), 1);
+        }
+
         data_output_spatial_shape =
             infer_windowed_reduction_output_shape(node,
                                                   data_spatial_shape,
@@ -545,7 +552,7 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
                                                   data_padding_above,
                                                   window_shape,
                                                   window_strides,
-                                                  window_dilation,
+                                                  dilations,
                                                   is_window_all_in_padding_allowed,
                                                   ceil_mode);
     }
