@@ -114,6 +114,7 @@ set(SRC
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
     type_prop/deformable_convolution.cpp
+    type_prop/deformable_convolution_opset8.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
@@ -381,6 +382,7 @@ set(MULTI_TEST_SRC
     backend/dft.in.cpp
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
+    backend/deformable_convolution_opset8.in.cpp
     backend/dyn_reshape.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
