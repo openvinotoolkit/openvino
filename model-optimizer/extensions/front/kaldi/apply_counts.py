@@ -116,9 +116,11 @@ class ApplyCountsFilePattern(FrontReplacementSubgraph):
                 ]
 
     def find_and_replace_pattern(self, graph: Graph):
+        # if empty string in counts, read priors from model itself (on loader stage)
         if graph.graph['cmd_params'].counts == "":
             counts = graph.graph['priors'].copy()
         else:
+            # read counts from given file
             try:
                 counts = read_counts_file(graph.graph['cmd_params'].counts)
             except Exception as e:

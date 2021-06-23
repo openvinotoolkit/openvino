@@ -55,6 +55,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
         else:
             raise Error("There are {} inputs for Kaldi model but we expect only 1 or 2".format(len(inputs)))
 
+        # sort nodes to calculate delays
         nodes = list(bfs_search(graph, [inp_name]))
         nx.set_node_attributes(G=graph, name='frame_time', values=-1)
 
@@ -70,6 +71,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
                 # Splice increases frame delay
                 if node.kind == 'op' and node.op == "Splice":
                     node.frame_time = node.in_port(0).get_source().node.frame_time + len(node.context) - 1
+                # crop often used to get concrete time frame, set frame_time correctly for this case
                 elif node.kind == 'op' and node.op == 'Crop':
                     if node.in_port(0).get_connection().get_source().node.op == 'Splice':
                         splice_node = node.in_port(0).get_source().node
@@ -189,3 +191,8 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             if node.name == 'iteration_number_out':
                 continue
             self.insert_select(graph, node)
+
+        for n in graph:
+            node = Node(graph, n)
+            if 'frame_time' in node:
+                del node['frame_time']

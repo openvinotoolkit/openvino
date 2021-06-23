@@ -227,7 +227,11 @@ def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
 
 
 def load_priors(file_descr, graph):
-    collect_until_token(file_descr, b'<Priors>')
+    try:
+        collect_until_token(file_descr, b'<Priors>')
+    except Error:
+        # just ignore if priors were not found
+        return
     graph.graph['priors'] = read_binary_vector(file_descr)
 
 
