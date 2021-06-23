@@ -43,54 +43,10 @@ bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor)
 void op::v1::MaxPool::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
-    if (0 == m_strides.size())
-    {
-        m_strides = Strides(m_kernel.size(), 1);
-    }
 
-    if (0 == m_pads_begin.size())
-    {
-        m_pads_begin = Shape(m_kernel.size(), 0);
-    }
+    MaxPoolBase::validate_and_infer_types();
 
-    if (0 == m_pads_end.size())
-    {
-        m_pads_end = Shape(m_kernel.size(), 0);
-    }
-
-    const PartialShape& arg_shape = get_input_partial_shape(0);
-
-    NODE_VALIDATION_CHECK(this,
-                          arg_shape.rank().compatible(3) || arg_shape.rank().compatible(4) ||
-                              arg_shape.rank().compatible(5),
-                          "Expected a 3D, 4D or 5D tensor for the input. Got: ",
-                          arg_shape);
-
-    if (arg_shape.rank().is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              static_cast<int64_t>(m_pads_end.size()) ==
-                                  arg_shape.rank().get_max_length() - 2,
-                              "Expected pads_end size to be equal to input size - 2. Got: ",
-                              m_pads_end.size());
-
-        NODE_VALIDATION_CHECK(this,
-                              static_cast<int64_t>(m_pads_begin.size()) ==
-                                  arg_shape.rank().get_max_length() - 2,
-                              "Expected pads_begin size to be equal to input size - 2. Got: ",
-                              m_pads_begin.size());
-        NODE_VALIDATION_CHECK(this,
-                              static_cast<int64_t>(m_kernel.size()) ==
-                                  arg_shape.rank().get_max_length() - 2,
-                              "Expected kernel size to be equal to input size - 2. Got: ",
-                              m_kernel.size());
-        NODE_VALIDATION_CHECK(this,
-                              static_cast<int64_t>(m_pads_end.size()) ==
-                                  arg_shape.rank().get_max_length() - 2,
-                              "Expected strides size to be equal to input size - 2. Got: ",
-                              m_strides.size());
-    }
-
+    const auto& arg_shape = get_input_partial_shape(0);
     auto output_shape = PartialShape::dynamic();
     if (arg_shape.rank().is_static())
     {
@@ -292,102 +248,33 @@ bool ngraph::op::v8::MaxPool::visit_attributes(AttributeVisitor& visitor)
 void op::v8::MaxPool::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v8_MaxPool_validate_and_infer_types);
-    if (0 == m_strides.size())
+
+    MaxPoolBase::validate_and_infer_types();
+
+    const bool update_auto_padding_succeed = update_paddings(m_dilations);
+
+    PartialShape output_shape;
+    if (update_auto_padding_succeed)
     {
-        m_strides = Strides(m_kernel.size(), 1);
+        CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
+        CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
+        output_shape = infer_batched_pooling_forward(this,
+                                                     get_input_partial_shape(0),
+                                                     pads_begin,
+                                                     pads_end,
+                                                     m_kernel,
+                                                     m_strides,
+                                                     m_dilations,
+                                                     true,
+                                                     m_rounding_type == op::RoundingType::CEIL);
+    }
+    else
+    {
+        output_shape = infer_output_shape_from_arg();
     }
 
-    if (0 == m_pads_begin.size())
-    {
-        m_pads_begin = Shape(m_kernel.size(), 0);
-    }
-
-    if (0 == m_pads_end.size())
-    {
-        m_pads_end = Shape(m_kernel.size(), 0);
-    }
-
-    const PartialShape& arg_shape = get_input_partial_shape(0);
-
-    NODE_VALIDATION_CHECK(this,
-                          arg_shape.rank().compatible(3) || arg_shape.rank().compatible(4) ||
-                              arg_shape.rank().compatible(5),
-                          "Expected a 3D, 4D or 5D tensor for the input. Got: ",
-                          arg_shape);
-
-    if (arg_shape.rank().is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              static_cast<int64_t>(m_pads_end.size()) ==
-                                  arg_shape.rank().get_max_length() - 2,
-                              "Expected pads_end size to be equal to input size - 2. Got: ",
-                              m_pads_end.size());
-
-        NODE_VALIDATION_CHECK(this,
-                              static_cast<int64_t>(m_pads_begin.size()) ==
-                                  arg_shape.rank().get_max_length() - 2,
-                              "Expected pads_begin size to be equal to input size - 2. Got: ",
-                              m_pads_begin.size());
-        NODE_VALIDATION_CHECK(this,
-                              static_cast<int64_t>(m_kernel.size()) ==
-                                  arg_shape.rank().get_max_length() - 2,
-                              "Expected kernel size to be equal to input size - 2. Got: ",
-                              m_kernel.size());
-        NODE_VALIDATION_CHECK(this,
-                              static_cast<int64_t>(m_pads_end.size()) ==
-                                  arg_shape.rank().get_max_length() - 2,
-                              "Expected strides size to be equal to input size - 2. Got: ",
-                              m_strides.size());
-    }
-
-    auto output_shape = PartialShape::dynamic();
-    if (arg_shape.rank().is_static())
-    {
-        output_shape =
-            std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
-        if (arg_shape[0].is_static())
-        {
-            output_shape[0] = arg_shape[0]; // batch size
-        }
-        if (arg_shape[1].is_static())
-        {
-            output_shape[1] = arg_shape[1]; // channel size
-        }
-    }
-
-    bool update_auto_padding_succeed = true;
-    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
-    {
-        update_auto_padding_succeed =
-            update_auto_padding(arg_shape, m_dilations, m_pads_end, m_pads_begin);
-    }
-    if (m_auto_pad == PadType::VALID)
-    {
-        m_pads_end = Shape(m_pads_end.size(), 0);
-        m_pads_begin = Shape(m_pads_begin.size(), 0);
-    }
-    // infer_batched_forward_pooling wants CoordinateDiffs for these, while the pooling ops for
-    // now still take Shape (no negative padding).
-    CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
-    CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
-
-    // infer_forward_conv_output_shape() ?
-
-    set_output_type(0,
-                    get_input_element_type(0),
-                    update_auto_padding_succeed
-                        ? infer_batched_pooling_forward(this,
-                                                        arg_shape,
-                                                        pads_begin,
-                                                        pads_end,
-                                                        m_kernel,
-                                                        m_strides,
-                                                        m_dilations,
-                                                        true,
-                                                        m_rounding_type == op::RoundingType::CEIL)
-                        : output_shape);
-
-    set_output_type(1, m_index_element_type, get_output_partial_shape(0));
+    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(1, m_index_element_type, output_shape);
 }
 
 shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const

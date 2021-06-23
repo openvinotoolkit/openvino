@@ -211,3 +211,39 @@ TEST(type_prop, max_pool_v8_3D_with_dilations_and_padding)
     ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme(expected_output_shape));
     ASSERT_TRUE(mp->get_output_partial_shape(1).same_scheme(expected_output_shape));
 }
+
+TEST(type_prop, max_pool_v8_4D_no_dilations)
+{
+    const PartialShape arg_shape{1, 3, 13, 13};
+    const Strides strides{1, 1};
+    const Strides dilations{1, 1};
+    const Shape pads_begin{0, 0};
+    const Shape pads_end{0, 0};
+    const Shape kernel_shape{2, 2};
+
+    const auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    const auto mp =
+        make_shared<op::v8::MaxPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape);
+
+    const auto expected_output_shape = PartialShape({1, 3, 12, 12});
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme(expected_output_shape));
+    ASSERT_TRUE(mp->get_output_partial_shape(1).same_scheme(expected_output_shape));
+}
+
+TEST(type_prop, max_pool_v8_4D_with_dilations)
+{
+    const PartialShape arg_shape{1, 3, 13, 13};
+    const Strides strides{1, 1};
+    const Strides dilations{2, 3};
+    const Shape pads_begin{0, 0};
+    const Shape pads_end{0, 0};
+    const Shape kernel_shape{2, 2};
+
+    const auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    const auto mp =
+        make_shared<op::v8::MaxPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape);
+
+    const auto expected_output_shape = PartialShape({1, 3, 11, 10});
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme(expected_output_shape));
+    ASSERT_TRUE(mp->get_output_partial_shape(1).same_scheme(expected_output_shape));
+}
