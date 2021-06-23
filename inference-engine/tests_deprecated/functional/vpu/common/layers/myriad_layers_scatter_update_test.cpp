@@ -12,7 +12,7 @@ using namespace testing;
 //
 //----------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     nd_tensors,
     myriadLayersScatterUpdateTest_smoke,
     Values(
@@ -49,7 +49,7 @@ INSTANTIATE_TEST_CASE_P(
 //
 //----------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     use_cases,
     myriadLayersScatterUpdateTest_smoke,
     Values(

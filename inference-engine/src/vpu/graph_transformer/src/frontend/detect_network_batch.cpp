@@ -29,7 +29,7 @@ void FrontEnd::detectNetworkBatch(
     using PrecisionsMap = std::map<std::string, ie::Precision>;
     const auto& env = CompileEnv::get();
 
-    if (!env.config.detectBatch) {
+    if (!env.config.compileConfig().detectBatch) {
         // skip batch extraction step and go as is
         return;
     }

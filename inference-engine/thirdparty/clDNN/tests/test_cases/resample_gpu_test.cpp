@@ -746,7 +746,7 @@ struct resample_random_test_param_generator : std::vector<resample_random_test_p
 
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_resample,
+INSTANTIATE_TEST_SUITE_P(smoke_resample,
                         resample_random_test,
                         testing::ValuesIn(
                             resample_random_test_param_generator()
@@ -759,7 +759,7 @@ INSTANTIATE_TEST_CASE_P(smoke_resample,
                             .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
-                        ), );
+                        ));
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -944,20 +944,20 @@ TEST_P(caffe_resample_random_test, random) {
     execute_compare(param, true);
 }
 
-INSTANTIATE_TEST_CASE_P(caffe_smoke_caffe_fsv16,
+INSTANTIATE_TEST_SUITE_P(caffe_smoke_caffe_fsv16,
                         caffe_resample_random_test,
                         testing::ValuesIn(
                             caffe_resample_random_test_param_generator()
                             .smoke_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
-                        ), );
+                        ));
 
-INSTANTIATE_TEST_CASE_P(caffe_smoke_caffe_fsv32,
+INSTANTIATE_TEST_SUITE_P(caffe_smoke_caffe_fsv32,
                         caffe_resample_random_test,
                         testing::ValuesIn(
                             caffe_resample_random_test_param_generator()
                             .smoke_params(data_types::f16, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
-                        ), );
+                        ));
 
 TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
     //  Input  : 2x2x3x2

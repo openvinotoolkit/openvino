@@ -27,6 +27,13 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
         "U8"
     },
     // FQ on weights
+    {
+        {256ul, ngraph::Shape{}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f }},
+        {255ul, ngraph::Shape{}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
+        "convolutionBackpropData_original",
+        "U8"
+    },
+    // FQ on weights
     // with zero point
     {
         {256ul, ngraph::Shape{1, 1, 1, 1}, { 0.f }, { 255.f }, { -12.7f }, { 12.8f }},
@@ -101,7 +108,7 @@ const std::vector<ngraph::Shape> outputShapes = {
     { 16, 16 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionBackpropDataTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionBackpropDataTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

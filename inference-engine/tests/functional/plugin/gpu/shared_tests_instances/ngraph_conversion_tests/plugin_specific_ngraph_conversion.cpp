@@ -9,6 +9,6 @@ using namespace NGraphConversionTestsDefinitions;
 
 namespace {
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic, PluginSpecificConversion, ::testing::Values("GPU"), PluginSpecificConversion::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, PluginSpecificConversion, ::testing::Values("GPU"), PluginSpecificConversion::getTestCaseName);
 
 }  // namespace
