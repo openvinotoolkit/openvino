@@ -9,9 +9,9 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNMathNode : public MKLDNNNode {
+class MKLDNNGatherTreeNode : public MKLDNNNode {
 public:
-    MKLDNNMathNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNGatherTreeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -21,12 +21,16 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-private:
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNMathNode& node)>> initializers;
+    template<typename DATA_T>
+    void gatherTreeKernel() noexcept;
 
-    float alpha = 0.0f;
-    float beta = 0.0f;
-    float gamma = 0.0f;
+        private:
+    static const size_t GATHER_TREE_STEP_IDX = 0;
+    static const size_t GATHER_TREE_PARENT_IDX = 1;
+    static const size_t GATHER_TREE_MAX_SEQ_LEN = 2;
+    static const size_t GATHER_TREE_END_TOKEN = 3;
+
+    InferenceEngine::Precision precision;
 
     std::string errorPrefix;
 };

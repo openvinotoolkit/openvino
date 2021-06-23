@@ -19,7 +19,7 @@ using namespace InferenceEngine;
 
 bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto transposeOp = ngraph::as_type_ptr<const ngraph::op::v1::Transpose>(op);
+        const auto transposeOp = ngraph::as_type_ptr<const ngraph::op::v1::Transpose>(op);
         if (!transposeOp) {
             errorMessage = "Node is not an instance of the Transpose operation.";
             return false;

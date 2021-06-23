@@ -9,9 +9,9 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNMathNode : public MKLDNNNode {
+class MKLDNNReverseSequenceNode : public MKLDNNNode {
 public:
-    MKLDNNMathNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNReverseSequenceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -22,12 +22,16 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNMathNode& node)>> initializers;
+    const size_t REVERSESEQUENCE_DATA = 0;
+    const size_t REVERSESEQUENCE_LENGTHS = 1;
 
-    float alpha = 0.0f;
-    float beta = 0.0f;
-    float gamma = 0.0f;
+    int seq_axis;
+    int batch_axis;
+    InferenceEngine::SizeVector src_dims;
+    InferenceEngine::SizeVector srcStrides;
+    size_t work_amount_dst;
 
+    InferenceEngine::Precision lengthsPrecision;
     std::string errorPrefix;
 };
 

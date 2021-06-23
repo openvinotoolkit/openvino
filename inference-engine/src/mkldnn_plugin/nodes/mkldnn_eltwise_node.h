@@ -124,4 +124,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

@@ -64,7 +64,28 @@ enum Type {
     Reference,
     ShuffleChannels,
     DFT,
-    Math
+    Math,
+    CTCLoss,
+    Bucketize,
+    CTCGreedyDecoder,
+    CTCGreedyDecoderSeqLen,
+    CumSum,
+    DetectionOutput,
+    ExperimentalDetectronDetectionOutput,
+    LogSoftmax,
+    TopK,
+    GatherTree,
+    GRN,
+    Range,
+    Proposal,
+    ReorgYolo,
+    ReverseSequence,
+    ExperimentalDetectronTopKROIs,
+    ExperimentalDetectronROIFeatureExtractor,
+    ExperimentalDetectronPriorGridGenerator,
+    ExperimentalDetectronGenerateProposalsSingleImage,
+    ExtractImagePatches,
+    NonMaxSuppression
 };
 
 enum Algorithm {

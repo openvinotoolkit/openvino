@@ -1,16 +1,16 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
-#include "base.hpp"
+#include <ie_common.h>
+#include <mkldnn_node.h>
+#include <string>
+#include <memory>
 #include <vector>
-#include <set>
-#include <cassert>
 
-namespace InferenceEngine {
-namespace Extensions {
-namespace Cpu {
+namespace MKLDNNPlugin {
 
 struct jit_extract_image_patches_params {
     size_t IW;
@@ -40,12 +40,17 @@ struct jit_uni_extract_image_patches_kernel {
     virtual ~jit_uni_extract_image_patches_kernel() {}
 };
 
-
-class ExtractImagePatchesImpl : public ExtLayerBase {
+class MKLDNNExtractImagePatchesNode : public MKLDNNNode {
 public:
-    explicit ExtractImagePatchesImpl(const std::shared_ptr<ngraph::Node>& op);
-    StatusCode execute(std::vector<Blob::Ptr>&, std::vector<Blob::Ptr>&, ResponseDesc*) noexcept override;
-    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    MKLDNNExtractImagePatchesNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+
+    void getSupportedDescriptors() override {};
+    void initSupportedPrimitiveDescriptors() override;
+    void createPrimitive() override {};
+    void execute(mkldnn::stream strm) override;
+    bool created() const override;
+
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     enum class ExtImgPatcherPadType {
@@ -63,12 +68,9 @@ private:
     static const std::set<size_t> _supported_precisions_sizes;
 
     ExtImgPatcherPadType _auto_pad;
+    InferenceEngine::Precision precision;
 
     std::string errorPrefix;
 };
 
-REG_FACTORY_FOR(ExtractImagePatchesImpl, ExtractImagePatches);
-
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace MKLDNNPlugin

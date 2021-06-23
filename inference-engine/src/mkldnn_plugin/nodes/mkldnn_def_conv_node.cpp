@@ -741,7 +741,7 @@ private:
 
 bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto defConvNode = ngraph::as_type_ptr<const ngraph::op::v1::DeformableConvolution>(op);
+        const auto defConvNode = ngraph::as_type_ptr<const ngraph::op::v1::DeformableConvolution>(op);
         if (!defConvNode) {
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1.";
             return false;
