@@ -37,6 +37,7 @@ namespace ngraph
                                 int keep_top_k,
                                 int background_class,
                                 float nms_eta,
+                                bool normalized,
                                 float* selected_outputs,
                                 const Shape& selected_outputs_shape,
                                 int64_t* selected_indices,

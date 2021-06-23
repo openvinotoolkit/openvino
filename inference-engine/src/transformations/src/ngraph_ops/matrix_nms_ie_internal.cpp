@@ -26,7 +26,8 @@ op::internal::MatrixNmsIEInternal::MatrixNmsIEInternal(const Output<Node>& boxes
                               const int background_class,
                               const int32_t decay_function,
                               const float gaussian_sigma,
-                              const float post_threshold)
+                              const float post_threshold,
+                              const bool normalized)
     : Op({boxes, scores})
     , m_sort_result_type{sort_result_type}
     , m_sort_result_across_batch{sort_result_across_batch}
@@ -37,7 +38,8 @@ op::internal::MatrixNmsIEInternal::MatrixNmsIEInternal(const Output<Node>& boxes
     , m_background_class{background_class}
     , m_decay_function{decay_function}
     , m_gaussian_sigma{gaussian_sigma}
-    , m_post_threshold{post_threshold} {
+    , m_post_threshold{post_threshold}
+    , m_normalized{normalized} {
     constructor_validate_and_infer_types();
 }
 
@@ -57,7 +59,8 @@ std::shared_ptr<Node> op::internal::MatrixNmsIEInternal::clone_with_new_inputs(c
                                                    m_background_class,
                                                    m_decay_function,
                                                    m_gaussian_sigma,
-                                                   m_post_threshold);
+                                                   m_post_threshold,
+                                                   m_normalized);
 }
 
 bool op::internal::MatrixNmsIEInternal::visit_attributes(AttributeVisitor& visitor) {
@@ -72,6 +75,7 @@ bool op::internal::MatrixNmsIEInternal::visit_attributes(AttributeVisitor& visit
     visitor.on_attribute("decay_function", m_decay_function);
     visitor.on_attribute("gaussian_sigma", m_gaussian_sigma);
     visitor.on_attribute("post_threshold", m_post_threshold);
+    visitor.on_attribute("normalized", m_normalized);
     return true;
 }
 
@@ -287,6 +291,7 @@ bool op::internal::MatrixNmsIEInternal::evaluate(const HostTensorVector& outputs
                                             (op::v8::MatrixNms::DecayFunction)m_decay_function,
                                             m_gaussian_sigma,
                                             m_post_threshold,
+                                            m_normalized,
                                             selected_outputs.data(),
                                             info.selected_outputs_shape,
                                             selected_indices.data(),

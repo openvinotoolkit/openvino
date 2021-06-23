@@ -47,6 +47,7 @@ namespace ngraph
                 /// \param gaussian_sigma Specifies gaussian_sigma parameter for gaussian
                 /// decay_function \param post_threshold Specifies threshold to filter out boxes
                 /// with low confidence score after decaying
+                /// \param normalized Specifies whether boxes are normalized or not
                 MatrixNms(const Output<Node>& boxes,
                           const Output<Node>& scores,
                           const SortResultType sort_result_type = SortResultType::NONE,
@@ -58,7 +59,8 @@ namespace ngraph
                           const int background_class = -1,
                           const DecayFunction decay_function = DecayFunction::LINEAR,
                           const float gaussian_sigma = 2.0f,
-                          const float post_threshold = 0.0f);
+                          const float post_threshold = 0.0f,
+                          const bool normalized = true);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -101,6 +103,9 @@ namespace ngraph
                     m_post_threshold = post_threshold;
                 }
 
+                bool get_normalized() const { return m_normalized; }
+                void set_normalized(const bool normalized) { m_normalized = normalized; }
+
             protected:
                 bool m_sort_result_across_batch;
                 float m_score_threshold;
@@ -108,6 +113,7 @@ namespace ngraph
                 DecayFunction m_decay_function;
                 float m_gaussian_sigma;
                 float m_post_threshold;
+                bool m_normalized;
                 void validate() override;
             };
         } // namespace v8

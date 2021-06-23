@@ -29,7 +29,8 @@ op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes,
                              const int background_class,
                              const DecayFunction decay_function,
                              const float gaussian_sigma,
-                             const float post_threshold)
+                             const float post_threshold,
+                             const bool normalized)
     : NmsBase(boxes, scores, sort_result_type, output_type, nms_top_k, keep_top_k)
     , m_sort_result_across_batch{sort_result_across_batch}
     , m_score_threshold{score_threshold}
@@ -37,6 +38,7 @@ op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes,
     , m_decay_function{decay_function}
     , m_gaussian_sigma{gaussian_sigma}
     , m_post_threshold{post_threshold}
+    , m_normalized{normalized}
 {
     constructor_validate_and_infer_types();
 }
@@ -58,7 +60,8 @@ std::shared_ptr<Node> op::v8::MatrixNms::clone_with_new_inputs(const OutputVecto
                                                m_background_class,
                                                m_decay_function,
                                                m_gaussian_sigma,
-                                               m_post_threshold);
+                                               m_post_threshold,
+                                               m_normalized);
 }
 
 void op::v8::MatrixNms::validate()
@@ -82,6 +85,7 @@ bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("decay_function", m_decay_function);
     visitor.on_attribute("gaussian_sigma", m_gaussian_sigma);
     visitor.on_attribute("post_threshold", m_post_threshold);
+    visitor.on_attribute("normalized", m_normalized);
 
     return true;
 }

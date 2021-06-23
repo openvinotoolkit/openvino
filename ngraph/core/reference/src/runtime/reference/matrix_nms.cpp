@@ -237,6 +237,7 @@ namespace ngraph
                             const op::v8::MatrixNms::DecayFunction decay_function,
                             float gaussian_sigma,
                             float post_threshold,
+                            bool normalized,
                             float* selected_outputs,
                             const Shape& selected_outputs_shape,
                             int64_t* selected_indices,
@@ -257,7 +258,6 @@ namespace ngraph
                 std::vector<BoxInfo> filtered_boxes;
                 filtered_boxes.reserve(6 * num_batches * num_classes * num_boxes);
 
-                bool normalized = true;
                 for (int64_t batch = 0; batch < num_batches; batch++)
                 {
                     const float* boxesPtr = boxes_data + batch * num_boxes * 4;

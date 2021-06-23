@@ -32,7 +32,8 @@ public:
                         const int background_class = -1,
                         const int32_t decay_function = 1,
                         const float gaussian_sigma = 2.0f,
-                        const float post_threshold = 0.0f);
+                        const float post_threshold = 0.0f,
+                        const bool normalized = true);
 
     void validate_and_infer_types() override;
 
@@ -55,6 +56,7 @@ public:
     int32_t m_decay_function;
     float m_gaussian_sigma;
     float m_post_threshold;
+    bool m_normalized;
 };
 
 }  // namespace internal

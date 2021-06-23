@@ -31,7 +31,8 @@ public:
                             const int nms_top_k = -1,
                             const int keep_top_k = -1,
                             const int background_class = -1,
-                            const float nms_eta = 1.0f);
+                            const float nms_eta = 1.0f,
+                            const bool normalized = true);
 
     void validate_and_infer_types() override;
 
@@ -53,6 +54,7 @@ public:
     int m_keep_top_k;
     int m_background_class;
     float m_nms_eta;
+    bool m_normalized;
 };
 
 }  // namespace internal

@@ -28,13 +28,15 @@ op::v8::MulticlassNms::MulticlassNms(const Output<Node>& boxes,
                                      const int nms_top_k,
                                      const int keep_top_k,
                                      const int background_class,
-                                     const float nms_eta)
+                                     const float nms_eta,
+                                     const bool normalized)
     : NmsBase(boxes, scores, sort_result_type, output_type, nms_top_k, keep_top_k)
     , m_sort_result_across_batch{sort_result_across_batch}
     , m_iou_threshold{iou_threshold}
     , m_score_threshold{score_threshold}
     , m_background_class{background_class}
     , m_nms_eta{nms_eta}
+    , m_normalized{normalized}
 {
     constructor_validate_and_infer_types();
 }
@@ -56,7 +58,8 @@ std::shared_ptr<Node>
                                                    m_nms_top_k,
                                                    m_keep_top_k,
                                                    m_background_class,
-                                                   m_nms_eta);
+                                                   m_nms_eta,
+                                                   m_normalized);
 }
 
 void op::v8::MulticlassNms::validate()
@@ -84,6 +87,7 @@ bool ngraph::op::v8::MulticlassNms::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("score_threshold", m_score_threshold);
     visitor.on_attribute("background_class", m_background_class);
     visitor.on_attribute("nms_eta", m_nms_eta);
+    visitor.on_attribute("normalized", m_normalized);
 
     return true;
 }

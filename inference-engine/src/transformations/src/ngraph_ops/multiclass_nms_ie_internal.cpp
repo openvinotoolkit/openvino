@@ -25,7 +25,8 @@ op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node
                                      const int nms_top_k,
                                      const int keep_top_k,
                                      const int background_class,
-                                     const float nms_eta)
+                                     const float nms_eta,
+                                     const bool normalized)
     : Op({boxes, scores})
     , m_sort_result_type{sort_result_type}
     , m_sort_result_across_batch{sort_result_across_batch}
@@ -35,7 +36,8 @@ op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node
     , m_nms_top_k{nms_top_k}
     , m_keep_top_k{keep_top_k}
     , m_background_class{background_class}
-    , m_nms_eta{nms_eta} {
+    , m_nms_eta{nms_eta}
+    , m_normalized{normalized} {
     constructor_validate_and_infer_types();
 }
 
@@ -54,7 +56,8 @@ std::shared_ptr<Node> op::internal::MulticlassNmsIEInternal::clone_with_new_inpu
                                                    m_nms_top_k,
                                                    m_keep_top_k,
                                                    m_background_class,
-                                                   m_nms_eta);
+                                                   m_nms_eta,
+                                                   m_normalized);
 }
 
 bool op::internal::MulticlassNmsIEInternal::visit_attributes(AttributeVisitor& visitor) {
@@ -67,6 +70,7 @@ bool op::internal::MulticlassNmsIEInternal::visit_attributes(AttributeVisitor& v
     visitor.on_attribute("score_threshold", m_score_threshold);
     visitor.on_attribute("background_class", m_background_class);
     visitor.on_attribute("nms_eta", m_nms_eta);
+    visitor.on_attribute("normalized", m_normalized);
     return true;
 }
 
@@ -335,6 +339,7 @@ bool op::internal::MulticlassNmsIEInternal::evaluate(const HostTensorVector& out
                                             m_keep_top_k,
                                             m_background_class,
                                             m_nms_eta,
+                                            m_normalized,
                                             selected_outputs.data(),
                                             info.selected_outputs_shape,
                                             selected_indices.data(),
