@@ -12,6 +12,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph/validation_util.hpp>
+
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::StridesOptimization, "StridesOptimization", 0);
 
@@ -46,7 +48,10 @@ static void insert_pooling(const ngraph::Output<ngraph::Node>& first, ngraph::In
         size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
         auto ones = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{diff}, std::vector<int64_t>(diff, 1));
         auto current_shape = std::make_shared<ngraph::opset7::ShapeOf>(first);
-        auto new_shape = std::make_shared<ngraph::opset7::Concat>(ngraph::OutputVector{ones, current_shape}, 0);
+        std::shared_ptr<ngraph::Node> new_shape = std::make_shared<ngraph::opset7::Concat>(ngraph::OutputVector{ones, current_shape}, 0);
+        std::shared_ptr<ngraph::Node> constant_new_shape = get_constant_from_source(new_shape);
+        if (constant_new_shape)
+            new_shape = constant_new_shape;
         first_node = std::make_shared<ngraph::opset7::Reshape>(first_node, new_shape, false);
     }
     std::shared_ptr<ngraph::Node> new_node = std::make_shared<ngraph::opset7::MaxPool>(first_node, strides, ngraph::Shape{},
@@ -57,8 +62,11 @@ static void insert_pooling(const ngraph::Output<ngraph::Node>& first, ngraph::In
         std::vector<size_t> axes(diff);
         std::iota(axes.begin(), axes.end(), 0);
         new_node = std::make_shared<ngraph::opset7::Squeeze>(new_node,
-                ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{diff}, axes));
+                ngraph::opset7::Constant::create(ngraph::element::u64, ngraph::Shape{diff}, axes));
     }
+    std::shared_ptr<ngraph::Node> constant_new_node = get_constant_from_source(new_node);
+    if (constant_new_node)
+        new_node = constant_new_node;
     second.replace_source_output(new_node);
 }
 
