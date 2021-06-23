@@ -544,7 +544,7 @@ const std::vector<ClampTransformationTestValues> testValues = {
         // ExpectedValues
         {
             ngraph::element::u8,
-            {{}, {128.f}, {3.f}},
+            {{ngraph::element::f32}, {128.f}, {3.f}},
             ngraph::element::f32,
             {}
         }
