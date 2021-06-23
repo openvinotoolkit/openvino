@@ -9,7 +9,6 @@ include(CheckCXXCompilerFlag)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/utils/build/cmake/modules")
 include(IntelHelpers)
 
-
 # ======================================================================================================
 # ==================================== BUILD CONFIGURATIONS (part 1) ===================================
 # ======================================================================================================
@@ -85,9 +84,6 @@ set(CLDNN__KERNEL_SELECTOR_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/kernel_selecto
 
 # Path which points to directory with runtime
 set(CLDNN__RUNTIME_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/runtime")
-
-# Path which points to directory with binaries for Khronos OpenCL ICD Loader (Installable Client Driver).
-set(CLDNN__OCL_ICD_DIR  "${CLDNN__COMMON_DIR}/khronos_ocl_icd")
 
 # Path which points to directory with C++ bindings for OpenCL (header files + wrapper that disables specific warnings).
 set(CLDNN__KHR_CLHPP_DIR "${CLDNN__COMMON_DIR}/include")
@@ -335,46 +331,12 @@ string(TOLOWER "${__CLDNN_TargetOs}" __CLDNN_TargetOs)
 intel_arch_get_cpu(__CLDNN_TargetCpu "${CLDNN__ARCHITECTURE_TARGET}")
 string(TOLOWER "${__CLDNN_TargetCpu}" __CLDNN_TargetCpu)
 
-if(__CLDNN_TargetCpu STREQUAL "32")
-  set(__CLDNN_TargetCpuDir "x86")
-elseif(__CLDNN_TargetCpu STREQUAL "64")
-  set(__CLDNN_TargetCpuDir "x64")
-else()
-  set(__CLDNN_TargetCpuDir "${__CLDNN_TargetCpu}")
-endif()
-
 if((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^Clang$"))
   set(__CLDNN_TargetCompilerDir "clang")
 else()
   set(__CLDNN_TargetCompilerDir ".")
 endif()
 
-# ======================================================================================================
-
-set(CLDNN__OCL_ICD_ROOT "${CLDNN__OCL_ICD_DIR}" CACHE INTERNAL "Path to Khronos OpenCL ICD Loader used to build clDNN framework.")
-set(CLDNN__OCL_ICD_INCDIRS "${CLDNN__KHR_CLHPP_DIR}" CACHE INTERNAL "Paths to interface headers for OpenCL.")
-set(CLDNN__OCL_ICD_STLDIRS "${CLDNN__OCL_ICD_ROOT}/${__CLDNN_TargetOs}/${CLDNN__TARGET_CFG_VAR}/lib/${__CLDNN_TargetCpuDir}" CACHE INTERNAL "Paths to static libraries for OpenCL ICD Loader.")
-set(CLDNN__OCL_ICD_SHLDIRS "${CLDNN__OCL_ICD_ROOT}/${__CLDNN_TargetOs}/${CLDNN__TARGET_CFG_VAR}/bin/${__CLDNN_TargetCpuDir}" CACHE INTERNAL "Paths to shared libraries for OpenCL ICD Loader.")
-include_directories(SYSTEM "${CLDNN__KHR_CLHPP_DIR}")
-
-# Select link directory based on targeted OS.
-# - on Windows: static libraries directory.
-# - on others:  shared libraries directory.
-if(__CLDNN_TargetOs MATCHES "^windows$")
-set(CLDNN__OCL_ICD_LIBDIRS ${CLDNN__OCL_ICD_STLDIRS} CACHE INTERNAL "Paths to libraries to link for OpenCL ICD Loader.")
-set(CLDNN__OCL_ICD_LIBPATH ${CLDNN__OCL_ICD_LIBDIRS}/${CMAKE_STATIC_LIBRARY_PREFIX}OpenCL${CMAKE_STATIC_LIBRARY_SUFFIX} CACHE INTERNAL "")
-else()
-set(CLDNN__OCL_ICD_LIBDIRS ${CLDNN__OCL_ICD_SHLDIRS} CACHE INTERNAL "Paths to libraries to link for OpenCL ICD Loader.")
-set(CLDNN__OCL_ICD_LIBPATH ${CLDNN__OCL_ICD_LIBDIRS}/${CMAKE_SHARED_LIBRARY_PREFIX}OpenCL${CMAKE_SHARED_LIBRARY_SUFFIX} CACHE INTERNAL "")
-endif()
-
-set(OpenCL_LIBRARY "${CLDNN__OCL_ICD_LIBPATH}" CACHE INTERNAL "Paths to shared libraries for OpenCL ICD Loader.")
-set(OpenCL_INCLUDE_DIR "${CLDNN__OCL_ICD_INCDIRS}" CACHE INTERNAL "Paths to interface headers for OpenCL.")
-add_library(clDNN_OpenCL UNKNOWN IMPORTED)
-set_target_properties(clDNN_OpenCL
-    PROPERTIES
-        IMPORTED_LOCATION ${CLDNN__OCL_ICD_LIBPATH}
-  )
 # ======================================================================================================
 set(CLDNN_UTILS__RAPIDJSON_INCDIRS "utils/rapidjson" CACHE INTERNAL "Paths to interface headers for rapidjson.")
 # ====================================== Version Calculation ===========================================
@@ -410,12 +372,6 @@ message(STATUS "[clDNN]  - Allow unsafe size opts:        ${CLDNN__COMPILE_LINK_
 message(STATUS "[clDNN]  - CMake debug trace:             ${CLDNN__CMAKE_DEBUG}")
 message(STATUS "[clDNN]")
 message(STATUS "[clDNN]")
-message(STATUS "[clDNN] ICD:")
-message(STATUS "[clDNN]  - Root:            ${CLDNN__OCL_ICD_ROOT}")
-message(STATUS "[clDNN]     + Headers:      ${CLDNN__OCL_ICD_INCDIRS}")
-message(STATUS "[clDNN]     + Static libs:  ${CLDNN__OCL_ICD_STLDIRS}")
-message(STATUS "[clDNN]     + Shared libs:  ${CLDNN__OCL_ICD_SHLDIRS}")
-message(STATUS "[clDNN]     + Libs to link: ${CLDNN__OCL_ICD_LIBPATH}")
 message(STATUS "[clDNN] =============================================================================")
 unset(__CLDNN_DetectedArch_Target)
 
@@ -752,8 +708,6 @@ unset(__CLDNN_CfgFlag)
 # Clean-up of helper variables for component paths.
 unset(__CLDNN_TargetOs)
 unset(__CLDNN_TargetCpu)
-unset(__CLDNN_TargetCpuDir)
-unset(__CLDNN_TargetCompilerDir)
 
 # ============================== Generic compiler preprocessor definitions =============================
 
@@ -769,6 +723,9 @@ include_directories(
     "${CLDNN__API_DIR}"
   )
 
+include_directories(SYSTEM
+   "${CLDNN__KHR_CLHPP_DIR}"
+  )
 # =================================== Link targets and dependencies ====================================
 if(CLDNN__INCLUDE_CORE)
   add_subdirectory(src)

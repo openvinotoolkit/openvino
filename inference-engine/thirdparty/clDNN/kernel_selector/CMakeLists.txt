@@ -148,7 +148,7 @@ if(COMMAND add_cpplint_target)
 endif()
 
 target_link_libraries("${CLDNN_BUILD__PROJ}"
-    clDNN_OpenCL
+    OpenCL
   )
 
 if(WIN32)
