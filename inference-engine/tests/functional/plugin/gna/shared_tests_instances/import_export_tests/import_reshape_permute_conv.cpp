@@ -52,10 +52,6 @@ TEST_P(ImportExportGNAModelChanged, ReshapePermuteConv) {
     TestRun(true);
 };
 
-const std::vector<std::vector<size_t>> inputShape = {
-    {}
-};
-
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
@@ -105,7 +101,6 @@ INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportExportGNAModelUnchanged,
 
 INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportExportGNAModelChanged,
                         ::testing::Combine(
-                            ::testing::ValuesIn(inputShape),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(exportConfigs),
