@@ -8,7 +8,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, round)
+NGRAPH_TEST(${BACKEND_NAME}, round_half_to_even)
 {
     test_unary<element::f32>("${BACKEND_NAME}",
                              unary_func<op::v5::Round>(op::v5::Round::RoundMode::HALF_TO_EVEN),

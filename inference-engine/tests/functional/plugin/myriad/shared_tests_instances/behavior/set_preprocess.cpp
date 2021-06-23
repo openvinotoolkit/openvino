@@ -20,14 +20,14 @@ namespace {
             {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_MYRIAD}}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, PreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                     ::testing::ValuesIn(configs)),
                             PreprocessTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, PreprocessTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, PreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
@@ -48,7 +48,7 @@ namespace {
         InferenceEngine::Layout::NHWC
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessConversionTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, PreprocessConversionTest,
                                 ::testing::Combine(
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::ValuesIn(ioPrecisions),
@@ -62,7 +62,7 @@ namespace {
                                         ::testing::ValuesIn(configs)),
                                 PreprocessConversionTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Bool(),

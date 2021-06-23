@@ -1216,6 +1216,13 @@ void InsertConcatAligningFilterPass::run() {
                 // modifying output rows to be used - to avoid modification to original concat we are store num of elements in params
                 dims[1] = num_rows_out;
 
+                if ((concatInput->getLayout() == Layout::NC && dims[0] > 8) ||
+                    (concatInput->getLayout() == Layout::CN && dims[1] > 8)) {
+                    THROW_GNA_EXCEPTION << "unsupported batch number '" <<
+                        (concatInput->getLayout() == Layout::NC ? dims[0] : dims[1]) <<
+                        "' in layer '" << concatLayer->name << "'";
+                }
+
                 auto outData = std::make_shared<Data>(filterName,
                                                       TensorDesc(concatInput->getPrecision(),
                                                                  dims,
@@ -1662,7 +1669,7 @@ void BroadcastConstPass::run() {
         };
 
         auto nextLayer = CNNNetCheckNextLayerSkipCertain(constLayer, 0, 0, true, isNonFunctional).first;
-        if (!nextLayer || !LayerInfo(nextLayer).isEltwise() && !LayerInfo(nextLayer).isFakeQuantize()) {
+        if (!nextLayer || (!LayerInfo(nextLayer).isEltwise() && !LayerInfo(nextLayer).isFakeQuantize())) {
             continue;
         }
 
