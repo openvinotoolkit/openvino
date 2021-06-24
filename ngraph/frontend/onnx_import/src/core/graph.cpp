@@ -418,6 +418,7 @@ namespace ngraph
                 const auto& node = m_parent_graph_cache->get_node(it.second);
                 auto& parameter = it.first;
                 parameter->set_element_type(node.get_element_type());
+                parameter->set_partial_shape(node.get_partial_shape());
             }
         }
     } // namespace onnx_import

@@ -86,6 +86,8 @@ namespace ngraph
                     {
                         body_inputs[i + 2]->set_element_type(
                             loop_carried_dependencies[i].get_element_type());
+                        body_inputs[i + 2]->set_partial_shape(
+                            loop_carried_dependencies[i].get_partial_shape());
                     }
 
                     // optional inputs
