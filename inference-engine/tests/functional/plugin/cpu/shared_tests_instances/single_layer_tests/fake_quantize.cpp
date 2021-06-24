@@ -33,7 +33,7 @@ const auto fqParams = ::testing::Combine(
         ::testing::Values(inputParams)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
                         ::testing::Combine(
                                 fqParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -64,7 +64,7 @@ const auto fqParamsPerChannelAxis1 = ::testing::Combine(
         ::testing::Values(inputParams)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizePerChannelAxis0, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis0, FakeQuantizeLayerTest,
                         ::testing::Combine(
                                 fqParamsPerChannelAxis0,
                                 ::testing::ValuesIn(netPrecisions),
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizePerChannelAxis0, FakeQuantizeLayerTest
                                 ::testing::Values(config)),
                         FakeQuantizeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizePerChannelAxis1, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis1, FakeQuantizeLayerTest,
                         ::testing::Combine(
                                 fqParamsPerChannelAxis1,
                                 ::testing::ValuesIn(netPrecisions),
@@ -99,7 +99,7 @@ const auto fqParamsPerChannel2D = ::testing::Combine(
     ::testing::Values(inputParams)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizePerChannel2D, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannel2D, FakeQuantizeLayerTest,
     ::testing::Combine(
         fqParamsPerChannel2D,
         ::testing::ValuesIn(netPrecisions),
