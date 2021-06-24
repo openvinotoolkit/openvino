@@ -4,6 +4,9 @@
 
 #include "backend/unary_test.hpp"
 
+using namespace std;
+using namespace ngraph;
+
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 static string s_manifest = "${MANIFEST}";

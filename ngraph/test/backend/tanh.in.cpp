@@ -4,6 +4,9 @@
 
 #include "backend/unary_test.hpp"
 
+using namespace std;
+using namespace ngraph;
+
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
