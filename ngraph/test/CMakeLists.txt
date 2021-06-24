@@ -18,14 +18,6 @@ if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "4.0.0")
-        # gtest has issues with this with v1.8.x
-        # gtest issue is supposed to be addressed after v1.8.x
-        add_compile_options(-Wno-zero-as-null-pointer-constant)
-    endif()
-endif()
-
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
@@ -55,7 +47,6 @@ set(SRC
     main.cpp
     matcher_pass.cpp
     misc.cpp
-    ngraph_api.cpp
     node_input_output.cpp
     op.cpp
     op_eval/binary_convolution.cpp
@@ -300,6 +291,7 @@ set(SRC
     visitors/op/squeeze.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/swish.cpp
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
@@ -476,6 +468,7 @@ set(MULTI_TEST_SRC
     backend/squared_difference.in.cpp
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
+    backend/swish.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
     backend/tile.in.cpp
@@ -551,10 +544,6 @@ if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
-
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
                                         openvino::conditional_compilation)
@@ -576,7 +565,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
-target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")
 if(NOT WIN32)
     target_link_libraries(unit-test PRIVATE pthread)
 endif()
