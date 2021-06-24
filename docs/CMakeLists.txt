@@ -43,7 +43,12 @@ if(NOT ENABLE_DOCKER)
     endforeach()
 
     if(ENABLE_DEV_PKG_INSTALL)
-        install(TARGETS template_extension templatePlugin templateFuncTests
+        set(install_targets template_extension)
+        if(ENABLE_TEMPLATE_PLUGIN)
+            list(APPEND install_targets templatePlugin templateFuncTests)
+        endif()
+
+        install(TARGETS ${install_targets}
                 RUNTIME DESTINATION tests
                 LIBRARY DESTINATION tests
                 COMPONENT tests)

@@ -26,8 +26,8 @@ if (NGRAPH_INTERPRETER_ENABLE)
 
     if(ENABLE_DEV_PKG_INSTALL)
         install(TARGETS interpreter_backend
-                RUNTIME DESTINATION tests
-                LIBRARY DESTINATION tests
+                RUNTIME DESTINATION deployment_tools/ngraph/lib
+                LIBRARY DESTINATION deployment_tools/ngraph/lib
                 COMPONENT tests)
     endif()
 endif()

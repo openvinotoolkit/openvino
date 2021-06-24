@@ -31,7 +31,7 @@ target_link_libraries(ie_backend PUBLIC ngraph_backend inference_engine)
 
 if(ENABLE_DEV_PKG_INSTALL)
     install(TARGETS ie_backend
-            RUNTIME DESTINATION tests
-            LIBRARY DESTINATION tests
+            RUNTIME DESTINATION deployment_tools/ngraph/lib
+            LIBRARY DESTINATION deployment_tools/ngraph/lib
             COMPONENT tests)
 endif()

@@ -36,6 +36,12 @@ foreach(DIST_TYPE IN LISTS _components)
 endforeach()
 
 macro(ie_cpack_add_component NAME DIST_TYPE)
+    # TODO: remove WA
+    if(DIST_TYPE STREQUAL "REQUIRED")
+        list(INSERT ARGN 0 REQUIRED)
+        set(DIST_TYPE "IRC")
+    endif()
+
     if(NOT ${DIST_TYPE} IN_LIST _components)
         message(FATAL_ERROR "${DIST_TYPE} must of on ${_components}")
     endif()
@@ -52,8 +58,7 @@ macro(ie_cpack)
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO toolkit")
     set(CPACK_COMPONENT_UNSPECIFIED_REQUIRED OFF)
     set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
-    # OFF - single archive, OFF - multiple packages per component
-    # set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
+    set(CPACK_ARCHIVE_COMPONENT_INSTALL ON) # multiple components
     set(CPACK_PACKAGE_VENDOR "Intel Corporation")
     set(CPACK_VERBATIM_VARIABLES ON)
     set(CPACK_COMPONENTS_ALL ${ARGN})
