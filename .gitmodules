@@ -31,3 +31,6 @@
 [submodule "ngraph/python/pybind11"]
 	path = ngraph/python/pybind11
 	url = https://github.com/pybind/pybind11.git
+[submodule "thirdparty/ittapi/ittapi"]
+	path = thirdparty/ittapi/ittapi
+	url = https://github.com/intel/ittapi.git
