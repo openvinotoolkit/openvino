@@ -3,7 +3,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-printf "\e[0;33mWARNING: If you get an error when running the demo in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
+echo -ne "\e[0;33mWARNING: If you get an error when running the demo in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
@@ -50,11 +50,19 @@ esac
 shift
 done
 
-
 target_image_path="$ROOT_DIR/car_1.bmp"
 
 run_again="Then run the script again\n\n"
-dashes="\n\n###################################################\n\n"
+
+if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
+    setupvars_path="$ROOT_DIR/../../bin/setupvars.sh"
+else
+    echo -ne "Error: setupvars.sh is not found\n"
+fi
+if ! . "$setupvars_path" ; then
+    echo -ne "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
+    exit 1
+fi
 
 if [[ -f /etc/centos-release ]]; then
     DISTRO="centos"
@@ -94,21 +102,11 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
-    setupvars_path="$ROOT_DIR/../../bin/setupvars.sh"
-else
-    printf "Error: setupvars.sh is not found\n"
-fi
-if ! . "$setupvars_path" ; then
-    echo -ne "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
-    exit 1
-fi
-
 if [ -e "$HOME/venv" ]; then
-    printf "\nUsing the existing python virtual environment\n\n"
+    echo -ne "\n###############|| Using the existing python virtual environment ||###############\n\n"
     . "$HOME/venv/bin/activate"
 else
-    printf "\nCreating the python virtual environment\n\n"
+    echo -ne "\n###############|| Creating the python virtual environment ||###############\n\n"
     "$python_binary" -m venv "$HOME/venv"
     . "$HOME/venv/bin/activate"
     python -m pip install -U pip
@@ -116,13 +114,11 @@ else
 fi
 
 # Step 1. Downloading Intel models
-echo -ne "${dashes}"
-printf "Downloading Intel models\n\n"
-
+echo -ne "\n###############|| Downloading Intel models ||###############\n\n"
 
 target_precision="FP16"
 
-printf "target_precision = %s\n" "${target_precision}"
+echo -ne "target_precision = ${target_precision}\n"
 
 downloader_dir="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/tools/downloader"
 
@@ -144,8 +140,7 @@ while read -r model_opt model_name; do
 done < "$ROOT_DIR/demo_security_barrier_camera.conf"
 
 # Step 2. Build samples
-echo -ne "${dashes}"
-printf "Build Inference Engine demos\n\n"
+echo -ne "\n###############|| Build Inference Engine demos ||###############\n\n"
 
 demos_path="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/demos"
 
@@ -172,13 +167,11 @@ cmake -DCMAKE_BUILD_TYPE=Release "$demos_path"
 make $NUM_THREADS security_barrier_camera_demo
 
 # Step 3. Run samples
-echo -ne "${dashes}"
-printf "Run Inference Engine security_barrier_camera demo\n\n"
+echo -ne "\n###############|| Run Inference Engine security_barrier_camera demo ||###############\n\n"
 
 binaries_dir="${build_dir}/${OS_PATH}/Release"
 cd "$binaries_dir"
 
 print_and_run ./security_barrier_camera_demo -d "$target" -d_va "$target" -d_lpr "$target" -i "$target_image_path" "${model_args[@]}" "${sampleoptions[@]}"
 
-echo -ne "${dashes}"
-printf "Demo completed successfully.\n\n"
+echo -ne "\n###############|| Demo completed successfully ||###############\n\n"

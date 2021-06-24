@@ -3,7 +3,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-printf "\e[0;33mWARNING: If you get an error when running the demo in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
+echo -ne "\e[0;33mWARNING: If you get an error when running the demo in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
@@ -52,7 +52,7 @@ done
 
 target_precision="FP16"
 
-printf "target_precision = %s\n" "${target_precision}"
+echo -ne "target_precision = ${target_precision}\n"
 
 models_path="$HOME/openvino_models/models"
 models_cache="$HOME/openvino_models/cache"
@@ -63,27 +63,17 @@ model_name="squeezenet1.1"
 target_image_path="$ROOT_DIR/car.png"
 
 run_again="Then run the script again\n\n"
-dashes="\n\n###################################################\n\n"
-
 
 if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
     setupvars_path="$ROOT_DIR/../../bin/setupvars.sh"
 else
-    printf "Error: setupvars.sh is not found\n"
+    echo -ne "Error: setupvars.sh is not found\n"
 fi
 
 if ! . "$setupvars_path" ; then
     echo -ne "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
     exit 1
 fi
-
-# Step 1. Download the Caffe model and the prototxt of the model
-echo -ne "${dashes}"
-printf "\n\nDownloading the Caffe model and the prototxt"
-
-cur_path=$PWD
-
-printf "\nInstalling dependencies\n"
 
 if [[ -f /etc/centos-release ]]; then
     DISTRO="centos"
@@ -122,15 +112,18 @@ if ! command -v $python_binary &>/dev/null; then
 fi
 
 if [ -e "$HOME/venv" ]; then
-    printf "\nUsing the existing python virtual environment\n\n"
+    echo -ne "\n###############|| Using the existing python virtual environment ||###############\n\n"
     . "$HOME/venv/bin/activate"
 else
-    printf "\nCreating the python virtual environment\n\n"
+    echo -ne "\n###############|| Creating the python virtual environment ||###############\n\n"
     "$python_binary" -m venv "$HOME/venv"
     . "$HOME/venv/bin/activate"
     python -m pip install -U pip
     python -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 fi
+
+# Step 1. Download the Caffe model and the prototxt of the model
+echo -ne "\n###############|| Downloading the Caffe model and the prototxt ||###############\n\n"
 
 downloader_dir="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/tools/downloader"
 
@@ -145,28 +138,25 @@ ir_dir="${irs_path}/${model_dir}/${target_precision}"
 
 if [ ! -e "$ir_dir" ]; then
     # Step 2. Configure Model Optimizer
-    echo -ne "${dashes}"
-    printf "Install Model Optimizer dependencies\n\n"
+    echo -ne "\n###############|| Install Model Optimizer dependencies ||###############\n\n"
     cd "${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer"
     python -m pip install -r requirements.txt
-    cd "$cur_path"
+    cd "$PWD"
 
     # Step 3. Convert a model with Model Optimizer
-    echo -ne "${dashes}"
-    printf "Convert a model with Model Optimizer\n\n"
+    echo -ne "\n###############|| Convert a model with Model Optimizer ||###############\n\n"
 
     mo_path="${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer/mo.py"
 
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
     print_and_run python "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
 else
-    printf "\n\nTarget folder %s already exists. Skipping IR generation  with Model Optimizer." "${ir_dir}"
+    echo -ne "\n\nTarget folder %s already exists. Skipping IR generation  with Model Optimizer." "${ir_dir}"
     echo -ne "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"
 fi
 
 # Step 4. Build samples
-echo -ne "${dashes}"
-printf "Build Inference Engine samples\n\n"
+echo -ne "\n###############|| Build Inference Engine samples ||###############\n\n"
 
 OS_PATH=$(uname -m)
 NUM_THREADS="-j2"
@@ -190,8 +180,7 @@ cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 make $NUM_THREADS classification_sample_async
 
 # Step 5. Run samples
-echo -ne "${dashes}"
-printf "Run Inference Engine classification sample\n\n"
+echo -ne "\n###############|| Run Inference Engine classification sample ||###############\n\n"
 
 cd "$binaries_dir"
 
@@ -199,5 +188,4 @@ cp -f "$ROOT_DIR/${model_name}.labels" "${ir_dir}/"
 
 print_and_run ./classification_sample_async -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" "${sampleoptions[@]}"
 
-echo -ne "${dashes}"
-printf "Demo completed successfully.\n\n"
+echo -ne "\n###############|| Demo completed successfully ||###############\n\n"
