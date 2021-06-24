@@ -441,9 +441,9 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
     }
 }
 
-static bool isReorderAvailable(const MKLDNNMemoryDesc& parentDesc, const MKLDNNMemoryDesc& childDesc, const mkldnn::engine& eng) {
-    memory::desc dstMemDesc = childDesc;
-    memory::desc srcMemDesc = parentDesc;
+static bool isReorderAvailable(const MemoryDesc& parentDesc, const MemoryDesc& childDesc, const mkldnn::engine& eng) {
+    memory::desc dstMemDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(childDesc);
+    memory::desc srcMemDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(parentDesc);;
     mkldnn::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
@@ -471,12 +471,9 @@ void MKLDNNGraph::InitEdges() {
             auto edge = graphEdges[i];
             bool insertReorder = true;
 
-            MKLDNNMemoryDesc inMKLDNNDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(edge->getInputDesc());
-            MKLDNNMemoryDesc outMKLDNNDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(edge->getOutputDesc());
-
             // Check if there is a reorder that supports the type conversion
             if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
-                    !isReorderAvailable(inMKLDNNDesc, outMKLDNNDesc, this->getEngine())) {
+                    !isReorderAvailable(edge->getInputDesc(), edge->getOutputDesc(), this->getEngine())) {
                 // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
                 const auto& inDesc = edge->getInputDesc();
                 const auto& outDesc = edge->getOutputDesc();

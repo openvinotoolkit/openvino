@@ -476,7 +476,7 @@ void MKLDNNNode::resolveNotAllocatedEdges() {
 
         auto * memPtr = reinterpret_cast<char*>(parentEdge->getMemory().GetData());
         parentEdge->getMemoryPtr().reset(new MKLDNNMemory(getEngine()));
-        parentEdge->getMemoryPtr()->Create(MemoryDescUtils::convertToMKLDNNMemoryDesc(*selected_pd->getConfig().inConfs[i].desc), memPtr);
+        parentEdge->getMemoryPtr()->Create(*selected_pd->getConfig().inConfs[i].desc, memPtr);
 
         parentEdge->changeStatus(MKLDNNEdge::Status::Allocated);
     }
@@ -488,7 +488,7 @@ void MKLDNNNode::resolveNotAllocatedEdges() {
 
         auto * memPtr = reinterpret_cast<char*>(childEdge->getMemory().GetData());
         childEdge->getMemoryPtr().reset(new MKLDNNMemory(getEngine()));
-        childEdge->getMemoryPtr()->Create(MemoryDescUtils::convertToMKLDNNMemoryDesc(*selected_pd->getConfig().outConfs[i].desc), memPtr);
+        childEdge->getMemoryPtr()->Create(*selected_pd->getConfig().outConfs[i].desc, memPtr);
 
         childEdge->changeStatus(MKLDNNEdge::Status::Allocated);
     }
@@ -708,13 +708,13 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
     if (!selectedPD) {
         return;
     }
-    std::vector<MKLDNNMemoryDesc> inDescs;
+    std::vector<MemoryDescPtr> inDescs;
     for (const auto& inConf : config.inConfs)
-        inDescs.push_back(MemoryDescUtils::convertToMKLDNNMemoryDesc(*inConf.desc));
-    std::vector<MKLDNNMemoryDesc> outDescs;
+        inDescs.push_back(inConf.desc->clone());
+    std::vector<MemoryDescPtr> outDescs;
     for (const auto& outConf : config.outConfs)
-        outDescs.push_back(MemoryDescUtils::convertToMKLDNNMemoryDesc(*outConf.desc));
-    createDescriptor({inDescs}, {outDescs});
+        outDescs.push_back(outConf.desc->clone());
+    createDescriptor(inDescs, outDescs);
 
     std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
 
@@ -806,6 +806,7 @@ void MKLDNNNode::prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_de
         const auto &internalBlob = internalBlobs[i];
 
         auto create = [&] () {
+            // TODO [mkutakov]: internal blobs should be removed or rewritten using Memory object
             auto newDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(internalBlob->getTensorDesc());
 
             MKLDNNMemory memory{ engine };

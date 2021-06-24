@@ -27,8 +27,8 @@ public:
     }
 
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
-    void createDescriptor(const std::vector<MKLDNNMemoryDesc>& inputDesc,
-                          const std::vector<MKLDNNMemoryDesc>& outputDesc) override;
+    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                          const std::vector<MemoryDescPtr>& outputDesc) override;
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());

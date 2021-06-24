@@ -6,8 +6,6 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_utils.h"
 #include <blob_factory.hpp>
-#include "utils/cpu_utils.hpp"
-#include "cpu_memory_desc_utils.h"
 
 using namespace mkldnn;
 namespace MKLDNNPlugin {
@@ -156,7 +154,7 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
     auto parentPtr = getParent();
     memoryPtr.reset(new MKLDNNMemory(parentPtr->getEngine()));
 
-    memoryPtr->Create(MemoryDescUtils::convertToMKLDNNMemoryDesc(inputDesc), mem_ptr, false);  // no pads zeroing
+    memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
     status = Status::Allocated;
 }
 
@@ -311,7 +309,7 @@ const MemoryDesc& MKLDNNEdge::getDesc() const {
 const MKLDNNMemory &MKLDNNEdge::getMemory() {
     if (status == Status::NotAllocated) {
         memoryPtr.reset(new MKLDNNMemory(getParent()->getEngine()));
-        memoryPtr->Create(MemoryDescUtils::convertToMKLDNNMemoryDesc(getInputDesc()), getSharedEdge()->getMemoryPtr()->GetData());
+        memoryPtr->Create(getInputDesc(), getSharedEdge()->getMemoryPtr()->GetData());
         memoryFromEdge.reset();
         changeStatus(Status::Allocated);
     }
@@ -322,7 +320,7 @@ const MKLDNNMemory &MKLDNNEdge::getMemory() {
 MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
     if (status == Status::NotAllocated) {
         memoryPtr.reset(new MKLDNNMemory(getParent()->getEngine()));
-        memoryPtr->Create(MemoryDescUtils::convertToMKLDNNMemoryDesc(getInputDesc()), getSharedEdge()->getMemoryPtr()->GetData());
+        memoryPtr->Create(getInputDesc(), getSharedEdge()->getMemoryPtr()->GetData());
         memoryFromEdge.reset();
         changeStatus(Status::Allocated);
     }

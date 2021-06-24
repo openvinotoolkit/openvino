@@ -83,8 +83,8 @@ void MKLDNNReorderNode::createPrimitive() {
                 (getParentEdgeAt(0)->getMemory().GetElementsCount() / inDims[1]) >= 128 &&
                 getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat() &&
                 getChildEdgeAt(0)->getMemory().GetDesc().isPlainFormat() &&
-                getParentEdgeAt(0)->getMemory().GetDesc().getDataType() == memory::data_type::f32 &&
-                getChildEdgeAt(0)->getMemory().GetDesc().getDataType() == memory::data_type::f32) {
+                getParentEdgeAt(0)->getMemory().GetDesc().getPrecision() == Precision::FP32 &&
+                getChildEdgeAt(0)->getMemory().GetDesc().getPrecision() == Precision::FP32) {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
             canUseOptimizedNspc2Ncsp = true;
         } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
@@ -104,10 +104,10 @@ void MKLDNNReorderNode::createPrimitive() {
 
 void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr) {
     src_blocked = std::make_shared<MKLDNNMemory>(getEngine());
-    src_blocked->Create(srcDesc, srcPtr, false);
+    src_blocked->Create(MKLDNNMemoryDesc(srcDesc), srcPtr, false);
 
     dst_blocked = std::make_shared<MKLDNNMemory>(getEngine());
-    dst_blocked->Create(dstDesc, dstPtr, false);
+    dst_blocked->Create(MKLDNNMemoryDesc(dstDesc), dstPtr, false);
 
     mkldnn::primitive_attr attr;
     auto createReorder = [&]() -> bool {
@@ -142,7 +142,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
             const auto newFormat = MKLDNNMemory::GetPlainFormatByRank(newDims.size());
 
             auto newDesc = mkldnn::memory::desc(newDims, src_blocked->GetDataType(), newFormat);
-            src_blocked->Create(newDesc, srcPtr, false);
+            src_blocked->Create(MKLDNNMemoryDesc(newDesc), srcPtr, false);
 
             success = createReorder();
         }

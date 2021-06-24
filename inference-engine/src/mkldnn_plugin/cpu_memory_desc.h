@@ -50,6 +50,10 @@ public:
         IE_THROW() << "[DS] Unimplemented";
     }
 
+    bool isTailCFormat() const {
+        IE_THROW() << "[DS] Unimplemented";
+    }
+
 
     // Get minimal requared memory size in bytes. Can be undefined
     size_t getMemSize() const {
