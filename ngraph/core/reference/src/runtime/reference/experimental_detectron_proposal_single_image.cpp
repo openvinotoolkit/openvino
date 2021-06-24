@@ -22,25 +22,6 @@ namespace
         float score;
     };
 
-//     struct Indexer4d {
-//         int64_t dim3_;
-//         int64_t dim23_;
-//         int64_t dim123_;
-//
-//         explicit Indexer4d(int64_t dim0, int64_t dim1, int64_t dim2, int64_t dim3)
-//             : dim3_{dim3}
-//             , dim23_{dim2 * dim3}
-//             , dim123_{dim1 * dim2 * dim3}
-//         {
-//             (void)dim0;
-//         }
-//
-//         int64_t operator()(int64_t i, int64_t j, int64_t k, int64_t n) const
-//         {
-//             return  i * dim123_ + j * dim23_ + k * dim3_ + n;
-//         }
-//     };
-
     void refine_anchors(const float* deltas,
                         const float* scores,
                         const float* anchors,
@@ -55,10 +36,6 @@ namespace
                         const float max_delta_log_wh,
                         float coordinates_offset)
     {
-//         Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
-//         Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
-//         Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 5);
-//         Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
         int64_t bottom_area = bottom_H * bottom_W;
 
         for (int64_t h = 0; h < bottom_H; ++h)
@@ -67,41 +44,22 @@ namespace
             {
                 int64_t a_idx = (h * bottom_W + w) * anchors_num * 4;
                 int64_t p_idx = (h * bottom_W + w) * anchors_num * 5;
-//                 int64_t a_idx = h * bottom_W * anchors_num * 4 + w * anchors_num * 4;
-//                 int64_t p_idx = h * bottom_W * anchors_num * 5 + w * anchors_num * 5;
                 int64_t sc_idx = h * bottom_W + w;
                 int64_t d_idx = h * bottom_W + w;
 
                 for (int64_t anchor = 0; anchor < anchors_num; ++anchor)
                 {
-//                     int64_t a_idx = anchor_idx(h, w, anchor, 0);
-//                     int64_t a_idx = h * bottom_W * anchors_num * 4 + w * anchors_num * 4 + anchor * 4;
                     float x0 = anchors[a_idx + 0];
                     float y0 = anchors[a_idx + 1];
                     float x1 = anchors[a_idx + 2];
                     float y1 = anchors[a_idx + 3];
 
-//                     int64_t d_idx = anchor * (4 * bottom_H * bottom_W) + h * bottom_W + w;
                     const float dx = deltas[d_idx + 0 * bottom_area];
                     const float dy = deltas[d_idx + 1 * bottom_area];
                     const float d_log_w = deltas[d_idx + 2 * bottom_area];
                     const float d_log_h = deltas[d_idx + 3 * bottom_area];
-//                     const float dx = deltas[d_idx + 0 * (bottom_H * bottom_W)];
-//                     const float dy = deltas[d_idx + 1 * (bottom_H * bottom_W)];
-//                     const float d_log_w = deltas[d_idx + 2 * (bottom_H * bottom_W)];
-//                     const float d_log_h = deltas[d_idx + 3 * (bottom_H * bottom_W)];
-//                     const float dx = deltas[anchor * (4 * bottom_H * bottom_W) + 0 * (bottom_H * bottom_W) + h * (bottom_W) + w];
-//                     const float dy = deltas[anchor * (4 * bottom_H * bottom_W) + 1 * (bottom_H * bottom_W) + h * (bottom_W) + w];
-//                     const float d_log_w = deltas[anchor * (4 * bottom_H * bottom_W) + 2 * (bottom_H * bottom_W) + h * (bottom_W) + w];
-//                     const float d_log_h = deltas[anchor * (4 * bottom_H * bottom_W) + 3 * (bottom_H * bottom_W) + h * (bottom_W) + w];
-//                     const float dx = deltas[delta_idx(anchor, 0, h, w)];
-//                     const float dy = deltas[delta_idx(anchor, 1, h, w)];
-//                     const float d_log_w = deltas[delta_idx(anchor, 2, h, w)];
-//                     const float d_log_h = deltas[delta_idx(anchor, 3, h, w)];
 
-//                     int64_t sc_idx = anchor * (1 * bottom_H * bottom_W) + 0 * (bottom_H * bottom_W) + h * bottom_W + w;
                     const float score = scores[sc_idx];
-//                     const float score = scores[score_idx(anchor, 0, h, w)];
 
                     // width & height of box
                     const float ww = x1 - x0 + coordinates_offset;
@@ -134,8 +92,6 @@ namespace
                     const float box_w = x1 - x0 + coordinates_offset;
                     const float box_h = y1 - y0 + coordinates_offset;
 
-//                     int64_t p_idx = proposal_idx(h, w, anchor, 0);
-//                     int64_t p_idx = h * bottom_W * anchors_num * 5 + w * anchors_num * 5 + anchor * 5;
                     proposals[p_idx + 0] = x0;
                     proposals[p_idx + 1] = y0;
                     proposals[p_idx + 2] = x1;
@@ -165,14 +121,14 @@ namespace
     }
 
     void nms_cpu(const int64_t num_boxes,
-                int64_t is_dead[],
-                const float* boxes,
-                int64_t index_out[],
-                int64_t* const num_out,
-                const int64_t base_index,
-                const float nms_thresh,
-                const int64_t max_num_out,
-                float coordinates_offset)
+                 int64_t is_dead[],
+                 const float* boxes,
+                 int64_t index_out[],
+                 int64_t* const num_out,
+                 const int64_t base_index,
+                 const float nms_thresh,
+                 const int64_t max_num_out,
+                 float coordinates_offset)
     {
         const int64_t num_proposals = num_boxes;
         int64_t count = 0;
@@ -214,29 +170,31 @@ namespace
                 const float x1 = std::min(x1i, x1j);
                 const float y1 = std::min(y1i, y1j);
 
-                const float width = x1 -  x0 + coordinates_offset;
-                const float height = y1 -  y0 + coordinates_offset;
+                const float width = x1 - x0 + coordinates_offset;
+                const float height = y1 - y0 + coordinates_offset;
                 const float area = std::max(0.0f, width) * std::max(0.0f, height);
 
                 const float b_width = x1j - x0j;
                 const float b_height = y1j - y0j;
-                const float b_area = (b_width + coordinates_offset) * (b_height + coordinates_offset);
+                const float b_area =
+                    (b_width + coordinates_offset) * (b_height + coordinates_offset);
 
                 const float intersection_area = area / (a_area + b_area - area);
 
-                is_dead[tail] = (nms_thresh < intersection_area) && (x0i <= x1j) && (y0i <= y1j) && (x0j <= x1i) && (y0j <= y1i);
+                is_dead[tail] = (nms_thresh < intersection_area) && (x0i <= x1j) && (y0i <= y1j) &&
+                                (x0j <= x1i) && (y0j <= y1i);
             }
         }
         *num_out = count;
     }
 
     void fill_output_blobs(const float* proposals,
-                        const int64_t* roi_indices,
-                        float* rois,
-                        float* scores,
-                        const int64_t num_proposals,
-                        const int64_t num_rois,
-                        const int64_t post_nms_topn)
+                           const int64_t* roi_indices,
+                           float* rois,
+                           float* scores,
+                           const int64_t num_proposals,
+                           const int64_t num_rois,
+                           const int64_t post_nms_topn)
     {
         const float* src_x0 = proposals + 0 * num_proposals;
         const float* src_y0 = proposals + 1 * num_proposals;
@@ -309,7 +267,6 @@ namespace ngraph
                 // number of all proposals = num_anchors * H * W
                 const int64_t num_proposals = anchors_num * bottom_H * bottom_W;
 
-
                 // number of top-n proposals before NMS
                 const int64_t pre_nms_topn = std::min(num_proposals, attrs.pre_nms_count);
 
@@ -323,7 +280,7 @@ namespace ngraph
                 refine_anchors(deltas,
                                scores,
                                anchors,
-                               reinterpret_cast<float *>(proposals.data()),
+                               reinterpret_cast<float*>(proposals.data()),
                                anchors_num,
                                bottom_H,
                                bottom_W,
@@ -340,7 +297,7 @@ namespace ngraph
                                       return (struct1.score > struct2.score);
                                   });
 
-                unpack_boxes(reinterpret_cast<float *>(proposals.data()),
+                unpack_boxes(reinterpret_cast<float*>(proposals.data()),
                              unpacked_boxes.data(),
                              pre_nms_topn);
 
