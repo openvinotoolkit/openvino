@@ -206,7 +206,7 @@ int numChannels(InferenceEngine::ColorFormat fmt) {
 
 // FIXME: Copy-paste from cropRoi tests
 template <InferenceEngine::Precision::ePrecision PRC>
-InferenceEngine::Blob::Ptr img2Blob(cv::Mat &img, InferenceEngine::Layout layout) {
+InferenceEngine::Blob::Ptr img2Blob(cv::Mat &img, InferenceEngine::Layout layout, size_t batch_size = 1) {
     using namespace InferenceEngine;
     using data_t = typename PrecisionTrait<PRC>::value_type;
 
@@ -216,7 +216,7 @@ InferenceEngine::Blob::Ptr img2Blob(cv::Mat &img, InferenceEngine::Layout layout
 
     CV_Assert(cv::DataType<data_t>::depth == img.depth() || (PRC == Precision::FP16 && img.depth() == CV_16F));
 
-    SizeVector dims = {1, channels, height, width};
+    SizeVector dims = {batch_size, channels, height, width};
     Blob::Ptr resultBlob = make_shared_blob<data_t>(TensorDesc(PRC, dims, layout));;
     resultBlob->allocate();
 
@@ -975,7 +975,8 @@ TEST_P(ColorConvertYUV420TestIE, AccuracyTest)
     auto out_layout = Layout::ANY;
     cv::Size size;
     double tolerance = 0.0;
-    std::tie(in_fmt, out_layout, size, tolerance) = GetParam();
+    size_t repetitions = 0;
+    std::tie(in_fmt, out_layout, size, tolerance, repetitions) = GetParam();
 
     cv::Mat in_mat_y(size, CV_MAKE_TYPE(depth, 1));
     cv::Mat in_mat_uv(cv::Size(size.width / 2, size.height / 2), CV_MAKE_TYPE(depth, 2));
@@ -1033,12 +1034,120 @@ TEST_P(ColorConvertYUV420TestIE, AccuracyTest)
 
 #if PERF_TEST
     // iterate testing, and print performance
+    test_ms([&](){
+        for (size_t i = 0; i < repetitions; i++) preprocess->execute(out_blob, info, false);
+        },
+        100, "Color Convert IE %s %s %s %dx%d %s->%s rep: %zu",
+        depthToString(depth).c_str(),
+        layoutToString(in_layout).c_str(), layoutToString(out_layout).c_str(),
+        size.width, size.height,
+        colorFormatToString(in_fmt).c_str(), colorFormatToString(out_fmt).c_str(),
+        repetitions);
+#endif
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        //for both I420 and NV12 use NV12 as I420 is not supported by OCV
+        cv::cvtColorTwoPlane(in_mat_y, in_mat_uv, out_mat_ocv, toCvtColorCode(ColorFormat::NV12, out_fmt));
+    }
+
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_LE(cv::norm(out_mat_ocv, out_mat, cv::NORM_INF), tolerance);
+    }
+}
+
+TEST_P(ColorConvertYUV420BatchedTestIE, AccuracyTest)
+{
+    using namespace InferenceEngine;
+    const int depth = CV_8U;
+    auto in_fmt = ColorFormat::NV12;
+    const auto out_fmt = ColorFormat::BGR;  // for now, always BGR
+    const auto in_layout = Layout::NCHW;
+    auto out_layout = Layout::ANY;
+    cv::Size size;
+    double tolerance = 0.0;
+    size_t batch_size = 0;
+    std::tie(in_fmt, out_layout, size, tolerance, batch_size) = GetParam();
+
+    cv::Mat in_mat_y(size, CV_MAKE_TYPE(depth, 1));
+    cv::Mat in_mat_uv(cv::Size(size.width / 2, size.height / 2), CV_MAKE_TYPE(depth, 2));
+    cv::Scalar mean = cv::Scalar::all(127);
+    cv::Scalar stddev = cv::Scalar::all(40.f);
+
+    cv::randn(in_mat_y, mean, stddev);
+    cv::randn(in_mat_uv, mean / 2, stddev / 2);
+
+    int out_type = CV_MAKE_TYPE(depth, numChannels(out_fmt));
+    cv::Mat out_mat(size, out_type);
+    cv::Mat out_mat_ocv(size, out_type);
+
+    // Inference Engine code ///////////////////////////////////////////////////
+
+    size_t out_channels = out_mat.channels();
+    CV_Assert(3 == out_channels || 4 == out_channels);
+
+    ASSERT_TRUE(in_mat_y.isContinuous() && out_mat.isContinuous());
+
+    const Precision precision = Precision::U8;
+
+    auto make_nv12_blob = [&](){
+        auto y_blob = img2Blob<Precision::U8>(in_mat_y, Layout::NHWC);
+        auto uv_blob = img2Blob<Precision::U8>(in_mat_uv, Layout::NHWC);
+        return make_shared_blob<NV12Blob>(y_blob, uv_blob);
+
+    };
+    auto make_I420_blob = [&](){
+        cv::Mat in_mat_u(cv::Size(size.width / 2, size.height / 2), CV_MAKE_TYPE(depth, 1));
+        cv::Mat in_mat_v(cv::Size(size.width / 2, size.height / 2), CV_MAKE_TYPE(depth, 1));
+
+        std::array<cv::Mat, 2> in_uv = {in_mat_u, in_mat_v};
+        cv::split(in_mat_uv, in_uv);
+
+        auto y_blob = img2Blob<Precision::U8>(in_mat_y, Layout::NHWC);
+        auto u_blob = img2Blob<Precision::U8>(in_mat_u, Layout::NHWC);
+        auto v_blob = img2Blob<Precision::U8>(in_mat_v, Layout::NHWC);
+        return make_shared_blob<I420Blob>(y_blob, u_blob, v_blob);
+    };
+
+    Blob::Ptr in_blob;
+    if (batch_size != 1)
+    {
+        std::vector<Blob::Ptr> in_blob_array;
+        in_blob_array.reserve(batch_size);
+        for (int blob_batched_index = 0; blob_batched_index < batch_size; blob_batched_index++) {
+
+            in_blob_array.push_back((in_fmt == ColorFormat::NV12) ?  Blob::Ptr{make_nv12_blob()} :  Blob::Ptr {make_I420_blob()});
+        }
+        in_blob = make_shared_blob<BatchedBlob>(std::move(in_blob_array));
+    }
+    else
+    {
+        in_blob = (in_fmt == ColorFormat::NV12) ?  Blob::Ptr{make_nv12_blob()} :  Blob::Ptr {make_I420_blob()};
+    }
+
+    auto out_blob = img2Blob<Precision::U8>(out_mat, out_layout, batch_size);
+
+    PreProcessDataPtr preprocess = CreatePreprocDataHelper();
+    preprocess->setRoiBlob(in_blob);
+
+    PreProcessInfo info;
+    info.setColorFormat(in_fmt);
+
+    // test once to warm-up cache
+    preprocess->execute(out_blob, info, false);
+
+    Blob2Img<Precision::U8>(out_blob, out_mat, out_layout);
+
+#if PERF_TEST
+    // iterate testing, and print performance
     test_ms([&](){ preprocess->execute(out_blob, info, false); },
-            100, "Color Convert IE %s %s %s %dx%d %s->%s",
+            100, "Color Convert IE %s %s %s %dx%d %s->%s batch: %zu",
             depthToString(depth).c_str(),
             layoutToString(in_layout).c_str(), layoutToString(out_layout).c_str(),
             size.width, size.height,
-            colorFormatToString(in_fmt).c_str(), colorFormatToString(out_fmt).c_str());
+            colorFormatToString(in_fmt).c_str(), colorFormatToString(out_fmt).c_str(),
+            batch_size);
 #endif
 
     // OpenCV code /////////////////////////////////////////////////////////////
@@ -1371,4 +1480,3 @@ TEST_P(MeanValueGAPI, AccuracyTest)
     }
 
 }
-
