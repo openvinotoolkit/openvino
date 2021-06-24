@@ -124,6 +124,7 @@ source_group("${__CLDNN_Label__cg_cache}"         FILES ${__CLDNN_Sources__cg_ca
 # ===================================== Include/Link directories =======================================
 
 include_directories(
+    "${CLDNN__MAIN_DIR}"
     "${__CLDNN_Directory__main}"
     "${__CLDNN_Directory__core}"
     "${__CLDNN_Directory__core}/common"
@@ -142,9 +143,12 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
+if(COMMAND add_cpplint_target)
+  add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")
+endif()
 
 target_link_libraries("${CLDNN_BUILD__PROJ}"
-    clDNN_OpenCL
+    OpenCL
   )
 
 if(WIN32)

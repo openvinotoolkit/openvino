@@ -10,9 +10,7 @@
 #include <memory>
 #include <fstream>
 #include <ngraph/variant.hpp>
-#include <hetero/hetero_plugin_config.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <ngraph/op/util/op_types.hpp>
 
 #include "common_test_utils/file_utils.hpp"
@@ -62,6 +60,7 @@ namespace BehaviorTestsDefinitions {                                            
         GTEST_SKIP();                                                           \
     }                                                                           \
 }
+
 
 class IEClassBasicTestP : public ::testing::Test, public WithParamInterface<std::pair<std::string, std::string> > {
 protected:
@@ -426,7 +425,16 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
 
     if (deviceName == CommonTestUtils::DEVICE_CPU ||
         deviceName == CommonTestUtils::DEVICE_GPU) {
-        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplemented);
+        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NetworkNotRead);
+
+        const std::string modelName = "compiled_blob.blob";
+        {
+            std::ofstream file(modelName);
+            file << "content";
+        }
+
+        EXPECT_THROW(ie.ImportNetwork(modelName, deviceName), NotImplemented);
+        ASSERT_EQ(0, std::remove(modelName.c_str()));
     }
 }
 
@@ -434,13 +442,13 @@ TEST(IEClassBasicTest, smoke_ImportNetworkHeteroThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
 
-    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_HETERO), Exception);
+    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_HETERO), NetworkNotRead);
 }
 
 TEST(IEClassBasicTest, smoke_ImportNetworkMultiThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core ie;
-    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_MULTI), Exception);
+    ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_MULTI), NetworkNotRead);
 }
 
 TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
@@ -476,19 +484,18 @@ TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
 //
 // ImportExportNetwork
 //
-TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowIfNoDeviceName) {
+
+TEST_P(IEClassImportExportTestP, smoke_ImportNetworkThrowsIfNoDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    if (!strm.str().empty()) {
-        SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
-    }
-    if (executableNetwork) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.Export(strm));
+
+    IE_SUPPRESS_DEPRECATED_START
+    ASSERT_THROW(executableNetwork = ie.ImportNetwork(strm), Exception);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
@@ -497,11 +504,9 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
-    if (executableNetwork) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.Export(strm));
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
 TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
@@ -511,18 +516,16 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
     std::string fileName{"ExportedNetwork"};
     {
         ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(simpleNetwork, deviceName));
-        SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(fileName));
+        ASSERT_NO_THROW(executableNetwork.Export(fileName));
     }
-    if (CommonTestUtils::fileExists(fileName)) {
+    {
         {
             std::ifstream strm(fileName);
-            SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
+            ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
         }
         ASSERT_EQ(0, remove(fileName.c_str()));
     }
-    if (executableNetwork) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
 //
@@ -1241,7 +1244,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
         if (deviceIDs.empty())
             GTEST_SKIP();
         ASSERT_NO_THROW(ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO,
-                                        {{"TARGET_FALLBACK", deviceName + "." + deviceIDs[0] + "," + CommonTestUtils::DEVICE_CPU}}));
+                                        {{"TARGET_FALLBACK", deviceName + "." + deviceIDs[0] + "," + deviceName}}));
     } else {
         GTEST_SKIP();
     }
@@ -1291,7 +1294,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO,
-                                     {{"TARGET_FALLBACK", deviceName + ".100," + CommonTestUtils::DEVICE_CPU}}), Exception);
+                                     {{"TARGET_FALLBACK", deviceName + ".100," + deviceName}}), Exception);
     } else {
         GTEST_SKIP();
     }
@@ -1308,7 +1311,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
         auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
         if (deviceIDs.empty())
             GTEST_SKIP();
-        std::string heteroDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName + "." + deviceIDs[0] + "," + CommonTestUtils::DEVICE_CPU;
+        std::string heteroDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName + "." + deviceIDs[0] + "," + deviceName;
         ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork, heteroDevice));
     } else {
         GTEST_SKIP();
@@ -1392,7 +1395,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
                 devices += ',';
             }
         }
-        std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + CommonTestUtils::DEVICE_CPU);
+        std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + deviceName);
         ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 {"TARGET_FALLBACK",                   targetFallback}}));
@@ -1416,7 +1419,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
         }
         ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork, CommonTestUtils::DEVICE_MULTI, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-                {"TARGET_FALLBACK",                   deviceName + "," + CommonTestUtils::DEVICE_CPU}}));
+                {"TARGET_FALLBACK",                   deviceName + "," + deviceName}}));
     } else {
         GTEST_SKIP();
     }
@@ -1446,7 +1449,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
             expectedLayers.emplace(node->get_friendly_name());
         }
         QueryNetworkResult result;
-        std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + CommonTestUtils::DEVICE_CPU);
+        std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + deviceName);
         ASSERT_NO_THROW(result = ie.QueryNetwork(multinputNetwork, CommonTestUtils::DEVICE_HETERO, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 {"TARGET_FALLBACK",                   targetFallback}}));
@@ -1483,7 +1486,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         QueryNetworkResult result;
         ASSERT_NO_THROW(result = ie.QueryNetwork(multinputNetwork, CommonTestUtils::DEVICE_MULTI, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-                {"TARGET_FALLBACK",                   deviceName + "," + CommonTestUtils::DEVICE_CPU}}));
+                {"TARGET_FALLBACK",                   deviceName + "," + deviceName}}));
 
         std::unordered_set<std::string> actualLayers;
         for (auto &&layer : result.supportedLayersMap) {

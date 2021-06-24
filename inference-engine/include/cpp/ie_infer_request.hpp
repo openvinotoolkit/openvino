@@ -22,6 +22,10 @@ namespace InferenceEngine {
 
 class IInferRequestInternal;
 
+namespace details {
+class ICompletionCallbackWrapper;
+}  // namespace details
+
 /**
  * @copybrief IInferRequest
  *
@@ -29,8 +33,8 @@ class IInferRequestInternal;
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 class INFERENCE_ENGINE_API_CLASS(InferRequest) {
-    details::SharedObjectLoader              _so;
-    std::shared_ptr<IInferRequestInternal>   _impl;
+    details::SharedObjectLoader                          _so;
+    std::shared_ptr<IInferRequestInternal>               _impl;
 
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr

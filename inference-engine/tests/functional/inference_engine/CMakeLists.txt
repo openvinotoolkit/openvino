@@ -65,8 +65,6 @@ file(GLOB_RECURSE legacy_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/lp_transformations/*.cpp" # CVS-55376
     "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
     "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
-    "${CMAKE_CURRENT_SOURCE_DIR}/core_threading_tests.cpp" # CVS-55257
-    "${CMAKE_CURRENT_SOURCE_DIR}/caching_test.cpp" # CVS-55257
     "${CMAKE_CURRENT_SOURCE_DIR}/local_test.cpp" # CVS-55386
     )
 
@@ -105,7 +103,7 @@ function(ie_headers_compilation_with_custom_flags)
     endif()
 
     if(NOT IE_TEST_PLUGIN_API)
-        if(NOT CLDNN__OCL_ICD_INCDIRS)
+        if(NOT OPENCL_HEADERS_DIR)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                 "gpu/gpu_context_api_ocl.hpp"
                                                 "gpu/gpu_context_api_va.hpp"
@@ -158,8 +156,8 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         # OpenCL headers if any
-        if(CLDNN__OCL_ICD_INCDIRS)
-            target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__OCL_ICD_INCDIRS})
+        if(OPENCL_HEADERS_DIR)
+            target_include_directories(${target_name} SYSTEM PRIVATE ${OPENCL_HEADERS_DIR})
         endif()
     endif()
 

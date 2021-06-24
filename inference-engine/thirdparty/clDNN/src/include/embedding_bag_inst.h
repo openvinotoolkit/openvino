@@ -4,9 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/embedding_bag.hpp"
-
+#include "cldnn/primitives/embedding_bag.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

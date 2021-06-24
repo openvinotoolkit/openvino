@@ -57,6 +57,7 @@ namespace sqrtop
             NGRAPH_TYPE_CASE(evaluate_sqrt, u64, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_sqrt, f16, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_sqrt, f32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sqrt, f64, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -67,4 +68,21 @@ bool op::Sqrt::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 {
     NGRAPH_OP_SCOPE(v0_Sqrt_evaluate);
     return sqrtop::evaluate_sqrt(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+}
+
+bool op::Sqrt::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Sqrt_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64: return true;
+    default: break;
+    }
+    return false;
 }

@@ -151,7 +151,7 @@ const auto shuffleChannelsParams5D = ::testing::Combine(
         ::testing::ValuesIn(std::vector<int>{1, 2, 3, 6})
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
                 shuffleChannelsParams4D,
@@ -165,7 +165,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerCPUTest,
             ::testing::ValuesIn(filterCPUInfoForDevice4D())),
         ShuffleChannelsLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
                 shuffleChannelsParams5D,
@@ -189,7 +189,7 @@ const auto shuffleChannelsParams5DBlock = ::testing::Combine(
         ::testing::ValuesIn(std::vector<int>{1, 2, 3, 6})
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4DBlock, ShuffleChannelsLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels4DBlock, ShuffleChannelsLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
                 shuffleChannelsParams4DBlock,
@@ -203,7 +203,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4DBlock, ShuffleChannelsLayerCPUTes
             ::testing::ValuesIn(filterCPUInfoForDevice4DBlock())),
         ShuffleChannelsLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels5DBlock, ShuffleChannelsLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels5DBlock, ShuffleChannelsLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
                 shuffleChannelsParams5DBlock,

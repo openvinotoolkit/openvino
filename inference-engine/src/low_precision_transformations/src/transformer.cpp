@@ -77,10 +77,12 @@ namespace low_precision {
 
 LowPrecisionTransformations::LowPrecisionTransformations(
     const std::map<std::string, LayerTransformationPtr>& branchSpecificTransformations,
+    const std::map<std::string, LayerTransformationPtr>& decompositionTransformations,
     const std::map<std::string, LayerTransformationPtr>& transformations,
     const std::map<std::string, std::vector<std::pair<std::string, LayerTransformationPtr>>>& cleanupTransformations,
     const std::vector<StandaloneCleanup>& standaloneCleanupTransformations) :
     branchSpecificTransformations(branchSpecificTransformations),
+    decompositionTransformations(decompositionTransformations),
     transformations(transformations),
     cleanupTransformations(cleanupTransformations),
     standaloneCleanupTransformations(standaloneCleanupTransformations) {}
@@ -261,7 +263,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
     return transformer;
 }
 
-bool LowPrecisionTransformer::isFunctionQuantized(const std::shared_ptr<Function>& function) {
+bool LowPrecisionTransformer::isFunctionQuantized(const std::shared_ptr<const Function>& function) {
     std::set<std::shared_ptr<Node>> handledNodes;
     std::deque<std::shared_ptr<Node>> nodes;
     for (auto result : function->get_results()) {

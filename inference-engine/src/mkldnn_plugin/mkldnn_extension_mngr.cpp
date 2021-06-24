@@ -11,7 +11,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-void MKLDNNExtensionManager::AddExtension(IExtensionPtr extension) {
+void MKLDNNExtensionManager::AddExtension(const IExtensionPtr& extension) {
     _extensions.push_back(extension);
 }
 

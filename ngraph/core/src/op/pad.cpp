@@ -233,3 +233,9 @@ bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVect
     NGRAPH_OP_SCOPE(v1_Pad_evaluate);
     return evaluate_pad(outputs, inputs);
 }
+
+bool op::v1::Pad::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Pad_has_evaluate);
+    return true;
+}

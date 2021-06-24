@@ -30,8 +30,3 @@ addIeTargetTest(
         LABELS
             CPU
 )
-
-# CVS-55352
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/bfloat16/memory_conv.cpp"
-    PROPERTIES INCLUDE_DIRECTORIES
-    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)

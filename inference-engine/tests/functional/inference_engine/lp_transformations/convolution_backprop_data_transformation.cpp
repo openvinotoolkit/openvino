@@ -116,6 +116,7 @@ public:
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation, ngraph::opset1::Convolution>(testValues.params);
         transform.transform(actualFunction);
+
         std::shared_ptr<Node> refWeights = pass::low_precision::fold<opset1::Broadcast>(
                 testValues.expected.weights,
                 opset1::Constant::create(
@@ -202,6 +203,26 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             true
         }
     },
+    // with zero point
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, { 128.f }, { 0.02f }},
+            { 255ul, Shape({}), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{}, { { 128.f }, ngraph::element::f32, {}, false }, {}},
+            {},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1 }}},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            true
+        }
+    },
     // updatePrecisions = false
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
@@ -258,6 +279,26 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             {},
             {},
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            true
+        }
+    },
+    // without zero point
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            { 255ul, Shape({}), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            {},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1 }}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             true
         }
@@ -322,9 +363,89 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             true
         }
     },
+    // per-channel dequantization on weights
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            { 255ul, Shape({ 1, 2, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            {},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 2, 1, 1 }}},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            true
+        }
+    },
+    // QDq version
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            {{ngraph::element::f32}, {}, { std::vector<float>{0.01f, 0.01f} }},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            {},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 2, 1, 1 }}},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            true
+        }
+    },
+    // issue #56886: unsupported per-batch dequantization on weights
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            { 255ul, Shape({ 8, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            {},
+            {},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -1.25f }),
+            true
+        }
+    },
+    // QDq version
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            {{ngraph::element::f32}, {}, { std::vector<float>{0.01f}, ngraph::element::f32, {8, 1, 1, 1} }},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            {},
+            {},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 0.02f }),
+            true
+        }
+    },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConvolutionBackpropDataTransformation,
     ::testing::Combine(

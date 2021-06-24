@@ -21,10 +21,10 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_infer_request.hpp"
 #include "details/ie_so_loader.h"
+#include "ie_iexecutable_network.hpp"
 
 namespace InferenceEngine {
 class IExecutableNetworkInternal;
-class IExecutableNetwork;
 
 /**
  * @brief This is an interface of an executable network

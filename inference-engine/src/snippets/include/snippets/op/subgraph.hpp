@@ -10,6 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/op/op.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "snippets/generator.hpp"
 
@@ -24,6 +25,47 @@ namespace op {
  */
 class TRANSFORMATIONS_API Subgraph : public ngraph::op::Op {
 public:
+    // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
+    // should be:
+    // A = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 1>
+    // B = < 1,  1, 17, 15> -> < 1, 1, 17, 15, 16> < 0, 1, 2, 3, 1>
+    // D = < 1, 42,  1, 1 > -> < 1, 3,  1,  1, 16> < 0, 1, 2, 3, 1> ???
+    // C = A + B
+    // C = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 1>
+    //
+    // how it works now (multi-demention broadcast):
+    // [BroadcastLoad] doesn't perform post increment
+    // [Load] performs += vlan
+    // [ScalarLoad] performs += 1
+    // A = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 1>
+    // B = < 1,  1, 17, 15> -> < 1, 1, 17, 15,  1> < 0, 1, 2, 3, 1>
+    // [A]     [B]
+    // [Load]  [ScalarLoad] <- should consider AxisVector to choose right type of load
+    //         [Broadcast]
+    //   [Add]
+    //  [Store]
+    //    [C]
+    // C = A + B
+    // C = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 1>
+    //
+    // Multiple-dimension broadcasts support?
+    // A = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 4>
+    // B = < 1,  1, 17, 15> -> < 1, 1, 17, 15,  1> < 0, 1, 2, 3, 4>
+    //
+    // A = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 4>
+    // B = < 1,  1, 17, 15> -> < 1, 3, 17, 15,  1> < 0, 1, 2, 3, 4>
+    //
+    // Collapse moat varying dimensions with broadcast
+    // A = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 1>
+    // B = < 1,  1, 17, 15> -> < 1, 3, 17, 15,  1> < 0, 1, 2, 3, 1>
+    //
+    // Collapse for mixed broadcast
+    // A = < 1, 3, 17, 15, 32> < 0, 1, 2, 3, 4>
+    // B = < 1, 3, 17,  1, 32> < 0, 1, 2, 3, 4>
+    // C = < 1, 3,  1, 15, 32> < 0, 1, 2, 3, 4>
+    //
+    // D = < 1, 3, 17, 15, 32> < 0, 1, 2, 3, 4>
+    // E = < 1, 3, 17,  1, 32> < 0, 1, 2, 3, 4>
     using BlockedShape = std::tuple<ngraph::Shape, ngraph::AxisVector, ngraph::element::Type>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
@@ -49,7 +91,8 @@ public:
 
     std::shared_ptr<Subgraph> make_canonical_from_this();
 
-    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
+    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
+                                ngraph::pass::Manager opt = ngraph::pass::Manager());
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
 
     /// Set a new body for the op; body needs to satisfy requirements on inputs/outputs
@@ -61,6 +104,8 @@ public:
 
     void print() const;
     void print_statistics(bool verbose);
+
+    void serialize() const;
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
 

@@ -157,10 +157,15 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         }
 
         const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
-        if ( // Check if all dimensions of scale except the output channels are all ones
+        if (
+            // expected, it's ok: return true
+            (shape_size(constOutputShape) != 1ul) &&
+            // not expected, something wrong: return false
+            ((constOutputShape.size() <= outChannelsShapeIndex) ||
+            // Check if all dimensions of scale except the output channels are all ones
             (shape_size(constOutputShape) != constOutputShape[outChannelsShapeIndex]) ||
             ((constOutputShape[outChannelsShapeIndex] != 1ul) &&
-                (fqFromWeights->get_output_shape(0)[outChannelsShapeIndex] != constOutputShape[outChannelsShapeIndex]))) {
+                (fqFromWeights->get_output_shape(0)[outChannelsShapeIndex] != constOutputShape[outChannelsShapeIndex])))) {
             return false;
         }
     } else {
@@ -185,6 +190,20 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         if ((dequantizationOnWeights.subtract != nullptr) && (dequantizationOnWeights.subtractConvert != nullptr)) {
             const auto subtractConstantType = dequantizationOnWeights.subtractConstant->output(0).get_element_type();
             if (subtractConstantType != weightsDataPrecision) {
+                return false;
+            }
+        }
+
+        const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
+        if (dequantizationOnWeights.subtract) {
+            const auto subConstShape = dequantizationOnWeights.subtractConstant->get_shape();
+            if (shape_size(subConstShape) > 1ul && shape_size(subConstShape) != subConstShape[outChannelsShapeIndex]) {
+                return false;
+            }
+        }
+        if (dequantizationOnWeights.multiply) {
+            const auto mulConstShape = dequantizationOnWeights.multiplyConstant->get_shape();
+            if (shape_size(mulConstShape) > 1ul && shape_size(mulConstShape) != mulConstShape[outChannelsShapeIndex]) {
                 return false;
             }
         }
@@ -228,6 +247,20 @@ bool WeightableLayerTransformation::isQuantized(std::shared_ptr<Node> layer, boo
         if ((dequantizationOnWeights.subtract != nullptr) && (dequantizationOnWeights.subtractConvert != nullptr)) {
             const auto subtractConstantType = dequantizationOnWeights.subtractConstant->output(0).get_element_type();
             if (subtractConstantType != weightsDataPrecision) {
+                return false;
+            }
+        }
+
+        const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
+        if (dequantizationOnWeights.subtract) {
+            const auto subConstShape = dequantizationOnWeights.subtractConstant->get_shape();
+            if (shape_size(subConstShape) > 1ul && shape_size(subConstShape) != subConstShape[outChannelsShapeIndex]) {
+                return false;
+            }
+        }
+        if (dequantizationOnWeights.multiply) {
+            const auto mulConstShape = dequantizationOnWeights.multiplyConstant->get_shape();
+            if (shape_size(mulConstShape) > 1ul && shape_size(mulConstShape) != mulConstShape[outChannelsShapeIndex]) {
                 return false;
             }
         }
