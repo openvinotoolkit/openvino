@@ -78,26 +78,24 @@ TEST_P(ctor_test, basic) {
         return;
     }
     try {
-        cl::UsmMemory mem(_device->get_context());
-        auto cl_dev = _device->get_device();
+        cl::UsmMemory mem(_engine->get_usm_helper());
         switch (p.type) {
         case allocation_type::usm_host: {
             mem.allocateHost(1);
             break;
         }
         case allocation_type::usm_shared: {
-            mem.allocateShared(cl_dev, 1);
+            mem.allocateShared(1);
             break;
         }
         case allocation_type::usm_device: {
-            mem.allocateDevice(cl_dev, 1);
+            mem.allocateDevice(1);
             break;
         }
         default:
             FAIL() << "Not supported allocation type!";
         }
         ASSERT_NE(nullptr, mem.get());
-        ASSERT_EQ(mem.use_count(), 1);
     }
     catch (...) {
         FAIL() << "Test failed, ctor of usm mems failed.";
@@ -192,19 +190,20 @@ TEST_P(fill_buffer, DISABLED_basic) {
     try {
         ocl::ocl_stream stream(*_engine);
         auto queue = stream.get_cl_queue();
+        auto usm_helper = stream.get_usm_helper();
 
         size_t values_count = 100;
         size_t values_bytes_count = values_count * sizeof(float);
-        cl::UsmMemory mem(_device->get_context());
+        cl::UsmMemory mem(usm_helper);
         switch (p.type) {
         case allocation_type::usm_host:
             mem.allocateHost(values_bytes_count);
             break;
         case allocation_type::usm_shared:
-            mem.allocateShared(_device->get_device(), values_bytes_count);
+            mem.allocateShared(values_bytes_count);
             break;
         case allocation_type::usm_device:
-            mem.allocateDevice(_device->get_device(), values_bytes_count);
+            mem.allocateDevice(values_bytes_count);
             break;
         default:
             FAIL() << "Not supported allocation type!";
@@ -212,9 +211,11 @@ TEST_P(fill_buffer, DISABLED_basic) {
         // Fill buffer !! This can fail with old driver, which does not support fill usm api.
         cl::Event ev;
         unsigned char pattern = 0;
-        queue.enqueueFillUsm<unsigned char>(
-            mem,
-            pattern,
+        usm_helper.enqueue_fill_mem(
+            queue,
+            mem.get(),
+            static_cast<const void*>(&pattern),
+            sizeof(unsigned char),
             values_bytes_count,
             nullptr,
             &ev
@@ -232,11 +233,12 @@ TEST_P(fill_buffer, DISABLED_basic) {
             break;
         }
         case allocation_type::usm_device: {
-            cl::UsmMemory host_mem(_device->get_context());
+            cl::UsmMemory host_mem(usm_helper);
             host_mem.allocateHost(values_bytes_count);
-            queue.enqueueCopyUsm(
-                mem,
-                host_mem,
+            usm_helper.enqueue_memcpy(
+                queue,
+                host_mem.get(),
+                mem.get(),
                 values_bytes_count,
                 true
             );
