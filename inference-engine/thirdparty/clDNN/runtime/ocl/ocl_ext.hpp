@@ -44,15 +44,27 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_NUM_SUB_SLICES_PER_SLICE_
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_NUM_EUS_PER_SUB_SLICE_INTEL, cl_uint)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_NUM_THREADS_PER_EU_INTEL, cl_uint)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_FEATURE_CAPABILITIES_INTEL, cl_device_feature_capabilities_intel)
-}
-}
+}  // namespace detail
+}  // namespace cl
 
 #include <memory>
 
 namespace {
 template <typename T>
 T load_entrypoint(const cl_platform_id platform, const std::string name) {
+#if defined(__GNUC__) && __GNUC__ < 5
+// OCL spec says:
+// "The function clGetExtensionFunctionAddressForPlatform returns the address of the extension function named by funcname for a given platform.
+//  The pointer returned should be cast to a function pointer type matching the extension function's definition defined in the appropriate extension
+//  specification and header file."
+// So the pointer-to-object to pointer-to-function cast below is supposed to be valid, thus we suppress warning from old GCC versions.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     T p = reinterpret_cast<T>(clGetExtensionFunctionAddressForPlatform(platform, name.c_str()));
+#if defined(__GNUC__) && __GNUC__ < 5
+#pragma GCC diagnostic pop
+#endif
     if (!p) {
         throw std::runtime_error("clGetExtensionFunctionAddressForPlatform(" + name + ") returned NULL.");
     }
@@ -90,6 +102,24 @@ T load_entrypoint(const cl_context context, const std::string name) {
 }
 
 template <typename T>
+T try_load_entrypoint(const cl_context context, const std::string name) {
+    try {
+        return load_entrypoint<T>(context, name);
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+template <typename T>
+T try_load_entrypoint(const cl_platform_id platform, const std::string name) {
+    try {
+        return load_entrypoint<T>(platform, name);
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+template <typename T>
 T load_entrypoint(const cl_kernel kernel, const std::string name) {
     cl_context context;
     cl_int error = clGetKernelInfo(kernel, CL_KERNEL_CONTEXT, sizeof(context),
@@ -112,102 +142,10 @@ T load_entrypoint(const cl_command_queue queue, const std::string name) {
     }
     return load_entrypoint<T>(context, name);
 }
-} // namespace
+}  // namespace
 
 
 namespace cl {
-namespace usm {
-/*
-A static local variable in an extern inline function always refers to the same object.
-7.1.2/4 - C++98/C++14 (n3797)
-+ Functions are by default extern, unless specified as static.
-*/
-inline void* hostMemAlloc(const cl::Context& cpp_context, const cl_mem_properties_intel *properties, size_t size,
-    cl_uint alignment, cl_int* err_code_ret) {
-    clHostMemAllocINTEL_fn fn = load_entrypoint<clHostMemAllocINTEL_fn>(cpp_context.get(), "clHostMemAllocINTEL");
-    return fn(cpp_context.get(), properties, size, alignment, err_code_ret);
-}
-
-inline void* sharedMemAlloc(const cl::Device& cpp_device, const cl::Context& cpp_context, const cl_mem_properties_intel *properties, size_t size,
-    cl_uint alignment, cl_int* err_code_ret) {
-    clSharedMemAllocINTEL_fn fn = load_entrypoint<clSharedMemAllocINTEL_fn>(cpp_context.get(), "clSharedMemAllocINTEL");
-    return fn(cpp_context.get(), cpp_device.get(), properties, size, alignment, err_code_ret);
-}
-
-inline void* deviceMemAlloc(const cl::Device& cpp_device, const cl::Context& cpp_context, const cl_mem_properties_intel *properties, size_t size,
-    cl_uint alignment, cl_int* err_code_ret) {
-    clDeviceMemAllocINTEL_fn fn = load_entrypoint<clDeviceMemAllocINTEL_fn>(cpp_context.get(), "clDeviceMemAllocINTEL");
-    return fn(cpp_context.get(), cpp_device.get(), properties, size, alignment, err_code_ret);
-}
-
-inline cl_int set_kernel_arg_mem_pointer(const cl::Kernel& kernel, uint32_t index, const void* ptr, clSetKernelArgMemPointerINTEL_fn fn) {
-    return fn(kernel.get(), index, ptr);
-}
-
-inline cl_int enqueue_memcpy(const cl::CommandQueue& cpp_queue, void *dst_ptr, const void *src_ptr,
-    size_t bytes_count, bool blocking = true, const std::vector<cl::Event>* wait_list = nullptr, cl::Event* ret_event = nullptr) {
-    clEnqueueMemcpyINTEL_fn fn = load_entrypoint<clEnqueueMemcpyINTEL_fn>(cpp_queue.get(), "clEnqueueMemcpyINTEL");
-
-    cl_event tmp;
-    cl_int err = fn(
-        cpp_queue.get(),
-        static_cast<cl_bool>(blocking),
-        dst_ptr,
-        src_ptr,
-        bytes_count,
-        wait_list == nullptr ? 0 : static_cast<cl_uint>(wait_list->size()),
-        wait_list == nullptr ? nullptr : (cl_event*)&wait_list->front(),
-        ret_event == nullptr ? nullptr : &tmp);
-
-    if (ret_event != nullptr && err == CL_SUCCESS)
-        *ret_event = tmp;
-
-    return err;
-}
-
-inline cl_int enqueue_fill_mem(const cl::CommandQueue& cpp_queue, void *dst_ptr, const void* pattern,
-    size_t pattern_size, size_t bytes_count, const std::vector<cl::Event>* wait_list = nullptr,
-    cl::Event* ret_event = nullptr) {
-    clEnqueueMemFillINTEL_fn fn = load_entrypoint<clEnqueueMemFillINTEL_fn>(cpp_queue.get(), "clEnqueueMemFillINTEL");
-
-    cl_event tmp;
-    cl_int err = fn(
-        cpp_queue.get(),
-        dst_ptr,
-        pattern,
-        pattern_size,
-        bytes_count,
-        wait_list == nullptr ? 0 : static_cast<cl_uint>(wait_list->size()),
-        wait_list == nullptr ? nullptr : (cl_event*)&wait_list->front(),
-        ret_event == nullptr ? nullptr : &tmp);
-
-    if (ret_event != nullptr && err == CL_SUCCESS)
-        *ret_event = tmp;
-
-    return err;
-}
-
-inline cl_int enqueue_set_mem(const cl::CommandQueue& cpp_queue, void* dst_ptr, cl_int value,
-    size_t bytes_count, const std::vector<cl::Event>* wait_list = nullptr,
-    cl::Event* ret_event = nullptr) {
-    clEnqueueMemsetINTEL_fn fn = load_entrypoint<clEnqueueMemsetINTEL_fn>(cpp_queue.get(), "clEnqueueMemsetINTEL");
-
-    cl_event tmp;
-    cl_int err = fn(
-        cpp_queue.get(),
-        dst_ptr,
-        value,
-        bytes_count,
-        wait_list == nullptr ? 0 : static_cast<cl_uint>(wait_list->size()),
-        wait_list == nullptr ? nullptr : (cl_event*)&wait_list->front(),
-        ret_event == nullptr ? nullptr : &tmp);
-
-    if (ret_event != nullptr && err == CL_SUCCESS)
-        *ret_event = tmp;
-
-    return err;
-}
-} //namespace usm
 
 typedef CL_API_ENTRY cl_int(CL_API_CALL *PFN_clEnqueueAcquireMediaSurfacesINTEL)(
     cl_command_queue /* command_queue */,
@@ -240,529 +178,539 @@ typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromMediaSurfaceINTEL)(
         void* resource, cl_int* errcode_ret);
 #endif
 
-    class SharedSurfLock {
-        cl_command_queue m_queue;
-        std::vector<cl_mem> m_surfaces;
-        cl_int* m_errPtr;
-    public:
-        static PFN_clEnqueueAcquireMediaSurfacesINTEL pfn_acquire;
-        static PFN_clEnqueueReleaseMediaSurfacesINTEL pfn_release;
+class SharedSurfLock {
+    cl_command_queue m_queue;
+    std::vector<cl_mem> m_surfaces;
+    cl_int* m_errPtr;
 
-        static void Init(cl_platform_id platform) {
+public:
+    static PFN_clEnqueueAcquireMediaSurfacesINTEL pfn_acquire;
+    static PFN_clEnqueueReleaseMediaSurfacesINTEL pfn_release;
+
+    static void Init(cl_platform_id platform) {
 #ifdef WIN32
-            const char* fnameAcq = "clEnqueueAcquireD3D11ObjectsKHR";
-            const char* fnameRel = "clEnqueueReleaseD3D11ObjectsKHR";
+        const char* fnameAcq = "clEnqueueAcquireD3D11ObjectsKHR";
+        const char* fnameRel = "clEnqueueReleaseD3D11ObjectsKHR";
 #else
-            const char* fnameAcq = "clEnqueueAcquireVA_APIMediaSurfacesINTEL";
-            const char* fnameRel = "clEnqueueReleaseVA_APIMediaSurfacesINTEL";
+        const char* fnameAcq = "clEnqueueAcquireVA_APIMediaSurfacesINTEL";
+        const char* fnameRel = "clEnqueueReleaseVA_APIMediaSurfacesINTEL";
 #endif
-            if (!pfn_acquire) {
-                pfn_acquire =
-                    reinterpret_cast<PFN_clEnqueueAcquireMediaSurfacesINTEL>
-                    (clGetExtensionFunctionAddressForPlatform(platform, fnameAcq));
-            }
-            if (!pfn_release) {
-                pfn_release = reinterpret_cast<PFN_clEnqueueReleaseMediaSurfacesINTEL>
-                (clGetExtensionFunctionAddressForPlatform(platform, fnameRel));
+        if (!pfn_acquire) {
+            pfn_acquire = try_load_entrypoint<PFN_clEnqueueAcquireMediaSurfacesINTEL>(platform, fnameAcq);
+        }
+        if (!pfn_release) {
+            pfn_release = try_load_entrypoint<PFN_clEnqueueReleaseMediaSurfacesINTEL>(platform, fnameRel);
+        }
+    }
+
+    SharedSurfLock(cl_command_queue queue,
+        std::vector<cl_mem>& surfaces,
+        cl_int * err = NULL)
+        : m_queue(queue), m_surfaces(surfaces), m_errPtr(err) {
+        if (pfn_acquire != NULL && m_surfaces.size()) {
+            cl_int error = pfn_acquire(m_queue,
+                static_cast<cl_uint>(m_surfaces.size()),
+                m_surfaces.data(),
+                0, NULL, NULL);
+
+            if (error != CL_SUCCESS && m_errPtr != NULL) {
+                *m_errPtr = error;
             }
         }
+    }
 
-        SharedSurfLock(cl_command_queue queue,
-            std::vector<cl_mem>& surfaces,
-            cl_int * err = NULL)
-            : m_queue(queue), m_surfaces(surfaces), m_errPtr(err) {
-
-            if (pfn_acquire!=NULL && m_surfaces.size()) {
-                cl_int error = pfn_acquire(m_queue,
-                    static_cast<cl_uint>(m_surfaces.size()),
-                    m_surfaces.data(),
-                    0, NULL, NULL);
-
-                if (error != CL_SUCCESS && m_errPtr != NULL) {
-                    *m_errPtr = error;
-                }
+    ~SharedSurfLock() {
+        if (pfn_release != NULL && m_surfaces.size()) {
+            cl_int error = pfn_release(m_queue,
+                static_cast<cl_uint>(m_surfaces.size()),
+                m_surfaces.data(),
+                0, NULL, NULL);
+            if (error != CL_SUCCESS && m_errPtr != NULL) {
+                *m_errPtr = error;
             }
         }
+    }
+};
 
-        ~SharedSurfLock() {
-            if (pfn_release != NULL && m_surfaces.size()) {
-                cl_int error = pfn_release(m_queue,
-                    static_cast<cl_uint>(m_surfaces.size()),
-                    m_surfaces.data(),
-                    0, NULL, NULL);
-                if (error != CL_SUCCESS && m_errPtr != NULL) {
-                    *m_errPtr = error;
-                }
-            }
-        }
-    };
+class ImageVA : public Image2D {
+public:
+    static PFN_clCreateFromMediaSurfaceINTEL pfn_clCreateFromMediaSurfaceINTEL;
 
-    class ImageVA : public Image2D
-    {
-    public:
-        static PFN_clCreateFromMediaSurfaceINTEL pfn_clCreateFromMediaSurfaceINTEL;
-
-        static void Init(cl_platform_id platform) {
+    static void Init(cl_platform_id platform) {
 #ifdef WIN32
-            const char* fname = "clCreateFromD3D11Texture2DKHR";
+        const char* fname = "clCreateFromD3D11Texture2DKHR";
 #else
-            const char* fname = "clCreateFromVA_APIMediaSurfaceINTEL";
+        const char* fname = "clCreateFromVA_APIMediaSurfaceINTEL";
 #endif
-            if (!pfn_clCreateFromMediaSurfaceINTEL) {
-                pfn_clCreateFromMediaSurfaceINTEL =
-                    reinterpret_cast<PFN_clCreateFromMediaSurfaceINTEL>
-                    (clGetExtensionFunctionAddressForPlatform((cl_platform_id)platform, fname));
-            }
+        if (!pfn_clCreateFromMediaSurfaceINTEL) {
+            pfn_clCreateFromMediaSurfaceINTEL = try_load_entrypoint<PFN_clCreateFromMediaSurfaceINTEL>((cl_platform_id)platform, fname);
         }
+    }
 
-        /*! \brief Constructs a ImageVA, in a specified context, from a
-        *         given vaSurfaceID.
-        *
-        *  Wraps clCreateFromMediaSurfaceINTEL().
-        */
-        ImageVA(
-            const Context& context,
-            cl_mem_flags flags,
+    /*! \brief Constructs a ImageVA, in a specified context, from a
+    *         given vaSurfaceID.
+    *
+    *  Wraps clCreateFromMediaSurfaceINTEL().
+    */
+    ImageVA(
+        const Context& context,
+        cl_mem_flags flags,
 #ifdef WIN32
-            void* surface,
+        void* surface,
 #else
-            uint32_t surface,
+        uint32_t surface,
 #endif
-            uint32_t plane,
-            cl_int * err = NULL
-        )
-        {
-            cl_int error;
-            object_ = pfn_clCreateFromMediaSurfaceINTEL(
-                context(),
-                flags,
+        uint32_t plane,
+        cl_int * err = NULL) {
+        cl_int error;
+        object_ = pfn_clCreateFromMediaSurfaceINTEL(
+            context(),
+            flags,
 #ifdef WIN32
-                surface,
+            surface,
 #else
-                (void*)& surface,
+            reinterpret_cast<void*>(&surface),
 #endif
-                plane,
-                &error);
+            plane,
+            &error);
 
-            detail::errHandler(error);
-            if (err != NULL) {
-                *err = error;
-            }
+        detail::errHandler(error);
+        if (err != NULL) {
+            *err = error;
         }
+    }
 
-        //! \brief Default constructor - initializes to NULL.
-        ImageVA() : Image2D() { }
+    //! \brief Default constructor - initializes to NULL.
+    ImageVA() : Image2D() { }
 
-        /*! \brief Constructor from cl_mem - takes ownership.
-        *
-        * \param retainObject will cause the constructor to retain its cl object.
-        *                     Defaults to false to maintain compatibility with
-        *                     earlier versions.
-        *  See Memory for further details.
-        */
-        explicit ImageVA(const cl_mem& image, bool retainObject = false) :
-            Image2D(image, retainObject) { }
+    /*! \brief Constructor from cl_mem - takes ownership.
+    *
+    * \param retainObject will cause the constructor to retain its cl object.
+    *                     Defaults to false to maintain compatibility with
+    *                     earlier versions.
+    *  See Memory for further details.
+    */
+    explicit ImageVA(const cl_mem& image, bool retainObject = false) :
+        Image2D(image, retainObject) { }
 
-        /*! \brief Assignment from cl_mem - performs shallow copy.
-        *
-        *  See Memory for further details.
-        */
-        ImageVA& operator = (const cl_mem& rhs)
-        {
-            Image2D::operator=(rhs);
-            return *this;
-        }
+    /*! \brief Assignment from cl_mem - performs shallow copy.
+    *
+    *  See Memory for further details.
+    */
+    ImageVA& operator = (const cl_mem& rhs) {
+        Image2D::operator=(rhs);
+        return *this;
+    }
 
-        /*! \brief Copy constructor to forward copy to the superclass correctly.
-        * Required for MSVC.
-        */
-        ImageVA(const ImageVA& img) :
-            Image2D(img) {}
+    /*! \brief Copy constructor to forward copy to the superclass correctly.
+    * Required for MSVC.
+    */
+    ImageVA(const ImageVA& img) :
+        Image2D(img) {}
 
-        /*! \brief Copy assignment to forward copy to the superclass correctly.
-        * Required for MSVC.
-        */
-        ImageVA& operator = (const ImageVA &img)
-        {
-            Image2D::operator=(img);
-            return *this;
-        }
+    /*! \brief Copy assignment to forward copy to the superclass correctly.
+    * Required for MSVC.
+    */
+    ImageVA& operator = (const ImageVA &img) {
+        Image2D::operator=(img);
+        return *this;
+    }
 
-        /*! \brief Move constructor to forward move to the superclass correctly.
-        * Required for MSVC.
-        */
-        ImageVA(ImageVA&& buf) noexcept : Image2D(std::move(buf)) {}
+    /*! \brief Move constructor to forward move to the superclass correctly.
+    * Required for MSVC.
+    */
+    ImageVA(ImageVA&& buf) noexcept : Image2D(std::move(buf)) {}
 
-        /*! \brief Move assignment to forward move to the superclass correctly.
-        * Required for MSVC.
-        */
-        ImageVA& operator = (ImageVA &&buf)
-        {
-            Image2D::operator=(std::move(buf));
-            return *this;
-        }
-    };
+    /*! \brief Move assignment to forward move to the superclass correctly.
+    * Required for MSVC.
+    */
+    ImageVA& operator = (ImageVA &&buf) {
+        Image2D::operator=(std::move(buf));
+        return *this;
+    }
+};
 #ifdef WIN32
-    class BufferDX : public Buffer {
-    public:
-        static PFN_clCreateFromD3D11Buffer pfn_clCreateFromD3D11Buffer;
+class BufferDX : public Buffer {
+public:
+    static PFN_clCreateFromD3D11Buffer pfn_clCreateFromD3D11Buffer;
 
-        static void Init(cl_platform_id platform) {
-            const char* fname = "clCreateFromD3D11BufferKHR";
+    static void Init(cl_platform_id platform) {
+        const char* fname = "clCreateFromD3D11BufferKHR";
 
-            if (!pfn_clCreateFromD3D11Buffer) {
-                pfn_clCreateFromD3D11Buffer = reinterpret_cast<PFN_clCreateFromD3D11Buffer>
-                    (clGetExtensionFunctionAddressForPlatform((cl_platform_id)platform, fname));
-            }
+        if (!pfn_clCreateFromD3D11Buffer) {
+            pfn_clCreateFromD3D11Buffer = try_load_entrypoint<PFN_clCreateFromD3D11Buffer>((cl_platform_id)platform, fname);
         }
+    }
 
-        BufferDX(
-            const Context& context,
-            cl_mem_flags flags,
-            void* resource,
-            cl_int * err = NULL
-        )
-        {
-            cl_int error;
-            ID3D11Buffer* buffer = static_cast<ID3D11Buffer*>(resource);
-            object_ = pfn_clCreateFromD3D11Buffer(
-                context(),
-                flags,
-                buffer,
-                &error);
+    BufferDX(
+        const Context& context,
+        cl_mem_flags flags,
+        void* resource,
+        cl_int * err = NULL) {
+        cl_int error;
+        ID3D11Buffer* buffer = static_cast<ID3D11Buffer*>(resource);
+        object_ = pfn_clCreateFromD3D11Buffer(
+            context(),
+            flags,
+            buffer,
+            &error);
 
-            detail::errHandler(error);
-            if (err != NULL) {
-                *err = error;
-            }
+        detail::errHandler(error);
+        if (err != NULL) {
+            *err = error;
         }
+    }
 
-        //! \brief Default constructor - initializes to NULL.
-        BufferDX() : Buffer() { }
+    //! \brief Default constructor - initializes to NULL.
+    BufferDX() : Buffer() { }
 
-        /*! \brief Constructor from cl_mem - takes ownership.
-        *
-        * \param retainObject will cause the constructor to retain its cl object.
-        *                     Defaults to false to maintain compatibility with
-        *                     earlier versions.
-        *  See Memory for further details.
-        */
-        explicit BufferDX(const cl_mem& buf, bool retainObject = false) :
-            Buffer(buf, retainObject) { }
+    /*! \brief Constructor from cl_mem - takes ownership.
+    *
+    * \param retainObject will cause the constructor to retain its cl object.
+    *                     Defaults to false to maintain compatibility with
+    *                     earlier versions.
+    *  See Memory for further details.
+    */
+    explicit BufferDX(const cl_mem& buf, bool retainObject = false) :
+        Buffer(buf, retainObject) { }
 
-        /*! \brief Assignment from cl_mem - performs shallow copy.
-        *
-        *  See Memory for further details.
-        */
-        BufferDX& operator = (const cl_mem& rhs)
-        {
-            Buffer::operator=(rhs);
-            return *this;
-        }
+    /*! \brief Assignment from cl_mem - performs shallow copy.
+    *
+    *  See Memory for further details.
+    */
+    BufferDX& operator = (const cl_mem& rhs) {
+        Buffer::operator=(rhs);
+        return *this;
+    }
 
-        /*! \brief Copy constructor to forward copy to the superclass correctly.
-        * Required for MSVC.
-        */
-        BufferDX(const BufferDX& buf) :
-            Buffer(buf) {}
+    /*! \brief Copy constructor to forward copy to the superclass correctly.
+    * Required for MSVC.
+    */
+    BufferDX(const BufferDX& buf) :
+        Buffer(buf) {}
 
-        /*! \brief Copy assignment to forward copy to the superclass correctly.
-        * Required for MSVC.
-        */
-        BufferDX& operator = (const BufferDX &buf)
-        {
-            Buffer::operator=(buf);
-            return *this;
-        }
+    /*! \brief Copy assignment to forward copy to the superclass correctly.
+    * Required for MSVC.
+    */
+    BufferDX& operator = (const BufferDX &buf) {
+        Buffer::operator=(buf);
+        return *this;
+    }
 
-        /*! \brief Move constructor to forward move to the superclass correctly.
-        * Required for MSVC.
-        */
-        BufferDX(BufferDX&& buf) noexcept : Buffer(std::move(buf)) {}
+    /*! \brief Move constructor to forward move to the superclass correctly.
+    * Required for MSVC.
+    */
+    BufferDX(BufferDX&& buf) noexcept : Buffer(std::move(buf)) {}
 
-        /*! \brief Move assignment to forward move to the superclass correctly.
-        * Required for MSVC.
-        */
-        BufferDX& operator = (BufferDX &&buf)
-        {
-            Buffer::operator=(std::move(buf));
-            return *this;
-        }
-    };
+    /*! \brief Move assignment to forward move to the superclass correctly.
+    * Required for MSVC.
+    */
+    BufferDX& operator = (BufferDX &&buf) {
+        Buffer::operator=(std::move(buf));
+        return *this;
+    }
+};
 #endif
 
-    class PlatformVA : public Platform {
-    public:
-        //! \brief Default constructor - initializes to NULL.
-        PlatformVA() : Platform() { }
+class PlatformVA : public Platform {
+public:
+    //! \brief Default constructor - initializes to NULL.
+    PlatformVA() : Platform() { }
 
-        explicit PlatformVA(const cl_platform_id &platform, bool retainObject = false) :
-            Platform(platform, retainObject) { }
+    explicit PlatformVA(const cl_platform_id &platform, bool retainObject = false) :
+        Platform(platform, retainObject) { }
 
-        cl_int getDevices(
-            cl_device_source_intel media_adapter_type,
-            void *                 media_adapter,
-            cl_device_set_intel    media_adapter_set,
-            vector<Device>* devices) const
-        {
-            typedef CL_API_ENTRY cl_int(CL_API_CALL * PFN_clGetDeviceIDsFromMediaAdapterINTEL)(
-                cl_platform_id /* platform */,
-                cl_device_source_intel /* media_adapter_type */,
-                void * /* media_adapter */,
-                cl_device_set_intel /* media_adapter_set */,
-                cl_uint /* num_entries */,
-                cl_device_id * /* devices */,
-                cl_uint * /* num_devices */);
+    cl_int getDevices(
+        cl_device_source_intel media_adapter_type,
+        void *                 media_adapter,
+        cl_device_set_intel    media_adapter_set,
+        vector<Device>* devices) const {
+        typedef CL_API_ENTRY cl_int(CL_API_CALL * PFN_clGetDeviceIDsFromMediaAdapterINTEL)(
+            cl_platform_id /* platform */,
+            cl_device_source_intel /* media_adapter_type */,
+            void * /* media_adapter */,
+            cl_device_set_intel /* media_adapter_set */,
+            cl_uint /* num_entries */,
+            cl_device_id * /* devices */,
+            cl_uint * /* num_devices */);
 #ifdef WIN32
-            const char* fname = "clGetDeviceIDsFromD3D11KHR";
+        const char* fname = "clGetDeviceIDsFromD3D11KHR";
 #else
-            const char* fname = "clGetDeviceIDsFromVA_APIMediaAdapterINTEL";
+        const char* fname = "clGetDeviceIDsFromVA_APIMediaAdapterINTEL";
 #endif
-            if (devices == NULL) {
-                return detail::errHandler(CL_INVALID_ARG_VALUE, fname);
-            }
+        if (devices == NULL) {
+            return detail::errHandler(CL_INVALID_ARG_VALUE, fname);
+        }
 
-            PFN_clGetDeviceIDsFromMediaAdapterINTEL pfn_clGetDeviceIDsFromMediaAdapterINTEL = NULL;
-            if (!pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
-                pfn_clGetDeviceIDsFromMediaAdapterINTEL =
-                    reinterpret_cast<PFN_clGetDeviceIDsFromMediaAdapterINTEL>
-                    (clGetExtensionFunctionAddressForPlatform(object_, fname));
+        PFN_clGetDeviceIDsFromMediaAdapterINTEL pfn_clGetDeviceIDsFromMediaAdapterINTEL =
+            try_load_entrypoint<PFN_clGetDeviceIDsFromMediaAdapterINTEL>(object_, fname);
 
-                if (NULL == pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
-                    return CL_INVALID_PLATFORM;
-                }
-            }
+        if (NULL == pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
+            return CL_INVALID_PLATFORM;
+        }
 
-            cl_uint n = 0;
-            cl_int err = pfn_clGetDeviceIDsFromMediaAdapterINTEL(
+        cl_uint n = 0;
+        cl_int err = pfn_clGetDeviceIDsFromMediaAdapterINTEL(
+            object_,
+            media_adapter_type,
+            media_adapter,
+            media_adapter_set,
+            0,
+            NULL,
+            &n);
+        if (err != CL_SUCCESS && err != CL_DEVICE_NOT_FOUND) {
+            return detail::errHandler(err, fname);
+        }
+
+        if (err != CL_DEVICE_NOT_FOUND) {
+            vector<cl_device_id> ids(n);
+            err = pfn_clGetDeviceIDsFromMediaAdapterINTEL(
                 object_,
                 media_adapter_type,
                 media_adapter,
                 media_adapter_set,
-                0,
-                NULL,
-                &n);
-            if (err != CL_SUCCESS && err != CL_DEVICE_NOT_FOUND) {
+                n,
+                ids.data(),
+                NULL);
+            if (err != CL_SUCCESS) {
                 return detail::errHandler(err, fname);
             }
 
-            if (err != CL_DEVICE_NOT_FOUND)
-            {
-                vector<cl_device_id> ids(n);
-                err = pfn_clGetDeviceIDsFromMediaAdapterINTEL(
-                    object_,
-                    media_adapter_type,
-                    media_adapter,
-                    media_adapter_set,
-                    n,
-                    ids.data(),
-                    NULL);
-                if (err != CL_SUCCESS) {
-                    return detail::errHandler(err, fname);
+            // Cannot trivially assign because we need to capture intermediates
+            // with safe construction
+            // We must retain things we obtain from the API to avoid releasing
+            // API-owned objects.
+            if (devices) {
+                devices->resize(ids.size());
+
+                // Assign to param, constructing with retain behaviour
+                // to correctly capture each underlying CL object
+                for (size_type i = 0; i < ids.size(); i++) {
+                    (*devices)[i] = Device(ids[i], true);
                 }
+            }
 
-                // Cannot trivially assign because we need to capture intermediates
-                // with safe construction
-                // We must retain things we obtain from the API to avoid releasing
-                // API-owned objects.
-                if (devices) {
-                    devices->resize(ids.size());
-
-                    // Assign to param, constructing with retain behaviour
-                    // to correctly capture each underlying CL object
-                    for (size_type i = 0; i < ids.size(); i++) {
-                        (*devices)[i] = Device(ids[i], true);
-                    }
-                }
-
-                // set up acquire/release extensions
-                SharedSurfLock::Init(object_);
-                ImageVA::Init(object_);
+            // set up acquire/release extensions
+            SharedSurfLock::Init(object_);
+            ImageVA::Init(object_);
 #ifdef WIN32
-                BufferDX::Init(object_);
+            BufferDX::Init(object_);
 #endif
-            }
-            return CL_SUCCESS;
         }
-    };
+        return CL_SUCCESS;
+    }
+};
 
-    /*
-        UsmPointer requires associated context to free it.
-        Simple wrapper class for usm allocated pointer.
-    */
-    class UsmHolder {
-    public:
-        explicit UsmHolder(Context& ctx, void* ptr) : _ctx(ctx), _ptr(ptr), deleter(nullptr) {
-            deleter = load_entrypoint<clMemFreeINTEL_fn>(_ctx.get(), "clMemFreeINTEL");
-            if (!deleter) {
-                throw std::runtime_error("clMemFreeINTEL is nullptr in UsmHolder");
-            }
+class UsmHelper {
+public:
+    explicit UsmHelper(const cl::Context& ctx, const cl::Device device, bool use_usm) : _ctx(ctx), _device(device) {
+        if (use_usm) {
+            _host_mem_alloc_fn             = try_load_entrypoint<clHostMemAllocINTEL_fn>(_ctx.get(), "clHostMemAllocINTEL");
+            _shared_mem_alloc_fn           = try_load_entrypoint<clSharedMemAllocINTEL_fn>(_ctx.get(), "clSharedMemAllocINTEL");
+            _device_mem_alloc_fn           = try_load_entrypoint<clDeviceMemAllocINTEL_fn>(_ctx.get(), "clDeviceMemAllocINTEL");
+            _mem_free_fn                   = try_load_entrypoint<clMemFreeINTEL_fn>(_ctx.get(), "clMemFreeINTEL");
+            _set_kernel_arg_mem_pointer_fn = try_load_entrypoint<clSetKernelArgMemPointerINTEL_fn>(_ctx.get(), "clSetKernelArgMemPointerINTEL");
+            _enqueue_memcpy_fn             = try_load_entrypoint<clEnqueueMemcpyINTEL_fn>(_ctx.get(), "clEnqueueMemcpyINTEL");
+            _enqueue_mem_fill_fn           = try_load_entrypoint<clEnqueueMemFillINTEL_fn>(_ctx.get(), "clEnqueueMemFillINTEL");
+            _enqueue_memset_fn             = try_load_entrypoint<clEnqueueMemsetINTEL_fn>(_ctx.get(), "clEnqueueMemsetINTEL");
         }
-        void* ptr() { return _ptr; }
-        ~UsmHolder() {
-            deleter(_ctx.get(), _ptr);
-        }
-    private:
-        Context _ctx;
-        void* _ptr;
-        clMemFreeINTEL_fn deleter;
-    };
+    }
 
-    /*
-        USM base class. Different usm types should derive from this class.
-    */
-    class UsmMemory {
-    public:
-        UsmMemory() = default;
+    void* allocate_host(const cl_mem_properties_intel *properties, size_t size, cl_uint alignment, cl_int* err_code_ret) const {\
+        if (!_host_mem_alloc_fn)
+            throw std::runtime_error("[CLDNN] clHostMemAllocINTEL is nullptr");
+        return _host_mem_alloc_fn(_ctx.get(), properties, size, alignment, err_code_ret);
+    }
 
-        explicit UsmMemory(const Context& ctx)
-            : _ctx(ctx) {
-        }
+    void* allocate_shared(const cl_mem_properties_intel *properties, size_t size, cl_uint alignment, cl_int* err_code_ret) const {
+        if (!_shared_mem_alloc_fn)
+            throw std::runtime_error("[CLDNN] clSharedMemAllocINTEL is nullptr");
+        return _shared_mem_alloc_fn(_ctx.get(), _device.get(), properties, size, alignment, err_code_ret);
+    }
 
-        // Get methods returns original pointer allocated by openCL.
-        void* get() const { return _usm_pointer->ptr(); }
-        size_t use_count() const { return _usm_pointer.use_count(); }
+    void* allocate_device(const cl_mem_properties_intel *properties, size_t size, cl_uint alignment, cl_int* err_code_ret) const {
+        if (!_device_mem_alloc_fn)
+            throw std::runtime_error("[CLDNN] clDeviceMemAllocINTEL is nullptr");
+        return _device_mem_alloc_fn(_ctx.get(), _device.get(), properties, size, alignment, err_code_ret);
+    }
 
-        void allocateHost(size_t size) {
-            cl_int error = CL_SUCCESS;
-            _allocate(usm::hostMemAlloc(_ctx, nullptr, size, 0, &error));
-            if (error != CL_SUCCESS)
-                detail::errHandler(error, "[CL_EXT] UsmHost in cl extensions constructor failed");
-        }
+    void free_mem(void* ptr) const {
+        if (!_mem_free_fn)
+            throw std::runtime_error("[CLDNN] clMemFreeINTEL is nullptr");
+        _mem_free_fn(_ctx.get(), ptr);
+    }
 
-        void allocateShared(const cl::Device& device, size_t size) {
-            cl_int error = CL_SUCCESS;
-            _allocate(usm::sharedMemAlloc(device, _ctx, nullptr, size, 0, &error));
-            if (error != CL_SUCCESS)
-                detail::errHandler(error, "[CL_EXT] UsmShared in cl extensions constructor failed");
-        }
+    cl_int set_kernel_arg_mem_pointer(const cl::Kernel& kernel, uint32_t index, const void* ptr) const {
+        if (!_set_kernel_arg_mem_pointer_fn)
+            throw std::runtime_error("[CLDNN] clSetKernelArgMemPointerINTEL is nullptr");
+        return _set_kernel_arg_mem_pointer_fn(kernel.get(), index, ptr);
+    }
 
-        void allocateDevice(const cl::Device& device, size_t size) {
-            cl_int error = CL_SUCCESS;
-            _allocate(usm::deviceMemAlloc(device, _ctx, nullptr, size, 0, &error));
-            if (error != CL_SUCCESS)
-                detail::errHandler(error, "[CL_EXT] UsmDevice in cl extensions constructor failed");
-        }
+    cl_int enqueue_memcpy(const cl::CommandQueue& cpp_queue, void *dst_ptr, const void *src_ptr,
+                          size_t bytes_count, bool blocking = true, const std::vector<cl::Event>* wait_list = nullptr, cl::Event* ret_event = nullptr) const {
+        if (!_enqueue_memcpy_fn)
+            throw std::runtime_error("[CLDNN] clEnqueueMemcpyINTEL is nullptr");
+        cl_event tmp;
+        cl_int err = _enqueue_memcpy_fn(
+            cpp_queue.get(),
+            static_cast<cl_bool>(blocking),
+            dst_ptr,
+            src_ptr,
+            bytes_count,
+            wait_list == nullptr ? 0 : static_cast<cl_uint>(wait_list->size()),
+            wait_list == nullptr ? nullptr : reinterpret_cast<const cl_event*>(&wait_list->front()),
+            ret_event == nullptr ? nullptr : &tmp);
 
-        virtual ~UsmMemory() = default;
+        if (ret_event != nullptr && err == CL_SUCCESS)
+            *ret_event = tmp;
 
-    protected:
-        std::shared_ptr<UsmHolder> _usm_pointer = nullptr;
-        Context _ctx;
+        return err;
+    }
 
-     private:
-        void _allocate(void* ptr) {
-            if (!ptr)
-                throw std::runtime_error("[CL ext] Can not allocate nullptr for USM type.");
-            _usm_pointer = std::make_shared<UsmHolder>(_ctx, ptr);
-        }
-    };
+    cl_int enqueue_fill_mem(const cl::CommandQueue& cpp_queue, void *dst_ptr, const void* pattern,
+                            size_t pattern_size, size_t bytes_count, const std::vector<cl::Event>* wait_list = nullptr,
+                            cl::Event* ret_event = nullptr) const {
+        if (!_enqueue_mem_fill_fn)
+            throw std::runtime_error("[CLDNN] clEnqueueMemFillINTEL is nullptr");
+        cl_event tmp;
+        cl_int err = _enqueue_mem_fill_fn(
+            cpp_queue.get(),
+            dst_ptr,
+            pattern,
+            pattern_size,
+            bytes_count,
+            wait_list == nullptr ? 0 : static_cast<cl_uint>(wait_list->size()),
+            wait_list == nullptr ? nullptr :  reinterpret_cast<const cl_event*>(&wait_list->front()),
+            ret_event == nullptr ? nullptr : &tmp);
 
-    /*
-        Wrapper for standard cl::Kernel object.
-        Extend cl::Kernel functionality.
-    */
-    class KernelIntel : public Kernel {
-        using Kernel::Kernel;
-        clSetKernelArgMemPointerINTEL_fn fn;
+        if (ret_event != nullptr && err == CL_SUCCESS)
+            *ret_event = tmp;
 
-    public:
-        KernelIntel() : Kernel(), fn(nullptr) {}
-        KernelIntel(const Kernel &other, bool supports_usm) : Kernel(other) {
-            fn = supports_usm ? load_entrypoint<clSetKernelArgMemPointerINTEL_fn>(get(), "clSetKernelArgMemPointerINTEL") : nullptr;
-        }
+        return err;
+    }
 
-        KernelIntel(const Kernel &other, clSetKernelArgMemPointerINTEL_fn fn) : Kernel(other), fn(fn) { }
+    cl_int enqueue_set_mem(const cl::CommandQueue& cpp_queue, void* dst_ptr, cl_int value,
+                           size_t bytes_count, const std::vector<cl::Event>* wait_list = nullptr,
+                           cl::Event* ret_event = nullptr) const {
+        if (!_enqueue_memset_fn)
+            throw std::runtime_error("[CLDNN] clEnqueueMemsetINTEL is nullptr");
+        cl_event tmp;
+        cl_int err = _enqueue_memset_fn(
+            cpp_queue.get(),
+            dst_ptr,
+            value,
+            bytes_count,
+            wait_list == nullptr ? 0 : static_cast<cl_uint>(wait_list->size()),
+            wait_list == nullptr ? nullptr :  reinterpret_cast<const cl_event*>(&wait_list->front()),
+            ret_event == nullptr ? nullptr : &tmp);
 
-        KernelIntel clone() const {
-            Kernel cloned_kernel(this->getInfo<CL_KERNEL_PROGRAM>(), this->getInfo<CL_KERNEL_FUNCTION_NAME>().c_str());
-            return KernelIntel(cloned_kernel, fn);
-        }
+        if (ret_event != nullptr && err == CL_SUCCESS)
+            *ret_event = tmp;
 
-        cl_int setArgUsm(cl_uint index, const UsmMemory& mem) {
-            if (!fn)
-                throw std::runtime_error("[CL ext] clSetKernelArgMemPointerINTEL function ptr is null. Can not set USM arg.");
+        return err;
+    }
 
-            return detail::errHandler(
-                usm::set_kernel_arg_mem_pointer(
-                *this, index, mem.get(), fn),
-                "[CL_EXT] setArgUsm in KernelIntel failed");
-        }
-    };
+private:
+    cl::Context _ctx;
+    cl::Device _device;
+    clHostMemAllocINTEL_fn _host_mem_alloc_fn = nullptr;
+    clMemFreeINTEL_fn _mem_free_fn = nullptr;
+    clSharedMemAllocINTEL_fn _shared_mem_alloc_fn = nullptr;
+    clDeviceMemAllocINTEL_fn _device_mem_alloc_fn = nullptr;
+    clSetKernelArgMemPointerINTEL_fn _set_kernel_arg_mem_pointer_fn = nullptr;
+    clEnqueueMemcpyINTEL_fn _enqueue_memcpy_fn = nullptr;
+    clEnqueueMemFillINTEL_fn _enqueue_mem_fill_fn = nullptr;
+    clEnqueueMemsetINTEL_fn _enqueue_memset_fn = nullptr;
+};
 
-    /*
-    Wrapper for standard cl::CommandQueue object.
-    Extend cl::CommandQueue functionality.
-    */
-    class CommandQueueIntel : public CommandQueue {
-        using CommandQueue::CommandQueue;
+/*
+    UsmPointer requires associated context to free it.
+    Simple wrapper class for usm allocated pointer.
+*/
+class UsmHolder {
+public:
+    UsmHolder(const cl::UsmHelper& usmHelper, void* ptr) : _usmHelper(usmHelper), _ptr(ptr) { }
+    void* ptr() { return _ptr; }
+    ~UsmHolder() {
+        _usmHelper.free_mem(_ptr);
+    }
+private:
+    const cl::UsmHelper& _usmHelper;
+    void* _ptr;
+};
+/*
+    USM base class. Different usm types should derive from this class.
+*/
+class UsmMemory {
+public:
+    explicit UsmMemory(const cl::UsmHelper& usmHelper) : _usmHelper(usmHelper) { }
 
-    public:
-        CommandQueueIntel() : CommandQueue() {}
-        explicit CommandQueueIntel(const CommandQueue &other) : CommandQueue(other) {}
-        explicit CommandQueueIntel(const cl_command_queue &other) : CommandQueue(other) {}
+    // Get methods returns original pointer allocated by openCL.
+    void* get() const { return _usm_pointer->ptr(); }
 
-        cl_int enqueueCopyUsm(
-            const UsmMemory& src,
-            UsmMemory& dst,
-            size_type size,
-            bool blocking = true,
-            const vector<Event>* events = nullptr,
-            Event* event = nullptr) const {
-            cl_int err = detail::errHandler(usm::enqueue_memcpy(
-                *this,
-                dst.get(),
-                src.get(),
-                size,
-                blocking,
-                events,
-                event),
-                "[CL_EXT] USM enqueue copy failed.");
-            return err;
-        }
+    void allocateHost(size_t size) {
+        cl_int error = CL_SUCCESS;
+        _allocate(_usmHelper.allocate_host(nullptr, size, 0, &error));
+        if (error != CL_SUCCESS)
+            detail::errHandler(error, "[CL_EXT] UsmHost in cl extensions constructor failed");
+    }
 
-        template<typename PatternType>
-        cl_int enqueueFillUsm(
-            UsmMemory& dst,
-            PatternType pattern,
-            size_type size,
-            const vector<Event>* events = nullptr,
-            Event* event = nullptr) const {
-            cl_int err = detail::errHandler(usm::enqueue_fill_mem(
-                *this,
-                dst.get(),
-                static_cast<void*>(&pattern),
-                sizeof(PatternType),
-                size,
-                events,
-                event),
-                "[CL_EXT] USM enqueue fill failed.");
-            return err;
-        }
+    void allocateShared(size_t size) {
+        cl_int error = CL_SUCCESS;
+        _allocate(_usmHelper.allocate_shared(nullptr, size, 0, &error));
+        if (error != CL_SUCCESS)
+            detail::errHandler(error, "[CL_EXT] UsmShared in cl extensions constructor failed");
+    }
 
-        cl_int enqueueSetUsm(
-            UsmMemory& dst,
-            int32_t value,
-            size_type size,
-            const vector<Event>* events = nullptr,
-            Event* event = nullptr) const {
-            cl_int err = detail::errHandler(usm::enqueue_set_mem(
-                *this,
-                dst.get(),
-                static_cast<cl_int>(value),
-                size,
-                events,
-                event),
-                "[CL_EXT] USM enqueue fill failed.");
-            return err;
-        }
-    };
+    void allocateDevice(size_t size) {
+        cl_int error = CL_SUCCESS;
+        _allocate(_usmHelper.allocate_device(nullptr, size, 0, &error));
+        if (error != CL_SUCCESS)
+            detail::errHandler(error, "[CL_EXT] UsmDevice in cl extensions constructor failed");
+    }
 
-	inline bool operator==(const UsmMemory &lhs, const UsmMemory &rhs) {
-		return lhs.get() == rhs.get();
-	}
+    virtual ~UsmMemory() = default;
 
-	inline bool operator!=(const UsmMemory &lhs, const UsmMemory &rhs) {
-		return !operator==(lhs, rhs);
-	}
+protected:
+    const UsmHelper& _usmHelper;
+    std::shared_ptr<UsmHolder> _usm_pointer = nullptr;
+
+private:
+    void _allocate(void* ptr) {
+        if (!ptr)
+            throw std::runtime_error("[CL ext] Can not allocate nullptr for USM type.");
+        _usm_pointer = std::make_shared<UsmHolder>(_usmHelper, ptr);
+    }
+};
+
+/*
+    Wrapper for standard cl::Kernel object.
+    Extend cl::Kernel functionality.
+*/
+class KernelIntel : public Kernel {
+    using Kernel::Kernel;
+public:
+    explicit KernelIntel(const UsmHelper& usmHelper) : Kernel(), _usmHelper(usmHelper) {}
+    KernelIntel(const Kernel &other, const UsmHelper& usmHelper) : Kernel(other), _usmHelper(usmHelper) { }
+
+    KernelIntel clone() const {
+        Kernel cloned_kernel(this->getInfo<CL_KERNEL_PROGRAM>(), this->getInfo<CL_KERNEL_FUNCTION_NAME>().c_str());
+        return KernelIntel(cloned_kernel, _usmHelper);
+    }
+
+    cl_int setArgUsm(cl_uint index, const UsmMemory& mem) {
+        return detail::errHandler(_usmHelper.set_kernel_arg_mem_pointer(*this, index, mem.get()), "[CL_EXT] setArgUsm in KernelIntel failed");
+    }
+private:
+    const UsmHelper& _usmHelper;
+};
+
+inline bool operator==(const UsmMemory &lhs, const UsmMemory &rhs) {
+    return lhs.get() == rhs.get();
+}
+
+inline bool operator!=(const UsmMemory &lhs, const UsmMemory &rhs) {
+    return !operator==(lhs, rhs);
+}
+
 }  //namespace cl

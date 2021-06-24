@@ -241,9 +241,7 @@ shared_mem_params gpu_dx_buffer::get_internal_params() const {
 }
 #endif
 
-gpu_usm::gpu_usm(ocl_engine* engine,
-                 const layout& new_layout, const cl::UsmMemory& buffer,
-                 allocation_type type)
+gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, allocation_type type)
     : lockable_gpu_mem()
     , memory(engine, new_layout, type, true)
     , _buffer(buffer) {
@@ -252,17 +250,16 @@ gpu_usm::gpu_usm(ocl_engine* engine,
 gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem()
     , memory(engine, layout, type, false)
-    , _buffer(engine->get_cl_context()) {
-    auto device = engine->get_cl_device();
+    , _buffer(engine->get_usm_helper()) {
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
         _buffer.allocateHost(_bytes_count);
         break;
     case allocation_type::usm_shared:
-        _buffer.allocateShared(device, _bytes_count);
+        _buffer.allocateShared(_bytes_count);
         break;
     case allocation_type::usm_device:
-        _buffer.allocateDevice(device, _bytes_count);
+        _buffer.allocateDevice(_bytes_count);
         break;
     default:
         CLDNN_ERROR_MESSAGE("gpu_usm allocation type",
@@ -294,12 +291,12 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     auto ev = stream.create_base_event();
     cl::Event ev_ocl = downcast<base_event>(ev.get())->get();
     // enqueueFillUsm call will never finish. Driver bug? Uncomment when fixed. Some older drivers doesn't support enqueueFillUsm call at all.
-    // cl_stream.get_cl_queue().enqueueFillUsm<unsigned char>(_buffer, pattern, _bytes_count, nullptr, &ev_ocl)
+    // cl_stream.get_usm_helper().enqueue_fill_mem<unsigned char>(cl_stream.get_cl_queue(), _buffer.get(), pattern, _bytes_count, nullptr, &ev_ocl)
     // Workarounded with enqeue_memcopy. ToDo: Remove below code. Uncomment above.
     std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
     // TODO: Do we really need blocking call here? Non-blocking one causes accuracy issues right now, but hopefully it can be fixed in more performant way.
     const bool blocking = true;
-    cl::usm::enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), temp_buffer.data(), _bytes_count, blocking, nullptr, &ev_ocl);
+    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), temp_buffer.data(), _bytes_count, blocking, nullptr, &ev_ocl);
 
     return ev;
 }
@@ -317,7 +314,13 @@ event::ptr gpu_usm::fill(stream& stream) {
 event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
     auto& cl_stream = downcast<const ocl_stream>(stream);
     auto& casted = downcast<const gpu_usm>(other);
-    cl_stream.get_cl_queue().enqueueCopyUsm(casted.get_buffer(), get_buffer(), _bytes_count, true);
+    auto dst_ptr = get_buffer().get();
+    auto src_ptr = casted.get_buffer().get();
+    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(),
+                                              dst_ptr,
+                                              src_ptr,
+                                              _bytes_count,
+                                              true);
     return stream.create_user_event(true);
 }
 

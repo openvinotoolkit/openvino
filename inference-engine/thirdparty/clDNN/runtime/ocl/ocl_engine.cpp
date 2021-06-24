@@ -47,6 +47,7 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type, const 
     casted->get_device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
 
     _program_stream.reset(new ocl_stream(*this));
+    _usm_helper.reset(new cl::UsmHelper(get_cl_context(), get_cl_device(), use_unified_shared_memory()));
 }
 
 const cl::Context& ocl_engine::get_cl_context() const {
@@ -61,6 +62,10 @@ const cl::Device& ocl_engine::get_cl_device() const {
     if (!cl_device)
         throw std::runtime_error("Invalid device type for ocl_engine");
     return cl_device->get_device();
+}
+
+const cl::UsmHelper& ocl_engine::get_usm_helper() const {
+    return *_usm_helper;
 }
 
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
