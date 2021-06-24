@@ -89,9 +89,7 @@ public:
 
     template<class A, class B, class C, class D>
     static void InitConvolutional1DComponent(intel_dnn_component_t &comp,
-                                             uint32_t num_rows_in,
                                              uint32_t num_columns_in,
-                                             uint32_t num_rows_out,
                                              uint32_t num_columns_out,
                                              uint32_t num_bytes_per_input,
                                              uint32_t num_bytes_per_output,
@@ -108,9 +106,7 @@ public:
                                              C *&ptr_filters,
                                              D *&ptr_biases) {
         InitConvolutional1DComponentPrivate(comp,
-                                            num_rows_in,
                                             num_columns_in,
-                                            num_rows_out,
                                             num_columns_out,
                                             num_bytes_per_input,
                                             num_bytes_per_output,
@@ -424,9 +420,7 @@ private:
                                                     bool postInitMem);
 
     static void InitConvolutional1DComponentPrivate(intel_dnn_component_t &comp,
-                                                    uint32_t num_rows_in,
                                                     uint32_t num_columns_in,
-                                                    uint32_t num_rows_out,
                                                     uint32_t num_columns_out,
                                                     uint32_t num_bytes_per_input,
                                                     uint32_t num_bytes_per_output,
