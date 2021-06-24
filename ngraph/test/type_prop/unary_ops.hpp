@@ -13,7 +13,7 @@ class UnaryOperator : public testing::Test
 {
 };
 
-TYPED_TEST_CASE_P(UnaryOperator);
+TYPED_TEST_SUITE_P(UnaryOperator);
 
 TYPED_TEST_P(UnaryOperator, shape_inference_Shape1)
 {
@@ -84,14 +84,14 @@ TYPED_TEST_P(UnaryOperator, dynamic_rank_input_shape_full)
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
-REGISTER_TYPED_TEST_CASE_P(UnaryOperator,
-                           shape_inference_Shape1,
-                           shape_inference_Shape2,
-                           input_type_inference_F32,
-                           input_type_inference_I64,
-                           input_type_inference_U16,
-                           incompatible_input_type_Shape1,
-                           incompatible_input_type_Shape2,
-                           dynamic_rank_input_shape_2D,
-                           dynamic_rank_input_shape_3D,
-                           dynamic_rank_input_shape_full);
+REGISTER_TYPED_TEST_SUITE_P(UnaryOperator,
+                            shape_inference_Shape1,
+                            shape_inference_Shape2,
+                            input_type_inference_F32,
+                            input_type_inference_I64,
+                            input_type_inference_U16,
+                            incompatible_input_type_Shape1,
+                            incompatible_input_type_Shape2,
+                            dynamic_rank_input_shape_2D,
+                            dynamic_rank_input_shape_3D,
+                            dynamic_rank_input_shape_full);

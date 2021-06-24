@@ -998,7 +998,7 @@ TEST_P(softmax_test, SOFTMAX)
     run_single_test();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_SOFTMAX,
+INSTANTIATE_TEST_SUITE_P(DISABLED_SOFTMAX,
     softmax_test,
     ::testing::Combine(::testing::ValuesIn(softmax_test::generate_generic_test_params()), ::testing::ValuesIn(softmax_test::generate_specific_test_params())),
     softmax_test::custom_param_name);

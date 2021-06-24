@@ -61,7 +61,7 @@ TEST_P(NMS_NonZero, CompareWithReference) {
 }
 
 // #-30919
-INSTANTIATE_TEST_CASE_P(DISABLED_DynamicNonMaxSupression, NMS_NonZero,
+INSTANTIATE_TEST_SUITE_P(DISABLED_DynamicNonMaxSupression, NMS_NonZero,
                         ::testing::Combine(
                                 ::testing::Values(
                                         ngraph::element::f16,
