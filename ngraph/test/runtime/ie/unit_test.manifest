@@ -1133,6 +1133,7 @@ IE_CPU.dft1d_eval_float16
 IE_CPU.dft2d_eval_float16
 IE_CPU.dft3d_eval_float16
 IE_CPU.onnx_constant_sparse_tensor_float16_3x4
+IE_CPU.onnx_float16_tensor_as_int32
 
 
 # nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests

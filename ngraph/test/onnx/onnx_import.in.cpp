@@ -4663,3 +4663,22 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_einsum_sum)
         Shape{3}, {5.3838407376420845, 1.689011319501448, 1.9056967282686674});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/conv_fp16_W_as_int32.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // clang-format off
+    test_case.add_input<ngraph::float16>(Shape{1, 1, 4, 4},
+            {   0,  1,  2,  3,
+                4,  5,  6,  7,
+                8,  9,  10, 11,
+                12, 13, 14, 15  });
+    test_case.add_expected_output<ngraph::float16>(Shape{1, 1, 2, 2},
+            {   20, 24,
+                36, 40  });
+    // clang-format on
+    test_case.run();
+}
