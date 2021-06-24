@@ -27,7 +27,7 @@ if(COMMAND ie_faster_build)
 endif()
 
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${IE_MAIN_SOURCE_DIR}/include)
-target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend libgtest)
+target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend gtest gmock)
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(ngraph_test_util PRIVATE onnx_common)
 endif()
