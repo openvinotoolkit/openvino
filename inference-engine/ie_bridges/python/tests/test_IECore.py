@@ -257,7 +257,7 @@ def test_net_from_buffer_valid():
     assert o_net.keys() == o_net2.keys()
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "VGA") != "GPU", reason=f"Device dependent test")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE","CPU") != "GPU", reason=f"Device dependent test")
 def test_load_network_release_gil(device):
     def detect_long_gil_holds():
         sleep_time = 0.01
