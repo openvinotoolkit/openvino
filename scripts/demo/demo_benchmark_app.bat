@@ -21,10 +21,12 @@ if not "%1"=="" (
         shift
     )
     if "%1"=="-help" (
-        echo %~n0%~x0 is benchmark demo using public SqueezeNet topology
+        echo Benchmark demo using public SqueezeNet topology
         echo.
         echo Options:
-        echo -d name     Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified
+        echo    -help                      Print help message
+        echo    -d DEVICE                  Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified
+        echo    -sample-options OPTIONS    Specify command line arguments for the sample
         exit /b
     )
     shift
