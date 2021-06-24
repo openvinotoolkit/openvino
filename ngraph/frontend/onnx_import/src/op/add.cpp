@@ -16,7 +16,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                OutputVector add(const onnx_import::Node& node)
+                OutputVector add(const Node& node)
                 {
                     return common::handle_opset6_binary_op<default_opset::Add>(node);
                 }
@@ -27,9 +27,8 @@ namespace ngraph
             {
                 OutputVector add(const Node& node)
                 {
-                    auto ret =  OutputVector{std::make_shared<default_opset::Add>(node.get_ng_inputs().at(0),
+                    return OutputVector{std::make_shared<default_opset::Add>(node.get_ng_inputs().at(0),
                                                                  node.get_ng_inputs().at(1))};
-                    return ret;
                 }
 
             } // namespace set_7
