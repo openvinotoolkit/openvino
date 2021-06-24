@@ -79,7 +79,7 @@ namespace ngraph
 
                     auto body_graph = node.get_subgraph();
                     auto body_outputs = body_graph->get_ng_outputs();
-                    auto body_inputs = body_graph->get_ng_parameters();
+                    const auto& body_inputs = body_graph->get_ng_parameters();
 
                     // Infer loop body inputs' element type based on carried dependencies
                     for (size_t i = 0; i < loop_carried_dependencies.size(); i++)
