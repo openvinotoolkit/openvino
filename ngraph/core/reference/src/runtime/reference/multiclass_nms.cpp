@@ -364,7 +364,7 @@ namespace ngraph
 
                 if (sort_result_across_batch)
                 { /* sort across batch */
-                    if (sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
+                    if (sort_result_type == op::v8::MatrixNms::SortResultType::SCORE)
                     {
                         std::sort(
                             filteredBoxes.begin(),
@@ -378,7 +378,7 @@ namespace ngraph
                                         l.class_index == r.class_index && l.index < r.index);
                             });
                     }
-                    else if (sort_result_type == op::v8::MulticlassNms::SortResultType::CLASSID)
+                    else if (sort_result_type == op::v8::MatrixNms::SortResultType::CLASSID)
                     {
                         std::sort(filteredBoxes.begin(),
                                   filteredBoxes.end(),
