@@ -20,7 +20,7 @@ static const std::vector<std::string> models{
     std::string("2in_2out_dynbatch/2in_2out_dynbatch.pdmodel"),
 };
 
-INSTANTIATE_TEST_CASE_P(PDPDBasicTest,
+INSTANTIATE_TEST_SUITE_P(PDPDBasicTest,
                         FrontEndBasicTest,
                         ::testing::Combine(::testing::Values(PDPD),
                                            ::testing::Values(std::string(TEST_PDPD_MODELS)),
