@@ -141,6 +141,7 @@ namespace BehaviorTestsDefinitions {
     }
 
     TEST_P(HoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         InferenceEngine::CNNNetwork cnnNet(function);
         InferenceEngine::Core core;
         std::stringstream stream;
