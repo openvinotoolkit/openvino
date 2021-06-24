@@ -355,12 +355,14 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     uint32_t num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
 
     //  convert to 2D and set GNA input feature map size
-    uint32_t num_feature_map_columns = in_channels * convolution._stride_x * convolution._stride_y;
+    uint32_t effectiveStride = convolution._stride_x * convolution._stride_y;
     if (convolution._stride_y != 1) {
-        num_feature_map_columns = in_channels * convolution._stride_x;
+        effectiveStride = convolution._stride_x;
     } else if (in_width == 1 && convolution._stride_x != 1) {
-        num_feature_map_columns = in_channels * convolution._stride_y;
+        effectiveStride = convolution._stride_y;
     }
+    uint32_t num_feature_map_columns = in_channels * effectiveStride;
+
     uint32_t num_feature_map_rows = (in_channels * in_width) / num_feature_map_columns;
 
     uint32_t num_filters = convolution._out_depth;
@@ -417,9 +419,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     }
     auto& currentComponent = dnnComponents.addComponent(convolution.name, "convolution");
     dnn->InitConvolutional1DComponent(currentComponent,
-        1,
         num_columns_in,
-        1,
         num_columns_out,
         num_bytes_per_input,
         num_bytes_per_output,

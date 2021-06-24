@@ -144,9 +144,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitAffineComponentPrivate(intel_dnn_comp
 
 
 void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel_dnn_component_t &comp,
-                                                 uint32_t num_rows_in,
                                                  uint32_t num_columns_in,
-                                                 uint32_t num_rows_out,
                                                  uint32_t num_columns_out,
                                                  uint32_t num_bytes_per_input,
                                                  uint32_t num_bytes_per_output,
@@ -163,9 +161,9 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
                                                  void *&ptr_filters,
                                                  void *&ptr_biases,
                                                  bool postInitMem) {
-    comp.num_rows_in = num_rows_in;
+    comp.num_rows_in = 1;
     comp.num_columns_in = num_columns_in;
-    comp.num_rows_out = num_rows_out;
+    comp.num_rows_out = 1;
     comp.num_columns_out = num_columns_out;
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
@@ -197,8 +195,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
         ptr_outputs = &comp.ptr_outputs;
     }
 
-    if (comp.num_rows_in * comp.num_columns_in % 8 != 0) {
-        THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent (" << comp.num_rows_in * comp.num_columns_in <<
+    if (comp.num_columns_in % 8 != 0) {
+        THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent (" << comp.num_columns_in <<
                                ") is not a multiply by 8";
     }
     if (comp.op.conv1D.num_filters < GNALimitations::convMinFiltersNum ||

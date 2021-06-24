@@ -211,8 +211,28 @@ const InferenceEngine::SizeVector inputShape1DOneBelow = {
     {1, 1, 47, 1},
 };
 
-const InferenceEngine::SizeVector inputShape1DMultichannel = {
+const InferenceEngine::SizeVector inputShape1DMultichannel4 = {
     {1, 4, 49, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel5 = {
+    {1, 5, 49, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel6 = {
+    {1, 6, 49, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel7 = {
+    {1, 7, 49, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel8 = {
+    {1, 8, 49, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel9 = {
+    {1, 9, 49, 1},
 };
 
 const std::vector<convReluSpecificParams> poolingStrideBelowWindow = {
@@ -265,11 +285,51 @@ const std::vector<convReluSpecificParamsAll> poolingStrideNotEqualWindowAll = {
         poolingStrideAboveWindow
     },
     {
-        inputShape1DMultichannel,
+        inputShape1DMultichannel4,
         poolingStrideBelowWindow
     },
     {
-        inputShape1DMultichannel,
+        inputShape1DMultichannel4,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel5,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel5,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel6,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel6,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel7,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel7,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel8,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel8,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel9,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel9,
         poolingStrideAboveWindow
     }
 };
