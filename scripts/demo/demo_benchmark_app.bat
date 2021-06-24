@@ -137,8 +137,8 @@ echo.
 echo ###############^|^| Install Model Optimizer prerequisites ^|^|###############
 echo.
 CALL :delay 3
-cd /d "%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer\install_prerequisites"
-call install_prerequisites_caffe.bat
+cd /d "%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer"
+python -m pip install -r requirements.txt
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7
