@@ -19,20 +19,6 @@ namespace ngraph
 {
     namespace onnx_import
     {
-        namespace error
-        {
-            namespace value_info
-            {
-                struct unspecified_element_type : ngraph_error
-                {
-                    unspecified_element_type()
-                        : ngraph_error{"value info has no element type specified"}
-                    {
-                    }
-                };
-            } // namespace value_info
-        }     // namespace error
-
         class ValueInfo
         {
         public:
