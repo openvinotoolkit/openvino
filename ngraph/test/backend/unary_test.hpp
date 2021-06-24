@@ -155,9 +155,11 @@ void test_unary(std::shared_ptr<ngraph::Function> f,
 using UnaryFuncCreator = std::function<std::shared_ptr<ngraph::Function>(
     const ngraph::element::Type&, const ngraph::PartialShape&)>;
 
-template <typename OpType, typename... Args>
-typename std::enable_if<std::is_base_of<ngraph::op::Op, OpType>::value, UnaryFuncCreator>::type
-    unary_func(Args&&... args)
+template <
+    typename OpType,
+    typename... Args,
+    typename std::enable_if<std::is_base_of<ngraph::op::Op, OpType>::value, bool>::type = true>
+UnaryFuncCreator unary_func(Args&&... args)
 {
     return [args...](const ngraph::element::Type& ele_type, const ngraph::PartialShape& pshape) {
         auto X = std::make_shared<ngraph::op::Parameter>(ele_type, pshape);
