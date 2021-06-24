@@ -6,7 +6,7 @@
 
 using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Atan, element::f32>>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(visitor_without_attribute,
+INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_attribute,
                               UnaryOperatorVisitor,
                               Types,
                               UnaryOperatorTypeName);
