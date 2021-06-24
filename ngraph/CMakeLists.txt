@@ -328,14 +328,6 @@ endif()
 
 add_subdirectory(frontend)
 
-if(NGRAPH_UNIT_TEST_ENABLE)
-    set(BEFORE_GTEST_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS OFF)
-    include(cmake/external_gtest.cmake)
-    set(BUILD_SHARED_LIBS ${BEFORE_GTEST_BUILD_SHARED_LIBS})
-    unset(BEFORE_GTEST_BUILD_SHARED_LIBS)
-endif()
-
 add_subdirectory(test)
 
 if (NGRAPH_PYTHON_BUILD_ENABLE)
