@@ -20,6 +20,10 @@ include(cmake/features.cmake)
 # These options are shared with 3rdparty plugins by means of developer package
 include(cmake/dependencies.cmake)
 
+if(ENABLE_COVERAGE)
+    include(cmake/coverage.cmake)
+endif()
+
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
@@ -47,12 +51,6 @@ function(build_ngraph)
         endif()
     endfunction()
 
-    if (ENABLE_SANITIZER)
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER ON)
-    else ()
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER OFF)
-    endif ()
-
     if(ENABLE_TESTS AND NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)
     else()
@@ -67,24 +65,6 @@ function(build_ngraph)
         ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
     endif()
     ngraph_set(NGRAPH_INTERPRETER_ENABLE ON)
-
-    if(TREAT_WARNING_AS_ERROR)
-        ngraph_set(NGRAPH_WARNINGS_AS_ERRORS ON)
-    else()
-        ngraph_set(NGRAPH_WARNINGS_AS_ERRORS OFF)
-    endif()
-
-    if(ENABLE_SANITIZER)
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER_ENABLE OFF)
-    endif()
-
-    if(ENABLE_THREAD_SANITIZER)
-        ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE OFF)
-    endif()
 
     if(ENABLE_PYTHON)
         ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE ON)
@@ -112,7 +92,6 @@ function(build_ngraph)
     ie_cpack_add_component(ngraph REQUIRED)
     ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
-    set(SDL_cmake_included ON)
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
     set(FRONTEND_LIBRARIES frontend_manager PARENT_SCOPE)

@@ -47,7 +47,6 @@ set(SRC
     main.cpp
     matcher_pass.cpp
     misc.cpp
-    ngraph_api.cpp
     node_input_output.cpp
     op.cpp
     op_eval/binary_convolution.cpp
@@ -577,10 +576,6 @@ if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
-
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
                                         openvino::conditional_compilation)
@@ -602,7 +597,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
-target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")
 if(NOT WIN32)
     target_link_libraries(unit-test PRIVATE pthread)
 endif()

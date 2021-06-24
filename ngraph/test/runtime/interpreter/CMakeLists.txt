@@ -9,7 +9,7 @@ if (NGRAPH_INTERPRETER_ENABLE)
         ie_faster_build(interpreter_backend
             UNITY
         )
-        endif()
+    endif()
 
     if(COMMAND ie_add_vs_version_file)
         ie_add_vs_version_file(NAME interpreter_backend
@@ -22,11 +22,5 @@ if (NGRAPH_INTERPRETER_ENABLE)
     endif()
 
     target_compile_definitions(interpreter_backend PRIVATE INTERPRETER_BACKEND_EXPORTS)
-    if(NGRAPH_LIB_VERSIONING_ENABLE)
-        set_target_properties(interpreter_backend PROPERTIES
-            VERSION ${NGRAPH_VERSION}
-            SOVERSION ${NGRAPH_API_VERSION})
-    endif()
     target_link_libraries(interpreter_backend PUBLIC ngraph_backend)
-
 endif()
