@@ -16,8 +16,7 @@ namespace testing {
 
 std::shared_ptr<ngraph::Function> createFunction(const std::vector<size_t>& input_values,
                                                      const std::vector<size_t>& reshape_values,
-                                                     const std::vector<size_t>& matmul_values)
-{
+                                                     const std::vector<size_t>& matmul_values) {
     auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, ngraph::Shape(input_values));
 
     auto new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, reshape_values);
@@ -154,7 +153,6 @@ TEST(TransformationTests, InsertTransposeBeforeMatmulTest1_16) {
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
-
 }
 
 } // namespace testing

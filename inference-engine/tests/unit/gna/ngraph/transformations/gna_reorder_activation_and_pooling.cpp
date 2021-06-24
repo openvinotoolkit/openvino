@@ -18,74 +18,74 @@ namespace testing {
 // Variant #1 Convolution -> Add -> Activation -> MaxPool
 
 template <typename ActivationT, typename ... Args>
-std::shared_ptr<ngraph::Function> createFunctionVariant1(Args&& ... args)
-{
+std::shared_ptr<ngraph::Function> createFunctionVariant1(Args&& ... args) {
     auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
     auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
-                                                                        ngraph::Shape{1, 3, 64, 64});                                                                        
+                                                                        ngraph::Shape{1, 3, 64, 64});
 
     auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
     auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
     auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
-                                                                  weights,
-                                                                  ngraph::Strides{1, 1},
-                                                                  ngraph::CoordinateDiff{0, 0},
-                                                                  ngraph::CoordinateDiff{0, 0},
-                                                                  ngraph::Strides{1, 1});
+                                                                                weights,
+                                                                                ngraph::Strides{1, 1},
+                                                                                ngraph::CoordinateDiff{0, 0},
+                                                                                ngraph::CoordinateDiff{0, 0},
+                                                                                ngraph::Strides{1, 1});
 
     auto add_operation = std::make_shared<ngraph::opset7::Add>(convolution_operation,
                                                                input_params_add);
 
-    auto activation = std::make_shared<ActivationT>(add_operation, std::forward<Args>(args) ... );
+    auto activation = std::make_shared<ActivationT>(add_operation, std::forward<Args>(args) ...);
 
     auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(activation,
-                                                                                    ngraph::Strides{1, 1},
-                                                                                    ngraph::Shape{1, 1},
-                                                                                    ngraph::Shape{1, 1},
-                                                                                    ngraph::Shape{1, 1});
+                                                                        ngraph::Strides{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1});
 
     auto result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params_convolution, input_params_add});
+                                            ngraph::ParameterVector{input_params_convolution,
+                                                                    input_params_add});
 }
 
 template <typename ActivationT, typename ... Args>
-std::shared_ptr<ngraph::Function> createReferenceFunctionVariant1(Args&& ... args)
-{
+std::shared_ptr<ngraph::Function> createReferenceFunctionVariant1(Args&& ... args) {
     auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
     auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
-                                                                        ngraph::Shape{1, 3, 64, 64}); 
+                                                                        ngraph::Shape{1, 3, 64, 64});
 
     auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
     auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
     auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
-                                                                  weights,
-                                                                  ngraph::Strides{1, 1},
-                                                                  ngraph::CoordinateDiff{0, 0},
-                                                                  ngraph::CoordinateDiff{0, 0},
-                                                                  ngraph::Strides{1, 1});
+                                                                                weights,
+                                                                                ngraph::Strides{1, 1},
+                                                                                ngraph::CoordinateDiff{0, 0},
+                                                                                ngraph::CoordinateDiff{0, 0},
+                                                                                ngraph::Strides{1, 1});
 
     auto add_operation = std::make_shared<ngraph::opset7::Add>(convolution_operation,
                                                                         input_params_convolution);
 
     auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(add_operation,
-                                                                                    ngraph::Strides{1, 1},
-                                                                                    ngraph::Shape{1, 1},
-                                                                                    ngraph::Shape{1, 1},
-                                                                                    ngraph::Shape{1, 1});
+                                                                        ngraph::Strides{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1},
+                                                                        ngraph::Shape{1, 1});
 
-    auto activation = std::make_shared<ActivationT>(max_pool_operation, std::forward<Args>(args) ... );
+    auto activation = std::make_shared<ActivationT>(max_pool_operation, std::forward<Args>(args) ...);
 
     auto result = std::make_shared<ngraph::opset7::Result>(activation);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params_convolution, input_params_add});
+                                                  ngraph::ParameterVector{input_params_convolution,
+                                                                            input_params_add});
 }
 
 TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationRelu) {
@@ -331,8 +331,6 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant2) {
                                                                                 input_high, output_low,
                                                                                 output_high, 11);
 
-        
-
         auto result = std::make_shared<ngraph::opset7::Result>(fake_quantize_op);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params_convolution});
@@ -351,7 +349,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant3) {
     {
         auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
-        
+
         auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
@@ -398,7 +396,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant3) {
     {
         auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
-        
+
         auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
@@ -430,8 +428,6 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant3) {
                                                                                 input_high, output_low,
                                                                                 output_high, 11);
 
-       
-
         auto result = std::make_shared<ngraph::opset7::Result>(fake_quantize_op);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params_convolution, input_params_add});
@@ -445,8 +441,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant3) {
 // Variant #4 Convolution -> Activation -> MaxPool
 
 template <typename ActivationT, typename ... Args>
-std::shared_ptr<ngraph::Function> createFunctionVariant4(Args&& ... args)
-{
+std::shared_ptr<ngraph::Function> createFunctionVariant4(Args&& ... args) {
     auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
@@ -461,7 +456,7 @@ std::shared_ptr<ngraph::Function> createFunctionVariant4(Args&& ... args)
                                                                   ngraph::CoordinateDiff{0, 0},
                                                                   ngraph::Strides{1, 1});
 
-    auto activation = std::make_shared<ActivationT>(convolution_operation, std::forward<Args>(args) ... );
+    auto activation = std::make_shared<ActivationT>(convolution_operation, std::forward<Args>(args) ...);
 
     auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(activation,
                                                                                     ngraph::Strides{1, 1},
@@ -475,8 +470,7 @@ std::shared_ptr<ngraph::Function> createFunctionVariant4(Args&& ... args)
 }
 
 template <typename ActivationT, typename ... Args>
-std::shared_ptr<ngraph::Function> createReferenceFunctionVariant4(Args&& ... args)
-{
+std::shared_ptr<ngraph::Function> createReferenceFunctionVariant4(Args&& ... args) {
     auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
@@ -497,7 +491,7 @@ std::shared_ptr<ngraph::Function> createReferenceFunctionVariant4(Args&& ... arg
                                                                                     ngraph::Shape{1, 1},
                                                                                     ngraph::Shape{1, 1});
 
-    auto activation = std::make_shared<ActivationT>(max_pool_operation, std::forward<Args>(args) ... );
+    auto activation = std::make_shared<ActivationT>(max_pool_operation, std::forward<Args>(args) ...);
 
     auto result = std::make_shared<ngraph::opset7::Result>(activation);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},

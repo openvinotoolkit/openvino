@@ -116,7 +116,7 @@ TEST(TransformationTests, SwapInputMatMulTestFakeQuantize) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-         m.register_pass<GNAPluginNS::SwapInputMatMul>();
+        m.register_pass<GNAPluginNS::SwapInputMatMul>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
