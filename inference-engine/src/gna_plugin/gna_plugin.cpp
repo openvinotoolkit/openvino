@@ -738,7 +738,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // network optimisation phases
     int passIdx = 0;
     auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
-        auto passes = make_shared<PassManager>(PassManagerSettings{policy, runBeforeCopy, lowPrecision}, network);
+        auto passes = make_shared<PassManager>(PassManagerSettings{runBeforeCopy, lowPrecision}, network);
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
@@ -765,13 +765,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
-        if (policy.PermutePolicy != Policy::Permute::DISABLED) {
-            passes->registerPass<ReversePermutationsPass>();
-        }
-        if (policy.NHWCToNCHWPolicy != Policy::NHWCToNCHW::DISABLED) {
-            passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
-        }
-
+        passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
@@ -839,9 +833,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #endif
 
     auto sortedNet = CNNNetSortTopologicallyEx(newNet, make_fuzed_order);
-
-    // passing policy to compiler
-    graphCompiler.setPolicy(policy);
 
     if (sortedNet.empty()) {
         THROW_GNA_EXCEPTION << "Sorted network is empty";

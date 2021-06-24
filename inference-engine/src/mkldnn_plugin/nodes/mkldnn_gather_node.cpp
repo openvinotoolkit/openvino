@@ -15,13 +15,13 @@ using namespace InferenceEngine;
 
 bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto gatherOp = ngraph::as_type_ptr<const ngraph::op::v7::Gather>(op);
+        const auto gatherOp = ngraph::as_type_ptr<const ngraph::op::v7::Gather>(op);
         if (!gatherOp) {
             errorMessage = "Only opset7 Gather operation is supported";
             return false;
         }
 
-        auto axesOp = gatherOp->get_input_node_shared_ptr(GATHER_AXIS);
+        const auto axesOp = gatherOp->get_input_node_shared_ptr(GATHER_AXIS);
         if (!ngraph::as_type_ptr<const ngraph::op::Constant>(axesOp)) {
             errorMessage = "Only Constant operation on 'axis' input is supported";
             return false;
