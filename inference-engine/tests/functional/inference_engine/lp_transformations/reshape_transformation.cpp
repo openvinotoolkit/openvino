@@ -619,7 +619,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             ngraph::element::u8,
             {{}, {}, {}},
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1}}}
+            {{ngraph::element::f32}, {}, {0.1f}}
         }
     },
     // U8: no subtract 4D -> 2D: channels are not affected
@@ -635,7 +635,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             ngraph::element::u8,
             {{}, {}, {}},
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1}}}
+            {{ngraph::element::f32}, {}, {0.1f}}
         }
     },
     // U8: no subtract 4D -> 2D: channels are not affected, dynamic batch
@@ -651,7 +651,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             ngraph::element::u8,
             {{}, {}, {}},
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1}}}
+            {{ngraph::element::f32}, {}, {0.1f}}
         }
     },
     // U8: no subtract 4D -> 4D: channels are affected

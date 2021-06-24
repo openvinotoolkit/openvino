@@ -39,13 +39,8 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
 
             // reshape for element-wise constant is not required
             if (shape_size(constantShape) == 1ul) {
-                if (constantShape.size() > 1ul) {
-                    const Shape newConstShape = Shape(reshape->get_output_partial_shape(0).rank().get_length(), 1ul);
-                    const auto newConstant = opset1::Constant::create(
-                        originalConstant->get_element_type(), newConstShape, originalConstant->cast_vector<float>());
-                    replace_node(op->get_input_node_shared_ptr(constantIndex), newConstant);
-                }
-
+                const auto newConstant = NetworkHelper::toScalar(originalConstant);
+                replace_node(op->get_input_node_shared_ptr(constantIndex), newConstant);
                 return;
             }
 
