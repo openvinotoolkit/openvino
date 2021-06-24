@@ -564,15 +564,6 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
-# ---TODO FIXME --DO_NOT_RELEASE-- (mnosov)
-set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
-set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
-set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
-if (PDPD_PYTHON_OK)
-    set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
-endif()
-# --- END OF --DO_NOT_RELEASE--
-
 add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
