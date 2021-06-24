@@ -87,8 +87,8 @@ function(build_ngraph)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
 
-    ie_cpack_add_component(ngraph REQUIRED)
-    ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
+    ie_cpack_add_component(ngraph IRC REQUIRED)
+    ie_cpack_add_component(ngraph_dev IRC REQUIRED DEPENDS ngraph)
 
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
@@ -160,7 +160,7 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
 
 # install setupvars
 
-ie_cpack_add_component(setupvars REQUIRED)
+ie_cpack_add_component(setupvars IRC REQUIRED)
 
 if(UNIX)
     install(PROGRAMS scripts/setupvars/setupvars.sh
@@ -175,7 +175,7 @@ endif()
 # install install_dependencies
 
 if(UNIX)
-    ie_cpack_add_component(install_dependencies REQUIRED)
+    ie_cpack_add_component(install_dependencies IRC REQUIRED)
     install(DIRECTORY scripts/install_dependencies/
             DESTINATION install_dependencies
             COMPONENT install_dependencies)
@@ -183,7 +183,7 @@ endif()
 
 # install files for demo
 
-ie_cpack_add_component(demo_scripts DEPENDS core)
+ie_cpack_add_component(demo_scripts IRC DEPENDS core)
 
 if(UNIX)
     install(DIRECTORY scripts/demo/
@@ -199,4 +199,4 @@ elseif(WIN32)
             PATTERN *.sh EXCLUDE)
 endif()
 
-ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+ie_cpack(${IE_CPACK_COMPONENTS_IRC})

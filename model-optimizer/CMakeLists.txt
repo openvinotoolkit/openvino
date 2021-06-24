@@ -17,7 +17,7 @@ else()
 endif()
 
 # install
-ie_cpack_add_component(model_optimizer)
+ie_cpack_add_component(model_optimizer IRC)
 
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/automation/version.txt.in"

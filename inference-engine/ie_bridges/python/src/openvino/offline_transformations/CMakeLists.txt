@@ -54,7 +54,7 @@ add_custom_command(TARGET ${TARGET_NAME}
 # install
 
 # TODO: use ${PYTHON_VERSION}_dev component below
-# ie_cpack_add_component(${PYTHON_VERSION}_dev DEPENDS ${PYTHON_VERSION})
+# ie_cpack_add_component(${PYTHON_VERSION}_dev IRC DEPENDS ${PYTHON_VERSION})
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}

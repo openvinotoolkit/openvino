@@ -74,7 +74,7 @@ endif()
 
 # install
 
-ie_cpack_add_component(${PYTHON_VERSION})
+ie_cpack_add_component(${PYTHON_VERSION} IRC)
 
 install(FILES requirements.txt
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
@@ -90,7 +90,7 @@ install(PROGRAMS src/openvino/__init__.py
 
 # install Python samples
 
-ie_cpack_add_component(python_samples)
+ie_cpack_add_component(python_samples IRC)
 
 install(DIRECTORY sample/
         DESTINATION ${IE_CPACK_IE_DIR}/samples/python

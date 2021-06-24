@@ -26,18 +26,22 @@ endfunction()
 ie_cpack_set_library_dir()
 
 #
-# ie_cpack_add_component(NAME ...)
+# ie_cpack_add_component(NAME DIST_TYPE ...)
 #
 # Wraps original `cpack_add_component` and adds component to internal IE list
 #
-unset(IE_CPACK_COMPONENTS_ALL CACHE)
-macro(ie_cpack_add_component NAME DIST)
-    if(NOT DIST IN_LIST "IRC;DEV_PACKAGE;TESTS")
-        message(FATAL_ERROR )
+set(_components IRC DEV_PACKAGE TESTS)
+foreach(DIST_TYPE IN LISTS _components)
+    unset(IE_CPACK_COMPONENTS_${DIST_TYPE} CACHE)
+endforeach()
+
+macro(ie_cpack_add_component NAME DIST_TYPE)
+    if(NOT ${DIST_TYPE} IN_LIST _components)
+        message(FATAL_ERROR "${DIST_TYPE} must of on ${_components}")
     endif()
 
-    list(APPEND IE_CPACK_COMPONENTS_${DIST} ${NAME})
-    set(IE_CPACK_COMPONENTS_${DIST} "${IE_CPACK_COMPONENTS_${DIST}}" CACHE STRING "" FORCE)
+    list(APPEND IE_CPACK_COMPONENTS_${DIST_TYPE} ${NAME})
+    set(IE_CPACK_COMPONENTS_${DIST_TYPE} "${IE_CPACK_COMPONENTS_${DIST_TYPE}}" CACHE STRING "" FORCE)
 
     cpack_add_component(${NAME} ${ARGN})
 endmacro()

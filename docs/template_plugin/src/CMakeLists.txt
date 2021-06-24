@@ -46,7 +46,7 @@ endif()
 # install
 
 # set(component_name template)
-# ie_cpack_add_component(${component_name} REQUIRED)
+# ie_cpack_add_component(${component_name} IRC REQUIRED)
 
 # install(TARGETS ${TARGET_NAME}
 #         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}

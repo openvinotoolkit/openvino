@@ -26,8 +26,8 @@ if(ENABLE_PYTHON)
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINO_MAIN_SOURCE_DIR}/tools/benchmark ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools/benchmark
     )
 
-    ie_cpack_add_component(python_tools_${PYTHON_VERSION})
-    ie_cpack_add_component(python_tools)
+    ie_cpack_add_component(python_tools_${PYTHON_VERSION} IRC)
+    ie_cpack_add_component(python_tools IRC)
 
     install(DIRECTORY ../inference-engine/tools/benchmark_tool
             DESTINATION deployment_tools/tools

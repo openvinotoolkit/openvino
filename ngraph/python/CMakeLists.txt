@@ -108,7 +108,7 @@ if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
 
     add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
-    ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
+    ie_cpack_add_component(pyngraph_${PYTHON_VERSION} IRC)
 
     install(TARGETS _${PROJECT_NAME}
             DESTINATION python/${PYTHON_VERSION}
