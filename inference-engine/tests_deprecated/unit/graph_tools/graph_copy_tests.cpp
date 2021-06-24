@@ -14,6 +14,10 @@
 #include <memory>
 
 #ifdef ENABLE_GNA
+# undef ENABLE_GNA
+#endif
+
+#ifdef ENABLE_GNA
 # include <frontend/model_quantizer.hpp>
 #endif
 
