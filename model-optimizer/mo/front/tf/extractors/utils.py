@@ -70,7 +70,12 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
                 log.error(decode_err_msg, extra={'is_warning': True})
                 value = np.array(type_helper[1](pb_tensor))
 
-    if len(shape) == 0 or len(shape) == 1 and shape.prod() == 0:
+    # Ignore an empty value, if len(shape) > 1
+    # For example, value = [] and shape = [1, 1, 0]
+    # This is needed to reshape this value later and to return reshaped value = [[[]]]
+    # Otherwise there can be failures during partial inference, because we are storing an empty value with incorrect
+    # shape
+    if len(shape) == 0 or (len(shape) == 1 and shape.prod() == 0):
         if len(value) == 1:
             # return scalar if shape is [] otherwise broadcast according to shape
             try:
