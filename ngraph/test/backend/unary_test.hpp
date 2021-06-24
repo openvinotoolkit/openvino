@@ -90,6 +90,24 @@ struct ArgShape
     }
 };
 
+template <typename TC, typename value_type>
+void _do_test_unary(TC& test_case,
+                    std::vector<value_type>& input,
+                    std::vector<value_type>& expected,
+                    ngraph::Shape static_shape,
+                    ArgTolerance tol)
+{
+    test_case.template add_input<value_type>(static_shape, input);
+    test_case.template add_expected_output<value_type>(static_shape, expected);
+
+    if (tol.bit.in_use)
+        test_case.run(tol.bit.value);
+    else if (tol.fp.in_use)
+        test_case.run_with_tolerance_as_fp(tol.fp.value);
+    else
+        test_case.run();
+}
+
 template <typename TestEngine,
           ngraph::element::Type_t element_type,
           typename value_type = ngraph::fundamental_type_for<element_type>>
@@ -99,14 +117,13 @@ void test_unary(std::shared_ptr<ngraph::Function> f,
                 ArgShape ashape = {},
                 ArgTolerance tol = {})
 {
-    if (!ashape.initialzed)
-    {
-        ashape = ArgShape(ngraph::Shape({test_input.size()}));
-    }
+    ngraph::Shape static_shape =
+        ashape.initialzed ? ashape.static_shape : ngraph::Shape({test_input.size()});
+
     // the size specified in static_shape may be bigger or smaller than the
     // number of data contained in test_input & test_expected, here we
     // sample test data repetitively to generate actual test data of required size.
-    auto static_size = shape_size(ashape.static_shape);
+    auto static_size = shape_size(static_shape);
     std::vector<value_type> input;
     std::vector<value_type> expected;
     for (size_t i = 0; i < static_size; i++)
@@ -115,16 +132,16 @@ void test_unary(std::shared_ptr<ngraph::Function> f,
         expected.push_back(test_expected[i % test_expected.size()]);
     }
 
-    auto test_case = ngraph::test::TestCase<TestEngine>(f);
-    test_case.template add_input<value_type>(ashape.static_shape, input);
-    test_case.template add_expected_output<value_type>(ashape.static_shape, expected);
-
-    if (tol.bit.in_use)
-        test_case.run(tol.bit.value);
-    else if (tol.fp.in_use)
-        test_case.run_with_tolerance_as_fp(tol.fp.value);
+    if (f->is_dynamic())
+    {
+        auto test_case = ngraph::test::TestCase<TestEngine, ngraph::test::TestCaseType::DYNAMIC>(f);
+        _do_test_unary(test_case, input, expected, static_shape, tol);
+    }
     else
-        test_case.run();
+    {
+        auto test_case = ngraph::test::TestCase<TestEngine, ngraph::test::TestCaseType::STATIC>(f);
+        _do_test_unary(test_case, input, expected, static_shape, tol);
+    }
 }
 
 // overloading support passing reference function instead of expected results
