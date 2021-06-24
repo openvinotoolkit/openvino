@@ -121,13 +121,13 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-if [ -e "$ROOT_DIR/venv" ]; then
+if [ -e "$HOME/venv" ]; then
     printf "\nUsing the existing python virtual environment\n\n"
-    . "$ROOT_DIR/venv/bin/activate"
+    . "$HOME/venv/bin/activate"
 else
     printf "\nCreating the python virtual environment\n\n"
-    "$python_binary" -m venv "$ROOT_DIR/venv"
-    . "$ROOT_DIR/venv/bin/activate"
+    "$python_binary" -m venv "$HOME/venv"
+    . "$HOME/venv/bin/activate"
     python -m pip install -U pip
     python -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 fi
