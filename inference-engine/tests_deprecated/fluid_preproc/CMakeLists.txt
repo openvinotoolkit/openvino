@@ -34,3 +34,9 @@ endif()
 
 add_test(NAME ${TARGET} COMMAND ${TARGET})
 set_property(TEST ${TARGET} PROPERTY LABELS IE PREPROC)
+
+if(ENABLE_DEV_PKG_INSTALL)
+    install(TARGETS ${TARGET}
+            RUNTIME DESTINATION tests
+            COMPONENT tests)
+endif()

@@ -38,3 +38,10 @@ endif()
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
+if(ENABLE_DEV_PKG_INSTALL)
+    install(TARGETS ${TARGET_NAME}
+            RUNTIME DESTINATION tests
+            LIBRARY DESTINATION tests
+            COMPONENT tests)
+endif()
