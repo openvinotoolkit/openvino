@@ -151,7 +151,7 @@ minimum_u16
 INTERPRETER.onnx_model_experimental_detectron_topk_rios
 
 # Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronGenerateProposalsSingleImage
-INTERPRETER.onnx_model_experimental_detectron_generate_proposals_single_image
+# INTERPRETER.onnx_model_experimental_detectron_generate_proposals_single_image
 
 # Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
 INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor

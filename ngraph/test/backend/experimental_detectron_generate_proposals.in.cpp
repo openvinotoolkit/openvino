@@ -136,5 +136,10 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_generate_proposals_eval)
     }
     std::cout << "\n\n";
 
-    ASSERT_TRUE(true);
+    EXPECT_TRUE(test::all_close_f(
+        expected_output_rois, read_vector<float>(output_rois), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f(
+        expected_output_scores, read_vector<float>(output_scores), MIN_FLOAT_TOLERANCE_BITS));
+
+//    ASSERT_TRUE(true);
 }
