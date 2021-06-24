@@ -28,3 +28,6 @@
 [submodule "thirdparty/protobuf"]
 	path = thirdparty/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
+[submodule "ngraph/python/pybind11"]
+	path = ngraph/python/pybind11
+	url = https://github.com/pybind/pybind11.git
