@@ -38,6 +38,7 @@ namespace ngraph
                             const op::v8::MatrixNms::DecayFunction decay_function,
                             float gaussian_sigma,
                             float post_threshold,
+                            bool normalized,
                             float* selected_outputs,
                             const Shape& selected_outputs_shape,
                             int64_t* selected_indices,

@@ -29,15 +29,17 @@ TEST(attributes, matrix_nms_v8_op_custom_attributes)
     auto output_type = ngraph::element::i32;
     int nms_top_k = 100;
     int keep_top_k = 10;
-    bool sort_result_across_batch = false;
+    bool sort_result_across_batch = true;
     float score_threshold = 0.1f;
     int background_class = 2;
     auto decay_function = opset8::MatrixNms::DecayFunction::GAUSSIAN;
     float gaussian_sigma = 0.2f;
     float post_threshold = 0.3f;
+    bool normalized = false;
 
     auto nms = make_shared<opset8::MatrixNms>(boxes, scores, sort_result_type, sort_result_across_batch,
-        output_type, score_threshold, nms_top_k, keep_top_k, background_class, decay_function, gaussian_sigma, post_threshold);
+        output_type, score_threshold, nms_top_k, keep_top_k, background_class, decay_function, 
+        gaussian_sigma, post_threshold, normalized);
     NodeBuilder builder(nms);
     auto g_nms = as_type_ptr<opset8::MatrixNms>(builder.create());
 
@@ -51,6 +53,7 @@ TEST(attributes, matrix_nms_v8_op_custom_attributes)
     EXPECT_EQ(g_nms->get_decay_function(), nms->get_decay_function());
     EXPECT_EQ(g_nms->get_gaussian_sigma(), nms->get_gaussian_sigma());
     EXPECT_EQ(g_nms->get_post_threshold(), nms->get_post_threshold());
+    EXPECT_EQ(g_nms->get_normalized(), nms->get_normalized());
 
     EXPECT_EQ(sort_result_type, nms->get_sort_result_type());
     EXPECT_EQ(output_type, nms->get_output_type());
@@ -62,6 +65,7 @@ TEST(attributes, matrix_nms_v8_op_custom_attributes)
     EXPECT_EQ(decay_function, nms->get_decay_function());
     EXPECT_EQ(gaussian_sigma, nms->get_gaussian_sigma());
     EXPECT_EQ(post_threshold, nms->get_post_threshold());
+    EXPECT_EQ(normalized, nms->get_normalized());
 }
 
 TEST(attributes, matrix_nms_v8_op_default_attributes)
@@ -84,4 +88,5 @@ TEST(attributes, matrix_nms_v8_op_default_attributes)
     EXPECT_EQ(g_nms->get_decay_function(), nms->get_decay_function());
     EXPECT_EQ(g_nms->get_gaussian_sigma(), nms->get_gaussian_sigma());
     EXPECT_EQ(g_nms->get_post_threshold(), nms->get_post_threshold());
+    EXPECT_EQ(g_nms->get_normalized(), nms->get_normalized());
 }

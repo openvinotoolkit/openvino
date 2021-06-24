@@ -39,6 +39,7 @@ namespace ngraph
                 /// \param background_class Specifies the background class id, -1 meaning to keep
                 /// all classes
                 /// \param nms_eta Specifies eta parameter for adpative NMS, in close range [0, 1.0]
+                /// \param normalized Specifies whether boxes are normalized or not
                 MulticlassNms(const Output<Node>& boxes,
                               const Output<Node>& scores,
                               const SortResultType sort_result_type = SortResultType::NONE,
@@ -49,7 +50,8 @@ namespace ngraph
                               const int nms_top_k = -1,
                               const int keep_top_k = -1,
                               const int background_class = -1,
-                              const float nms_eta = 1.0f);
+                              const float nms_eta = 1.0f,
+                              const bool normalized = true);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -83,12 +85,16 @@ namespace ngraph
                 float get_nms_eta() const { return m_nms_eta; }
                 void set_nms_eta(const float nms_eta) { m_nms_eta = nms_eta; }
 
+                bool get_normalized() const { return m_normalized; }
+                void set_normalized(const bool normalized) { m_normalized = normalized; }
+
             protected:
                 bool m_sort_result_across_batch;
                 float m_iou_threshold;
                 float m_score_threshold;
                 int m_background_class;
                 float m_nms_eta;
+                bool m_normalized;
                 void validate() override;
             };
         } // namespace v8

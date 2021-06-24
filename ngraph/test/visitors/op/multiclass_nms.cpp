@@ -34,8 +34,11 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     float score_threshold = 0.2f;
     int background_class = 2;
     float nms_eta = 0.3f;
+    bool normalized = false;
 
-    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, sort_result_type, sort_result_across_batch, output_type, iou_threshold, score_threshold, nms_top_k, keep_top_k, background_class, nms_eta);
+    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, sort_result_type, 
+        sort_result_across_batch, output_type, iou_threshold, score_threshold, 
+        nms_top_k, keep_top_k, background_class, nms_eta, normalized);
     NodeBuilder builder(nms);
     auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
 
@@ -48,6 +51,8 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     EXPECT_EQ(g_nms->get_score_threshold(), nms->get_score_threshold());
     EXPECT_EQ(g_nms->get_background_class(), nms->get_background_class());
     EXPECT_EQ(g_nms->get_nms_eta(), nms->get_nms_eta());
+    EXPECT_EQ(g_nms->get_normalized(), nms->get_normalized());
+
     EXPECT_EQ(sort_result_type, nms->get_sort_result_type());
     EXPECT_EQ(sort_result_across_batch, nms->get_sort_result_across_batch());
     EXPECT_EQ(output_type, nms->get_output_type());
@@ -56,7 +61,8 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     EXPECT_EQ(iou_threshold, nms->get_iou_threshold());
     EXPECT_EQ(score_threshold, nms->get_score_threshold());
     EXPECT_EQ(background_class, nms->get_background_class());
-    EXPECT_EQ(nms_eta, nms->get_nms_eta());    
+    EXPECT_EQ(nms_eta, nms->get_nms_eta());
+    EXPECT_EQ(normalized, nms->get_normalized());
 }
 
 TEST(attributes, multiclass_nms_v8_op_default_attributes)
@@ -78,4 +84,5 @@ TEST(attributes, multiclass_nms_v8_op_default_attributes)
     EXPECT_EQ(g_nms->get_score_threshold(), nms->get_score_threshold());
     EXPECT_EQ(g_nms->get_background_class(), nms->get_background_class());
     EXPECT_EQ(g_nms->get_nms_eta(), nms->get_nms_eta());
+    EXPECT_EQ(g_nms->get_normalized(), nms->get_normalized());
 }
