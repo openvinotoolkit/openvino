@@ -48,6 +48,7 @@ namespace {
 AutoInferencePlugin::AutoInferencePlugin() {
     _pluginName = "AUTO";
 }
+// unused
 
 IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::string& fileName,
                                                                      const ConfigType&  config) {
