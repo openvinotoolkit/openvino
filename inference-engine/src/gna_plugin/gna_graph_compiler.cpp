@@ -162,7 +162,8 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
                         InferenceEngine::details::product(begin(dataOutput->getDims()),
                                                         end(dataOutput->getDims())) * dataOutput->getPrecision().size();
 
-                if (LayerInfo(outFunctionalLayer.first).isAffineFilter()) {
+                if (//LayerInfo(outFunctionalLayer.first).isAffineFilter() ||
+                    LayerInfo(outFunctionalLayer.first).isConvolutionFilter()) {
                     size_t aligned64_offset = outFunctionalLayer.first->GetParamAsInt("offset");
                     layerInfoItem.splitOutputLayers.emplace_back(
                         outFunctionalLayer.first,
@@ -1728,8 +1729,8 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     }
 }
 
-void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
-    auto filterLayer = dynamic_cast<InferenceEngine::WeightableLayer*> (layer.get());
+void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
+    auto filterLayer = dynamic_cast<InferenceEngine::ConvolutionLayer*> (layer.get());
 
     if (filterLayer == nullptr) {
         return;
@@ -1754,60 +1755,68 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
 
     const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
         GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
-    uint32_t num_columns_in = GetDataDimSize(inputs, 2);
-    uint32_t num_rows_out = GetDataDimSize(outputs, 1);
-    uint32_t num_rows_in = filterLayer->_weights->size() / num_rows_out;
-
-    uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
-    auto biasPrecision = filterLayer->_biases ? filterLayer->_biases->getTensorDesc().getPrecision() : outputs->getPrecision();
+    uint32_t num_columns_in = GetDataDimSize(inputs, 1);
+    uint32_t num_columns_out = GetDataDimSize(outputs, 1);
+    uint32_t num_rows_in = 1;
+    uint32_t num_filters = 4;
+    uint32_t num_filter_coefficients = num_filters + 16 + 4;
+    num_columns_in += num_filter_coefficients;
+    num_columns_out = (num_columns_in - num_filter_coefficients) / 4 + 1;
+    num_columns_out *= num_filters;
+    //uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
+    const auto& biasPrecision = filterLayer->_biases ? filterLayer->_biases->getTensorDesc().getPrecision() : outputs->getPrecision();
     auto& currentComponent = dnnComponents.addComponent(layer->name, "affine");
 
-    dnn->InitAffineComponent(currentComponent,
-        num_rows_in + num_padding,
+    uint32_t num_feature_map_columns = num_filters;
+    uint32_t num_feature_map_rows = num_columns_in / num_feature_map_columns;
+    layer->params["num_rows_for_pwl"] = std::to_string(num_columns_out);
+    dnn->InitConvolutional1DComponent(currentComponent,
         num_columns_in,
-        num_rows_out,
+        num_columns_out,
         inputs->getPrecision().size(),
         outputs->getPrecision().size(),
         filterLayer->_weights->getTensorDesc().getPrecision().size(),
         biasPrecision.size(),
+        num_filters,
+        num_filter_coefficients,
+        num_feature_map_rows,
+        num_feature_map_columns,
         quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
         quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
         ptr_inputs,
         ptr_outputs,
         ptr_weights,
-        ptr_biases,
-        false);
+        ptr_biases);
 
     size_t num_data_bytes_out =
         InferenceEngine::details::product(
             begin(outputs->getDims()), end(outputs->getDims())) * 4;
 
-    size_t num_data_bytes_in = num_columns_in *
-        ALIGN(num_rows_in, noOfInputsDivisor) * inputs->getPrecision().size();
+    size_t num_data_bytes_in = num_columns_in * inputs->getPrecision().size();
 
     connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-    if (num_padding == 0) {
+    //if (num_padding == 0) {
         gnamem->readonly().push_ptr(ptr_weights,
             filterLayer->_weights->cbuffer().as<const void*>(),
             filterLayer->_weights->byteSize(),
             64);
-    } else {
-        auto elementsIn = (num_rows_in + num_padding) * num_columns_in;
-        auto paddedWeights = elementsIn * num_rows_out;
-        auto paddedWeightsSize = paddedWeights * filterLayer->precision.size();
-
-        gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
-            size_t offset = 0;
-            for (uint32_t i = 0; i < num_rows_out && size >= offset; i++) {
-                ie_memcpy(reinterpret_cast<uint8_t*>(data) + offset, size - offset,
-                    filterLayer->_weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * filterLayer->precision.size(),
-                    num_rows_in* filterLayer->precision.size());
-                offset += (num_rows_in + num_padding) * filterLayer->precision.size();
-            }
-            }, 64);
-    }
+    // } else {
+    //     auto elementsIn = (num_rows_in + num_padding) * num_columns_in;
+    //     auto paddedWeights = elementsIn * num_rows_out;
+    //     auto paddedWeightsSize = paddedWeights * filterLayer->precision.size();
+    // 
+    //     gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
+    //         size_t offset = 0;
+    //         for (uint32_t i = 0; i < num_rows_out && size >= offset; i++) {
+    //             ie_memcpy(reinterpret_cast<uint8_t*>(data) + offset, size - offset,
+    //                 filterLayer->_weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * filterLayer->precision.size(),
+    //                 num_rows_in* filterLayer->precision.size());
+    //             offset += (num_rows_in + num_padding) * filterLayer->precision.size();
+    //         }
+    //         }, 64);
+    // }
 
     if (filterLayer->_biases) {
         gnamem->readonly().push_ptr(ptr_biases,
@@ -1815,7 +1824,7 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
             filterLayer->_biases->byteSize(),
             64);
     } else {
-        gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+        gnamem->readonly().push_value(ptr_biases, 0.0f, num_filters, 64);
     }
 }
 
@@ -1878,13 +1887,19 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     // TODO: solve this by layer level transformations
-    auto concatAlignFilter = CNNNetPrevLayer(layer, 0);
-    if (LayerInfo(concatAlignFilter).isConcatAlignFilter()) {
-        auto rowsCopiedOffset = concatAlignFilter->GetParamAsInt("rows_copied_offset");
+    auto prevLayer = CNNNetPrevLayer(layer, 0);
+    if (LayerInfo(prevLayer).isConcatAlignFilter()) {
+        auto rowsCopiedOffset = prevLayer->GetParamAsInt("rows_copied_offset");
         if (rowsCopiedOffset != 0) {
             num_rows -= rowsCopiedOffset / outputs->getPrecision().size();
             layer->params["output_offset"] = std::to_string(rowsCopiedOffset);
         }
+    } else if (LayerInfo(prevLayer).isConvolutionFilter()) {
+        const auto num_rows_for_pwl = prevLayer->GetParamAsInt("num_rows_for_pwl", 0);
+        if (num_rows_for_pwl != 0) {
+            num_rows = num_rows_for_pwl;
+        }
+
     }
     size_t num_data_bytes_out = num_columns * num_rows * outputs->getPrecision().size();
     size_t num_data_bytes_in = num_columns * num_rows * inputs->getPrecision().size();
@@ -2135,7 +2150,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"FullyConnected", "InnerProduct"}, CREATE(AffinePrimitive)},
         {{"Gemm"}, CREATE(GemmPrimitive)},
         {{"ScaleShift"}, CREATE(DiagonalPrimitive)},
-        {{"AffineFilter"}, CREATE(AffineFilterPrimitive)},
+        {{"ConvolutionFilter"}, CREATE(ConvolutionFilterPrimitive)},
         {{"ConcatAlignFilter"}, CREATE(ConcatAlignFilterPrimitive)},
         {{"Const"}, CREATE(ConstPrimitive)},
         {{"Eltwise"}, CREATE(EltwisePrimitive)},  // same as diagonal while weights are not taken from network, rather than from another output

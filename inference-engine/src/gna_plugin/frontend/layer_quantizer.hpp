@@ -345,6 +345,10 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         num_columns = wl->_weights->size() / num_rows;
     }
 
+    if (LayerInfo(wl).isConvolutionFilter()) {
+        num_columns = 1;
+    }
+
     if (isDiagonal) {
         std::swap(num_rows, num_columns);
     }

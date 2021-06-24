@@ -1277,7 +1277,7 @@ void InsertSplitAligningFilterPass::run() {
                     gnalog() << std::endl;
 #endif
                     auto filterLayer =
-                            std::make_shared<WeightableLayer>(LayerParams({filterName, "AffineFilter", Precision::FP32}));
+                            std::make_shared<ConvolutionLayer>(LayerParams({filterName, "ConvolutionFilter", Precision::FP32}));
 
                     auto inputData = splitOutput;
 
@@ -1297,14 +1297,23 @@ void InsertSplitAligningFilterPass::run() {
                     }
 
                     auto num_rows_out = dims[1] * (dims.size() != 2 ? dims[2] : 1);
-                    std::vector<float> filterWeights(newOutputSize * num_rows_out, 0.f);
 
                     auto offset = (currentOffset - aligned64_offset) / bytesPerSplitElement;
+                    auto convolution_filter_size = offset + 4;
+                    convolution_filter_size += 4; // TODO generalize padding
 
-                    for (int i = 0; i != outputSize; i++) {
-                        filterWeights[offset] = 1.0f;
-                        offset += newOutputSize + 1;
-                    }
+                    std::vector<float> filterWeights(convolution_filter_size * 4, 0.f);
+                    filterWeights[offset] = 1;
+                    filterWeights[offset + convolution_filter_size + 1] = 1;
+                    filterWeights[offset + 2 * convolution_filter_size + 2] = 1;
+                    filterWeights[offset + 3 * convolution_filter_size + 3] = 1;
+
+                    filterLayer->_stride_x = 4;
+                    filterLayer->_stride_y = 1;
+                    filterLayer->_kernel_x = convolution_filter_size;
+                    filterLayer->_kernel_y = 1;
+                    filterLayer->_padding_x = 0;
+                    filterLayer->_padding_y = 0;
 
                     filterLayer->_weights = make_shared_blob<float>(TensorDesc(
                             inputData->getTensorDesc().getPrecision(),
@@ -1312,6 +1321,15 @@ void InsertSplitAligningFilterPass::run() {
                             Layout::C));
                     filterLayer->_weights->allocate();
                     CopyVectorToBlob(filterLayer->_weights, filterWeights);
+
+                    std::vector<float> biasWeights(4, 0.f);
+
+                    filterLayer->_biases = make_shared_blob<float>(TensorDesc(
+                        inputData->getTensorDesc().getPrecision(),
+                        SizeVector({ biasWeights.size() }),
+                        Layout::C));
+                    filterLayer->_biases->allocate();
+                    CopyVectorToBlob(filterLayer->_biases, biasWeights);
 
                     auto outData = std::make_shared<Data>(filterName,
                                                           TensorDesc(splitOutput->getTensorDesc().getPrecision(),
