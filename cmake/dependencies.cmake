@@ -316,25 +316,25 @@ if(ENABLE_SPEECH_DEMO)
     if(DEFINED IE_PATH_TO_DEPS)
         if(WIN32 AND X86_64)
             RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_WIN "speech_demo_1.0.0.774_windows.zip"
+                    ARCHIVE_WIN "speech_demo_1.0.0.778_windows.zip"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                     TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "67b25170be5e89a4f0e90e8b39623b60c9a15b965c30329385e295fcd2edc856")
+                    SHA256 "0a4daa6496049bdce0bd582c0fdf59b82d2443646cb0432b4a18383796c96944")
             debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
         elseif(LINUX AND X86_64)
             if(LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.774_centos.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.778_centos.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                     TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "5ec3b7be9ae05376aefae5bd5fd4a39b12c274e82817fd3218120b8e8fc8ff5a")
+                    SHA256 "6e68554a3250f1a56941dfb57c047970a6f6a3b98d0e8dcb3bd56fea09ef3d8b")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             else()
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.774_linux.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.778_linux.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                     TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "f0bbd0a6218b0365e7cfb1f860b34e4ace7e0d47dd60b369cdea8a480329810f")
+                    SHA256 "dd02092031a40e704087f7f4276d4d79bf7709759b88fbb4b87bb9d18d54c4f0")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             endif()
         else()
