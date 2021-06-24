@@ -4,15 +4,6 @@
 
 project(InferenceEngine)
 
-if(CMAKE_SOURCE_DIR STREQUAL "${InferenceEngine_SOURCE_DIR}")
-    message(FATAL_ERROR "Cmake source directory must point to <openvino_root>")
-endif()
-
-include(cmake/features.cmake)
-
-# resolving dependencies for the project
-include(cmake/dependencies.cmake)
-
 add_subdirectory(thirdparty)
 add_subdirectory(src)
 add_subdirectory(ie_bridges/c)
@@ -27,14 +18,6 @@ add_subdirectory(samples)
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
     add_subdirectory(tests)
-endif()
-
-#
-# Coverage
-#
-
-if(ENABLE_COVERAGE)
-    include(cmake/coverage.cmake)
 endif()
 
 #
@@ -122,13 +105,13 @@ function(ie_generate_dev_package_config)
     endforeach()
     add_custom_target(ie_dev_targets ALL DEPENDS ${all_dev_targets})
 
-    configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
+    configure_package_config_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
                                   "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
                                   INSTALL_DESTINATION share # not used
-                                  PATH_VARS "OpenVINO_MAIN_SOURCE_DIR;IE_MAIN_SOURCE_DIR"
+                                  PATH_VARS "OpenVINO_MAIN_SOURCE_DIR;IE_MAIN_SOURCE_DIR;gflags_BINARY_DIR"
                                   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
-    configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+    configure_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
                    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
                    @ONLY)
 endfunction()

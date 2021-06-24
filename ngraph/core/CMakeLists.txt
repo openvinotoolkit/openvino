@@ -45,17 +45,6 @@ ie_mark_target_as_cc(ngraph)
 
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    message(STATUS "Enable Address Sanitizer")
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
-
-if(NGRAPH_LIB_VERSIONING_ENABLE)
-    set_target_properties(ngraph PROPERTIES
-        VERSION ${NGRAPH_VERSION}
-        SOVERSION ${NGRAPH_API_VERSION})
-endif()
-
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
 endif()
@@ -110,14 +99,3 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/ngraph/version.hpp
     DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph
     COMPONENT ngraph_dev)
-
-set(CPACK_GENERATOR "DEB")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "nGraph library")
-set(CPACK_PACKAGE_NAME "nGraph")
-set(CPACK_PACKAGE_VENDOR "Intel")
-
-set(CPACK_PACKAGE_VERSION_MAJOR ${NGRAPH_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${NGRAPH_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${NGRAPH_VERSION_PATCH})
-include(CPack)

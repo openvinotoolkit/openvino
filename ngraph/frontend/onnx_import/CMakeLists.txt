@@ -80,6 +80,4 @@ install(DIRECTORY ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import
         PATTERN "*.h"
 )
 
-if (NGRAPH_EXPORT_TARGETS_ENABLE)
-    export(TARGETS onnx_importer NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
-endif()
+export(TARGETS onnx_importer NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
