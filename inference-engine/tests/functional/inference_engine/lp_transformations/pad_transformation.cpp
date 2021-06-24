@@ -19,6 +19,7 @@
 
 namespace {
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 
 class PadTransformationTestValues {
@@ -43,7 +44,7 @@ public:
 };
 
 typedef std::tuple <
-    ngraph::Shape, // input Shape
+    ngraph::PartialShape, // input Shape
     std::pair<std::vector<uint64_t>, std::vector<uint64_t>>, // pads begin, pads end
     ngraph::op::PadMode, // pads mode
     float, // pads value (used if mode == CONSTANT)
@@ -52,7 +53,7 @@ typedef std::tuple <
 class PadTransformation : public LayerTransformation, public testing::WithParamInterface<PadTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::Shape inputShape = std::get<0>(GetParam());
+        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
         const auto pads = std::get<1>(GetParam());
         const ngraph::op::PadMode padsMode = std::get<2>(GetParam());
         const float padsValue = std::get<3>(GetParam());
@@ -89,7 +90,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<PadTransformationParams> obj) {
-        const ngraph::Shape inputShape = std::get<0>(obj.param);
+        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
         const auto pads = std::get<1>(obj.param);
         const ngraph::op::PadMode padsMode = std::get<2>(obj.param);
         const float padsValue = std::get<3>(obj.param);
@@ -117,9 +118,11 @@ TEST_P(PadTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> inputShapes = {
+const std::vector<ngraph::PartialShape> inputShapes = {
     {1, 3, 6, 6},
-    {4, 3, 6, 6}
+    {4, 3, 6, 6},
+    // TODO: uncomment
+    // {Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}
 };
 
 const std::pair<std::vector<uint64_t>, std::vector<uint64_t>> padsBySpatialDimensions = {
@@ -131,7 +134,6 @@ const std::pair<std::vector<uint64_t>, std::vector<uint64_t>> padsBySpatialDimen
 // (per-tensor & per-channel quantizations without subtracts, pads by spatial dimensions)
 // and test-case without dequantization
 namespace commonTestCases {
-
 std::vector<ngraph::op::PadMode> allModes = {
     ngraph::op::PadMode::EDGE,
     ngraph::op::PadMode::REFLECT,
@@ -233,7 +235,7 @@ const std::vector<PadTransformationTestValues> deqWithoutSub = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     PadTransformation,
     ::testing::Combine(
@@ -248,7 +250,6 @@ INSTANTIATE_TEST_CASE_P(
 // test-cases with common logic for "EDGE", "REFLECT", and "SYMMETRIC" modes:
 // pads by spatial dimensions, dequantization with subtract
 namespace dqWithSubtract {
-
 std::vector<ngraph::op::PadMode> modesInWhichSubPropagated = {
     ngraph::op::PadMode::EDGE,
     ngraph::op::PadMode::REFLECT,
@@ -310,7 +311,7 @@ const std::vector<PadTransformationTestValues> deqWithSub = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     PadTransformation,
     ::testing::Combine(
@@ -324,7 +325,6 @@ INSTANTIATE_TEST_CASE_P(
 
 // dequantization with subtract and "CONSTANT" mode, also dequantization and padding by the same dimension
 namespace testCasesForConstantMode {
-
 const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
     {
         LayerTransformation::createParamsI8I8(),
@@ -380,7 +380,7 @@ const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     PadTransformation,
     ::testing::Combine(
@@ -394,7 +394,6 @@ INSTANTIATE_TEST_CASE_P(
 
 // dequantization with "CONSTANT" mode and non zero value: dequantization isn't propagated
 namespace testCasesForConstantModeWithNonZeroValues {
-
 const std::vector<PadTransformationTestValues> testValuesForConstantMode2 = {
     {
         LayerTransformation::createParamsI8I8(),
@@ -437,7 +436,7 @@ const std::vector<PadTransformationTestValues> testValuesForConstantMode2 = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     PadTransformation,
     ::testing::Combine(
@@ -450,7 +449,6 @@ INSTANTIATE_TEST_CASE_P(
 } // namespace testCasesForConstantModeWithNonZeroValues
 
 namespace testCasesForEdgeMode {
-
 const std::vector<PadTransformationTestValues> testValuesForEdgeMode = {
     {
         LayerTransformation::createParamsI8I8(),
@@ -475,7 +473,7 @@ const std::vector<PadTransformationTestValues> testValuesForEdgeMode = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     PadTransformation,
     ::testing::Combine(
@@ -488,7 +486,6 @@ INSTANTIATE_TEST_CASE_P(
 } // namespace testCasesForEdgeMode
 
 namespace testCasesForReflectMode {
-
 const std::vector<PadTransformationTestValues> testValuesForReflectMode = {
     {
         LayerTransformation::createParamsI8I8(),
@@ -513,7 +510,7 @@ const std::vector<PadTransformationTestValues> testValuesForReflectMode = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     PadTransformation,
     ::testing::Combine(
@@ -526,7 +523,6 @@ INSTANTIATE_TEST_CASE_P(
 } // namespace testCasesForReflectMode
 
 namespace testCasesForSymetricMode {
-
 const std::vector<PadTransformationTestValues> testValuesForSymetricMode = {
     {
         LayerTransformation::createParamsI8I8(),
@@ -551,7 +547,7 @@ const std::vector<PadTransformationTestValues> testValuesForSymetricMode = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     PadTransformation,
     ::testing::Combine(
@@ -562,5 +558,4 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(testValuesForSymetricMode)),
     PadTransformation::getTestCaseName);
 } // namespace testCasesForSymetricMode
-
 } // namespace

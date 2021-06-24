@@ -17,7 +17,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ngraph::Function> PadFunction::get(
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const element::Type precisionBeforeDequantization,
     const builder::subgraph::DequantizationOperations& dequantizationBefore,
     const std::vector<uint64_t>& padsBegin,
