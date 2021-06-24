@@ -6,11 +6,12 @@
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
+#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Negative::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Negative, "Negative", 0, util::UnaryElementwiseArithmetic);
 
 op::Negative::Negative(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
@@ -48,11 +49,9 @@ namespace negativeop
 
         switch (arg0->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_negative, boolean, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_negative, i32, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_negative, i64, arg0, out, count);
-            NGRAPH_TYPE_CASE(evaluate_negative, u32, arg0, out, count);
-            NGRAPH_TYPE_CASE(evaluate_negative, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_negative, bf16, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_negative, f16, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_negative, f32, arg0, out, count);
         default: rc = false; break;
@@ -64,7 +63,10 @@ namespace negativeop
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Negative_evaluate);
-    return negativeop::evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    return negativeop::evaluate_negative(
+        inputs[0], outputs[0], shape_size(outputs[0]->get_shape()));
 }
 
 bool op::Negative::has_evaluate() const
@@ -72,11 +74,8 @@ bool op::Negative::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_Negative_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
     case ngraph::element::f16:
     case ngraph::element::f32: return true;
     default: break;

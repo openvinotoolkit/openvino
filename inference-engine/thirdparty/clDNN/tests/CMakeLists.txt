@@ -55,17 +55,6 @@ file(GLOB __CLDNN_Sources__module_tests
     "${__CLDNN_Directory__module_tests}/*.cpp"
   )
 
-set(__CLDNN_Directory__gtest           "${CLDNN__GTEST_DIR}")
-set(__CLDNN_Label__gtest               "google test framework")
-file(GLOB __CLDNN_Sources__gtest
-    "${__CLDNN_Directory__gtest}/*.cc"
-  )
-
-if(UNIX)
-    set_source_files_properties(${__CLDNN_Sources__gtest} PROPERTIES
-        COMPILE_FLAGS "-Wno-undef")
-endif()
-
 if (MSVC)
   file(GLOB __CLDNN_Sources__natvis
     "${CMAKE_CURRENT_SOURCE_DIR}/float16.natvis"
@@ -84,7 +73,6 @@ set(__CLDNN_AllSources
     ${__CLDNN_Sources__test_cases}
     ${__CLDNN_Sources__test_utils}
     ${__CLDNN_Sources__module_tests}
-    ${__CLDNN_Sources__gtest}
     ${__CLDNN_Sources__natvis}
   )
 
@@ -94,7 +82,6 @@ source_group("${__CLDNN_Label__main}"         FILES ${__CLDNN_Sources__main})
 source_group("${__CLDNN_Label__test_cases}"   FILES ${__CLDNN_Sources__test_cases})
 source_group("${__CLDNN_Label__test_utils}"   FILES ${__CLDNN_Sources__test_utils})
 source_group("${__CLDNN_Label__module_tests}" FILES ${__CLDNN_Sources__module_tests})
-source_group("${__CLDNN_Label__gtest}"        FILES ${__CLDNN_Sources__gtest})
 
 # ===================================== Include/Link directories =======================================
 
@@ -111,9 +98,6 @@ include_directories(
     "${__CLDNN_Directory__ks_common}"
   )
 
-include_directories(SYSTEM
-    "${CLDNN__GTEST_DIR}")
-
 # =================================== Link targets and dependencies ====================================
 
 # Tests executable.
@@ -129,7 +113,7 @@ set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
 # Set library dependencies
-target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE "${CLDNN_BUILD__PROJ__clDNN}")
+target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE "${CLDNN_BUILD__PROJ__clDNN}" OpenCL gtest gmock)
 
 if(WIN32)
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)

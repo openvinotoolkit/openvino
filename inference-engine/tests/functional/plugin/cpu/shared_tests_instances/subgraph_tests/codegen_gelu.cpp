@@ -16,7 +16,7 @@ namespace {
             InferenceEngine::Precision::FP32
     };
 
-    INSTANTIATE_TEST_CASE_P(NoReshape, CodegenGelu,
+    INSTANTIATE_TEST_SUITE_P(NoReshape, CodegenGelu,
             ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(InferenceEngine::SizeVector({1, 384, 4096})),

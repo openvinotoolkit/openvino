@@ -54,6 +54,7 @@ VERIFIED_OP_REFERENCES = [
     'MaxPool-1',
     'Mish-4',
     'Multiply-1',
+    'Negative-1',
     'NonMaxSuppression-4',
     'NonMaxSuppression-5',
     'NonZero-3',
