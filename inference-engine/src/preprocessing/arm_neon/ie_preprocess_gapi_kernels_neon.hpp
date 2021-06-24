@@ -42,7 +42,7 @@ extern template void nv12ToRgbRowImpl(neon_tag, const uint8_t** y_rows, const ui
 
 template<typename isa_tag_t>
 void i420ToRgbRowImpl(isa_tag_t, const uint8_t** y_rows, const uint8_t* u_row,
-                             const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
+                      const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
 
 extern template void i420ToRgbRowImpl(neon_tag, const uint8_t** y_rows, const uint8_t* u_row,
                                       const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
