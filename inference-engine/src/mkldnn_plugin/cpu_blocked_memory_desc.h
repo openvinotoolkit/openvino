@@ -21,16 +21,7 @@ public:
 
     bool isDefined() const override;
 
-    bool isCompatible(const MemoryDesc& rhs) const override {
-        try {
-            const auto& blockingDesc = dynamic_cast<const BlockedMemoryDesc&>(rhs);
-            return isCompatible(blockingDesc);
-        }
-        catch (const std::bad_cast& excp) {
-            //IE_THROW() << "Cannot check compatibility with this type of memory descriptor";
-            return false;
-        }
-    }
+    bool isCompatible(const MemoryDesc& rhs) const override;
 
     bool isCompatible(const BlockedMemoryDesc& rhs) const;
 

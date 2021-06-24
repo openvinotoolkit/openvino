@@ -97,12 +97,11 @@ public:
     }
 
     bool isDefined() const override {
-            IE_THROW() << "[DS] Unimplemented";
+        return true;
     }
 
-    bool isCompatible(const MemoryDesc& rhs) const override {
-        IE_THROW() << "[DS] Unimplemented";
-    }
+    bool isCompatible(const MemoryDesc& rhs) const override;
+    bool isCompatible(const BlockedMemoryDesc& rhs) const;
 
 private:
     size_t getMemSizeImp() const override;
