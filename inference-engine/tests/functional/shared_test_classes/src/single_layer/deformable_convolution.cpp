@@ -19,7 +19,9 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(testing::TestParamIn
     InferenceEngine::SizeVector offsets, filter, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t groups, deformable_groups, convOutChannels;
-    std::tie(offsets, filter, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType) = convParams;
+    bool with_bilinear_interpolation_pad, with_modulation;
+    std::tie(offsets, filter, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType,
+             with_bilinear_interpolation_pad, with_modulation) = convParams;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -33,6 +35,8 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(testing::TestParamIn
     result << "DG=" << deformable_groups << "_";
     result << "O=" << convOutChannels << "_";
     result << "AP=" << padType << "_";
+    result << "BI_PAD=" << with_bilinear_interpolation_pad << "_";
+    result << "MODULATION=" << with_modulation << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
@@ -51,6 +55,8 @@ InferenceEngine::Blob::Ptr DeformableConvolutionLayerTest::GenerateInput(const I
             blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 2, 0, 10);
         } else if (name == "c_filter_vals") {
             blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
+        } else if (name == "c_modulation_scalars") {
+            blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 20);
         }
         return blobPtr;
 }
@@ -65,7 +71,9 @@ void DeformableConvolutionLayerTest::SetUp() {
     InferenceEngine::SizeVector offsets, filter, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t groups, deformable_groups, convOutChannels;
-    std::tie(offsets, filter, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType) = convParams;
+    bool with_bilinear_interpolation_pad, with_modulation;
+    std::tie(offsets, filter, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType,
+             with_bilinear_interpolation_pad, with_modulation) = convParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, offsets, filter});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
@@ -76,9 +84,24 @@ void DeformableConvolutionLayerTest::SetUp() {
     offset_vals->set_friendly_name("b_offset_vals");
     auto filter_vals = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(filter));
     filter_vals->set_friendly_name("c_filter_vals");
-    auto deformable_conv = std::make_shared<ngraph::opset1::DeformableConvolution>(data, offset_vals, filter_vals,
-                                                              stride, padBegin, padEnd, dilation, padType, groups, deformable_groups);
+    ngraph::ParameterVector parameters{data, offset_vals, filter_vals};
+    std::shared_ptr<ngraph::Node> deformable_conv;
+    if (with_modulation) {
+        auto modulation_shape = ngraph::Shape(offsets);
+        modulation_shape[1] = offsets[1] / 2;
+        auto modulation_scalars = std::make_shared<ngraph::op::Parameter>(ngPrc, modulation_shape);
+        modulation_scalars->set_friendly_name("c_modulation_scalars");
+
+        deformable_conv = std::make_shared<ngraph::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, modulation_scalars, stride, padBegin,
+                                                                                  padEnd, dilation, padType, groups, deformable_groups,
+                                                                                  with_bilinear_interpolation_pad);
+        parameters.push_back(modulation_scalars);
+    } else {
+        deformable_conv = std::make_shared<ngraph::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, stride, padBegin, padEnd, dilation,
+                                                                                  padType, groups, deformable_groups, with_bilinear_interpolation_pad);
+    }
+
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(deformable_conv)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{data, offset_vals, filter_vals}, "deformable_convolution");
+    function = std::make_shared<ngraph::Function>(results, parameters, "deformable_convolution");
 }
 }  // namespace LayerTestsDefinitions
