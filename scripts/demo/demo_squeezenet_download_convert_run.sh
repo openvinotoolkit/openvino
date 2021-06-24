@@ -151,7 +151,7 @@ if [ ! -e "$ir_dir" ]; then
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
     print_and_run python "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
 else
-    echo -ne "\n\nTarget folder %s already exists. Skipping IR generation  with Model Optimizer." "${ir_dir}"
+    echo -ne "\n\nTarget folder ${ir_dir} already exists. Skipping IR generation  with Model Optimizer."
     echo -ne "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"
 fi
 
