@@ -180,7 +180,8 @@ void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v8::Gather>& o
                                     GetGatherAxis(axis, DefaultFormatForDims(op->get_input_shape(0).size())),
                                     outLayout,
                                     CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                    op->get_batch_dims());
+                                    op->get_batch_dims(),
+                                    true);
 
     p.AddPrimitive(gatherPrim);
     p.AddPrimitiveToProfiler(op);

@@ -172,7 +172,8 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
 
     jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndecesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
-    jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
+    if (params.support_neg_ind)
+        jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetDims().size());
