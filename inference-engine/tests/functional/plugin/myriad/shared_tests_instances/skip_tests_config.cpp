@@ -49,5 +49,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*HoldersTestOnImportedNetwork.*CreateRequestWithCoreRemoved.*)",
         // TODO: Issue CVS-58162
         R"(.*IEClassNetworkTestP_smoke.*IEClassNetworkTestP.*LoadNetworkActualNoThrow.*)",
+        R"(.*IEClassNetworkTestP_smoke.*IEClassNetworkTestP.*LoadNetworkActualHeteroDeviceNoThrow.*)",
     };
 }
