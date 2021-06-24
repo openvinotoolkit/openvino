@@ -254,4 +254,91 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationClamp
     ASSERT_TRUE(result.valid);
 }
 
+// Variant #2 Convolution -> FakeQuantize -> MaxPool
+
+TEST(TransformationTests, ReorderActivationAndPoolingTestVariant2) {
+    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
+
+    {
+        auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+                                                                        ngraph::Shape{1, 3, 64, 64});
+
+        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
+                                                        ngraph::Shape{3, 3, 1, 1}, {1});
+        auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
+                                                     ngraph::Shape{3, 1, 1}, {1});
+        auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
+                                                                  weights,
+                                                                  ngraph::Strides{1, 1},
+                                                                  ngraph::CoordinateDiff{0, 0},
+                                                                  ngraph::CoordinateDiff{0, 0},
+                                                                  ngraph::Strides{1, 1});
+
+        auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+        auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+        auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+        auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+        auto fake_quantize_op = std::make_shared<ngraph::opset7::FakeQuantize>(convolution_operation, input_low,
+                                                                                input_high, output_low,
+                                                                                output_high, 11);
+
+        auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(fake_quantize_op,
+                                                                                    ngraph::Strides{1, 1},
+                                                                                    ngraph::Shape{1, 1},
+                                                                                    ngraph::Shape{1, 1},
+                                                                                    ngraph::Shape{1, 1});
+
+        auto result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
+        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{input_params_convolution});
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+
+        m.register_pass<GNAPluginNS::ReorderActivationAndPooling>();
+        m.run_passes(func);
+        ASSERT_NO_THROW(check_rt_info(func));
+    }
+
+    {
+        auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+                                                                        ngraph::Shape{1, 3, 64, 64});
+
+        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
+                                                        ngraph::Shape{3, 3, 1, 1}, {1});
+        auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
+                                                     ngraph::Shape{3, 1, 1}, {1});
+        auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
+                                                                  weights,
+                                                                  ngraph::Strides{1, 1},
+                                                                  ngraph::CoordinateDiff{0, 0},
+                                                                  ngraph::CoordinateDiff{0, 0},
+                                                                  ngraph::Strides{1, 1});
+
+        auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(convolution_operation,
+                                                                                    ngraph::Strides{1, 1},
+                                                                                    ngraph::Shape{1, 1},
+                                                                                    ngraph::Shape{1, 1},
+                                                                                    ngraph::Shape{1, 1});
+
+        auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+        auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+        auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+        auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+        auto fake_quantize_op = std::make_shared<ngraph::opset7::FakeQuantize>(max_pool_operation, input_low,
+                                                                                input_high, output_low,
+                                                                                output_high, 11);
+
+        
+
+        auto result = std::make_shared<ngraph::opset7::Result>(fake_quantize_op);
+        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{input_params_convolution});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    ASSERT_TRUE(result.valid);
+}
+
 } // namespace testing
