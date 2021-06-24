@@ -116,7 +116,6 @@ namespace
             unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
             unpacked_boxes[3 * pre_nms_topn + i] = p_proposals[5 * i + 3];
             unpacked_boxes[4 * pre_nms_topn + i] = p_proposals[5 * i + 4];
-
         }
     }
 
