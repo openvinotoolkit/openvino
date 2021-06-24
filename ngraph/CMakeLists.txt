@@ -223,7 +223,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE OR USE_STATIC_PROTOBUF)
     unset(BUILD_STANDALONE_STATIC)
 endif()
 
-
 add_subdirectory(frontend)
 
 add_subdirectory(test)

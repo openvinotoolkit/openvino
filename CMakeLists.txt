@@ -70,11 +70,6 @@ function(build_ngraph)
         ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
     endif()
     ngraph_set(NGRAPH_INTERPRETER_ENABLE ON)
-    if(NOT (ANDROID OR WIN32 OR ARM OR AARCH64) )
-        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE ON) #TODO: make it OFF by default
-    else()
-        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
-    endif()
 
     if(ENABLE_PYTHON)
         ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE ON)

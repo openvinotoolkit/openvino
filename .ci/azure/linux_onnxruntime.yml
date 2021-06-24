@@ -44,7 +44,7 @@ jobs:
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(MODELS_DIR)
-      sudo apt --assume-yes install nfs-common libprotobuf-dev
+      sudo apt --assume-yes install nfs-common
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
     displayName: 'Make dirs'
 
@@ -60,7 +60,7 @@ jobs:
     displayName: 'Clone onnxruntime'
 
   - script: |
-      sudo apt --assume-yes install libusb-1.0-0-dev libprotobuf-dev
+      sudo apt --assume-yes install libusb-1.0-0-dev
       # For opencv-python: setuptools and upgrade
       sudo apt-get install python3-setuptools
       python3 -m pip install --upgrade pip

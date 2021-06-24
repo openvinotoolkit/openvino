@@ -2,8 +2,6 @@
 _*
 # but ensure we don't skip __init__.py
 !__init__.py
-# but ensure we don't skip __model__
-!__model__
 
 # developer tools
 *.idea

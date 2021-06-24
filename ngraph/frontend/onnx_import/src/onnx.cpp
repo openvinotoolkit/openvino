@@ -37,12 +37,6 @@ namespace ngraph
             return import_onnx_model(model_stream, file_path);
         }
 
-        //        std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor)
-        //        {
-        //            return detail::import_onnx_model(model_editor.model(),
-        //            model_editor.model_path());
-        //        }
-
         std::set<std::string> get_supported_operators(std::int64_t version,
                                                       const std::string& domain)
         {

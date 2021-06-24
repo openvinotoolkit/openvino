@@ -69,4 +69,3 @@
 *.jpg filter=lfs diff=lfs merge=lfs -text
 *.gif filter=lfs diff=lfs merge=lfs -text
 *.vsdx filter=lfs diff=lfs merge=lfs -text
-ngraph/test/files/paddlepaddle/models/ filter=lfs diff=lfs merge=lfs -text

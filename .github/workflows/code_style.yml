@@ -14,7 +14,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt --assume-yes install libusb-1.0-0-dev libprotobuf-dev
+          sudo apt --assume-yes install libusb-1.0-0-dev
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
           # Add for -DENABLE_PYTHON=ON, no cython
@@ -54,7 +54,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt --assume-yes install libusb-1.0-0-dev libprotobuf-dev
+          sudo apt --assume-yes install libusb-1.0-0-dev
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
 
       - name: CMake

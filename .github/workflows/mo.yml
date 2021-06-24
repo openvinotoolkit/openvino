@@ -41,7 +41,7 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements_dev.txt
           # requrements for CMake
-          sudo apt --assume-yes install libusb-1.0-0-dev libprotobuf-dev
+          sudo apt --assume-yes install libusb-1.0-0-dev
         working-directory: model-optimizer
 
       - name: Pylint

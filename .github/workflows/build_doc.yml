@@ -14,7 +14,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive libprotobuf-dev
+          sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive
           python3 -m pip install lxml
           # install doxygen
           mkdir doxygen

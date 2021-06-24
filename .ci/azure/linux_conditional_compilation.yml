@@ -53,7 +53,7 @@ jobs:
     path: openvino
 
   - script: |
-      sudo apt --assume-yes install libusb-1.0-0-dev libprotobuf-dev
+      sudo apt --assume-yes install libusb-1.0-0-dev
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip

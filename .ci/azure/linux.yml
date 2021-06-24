@@ -80,7 +80,7 @@ jobs:
     path: testdata
 
   - script: |
-      sudo apt --assume-yes install libusb-1.0-0-dev libprotobuf-dev
+      sudo apt --assume-yes install libusb-1.0-0-dev
       # For opencv-python: setuptools and upgrade
       sudo apt-get install python3-setuptools patchelf
       python3 -m pip install --upgrade pip
@@ -88,8 +88,6 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/wheel/requirements-dev.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
-      # TODO: this is needed only when PDPD frontend is enabled and tests are executed
-      python3 -m pip install paddlepaddle==2.0.1
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
       unzip ninja-linux.zip
