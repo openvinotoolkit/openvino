@@ -84,9 +84,9 @@ namespace ngraph
                                                const CoordinateDiff& data_padding_above,
                                                const PartialShape& window_shape,
                                                const Strides& window_strides,
-                                               const Strides& window_dilation,
                                                bool is_window_all_in_padding_allowed,
-                                               bool ceil_mode = false);
+                                               bool ceil_mode = false,
+                                               const Strides& window_dilation = Strides{});
 
     NGRAPH_API
     std::tuple<element::Type, PartialShape, PartialShape>

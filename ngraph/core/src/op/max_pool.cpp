@@ -135,9 +135,9 @@ bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
                                                    pads_end,
                                                    get_kernel(),
                                                    get_strides(),
-                                                   Strides{}, // no dilation of the window
                                                    true,
-                                                   get_rounding_type() == op::RoundingType::CEIL);
+                                                   get_rounding_type() == op::RoundingType::CEIL,
+                                                   Strides{}); // no dilation of the window
 
     return maxpool::evaluate_maxpool(inputs[0],
                                      outputs[0],

@@ -478,9 +478,9 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
                                                    const CoordinateDiff& data_padding_above,
                                                    const PartialShape& window_shape,
                                                    const Strides& window_strides,
-                                                   const Strides& window_dilation,
                                                    bool is_window_all_in_padding_allowed,
-                                                   bool ceil_mode)
+                                                   bool ceil_mode,
+                                                   const Strides& window_dilation)
 {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||

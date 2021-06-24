@@ -146,9 +146,9 @@ void op::v1::AvgPool::validate_and_infer_types()
                                                         pads_end,
                                                         m_kernel,
                                                         m_strides,
-                                                        Strides{}, // no dilation of the window
                                                         !m_exclude_pad,
-                                                        m_rounding_type == op::RoundingType::CEIL)
+                                                        m_rounding_type == op::RoundingType::CEIL,
+                                                        Strides{}) // no dilation of the window
                         : output_shape);
 }
 

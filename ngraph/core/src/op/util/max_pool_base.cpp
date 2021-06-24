@@ -115,9 +115,9 @@ PartialShape op::util::MaxPoolBase::infer_output_shape(const Strides& dilations)
                                                      pads_end,
                                                      m_kernel,
                                                      m_strides,
-                                                     dilations,
                                                      true,
-                                                     m_rounding_type == op::RoundingType::CEIL);
+                                                     m_rounding_type == op::RoundingType::CEIL,
+                                                     dilations);
     }
     else
     {
