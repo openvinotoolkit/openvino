@@ -28,7 +28,6 @@ private:
     float beta = 0.0f;
     float gamma = 0.0f;
 
-    std::vector<DataConfigurator> inDataConf;
     std::string errorPrefix;
 };
 

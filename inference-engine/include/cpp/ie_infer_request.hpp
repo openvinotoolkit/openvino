@@ -35,10 +35,6 @@ class ICompletionCallbackWrapper;
 class INFERENCE_ENGINE_API_CLASS(InferRequest) {
     details::SharedObjectLoader                          _so;
     std::shared_ptr<IInferRequestInternal>               _impl;
-    IE_SUPPRESS_DEPRECATED_START
-    IInferRequest::Ptr                                   actual;
-    std::shared_ptr<details::ICompletionCallbackWrapper> callback;
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr
@@ -70,18 +66,6 @@ public:
      * @brief Default constructor
      */
     InferRequest() = default;
-
-    IE_SUPPRESS_DEPRECATED_START
-    /**
-     * @deprecated This ctor will be removed in 2022.1
-     * @brief Constructs InferRequest from the initialized std::shared_ptr
-     * @param request Initialized shared pointer
-     * @param splg Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is destroyed.
-     */
-    INFERENCE_ENGINE_DEPRECATED("This ctor will be removed in 2022.1")
-    explicit InferRequest(IInferRequest::Ptr request,
-                          std::shared_ptr<details::SharedObjectLoader> splg = {});
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Sets input/output data to infer
