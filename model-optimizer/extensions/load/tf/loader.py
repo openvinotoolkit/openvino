@@ -107,9 +107,10 @@ class TFLoader(Loader):
             NHWC_conv_detected = graph_or_sub_graph_has_nhwc_ops(graph)
             if not NHWC_conv_detected:
                 if not argv.silent and not argv.disable_nhwc_to_nchw:
-                    print('The TensorFlow model does not contain Convolution operations with N(D)HWC layout. Most '
-                          'likely the model should be converted using additional "--disable_nhwc_to_nchw" command line '
-                          'parameter which disables model layout conversion inside the Model Optimizer.')
+                    log.error('The TensorFlow model does not contain Convolution operations with N(D)HWC layout. Most '
+                              'likely the model should be converted using additional "--disable_nhwc_to_nchw" command '
+                              'line parameter which disables model layout conversion inside the Model Optimizer.',
+                              extra={'is_warning': True})
 
         send_op_names_info(framework, graph)
         send_shapes_info(framework, graph)
