@@ -12,7 +12,7 @@ Start working with the OpenVINO™ toolkit right from your browser: import a mod
 * Measure and interpret model performance right after the import​.
 * Tune the model for enhanced performance.
 * Analyze the quality of your model and visualize output.
-* Use preconfigured JupyterLab\* environment to learn OpenVINO API and CLI (command-line inteface), and its components essential to analyze and optimize models. 
+* Use preconfigured JupyterLab\* environment to learn OpenVINO. 
 
 \htmlonly
 <iframe width="560" height="315" src="https://www.youtube.com/embed/on8xSSTKCt8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
