@@ -2,13 +2,50 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(ENABLE_LTO)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
+
 add_subdirectory(ittapi EXCLUDE_FROM_ALL)
 add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
+add_subdirectory(ocl EXCLUDE_FROM_ALL)
 
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
+
+#
+# Fluid, G-API, OpenCV HAL
+#
+
+add_library(ocv_hal INTERFACE)
+target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
+
+add_subdirectory(ade EXCLUDE_FROM_ALL)
+add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
+set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
+
+#
+# Gflags
+#
+
+function(add_gflags)
+    # common gflags settings
+    set(GFLAGS_IS_SUBPROJECT TRUE)
+    set(HAVE_SYS_STAT_H 1)
+    set(HAVE_INTTYPES_H 1)
+    set(INTTYPES_FORMAT C99)
+    set(BUILD_TESTING OFF)
+    set(BUILD_SHARED_LIBS OFF)
+
+    add_subdirectory(gflags EXCLUDE_FROM_ALL)
+    set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
+endfunction()
+
+add_gflags()
 
 #
 # Pugixml
@@ -77,6 +114,22 @@ if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
 endif()
 
 #
-# Export 3rdparty components
+# Install
 #
 
+ie_cpack_add_component(cpp_samples_deps)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
+        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        COMPONENT cpp_samples_deps
+        USE_SOURCE_PERMISSIONS)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
+        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        COMPONENT cpp_samples_deps
+        USE_SOURCE_PERMISSIONS)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
+        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        COMPONENT cpp_samples_deps
+        USE_SOURCE_PERMISSIONS)
