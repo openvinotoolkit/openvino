@@ -148,7 +148,8 @@ output  = [1, 4, 5]
 
 * **2**:  `indices` tensor of type *T_IND* with indices to gather. 0D tensor (scalar) for indices is also allowed. 
   The values for indices are in the range `[-data[axis], data[axis] - 1]`.
-  Negative values of indices indicate reverse indexing from `data[axis]`. 
+  Negative values of indices indicate reverse indexing from `data[axis]`. Output for indices values outise of the range
+  will be filled with zeros.
   **Required**.
 
 * **3**:  Scalar or 1D tensor `axis` of *T_AXIS* type is a dimension index to gather data from. For example, 

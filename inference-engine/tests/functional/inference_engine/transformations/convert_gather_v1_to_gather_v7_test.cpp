@@ -12,7 +12,7 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp>
+#include <transformations/op_conversions/convert_gather_upgrade.hpp>
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
