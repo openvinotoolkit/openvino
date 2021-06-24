@@ -26,3 +26,15 @@
 	path = thirdparty/gtest
 	url = https://github.com/openvinotoolkit/googletest.git
 	ignore = dirty
+[submodule "thirdparty/ocl/icd_loader"]
+	path = thirdparty/ocl/icd_loader
+	url = https://github.com/KhronosGroup/OpenCL-ICD-Loader.git
+	ignore = dirty
+[submodule "thirdparty/ocl/cl_headers"]
+	path = thirdparty/ocl/cl_headers
+	url = https://github.com/KhronosGroup/OpenCL-Headers.git
+	ignore = dirty
+[submodule "thirdparty/ocl/clhpp_headers"]
+	path = thirdparty/ocl/clhpp_headers
+	url = https://github.com/KhronosGroup/OpenCL-CLHPP.git
+	ignore = dirty
