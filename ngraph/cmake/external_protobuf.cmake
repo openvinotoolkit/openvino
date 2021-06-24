@@ -64,25 +64,45 @@ if(PROTOC_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
 else()
     if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.0")
-        FetchContent_Declare(
-            ext_protobuf
-            GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
-            GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
-            GIT_SHALLOW TRUE
-        )
-
-        FetchContent_GetProperties(ext_protobuf)
-        if(NOT ext_protobuf_POPULATED)
-            FetchContent_Populate(ext_protobuf)
-            set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
-            set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
-            add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
+        if (NOT BUILD_STANDALONE_STATIC)
+            FetchContent_Declare(
+                ext_protobuf
+                GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
+                GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
+                GIT_SHALLOW TRUE
+            )
+            FetchContent_GetProperties(ext_protobuf)
+            if(NOT ext_protobuf_POPULATED)
+                FetchContent_Populate(ext_protobuf)
+                set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+                set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+                add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
+            endif()
+        endif()
+        if (USE_STATIC_PROTOBUF)
+            FetchContent_Declare(
+                    ext_protobuf_static
+                    GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
+                    GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
+                    GIT_SHALLOW TRUE
+            )
+            FetchContent_GetProperties(ext_protobuf_static)
+            if((NOT ext_protobuf_static_POPULATED) AND BUILD_STANDALONE_STATIC)
+                FetchContent_Populate(ext_protobuf_static)
+                set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+                set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+                add_subdirectory(${ext_protobuf_static_SOURCE_DIR}/cmake ${ext_protobuf_static_BINARY_DIR} EXCLUDE_FROM_ALL)
+            endif()
         endif()
     else()
         message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
     endif()
 
-    set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
+    if (BUILD_STANDALONE_STATIC)
+        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_static_SOURCE_DIR}/src)
+    else()
+        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
+    endif()
     if(NGRAPH_USE_PROTOBUF_LITE)
         set(Protobuf_LIBRARIES libprotobuf-lite)
     else()
@@ -117,9 +137,11 @@ endif()
 # Now make sure we restore the original flags
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")
 
-install(TARGETS ${Protobuf_LIBRARIES}
-    RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-    ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-    LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
-
-export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+if (NOT BUILD_STANDALONE_STATIC)
+    message("NGRAPH_INSTALL_LIB = ${NGRAPH_INSTALL_LIB}")
+    install(TARGETS ${Protobuf_LIBRARIES}
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+    export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+endif()
