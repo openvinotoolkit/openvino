@@ -106,7 +106,8 @@ namespace ngraph
         private:
             const GraphCache* m_parent_graph_cache;
             std::vector<std::string> m_inputs_from_parent;
-            std::unordered_map<std::shared_ptr<ngraph::op::Parameter>, std::string> m_parameter_to_parent_node_map;
+            std::unordered_map<std::shared_ptr<ngraph::op::Parameter>, std::string>
+                m_parameter_to_parent_node_map;
         };
 
         inline std::ostream& operator<<(std::ostream& outs, const Graph& graph)

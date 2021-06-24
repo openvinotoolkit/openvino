@@ -14,9 +14,9 @@
 #include "ngraph/node.hpp"
 #include "ngraph/provenance.hpp"
 #include "onnx_import/core/node.hpp"
+#include "onnx_import/onnx_framework_node.hpp"
 #include "utils/common.hpp"
 #include "utils/provenance_tag.hpp"
-#include "onnx_import/onnx_framework_node.hpp"
 
 namespace ngraph
 {
@@ -174,11 +174,13 @@ namespace ngraph
                     auto inputs = node.get_ng_inputs();
                     for (const auto& input : subgraph->get_inputs_from_parent())
                         inputs.push_back(input);
-                    framework_node = std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(shared_from_this(), node, inputs);
+                    framework_node = std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(
+                        shared_from_this(), node, inputs);
                 }
                 else
                 {
-                    framework_node = std::make_shared<ngraph::frontend::ONNXFrameworkNode>(shared_from_this(), node);
+                    framework_node = std::make_shared<ngraph::frontend::ONNXFrameworkNode>(
+                        shared_from_this(), node);
                 }
                 OutputVector ng_nodes{framework_node->outputs()};
                 set_friendly_names(node, ng_nodes);
@@ -341,8 +343,8 @@ namespace ngraph
         }
 
         Subgraph::Subgraph(std::unique_ptr<Model>&& model, const Graph& parent_graph)
-            : Graph(std::move(model), common::make_unique<GraphCache>()),
-              m_parent_graph_cache(&parent_graph.get_graph_cache())
+            : Graph(std::move(model), common::make_unique<GraphCache>())
+            , m_parent_graph_cache(&parent_graph.get_graph_cache())
         {
         }
 

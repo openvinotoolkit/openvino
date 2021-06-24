@@ -8,8 +8,8 @@
 #include "core/model.hpp"
 #include "core/null_node.hpp"
 #include "core/transform.hpp"
-#include "onnx_import/utils/onnx_internal.hpp"
 #include "onnx_import/onnx_framework_node.hpp"
+#include "onnx_import/utils/onnx_internal.hpp"
 
 namespace ngraph
 {
@@ -32,12 +32,16 @@ namespace ngraph
                 for (auto parameter : parameters)
                 {
                     auto parameter_users = parameter->get_users();
-                    // if a Parameter is connected to a ONNXFrameworkNode that was not converted during convert_function
-                    // it means, this Parameter is dangling and we can remove it from function
-                    bool is_dangling_parameter = std::all_of(parameter_users.begin(), parameter_users.end(),
-                            [] (const std::shared_ptr<ngraph::Node>& node) -> bool {
-                                return std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node) != nullptr;
-                            });
+                    // if a Parameter is connected to a ONNXFrameworkNode that was not converted
+                    // during convert_function it means, this Parameter is dangling and we can
+                    // remove it from function
+                    bool is_dangling_parameter = std::all_of(
+                        parameter_users.begin(),
+                        parameter_users.end(),
+                        [](const std::shared_ptr<ngraph::Node>& node) -> bool {
+                            return std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node) !=
+                                   nullptr;
+                        });
                     if (is_dangling_parameter)
                     {
                         function->remove_parameter(parameter);
@@ -53,10 +57,12 @@ namespace ngraph
                     // we can remove Result from function if after function conversion,
                     // Result is connected to NullNode only
                     auto result_inputs = result->input_values();
-                    bool is_dangling_result = std::all_of(result_inputs.begin(), result_inputs.end(),
-                            [] (const Output<ngraph::Node>& node) -> bool {
-                                return ngraph::op::is_null(node);
-                            });
+                    bool is_dangling_result =
+                        std::all_of(result_inputs.begin(),
+                                    result_inputs.end(),
+                                    [](const Output<ngraph::Node>& node) -> bool {
+                                        return ngraph::op::is_null(node);
+                                    });
                     if (is_dangling_result)
                     {
                         function->remove_result(result);
@@ -68,9 +74,12 @@ namespace ngraph
             {
                 for (const auto& node : function->get_ordered_ops())
                 {
-                    if (auto raw_node = std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node))
+                    if (auto raw_node =
+                            std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node))
                     {
-                        if (auto subgraph_node = std::dynamic_pointer_cast<frontend::ONNXSubgraphFrameworkNode>(node))
+                        if (auto subgraph_node =
+                                std::dynamic_pointer_cast<frontend::ONNXSubgraphFrameworkNode>(
+                                    node))
                         {
                             subgraph_node->infer_inputs_from_parent();
                             convert_function(subgraph_node->get_subgraph_body());
@@ -85,7 +94,8 @@ namespace ngraph
                     }
                     else
                     {
-                        // Have to revalidate node because new intpus can affect shape/type propagation for already translated nodes
+                        // Have to revalidate node because new intpus can affect shape/type
+                        // propagation for already translated nodes
                         node->revalidate_and_infer_types();
                     }
                 }

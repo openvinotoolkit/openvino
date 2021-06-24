@@ -6,8 +6,8 @@
 
 #include "core/model.hpp"
 #include "ngraph/log.hpp"
-#include "ops_bridge.hpp"
 #include "onnx_import/onnx_framework_node.hpp"
+#include "ops_bridge.hpp"
 
 namespace ngraph
 {

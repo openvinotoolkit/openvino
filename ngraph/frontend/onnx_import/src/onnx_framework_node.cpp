@@ -18,18 +18,17 @@
 
 namespace ngraph
 {
-namespace frontend
-{
+    namespace frontend
+    {
+        NGRAPH_RTTI_DEFINITION(ONNXFrameworkNode, "ONNXFrameworkNode", 1);
 
-NGRAPH_RTTI_DEFINITION(ONNXFrameworkNode, "ONNXFrameworkNode", 1);
+        std::shared_ptr<Node>
+            ONNXFrameworkNode::clone_with_new_inputs(const OutputVector& inputs) const
+        {
+            return std::make_shared<ONNXFrameworkNode>(m_graph, m_node, inputs);
+        }
 
-std::shared_ptr<Node> ONNXFrameworkNode::clone_with_new_inputs(const OutputVector& inputs) const
-{
-    return std::make_shared<ONNXFrameworkNode>(m_graph, m_node, inputs);
-}
+        NGRAPH_RTTI_DEFINITION(ONNXSubgraphFrameworkNode, "ONNXSubgraphFrameworkNode", 1);
 
-NGRAPH_RTTI_DEFINITION(ONNXSubgraphFrameworkNode, "ONNXSubgraphFrameworkNode", 1);
-
-
-} // namespace frontend
+    } // namespace frontend
 } // namespace ngraph

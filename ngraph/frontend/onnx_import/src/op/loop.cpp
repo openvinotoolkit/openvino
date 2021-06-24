@@ -84,7 +84,8 @@ namespace ngraph
                     // Infer loop body inputs' element type based on carried dependencies
                     for (size_t i = 0; i < loop_carried_dependencies.size(); i++)
                     {
-                        body_inputs[i + 2]->set_element_type(loop_carried_dependencies[i].get_element_type());
+                        body_inputs[i + 2]->set_element_type(
+                            loop_carried_dependencies[i].get_element_type());
                     }
 
                     // optional inputs

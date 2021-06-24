@@ -27,10 +27,10 @@ namespace ngraph
                 , m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())}
                 , m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())}
             {
-                auto it = std::find_if(
-                    std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-                        return attribute.is_graph();
-                    });
+                auto it =
+                    std::find_if(std::begin(m_attributes),
+                                 std::end(m_attributes),
+                                 [&](const Attribute& attribute) { return attribute.is_graph(); });
                 m_has_subgraph = it != std::end(m_attributes);
                 if (m_has_subgraph)
                 {
@@ -38,17 +38,19 @@ namespace ngraph
                 }
             }
 
-            Impl(const ONNX_NAMESPACE::NodeProto& node_proto, std::shared_ptr<Graph> graph, std::shared_ptr<Subgraph> subgraph)
+            Impl(const ONNX_NAMESPACE::NodeProto& node_proto,
+                 std::shared_ptr<Graph> graph,
+                 std::shared_ptr<Subgraph> subgraph)
                 : m_node_proto{&node_proto}
                 , m_name{node_proto.has_name() ? node_proto.name() : ""}
                 , m_domain{get_node_domain(node_proto)}
                 , m_graph{graph}
                 , m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())}
                 , m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())}
-                , m_has_subgraph(subgraph != nullptr), m_subgraph(subgraph)
+                , m_has_subgraph(subgraph != nullptr)
+                , m_subgraph(subgraph)
             {
             }
-
 
             const std::vector<Attribute>& attributes() const;
             OutputVector get_ng_nodes(const Node& node) const;
@@ -132,15 +134,9 @@ namespace ngraph
             return it->get_subgraph(*m_graph);
         }
 
-        bool Node::Impl::has_subgraph() const
-        {
-            return m_has_subgraph;
-        }
+        bool Node::Impl::has_subgraph() const { return m_has_subgraph; }
 
-        std::shared_ptr<Subgraph> Node::Impl::get_subgraph() const
-        {
-            return m_subgraph;
-        }
+        std::shared_ptr<Subgraph> Node::Impl::get_subgraph() const { return m_subgraph; }
 
         template <typename T>
         T Node::Impl::get_attribute_value(const std::string& name, T default_value) const
@@ -228,16 +224,14 @@ namespace ngraph
         }
 
         Node::Node(const Node& other)
-            : m_pimpl{new Impl{other.m_pimpl->node_proto(), other.m_pimpl->graph(),
+            : m_pimpl{new Impl{other.m_pimpl->node_proto(),
+                               other.m_pimpl->graph(),
                                other.get_subgraph()},
                       [](Impl* impl) { delete impl; }}
         {
         }
 
-        OutputVector Node::get_ng_inputs() const
-        {
-            return m_pimpl->get_ng_inputs();
-        }
+        OutputVector Node::get_ng_inputs() const { return m_pimpl->get_ng_inputs(); }
         OutputVector Node::get_ng_nodes() const { return m_pimpl->get_ng_nodes(*this); }
         const std::string& Node::domain() const { return m_pimpl->domain(); }
         const std::string& Node::op_type() const { return m_pimpl->op_type(); }
@@ -255,15 +249,9 @@ namespace ngraph
             return m_pimpl->has_attribute(name);
         }
 
-        bool Node::has_subgraph() const
-        {
-            return m_pimpl->has_subgraph();
-        }
+        bool Node::has_subgraph() const { return m_pimpl->has_subgraph(); }
 
-        std::shared_ptr<Subgraph> Node::get_subgraph() const
-        {
-            return m_pimpl->get_subgraph();
-        }
+        std::shared_ptr<Subgraph> Node::get_subgraph() const { return m_pimpl->get_subgraph(); }
 
         std::vector<std::string> Node::get_attribute_names() const
         {
