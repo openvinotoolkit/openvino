@@ -77,6 +77,7 @@ if(NGRAPH_USE_PROTOBUF_LITE)
         VISIBILITY_INLINES_HIDDEN OFF)
 endif()
 
+get_directory_property(protobuf_VERSION DIRECTORY ${protobuf_SOURCE_DIR}/cmake DEFINITION protobuf_VERSION)
 if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
 endif()
