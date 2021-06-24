@@ -23,7 +23,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_erf_mode_inference_f32_8D)
                                           1.9544997,
                                           2.9959507},
                                          {},
-                                         1e-4);
+                                         1e-4f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, gelu_tanh_mode_inference_f32_8D)

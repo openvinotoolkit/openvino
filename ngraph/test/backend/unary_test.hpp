@@ -21,33 +21,34 @@
 // threshold), corresponding to two different comparing methods implemented in TestCase
 // classes. Following class acts as an encapsulation on these two options without introducing
 // too many overloadings on the function requiring such argument.
+template <typename V>
+struct ArgumentTolerance
+{
+    ArgumentTolerance() = default;
+    ArgumentTolerance(V v)
+        : in_use{true}
+        , value{v}
+    {
+    }
+    bool in_use{false};
+    V value{};
+};
+
+using BitTolerance = ArgumentTolerance<int>;
+using FloatTolerance = ArgumentTolerance<float>;
+
 struct ArgTolerance
 {
-    const int tolerance_bits;
-    const float tolerance_fp;
-    bool using_bits;
-    ArgTolerance()
-        : tolerance_bits(-1)
-        , tolerance_fp(0)
-        , using_bits(true)
+    BitTolerance bit = {};
+    FloatTolerance fp = {};
+
+    ArgTolerance() = default;
+    ArgTolerance(const float tolerance)
+        : fp(tolerance)
     {
     }
-    ArgTolerance(const int tolerance_bits)
-        : tolerance_bits(tolerance_bits)
-        , tolerance_fp(0)
-        , using_bits(true)
-    {
-    }
-    ArgTolerance(const float tolerance_fp)
-        : tolerance_bits(-1)
-        , tolerance_fp(tolerance_fp)
-        , using_bits(false)
-    {
-    }
-    ArgTolerance(const double tolerance_fp)
-        : tolerance_bits(-1)
-        , tolerance_fp(tolerance_fp)
-        , using_bits(false)
+    ArgTolerance(const int tolerance)
+        : bit(tolerance)
     {
     }
 };
@@ -115,19 +116,15 @@ void test_unary(std::shared_ptr<ngraph::Function> f,
     }
 
     auto test_case = ngraph::test::TestCase<TestEngine>(f);
-    test_case.template add_input<value_type>(input);
+    test_case.template add_input<value_type>(ashape.static_shape, input);
     test_case.template add_expected_output<value_type>(ashape.static_shape, expected);
-    if (tol.using_bits)
-    {
-        if (tol.tolerance_bits >= 0)
-            test_case.run(tol.tolerance_bits);
-        else
-            test_case.run();
-    }
+
+    if (tol.bit.in_use)
+        test_case.run(tol.bit.value);
+    else if (tol.fp.in_use)
+        test_case.run_with_tolerance_as_fp(tol.fp.value);
     else
-    {
-        test_case.run_with_tolerance_as_fp(tol.tolerance_fp);
-    }
+        test_case.run();
 }
 
 // overloading support passing reference function instead of expected results
@@ -155,8 +152,8 @@ void test_unary(std::shared_ptr<ngraph::Function> f,
 // unary_func() is a helper function to generate a lambda as callable on simple unary ops with
 // optional arguments captured in the that lambda.
 //
-using UnaryFuncCreator =
-    std::function<std::shared_ptr<ngraph::Function>(const ngraph::element::Type&, const ngraph::PartialShape&)>;
+using UnaryFuncCreator = std::function<std::shared_ptr<ngraph::Function>(
+    const ngraph::element::Type&, const ngraph::PartialShape&)>;
 
 template <typename OpType, typename... Args>
 typename std::enable_if<std::is_base_of<ngraph::op::Op, OpType>::value, UnaryFuncCreator>::type
