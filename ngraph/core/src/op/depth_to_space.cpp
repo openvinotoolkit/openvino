@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/depth_to_space.hpp"
+
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -9,8 +11,6 @@
 #include <ngraph/ops.hpp>
 #include "itt.hpp"
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/depth_to_space.hpp"
 #include "ngraph/runtime/reference/depth_to_space.hpp"
 #include "ngraph/shape.hpp"
 
