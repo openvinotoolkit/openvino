@@ -5,13 +5,13 @@
 include(CheckCXXCompilerFlag)
 
 if (ENABLE_SANITIZER)
-    set(SANITIZER_COMPILER_FLAGS "-g -fsanitize=address -fno-omit-frame-pointer")
+    set(SANITIZER_COMPILER_FLAGS "-g -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer")
     CHECK_CXX_COMPILER_FLAG("-fsanitize-recover=address" SANITIZE_RECOVER_SUPPORTED)
     if (SANITIZE_RECOVER_SUPPORTED)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
     endif()
 
-    set(SANITIZER_LINKER_FLAGS "-fsanitize=address")
+    set(SANITIZER_LINKER_FLAGS "-fsanitize=address -fsanitize=undefined")
     # prevent unloading libraries at runtime, so sanitizer can resolve their symbols
     set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
 
