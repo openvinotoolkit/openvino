@@ -339,13 +339,7 @@ max_matrix_to_scalar_zero_by_zero
 max_3d_eliminate_zero_dim
 lrn_across_empty
 lrn_2d_across_empty
-normalize_across_empty_axes_input
-normalize_l2_all_mode_add
-normalize_l2_none_mode_add
-normalize_l2_zero_mode_add
-normalize_l2_all_mode_max
-normalize_l2_none_mode_max
-normalize_l2_zero_mode_max
+
 squeeze_default_axes
 dynamic_abc
 broadcast_v1
@@ -420,7 +414,6 @@ lrn_across_all_dims
 elu
 elu_negative_alpha
 max_pool_2d_1channel_1image_overpadded
-normalize_across_chw_4d_max_bias
 grn_2d_with_bias
 erf
 divide_adjoint_stability

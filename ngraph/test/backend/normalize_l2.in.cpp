@@ -31,7 +31,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 // ----------------------- eps_mode = ngraph::op::EpsMode::ADD ----------------------- //
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_all_mode_add)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_all_2d_add)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -54,7 +54,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_all_mode_add)
                                   read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_none_mode_add)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_empty_2d_add)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -68,16 +68,16 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_none_mode_add)
 
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{1, 2, 3, 4});
+    copy_data(a, vector<float>{0, 3, 0, 8});
     auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{0.18257418, 0.36514837, 0.5477226, 0.73029673}),
+    EXPECT_TRUE(test::all_close_f((vector<float>{0, 1, 0, 1}),
                                   read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_zero_mode_add)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_0_2d_add)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -100,7 +100,30 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_zero_mode_add)
                                   read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_one_mode_add)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_1_3d_add)
+{
+    Shape shape{1, 2, 2};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{1});
+    float eps = 1e-7;
+    auto f = make_shared<Function>(
+        make_shared<op::v0::NormalizeL2>(A, axes, eps, ngraph::op::EpsMode::ADD),
+        ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, shape);
+    copy_data(a, vector<float>{1, 2, 3, 4});
+    auto result = backend->create_tensor(element::f32, shape);
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f((vector<float>{0.31622776, 0.4472136, 0.94868326, 0.8944272}),
+                                  read_vector<float>(result)));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_1_2d_add)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -123,9 +146,32 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_one_mode_add)
                                   read_vector<float>(result)));
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_2_3d_add)
+{
+    Shape shape{1, 2, 2};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{2});
+    float eps = 1e-7;
+    auto f = make_shared<Function>(
+        make_shared<op::v0::NormalizeL2>(A, axes, eps, ngraph::op::EpsMode::ADD),
+        ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, shape);
+    copy_data(a, vector<float>{1, 2, 3, 4});
+    auto result = backend->create_tensor(element::f32, shape);
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f((vector<float>{0.4472136, 0.8944272, 0.6, 0.8}),
+                                  read_vector<float>(result)));
+}
+
 // ----------------------- eps_mode = ngraph::op::EpsMode::MAX ----------------------- //
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_all_mode_max)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_all_2d_max)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -148,7 +194,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_all_mode_max)
                                   read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_none_mode_max)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_empty_2d_max)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -162,16 +208,16 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_none_mode_max)
 
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{1, 2, 3, 4});
+    copy_data(a, vector<float>{0, 3, 0, 8});
     auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{0.18257419, 0.36514837, 0.54772256, 0.7302967}),
+    EXPECT_TRUE(test::all_close_f((vector<float>{0, 1, 0, 1}),
                                   read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_zero_mode_max)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_0_2d_max)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -194,7 +240,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_zero_mode_max)
                                   read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_one_mode_max)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_1_2d_max)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -217,7 +263,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_one_mode_max)
                                   read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_chw_4d)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_123_4d_add)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -244,7 +290,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_chw_4d)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_empty_axes_input)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_empty_4D_add)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -264,15 +310,35 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_empty_axes_input)
 
     test_case.add_expected_output<float>(
         data_shape,
-        vector<float>{0.01428571, 0.02857143, 0.04285714, 0.05714286, 0.07142857, 0.08571429,
-                      0.1,        0.11428571, 0.12857144, 0.14285715, 0.15714286, 0.17142858,
-
-                      0.18571429, 0.2,        0.21428572, 0.22857143, 0.24285714, 0.25714287,
-                      0.27142859, 0.2857143,  0.3,        0.31428573, 0.32857144, 0.34285715});
+        vector<float>(shape_size(data_shape), 1));
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_h_4d)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_empty_4D_max)
+{
+    Shape data_shape{1, 2, 3, 4};
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto axes = make_shared<op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
+    float eps{1e-6f};
+    auto eps_mode = op::EpsMode::ADD;
+
+    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    vector<float> input_data(shape_size(data_shape));
+    iota(begin(input_data), end(input_data), 1);
+
+    test_case.add_input<float>(input_data);
+
+    test_case.add_expected_output<float>(
+        data_shape,
+        vector<float>(shape_size(data_shape), 1));
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_1_4d_add)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -298,7 +364,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_h_4d)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_1axis_5d)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_1_5d_add)
 {
     Shape data_shape{1, 2, 2, 2, 3};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -324,7 +390,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_1axis_5d)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_123axes_5d)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_123_5d_add)
 {
     Shape data_shape{1, 2, 2, 2, 3};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -350,7 +416,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_123axes_5d)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_c_2x2_shape)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_1_2x2_add)
 {
     Shape data_shape{2, 2};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -374,7 +440,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_c_2x2_shape)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_c_2x4_shape)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_1_2x4_add)
 {
     Shape data_shape{2, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -405,7 +471,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_c_2x4_shape)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_chw_4d_max_bias)
+NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_123_4d_max)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
