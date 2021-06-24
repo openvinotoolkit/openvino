@@ -138,6 +138,25 @@ extern template void calcRowLinear32FC1Impl(sse42_tag, float* dst[], const float
                                             const float alpha[], const int mapsx[],
                                             const float beta[], const Size& inSz, const Size& outSz,
                                             const int lpi, const int l);
+
+template<typename isa_tag_t, int chs>
+bool calcRowLinear8UC3C4Impl(isa_tag_t, std::array<std::array<uint8_t*, 4>, chs>& dst,
+                             const uint8_t* src0[], const uint8_t* src1[],
+                             const short alpha[], const short clone[], const short mapsx[],
+                             const short beta[], uint8_t tmp[], const Size& inSz,
+                             const Size& outSz, const int lpi, const int l);
+#if 0
+template bool calcRowLinear8UC3C4Impl<sse42_tag, 3>(sse42_tag, std::array<std::array<uint8_t*, 4>, 3>& dst,
+                                                    const uint8_t* src0[], const uint8_t* src1[],
+                                                    const short alpha[], const short clone[], const short mapsx[],
+                                                    const short beta[], uint8_t tmp[], const Size& inSz,
+                                                    const Size& outSz, const int lpi, const int l);
+template bool calcRowLinear8UC3C4Impl<sse42_tag, 4>(sse42_tag, std::array<std::array<uint8_t*, 4>, 4>& dst,
+                                                    const uint8_t* src0[], const uint8_t* src1[],
+                                                    const short alpha[], const short clone[], const short mapsx[],
+                                                    const short beta[], uint8_t tmp[], const Size& inSz,
+                                                    const Size& outSz, const int lpi, const int l);
+#endif
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
