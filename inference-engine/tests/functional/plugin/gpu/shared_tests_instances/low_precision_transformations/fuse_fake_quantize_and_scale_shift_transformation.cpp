@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,13 @@ using namespace LayerTestsDefinitions;
 using namespace ngraph::pass::low_precision;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
@@ -33,10 +34,10 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnD
 //    },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseFakeQuantizeAndScaleShiftTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseFakeQuantizeAndScaleShiftTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 9, 9 })),
+        ::testing::Values(ngraph::Shape({ 1, 3, 9, 9 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizeOnDataValues)),

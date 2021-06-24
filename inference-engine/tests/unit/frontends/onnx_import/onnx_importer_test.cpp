@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,6 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
 
     int count_topk = 0;
     int count_constants = 0;
-    int count_goe = 0;
     int count_parameters = 0;
 
     for (auto op : function->get_ops()) {

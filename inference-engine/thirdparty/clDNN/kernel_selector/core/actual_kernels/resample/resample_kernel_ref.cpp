@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include <core/common/kernel_selector_utils.h>
 #include "resample_kernel_ref.h"
@@ -91,7 +81,7 @@ static bool use_packing(const resample_params& params) {
     auto packed_work_items = params.output.X().v * params.output.Y().v * params.output.Z().v
         * CeilDiv(params.output.Feature().v, pack) * params.output.Batch().v;
     // TODO Loosen this requirement to minimum EUs needed to saturate cache bandwidth
-    constexpr size_t max_work_items_per_eu = 32 * 7;
+    size_t max_work_items_per_eu = 32 * static_cast<size_t>(params.engineInfo.maxThreadsPerExecutionUnit);
     auto minimum_work_items = params.engineInfo.computeUnitsCount * max_work_items_per_eu;
 
     if (packed_work_items < minimum_work_items)
@@ -133,5 +123,9 @@ ResampleKernelBase::DispatchData ResampleKernelRef::SetDefault(const resample_pa
     }
 
     return dispatchData;
+}
+
+KernelsPriority ResampleKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

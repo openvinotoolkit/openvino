@@ -1,17 +1,5 @@
-﻿//
-// Copyright (c) 2019-2020 Intel Corporation
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include "convolution_kernel_b_fs_zyx_fsv16.h"
@@ -190,12 +178,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
     }
-    if (b == 1)
-        dispatchData.efficiency = FORCE_PRIORITY_2;
-    else
-        dispatchData.efficiency = FORCE_PRIORITY_7;
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_b_fs_zyx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    return p.output.Batch().v == 1 ? FORCE_PRIORITY_2 : FORCE_PRIORITY_7;
 }
 
 bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_params& o) const {

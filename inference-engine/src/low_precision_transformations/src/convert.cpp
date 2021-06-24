@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,12 +24,15 @@ void ConvertTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 
 bool ConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(m.get_match_root());
+    if (!convert) {
+        return false;
+    }
+
     if (!canBeTransformed(context, convert)) {
         return false;
     }
 
     const ngraph::element::Type precisionBefore = convert->get_input_element_type(0);
-    const ngraph::element::Type precisionAfter = convert->get_output_element_type(0);
 
     std::shared_ptr<opset1::Subtract> subtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
         convert->get_input_node_shared_ptr(0),

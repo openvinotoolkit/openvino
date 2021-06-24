@@ -1,25 +1,13 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
-#include <api/scale.hpp>
-#include <api/quantize.hpp>
+#include "cldnn/primitives/scale.hpp"
+#include "cldnn/primitives/quantize.hpp"
 #include "binary_convolution_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "kernel_selector/core/actual_kernels/binary_convolution/binary_convolution_kernel_selector.h"
@@ -33,6 +21,10 @@ namespace gpu {
 struct binary_convolution_gpu : typed_primitive_gpu_impl<binary_convolution> {
     using parent = typed_primitive_gpu_impl<binary_convolution>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<binary_convolution_gpu>(*this);
+    }
 
 protected:
     bool validate_impl(const typed_primitive_inst<binary_convolution>& instance) const override {
@@ -52,17 +44,16 @@ protected:
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.weights_memory(0).get_layout().data_type,
+                                                    instance.weights_memory(0)->get_layout().data_type,
                                                     "");
 
         return res;
     }
 
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<binary_convolution>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<binary_convolution>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
 
-        args.weights = (memory_impl::cptr) &instance.weights_memory(split);
+        args.weights = instance.weights_memory(split);
         return args;
     }
 

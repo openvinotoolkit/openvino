@@ -71,7 +71,7 @@
 		<edge from-layer="4" from-port="2" to-layer="5" to-port="0"/>
 	</edges>
 	<meta_data>
-		<MO_version value="unknown version"/>
+		<MO_version value="custom_master_29f1c38ba0ae51897f47946d79d6bd6be7a494f0"/>
 		<cli_parameters>
 			<caffe_parser_path value="DIR"/>
 			<data_type value="float"/>

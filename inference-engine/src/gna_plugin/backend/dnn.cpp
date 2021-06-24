@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cstdio>
 #include <cmath>
 
-#include <details/ie_exception.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>

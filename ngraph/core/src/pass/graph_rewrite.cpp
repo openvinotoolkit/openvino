@@ -1,85 +1,107 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <deque>
 #include <iostream>
-#include <pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <regex>
 #include <unordered_set>
 #include <vector>
 
-#include "graph_rewrite.hpp"
 #include "itt.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
+#include "ngraph/pass/graph_rewrite.hpp"
+#include "perf_counters.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-// GraphRewrite algorithm:
-// GraphRewrite processes an input graph in an topological order(i.e. args before users)
-// Given the following graph:          Abs2
-//                                   /       \
-//                         Constant1         Add4 - Result5
-//                                   \      /
-//                                    Neg3
-//
-// The topological order would be : `Constant1`, `Abs2`, `Neg3`, `Add4`, `Result5`
-// Note, `Abs2` comes before `Neg3` as `Abs2`'s id = 2 is *less* than `Neg3`'s one (id = 3)
-// Next, GraphRewrite will invoke matchers passes registered in add_matcher order.
-// For example:
-//     ngraph::pass::GraphRewrite pass;
-//     pass.add_matcher<m1>();
-//     pass.add_matcher<m2>();
-//     pass.add_matcher<m3>();
-// Matcher passes will be called as follows: `m1`, `m2`, `m3`
-// Matchers should only replace nodes in the graph that come before the current root
-// node in the topological order. For example, if Matcher matches Neg3, it should only
-// replace nodes `Abs2` and `Constant1` if needed
-// This gives Matchers a nice cascading property. For example, if m1 folds `Abs2(Constant1)`
-// and `m2` folds `Neg3(Constant1)` when `m3` is called on `Add4` it will discover that
-// both `Abs2` and `Neg3` were already replaced by constants, so `Add4` will also be folded into
-// one.
-// If any matcher passes succeeds the rest of the matchers will **not** be called.
-// E.g. if `m1` succeeds and replaces `Abs2` with a new constant, nor `m2` or `m3` will be called
-// However, sometimes, you will need more than one fusion occur on the same node.
-// In this case, you need to register nodes in MatcherPass manually using register_new_node method.
-// GraphRewrite will automatically add this nodes in the beginning of execution queue.
-// If MatcherPass register more than one node make sure that this nodes are registered in
-// topological order.
+/* GraphRewrite algorithm:
+ * GraphRewrite processes an input graph in an topological order(i.e. args before users)
+ * Given the following graph:          Abs2
+ *                                   /       \
+ *                         Constant1         Add4 - Result5
+ *                                   \      /
+ *                                    Neg3
+ *
+ * The topological order would be : `Constant1`, `Abs2`, `Neg3`, `Add4`, `Result5`
+ * Note, `Abs2` comes before `Neg3` as `Abs2`'s id = 2 is *less* than `Neg3`'s one (id = 3)
+ * Next, GraphRewrite will invoke matchers passes registered in add_matcher order.
+ * For example:
+ *     ngraph::pass::GraphRewrite pass;
+ *     pass.add_matcher<m1>();
+ *     pass.add_matcher<m2>();
+ *     pass.add_matcher<m3>();
+ * Matcher passes will be called as follows: `m1`, `m2`, `m3`
+ * Matchers should only replace nodes in the graph that come before the current root
+ * node in the topological order. For example, if Matcher matches Neg3, it should only
+ * replace nodes `Abs2` and `Constant1` if needed
+ * This gives Matchers a nice cascading property. For example, if m1 folds `Abs2(Constant1)`
+ * and `m2` folds `Neg3(Constant1)` when `m3` is called on `Add4` it will discover that
+ * both `Abs2` and `Neg3` were already replaced by constants, so `Add4` will also be folded into
+ * one.
+ * If any matcher passes succeeds the rest of the matchers will **not** be called.
+ * E.g. if `m1` succeeds and replaces `Abs2` with a new constant, nor `m2` or `m3` will be called
+ * However, sometimes, you will need more than one fusion occur on the same node.
+ * In this case, you need to register nodes in MatcherPass manually using register_new_node method.
+ * GraphRewrite will automatically add this nodes in the beginning of execution queue.
+ * If MatcherPass register more than one node make sure that this nodes are registered in
+ * topological order. */
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GraphRewrite, "ngraph::pass::GraphRewrite", 0);
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::BackwardGraphRewrite, "ngraph::pass::BackwardGraphRewrite", 0);
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MatcherPass, "ngraph::pass::MatcherPass", 0);
 
-bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
+namespace ngraph
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
+    namespace pass
+    {
+        namespace internal
+        {
+            PerfCounters& perf_counters_graph_rewrite()
+            {
+                static PerfCounters counters;
+                return counters;
+            }
+        } // namespace internal
+    }     // namespace pass
+} // namespace ngraph
 
-    bool rewritten = false;
-    const auto& pass_config = get_pass_config();
+bool pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
+{
+    // Initialize execution queue with nodes in topological order
+    deque<std::shared_ptr<Node>> nodes_to_run;
+    for (auto& node : f->get_ordered_ops())
+    {
+        nodes_to_run.emplace_front(node);
+    }
+    return apply_matcher_passes(f, std::move(nodes_to_run));
+}
 
+bool pass::GraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
+{
     // Initialize execution queue with nodes in topological order
     deque<std::shared_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops())
     {
         nodes_to_run.emplace_back(node);
     }
+    return apply_matcher_passes(f, std::move(nodes_to_run));
+}
+
+bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f,
+                                              deque<std::shared_ptr<Node>> nodes_to_run)
+{
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
+
+    bool rewritten = false;
+    const auto& pass_config = get_pass_config();
 
     // Check that all Matchers in MatcherPasses has type bases root node
     bool all_roots_has_type = true;
@@ -109,12 +131,14 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         // it's type
         // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
         // and default algorithm is used.
-        NodeTypeInfo root_type_info = root->get_type_info();
         if (auto p = dynamic_pointer_cast<pattern::op::Pattern>(root))
         {
             if (auto any_type = dynamic_pointer_cast<pattern::op::WrapType>(p))
             {
-                root_type_info = any_type->get_wrapped_type();
+                for (const auto& root_type_info : any_type->get_wrapped_types())
+                {
+                    type_to_matcher[root_type_info].push_back(matcher_index);
+                }
             }
             else
             {
@@ -122,7 +146,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 break;
             }
         }
-        type_to_matcher[root_type_info].push_back(matcher_index);
+        else
+        {
+            type_to_matcher[root->get_type_info()].push_back(matcher_index);
+        }
 
         // TODO: traverse parents for root_type_info in order to register complete list of matchers
         // including ones triggered by parent type info.
@@ -251,6 +278,7 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
             if (m->match(node->output(0)))
             {
                 NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                NGRAPH_PASS_CALLBACK(m);
                 bool status = callback(*m.get());
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
@@ -387,6 +415,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
         if (m->match(node->output(0)))
         {
             NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+            NGRAPH_PASS_CALLBACK(m);
             bool status = callback(*m.get());
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();
@@ -399,7 +428,10 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "ngraph::pass::MatcherPass::apply");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph,
+                       pass::internal::perf_counters_graph_rewrite()[get_type_info()]);
     m_new_nodes.clear();
-    return m_handler(node);
+    if (m_handler)
+        return m_handler(node);
+    return false;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,8 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -26,7 +28,7 @@ makeParams(const element::Type &type, const std::vector<std::pair<std::string, s
 template<typename T>
 std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
                                    const std::vector<T> &data, bool random = false,
-                                   uint32_t upTo = 10, uint32_t startFrom = 1, const int seed = 1) {
+                                   T upTo = 10, T startFrom = 1, const int seed = 1) {
     std::shared_ptr<ngraph::Node> weightsNode;
 
 #define makeNode(TYPE) \
@@ -123,6 +125,7 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const op::PadType &autoPad,
                                                           size_t numOutChannels,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
                                                           const std::vector<float> &filterWeights = {},
                                                           const std::vector<float> &biasesWeights = {});
 
@@ -135,7 +138,40 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const std::vector<size_t> &dilations,
                                                           const op::PadType &autoPad,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
                                                           const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
+                                                          const ngraph::Output<Node> &outputShape,
+                                                          const element::Type &type,
+                                                          const std::vector<size_t> &filterSize,
+                                                          const std::vector<size_t> &strides,
+                                                          const std::vector<ptrdiff_t> &padsBegin,
+                                                          const std::vector<ptrdiff_t> &padsEnd,
+                                                          const std::vector<size_t> &dilations,
+                                                          const op::PadType &autoPad,
+                                                          size_t numOutChannels,
+                                                          bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
+                                                          const std::vector<float> &filterWeights = {},
+                                                          const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
+        const ngraph::Output<Node>& inputData,
+        const bool mergeRepeated);
+
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
+        const ngraph::Output<Node>& inputData,
+        const ngraph::Output<Node>& sequenceLength,
+        int blankIndex,
+        bool mergeRepeated,
+        const element::Type& idxPrecision = element::i32);
+
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
+        const ngraph::Output<Node>& inputData,
+        int blankIndex,
+        bool mergeRepeated,
+        const element::Type& idxPrecision = element::i32);
 
 std::shared_ptr<ngraph::Node> makeCTCLoss(
         const ngraph::Output<Node>& logitsNode,
@@ -235,6 +271,12 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool acrossChannels,
                                       bool normalizeVariance,
                                       double eps);
+
+std::shared_ptr<ngraph::Node> makeMVN6(const Output<Node>& in,
+                                       const Output<Node>& axesNode,
+                                       bool normalizeVariance,
+                                       float eps,
+                                       std::string& epsMode);
 
 std::shared_ptr<ngraph::Node> makeSqueezeUnsqueeze(const ngraph::Output<Node> &in,
                                                    const element::Type &type,
@@ -356,9 +398,9 @@ std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
 std::shared_ptr<ngraph::Node> makeScatterUpdate(const ngraph::Output<Node> &in,
                                                 const element::Type& indicesType,
                                                 const std::vector<size_t>& indicesShape,
-                                                const std::vector<size_t>& indices,
+                                                const std::vector<int64_t>& indices,
                                                 const ngraph::Output<Node> &update,
-                                                std::size_t axis);
+                                                int64_t axis);
 
 std::shared_ptr<ngraph::Node> makeScatterElementsUpdate(const ngraph::Output<Node> &in,
                                                         const element::Type& indicesType,
@@ -440,6 +482,12 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
                                       ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
                                       ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
 
+std::shared_ptr<ngraph::Node> makeGatherElements(
+                                      const ngraph::Output<Node>& dataNode,
+                                      const ngraph::Shape& indicesShape,
+                                      const element::Type& indicesType,
+                                      const int axis);
+
 std::shared_ptr<ngraph::Node> makeGatherND(
                                       const ngraph::Output<Node>& dataNode,
                                       const ngraph::Shape& indicesShape,
@@ -466,5 +514,21 @@ std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
                                       const bool &sortResDescend,
                                       const ngraph::element::Type& outType);
 
+std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
+                                         const element::Type& depth_type,
+                                         const int64_t& depth_val,
+                                         const element::Type& set_type,
+                                         const float& on_val,
+                                         const float& off_val,
+                                         const int64_t& axis);
+
+std::shared_ptr<ngraph::Node> makeRoll(const ngraph::Output<Node>& dataNode,
+                                       const ngraph::Output<Node>& shiftNode,
+                                       const ngraph::Output<Node>& axesNode);
+
+std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
+                                      const std::vector<int64_t> &axes,
+                                      const std::vector<int64_t> &signalSize,
+                                      const ngraph::helpers::DFTOpType opType);
 }  // namespace builder
 }  // namespace ngraph

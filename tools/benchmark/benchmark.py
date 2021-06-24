@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import os
 from datetime import datetime
 from statistics import median
@@ -39,25 +27,27 @@ class Benchmark:
     def add_extension(self, path_to_extension: str=None, path_to_cldnn_config: str=None):
         if path_to_cldnn_config:
             self.ie.set_config({'CONFIG_FILE': path_to_cldnn_config}, GPU_DEVICE_NAME)
-            logger.info('GPU extensions is loaded {}'.format(path_to_cldnn_config))
+            logger.info(f'GPU extensions is loaded {path_to_cldnn_config}')
 
         if path_to_extension:
             self.ie.add_extension(extension_path=path_to_extension, device_name=CPU_DEVICE_NAME)
-            logger.info('CPU extensions is loaded {}'.format(path_to_extension))
+            logger.info(f'CPU extensions is loaded {path_to_extension}')
 
     def get_version_info(self) -> str:
-        logger.info('InferenceEngine:\n{: <9}{:.<24} {}'.format('', 'API version', get_version()))
+        logger.info(f"InferenceEngine:\n{'': <9}{'API version':.<24} {get_version()}")
         version_string = 'Device info\n'
         for device, version in self.ie.get_versions(self.device).items():
-            version_string += '{: <9}{}\n'.format('', device)
-            version_string += '{: <9}{:.<24}{} {}.{}\n'.format('', version.description, ' version', version.major,
-                                                               version.minor)
-            version_string += '{: <9}{:.<24} {}\n'.format('', 'Build', version.build_number)
+            version_string += f"{'': <9}{device}\n"
+            version_string += f"{'': <9}{version.description:.<24}{' version'} {version.major}.{version.minor}\n"
+            version_string += f"{'': <9}{'Build':.<24} {version.build_number}\n"
         return version_string
 
     def set_config(self, config = {}):
         for device in config.keys():
             self.ie.set_config(config[device], device)
+
+    def set_cache_dir(self, cache_dir: str):
+        self.ie.set_config({'CACHE_DIR': cache_dir}, '')
 
     def read_network(self, path_to_model: str):
         model_filename = os.path.abspath(path_to_model)
@@ -68,6 +58,16 @@ class Benchmark:
 
     def load_network(self, ie_network: IENetwork, config = {}):
         exe_network = self.ie.load_network(ie_network,
+                                           self.device,
+                                           config=config,
+                                           num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
+        # Number of requests
+        self.nireq = len(exe_network.requests)
+
+        return exe_network
+
+    def load_network_from_file(self, path_to_model: str, config = {}):
+        exe_network = self.ie.load_network(path_to_model,
                                            self.device,
                                            config=config,
                                            num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
@@ -93,9 +93,9 @@ class Benchmark:
             infer_request.infer()
         else:
             infer_request.async_infer()
-            status = exe_network.wait()
+            status = infer_request.wait()
             if status != StatusCode.OK:
-                raise Exception("Wait for all requests is failed with status code {}!".format(status))
+                raise Exception(f"Wait for all requests is failed with status code {status}!")
         return infer_request.latency
 
     def infer(self, exe_network, batch_size, progress_bar=None):
@@ -149,7 +149,7 @@ class Benchmark:
         # wait the latest inference executions
         status = exe_network.wait()
         if status != StatusCode.OK:
-            raise Exception("Wait for all requests is failed with status code {}!".format(status))
+            raise Exception(f"Wait for all requests is failed with status code {status}!")
 
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         for infer_request_id in in_fly:

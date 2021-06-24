@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,14 +7,14 @@
 #include "subgraph_tests/relu_shape_of.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::I32
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_Check, ReluShapeOfSubgraphTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Check, ReluShapeOfSubgraphTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(std::vector<size_t>({20, 10, 10, 10})),

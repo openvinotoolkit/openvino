@@ -1,24 +1,12 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "convolution_inst.h"
 #include "eltwise_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "convolution/convolution_kernel_selector.h"
@@ -33,6 +21,10 @@ struct convolution_gpu : typed_primitive_gpu_impl<convolution> {
     using parent = typed_primitive_gpu_impl<convolution>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<convolution_gpu>(*this);
+    }
+
 protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
@@ -45,26 +37,20 @@ protected:
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.weights_memory(0).get_layout().data_type,
+                                                    instance.weights_memory(0)->get_layout().data_type,
                                                     "");
 
         return res;
     }
 
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<convolution>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<convolution>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
 
-        args.weights = (memory_impl::cptr) &instance.weights_memory(split);
-        args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory(split) : nullptr);
-        args.weights_zero_points = (memory_impl::cptr) (instance.weights_zero_points_term() ? &instance.weights_zero_points_memory(split)
-                                                                                            : nullptr);
-        args.activations_zero_points = (memory_impl::cptr) (instance.activations_zero_points_term()
-                                       ? &instance.activations_zero_points_memory(split)
-                                       : nullptr);
-        args.compensation = (memory_impl::cptr) (instance.compensation_term()
-                                       ? &instance.compensation_memory(split)
-                                       : nullptr);
+        args.weights = instance.weights_memory(split);
+        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
+        args.weights_zero_points = instance.weights_zero_points_term() ? instance.weights_zero_points_memory(split) : nullptr;
+        args.activations_zero_points = instance.activations_zero_points_term() ? instance.activations_zero_points_memory(split) : nullptr;
+        args.compensation = instance.compensation_term() ? instance.compensation_memory(split) : nullptr;
 
         return args;
     }
@@ -88,10 +74,8 @@ public:
         const auto& deformable_groups = primitive->deformable_groups;
         const auto transposed = arg.get_transposed();
 
-        assert(arg.get_output_layout().size.feature[0] == weights_layout.size.batch[0] * weights_layout.size.group[0]);
-
         auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(
-            arg, split, 1);
+            arg, split, 1, primitive->grouped_weights_shape);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
 
@@ -112,11 +96,12 @@ public:
         conv_params.local_convolution = weights_size.local[0] > 1 || weights_size.local[1] > 1;
         conv_params.split = split;
         conv_params.groups = groups;
-        conv_params.filterSize = {
-            (uint32_t)weights_size.spatial[0],
-            (uint32_t)weights_size.spatial[1],
-            (uint32_t)weights_size.spatial[2],
-        };
+
+        auto spatial_size = arg.get_output_layout().format.dimension() - 2;
+        uint32_t kx = weights_size.spatial[0];
+        uint32_t ky = weights_size.spatial[1];
+        uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
+        conv_params.filterSize = { kx, ky, kz };
 
         conv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
                                (uint32_t)std::max(-input_offset.spatial[1], 0),

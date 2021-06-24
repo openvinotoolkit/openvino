@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -113,7 +113,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_PREPROC_PLUGIN
                                                       $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ocv"
+target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ocv_hal,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:fluid,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -122,9 +122,11 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
-# Create shared library file from object library
+add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
-add_library(${TARGET_NAME} SHARED
+# Create module library file from object library
+
+add_library(${TARGET_NAME} MODULE
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
@@ -146,8 +148,6 @@ endif()
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -178,11 +178,10 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
 
 # install
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)

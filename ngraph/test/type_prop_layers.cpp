@@ -1,24 +1,11 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/ctc_greedy_decoder.hpp"
-#include "ngraph/op/detection_output.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/prior_box.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
@@ -36,20 +23,6 @@ TEST(type_prop_layers, ctc_greedy_decoder)
     auto seq_len = make_shared<op::Parameter>(element::f32, Shape{88, 2});
     auto op = make_shared<op::CTCGreedyDecoder>(input, seq_len, false);
     ASSERT_EQ(op->get_shape(), (Shape{2, 88, 1, 1}));
-}
-
-TEST(type_prop_layers, detection_output)
-{
-    auto box_logits = make_shared<op::Parameter>(element::f32, Shape{4, 1, 5, 5});
-    auto class_preds = make_shared<op::Parameter>(element::f32, Shape{2, 1, 4, 5});
-    auto proposals = make_shared<op::Parameter>(element::f32, Shape{2, 1, 4, 5});
-    auto aux_class_preds = make_shared<op::Parameter>(element::f32, Shape{2, 1, 4, 5});
-    auto aux_box_preds = make_shared<op::Parameter>(element::f32, Shape{2, 1, 4, 5});
-    op::DetectionOutputAttrs attrs;
-    attrs.keep_top_k = {200};
-    auto op = make_shared<op::DetectionOutput>(
-        box_logits, class_preds, proposals, aux_class_preds, aux_box_preds, attrs);
-    ASSERT_EQ(op->get_shape(), (Shape{1, 1, 800, 7}));
 }
 
 TEST(type_prop_layers, interpolate)

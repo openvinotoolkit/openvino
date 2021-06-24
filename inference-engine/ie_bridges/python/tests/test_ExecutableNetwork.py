@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import os
 import pytest
@@ -209,6 +212,7 @@ def test_wrong_num_requests(device):
            in str(e.value)
         del ie_core
 
+
 def test_wrong_num_requests_core(device):
     with pytest.raises(ValueError) as e:
         ie_core = ie.IECore()
@@ -217,6 +221,7 @@ def test_wrong_num_requests_core(device):
         assert "Incorrect number of requests specified: -1. Expected positive integer number or zero for auto detection" \
            in str(e.value)
         del ie_core
+
 
 def test_plugin_accessible_after_deletion(device):
     ie_core = ie.IECore()
@@ -231,6 +236,9 @@ def test_plugin_accessible_after_deletion(device):
 
 def test_exec_graph(device):
     ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to get_exec_graph_info method isn't implemented")
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     img = read_image()
@@ -245,8 +253,8 @@ def test_exec_graph(device):
     del ie_core
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "MYRIAD", reason="Device specific test. "
-                                                                             "Only MYRIAD plugin implements network export")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "MYRIAD",
+                    reason="Device specific test. Only MYRIAD plugin implements network export")
 def test_export_import():
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
@@ -264,7 +272,7 @@ def test_export_import():
 
 
 def test_multi_out_data(device):
-    # Regression test CVS-23965
+    # Regression test 23965
     # Check that CDataPtr for all output layers not copied  between outputs map items
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
@@ -282,15 +290,52 @@ def test_multi_out_data(device):
 def test_get_metric(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie_core.load_network(net, "CPU")
+    exec_net = ie_core.load_network(net, device)
     network_name = exec_net.get_metric("NETWORK_NAME")
     assert network_name == "test_model"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_get_config(device):
     ie_core = ie.IECore()
+    if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to CPU dependent test")
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     config = exec_net.get_config("PERF_COUNT")
     assert config == "NO"
+
+
+# issue 28996
+# checks that objects can deallocate in this order, if not - segfault happends
+def test_input_info_deallocation(device):
+    ie_core = ie.IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie_core.load_network(net, device)
+    input_info = exec_net.input_info["data"]
+    del ie_core
+    del exec_net
+    del input_info
+
+
+def test_outputs_deallocation(device):
+    ie_core = ie.IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie_core.load_network(net, device)
+    output = exec_net.outputs["fc_out"]
+    del ie_core
+    del exec_net
+    del output
+
+
+def test_exec_graph_info_deallocation(device):
+    ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to get_exec_graph_info method isn't implemented")
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie_core.load_network(net, device)
+    exec_graph_info = exec_net.get_exec_graph_info()
+    del ie_core
+    del exec_net
+    del exec_graph_info

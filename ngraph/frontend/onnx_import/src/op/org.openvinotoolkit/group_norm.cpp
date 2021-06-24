@@ -1,27 +1,16 @@
-//*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
-#include "onnx_import/op/org.openvinotoolkit/group_norm.hpp"
+#include "op/org.openvinotoolkit/group_norm.hpp"
+#include "default_opset.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/common.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "utils/common.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -36,7 +25,7 @@ namespace ngraph
                     // This function creates a shape to which we need to reshape the input
                     // before normalization.
                     // If data shape is [N,C,H,W], the function returns
-                    // [N, num_groups, C // num_groups, H, W]
+                    // [N * num_groups, C // num_groups, H, W]
                     std::shared_ptr<ngraph::Node>
                         create_group_norm_shape(const Output<ngraph::Node>& data, size_t num_groups)
                     {
@@ -45,35 +34,25 @@ namespace ngraph
                         size_t rank_size = pshape.rank().get_length();
                         NGRAPH_CHECK(rank_size >= 3, "3-D and above tensors supported only");
 
-                        if (pshape.is_static())
-                        {
-                            const auto& shape = pshape.to_shape();
-                            std::vector<size_t> new_shape{
-                                shape[0], num_groups, shape[1] / num_groups};
-                            for (size_t i = 2; i < rank_size; i++)
-                            {
-                                new_shape.push_back(shape[i]);
-                            }
-                            return default_opset::Constant::create(
-                                element::i64, Shape{new_shape.size()}, new_shape);
-                        }
-
                         auto shape = std::make_shared<default_opset::ShapeOf>(data);
                         auto splits = builder::opset1::split(shape, rank_size);
                         auto num_groups_const =
                             default_opset::Constant::create(element::i64, Shape{1}, {num_groups});
-                        NodeVector new_shape{
-                            splits[0].get_node_shared_ptr(),
-                            num_groups_const,
+                        // The 4D shape: [N * num_groups, C // num_groups, H, W] is created
+                        // instead of 5D shape: [N, num_groups, C // num_groups, H, W].
+                        // The reason is the lack of support for 5D MVN input by some plugins.
+                        ngraph::OutputVector new_shape{
+                            std::make_shared<default_opset::Multiply>(splits[0], num_groups_const),
                             std::make_shared<default_opset::Divide>(splits[1], num_groups_const)};
+
                         for (size_t i = 2; i < rank_size; i++)
                         {
-                            new_shape.push_back(splits[i].get_node_shared_ptr());
+                            new_shape.push_back(splits[i]);
                         }
                         return std::make_shared<default_opset::Concat>(new_shape, 0);
                     }
-                }
-            } // detail
+                } // namespace
+            }     // namespace detail
 
             namespace set_1
             {
@@ -90,37 +69,52 @@ namespace ngraph
 
                     size_t num_groups =
                         static_cast<size_t>(node.get_attribute_value<int64_t>("num_groups"));
-                    float eps = node.get_attribute_value<float>("eps", 1e-5);
+                    float eps = node.get_attribute_value<float>("eps", 1e-6);
 
-                    auto data_pshape = data.get_partial_shape();
-                    std::shared_ptr<ngraph::Node> data_shape_node;
-                    if (data_pshape.is_static())
-                    {
-                        auto shape = data_pshape.to_shape();
-                        data_shape_node = default_opset::Constant::create(
-                            element::u64, Shape{shape.size()}, shape);
-                    }
-                    else
-                    {
-                        data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
-                    }
+                    auto data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
                     auto data_reshaped = std::make_shared<default_opset::Reshape>(
                         data, detail::create_group_norm_shape(data, num_groups), true);
+                    const auto reduction_axes =
+                        common::get_monotonic_range_along_node_rank(data_reshaped, 1);
 
                     auto mvn =
-                        std::make_shared<default_opset::MVN>(data_reshaped, false, true, eps);
+                        std::make_shared<default_opset::MVN>(data_reshaped,
+                                                             reduction_axes,
+                                                             true,
+                                                             eps,
+                                                             ngraph::op::MVNEpsMode::INSIDE_SQRT);
                     std::shared_ptr<ngraph::Node> result =
                         std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 
-                    const auto& rank = data.get_partial_shape().rank();
-                    NGRAPH_CHECK(rank.is_static());
-                    auto data_rank_size = rank.get_length();
+                    const auto& scale_shape = scale.get_partial_shape();
+                    NGRAPH_CHECK(scale_shape.rank().is_static());
+                    auto scale_rank = scale_shape.rank().get_length();
 
-                    result = std::make_shared<default_opset::Multiply>(
-                        result,
-                        reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank_size));
-                    result = std::make_shared<default_opset::Add>(
-                        result, reshape::reshape_channel_shaped_node_to_nchw(bias, data_rank_size));
+                    const auto& bias_shape = bias.get_partial_shape();
+                    NGRAPH_CHECK(bias_shape.rank().is_static());
+                    auto bias_rank = bias_shape.rank().get_length();
+
+                    const auto data_rank =
+                        std::make_shared<default_opset::ShapeOf>(data_shape_node);
+
+                    if (scale_rank == 1)
+                    {
+                        result = std::make_shared<default_opset::Multiply>(
+                            result, reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank));
+                    }
+                    else
+                    {
+                        result = std::make_shared<default_opset::Multiply>(result, scale);
+                    }
+                    if (bias_rank == 1)
+                    {
+                        result = std::make_shared<default_opset::Add>(
+                            result, reshape::reshape_channel_shaped_node_to_nchw(bias, data_rank));
+                    }
+                    else
+                    {
+                        result = std::make_shared<default_opset::Add>(result, bias);
+                    }
 
                     return {result};
                 }

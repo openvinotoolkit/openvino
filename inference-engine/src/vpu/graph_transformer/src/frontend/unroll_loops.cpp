@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 
 namespace vpu {
 
-void FrontEnd::unrollLoops(ie::ICNNNetwork& network) {
+void FrontEnd::unrollLoops(ie::CNNNetwork& network) {
     VPU_PROFILE(unrollLoops);
 
     const auto& env = CompileEnv::get();
@@ -21,20 +21,20 @@ void FrontEnd::unrollLoops(ie::ICNNNetwork& network) {
     env.log->trace("Unroll TensorIterator loops");
     VPU_LOGGER_SECTION(env.log);
 
-    if (!env.config.irWithVpuScalesDir.empty()) {
+    if (!env.config.compileConfig().irWithVpuScalesDir.empty()) {
         // TODO: Scale dumps does not work with IR, which contain Tensor Iterator layers, because we cannot serialize them. #-23429
-        for (auto iterator = ie::details::CNNNetworkIterator(&network); iterator != ie::details::CNNNetworkIterator(); ++iterator) {
+        for (auto iterator = ie::details::CNNNetworkIterator(network); iterator != ie::details::CNNNetworkIterator(); ++iterator) {
             const auto& layer = *iterator;
             VPU_THROW_UNLESS(!ie::details::CaselessEq<std::string>()(layer->type, "TensorIterator"),
                 "Scale dumps does not work with IR, which contain Tensor Iterator layers.");
         }
     }
 
-    if (env.config.forcePureTensorIterator) {
+    if (env.config.compileConfig().forcePureTensorIterator) {
         return;
     }
 
-    if (env.config.enableTensorIteratorUnrolling) {
+    if (env.config.compileConfig().enableTensorIteratorUnrolling) {
         ie::NetPass::UnrollTI(network);
     } else {
         // Try to convert network to a RNN sequence due to performance reasons

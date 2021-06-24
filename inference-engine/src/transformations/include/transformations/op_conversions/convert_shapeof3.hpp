@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,13 +19,8 @@ class TRANSFORMATIONS_API ConvertShapeOf3;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertShapeOf3: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertShapeOf3: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertShapeOf3() : GraphRewrite() {
-        convert_shapeof3();
-    }
-
-private:
-    void convert_shapeof3();
+    ConvertShapeOf3();
 };

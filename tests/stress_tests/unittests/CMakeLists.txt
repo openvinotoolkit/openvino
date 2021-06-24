@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,9 +19,6 @@ file (GLOB HDR
 
 # Create library file from sources.
 add_executable(${TARGET_NAME} ${HDR} ${SRC})
-
-find_package(gflags REQUIRED)
-find_package(Threads REQUIRED)
 
 target_link_libraries(${TARGET_NAME}
         IE::gtest

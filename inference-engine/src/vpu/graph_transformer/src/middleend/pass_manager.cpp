@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <string>
 
 #include <vpu/compile_env.hpp>
+#include <vpu/configuration/options/copy_optimization.hpp>
 
 namespace vpu {
 
@@ -93,7 +94,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(convertShapeNotation);
     ADD_DUMP_PASS("convertShapeNotation");
 
-    if (!env.config.disableReorder && !env.config.hwOptimization) {
+    if (!env.config.compileConfig().disableReorder && !env.config.compileConfig().hwOptimization) {
         ADD_PASS(reorderInputsToChannelMinor);
         ADD_DUMP_PASS("reorderInputsToChannelMinor");
     }
@@ -125,7 +126,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // To overcome fp16 limitations
     //
 
-    if (env.config.hwOptimization && env.config.enableWeightsAnalysis) {
+    if (env.config.compileConfig().hwOptimization && env.config.compileConfig().enableWeightsAnalysis) {
         ADD_PASS(analyzeWeightableLayers);
         ADD_DUMP_PASS("analyzeWeightableLayers");
     }
@@ -150,7 +151,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // Model HW-specific optimizations
     //
 
-    if (env.config.hwOptimization) {
+    if (env.config.compileConfig().hwOptimization) {
         ADD_PASS(replaceFCbyConv);
         ADD_DUMP_PASS("replaceFCbyConv");
 
@@ -161,9 +162,21 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         ADD_PASS(replaceDeconvByConv);
         ADD_DUMP_PASS("replaceDeconvByConv");
 
-        if (env.config.hwDilation) {
+        if (env.config.compileConfig().hwDilation) {
             ADD_PASS(reshapeDilationConv);
             ADD_DUMP_PASS("reshapeDilationConv");
+        }
+
+        //
+        // "reshapeBeforeConvTiling" pass changes geometry of convolution stages in order
+        // to get more efficient HW tiling (pass "hwConvTiling") using reshape stages.
+        //
+        // Pass should be located before "adjustDataBatch" because "adjustDataBatch" specifies "origConvOutput" attribute
+        // for convolution in order to provide that information to "hwConvTiling" pass.
+        // Otherwise, "hwConvTiling" will see incorrect values in "origConvOutput" attribute.
+        if (env.config.compileConfig().enableCustomReshapeParam) {
+            ADD_PASS(reshapeBeforeConvTiling);
+            ADD_DUMP_PASS("reshapeBeforeConvTiling");
         }
 
         ADD_PASS(upliftActivationStages);
@@ -185,7 +198,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(hwPadding);
     ADD_DUMP_PASS("hwPadding");
 
-    if (env.config.hwOptimization) {
+    if (env.config.compileConfig().hwOptimization) {
         ADD_PASS(splitLargeKernelConv);
         ADD_DUMP_PASS("splitLargeKernelConv");
     }
@@ -197,7 +210,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(adjustDataBatch);
     ADD_DUMP_PASS("adjustDataBatch");
 
-    if (env.config.enableReplWithSCRelu) {
+    if (env.config.compileConfig().enableReplWithSCRelu) {
         ADD_PASS(replaceWithSCReLU);
         ADD_DUMP_PASS("replaceWithSCReLU");
     }
@@ -206,13 +219,13 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // HW stages tiling
     //
 
-    if (env.config.hwOptimization) {
+    if (env.config.compileConfig().hwOptimization) {
         ADD_PASS(hwConvTiling);
         ADD_PASS(hwPoolTiling);
         ADD_PASS(hwFullyConnectedTiling);
         ADD_DUMP_PASS("hwTiling");
 
-        if (env.config.hwExtraSplit) {
+        if (env.config.compileConfig().hwExtraSplit) {
             ADD_PASS(hwExtraSplit);
             ADD_DUMP_PASS("hwExtraSplit");
         }
@@ -230,7 +243,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     //
     // this stage should be executed after "hwPoolTiling"
     // and before "swPoolAdaptation"
-    if (env.config.enableReplaceWithReduceMean) {
+    if (env.config.compileConfig().enableReplaceWithReduceMean) {
         ADD_PASS(replaceWithReduceMean);
         ADD_DUMP_PASS("replaceWithReduceMean");
     }
@@ -249,7 +262,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(mergeReLUAndBias);
     ADD_DUMP_PASS("mergeReLUAndBias");
 
-    if (env.config.enableEarlyEltwiseReLUFusion) {
+    if (env.config.compileConfig().enableEarlyEltwiseReLUFusion) {
         ADD_PASS(mergeEltwiseAndReLUDynamic);
         ADD_DUMP_PASS("mergeEltwiseAndReLUDynamic");
     }
@@ -267,7 +280,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     // TODO: mergePermute support for reorder stage too.
     // TODO: pass that will swap Permute and per-element operations.
-    if (env.config.enablePermuteMerging) {
+    if (env.config.compileConfig().enablePermuteMerging) {
         ADD_PASS(mergePermuteStages);
         ADD_DUMP_PASS("mergePermuteStages");
     }
@@ -314,7 +327,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // Model common optimizations
     //
 
-    if (env.config.copyOptimization.getOrDefault(true)) {
+    if (env.config.get<CopyOptimizationOption>()) {
         ADD_PASS(eliminateCopyStages);
         ADD_DUMP_PASS("eliminateCopyStages");
     }
@@ -322,7 +335,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     //
     // HW/SW injection
 
-    if (env.config.hwOptimization && env.config.injectSwOps.getOrDefault(true)) {
+    if (env.config.compileConfig().hwOptimization && env.config.compileConfig().injectSwOps.getOrDefault(true)) {
         ADD_PASS(injectSw);
         ADD_DUMP_PASS("injectSw");
     }
@@ -338,7 +351,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // HW stages finalization
     //
 
-    if (env.config.hwOptimization) {
+    if (env.config.compileConfig().hwOptimization) {
         ADD_PASS(finalizeHwOps);
         ADD_DUMP_PASS("hwFinalization");
     }
@@ -349,7 +362,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(markFastStages);
     ADD_DUMP_PASS("markFastStages");
 
-    if (env.config.enableMemoryTypesAnnotation) {
+    if (env.config.compileConfig().enableMemoryTypesAnnotation) {
         ADD_PASS(annotateMemoryTypes);
         ADD_DUMP_PASS("annotateMemoryTypes");
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -163,9 +163,9 @@ void parseConv2D(const Model      & model,
                           kernelStrideY,
                           dilationX,
                           dilationY,
-                          env.config.hwOptimization,
-                          env.config.hwDilation,
-                          env.config.hwDisabled(layer->name));
+                          env.config.compileConfig().hwOptimization,
+                          env.config.compileConfig().hwDilation,
+                          env.config.compileConfig().hwDisabled(layer->name));
 
     //
     // Create const datas
@@ -377,7 +377,7 @@ void parseConvND(const Model      & model,
     VPU_THROW_UNLESS(output_channels > 0, "invalid number of output channels: %d", output_channels);
 
     int groups = convLayer->_group;
-    VPU_THROW_UNLESS(groups > 0, "number of groups=%d, but grouped 3D convolution is not supported", groups);
+    VPU_THROW_UNLESS(groups == 1, "number of groups=%d, but grouped 3D convolution is not supported", groups);
 
     int inputNDims = input->desc().numDims();
     int outputNDims = output->desc().numDims();
@@ -476,9 +476,9 @@ void parseConvND(const Model      & model,
                           strides[1],
                           dilations[0],
                           dilations[1],
-                          env.config.hwOptimization,
-                          env.config.hwDilation,
-                          env.config.hwDisabled(layer->name));
+                          env.config.compileConfig().hwOptimization,
+                          env.config.compileConfig().hwDilation,
+                          env.config.compileConfig().hwDisabled(layer->name));
 
     int try_hw = tryHW ? 1 : 0;
 

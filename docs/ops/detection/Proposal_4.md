@@ -26,8 +26,11 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 5.  Takes top *pre_nms_topn* proposals
 6.  Calculates intersections for boxes and filter out all boxes with \f$intersection/union > nms\_thresh\f$
 7.  Takes top *post_nms_topn* proposals
-8.  Returns top proposals and optionally their probabilities 
+8.  Returns the results:
+    *   Top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
+    *   Optionally returns probabilities for each proposal, which are not terminated by any special value.
 
+**Attributes**:
 
 * *base_size*
 

@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/psroi_pooling.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
@@ -43,6 +32,7 @@ op::PSROIPooling::PSROIPooling(const Output<Node>& input,
 
 bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_PSROIPooling_visit_attributes);
     visitor.on_attribute("output_dim", m_output_dim);
     visitor.on_attribute("group_size", m_group_size);
     visitor.on_attribute("spatial_scale", m_spatial_scale);
@@ -54,6 +44,7 @@ bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
 
 void op::PSROIPooling::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_PSROIPooling_validate_and_infer_types);
     auto feat_maps_et = get_input_element_type(0);
     auto coords_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
@@ -117,16 +108,17 @@ void op::PSROIPooling::validate_and_infer_types()
                                       "spatial_bins_x * spatial_bins_y");
                 NODE_VALIDATION_CHECK(
                     this,
-                    m_output_dim == num_input_channels / (m_spatial_bins_x * m_spatial_bins_y),
+                    m_output_dim == static_cast<size_t>(num_input_channels /
+                                                        (m_spatial_bins_x * m_spatial_bins_y)),
                     "output_dim must be equal to input channels divided by "
                     "spatial_bins_x * spatial_bins_y");
             }
         }
         std::vector<Dimension> output_shape{coords_pshape[0],
                                             static_cast<Dimension::value_type>(m_output_dim)};
-        for (size_t i = 2; i < feat_map_pshape.rank().get_length(); i++)
+        for (int64_t i = 2; i < feat_map_pshape.rank().get_length(); i++)
         {
-            output_shape.push_back(m_group_size);
+            output_shape.emplace_back(m_group_size);
         }
         set_output_type(0, feat_maps_et, output_shape);
     }
@@ -134,6 +126,7 @@ void op::PSROIPooling::validate_and_infer_types()
 
 shared_ptr<Node> op::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_PSROIPooling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PSROIPooling>(new_args.at(0),
                                      new_args.at(1),

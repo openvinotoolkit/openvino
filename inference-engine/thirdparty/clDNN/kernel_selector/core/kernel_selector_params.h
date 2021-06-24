@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #pragma once
 
@@ -365,6 +353,14 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Device type
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class dev_type {
+    integrated_gpu = 0,
+    discrete_gpu = 1
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EngineInfo
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct EngineInfo {
@@ -378,7 +374,10 @@ struct EngineInfo {
     bool bIMMADSupport = false;
     bool bOptHintsSupport = false;
     bool bLocalBlockIOSupport = false;
+    dev_type deviceType = dev_type::integrated_gpu;
     uint32_t computeUnitsCount = 0;
+    uint32_t maxThreadsPerExecutionUnit = 0;
+    uint32_t maxThreadsPerDevice = 0;
     uint64_t maxWorkGroupSize = 0;
     uint64_t maxLocalMemSize = 0;
     uint64_t maxImage2dWidth = 0;
@@ -559,6 +558,7 @@ struct fused_operation_desc {
     MultiDataTensor tensors;
     DataTensor output_tensor;
     size_t op_id;
+    std::vector<std::pair<size_t, Datatype>> fused_op_ids;
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }

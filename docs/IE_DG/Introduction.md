@@ -92,7 +92,7 @@ Refer to a dedicated description about [Intermediate Representation and Operatio
 ## nGraph Integration
 
 OpenVINO toolkit is powered by nGraph capabilities for Graph construction API, Graph transformation engine and Reshape.
-nGraph Function is used as an intermediate representation for a model in the run-time underneath the CNNNetwork API.
+nGraph Function is used as an intermediate representation for a model in the runtime underneath the CNNNetwork API.
 The conventional representation for CNNNetwork is still available if requested for backward compatibility when some conventional API methods are used.
 Please refer to the [Overview of nGraph](../nGraph_DG/nGraph_dg.md) describing the details of nGraph representation.
 
@@ -123,6 +123,3 @@ The open source version is available in the [OpenVINO™ toolkit GitHub reposito
 
 
 [scheme]: img/workflow_steps.png
-
-#### Optimization Notice
-<sup>For complete information about compiler optimizations, see our [Optimization Notice](https://software.intel.com/en-us/articles/optimization-notice#opt-en).</sup>

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,11 +20,13 @@ namespace subgraph {
 class SplitFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
+        const element::Type& precision,
         const ngraph::Shape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
         const int64_t splitedAxis,
-        const size_t numSplits);
+        const size_t numSplits,
+        const bool addUnsupportedConcat = false);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,
@@ -34,11 +36,15 @@ public:
         const size_t numSplit);
 
     static std::shared_ptr<ngraph::Function> getReference(
+        const element::Type& precision,
         const ngraph::Shape& inputShape,
+        const ngraph::element::Type inputPrecision,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,
         const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
         const int64_t splitedAxis,
-        const size_t numSplit);
+        const size_t numSplit,
+        const bool addUnsupportedConcat = false);
 };
 }  // namespace subgraph
 }  // namespace builder

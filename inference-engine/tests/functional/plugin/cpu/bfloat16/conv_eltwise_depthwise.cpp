@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 
 #include "functional_test_utils/blob_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph/opsets/opset1.hpp"
 
 using namespace std;
@@ -32,11 +32,11 @@ public:
     std::shared_ptr<Function> fnPtr;
     SizeVector inputShapes;
     std::map<string, string> expectedPrecisions;
-    float threshold = 3e-2;
+    float threshold = 7e-2;
     Precision netPrecision;
     size_t kernel;
     CoordinateDiff pads;
-    string mkldnnPrimitive;
+    std::string mkldnnPrimitive;
 
 protected:
     std::shared_ptr<Function> createGraph(InferenceEngine::Precision netPrecision) {
@@ -160,7 +160,6 @@ public:
             options[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] = InferenceEngine::PluginConfigParams::NO;
         }
         options[InferenceEngine::PluginConfigParams::KEY_PERF_COUNT] = InferenceEngine::PluginConfigParams::YES;
-        options[InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT] = "egraph_test";
 
         auto exec_net1 = ie.LoadNetwork(cnnNet, targetDevice, options);
         auto req1 = exec_net1.CreateInferRequest();
@@ -222,37 +221,39 @@ public:
 };
 
 TEST_P(ConvEltwiseDepthwise, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     Run_test();
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepthwise,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepthwise,
     ::testing::Combine(
         ::testing::Values(Precision::FP32),
         ::testing::Values(SizeVector({ 1, 5, 1, 1 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(size_t(1)),
         ::testing::Values(CoordinateDiff({ 0, 0 })),
-        ::testing::Values(string("jit_avx512_1x1_BF16"))),
+        ::testing::Values(std::string("jit_avx512_1x1_BF16"))),
     ConvEltwiseDepthwise::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDepthwise,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDepthwise,
     ::testing::Combine(
         ::testing::Values(Precision::FP32),
         ::testing::Values(SizeVector({ 1, 3, 10, 10 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(size_t(3)),
         ::testing::Values(CoordinateDiff({ 1, 1 })),
-        ::testing::Values(string("jit_gemm_BF16"))),
+        ::testing::Values(std::string("jit_avx512_BF16"))),
     ConvEltwiseDepthwise::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_conv_depthwise_BF16, ConvEltwiseDepthwise,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_conv_depthwise_BF16, ConvEltwiseDepthwise,
     ::testing::Combine(
         ::testing::Values(Precision::FP32),
         ::testing::Values(SizeVector({ 1, 5, 10, 10 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(size_t(3)),
         ::testing::Values(CoordinateDiff({ 0, 0 })),
-        ::testing::Values(string("jit_avx512_BF16"))),
+        ::testing::Values(std::string("jit_avx512_BF16"))),
     ConvEltwiseDepthwise::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions

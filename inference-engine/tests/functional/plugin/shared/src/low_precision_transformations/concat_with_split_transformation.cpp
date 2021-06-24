@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,8 @@ void ConcatWithSplitTransformation::SetUp() {
         netPrecision,
         inputShapes,
         param.fqOnData1,
-        param.fqOnData2);
+        param.fqOnData2,
+        true);
 }
 
 TEST_P(ConcatWithSplitTransformation, CompareWithRefImpl) {

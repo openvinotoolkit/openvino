@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/mat_mul_function.hpp"
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -19,6 +19,8 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
     ngraph::Shape inputShape2;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
+    std::string expectedKernelName;
+    std::string expectedRuntimePrecision;
 };
 
 typedef std::tuple<
@@ -36,6 +38,10 @@ public:
 
 protected:
     void SetUp() override;
+    void Run() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

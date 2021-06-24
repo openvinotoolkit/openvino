@@ -1,24 +1,13 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import hashlib
 import logging as log
 import os
 import sys
-import xml.etree.ElementTree as ET
+
+from defusedxml import defuse_stdlib
+import defusedxml.ElementTree as ET
 from argparse import Namespace
 from collections import namedtuple, defaultdict
 from pathlib import Path
@@ -30,6 +19,9 @@ from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ElementTree = defuse_stdlib()[ET].ElementTree
 
 class IREngine(object):
     def __init__(self, path_to_xml: str, path_to_bin=None, precision="FP32", xml_tree=None):
@@ -101,7 +93,6 @@ class IREngine(object):
                     elif elem.tag in ['version', 'cli_params']:
                         self.meta_data['quantization_parameters'][elem.tag] = elem.attrib['value']
 
-
         self.graph.graph['cmd_params'] = Namespace(**self.meta_data)  # TODO check what we need all this attrs
 
         if len(statistics):
@@ -123,7 +114,7 @@ class IREngine(object):
             data_nodes = {}
             for port in self.graph.node[node]['ports']:
                 data = self.graph.unique_id(prefix='data_')
-                self.graph.add_node(data, **{'kind': 'data', 'shape': self.graph.node[node]['ports'][port],
+                self.graph.add_node(data, **{'kind': 'data', 'shape': self.graph.node[node]['ports'][port][0],
                                              'value': None})
                 self.graph.add_edges_from([(node, data, {'out': port})])
                 data_nodes.update({port: data})
@@ -232,7 +223,11 @@ class IREngine(object):
                     for dim in port:
                         output_shape.append(int(dim.text))
 
-                    layer_attrs['ports'].update({port_id: output_shape})
+                    out_tensor_names = None
+                    if 'names' in port.attrib:
+                        out_tensor_names = port.attrib['names']
+
+                    layer_attrs['ports'].update({port_id: (output_shape, out_tensor_names)})
             elif attr.tag == 'blobs':
                 in_port = inputs_counter
                 for blob_attr in attr:
@@ -246,7 +241,7 @@ class IREngine(object):
 
                 body_ir = IREngine(path_to_xml=None,
                                    path_to_bin=self.path_to_bin,
-                                   xml_tree=ET.ElementTree(xml_body_child[0]))
+                                   xml_tree=ElementTree(xml_body_child[0]))
                 self.graph.graph['hashes'].update(body_ir.graph.graph['hashes'])
 
                 # Find port_map section and take an input_port_map & output_port_map
@@ -306,8 +301,11 @@ class IREngine(object):
             'I8': (1, np.int8),
             'U8': (1, np.uint8),
             'U1': (1, np.uint8),
+            'U4': (1, np.uint8),
+            'I4': (1, np.uint8),
             'BOOL': (1, np.bool),
             'BIN': (1, np.uint8),
+            'U64': (8, np.uint64)
         }
         type_size, dtype = precision_map[precision]
         layer_attrs[tag] = (int(offset), int(size) // type_size, in_port, dtype)
@@ -323,7 +321,7 @@ class IREngine(object):
         """
         normalized_attrs = {}
         for attr, value in attrs.items():
-            value = value.replace('\"', '')
+            value = value.replace('\"', '').replace(' ', '')
             value = value.split(',')
             n_value = []
             for val in value:
@@ -331,8 +329,8 @@ class IREngine(object):
                     n_value.append(int(val))
                 elif IREngine.__isfloat(val):
                     n_value.append(float(val))
-                elif val in ['True', 'False']:
-                    n_value.append(val == 'True')
+                elif val in ['True', 'False', 'true', 'false']:
+                    n_value.append(val in ['True', 'true'])
                 else:
                     n_value.append(val)
 

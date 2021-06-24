@@ -1,17 +1,6 @@
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "include/fetch.cl"
 #include "include/reshape_dims.cl"
@@ -48,6 +37,10 @@ inline uint FUNC(get_input_index)(uint g, uint o, uint i, uint z, uint y, uint x
 	return GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4_INDEX(INPUT0, o, i, y, x);
 #elif defined INPUT0_LAYOUT_OS_IS_ZYX_ISA8_OSV8_ISV4
     return GET_FILTER_OS_IS_ZYX_ISA8_OSV8_ISV4_INDEX(INPUT0, o, i, z, y, x);
+#elif defined INPUT0_LAYOUT_OS_IS_YX_ISA8_OSV16_ISV4
+	return GET_FILTER_OS_IS_YX_ISA8_OSV16_ISV4_INDEX(INPUT0, o, i, y, x);
+#elif defined INPUT0_LAYOUT_OS_IS_ZYX_ISA8_OSV16_ISV4
+    return GET_FILTER_OS_IS_ZYX_ISA8_OSV16_ISV4_INDEX(INPUT0, o, i, z, y, x);
 #elif defined INPUT0_LAYOUT_IS_O_YX_ISV32
     return GET_FILTER_IS_O_YX_ISV32(INPUT0, o, i, y, x);
 #elif defined INPUT0_LAYOUT_IS_O32_YX_ISV32_SWIZZLED_BY_4
@@ -156,6 +149,10 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
 	return GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4_INDEX(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_ZYX_ISA8_OSV8_ISV4
     return GET_FILTER_OS_IS_ZYX_ISA8_OSV8_ISV4_INDEX(OUTPUT, o, i, z, y, x);
+#elif defined OUTPUT_LAYOUT_OS_IS_YX_ISA8_OSV16_ISV4
+	return GET_FILTER_OS_IS_YX_ISA8_OSV16_ISV4_INDEX(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_OS_IS_ZYX_ISA8_OSV16_ISV4
+    return GET_FILTER_OS_IS_ZYX_ISA8_OSV16_ISV4_INDEX(OUTPUT, o, i, z, y, x);
 #elif defined OUTPUT_LAYOUT_IS_O_YX_ISV32
     return GET_FILTER_IS_O_YX_ISV32(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_IS_O32_YX_ISV32_SWIZZLED_BY_4

@@ -62,3 +62,4 @@ jobs:
           mkdir ../mo-ut-logs
           python3 -m xmlrunner discover -p *_test.py --output=../mo-ut-logs
         working-directory: model-optimizer
+

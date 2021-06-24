@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -57,9 +45,8 @@ void post_input_reorder::run(program_impl& p) {
         const auto impl = node->get_selected_impl();
         // add a reorder if primitive's input format doesn't match implementation's input format
         if (node->is_type<fully_connected>()) {
-            const auto& fc_impl = dynamic_cast<gpu::typed_primitive_gpu_impl<fully_connected>&>(*impl);
-            const auto& fc_params =
-                *static_cast<kernel_selector::fully_connected_params*>(fc_impl._kernel_data.params.get());
+            const auto& fc_impl = dynamic_cast<const gpu::typed_primitive_gpu_impl<fully_connected>&>(*impl);
+            const auto& fc_params = *static_cast<kernel_selector::fully_connected_params*>(fc_impl._kernel_data.params.get());
 
             auto layout_format = from_data_layout(fc_params.inputs[0].GetLayout());
             auto& input = node->get_dependencies()[0];

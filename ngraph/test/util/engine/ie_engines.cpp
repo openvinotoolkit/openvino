@@ -1,24 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ie_engines.hpp"
 
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "pass/opset1_upgrade.hpp"
+#include "shared_utils.hpp"
 
 using namespace ngraph;
 
@@ -70,6 +59,29 @@ namespace
         return ngraph::test::all_close<T>(test_results.first, test_results.second);
     }
 
+    template <typename T>
+    typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
+        compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
+                      InferenceEngine::MemoryBlob::CPtr expected,
+                      const size_t tolerance_bits)
+    {
+        const auto test_results = extract_test_results<T>(computed, expected);
+
+        NGRAPH_CHECK(test_results.first.size() == test_results.second.size(),
+                     "Number of expected and computed results don't match");
+
+        std::vector<double> expected_double(test_results.first.size());
+        std::vector<double> result_double(test_results.second.size());
+
+        for (size_t i = 0; i < test_results.first.size(); ++i)
+        {
+            expected_double[i] = static_cast<double>(test_results.first[i]);
+            result_double[i] = static_cast<double>(test_results.second[i]);
+        }
+
+        return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
+    }
+
     /// Compares two blobs elementwise
     inline testing::AssertionResult compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
                                                   InferenceEngine::MemoryBlob::CPtr expected,
@@ -118,10 +130,50 @@ namespace
         case InferenceEngine::Precision::BOOL:
             return compare_blobs<uint8_t>(computed, expected, tolerance_bits);
             break;
+        case InferenceEngine::Precision::BF16:
+            return compare_blobs<bfloat16>(computed, expected, tolerance_bits);
+            break;
         default: THROW_IE_EXCEPTION << "Not implemented yet";
         }
     }
-};
+}; // namespace
+
+namespace
+{
+    InferenceEngine::Precision ng_type_to_precission(const element::Type& target_type)
+    {
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic error "-Wswitch"
+#pragma GCC diagnostic error "-Wswitch-enum"
+#endif
+        switch (target_type)
+        {
+        case element::Type_t::boolean: return InferenceEngine::Precision::BOOL; break;
+        case element::Type_t::bf16: return InferenceEngine::Precision::BF16; break;
+        case element::Type_t::f16: return InferenceEngine::Precision::FP16; break;
+        case element::Type_t::f32: return InferenceEngine::Precision::FP32; break;
+        case element::Type_t::f64: return InferenceEngine::Precision::FP64; break;
+        case element::Type_t::i8: return InferenceEngine::Precision::I8; break;
+        case element::Type_t::i16: return InferenceEngine::Precision::I16; break;
+        case element::Type_t::i32: return InferenceEngine::Precision::I32; break;
+        case element::Type_t::i64: return InferenceEngine::Precision::I64; break;
+        case element::Type_t::u8: return InferenceEngine::Precision::U8; break;
+        case element::Type_t::u16: return InferenceEngine::Precision::U16; break;
+        case element::Type_t::u32: return InferenceEngine::Precision::U32; break;
+        case element::Type_t::u64: return InferenceEngine::Precision::U64; break;
+        case element::Type_t::u1: return InferenceEngine::Precision::BIN; break;
+        case element::Type_t::i4:
+        case element::Type_t::u4:
+        case element::Type_t::undefined:
+        case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
+        }
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#pragma GCC diagnostic pop
+#endif
+        throw std::runtime_error("unsupported type");
+    }
+} // namespace
 
 test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}
@@ -130,6 +182,13 @@ test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char*
     const auto cnn_network = InferenceEngine::CNNNetwork(m_function);
     m_network_inputs = cnn_network.getInputsInfo();
     m_network_outputs = cnn_network.getOutputsInfo();
+
+    for (const auto& result : m_function->get_results())
+    {
+        const auto& out_name = get_output_name(result);
+        m_network_outputs[out_name]->setPrecision(
+            ng_type_to_precission(result->get_element_type()));
+    }
 
     InferenceEngine::Core ie;
     auto exe_network = ie.LoadNetwork(cnn_network, device);
@@ -140,7 +199,7 @@ void test::IE_Engine::infer()
 {
     if (m_network_inputs.size() != m_allocated_inputs)
     {
-        THROW_IE_EXCEPTION << "The tested graph has " << m_network_inputs.size() << " inputs, but "
+        IE_THROW() << "The tested graph has " << m_network_inputs.size() << " inputs, but "
                            << m_allocated_inputs << " were passed.";
     }
     else
@@ -172,10 +231,66 @@ testing::AssertionResult test::IE_Engine::compare_results(const size_t tolerance
     return comparison_result;
 }
 
+std::string test::IE_Engine::get_output_name(const std::shared_ptr<op::v0::Result>& ng_result)
+{
+    if (m_function->get_results().size() == 1)
+    {
+        // ng_result argument is ignored
+        return m_network_outputs.begin()->first;
+    }
+    else
+    {
+        const auto& prev_layer = ng_result->input_value(0);
+        auto network_out_name = prev_layer.get_node_shared_ptr()->get_friendly_name();
+        if (prev_layer.get_node_shared_ptr()->get_output_size() != 1)
+        {
+            network_out_name += "." + std::to_string(prev_layer.get_index());
+        }
+
+        NGRAPH_CHECK(m_network_outputs.count(network_out_name) == 1,
+                     "nGraph function's output number ",
+                     m_allocated_expected_outputs,
+                     " was not found in the CNNNetwork built from it. Function's output name: ",
+                     network_out_name);
+
+        return network_out_name;
+    }
+}
+
 testing::AssertionResult
     test::IE_Engine::compare_results_with_tolerance_as_fp(const float tolerance)
 {
     auto comparison_result = testing::AssertionSuccess();
+
+    for (const auto& output : m_network_outputs)
+    {
+        if (comparison_result == testing::AssertionFailure())
+        {
+            break;
+        }
+
+        InferenceEngine::MemoryBlob::CPtr computed_output_blob =
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(m_inference_req.GetBlob(output.first));
+
+        const auto& expected_output_blob = m_expected_outputs[output.first];
+
+        switch (expected_output_blob->getTensorDesc().getPrecision())
+        {
+        case InferenceEngine::Precision::FP32:
+        {
+            const auto test_results =
+                extract_test_results<float>(computed_output_blob, expected_output_blob);
+            comparison_result =
+                test::compare_with_tolerance(test_results.first, test_results.second, tolerance);
+            break;
+        }
+        default:
+            comparison_result = testing::AssertionFailure()
+                                << "Unsupported data type encountered in "
+                                   "'compare_results_with_tolerance_as_fp' method";
+        }
+    }
+
     return comparison_result;
 }
 
@@ -191,7 +306,7 @@ std::shared_ptr<Function>
     {
         if (ie_ops.find(node->get_type_info()) == ie_ops.end())
         {
-            THROW_IE_EXCEPTION << "Unsupported operator detected in the graph: "
+            IE_THROW() << "Unsupported operator detected in the graph: "
                                << node->get_type_info().name;
         }
     }
@@ -210,6 +325,10 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset4.begin(), opset4.end());
     const auto& opset5 = get_opset5().get_type_info_set();
     ie_ops.insert(opset5.begin(), opset5.end());
+    const auto& opset6 = get_opset6().get_type_info_set();
+    ie_ops.insert(opset6.begin(), opset6.end());
+    const auto& opset7 = get_opset7().get_type_info_set();
+    ie_ops.insert(opset7.begin(), opset7.end());
     return ie_ops;
 }
 
@@ -222,20 +341,14 @@ void test::IE_Engine::reset()
 
 namespace InferenceEngine
 {
-// those definitions and template specializations are required for clang (both Linux and Mac)
 // Without this section the linker is not able to find destructors for missing TBlob specializations
 // which are instantiated in the unit tests that use TestCase and this engine
-#ifdef __clang__
     template <typename T, typename U>
     TBlob<T, U>::~TBlob()
     {
         free();
     }
 
-    template class TBlob<unsigned int>;
-    template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
-    template class TBlob<char>;
-#endif
-}
+} // namespace InferenceEngine

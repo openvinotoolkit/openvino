@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <istream>
 #include <vector>
 #include <utility>
+#include <ie_input_info.hpp>
 
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_output_desc.hpp"
@@ -22,7 +23,7 @@
  */
 class GNAModelSerial {
  public:
-    using MemoryType = std::vector<std::pair<void*, uint32_t>>;
+    using MemoryType = std::vector<std::tuple<void*, uint32_t, std::string, float>>;
 
 private:
 #if GNA_LIB_VER == 2
@@ -34,12 +35,8 @@ private:
     std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> outputs;
     std::vector<std::string> inputNames;
     std::vector<std::string> outputNames;
-    uint32_t nRotateRows = 0;
-    uint32_t nRotateColumns = 0;
-    bool doRotateInput = false;
-    uint32_t nRotateOutputRows = 0;
-    uint32_t nRotateOutputColumns = 0;
-    bool doRotateOutput = false;
+    TranspositionInfoMap transposeInputsInfo;
+    TranspositionInfoMap transposeOutputsInfo;
 
     MemoryType states, *pstates = nullptr;
     GNAPluginNS::HeaderLatest::ModelHeader modelHeader;
@@ -53,6 +50,13 @@ private:
             void* basePtr,
             std::vector<GNAPluginNS::OutputDesc> &desc,
             InferenceEngine::OutputsDataMap& dataMap);
+
+    void ImportTranspositionInfo(std::istream &is,
+            std::string &name,
+            std::vector<TranspositionInfo> &transpositionInfo);
+
+    void ExportTranspositionInfo(std::ostream &os,
+            const TranspositionInfoMap &transpositionInfoMap) const;
 
  public:
 #if GNA_LIB_VER == 2
@@ -105,17 +109,13 @@ private:
      }
 #endif
 
-    GNAModelSerial & SetInputRotation(uint32_t nRotateRows, uint32_t nRotateColumns, bool do_rotate_inputs) {
-      this->nRotateColumns = nRotateColumns;
-      this->nRotateRows = nRotateRows;
-      this->doRotateInput = do_rotate_inputs;
+    GNAModelSerial & SetInputRotation(const TranspositionInfoMap &transposeInputsInfo) {
+      this->transposeInputsInfo = transposeInputsInfo;
       return *this;
     }
 
-    GNAModelSerial& SetOutputRotation(uint32_t nRotateOutputRows, uint32_t nRotateOutputColumns, bool do_rotate_outputs) {
-        this->nRotateOutputColumns = nRotateOutputColumns;
-        this->nRotateOutputRows = nRotateOutputRows;
-        this->doRotateOutput = do_rotate_outputs;
+    GNAModelSerial& SetOutputRotation(const TranspositionInfoMap &transposeOutputsInfo) {
+        this->transposeOutputsInfo = transposeOutputsInfo;
         return *this;
     }
 
@@ -123,10 +123,11 @@ private:
      * mark certain part of gna_blob as state (in future naming is possible)
      * @param descriptor_ptr
      * @param size
+     * @param layerName
      * @return
      */
-    GNAModelSerial & AddState(void* descriptor_ptr, size_t size) {
-        states.emplace_back(descriptor_ptr, size);
+    GNAModelSerial & AddState(void* descriptor_ptr, size_t size, std::string layerName = "noname", float scale_factor = 1.0f) {
+        states.emplace_back(descriptor_ptr, size, layerName, scale_factor);
         return *this;
     }
 
@@ -137,6 +138,8 @@ private:
      */
     static GNAPluginNS::HeaderLatest::ModelHeader ReadHeader(std::istream &is);
 
+    GNAPluginNS::HeaderLatest::RuntimeEndPoint ReadEndPoint(std::istream &is);
+
     /**
      * @brief Import model from FS into preallocated buffer,
      * buffers for pLayers, and pStructs are allocated here and required manual deallocation using mm_free
@@ -145,16 +148,17 @@ private:
      * @param is - stream without header structure - TBD heder might be needed
      */
     void Import(void *basePointer,
-                                size_t gnaGraphSize,
-                                std::istream & is,
-                                std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
-                                std::vector<GNAPluginNS::OutputDesc> &desc,
-                                InferenceEngine::InputsDataMap& inputsDataMap,
-                                InferenceEngine::OutputsDataMap& outputsDataMap);
+                size_t gnaGraphSize,
+                std::istream & is,
+                std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
+                std::vector<GNAPluginNS::OutputDesc> &desc,
+                InferenceEngine::InputsDataMap& inputsDataMap,
+                InferenceEngine::OutputsDataMap& outputsDataMap,
+                TranspositionInfoMap& inputstranspositionInfo,
+                TranspositionInfoMap& outputstranspositionInfo);
 
     /**
      * save gna graph to an outpus stream
-     * @param ptr_nnet
      * @param basePtr
      * @param gnaGraphSize
      * @param os

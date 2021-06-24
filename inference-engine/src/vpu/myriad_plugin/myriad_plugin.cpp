@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 
 #include <ie_metric_helpers.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <legacy/ie_util_internal.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
@@ -17,13 +17,10 @@
 #include <vpu/frontend/frontend.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/rt_info/fused_names_attribute.hpp>
-#include <ngraph/op/util/op_types.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <vpu/ngraph/query_network.hpp>
 
-#include "generic_ie.hpp"
+#include <vpu/configuration/options/log_level.hpp>
+#include <vpu/configuration/options/copy_optimization.hpp>
 
 #include "myriad_plugin.h"
 
@@ -33,36 +30,45 @@ using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
+IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         const CNNNetwork& network,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
-    auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config);
+    auto executableNetworkConfiguration = _parsedConfig;
+    executableNetworkConfiguration.from(config);
+    executableNetworkConfiguration.validate();
 
-    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
-    _parsedConfig.update(config);
+    _parsedConfig.from(config);
 
+    // TODO: remove once all options are migrated
     for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }
+
+#ifndef NDEBUG
+    if (const auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
+        _parsedConfig.set(LogLevelOption::key(), envVar);
+    }
+#endif
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-    auto supported_keys = _metrics->SupportedConfigKeys();
-    if (std::find(supported_keys.begin(),
-        supported_keys.end(), name) == supported_keys.end()) {
-        THROW_IE_EXCEPTION << "Unsupported config key : " << name;
-    }
+    // TODO: remove once all options are migrated
+    const auto& supportedKeys = _metrics->SupportedConfigKeys();
+    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(supportedKeys.count(name) == 1 || _parsedConfig.supports(name), "Unsupported configuration key: {}", name);
 
     Parameter result;
-    auto option = _config.find(name);
-    if (option != _config.end())
-        result = option->second;
+    if (_parsedConfig.supports(name)) {
+        result = _parsedConfig.asParameter(name);
+    } else if (_config.count(name)) {
+        // TODO: remove once all options are migrated
+        result = _config.at(name);
+    }
 
     return result;
 }
@@ -74,7 +80,7 @@ QueryNetworkResult Engine::QueryNetwork(
     QueryNetworkResult res;
 
     auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config);
+    parsedConfigCopy.from(config);
 
     const auto deviceName = parsedConfigCopy.deviceName();
     if (!deviceName.empty()) {
@@ -82,158 +88,25 @@ QueryNetworkResult Engine::QueryNetwork(
         VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
     }
 
-    if (auto function = network.getFunction()) {
-        std::unordered_set<std::string> originalOps;
-        for (auto& node : function->get_ops()) {
-            originalOps.emplace(node->get_friendly_name());
-        }
-
-        auto clonedNetwork = cloneNetwork(network);
-        auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
-
-        std::unordered_set<std::string> supported;
-        std::unordered_set<std::string> unsupported;
-
-        std::unordered_set<std::string> splitNames;
-        std::unordered_set<std::string> concatNames;
-
-        ngraph::NodeVector splits;
-        ngraph::NodeVector concats;
-
-        const auto isLayerSupported = [this, &splitNames, &concatNames, &concats, &splits](InferenceEngine::details::CNNNetworkIterator& layer) -> bool {
-                auto node = (*layer)->getNode();
-                if (std::dynamic_pointer_cast<const ::ngraph::opset3::Split>(node) != nullptr) {
-                    splitNames.emplace(node->get_friendly_name());
-                    splits.push_back(node);
-                    return false;
-                } else if (std::dynamic_pointer_cast<const ::ngraph::opset3::Concat>(node) != nullptr) {
-                    concatNames.emplace(node->get_friendly_name());
-                    concats.push_back(node);
-                    return false;
-                } else {
-                    auto stageBuilder = std::make_shared<StageBuilder>();
-                    auto frontEnd = std::make_shared<FrontEnd>(stageBuilder, GetCore());
-                    return frontEnd->isLayerSupported((*layer)->type);
-                }
-        };
-
-        for (InferenceEngine::details::CNNNetworkIterator itLayer{convertedNetwork.get()};
-             itLayer != InferenceEngine::details::CNNNetworkIterator();
-             itLayer++) {
-            const auto fusedNode = (*itLayer)->getNode();
-            if (fusedNode == nullptr) {
-                continue;
-            }
-
-            for (auto& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
-                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                    if (isLayerSupported(itLayer)) {
-                        supported.emplace(fusedLayerName);
-                    } else {
-                        unsupported.emplace(fusedLayerName);
-                    }
-                }
-            }
-        }
-
-        for (const auto& layerName : supported) {
-            if (InferenceEngine::details::contains(unsupported, layerName)) {
-                supported.erase(layerName);
-            }
-        }
-
-        unsupported.clear();
-
-        std::function<void(std::shared_ptr<ngraph::Node>)> markParentSplitAsUnsupported = [&markParentSplitAsUnsupported, &supported, &splitNames]
-                                                                                          (const std::shared_ptr<ngraph::Node>& split) {
-            const auto inputs = split->inputs();
-            for (const auto& input : inputs) {
-                const auto& parentName = input.get_source_output().get_node()->get_friendly_name();
-                if (InferenceEngine::details::contains(supported, parentName) &&
-                    InferenceEngine::details::contains(splitNames, parentName)) {
-                    markParentSplitAsUnsupported(input.get_source_output().get_node_shared_ptr());
-                }
-            }
-            const auto& name = split->get_friendly_name();
-            if (InferenceEngine::details::contains(supported, name)) {
-                supported.erase(name);
-            }
-        };
-
-        for (const auto& split : splits) {
-            // We will mark split as a supported only if all consumers is supported
-            bool is_supported = true;
-            const auto outputs = split->outputs();
-            for (const auto& output : outputs) {
-                for (const auto& consumer : output.get_target_inputs()) {
-                    const auto& name = consumer.get_node()->get_friendly_name();
-                    if (!InferenceEngine::details::contains(supported, name) &&
-                        !InferenceEngine::details::contains(concatNames, name) &&
-                        !InferenceEngine::details::contains(splitNames, name)) {
-                        is_supported = false;
-                        break;
-                    }
-                }
-            }
-            if (is_supported) {
-                supported.emplace(split->get_friendly_name());
-            } else {
-                // If Split is not supported and it's parent is also Split, mark parent as unsupported
-                markParentSplitAsUnsupported(split);
-            }
-        }
-
-        for (const auto& concat : concats) {
-            // We will mark concat as a supported only if all parent layers is supported
-            bool is_supported = true;
-            const auto inputs = concat->inputs();
-            for (const auto& input : inputs) {
-                const auto& name = input.get_source_output().get_node()->get_friendly_name();
-                if (!InferenceEngine::details::contains(supported, name) &&
-                    !InferenceEngine::details::contains(concatNames, name)) {
-                    is_supported = false;
-                    break;
-                }
-            }
-            if (is_supported) {
-                supported.emplace(concat->get_friendly_name());
-            }
-        }
-
-        for (const auto& node : function->get_ops()) {
-            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
-                for (const auto& inputNodeOutput : node->input_values()) {
-                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
-                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
-                    }
-                }
-                for (const auto& outputs : node->outputs()) {
-                    for (const auto& outputNodeInput : outputs.get_target_inputs()) {
-                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
-                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
-                        }
-                    }
-                }
-            }
-        }
-
-        for (const auto& layerName : supported) {
-            res.supportedLayersMap.emplace(layerName, GetName());
-        }
-    } else {
-        const auto log = std::make_shared<Logger>(
+    const auto log = std::make_shared<Logger>(
             "GraphCompiler",
-            parsedConfigCopy.logLevel(),
+            _parsedConfig.get<LogLevelOption>(),
             defaultOutput(parsedConfigCopy.compilerLogFilePath()));
 
-        const auto layerNames = getSupportedLayers(
+    const auto supportedLayers = getSupportedLayers(
             network,
-            static_cast<Platform>(parsedConfigCopy.platform()),
-            parsedConfigCopy.compileConfig(),
+            parsedConfigCopy.platform(),
+            parsedConfigCopy,
             log,
             GetCore());
 
-        for (const auto& layerName : layerNames) {
+    if (auto function = network.getFunction()) {
+        auto clonedNetwork = cloneNetwork(network);
+        auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
+
+        res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
+    } else {
+        for (const auto& layerName : supportedLayers) {
             res.supportedLayersMap.insert({ layerName, GetName() });
         }
     }
@@ -248,12 +121,14 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
 
     _pluginName = "MYRIAD";
 
+    // TODO: remove once all options are migrated
 IE_SUPPRESS_DEPRECATED_START
     _config = {
         { MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
         { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO) },
         { MYRIAD_CUSTOM_LAYERS, "" },
         { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
+        { MYRIAD_THROUGHPUT_STREAMS, "-1" },
 
         // Deprecated
         { KEY_VPU_HW_STAGES_OPTIMIZATION, CONFIG_VALUE(YES) },
@@ -262,42 +137,33 @@ IE_SUPPRESS_DEPRECATED_START
         { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
 
-        { KEY_LOG_LEVEL, CONFIG_VALUE(LOG_NONE) },
         { KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(NO) },
         { KEY_PERF_COUNT, CONFIG_VALUE(NO) },
         { KEY_CONFIG_FILE, "" },
         { KEY_DEVICE_ID, "" },
     };
 IE_SUPPRESS_DEPRECATED_END
+
+    _parsedConfig.registerOption<LogLevelOption>();
+    _parsedConfig.registerOption<CopyOptimizationOption>();
+
+IE_SUPPRESS_DEPRECATED_START
+    _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+IE_SUPPRESS_DEPRECATED_END
 }
 
-InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
         std::istream& model,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(ImportNetwork);
 
-    auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    auto executableNetworkConfiguration = _parsedConfig;
+    executableNetworkConfiguration.fromAtRuntime(config);
+    executableNetworkConfiguration.validate();
 
-    const auto executableNetwork =
-            std::make_shared<ExecutableNetwork>(
-                model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
-
-    return make_executable_network(executableNetwork);
-}
-
-InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
-        const std::string& modelFileName,
-        const std::map<std::string, std::string>& config) {
-    VPU_PROFILE(ImportNetwork);
-
-    std::ifstream blobFile(modelFileName, std::ios::binary);
-
-    if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << ie::details::as_status << NETWORK_NOT_READ;
-    }
-
-    return ImportNetwork(blobFile, config);
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(model, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
+    executableNetwork->SetPointerToPlugin(shared_from_this());
+    return executableNetwork;
 }
 
 InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
@@ -335,13 +201,20 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
         const auto& supportedMetrics = _metrics->SupportedMetrics();
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{supportedMetrics.cbegin(), supportedMetrics.cend()});
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        const auto& supportedConfigKeys = _metrics->SupportedConfigKeys();
+        // TODO: remove once all options are migrated
+        auto supportedConfigKeys = _metrics->SupportedConfigKeys();
+        const auto& publicKeys = _parsedConfig.getPublicKeys();
+        supportedConfigKeys.insert(publicKeys.cbegin(), publicKeys.cend());
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{supportedConfigKeys.cbegin(), supportedConfigKeys.cend()});
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         const auto& optimizationCapabilities = _metrics->OptimizationCapabilities();
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{optimizationCapabilities.cbegin(), optimizationCapabilities.cend()});
     } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics->RangeForAsyncInferRequests(_config));
+    } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics->DeviceArchitecture(options));
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
         const auto& device = getDeviceByName(getSpecifiedDeviceName());
         if (device != nullptr) {
@@ -350,5 +223,5 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
             return Parameter();
         }
     }
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    IE_THROW(NotImplemented);
 }

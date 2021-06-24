@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/middleend/pass_manager.hpp>
 #include <vpu/stages/stub_stage.hpp>
 #include <vpu/model/data_contents/merge_fc_content.hpp>
-
-#include <ie_parallel.hpp>
 
 #include <memory>
 #include <utility>

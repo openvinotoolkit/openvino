@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,21 +10,10 @@
 std::vector<std::string> disabledTestPatterns() {
     return {
         ".*ExclusiveAsyncRequests.*",
-        ".*reusableCPUStreamsExecutor.*",
+        ".*ReusableCPUStreamsExecutor.*",
         R"(.*SplitLayerTest.*numSplits\=30.*)",
-        // CVS-44775: for all cases below
-        ".*Hetero.*",
-        ".*QueryNetwork.*",
-        ".*SetAffinityWithKSO.*",
-        ".*queryNetworkResultContainAllAndOnlyInputLayers.*",
-        R"(.*IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*)",
-        R"(.*IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS.*/2)",
-        R"(.*IEClassExecutableNetworkGetMetricTest_NETWORK_NAME.*/2)",
-        R"(.*IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS.*/2)",
-        ".*LoadNetworkActualHeteroDeviceNoThrow.*",
-        ".*LoadNetworkActualHeteroDevice2NoThrow.*",
-        ".*IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*",
-        // CVS-44774
-        ".*PreprocessTest.*",
+        // CVS-51758
+        ".*PreprocessConversionTest.*oLT=NHWC.*",
+        ".*PreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*",
     };
 }

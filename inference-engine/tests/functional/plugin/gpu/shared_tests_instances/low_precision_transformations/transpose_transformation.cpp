@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<TransposeTransformationTestValues> testValues = {
@@ -41,7 +41,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, TransposeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, TransposeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),

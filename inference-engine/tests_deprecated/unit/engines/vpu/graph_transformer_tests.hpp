@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -176,10 +176,12 @@ void CheckStageTestInds(const StageRange& stageRange, std::initializer_list<int>
     }
 }
 
+PluginConfiguration createConfiguration();
+
 class GraphTransformerTest : public TestsCommon {
 public:
-    Platform platform = Platform::MYRIAD_X;
-    CompilationConfig config;
+    ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
+    PluginConfiguration config;
 
     StageBuilder::Ptr stageBuilder;
     FrontEnd::Ptr frontEnd;

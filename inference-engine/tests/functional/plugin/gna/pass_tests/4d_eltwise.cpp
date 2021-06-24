@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -157,7 +157,7 @@ protected:
         ngraph::helpers::EltwiseTypes::ADD
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_Eltwise4d, Eltwise4dBroadcast,
+    INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d, Eltwise4dBroadcast,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -165,7 +165,7 @@ protected:
             ::testing::ValuesIn(eltwiseOpTypes)),
         Eltwise4dBroadcast::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Eltwise4d, Eltwise4dMultipleInput,
+    INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d, Eltwise4dMultipleInput,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

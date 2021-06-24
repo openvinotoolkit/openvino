@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 #include <vpu/middleend/hw/utility.hpp>
 
 using namespace vpu;
+
+IE_SUPPRESS_DEPRECATED_START
 
 class VPU_SplitLargeKernelConvTest : public GraphTransformerTest {
  protected:

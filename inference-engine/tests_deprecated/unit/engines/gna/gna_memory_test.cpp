@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -246,7 +246,6 @@ TEST_F(GNAMemoryTest, canPushLocal) {
     }
 
     //poison stack
-    float input [] = {11,21,31,41};
     mem.commit();
 
     ASSERT_FLOAT_EQ(pFuture[0], 1);

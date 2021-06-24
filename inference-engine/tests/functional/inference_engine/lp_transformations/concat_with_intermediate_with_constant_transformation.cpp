@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,7 +116,6 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
         const ngraph::Shape shape = std::get<1>(obj.param);
         ConcatTransformationTestValues testValues = std::get<2>(obj.param);
 
@@ -215,7 +214,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {}, {}, {} },
             ngraph::element::f32,
             ngraph::element::f32,
-            { ngraph::element::f32, {}, { 0.01f } },
+            { {}, {}, { 0.01f } },
             ngraph::element::f32
         }
     },
@@ -296,7 +295,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::f32,
             ngraph::element::f32,
             {
-                ngraph::element::f32,
+                {},
                 {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
                 {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
             },
@@ -310,7 +309,7 @@ const std::vector<ngraph::Shape> shapes = {
     { 4, 3, 9, 9 }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConcatWithIntermediateWithConstantTransformation,
     ::testing::Combine(

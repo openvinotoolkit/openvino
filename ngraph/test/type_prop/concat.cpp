@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -38,7 +26,8 @@ TEST(type_prop, concat_deduce_wrong_rank)
     auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     auto param2 = make_shared<op::Parameter>(element::f32,
                                              Shape{
-                                                 2, 2,
+                                                 2,
+                                                 2,
                                              });
     try
     {
@@ -361,6 +350,40 @@ TEST(type_prop, concat_partial_all_static_with_concat_axis_static_dims_incompati
             error.what(),
             std::string("Argument shapes are inconsistent; they must have the same rank, and must "
                         "have equal dimension everywhere except on the concatenation axis"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, concat_partial_negative_axis_correct)
+{
+    auto param0 = make_shared<op::Parameter>(element::f32, Shape{3, 2, 4});
+    auto param1 = make_shared<op::Parameter>(element::f32, Shape{7, 2, 4});
+    auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 2, 4});
+
+    auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, -3);
+
+    ASSERT_EQ(c->get_element_type(), element::f32);
+    ASSERT_EQ(c->get_shape(), (Shape{12, 2, 4}));
+}
+
+TEST(type_prop, concat_partial_negative_axis_incorrect)
+{
+    auto param0 = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
+    auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
+    auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 2, 4});
+
+    try
+    {
+        auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, -4);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Incorrect negative axis value not detected (out of bounds)";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Concatenation axis (-1) is out of bounds"));
     }
     catch (...)
     {

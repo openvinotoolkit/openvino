@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <cstddef>
 #include <cstdint>
@@ -21,7 +9,9 @@
 #include <string>
 #include <vector>
 
-#include "lstm.hpp"
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/enum_names.hpp"
@@ -33,10 +23,7 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/lstm.hpp"
+#include "op/lstm.hpp"
 
 namespace ngraph
 {
@@ -67,8 +54,6 @@ namespace ngraph
                         const auto& ng_inputs = node.get_ng_inputs();
                         // We have input, output, forget and cell gates
                         constexpr std::size_t gates_count{4};
-                        // Peepholes add additional connections to input, output and forget gates.
-                        constexpr std::size_t peepholes_count{3};
 
                         // ----- Mandatory inputs ------
                         // Packed input sequences.
@@ -128,11 +113,9 @@ namespace ngraph
                         {
                             auto bias = ng_inputs.at(3);
                             auto split_bias = builder::opset1::split(bias, 2, 1);
-                            NGRAPH_SUPPRESS_DEPRECATED_START
                             m_input_map[LSTMInput::LSTM_INPUT_B] =
                                 std::make_shared<default_opset::Add>(split_bias.at(0),
                                                                      split_bias.at(1));
-                            NGRAPH_SUPPRESS_DEPRECATED_END
                             m_input_map[LSTMInput::LSTM_INPUT_B] =
                                 ngraph::op::util::convert_lstm_node_format(
                                     m_input_map[LSTMInput::LSTM_INPUT_B],
@@ -253,8 +236,9 @@ namespace ngraph
 
                         if (m_input_forget != 0)
                         {
-                            NGRAPH_WARN << (node) << " Attribute `input_forget` is not supported "
-                                                     "and will be ignored ";
+                            NGRAPH_WARN << (node)
+                                        << " Attribute `input_forget` is not supported "
+                                           "and will be ignored ";
                         }
                     }
 

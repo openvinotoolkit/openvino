@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulT
 
 InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     if ((info.name() != "input1") && (info.name() != "input2")) {
-        THROW_IE_EXCEPTION << "unexpected layer name " << info.name();
+        IE_THROW() << "unexpected layer name " << info.name();
     }
 
     size_t low;
@@ -52,7 +52,7 @@ InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEn
         low = 5ul;
         high = 10ul;
     } else {
-        THROW_IE_EXCEPTION << "unexpected input name " << info.name();
+        IE_THROW() << "unexpected input name " << info.name();
     }
 
     return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
@@ -72,6 +72,34 @@ void MatMulTransformation::SetUp() {
         testValues.fqOnData2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    validate();
+}
+
+void MatMulTransformation::validate() {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
+    std::string targetDevice;
+    MatMulTransformationTestValues testValues;
+    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    const auto output = transformed->get_output_op(0);
+    const auto scaleShift = output->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShift->get_type_name();
+    ASSERT_EQ("ScaleShiftIE", typeName);
+}
+
+void MatMulTransformation::Run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<3>(GetParam());
+    const auto actualType = getRuntimePrecision(params.expectedKernelName);
+
+    EXPECT_EQ(actualType, params.expectedRuntimePrecision);
 }
 
 TEST_P(MatMulTransformation, CompareWithRefImpl) {

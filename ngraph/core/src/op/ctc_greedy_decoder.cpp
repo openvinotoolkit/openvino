@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/ctc_greedy_decoder.hpp"
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -32,6 +21,7 @@ op::CTCGreedyDecoder::CTCGreedyDecoder(const Output<Node>& input,
 
 void op::CTCGreedyDecoder::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_CTCGreedyDecoder_validate_and_infer_types);
     const auto& logits_pshape = get_input_partial_shape(0);
     const auto& seq_mask_pshape = get_input_partial_shape(1);
     auto input_et = get_input_element_type(0);
@@ -99,12 +89,14 @@ void op::CTCGreedyDecoder::validate_and_infer_types()
 
 bool op::CTCGreedyDecoder::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_CTCGreedyDecoder_visit_attributes);
     visitor.on_attribute("ctc_merge_repeated", m_ctc_merge_repeated);
     return true;
 }
 
 shared_ptr<Node> op::CTCGreedyDecoder::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_CTCGreedyDecoder_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<CTCGreedyDecoder>(new_args.at(0), new_args.at(1), m_ctc_merge_repeated);
 }

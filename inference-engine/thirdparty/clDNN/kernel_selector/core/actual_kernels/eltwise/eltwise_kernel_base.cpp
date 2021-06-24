@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "eltwise_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -116,6 +106,34 @@ bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) cons
     }
 
     return true;
+}
+
+bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params) const {
+    // These modes are supposed to produce BOOL output type
+    // but this kernel uses vector data types, and these operation will produce 0xFFFF / 0x0000 instead of 0 / 1 values
+    // The value might be then converted to fp16/fp32 and used for some arithmetic, which will lead to invalid results, thus reject these modes
+    // to fallback on ref kernel with scalar types.
+    // TODO: Consider updating optimized kernels to produce 0/1 output for vector code if such operation is a bottleneck in some model
+    const std::vector<EltwiseMode> unsupported_modes = {
+        EltwiseMode::EQ,
+        EltwiseMode::NE,
+        EltwiseMode::LT,
+        EltwiseMode::LE,
+        EltwiseMode::GT,
+        EltwiseMode::GE,
+        EltwiseMode::LOGIC_AND,
+        EltwiseMode::LOGIC_OR,
+        EltwiseMode::LOGIC_XOR,
+        EltwiseMode::FLOOR_MOD,
+    };
+
+    for (size_t op_num = 0; op_num <  params.operations.size(); op_num++) {
+        const auto& ew =  params.operations[op_num];
+        if (std::find(unsupported_modes.begin(), unsupported_modes.end(), ew.mode) != unsupported_modes.end())
+            return true;
+    }
+
+    return false;
 }
 
 JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& params, bool useVload8, size_t blockSize) const {
@@ -247,7 +265,7 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 op += "(!" + input0_str + " != !" + input1_str + ")";
                 break;
             case EltwiseMode::FLOOR_MOD:
-                op += "(" + input0_str + " - " + input0_str + " / " + input1_str + " * " + input1_str + ")";
+                op += "(" + input0_str + " - floor(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
                 break;
             case EltwiseMode::ASSIGN:
                 op += input0_str;
@@ -443,9 +461,9 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                     // it means that z coord is equal to 1, so z offset will be always equal to 0
                     jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
                 } else if (out_c == 6) {
-                    if (in_c < 5)
+                    if (in_c < 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d2,d1"));
-                    else if (in_c == 5) {
+                    } else if (in_c == 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d3,d2,d1"));
                     } else {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));
@@ -597,22 +615,20 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     DispatchData dispatchData = SetDefault(newParams);
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = dispatchData.gws;
-    kernel.workGroups.local = dispatchData.lws;
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
 
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,
                                    GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
     return {kd};
 }

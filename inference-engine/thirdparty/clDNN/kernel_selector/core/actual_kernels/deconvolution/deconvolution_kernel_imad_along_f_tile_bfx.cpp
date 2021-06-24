@@ -1,16 +1,6 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "deconvolution_kernel_imad_along_f_tile_bfx.hpp"
 
@@ -122,14 +112,17 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_along_f_tile_bfx:
 
     dispatchData.lws = { 1, simd, 1 };
 
-    // Currently most optimized for fsv16 formats
-    if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
-        dispatchData.efficiency = FORCE_PRIORITY_7;
-    } else {
-        dispatchData.efficiency = FORCE_PRIORITY_8;
-    }
-
     return dispatchData;
+}
+
+KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const deconvolution_params&>(params);
+
+    // Currently most optimized for fsv16 formats
+    if (p.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16)
+        return FORCE_PRIORITY_7;
+    else
+        return FORCE_PRIORITY_8;
 }
 
 JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const deconvolution_params& params) const {

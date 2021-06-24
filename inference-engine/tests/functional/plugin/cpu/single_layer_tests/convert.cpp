@@ -1,8 +1,8 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/convert.hpp>
+#include <shared_test_classes/single_layer/convert.hpp>
 
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine;
@@ -28,13 +28,12 @@ const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
 const std::vector<Precision> precisions = {
         Precision::U8,
         Precision::I8,
-        Precision::I16,
         Precision::I32,
         Precision::FP32,
         Precision::BF16
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvertLayerTest_From_BF16, ConvertCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertLayerTest_From_BF16, ConvertCPULayerTest,
                         ::testing::Combine(
                                 ::testing::Values(inShape),
                                 ::testing::Values(Precision::BF16),
@@ -44,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvertLayerTest_From_BF16, ConvertCPULayerTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvertLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvertLayerTest_To_BF16, ConvertCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertLayerTest_To_BF16, ConvertCPULayerTest,
                         ::testing::Combine(
                                 ::testing::Values(inShape),
                                 ::testing::ValuesIn(precisions),

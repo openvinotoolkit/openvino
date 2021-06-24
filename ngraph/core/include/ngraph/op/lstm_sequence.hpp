@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -35,6 +23,8 @@ namespace ngraph
     {
         namespace v0
         {
+            NGRAPH_SUPPRESS_DEPRECATED_START
+
             ///
             /// \brief      Class for lstm sequence node.
             ///
@@ -48,7 +38,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                LSTMSequence() = default;
+                LSTMSequence();
 
                 using direction = RecurrentSequenceDirection;
 
@@ -70,26 +60,7 @@ namespace ngraph
                                                                                     "tanh",
                                                                                     "tanh"},
                                       const float clip_threshold = 0,
-                                      const bool input_forget = false)
-                    : FusedOp({X,
-                               initial_hidden_state,
-                               initial_cell_state,
-                               sequence_lengths,
-                               W,
-                               R,
-                               B,
-                               P})
-                    , m_activations_alpha(activations_alpha)
-                    , m_activations_beta(activations_beta)
-                    , m_activations(activations)
-                    , m_clip_threshold(clip_threshold)
-                    , m_direction(lstm_direction)
-                    , m_hidden_size(hidden_size)
-                    , m_input_forget(input_forget)
-                    , m_weights_format(weights_format)
-                {
-                    constructor_validate_and_infer_types();
-                }
+                                      const bool input_forget = false);
 
                 explicit LSTMSequence(const Output<Node>& X,
                                       const Output<Node>& initial_hidden_state,
@@ -107,30 +78,7 @@ namespace ngraph
                                                                                      "tanh",
                                                                                      "tanh"},
                                       const float clip_threshold = 0,
-                                      const bool input_forget = false)
-                    : LSTMSequence(
-                          X,
-                          initial_hidden_state,
-                          initial_cell_state,
-                          sequence_lengths,
-                          W,
-                          R,
-                          B,
-                          Constant::create(
-                              element::f32,
-                              Shape{(lstm_direction == direction::BIDIRECTIONAL ? 2UL : 1UL),
-                                    3UL * static_cast<size_t>(hidden_size)},
-                              std::vector<float>{0.f}),
-                          hidden_size,
-                          lstm_direction,
-                          weights_format,
-                          activations_alpha,
-                          activations_beta,
-                          activations,
-                          clip_threshold,
-                          input_forget)
-                {
-                }
+                                      const bool input_forget = false);
 
                 virtual void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -147,15 +95,16 @@ namespace ngraph
                 std::int64_t get_hidden_size() const { return m_hidden_size; }
                 bool get_input_forget() const { return m_input_forget; }
                 LSTMWeightsFormat get_weights_format() const { return m_weights_format; }
+
             private:
                 ///
-                /// \brief      Gets the masked value according to sequence lenght in a batch.
+                /// \brief      Gets the masked value according to sequence length in a batch.
                 ///
                 /// \note       Zeros out values or sets them to default value for inputs with
-                ///             sequence lenght shorter than currently procssed time step.
+                ///             sequence length shorter than currently procssed time step.
                 ///
                 /// \param[in]  data           The input value.
-                /// \param[in]  time_step      The current time step denoting sequence lenght.
+                /// \param[in]  time_step      The current time step denoting sequence length.
                 /// \param[in]  batch_axis     The batch axis index of data tensor.
                 /// \param[in]  default_value  The default value for masked elements.
                 ///
@@ -183,7 +132,9 @@ namespace ngraph
                 bool m_input_forget;
                 LSTMWeightsFormat m_weights_format;
             };
-        }
+
+            NGRAPH_SUPPRESS_DEPRECATED_END
+        } // namespace v0
 
         namespace v5
         {
@@ -239,10 +190,11 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 direction get_direction() const { return m_direction; }
+
             private:
                 direction m_direction;
             };
-        }
-    } // namespace op
+        } // namespace v5
+    }     // namespace op
 
 } // namespace ngraph

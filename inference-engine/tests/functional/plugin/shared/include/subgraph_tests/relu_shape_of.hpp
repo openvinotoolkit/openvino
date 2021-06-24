@@ -1,26 +1,15 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
+#include "shared_test_classes/subgraph/relu_shape_of.hpp"
 
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+namespace SubgraphTestsDefinitions {
 
-#include "single_layer_tests/shape_of.hpp"
+TEST_P(ReluShapeOfSubgraphTest, CompareWithRefs) {
+    Run();
+}
 
-namespace LayerTestsDefinitions {
-
-class ReluShapeOfSubgraphTest : public testing::WithParamInterface<shapeOfParams>,
-        virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<shapeOfParams> obj);
-protected:
-    void SetUp() override;
-};
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

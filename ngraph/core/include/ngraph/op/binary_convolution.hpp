@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -71,7 +59,6 @@ namespace ngraph
                                   float pad_value,
                                   const PadType& auto_pad = PadType::EXPLICIT);
 
-                size_t get_version() const override { return 1; }
                 void validate_and_infer_types() override;
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -100,6 +87,7 @@ namespace ngraph
                 /// \return The pad value.
                 float get_pad_value() const { return m_pad_value; }
                 void set_pad_value(float pad_value) { m_pad_value = pad_value; }
+
             protected:
                 BinaryConvolutionMode mode_from_string(const std::string& mode) const;
                 Strides m_strides;
@@ -110,8 +98,8 @@ namespace ngraph
                 float m_pad_value;
                 PadType m_auto_pad;
             };
-        }
-    } // namespace op
+        } // namespace v1
+    }     // namespace op
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s,

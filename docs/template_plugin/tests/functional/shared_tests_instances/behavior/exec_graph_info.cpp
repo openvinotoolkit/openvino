@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, ExecGraphTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecGraphTests,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),

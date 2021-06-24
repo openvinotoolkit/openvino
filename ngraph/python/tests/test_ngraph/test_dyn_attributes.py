@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
 
@@ -71,7 +59,7 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
         "top_k": int_dtype(16),
         "variance_encoded_in_target": True,
         "keep_top_k": np.array([64, 32, 16, 8], dtype=int_dtype),
-        "code_type": "pytorch.some_parameter_name",
+        "code_type": "caffe.PriorBoxParameter.CENTER_SIZE",
         "share_location": False,
         "nms_threshold": fp_dtype(0.645),
         "confidence_threshold": fp_dtype(0.111),
@@ -84,11 +72,11 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
         "objectness_score": fp_dtype(0.77),
     }
 
-    box_logits = ng.parameter([4, 1, 5, 5], fp_dtype, "box_logits")
-    class_preds = ng.parameter([2, 1, 4, 5], fp_dtype, "class_preds")
-    proposals = ng.parameter([2, 1, 4, 5], fp_dtype, "proposals")
-    aux_class_preds = ng.parameter([2, 1, 4, 5], fp_dtype, "aux_class_preds")
-    aux_box_preds = ng.parameter([2, 1, 4, 5], fp_dtype, "aux_box_preds")
+    box_logits = ng.parameter([4, 680], fp_dtype, "box_logits")
+    class_preds = ng.parameter([4, 170], fp_dtype, "class_preds")
+    proposals = ng.parameter([4, 1, 8], fp_dtype, "proposals")
+    aux_class_preds = ng.parameter([4, 4], fp_dtype, "aux_class_preds")
+    aux_box_preds = ng.parameter([4, 680], fp_dtype, "aux_box_preds")
 
     node = ng.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
 
@@ -97,7 +85,7 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
     assert node.get_top_k() == int_dtype(16)
     assert node.get_variance_encoded_in_target()
     assert np.all(np.equal(node.get_keep_top_k(), np.array([64, 32, 16, 8], dtype=int_dtype)))
-    assert node.get_code_type() == "pytorch.some_parameter_name"
+    assert node.get_code_type() == "caffe.PriorBoxParameter.CENTER_SIZE"
     assert not node.get_share_location()
     assert np.isclose(node.get_nms_threshold(), fp_dtype(0.645))
     assert np.isclose(node.get_confidence_threshold(), fp_dtype(0.111))

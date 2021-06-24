@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,7 +114,7 @@ std::shared_ptr<ngraph::op::Op> generateDynamicReshapePattern(std::shared_ptr<ng
         0);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeReshapeTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeReshapeTests, testing::Combine(
     testing::Values(
         DataShape{4, 1000},
         DataShape{3, 128, 256},

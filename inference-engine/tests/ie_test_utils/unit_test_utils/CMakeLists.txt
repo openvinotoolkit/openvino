@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,6 +17,10 @@ addIeTarget(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADD_CPPLINT
         DEVELOPER_PACKAGE
+            inference_engine_tests
+        INCLUDES
+            PRIVATE
+                $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
 )

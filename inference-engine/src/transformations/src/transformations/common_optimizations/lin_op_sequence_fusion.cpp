@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 
 #include <memory>
@@ -10,27 +11,16 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <transformations/utils/utils.hpp>
 
 using namespace ngraph;
-
-template <class T>
-Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & input1) {
-    auto eltwise = std::make_shared<T>(input0, input1);
-    OutputVector output(eltwise->get_output_size());
-    if (!eltwise->constant_fold(output, {input0, input1})) {
-        throw ngraph_error("Can not constant fold eltwise node");
-    }
-    if (output.size() != 1) {
-        throw ngraph_error("Eltwise constant fold has unexpected number of outputs: " + std::to_string(output.size()));
-    }
-    return output[0];
-}
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LinOpSequenceFusion, "LinOpSequenceFusion", 0);
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddMultiplyFusion, "AddMultiplyFusion", 0);
 
 ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
+    MATCHER_SCOPE(AddMultiplyFusion);
     // Create Add->Multiply pattern where Add has exactly one consumer
     auto m_data = ngraph::pattern::any_input();
     auto m_add_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -44,7 +34,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
         auto add = label_to_output[m_add].get_node_shared_ptr();
 
-        if (m_transformation_callback(mul)) {
+        if (transformation_callback(mul)) {
             return false;
         }
 
@@ -62,7 +52,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         auto new_mul = register_new_node<opset3::Multiply>(input, mul_const);
 
         // Add two constants using opset3::Add constant folding and create new Add operation
-        auto new_add = std::make_shared<opset3::Add>(new_mul, eltwise_fold<opset3::Multiply>(add_const, mul_const));
+        auto new_add = std::make_shared<opset3::Add>(new_mul, op::util::eltwise_fold<opset3::Multiply>(add_const, mul_const));
 
         copy_runtime_info({add, mul}, {new_mul, new_add});
         new_add->set_friendly_name(mul->get_friendly_name());
@@ -70,13 +60,14 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul, "AddMultiplyFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddAddFusion, "AddAddFusion", 0);
 
 ngraph::pass::AddAddFusion::AddAddFusion() {
+    MATCHER_SCOPE(AddAddFusion);
     // Create Add->Add pattern where first Add has exactly one consumer
     auto m_data = ngraph::pattern::any_input();
     auto m_add1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -96,7 +87,7 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
 
         // Replace Add->Add with single Add
         // Add operation will be added to the list of ops requested for pattern matching
-        auto new_add = register_new_node<opset3::Add>(input, eltwise_fold<opset3::Add>(add1_const, add2_const));
+        auto new_add = register_new_node<opset3::Add>(input, op::util::eltwise_fold<opset3::Add>(add1_const, add2_const));
 
         copy_runtime_info({add1, add2}, new_add);
         new_add->set_friendly_name(add2->get_friendly_name());
@@ -104,13 +95,14 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add2, "AddAddFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add2, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyMultiplyFusion, "MultiplyMultiplyFusion", 0);
 
 ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
+    MATCHER_SCOPE(MultiplyMultiplyFusion);
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer
     auto m_data = ngraph::pattern::any_input();
     auto m_mul1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -130,7 +122,7 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
 
         // Replace Multiply->Multiply with single Multiply
         // Multiply operation will be added to the list of ops requested for pattern matching
-        auto new_mul = register_new_node<opset3::Multiply>(input, eltwise_fold<opset3::Multiply>(mul1_const, mul2_const));
+        auto new_mul = register_new_node<opset3::Multiply>(input, op::util::eltwise_fold<opset3::Multiply>(mul1_const, mul2_const));
 
         copy_runtime_info({mul1, mul2}, new_mul);
         new_mul->set_friendly_name(mul2->get_friendly_name());
@@ -138,6 +130,6 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul2, "MultiplyMultiplyFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul2, matcher_name);
     this->register_matcher(m, callback);
 }

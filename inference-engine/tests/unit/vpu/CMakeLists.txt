@@ -1,10 +1,8 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME vpuUnitTests)
-
-disable_deprecated_warnings()
 
 include(${XLINK_DIR}/XLink.cmake)
 

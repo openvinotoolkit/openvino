@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,13 +12,13 @@ using namespace LayerTestsDefinitions;
 using namespace ngraph::pass::low_precision;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    // InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testValues = {
@@ -56,10 +56,10 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testVa
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizePrecisionSelectionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizePrecisionSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
+        ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(testValues)),

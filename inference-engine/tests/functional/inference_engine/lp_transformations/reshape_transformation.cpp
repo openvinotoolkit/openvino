@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -533,6 +533,110 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             ngraph::element::u8,
             {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1}}}
         }
+    },
+    // U8: no subtract 4D -> 4D: channels are affected
+    {
+        ngraph::Shape({ 1, 64, 320, 1 }),
+        { 0, 2, 3, 1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
+        }
+    },
+    // U8: with subtract 4D -> 4D: channels are affected
+    {
+        ngraph::Shape({ 1, 64, 320, 1 }),
+        { 0, 2, 3, 1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}}, {{0.1f}, ngraph::element::f32, {}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}}, {{0.1f}, ngraph::element::f32, {}}}
+        }
+    },
+    // U8: with subtract 4D -> 3D, Dq after convolution: face-detection-0205 case
+    {
+        ngraph::Shape({ 1, 3, 12, 12 }),
+        { 0, 3, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f, 12.8f, 128.f}, ngraph::element::f32, {3, 1, 1}},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {3, 1, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f, 12.8f, 128.f}, ngraph::element::f32, {1, 3, 1}},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3, 1}}
+            }
+        }
+    },
+    // U8: without subtract 4D -> 3D, Dq after convolution: face-detection-0205 case
+    {
+        ngraph::Shape({ 1, 3, 12, 12 }),
+        { 0, 3, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {3, 1, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3, 1}}
+            }
+        }
+    },
+    // U8: without subtract 4D -> 3D, Dq after convolution
+    {
+        ngraph::Shape({ 1, 3, 12, 12 }),
+        { 0, -1, 144 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {3, 1, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3, 1}}
+            }
+        }
     }
 };
 
@@ -543,7 +647,7 @@ TEST_P(ReshapeTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ReshapeTransformation,
     ::testing::ValuesIn(testValues),

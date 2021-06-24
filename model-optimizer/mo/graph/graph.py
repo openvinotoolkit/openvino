@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import collections
 import logging as log
 from copy import deepcopy
@@ -120,7 +108,7 @@ class Node:
         # no handling of control flow edges -- TODO
         control_flow = False
         if not skip_if_absent and idx not in self.out_ports(control_flow=control_flow):
-            raise Error("Input port with index {} doesn't exist in node {}.".format(idx, self.soft_get('name')))
+            raise Error("Output port with index {} doesn't exist in node {}.".format(idx, self.soft_get('name')))
         if not self.out_port(idx).disconnected():
             self.out_port(idx).disconnect()
         del self._out_ports[idx]
@@ -573,6 +561,7 @@ class Graph(nx.MultiDiGraph):
             self.node = self.nodes
 
     unique_id_count = 0
+    op_names_statistic = collections.Counter()
 
     # SAFE API DESCRIPTION
     # all provided methods below are designed to be more safe and convenient
@@ -811,11 +800,12 @@ class Graph(nx.MultiDiGraph):
 
         def _node_label(node_id, node_attrs: dict, attrs_to_print: list):
             label = str(node_id) + '\\n' + '\\n'.join([str(key) + '=' + str(node_attrs.get(key, 'None'))
-                                                  for key in attrs_to_print if key in node_attrs])
+                                                       for key in attrs_to_print if key in node_attrs])
             if node_attrs.get('type', '') == 'Const':
                 if 'value' not in attrs_to_print and 'value' in node_attrs:
                     if node_attrs['value'] is not None:
-                        label += '\\nvalue=\\"' + ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
+                        label += '\\nvalue=\\"' + \
+                                 ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
                     else:
                         label += '\\nvalue=None'
             return label
@@ -869,7 +859,6 @@ class Graph(nx.MultiDiGraph):
         string += _dump_edges_attrs()
 
         string += '}'
-#        log.debug(string)
         log.debug("---- GRAPHVIZ OUTPUT ENDS ----")
 
         if save_to_svg:
@@ -1059,7 +1048,7 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True):
     else:
         opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port)})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
-        opoutput_node.in_edge()['fw_tensor_debug_info'] = [(node_name, port)]
+
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))
     log.debug(str(graph.node[opoutput_node.id]))
     log.debug("Add edge from {} to {}".format(node_name, opoutput_node.id))
@@ -1096,6 +1085,44 @@ def rename_node(node: Node, name):
 def rename_nodes(nodes: List[tuple]):
     for node, name in nodes:
         rename_node(node, name)
+
+
+def get_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str):
+    """
+    Gets edge attribute value between two nodes.
+    This method is introduced for implementation of manual replacing of nodes attributes
+    with tensor debug information. It is needed after removing of fake outputs.
+    Also there are cases when graph transformations lead to mismatch of tensor name
+    and input node, so manual attribute change is needed.
+    This method should only be used during the front phase.
+    And it is applicable only for cases when there is just one edge between two given nodes.
+    """
+    for edge_idx in node1.out_edges():
+        edge = node1.out_edge(edge_idx)
+        out_port = edge['out']
+        out_node = node1.out_node(out_port)
+        if out_node.id == node2.id:
+            if attr_name in edge:
+                return edge[attr_name]
+    return None
+
+
+def set_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, new_value):
+    """
+    Sets edge attribute value between two nodes.
+    This method is introduced for implementation of manual replacing of nodes attributes
+    with tensor debug information. It is needed after removing of fake outputs.
+    Also there are cases when graph transformations lead to mismatch of tensor name
+    and input node, so manual attribute change is needed.
+    This method should only be used during the front phase.
+    And it is applicable only for cases when there is just one edge between two given nodes.
+    """
+    for edge_idx in node1.out_edges():
+        edge = node1.out_edge(edge_idx)
+        out_port = edge['out']
+        out_node = node1.out_node(out_port)
+        if out_node.id == node2.id:
+            edge[attr_name] = new_value
 
 # All functions below are deprecated and will be removed in next release
 # Please, use methods from Graph/Node classes instead

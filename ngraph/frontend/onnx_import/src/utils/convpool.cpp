@@ -1,26 +1,15 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <unordered_map>
 
-#include "convpool.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/exceptions.hpp"
+#include "utils/convpool.hpp"
 
 namespace ngraph
 {
@@ -141,6 +130,11 @@ namespace ngraph
                     auto pads_int64 = node.get_attribute_value<std::vector<int64_t>>("pads");
                     pads = CoordinateDiff{std::begin(pads_int64), std::end(pads_int64)};
                 }
+                else if (node.has_attribute("paddings"))
+                {
+                    auto pads_int64 = node.get_attribute_value<std::vector<int64_t>>("paddings");
+                    pads = CoordinateDiff{std::begin(pads_int64), std::end(pads_int64)};
+                }
 
                 if (pads.size() == kernel_rank * 2)
                 {
@@ -192,6 +186,29 @@ namespace ngraph
                 }
             }
 
+            Output<ngraph::Node> get_reshaped_filters(const Output<ngraph::Node>& filters,
+                                                      int64_t groups)
+            {
+                const auto zero_node = default_opset::Constant::create(element::i64, Shape(), {0});
+                const auto split_lengths =
+                    default_opset::Constant::create(element::i64, Shape{2}, {1, -1});
+                const auto groups_node =
+                    default_opset::Constant::create(element::i64, Shape{1}, {groups});
+
+                const auto filters_shape = std::make_shared<default_opset::ShapeOf>(filters);
+                const auto splitted_shape = std::make_shared<default_opset::VariadicSplit>(
+                    filters_shape, zero_node, split_lengths);
+
+                const auto first_dim =
+                    std::make_shared<default_opset::Divide>(splitted_shape->output(0), groups_node);
+                const auto new_filters_shape = std::make_shared<default_opset::Concat>(
+                    OutputVector{groups_node, first_dim, splitted_shape->output(1)}, 0);
+
+                const auto reshaped_filters =
+                    std::make_shared<default_opset::Reshape>(filters, new_filters_shape, false);
+
+                return reshaped_filters;
+            }
         } // namespace convpool
     }     // namespace onnx_import
 } // namespace ngraph

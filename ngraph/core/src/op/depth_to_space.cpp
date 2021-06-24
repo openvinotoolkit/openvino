@@ -1,36 +1,24 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <cmath>
 #include <cstddef>
 #include <memory>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/ops.hpp>
 #include <numeric>
+#include "itt.hpp"
 
-#include "depth_to_space.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/op/depth_to_space.hpp"
 #include "ngraph/shape.hpp"
 
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::DepthToSpace, "DepthToSpace", 0);
 
@@ -53,6 +41,7 @@ op::DepthToSpace::DepthToSpace(const Output<Node>& data,
 
 bool op::DepthToSpace::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_visit_attributes);
     visitor.on_attribute("block_size", m_blocksize);
     visitor.on_attribute("mode", m_mode);
     return true;
@@ -60,6 +49,7 @@ bool op::DepthToSpace::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_clone_with_new_inputs);
     if (new_args.size() != 1)
     {
         throw ngraph_error("Incorrect number of new arguments");
@@ -69,6 +59,7 @@ shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new
 
 void op::DepthToSpace::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_validate_and_infer_types);
     PartialShape data_pshape = get_input_partial_shape(0);
 
     const auto& data_type = get_input_element_type(0);
@@ -108,16 +99,15 @@ void op::DepthToSpace::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, data_type, PartialShape::dynamic());
+        set_output_type(0, data_type, PartialShape::dynamic(data_pshape.rank()));
     }
 }
 
-bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
-                                const HostTensorVector& inputs) const
+bool op::DepthToSpace::evaluate_depth_to_space(const HostTensorVector& outputs,
+                                               const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& out = outputs[0];
-    const auto& out_shape = out->get_shape();
     size_t elem_size = data->get_element_type().size();
 
     if (data->get_partial_shape().is_dynamic())
@@ -147,27 +137,29 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
     // Finally squeeze data from respective dimensions.
     shared_ptr<Node> flat_node;
     Shape dispersed_shape{n_dim};
-    for (int i = 0; i < spatial_dims; ++i)
+    for (size_t i = 0; i < spatial_dims; ++i)
     {
         dispersed_shape.push_back(bs);
     }
-    for (int i = 0; i < spatial_dims; ++i)
+    for (size_t i = 0; i < spatial_dims; ++i)
     {
         dispersed_shape.push_back(data_shape.at(spatial_dim_index + i));
     }
     vector<size_t> axes_order{0};
     switch (m_mode)
     {
-    // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2,
+    // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size,
+    // D1, D2,
     // ..., DK])
     // x'' = transpose(x', [0,  1,  K + 2, 2, K + 3, 3, K + 4, 4, ..., K + (K + 1), K + 1])
-    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size,
+    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 *
+    // block_size,
     // ..., DK * block_size])
     case DepthToSpaceMode::DEPTH_FIRST:
     {
         dispersed_shape.insert(dispersed_shape.begin() + 1, c_flat);
         axes_order.push_back(1);
-        for (int i = spatial_dim_index; i < data_shape.size(); ++i)
+        for (size_t i = spatial_dim_index; i < data_shape.size(); ++i)
         {
             axes_order.push_back(spatial_dims + i);
             axes_order.push_back(i);
@@ -175,17 +167,19 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
 
         break;
     }
-    // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2,
+    // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K),
+    // D1, D2,
     // ..., DK])
     // x'' = transpose(x', [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K])
-    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size,
+    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 *
+    // block_size,
     // ..., DK * block_size])
     case DepthToSpaceMode::BLOCKS_FIRST:
     default:
     {
         dispersed_shape.insert(dispersed_shape.begin() + spatial_dims + 1, c_flat);
         axes_order.push_back(spatial_dims + 1);
-        for (int i = 2; i < data_shape.size(); ++i)
+        for (size_t i = 2; i < data_shape.size(); ++i)
         {
             axes_order.push_back(spatial_dims + i);
             axes_order.push_back(i - 1);
@@ -218,7 +212,7 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
                                  elem_size);
 
     Shape squeezed_shape{n_dim, c_flat};
-    for (int i = spatial_dim_index; i < data_shape.size(); ++i)
+    for (size_t i = spatial_dim_index; i < data_shape.size(); ++i)
     {
         squeezed_shape.push_back(data_shape.at(i) * bs);
     }
@@ -234,10 +228,24 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
                                  elem_size);
     return true;
 }
+
+bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate);
+    return evaluate_depth_to_space(outputs, inputs);
+}
+
+bool op::DepthToSpace::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_has_evaluate);
+    return !get_input_partial_shape(0).is_dynamic();
+}
+
 namespace ngraph
 {
     template <>
-    EnumNames<op::DepthToSpace::DepthToSpaceMode>&
+    NGRAPH_API EnumNames<op::DepthToSpace::DepthToSpaceMode>&
         EnumNames<op::DepthToSpace::DepthToSpaceMode>::get()
     {
         static auto enum_names = EnumNames<op::DepthToSpace::DepthToSpaceMode>(
@@ -253,7 +261,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-}
+} // namespace ngraph
 
 op::DepthToSpace::DepthToSpaceMode op::DepthToSpace::mode_from_string(const std::string& mode) const
 {

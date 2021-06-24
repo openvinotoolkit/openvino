@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 #include "lpt_ngraph_functions/fake_quantize_function.hpp"
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
@@ -49,8 +49,8 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 }
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     FakeQuantizePrecisionSelectionTransformationTestValues> FakeQuantizeTransformationParams;
@@ -63,6 +63,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

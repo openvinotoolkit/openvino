@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,4 +30,9 @@ void op::ReLUIE::validate_and_infer_types() {
         0,
         m_output_type == element::undefined ? get_input_element_type(0) : m_output_type,
         get_input_partial_shape(0));
+}
+
+bool op::ReLUIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("negative_slope", m_negative_slope);
+    return true;
 }

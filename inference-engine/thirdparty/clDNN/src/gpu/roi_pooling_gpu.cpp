@@ -1,23 +1,11 @@
-/*
-// Copyright (c) 2017-2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "roi_pooling_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "roi_pooling/roi_pooling_kernel_selector.h"
 #include "roi_pooling/roi_pooling_kernel_ref.h"
@@ -49,20 +37,23 @@ struct roi_pooling_gpu : typed_primitive_gpu_impl<roi_pooling> {
     using parent = typed_primitive_gpu_impl<roi_pooling>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<roi_pooling_gpu>(*this);
+    }
+
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<roi_pooling>& instance,
-                                                        int32_t) const override {
-        kernel::kernel_arguments_data args;
+    kernel_arguments_data get_arguments(typed_primitive_inst<roi_pooling>& instance, int32_t) const override {
+        kernel_arguments_data args;
 
         if (instance.argument.mode == pooling_mode::deformable_bilinear && !instance.argument.no_trans)
             args.inputs = {
-                (memory_impl::cptr) &instance.input_memory(),
-                (memory_impl::cptr) &instance.rois_memory(),
-                (memory_impl::cptr) &instance.trans_memory()};
+                instance.input_memory_ptr(),
+                instance.rois_memory(),
+                instance.trans_memory()};
         else
-            args.inputs = {(memory_impl::cptr) &instance.input_memory(), (memory_impl::cptr) &instance.rois_memory()};
+            args.inputs = {instance.input_memory_ptr(), instance.rois_memory()};
 
-        args.output = (memory_impl::cptr) &instance.output_memory();
+        args.output = instance.output_memory_ptr();
 
         return args;
     }

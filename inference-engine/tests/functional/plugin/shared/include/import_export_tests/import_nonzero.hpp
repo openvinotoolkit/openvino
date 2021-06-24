@@ -1,10 +1,10 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "functional_test_utils/import_export_base/import_export_base.hpp"
+#include "base/import_export_base/import_export_base.hpp"
 
 namespace LayerTestsDefinitions {
 

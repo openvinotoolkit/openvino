@@ -1,25 +1,12 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
-#include <iostream>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/op/transpose.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "ngraph/runtime/reference/transpose.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -34,11 +21,13 @@ op::v1::Transpose::Transpose(const Output<Node>& arg, const Output<Node>& input_
 
 bool ngraph::op::v1::Transpose::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Transpose_visit_attributes);
     return true;
 }
 
 void op::v1::Transpose::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Transpose_validate_and_infer_types);
     const auto& input_order_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           input_order_et.is_dynamic() || input_order_et.is_integral_number(),
@@ -57,7 +46,7 @@ void op::v1::Transpose::validate_and_infer_types()
 
     set_input_is_relevant_to_shape(1);
 
-    if (auto input_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
+    if (const auto& input_const = get_constant_from_source(input_value(1)))
     {
         auto permutation = input_const->get_axis_vector_val();
         if (permutation.empty())
@@ -82,68 +71,64 @@ void op::v1::Transpose::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Transpose_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Transpose>(new_args[0], new_args[1]);
 }
 
 namespace transpose
 {
-    template <element::Type_t ET>
-    std::vector<int64_t> get_vector(const HostTensorPtr& arg)
-    {
-        std::vector<int64_t> rc;
-        auto p = arg->get_data_ptr<ET>();
-        for (size_t i = 0; i < shape_size(arg->get_shape()); i++)
-        {
-            rc.push_back(p[i]);
-        }
-        return rc;
-    }
-
     bool evaluate_transpose(const HostTensorPtr& arg1,
                             const HostTensorPtr& arg2,
                             const HostTensorPtr& out)
     {
         NGRAPH_CHECK(arg2->get_element_type().is_integral_number(),
-                     "axis element type is not integral data type");
+                     "Transpose axis element type has to be integral data type.");
 
-        std::vector<int64_t> axis_order = host_tensor_2_vector<int64_t>(arg2);
-
+        std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(arg2);
         Shape in_shape = arg1->get_shape();
-        AxisVector in_axis_order(shape_size(arg2->get_shape()));
-        if (in_axis_order.empty())
+        if (shape_size(arg2->get_shape()) == 0)
         {
-            size_t rank = in_shape.size();
-            for (size_t i = 1; i <= rank; ++i)
-                in_axis_order.emplace_back(rank - i);
+            axes_order.resize(in_shape.size());
+            std::iota(axes_order.begin(), axes_order.end(), 0);
+            std::reverse(axes_order.begin(), axes_order.end());
         }
         else
         {
-            std::transform(axis_order.begin(),
-                           axis_order.end(),
-                           in_axis_order.begin(),
-                           [&](const int64_t& v) { return (v > 0) ? v : 0; });
+            std::unordered_set<int64_t> axes_set(axes_order.begin(), axes_order.end());
+            bool is_unique_order = axes_set.size() == axes_order.size();
+            NGRAPH_CHECK(is_unique_order, "Transpose axes order values must be unique.");
         }
 
         Shape out_shape(in_shape.size());
-        std::transform(in_axis_order.begin(),
-                       in_axis_order.end(),
-                       out_shape.begin(),
-                       [&](const int64_t& v) { return in_shape[v]; });
+        std::transform(
+            axes_order.begin(), axes_order.end(), out_shape.begin(), [&](const int64_t& v) {
+                NGRAPH_CHECK(v >= 0, "Negative values for transpose axes order are not supported.");
+                NGRAPH_CHECK(
+                    v < int64_t(in_shape.size()), "Transpose axis ", v, " is out of shape range.");
+                return in_shape[v];
+            });
 
         out->set_shape(out_shape);
-        runtime::opt_kernel::reshape(arg1->get_data_ptr<char>(),
-                                     out->get_data_ptr<char>(),
-                                     arg1->get_shape(),
-                                     in_axis_order,
-                                     out->get_shape(),
-                                     arg1->get_element_type().size());
+        out->set_element_type(arg1->get_element_type());
+        runtime::reference::transpose(arg1->get_data_ptr<char>(),
+                                      out->get_data_ptr<char>(),
+                                      arg1->get_shape(),
+                                      arg1->get_element_type().size(),
+                                      axes_order.data(),
+                                      out_shape);
         return true;
     }
-}
+} // namespace transpose
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Transpose::evaluate");
+    NGRAPH_OP_SCOPE(v1_Transpose_evaluate);
     return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);
+}
+
+bool op::v1::Transpose::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Transpose_has_evaluate);
+    return get_input_element_type(1).is_integral_number();
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ FP32TestParams gna_fp32_test_params[] = {
     {32, FP32TestParams::eSumm}
 };
 
-INSTANTIATE_TEST_CASE_P(GNAFP32Tests, GNAFP32ParametricTest,
+INSTANTIATE_TEST_SUITE_P(GNAFP32Tests, GNAFP32ParametricTest,
     ::testing::ValuesIn(gna_fp32_test_params), getTestName);
 
 TEST_F(FP32NonQuantizedTest, SplitFollowedByFCAndEltwiseOnCPU) {
@@ -343,7 +343,7 @@ TEST_F(FP32NonQuantizedTest, InputSplitConcatReshapeUnalignedPropagateForward) {
 
 TEST_F(FP32NonQuantizedTest, LSTMCellPropagateForward) {
     std::vector<float> input_data(96, 0.10f);
-    std::vector<float> expected_result(32, 0.27119124f);
+    std::vector<float> expected_result(32, 0.14366889f);
 
     assert_that().onInferModel(LSTMCellOnlyModel()).withWeigthsPattern({0.1f})
             .inNotCompactMode().gna().propagate_forward().onCPU()

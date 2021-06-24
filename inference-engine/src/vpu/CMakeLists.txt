@@ -1,10 +1,14 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 #
 # Build common part
 #
+
+if(CMAKE_COMPILER_IS_GNUCC)
+    ie_add_compiler_flags(-Wno-all)
+endif()
 
 add_subdirectory(common)
 

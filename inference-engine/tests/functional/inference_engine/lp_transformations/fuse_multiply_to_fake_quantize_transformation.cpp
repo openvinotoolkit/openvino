@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,11 +44,20 @@ public:
     Expected expected;
 };
 
+typedef std::tuple<size_t, FuseMultiplyToFakeQuantizeTransformationTestValues> FuseMultiplyToFakeQuantizeTransformationTestParams;
+
 class FuseMultiplyToFakeQuantizeTransformation : public LayerTransformation,
-    public testing::WithParamInterface<FuseMultiplyToFakeQuantizeTransformationTestValues> {
+    public testing::WithParamInterface<FuseMultiplyToFakeQuantizeTransformationTestParams> {
 public:
     void SetUp() override {
-        const FuseMultiplyToFakeQuantizeTransformationTestValues testValues = GetParam();
+        const size_t quantizationLevel = std::get<0>(GetParam());
+        FuseMultiplyToFakeQuantizeTransformationTestValues testValues = std::get<1>(GetParam());
+        if (!testValues.actual.fakeQuantizeOnData.empty()) {
+            testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
+        }
+        if (!testValues.expected.fakeQuantizeOnData.empty()) {
+            testValues.expected.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
+        }
 
         actualFunction = ngraph::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(
             testValues.inputShape,
@@ -65,8 +74,15 @@ public:
             testValues.expected.dequantization);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<FuseMultiplyToFakeQuantizeTransformationTestValues> obj) {
-        const FuseMultiplyToFakeQuantizeTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<FuseMultiplyToFakeQuantizeTransformationTestParams> obj) {
+        const size_t quantizationLevel = std::get<0>(obj.param);
+        FuseMultiplyToFakeQuantizeTransformationTestValues testValues = std::get<1>(obj.param);
+        if (!testValues.actual.fakeQuantizeOnData.empty()) {
+            testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
+        }
+        if (!testValues.expected.fakeQuantizeOnData.empty()) {
+            testValues.expected.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
+        }
 
         std::ostringstream result;
         result << testValues.params.updatePrecisions << "_" <<
@@ -82,6 +98,8 @@ TEST_P(FuseMultiplyToFakeQuantizeTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+std::vector<size_t> quantizationLevels = { 256ul, 128ul };
 
 const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues = {
     {
@@ -120,24 +138,14 @@ const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues
             { {}, {}, {} },
         }
     },
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {}, {}, { { 0.5f }, element::u8 } },
-        },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
-            { {}, {}, {} },
-        }
-    },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FuseMultiplyToFakeQuantizeTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::Combine(
+        ::testing::ValuesIn(quantizationLevels),
+        ::testing::ValuesIn(testValues)),
     FuseMultiplyToFakeQuantizeTransformation::getTestCaseName);
 
 } // namespace

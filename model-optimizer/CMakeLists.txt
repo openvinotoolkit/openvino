@@ -1,20 +1,23 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+if (NOT NGRAPH_PYTHON_BUILD_ENABLE)
+    message(WARNING "Please enable nGraph Python API (_pyngraph) target to enable Model Optimizer target")
+elseif(NOT ENABLE_PYTHON)
+    message(WARNING "Please enable IE Python API (ie_api and offline_transformations_api) targets to enable Model Optimizer target")
+else()
+    add_custom_target(model_optimizer DEPENDS ie_api offline_transformations_api inference_engine_ir_reader)
+    if(ENABLE_TESTS)
+            add_subdirectory(unit_tests/mock_mo_frontend/mock_mo_ngraph_frontend)
+            add_dependencies(model_optimizer mock_mo_ngraph_frontend)
 
-#      http://www.apache.org/licenses/LICENSE-2.0
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+            add_subdirectory(unit_tests/mock_mo_frontend/mock_mo_python_api)
+            add_dependencies(model_optimizer mock_mo_python_api)
+    endif()
+endif()
 
 # install
-ie_cpack_add_component(model_optimizer REQUIRED)
+ie_cpack_add_component(model_optimizer)
 
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/automation/version.txt.in"
@@ -33,7 +36,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         
         PATTERN "extensions/front/caffe/CustomLayersMapping.xml" EXCLUDE
         PATTERN "mo/utils/convert.py" EXCLUDE
-        PATTERN "mo/utils/unittest" EXCLUDE
+        PATTERN "unit_tests" EXCLUDE
         
         REGEX ".*__pycache__.*" EXCLUDE
         REGEX ".*\\.pyc$" EXCLUDE

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,17 +24,29 @@ namespace {
             {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
+    const std::vector<std::map<std::string, std::string>> Autoconfigs = {
+            {{ AUTO_CONFIG_KEY(DEVICE_LIST) , CommonTestUtils::DEVICE_CPU}}
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                             InferRequestTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, InferRequestTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(Multiconfigs)),
                             InferRequestTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_AutoPlugin_BehaviorTests, InferRequestTests,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(Autoconfigs)),
+                            InferRequestTests::getTestCaseName);
+
 }  // namespace

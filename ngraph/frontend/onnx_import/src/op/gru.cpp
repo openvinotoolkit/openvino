@@ -1,29 +1,17 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <string>
 #include <vector>
 
-#include "gru.hpp"
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/recurrent.hpp"
+#include "op/gru.hpp"
+#include "utils/recurrent.hpp"
 
 namespace ngraph
 {
@@ -51,8 +39,6 @@ namespace ngraph
 
                                 if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
                                 {
-                                    NGRAPH_SUPPRESS_DEPRECATED_START
-
                                     auto bias = ng_inputs.at(3);
                                     // gates_count * 2 since B is: [Wb, Rb]
                                     const int split_parts = 2 * 3;
@@ -78,7 +64,6 @@ namespace ngraph
                                                          split_bias.at(2),
                                                          split_bias.at(5)},
                                             1);
-                                    NGRAPH_SUPPRESS_DEPRECATED_END
                                 }
                                 else
                                 {
@@ -114,7 +99,7 @@ namespace ngraph
 
                         bool m_linear_before_reset;
                     };
-                }
+                } // namespace
 
                 OutputVector gru(const Node& node)
                 {

@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include "opset1_upgrade.hpp"
 
 #include <functional>
@@ -49,11 +38,6 @@ namespace opset1_upgrade
 
     // Default is that we didn nothing
     shared_ptr<Node> op_cast(shared_ptr<Node> node) { return nullptr; }
-    shared_ptr<Node> op_cast(shared_ptr<op::v0::Multiply> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Multiply, op::v1::Multiply>(node);
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v0::ConvolutionBackpropData> node)
     {
         auto data_batch_shape = node->get_data_batch_shape();

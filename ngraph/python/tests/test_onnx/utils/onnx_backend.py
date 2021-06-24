@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2018-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """
 ONNX Backend implementation.
 
@@ -69,7 +57,7 @@ class OpenVinoOnnxBackend(Backend):
     ):  # type: (...) -> OpenVinoOnnxBackendRep
         super().prepare(onnx_model, device, **kwargs)
         ng_model_function = import_onnx_model(onnx_model)
-        return OpenVinoOnnxBackendRep(ng_model_function, cls.backend_name)
+        return OpenVinoOnnxBackendRep(ng_model_function, device)
 
     @classmethod
     def run_model(
@@ -79,7 +67,7 @@ class OpenVinoOnnxBackend(Backend):
         device="CPU",  # type: Text
         **kwargs  # type: Any
     ):  # type: (...) -> Tuple[Any, ...]
-        cls.prepare(model, device, **kwargs).run()
+        return cls.prepare(model, device, **kwargs).run(inputs)
 
     @classmethod
     def run_node(

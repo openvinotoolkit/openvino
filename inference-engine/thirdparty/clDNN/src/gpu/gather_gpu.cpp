@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "gather_inst.h"
 #include "primitive_gpu_base.h"
@@ -20,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "gather/gather_kernel_selector.h"
 #include "gather/gather_kernel_ref.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
@@ -49,6 +37,10 @@ struct gather_gpu : typed_primitive_gpu_impl<gather> {
     using parent = typed_primitive_gpu_impl<gather>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<gather_gpu>(*this);
+    }
+
 public:
     static primitive_impl* create(const gather_node& arg) {
         auto gather_params = get_default_params<kernel_selector::gather_params>(arg);
@@ -56,6 +48,7 @@ public:
             get_default_optional_params<kernel_selector::gather_optional_params>(arg.get_program());
 
         gather_params.axis = convert_axis(arg.get_primitive()->axis);
+        gather_params.batch_dim = size_t(arg.get_primitive()->batch_dim);
 
         gather_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
 
@@ -80,11 +73,11 @@ attach_gather_gpu::attach_gather_gpu() {
     implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
     implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
     implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
-    
+
     implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
     implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
     implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw);
-    
+
     implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
     implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
     implementation_map<gather>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), val_fw);

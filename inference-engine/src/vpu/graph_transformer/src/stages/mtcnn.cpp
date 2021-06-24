@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -162,7 +162,7 @@ void FrontEnd::parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, cons
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    if (!env.config.hwOptimization) {
+    if (!env.config.compileConfig().hwOptimization) {
         VPU_THROW_EXCEPTION << "MTCNN layer supports Myriad X with NCE only";
     }
 

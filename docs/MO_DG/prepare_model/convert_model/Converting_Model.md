@@ -1,9 +1,9 @@
 # Converting a Model to Intermediate Representation (IR)  {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
 Use the <code>mo.py</code> script from the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory to run the Model Optimizer and convert the model to the Intermediate Representation (IR). 
-The simplest way to convert a model is to run <code>mo.py</code> with a path to the input model file:
+The simplest way to convert a model is to run <code>mo.py</code> with a path to the input model file and an output directory where you have write permissions:
 ```sh
-python3 mo.py --input_model INPUT_MODEL
+python3 mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 > **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model Using General Conversion Parameters](Converting_Model_General.md).
@@ -38,5 +38,5 @@ Framework-specific parameters for:
 ## See Also
 * [Configuring the Model Optimizer](../Config_Model_Optimizer.md)
 * [IR Notation Reference](../../IR_and_opsets.md)
-* [Custom Layers in Model Optimizer](../customize_model_optimizer/Customize_Model_Optimizer.md) 
+* [Model Optimizer Extensibility](../customize_model_optimizer/Customize_Model_Optimizer.md)
 * [Model Cutting](Cutting_Model.md)

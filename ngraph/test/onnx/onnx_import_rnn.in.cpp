@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cmath>
@@ -851,11 +839,11 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations_con
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
 }
 
-NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations)
+NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations_relu_hardsigmoid)
 {
     // activations: relu, hardsigmoid
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_activations.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_activations_relu_hardsigmoid.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -1551,6 +1539,70 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_linear_before_r
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 4);
 }
 
+NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_defaults_fwd_const_dynamic)
+{
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/gru_defaults_fwd_const_dynamic.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    test_case.add_input<float>(Shape{4, 3, 2}, in_X);
+
+    // Y
+    test_case.add_expected_output<float>(
+        Shape{4, 1, 3, 5},
+        std::vector<float>{
+            -0.3224981f,  -0.44282594f, 0.7499796f,   -0.12240417f, 0.12079421f,  0.02534253f,
+            0.02504562f,  -0.0463777f,  0.01204534f,  -0.01497037f, -0.04651929f, -0.6264307f,
+            0.7236632f,   0.06250653f,  0.02594197f,  -0.06868916f, -0.5412897f,  0.49794048f,
+            0.22239858f,  -0.11257736f, -0.23071964f, 0.26079988f,  -0.07375772f, -0.21816255f,
+            0.18764113f,  -0.5228772f,  0.00575754f,  0.2514028f,   -0.58864325f, 0.49843538f,
+            -0.6129046f,  -0.10794663f, 0.6544055f,   -0.70105773f, 0.5397687f,   -0.35791716f,
+            0.3885092f,   -0.15291792f, -0.22324723f, 0.11557932f,  -0.42112932f, 0.26772985f,
+            -0.38304564f, -0.05039781f, -0.5057976f,  0.5775348f,   -0.6736855f,  -0.20032284f,
+            0.03698462f,  -0.7693824f,  -0.5831348f,  0.25767964f,  0.7121098f,   -0.35951245f,
+            0.39223647f,  -0.6645166f,  0.37950075f,  0.59931314f,  -0.4741001f,  0.21156166f,
+        });
+    // Y_h
+    test_case.add_expected_output<float>(Shape{1, 3, 5},
+                                         std::vector<float>{
+                                             0.5775348f,
+                                             -0.6736855f,
+                                             -0.20032284f,
+                                             0.03698462f,
+                                             -0.7693824f,
+                                             -0.5831348f,
+                                             0.25767964f,
+                                             0.7121098f,
+                                             -0.35951245f,
+                                             0.39223647f,
+                                             -0.6645166f,
+                                             0.37950075f,
+                                             0.59931314f,
+                                             -0.4741001f,
+                                             0.21156166f,
+                                         });
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 7);
+}
+
+NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_import_only_gru_defaults_fwd_const_dynamic)
+{
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/gru_defaults_fwd_const_dynamic.prototxt"));
+
+    auto batch_size = Dimension::dynamic();
+    auto seq_length = Dimension::dynamic();
+    int64_t hidden_size = 5;
+    int64_t num_directions = 1;
+    auto Y_expected_output = PartialShape{batch_size, num_directions, seq_length, hidden_size};
+    auto Y_h_expected_output = PartialShape{num_directions, batch_size, hidden_size};
+
+    EXPECT_EQ(function->get_output_size(), 2);
+    EXPECT_EQ(function->get_output_partial_shape(0), Y_expected_output);
+    EXPECT_EQ(function->get_output_partial_shape(1), Y_h_expected_output);
+
+    EXPECT_EQ(count_ops_of_type<op::v5::GRUSequence>(function), 1);
+}
+
 // RNNLikeSequenceOp test fixture for test setup reuse
 class RNNSequenceOp : public testing::Test
 {
@@ -1775,7 +1827,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations_con
                                              0.f,
                                              0.f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations)
@@ -1823,7 +1875,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations)
                                              0.f,
                                              0.f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len_const)
@@ -1919,7 +1971,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len)
                                              -0.18203181f,
                                              0.9996245f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 4);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse_mixed_seq_len_const)
@@ -2385,4 +2437,68 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_bidirectional_const
             -0.5575663f,  -0.9284624f,  -0.5595875f,  0.9986867f,   -0.18373811f, 0.8451735f,
         });
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 6);
+}
+
+NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_defaults_fwd_const_dynamic)
+{
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/rnn_defaults_fwd_const_dynamic.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    test_case.add_input<float>(Shape{4, 3, 2}, in_X);
+
+    // Y
+    test_case.add_expected_output<float>(
+        Shape{4, 1, 3, 5},
+        std::vector<float>{
+            0.02254748f,  0.15776646f,  -0.8229023f,  0.19205809f,  0.76984656f,  -0.00603169f,
+            -0.02861464f, 0.04512155f,  -0.0011912f,  -0.02572936f, -0.13703543f, -0.49651444f,
+            -0.78868157f, 0.3566854f,   0.8758509f,   0.20788848f,  0.13481987f,  -0.756822f,
+            -0.121436f,   0.97542346f,  0.16959739f,  0.63496053f,  0.1245538f,   -0.1970138f,
+            -0.56581646f, 0.8225869f,   0.9611373f,   -0.42990375f, -0.22925597f, 0.2226491f,
+            0.08246052f,  0.9798831f,   -0.13415998f, -0.5567714f,  0.78594816f,  -0.34759718f,
+            0.11376679f,  -0.07107389f, -0.5420871f,  -0.58504283f, -0.96065646f, 0.18588805f,
+            -0.4870671f,  -0.1475982f,  0.82456505f,  -0.80264574f, -0.46370947f, 0.9719335f,
+            -0.7374159f,  0.94937694f,  0.8814341f,   0.67015004f,  0.21958017f,  -0.8332769f,
+            -0.487742f,   0.9918536f,   0.99563396f,  0.94866276f,  -0.98504806f, -0.42824882f,
+        });
+    // Y_h
+    test_case.add_expected_output<float>(Shape{1, 3, 5},
+                                         std::vector<float>{
+                                             -0.80264574f,
+                                             -0.46370947f,
+                                             0.9719335f,
+                                             -0.7374159f,
+                                             0.94937694f,
+                                             0.8814341f,
+                                             0.67015004f,
+                                             0.21958017f,
+                                             -0.8332769f,
+                                             -0.487742f,
+                                             0.9918536f,
+                                             0.99563396f,
+                                             0.94866276f,
+                                             -0.98504806f,
+                                             -0.42824882f,
+                                         });
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 4);
+}
+
+NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_import_only_rnn_defaults_fwd_const_dynamic)
+{
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/rnn_defaults_fwd_const_dynamic.prototxt"));
+
+    auto batch_size = Dimension::dynamic();
+    auto seq_length = Dimension::dynamic();
+    int64_t hidden_size = 5;
+    int64_t num_directions = 1;
+    auto Y_expected_output = PartialShape{batch_size, num_directions, seq_length, hidden_size};
+    auto Y_h_expected_output = PartialShape{num_directions, batch_size, hidden_size};
+
+    EXPECT_EQ(function->get_output_size(), 2);
+    EXPECT_EQ(function->get_output_partial_shape(0), Y_expected_output);
+    EXPECT_EQ(function->get_output_partial_shape(1), Y_h_expected_output);
+
+    EXPECT_EQ(count_ops_of_type<op::v5::RNNSequence>(function), 1);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,13 +7,12 @@
 #include <gna_graph_tools.hpp>
 #include "graph_test_base.hpp"
 #include <unordered_set>
-#include <gmock/gmock-generated-function-mockers.h>
-#include <gmock/gmock-generated-matchers.h>
-#include <gmock/gmock-more-actions.h>
+#include <gmock/gmock.h>
 #include "ie_common.h"
 #include <memory>
 #include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <common_test_utils/common_utils.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -119,7 +118,7 @@ TEST_F(GraphToolsTest, canSortTopologically) {
     EXPECT_CALL(*mockNet, getInputsInfo(_)).WillOnce(WithArg<0>(Invoke([&](InputsDataMap & maps){
         prepareInputs(maps);
     })));
-    auto sorted = CNNNetSortTopologically(*mockNet);
+    auto sorted = details::CNNNetSortTopologically(CNNNetwork(mockNet));
 
     EXPECT_EQ(sorted.size(), 4);
 
@@ -154,7 +153,7 @@ TEST_F(GraphToolsTest, canDetectLoopsWhileSortTing) {
     EXPECT_CALL(*mockNet, getInputsInfo(_)).WillOnce(WithArg<0>(Invoke([&](InputsDataMap & maps){
         prepareInputs(maps);
     })));
-    ASSERT_ANY_THROW(CNNNetSortTopologically(*mockNet));
+    ASSERT_ANY_THROW(details::CNNNetSortTopologically(CNNNetwork(mockNet)));
 }
 
 
@@ -170,7 +169,7 @@ TEST_F(GraphToolsTest, canSortIfInputsPointsToLayerWithMultiInputs) {
         prepareInputs(maps);
     })));
 
-    auto sorted = CNNNetSortTopologically(*mockNet);
+    auto sorted = details::CNNNetSortTopologically(CNNNetwork(mockNet));
 
     vector<vector<string>> expected = {
         {"1", "3", "4", "5", "2"},
@@ -218,7 +217,7 @@ TEST_F(GraphToolsTest, canGetAllMemoryInputsLayersFromStandardInputs) {
     EXPECT_CALL(*mockNet, getInputsInfo(_)).WillOnce(WithArg<0>(Invoke([&](InputsDataMap & maps){
         prepareSomeInputs(maps, {1});
     })));
-    auto allInputLayers = CNNNetGetAllInputLayers(*mockNet);
+    auto allInputLayers = CNNNetGetAllInputLayers(CNNNetwork(mockNet));
     ASSERT_EQ(3, allInputLayers.size());
     auto element = allInputLayers.begin();
     ASSERT_STREQ("1", element->get()->name.c_str());
@@ -235,7 +234,7 @@ TEST_F(GraphToolsTest, canGetSingleInputLayer) {
     EXPECT_CALL(*mockNet, getInputsInfo(_)).WillOnce(WithArg<0>(Invoke([&](InputsDataMap & maps){
         prepareSomeInputs(maps, {1});
     })));
-    auto allInputLayers = CNNNetGetAllInputLayers(*mockNet);
+    auto allInputLayers = CNNNetGetAllInputLayers(CNNNetwork(mockNet));
     ASSERT_EQ(1, allInputLayers.size());
 }
 

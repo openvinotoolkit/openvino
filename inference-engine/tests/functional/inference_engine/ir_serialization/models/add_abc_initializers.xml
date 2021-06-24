@@ -1,10 +1,10 @@
 <?xml version="1.0" ?>
-<net name="add_abc_const" version="10">
+<net name="add_abc_initializers" version="10">
 	<layers>
 		<layer id="0" name="add_node1/Output_0/Data__const" type="Const" version="opset1">
 			<data element_type="f32" offset="0" shape="2,2" size="16"/>
 			<output>
-				<port id="1" precision="FP32">
+				<port id="0" precision="FP32">
 					<dim>2</dim>
 					<dim>2</dim>
 				</port>
@@ -47,12 +47,12 @@
 		</layer>
 	</layers>
 	<edges>
-		<edge from-layer="0" from-port="1" to-layer="2" to-port="0"/>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
 		<edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
 		<edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
 	</edges>
 	<meta_data>
-		<MO_version value="unknown version"/>
+		<MO_version value="custom_master_29f1c38ba0ae51897f47946d79d6bd6be7a494f0"/>
 		<cli_parameters>
 			<caffe_parser_path value="DIR"/>
 			<data_type value="float"/>
@@ -67,7 +67,7 @@
 			<framework value="onnx"/>
 			<freeze_placeholder_with_value value="{}"/>
 			<generate_deprecated_IR_V7 value="False"/>
-			<input_model value="DIR/add_abc_const.onnx"/>
+			<input_model value="DIR/add_abc_initializers.onnx"/>
 			<input_model_is_text value="False"/>
 			<k value="DIR/CustomLayersMapping.xml"/>
 			<keep_shape_ops value="True"/>
@@ -75,7 +75,7 @@
 			<log_level value="ERROR"/>
 			<mean_scale_values value="{}"/>
 			<mean_values value="()"/>
-			<model_name value="add_abc_const"/>
+			<model_name value="add_abc_initializers"/>
 			<output_dir value="DIR"/>
 			<placeholder_data_types value="{}"/>
 			<progress value="False"/>

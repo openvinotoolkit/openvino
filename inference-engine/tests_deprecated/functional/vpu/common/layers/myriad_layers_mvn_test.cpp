@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "myriad_layers_mvn_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMVN_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsMVN_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(s_MVNTensors),
                                 ::testing::ValuesIn(s_MVN_acrossChannels),
@@ -13,7 +13,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMVN_smoke,
                                 ::testing::Values(IRVersion::v7, IRVersion::v10),
                                 ::testing::ValuesIn(s_MVNCustomConfig)));
 
-TEST_F(myriadLayersTests_nightly, MVN_CHW_Input)
+TEST_F(myriadLayersTests_nightly, DISABLED_MVN_CHW_Input)
 {
     std::string model = R"V0G0N(
         <net name="MVN" version="2" batch="1">
@@ -54,8 +54,6 @@ TEST_F(myriadLayersTests_nightly, MVN_CHW_Input)
         </net>
     )V0G0N";
 
-    StatusCode st;
-
     ASSERT_NO_THROW(readNetwork(model));
 
     const auto& network = _cnnNetwork;
@@ -66,14 +64,11 @@ TEST_F(myriadLayersTests_nightly, MVN_CHW_Input)
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["mvn"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
-            {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)}}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network,
+            {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)}}));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    
     auto tensorDesc = TensorDesc(Precision::FP16, _inputsInfo["data"]->getTensorDesc().getDims(), Layout::NCHW);
     auto inputNCHW = make_shared_blob<ie_fp16>(tensorDesc);
     ASSERT_NO_THROW(inputNCHW->allocate());
@@ -86,14 +81,9 @@ TEST_F(myriadLayersTests_nightly, MVN_CHW_Input)
 
     ASSERT_NO_THROW(GenRandomData(inputNCHW));
 
-    ASSERT_NO_THROW(st = _inferRequest->SetBlob("data", inputNCHW, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->SetBlob("mvn", outputNCHW, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest.SetBlob("data", inputNCHW));
+    ASSERT_NO_THROW(_inferRequest.SetBlob("mvn", outputNCHW));
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
     ASSERT_NO_FATAL_FAILURE(refMVN(inputNCHW, output_ref, 1, 1, 9.999999717180685e-10, true));
 

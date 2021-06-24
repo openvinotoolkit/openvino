@@ -1,24 +1,13 @@
-# Copyright (c) 2016 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
 
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-
-#      http://www.apache.org/licenses/LICENSE-2.0
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-cmake_minimum_required (VERSION 3.1 FATAL_ERROR)
+cmake_minimum_required (VERSION 3.1)
 include(CheckCXXCompilerFlag)
 
 # Register Intel helper modules.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/utils/build/cmake/modules")
 include(IntelHelpers)
-
 
 # ======================================================================================================
 # ==================================== BUILD CONFIGURATIONS (part 1) ===================================
@@ -28,12 +17,13 @@ include(IntelHelpers)
 
 # Available configuration types:
 # Two standard configurations.
-set(CMAKE_CONFIGURATION_TYPES
-    "Debug"
-    "Release"
-    "RelWithDebInfo"
-  )
-set(CMAKE_CONFIGURATION_TYPES ${CMAKE_CONFIGURATION_TYPES} CACHE INTERNAL "Available build configurations.")
+if(NOT DEFINED CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_CONFIGURATION_TYPES
+        "Debug"
+        "Release"
+        "RelWithDebInfo"
+      )
+endif()
 
 # ======================================================================================================
 # ======================================================================================================
@@ -68,6 +58,18 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # ======================================================================================================
 # ====================================== HELPER CONSTANT VARIABLES =====================================
 # ======================================================================================================
+# ======================================================================================================
+if(CLDNN_THREADING MATCHES "SEQ")
+    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_SEQ)
+elseif(CLDNN_THREADING MATCHES "TBB")
+    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_TBB)
+else()
+    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_THREADPOOL)
+endif()
+
+if(GPU_DEBUG_CONFIG)
+  add_definitions(-DGPU_DEBUG_CONFIG=1)
+endif()
 
 # Path which points to main directory of project.
 set(CLDNN__MAIN_DIR      "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -84,14 +86,11 @@ set(CLDNN__API_EXTENSION_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/api_extension")
 # Path which points to directory with interface for framework.
 set(CLDNN__KERNEL_SELECTOR_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/kernel_selector")
 
-# Path which points to directory with binaries for Intel OpenCL SDK ICD (Installable Client Driver).
-set(CLDNN__IOCL_ICD_DIR  "${CLDNN__COMMON_DIR}/intel_ocl_icd")
+# Path which points to directory with runtime
+set(CLDNN__RUNTIME_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/runtime")
 
 # Path which points to directory with C++ bindings for OpenCL (header files + wrapper that disables specific warnings).
-set(CLDNN__KHR_CLHPP_DIR "${CLDNN__COMMON_DIR}/khronos_ocl_clhpp")
-
-# Path which points to directory with fused version of googletest framework (with fused googlemock as well).
-set(CLDNN__GTEST_DIR     "${CLDNN__COMMON_DIR}/googletest-fused")
+set(CLDNN__KHR_CLHPP_DIR "${CLDNN__COMMON_DIR}/include")
 
 # Build targets settings.
 
@@ -144,94 +143,6 @@ function(cldnn_dmsg text)
     message(STATUS "[clDNN][D] ${text}")
   endif()
 endfunction()
-
-# ======================================================================================================
-
-# Locates and detects all versions of specific component.
-#
-# The highest version of component is also returned as default version to use.
-#
-# @param retVarNameVersions       Name of variable placeholder with all versions of specified component
-#                                 which are available in the build.
-# @param retVarNamePaths          Name of variable placeholder with all paths to versions of specified
-#                                 component which are available in build. The paths map to corresponding
-#                                 versions from retVarNameVersions (1:1).
-# @param retVarNameDefaultVersion Default version to use. It is highest specified version, or 0 if no
-#                                 version of component was found.
-# @param componentName            Descriptive name of a component. It is presentated in warning and
-#                                 debug messages.
-# @param componentBaseDir         Base directory for component (directory containing version
-#                                 subdirectories).
-# @param [componentReqFile [...]] Optional list of component required files to check for existence.
-#                                 The componentReqFile can contain file(GLOB) wildcards. If multiple
-#                                 are specified, checked version is valid when all files are existing
-#                                 (or GLOB return at least one file for each entry).
-function(cldnn_locate_component_versions retVarNameVersions retVarNamePaths retVarNameDefaultVersion
-                                         componentName componentBaseDir)
-  if(NOT EXISTS "${componentBaseDir}")
-    cldnn_dmsg("Base directory for ${componentName} does not exist at ${componentBaseDir}.")
-    set("${retVarNameVersions}"       ""  PARENT_SCOPE)
-    set("${retVarNamePaths}"          ""  PARENT_SCOPE)
-    set("${retVarNameDefaultVersion}" "0" PARENT_SCOPE)
-    return()
-  endif()
-
-  # Detecting all versions of added component in the project.
-  file(GLOB __CLDNN_F_CompVersionPaths RELATIVE "${componentBaseDir}" "${componentBaseDir}/[0-9rRvV]*")
-  set(__CLDNN_F_CompVersions "")
-  set(__CLDNN_F_CompPaths    "")
-  foreach(__CLDNN_F_CompVersionPath ${__CLDNN_F_CompVersionPaths})
-    string(REPLACE ";" "\;" __CLDNN_F_CompVersionPath "${__CLDNN_F_CompVersionPath}") # [WA#1] Must escape ; again if occurred in item.
-    if(__CLDNN_F_CompVersionPath MATCHES "^[rRvV]?([0-9]+([\\._][0-9]+([\\._][0-9]+([\\._][0-9]+)?)?)?)")
-      string(REPLACE "_" "." __CLDNN_F_CompVersion "${CMAKE_MATCH_1}")
-      set(__CLDNN_F_CompPath "${componentBaseDir}/${__CLDNN_F_CompVersionPath}")
-
-      set(__CLDNN_F_CompPathValid TRUE)
-      foreach(__CLDNN_F_CompReqFile ${ARGN})
-        string(REPLACE ";" "\;" __CLDNN_F_CompReqFile "${__CLDNN_F_CompReqFile}") # [WA#1] Must escape ; again if occurred in item.
-        set(__CLDNN_F_CompReqFileGlob "${__CLDNN_F_CompPath}/${__CLDNN_F_CompReqFile}")
-
-        file(GLOB __CLDNN_F_CompReqTargets ${__CLDNN_F_CompReqFileGlob})
-        list(LENGTH __CLDNN_F_CompReqTargets __CLDNN_F_CompReqTargetsCount)
-        if(__CLDNN_F_CompReqTargetsCount LESS 1)
-            message(WARNING "[clDNN] ${componentName} at \"${__CLDNN_F_CompPath}\" does not contain required files. It will be omitted.")
-            set(__CLDNN_F_CompPathValid FALSE)
-            break()
-        endif()
-      endforeach()
-      unset(__CLDNN_F_CompReqFile)
-      unset(__CLDNN_F_CompReqFileGlob)
-      unset(__CLDNN_F_CompReqTargets)
-      unset(__CLDNN_F_CompReqTargetsCount)
-
-      if(__CLDNN_F_CompPathValid)
-        cldnn_dmsg("Found internal ${componentName} (version: ${__CLDNN_F_CompVersion}) at path: ${__CLDNN_F_CompPath}")
-        list(APPEND __CLDNN_F_CompVersions "${__CLDNN_F_CompVersion}")
-        list(APPEND __CLDNN_F_CompPaths    "${__CLDNN_F_CompPath}")
-      endif()
-    endif()
-  endforeach()
-  unset(__CLDNN_F_CompVersionPaths)
-  unset(__CLDNN_F_CompVersionPath)
-  unset(__CLDNN_F_CompVersion)
-  unset(__CLDNN_F_CompPath)
-  unset(__CLDNN_F_CompPathValid)
-
-  # Selecting highest version of component as a default version.
-  set(__CLDNN_F_CompDefaultVersion "0")
-  foreach(__CLDNN_F_CompVersion ${__CLDNN_F_CompVersions})
-    if(__CLDNN_F_CompVersion VERSION_GREATER __CLDNN_F_CompDefaultVersion)
-      set(__CLDNN_F_CompDefaultVersion "${__CLDNN_F_CompVersion}")
-    endif()
-  endforeach()
-  unset(__CLDNN_F_CompVersion)
-  cldnn_dmsg("Selected default version of internal ${componentName}: ${__CLDNN_F_CompDefaultVersion}")
-
-  set("${retVarNameVersions}"       ${__CLDNN_F_CompVersions}         PARENT_SCOPE)
-  set("${retVarNamePaths}"          ${__CLDNN_F_CompPaths}            PARENT_SCOPE)
-  set("${retVarNameDefaultVersion}" "${__CLDNN_F_CompDefaultVersion}" PARENT_SCOPE)
-endfunction()
-
 
 # ======================================================================================================
 # ======================================================================================================
@@ -306,27 +217,6 @@ endif()
 unset(__CLDNN_ArchValid_Target)
 
 # ======================================================================================================
-
-# Detecting all versions of added Intel OpenCL SDK ICDs in the project.
-if(NOT EXISTS "${CLDNN__IOCL_ICD_DIR}")
-  if(NOT CLDNN__IOCL_ICD_USE_EXTERNAL)
-    message(FATAL_ERROR "[clDNN] Root for ICDs for Intel OpenCL SDK is invalid or does not exist.
-      Please make sure that ICDs are added into \"${CLDNN__IOCL_ICD_DIR}\".")
-  endif()
-endif()
-
-cldnn_locate_component_versions(__CLDNN_IOclIcdVersions __CLDNN_IOclIcdPaths __CLDNN_IOclIcdDefaultVersion
-    "ICD for Intel OpenCL SDK" "${CLDNN__IOCL_ICD_DIR}"
-    "*/include/CL/opencl.h"
-  )
-
-if(__CLDNN_IOclIcdDefaultVersion VERSION_EQUAL "0")
-  if(NOT CLDNN__IOCL_ICD_USE_EXTERNAL)
-    message(FATAL_ERROR "[clDNN] Intel OpenCL SDK ICD required for build cannot be located.")
-  endif()
-endif()
-
-# ======================================================================================================
 # ============================================ CMAKE OPTIONS ===========================================
 # ======================================================================================================
 
@@ -362,18 +252,6 @@ elseif(NOT DEFINED CLDNN__OUTPUT_BIN_DIR AND NOT DEFINED CLDNN__OUTPUT_LIB_DIR)
 endif()
 # ======================================================================================================
 
-# Intel OpenCL SDK ICD: Version of ICD used to build clDNN.
-set(CLDNN__IOCL_ICD_VERSION "${__CLDNN_IOclIcdDefaultVersion}" CACHE STRING "Intel OpenCL SDK ICD: Version of ICD used to build clDNN framework.")
-mark_as_advanced(CLDNN__IOCL_ICD_VERSION)
-set_property(CACHE CLDNN__IOCL_ICD_VERSION PROPERTY STRINGS ${__CLDNN_IOclIcdVersions})
-
-# ======================================================================================================
-
-set(CLDNN__IOCL_ICD_USE_EXTERNAL OFF CACHE BOOL "Intel OpenCL SDK ICD: Try to use externally-intalled Intel OpenCL SDK ICD.")
-mark_as_advanced(CLDNN__IOCL_ICD_USE_EXTERNAL)
-
-# ======================================================================================================
-
 # Include and build: Core of clDNN framework.
 set(CLDNN__INCLUDE_CORE ON CACHE BOOL "Include and build: clDNN core.")
 mark_as_advanced(CLDNN__INCLUDE_CORE)
@@ -392,12 +270,6 @@ mark_as_advanced(CLDNN__INCLUDE_TESTS)
 
 # ======================================================================================================
 
-# Include and build: Core Internal Tests (unit tests and small acceptance tests) for core internal clDNN framework mechanisms.
-set(CLDNN__INCLUDE_CORE_INTERNAL_TESTS ON CACHE BOOL "Include and build: clDNN framework's core internal tests.")
-mark_as_advanced(CLDNN__INCLUDE_CORE_INTERNAL_TESTS)
-
-# ======================================================================================================
-
 
 # Include and build: clDNN tutorial.
 set(CLDNN__INCLUDE_TUTORIAL ON CACHE BOOL "Include and build: clDNN Tutorial.")
@@ -408,12 +280,6 @@ mark_as_advanced(CLDNN__INCLUDE_TUTORIAL)
 # Run (requires CLDNN__INCLUDE_TESTS to be true): Tests (unit tests and small acceptance tests) for clDNN framework.
 set(CLDNN__RUN_TESTS OFF CACHE BOOL "Run: clDNN framework's tests.")
 mark_as_advanced(CLDNN__RUN_TESTS)
-
-# ======================================================================================================
-
-# Run (requires CLDNN__INCLUDE_CORE_INTERNAL_TESTS to be true): Tests (unit tests and small acceptance core internal tests) for clDNN framework.
-set(CLDNN__RUN_CORE_INTERNAL_TESTS OFF CACHE BOOL "Run: clDNN framework's core internal tests.")
-mark_as_advanced(CLDNN__RUN_CORE_INTERNAL_TESTS)
 
 # ======================================================================================================
 
@@ -452,18 +318,10 @@ endif()
 
 # ======================================================================================================
 
-# Checking whether tests can be run.
-if((NOT CLDNN__INCLUDE_CORE_INTERNAL_TESTS) AND CLDNN__RUN_CORE_INTERNAL_TESTS)
-  message(WARNING "[clDNN] CLDNN__INCLUDE_CORE_INTERNAL_TESTS: Selected running of core internal tests, but test are not built. Option will be disabled.")
-  set(CLDNN__RUN_CORE_INTERNAL_TESTS OFF)
-endif()
-
-# ======================================================================================================
-
-# Check for python 2.7 interpreter (required tool).
-find_package(PythonInterp 2.7)
+# Check for python 3 interpreter (required tool).
+find_package(PythonInterp 3 QUIET)
 if(NOT PYTHONINTERP_FOUND)
-  message(WARNING "[clDNN] Project requires Python 2.7 interpreter to build (with python loader). CMake could not detect it correctly.
+  message(WARNING "[clDNN] Project requires Python 3.x interpreter to build (with python loader). CMake could not detect it correctly.
       If you have installed this interpreter, please disregard this warning or specify PYTHON_EXECUTABLE in CMake command-line."
     )
 endif()
@@ -477,95 +335,11 @@ string(TOLOWER "${__CLDNN_TargetOs}" __CLDNN_TargetOs)
 intel_arch_get_cpu(__CLDNN_TargetCpu "${CLDNN__ARCHITECTURE_TARGET}")
 string(TOLOWER "${__CLDNN_TargetCpu}" __CLDNN_TargetCpu)
 
-if(__CLDNN_TargetCpu STREQUAL "32")
-  set(__CLDNN_TargetCpuDir "x86")
-elseif(__CLDNN_TargetCpu STREQUAL "64")
-  set(__CLDNN_TargetCpuDir "x64")
-else()
-  set(__CLDNN_TargetCpuDir "${__CLDNN_TargetCpu}")
-endif()
-
 if((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^Clang$"))
   set(__CLDNN_TargetCompilerDir "clang")
 else()
   set(__CLDNN_TargetCompilerDir ".")
 endif()
-
-# ======================================================================================================
-
-# Selecting Intel OpenCL SDK version and path.
-if (CLDNN__IOCL_ICD_USE_EXTERNAL)
-  if(NOT DEFINED ENV{INTELOCLSDKROOT})
-    message(FATAL_ERROR "[clDNN] CLDNN__IOCL_ICD_USE_EXTERNAL: Usage of external Intel OpenCL SDK ICD was selected, but the INTELOCLSDKROOT environment variable cannot be found.
-      Make sure that SDK is installed on the host.")
-  endif()
-  if(NOT EXISTS "$ENV{INTELOCLSDKROOT}/include/CL/opencl.h")
-    message(FATAL_ERROR "[clDNN] CLDNN__IOCL_ICD_USE_EXTERNAL: Usage of external Intel OpenCL SDK ICD was selected, but the INTELOCLSDKROOT environment variable points to invalid directory.
-      Make sure that SDK is installed on the host.")
-  endif()
-  set(CLDNN__IOCL_ICD_ROOT "$ENV{INTELOCLSDKROOT}")
-else()
-  list(FIND __CLDNN_IOclIcdVersions "${CLDNN__IOCL_ICD_VERSION}" __CLDNN_IOclIcdVersionIdx)
-  if(__CLDNN_IOclIcdVersionIdx LESS 0)
-    message(FATAL_ERROR "[clDNN] CLDNN__IOCL_ICD_VERSION: Selected version of Intel OpenCL SDK ICD cannot be found.
-      Please use one of following values: ${__CLDNN_IOclIcdVersions}.")
-  endif()
-  list(GET __CLDNN_IOclIcdPaths ${__CLDNN_IOclIcdVersionIdx} CLDNN__IOCL_ICD_ROOT)
-endif()
-
-set(CLDNN__IOCL_ICD_ROOT "${CLDNN__IOCL_ICD_ROOT}" CACHE INTERNAL "Path to Intel OpenCL SDK ICD used to build clDNN framework.")
-
-# Select SDK subdirectories with headers, binaries and libraries (based on architecture, cpu, generator and SDK type).
-if(CLDNN__IOCL_ICD_USE_EXTERNAL)
-  set(CLDNN__IOCL_ICD_INCDIRS "${CLDNN__IOCL_ICD_ROOT}/include" CACHE INTERNAL "Paths to interface headers for Intel OpenCL SDK ICD.")
-  set(CLDNN__IOCL_ICD_STLDIRS "${CLDNN__IOCL_ICD_ROOT}/lib/${__CLDNN_TargetCpuDir}" CACHE INTERNAL "Paths to static libraries for Intel OpenCL SDK ICD.")
-
-  set(__CLDNN_FindLibSuffixes ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  set(CMAKE_FIND_LIBRARY_SUFFIXES "${CMAKE_SHARED_LIBRARY_SUFFIX}")
-  find_library(CLDNN_FIND__IOCL_ICD_SHLPATH
-    NAMES OpenCL
-    PATHS "${CLDNN__IOCL_ICD_ROOT}"
-          "${CLDNN__IOCL_ICD_ROOT}/bin"
-          "${CLDNN__IOCL_ICD_ROOT}/bin/${__CLDNN_TargetCpuDir}"
-          "${CLDNN__IOCL_ICD_ROOT}/lib"
-          "${CLDNN__IOCL_ICD_ROOT}/lib/${__CLDNN_TargetCpuDir}"
-    NO_CMAKE_FIND_ROOT_PATH
-  )
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ${__CLDNN_FindLibSuffixes})
-
-  if(CLDNN_FIND__IOCL_ICD_SHLPATH)
-    get_filename_component(__CLDNN_IOclIcdSharedLibDir "${CLDNN_FIND__IOCL_ICD_SHLPATH}" DIRECTORY)
-    set(CLDNN__IOCL_ICD_SHLDIRS "${__CLDNN_IOclIcdSharedLibDir}" CACHE INTERNAL "Paths to shared libraries for Intel OpenCL SDK ICD.")
-  else()
-    message(FATAL_ERROR "[clDNN] CLDNN__IOCL_ICD_USE_EXTERNAL: Usage of external Intel OpenCL SDK ICD was selected, but the ICD shared library cannot be located.
-      Make sure that SDK is installed on the host.")
-  endif()
-
-  unset(CLDNN_FIND__IOCL_ICD_SHLPATH CACHE)
-  unset(__CLDNN_FindLibSuffixes)
-  unset(__CLDNN_IOclIcdSharedLibDir)
-else()
-  set(CLDNN__IOCL_ICD_INCDIRS "${CLDNN__IOCL_ICD_ROOT}/${__CLDNN_TargetOs}/include" CACHE INTERNAL "Paths to interface headers for Intel OpenCL SDK ICD.")
-  set(CLDNN__IOCL_ICD_STLDIRS "${CLDNN__IOCL_ICD_ROOT}/${__CLDNN_TargetOs}/${CLDNN__TARGET_CFG_VAR}/lib/${__CLDNN_TargetCpuDir}" CACHE INTERNAL "Paths to static libraries for Intel OpenCL SDK ICD.")
-  set(CLDNN__IOCL_ICD_SHLDIRS "${CLDNN__IOCL_ICD_ROOT}/${__CLDNN_TargetOs}/${CLDNN__TARGET_CFG_VAR}/bin/${__CLDNN_TargetCpuDir}" CACHE INTERNAL "Paths to shared libraries for Intel OpenCL SDK ICD.")
-endif()
-
-# Select link directory based on targeted OS.
-# - on Windows: static libraries directory.
-# - on others:  shared libraries directory.
-if(__CLDNN_TargetOs MATCHES "^windows$")
-  set(CLDNN__IOCL_ICD_LIBDIRS ${CLDNN__IOCL_ICD_STLDIRS} CACHE INTERNAL "Paths to libraries to link for Intel OpenCL SDK ICD.")
-  set(CLDNN__IOCL_ICD_LIBPATH ${CLDNN__IOCL_ICD_LIBDIRS}/${CMAKE_STATIC_LIBRARY_PREFIX}OpenCL${CMAKE_STATIC_LIBRARY_SUFFIX} CACHE INTERNAL "")
-else()
-  set(CLDNN__IOCL_ICD_LIBDIRS ${CLDNN__IOCL_ICD_SHLDIRS} CACHE INTERNAL "Paths to libraries to link for Intel OpenCL SDK ICD.")
-  set(CLDNN__IOCL_ICD_LIBPATH ${CLDNN__IOCL_ICD_LIBDIRS}/${CMAKE_SHARED_LIBRARY_PREFIX}OpenCL${CMAKE_SHARED_LIBRARY_SUFFIX} CACHE INTERNAL "")
-endif()
-
-unset(__CLDNN_IOclIcdVersions)
-unset(__CLDNN_IOclIcdPaths)
-unset(__CLDNN_IOclIcdDefaultVersion)
-unset(__CLDNN_IOclIcdVersionIdx)
-
 
 # ======================================================================================================
 set(CLDNN_UTILS__RAPIDJSON_INCDIRS "utils/rapidjson" CACHE INTERNAL "Paths to interface headers for rapidjson.")
@@ -589,32 +363,19 @@ message(STATUS "[clDNN]  - target: ${CLDNN__ARCHITECTURE_TARGET}    (detected: $
 message(STATUS "[clDNN]")
 message(STATUS "[clDNN]")
 message(STATUS "[clDNN] Advanced:")
-if (CLDNN__IOCL_ICD_USE_EXTERNAL)
-  message(STATUS "[clDNN]  - ICD version used to build:         N/A (installed externally)")
-else()
-  message(STATUS "[clDNN]  - ICD version used to build:         ${CLDNN__IOCL_ICD_VERSION}")
-endif()
 message(STATUS "[clDNN]")
 message(STATUS "[clDNN]  - Include/Build cldnn core:          ${CLDNN__INCLUDE_CORE}")
 message(STATUS "[clDNN]  - Include/Build kernel selector:     ${CLDNN__INCLUDE_KERNEL_SELECTOR}")
 message(STATUS "[clDNN]  - Include/Build tests:               ${CLDNN__INCLUDE_TESTS}")
-message(STATUS "[clDNN]  - Include/Build core internal tests: ${CLDNN__INCLUDE_CORE_INTERNAL_TESTS}")
 message(STATUS "[clDNN]  - Include/Build tutorial:            ${CLDNN__INCLUDE_TUTORIAL}")
 message(STATUS "[clDNN]")
 message(STATUS "[clDNN]  - Run tests:                     ${CLDNN__RUN_TESTS}")
-message(STATUS "[clDNN]  - Run core internal tests:       ${CLDNN__RUN_CORE_INTERNAL_TESTS}")
 message(STATUS "[clDNN]")
 message(STATUS "[clDNN]  - Use static C++ Runtime:        ${CLDNN__COMPILE_LINK_USE_STATIC_RUNTIME}")
 message(STATUS "[clDNN]  - Allow unsafe size opts:        ${CLDNN__COMPILE_LINK_ALLOW_UNSAFE_SIZE_OPT}")
 message(STATUS "[clDNN]  - CMake debug trace:             ${CLDNN__CMAKE_DEBUG}")
 message(STATUS "[clDNN]")
 message(STATUS "[clDNN]")
-message(STATUS "[clDNN] ICD:")
-message(STATUS "[clDNN]  - Root:            ${CLDNN__IOCL_ICD_ROOT}")
-message(STATUS "[clDNN]     + Headers:      ${CLDNN__IOCL_ICD_INCDIRS}")
-message(STATUS "[clDNN]     + Static libs:  ${CLDNN__IOCL_ICD_STLDIRS}")
-message(STATUS "[clDNN]     + Shared libs:  ${CLDNN__IOCL_ICD_SHLDIRS}")
-message(STATUS "[clDNN]     + Libs to link: ${CLDNN__IOCL_ICD_LIBPATH}")
 message(STATUS "[clDNN] =============================================================================")
 unset(__CLDNN_DetectedArch_Target)
 
@@ -951,8 +712,6 @@ unset(__CLDNN_CfgFlag)
 # Clean-up of helper variables for component paths.
 unset(__CLDNN_TargetOs)
 unset(__CLDNN_TargetCpu)
-unset(__CLDNN_TargetCpuDir)
-unset(__CLDNN_TargetCompilerDir)
 
 # ============================== Generic compiler preprocessor definitions =============================
 
@@ -964,30 +723,21 @@ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
 
 include_directories(
     ${CLDNN_UTILS__RAPIDJSON_INCDIRS}
-    "${CLDNN__KHR_CLHPP_DIR}"
     "${CLDNN__CODEGEN_INCDIR}"
+    "${CLDNN__API_DIR}"
   )
 
 include_directories(SYSTEM
-    ${CLDNN__IOCL_ICD_INCDIRS})
-
-add_library(clDNN_OpenCL UNKNOWN IMPORTED)
-set_target_properties(clDNN_OpenCL
-    PROPERTIES
-        IMPORTED_LOCATION ${CLDNN__IOCL_ICD_LIBPATH}
+   "${CLDNN__KHR_CLHPP_DIR}"
   )
-
-
 # =================================== Link targets and dependencies ====================================
 if(CLDNN__INCLUDE_CORE)
   add_subdirectory(src)
+  add_subdirectory(runtime)
   add_subdirectory(api_test_builds)
 endif()
 if(CLDNN__INCLUDE_TESTS)
   add_subdirectory(tests)
-endif()
-if(CLDNN__INCLUDE_CORE_INTERNAL_TESTS)
-  add_subdirectory(tests_core_internal)
 endif()
 if(CLDNN__INCLUDE_KERNEL_SELECTOR)
   add_subdirectory(kernel_selector)

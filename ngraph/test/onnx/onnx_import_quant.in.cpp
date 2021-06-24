@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cmath>
@@ -134,6 +122,63 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear)
     test_case.add_expected_output(std::vector<float>{76.f, 840.f, 84.f, 40.f});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_scale_and_zero_point)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_scale_and_zero_point.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});    // x
+    test_case.add_input(std::vector<float>{2.0f});                      // scale
+    test_case.add_input(std::vector<uint8_t>{128});                     // zero_point
+
+    test_case.add_expected_output<float>(std::vector<float>{-218, 164, -214, -236});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_scale)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_scale.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});    // x
+    test_case.add_input(std::vector<float>{2.0f});                      // scale
+    test_case.add_input(std::vector<uint8_t>{128, 7});                  // zero_point
+
+    test_case.add_expected_output<float>(std::vector<float>{-218, 406, -214, 6});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_inputs)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_inputs.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(std::vector<std::uint8_t>{19});              // x
+    test_case.add_input(std::vector<float>{2.0f});                   // scale
+    test_case.add_input(std::vector<uint8_t>{128});                  // zero_point
+
+    test_case.add_expected_output<float>(std::vector<float>{-218});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_point)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_zero_point.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});    // x
+    test_case.add_input(std::vector<float>{2.0f, 1.0f});                // scale
+    test_case.add_input(std::vector<uint8_t>{128});                     // zero_point
+
+    test_case.add_expected_output<float>(std::vector<float>{-218, 82, -214, -118});
+    test_case.run();
+}
+
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_uint8)
 {

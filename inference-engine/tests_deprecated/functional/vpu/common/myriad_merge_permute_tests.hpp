@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,7 @@ public:
 
         IE_ASSERT(generateNetAndInfer(NetworkInitParams().useHWOpt(CheckMyriadX()).runRefGraph(false)));
 
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-        _inferRequest->GetPerformanceCounts(perfMap, nullptr);
+        auto perfMap = _inferRequest.GetPerformanceCounts();
 
         executionMicroseconds = 0;
         for (const auto& perfPair : perfMap) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,13 +37,13 @@ void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _l
     // Check if HW is applicable
     //
 
-    auto tryHW = env.config.hwOptimization;
+    auto tryHW = env.config.compileConfig().hwOptimization;
 
     if (output->desc().dim(Dim::W, 1) != 1 || output->desc().dim(Dim::H, 1) != 1) {
         tryHW = false;
     }
 
-    if (env.config.hwDisabled(layer->name)) {
+    if (env.config.compileConfig().hwDisabled(layer->name)) {
         tryHW = false;
     }
 

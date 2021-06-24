@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include <transformations/init_node_info.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/fake_quantize.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 #include "lpt_ngraph_functions/common/add.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
@@ -74,6 +75,9 @@ public:
             testValues.actual.fakeQuantizeOnData);
 
         SimpleLowPrecisionTransformer transformer;
+        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transformer.transform(actualFunction);
+
         transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transformer.transform(actualFunction);
 
@@ -136,6 +140,28 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             element::f32,
             element::f32,
             { 256ul, {}, { 0.f }, { 255.f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Multiply with different input and output shape
+    {
+        Shape{128, 1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, { {0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3} } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, { {0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3} } },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
     // 1) Multiply + 2) Add
@@ -248,9 +274,75 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
                     { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
             }
     },
+    // issue #40611 for FP32
+    {
+        ngraph::Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            { },
+            { },
+            ngraph::element::i32,
+            { {ngraph::element::f32}, {}, {} },
+            ngraph::element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            { },
+            { },
+            ngraph::element::i32,
+            { {ngraph::element::f32}, {}, {} },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // issue #40611 for FP16
+    {
+        ngraph::Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            { },
+            { },
+            ngraph::element::i32,
+            { {ngraph::element::f16}, {}, {} },
+            ngraph::element::f16,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            { },
+            { },
+            ngraph::element::i32,
+            { {ngraph::element::f16}, {}, {} },
+            element::f16,
+            element::f16,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // multiply by zero
+    {
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            {},
+            element::u8,
+            { {element::f32}, { {-128, -128, -128} }, { {0.01f, 0.f, 0.01f} } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::u8,
+            { {element::f32}, { {-128, -128, -128} }, { {0.01f, 0.f, 0.01f} } },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FuseFakeQuantizeTransformation,
     ::testing::ValuesIn(testValues),

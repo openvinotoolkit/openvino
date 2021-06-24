@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,8 +43,8 @@ class DynamicToStaticShapeTranspose : public CommonTestUtils::TestsCommon, publi
 public:
     void SetUp() override {
         const auto& parameters = GetParam();
-        const auto& dataType = std::get<0>(GetParam());
-        const auto& dataDims = std::get<1>(GetParam());
+        const auto& dataType = std::get<0>(parameters);
+        const auto& dataDims = std::get<1>(parameters);
 
         auto permutation = std::vector<std::int64_t>(dataDims.size());
         std::iota(permutation.begin(), permutation.end(), 0);
@@ -104,7 +104,7 @@ protected:
 TEST_P(DynamicToStaticShapeTranspose, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeTranspose, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeTranspose, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,

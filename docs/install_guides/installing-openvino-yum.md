@@ -2,9 +2,21 @@
 
 This guide provides installation steps for the Intel® Distribution of OpenVINO™ toolkit for Linux* distributed through the YUM repository.
 
-> **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/en-us/license/eula-for-intel-software-development-products). Please, review the content inside the `<openvino_install_root>/licensing` folder for more details.
+> **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please, review the content inside the `<openvino_install_root>/licensing` folder for more details.
 
 > **NOTE**: Intel® Graphics Compute Runtime for OpenCL™ is not a part of OpenVINO™ YUM distribution. You can install it from the [Intel® Graphics Compute Runtime for OpenCL™ GitHub repo](https://github.com/intel/compute-runtime).
+
+> **NOTE**: Only runtime packages are available via the YUM repository.
+
+## Included with Runtime Package
+
+The following components are installed with the OpenVINO runtime package:
+
+| Component | Description|
+|-----------|------------|
+| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)| The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
+| [OpenCV*](https://docs.opencv.org/master/) | OpenCV* community version compiled for Intel® hardware. |
+| Deep Learning Stream (DL Streamer) | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements), [Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial). |
 
 ## Set up the Repository
 
@@ -61,7 +73,7 @@ Results:
 intel-openvino-2021 Intel(R) Distribution of OpenVINO 2021
 ```
   
-### To list the available OpenVINO packages
+### To list available OpenVINO packages
 Use the following command:
 ```sh
 yum list intel-openvino*
@@ -69,11 +81,11 @@ yum list intel-openvino*
 
 ---
   
-## Install the runtime packages Using the YUM Package Manager
+## Install Runtime Packages Using the YUM Package Manager
 
 Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
 <br>
-A symlink will be created: `/opt/intel/openvino`
+A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
 ---
 
@@ -106,6 +118,5 @@ sudo yum autoremove intel-openvino-runtime-centos<OS_VERSION>-<VERSION>.<UPDATE>
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
-- For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic).
 - For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 

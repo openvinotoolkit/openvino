@@ -1,5 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <subgraph_tests/multiple_concat.hpp>
 #include "common_test_utils/test_constants.hpp"
 
@@ -32,7 +34,7 @@ std::map<std::string, std::string> additional_config = {
 };
 } // namespace
 
-INSTANTIATE_TEST_CASE_P(I_aligned_C_aligned, MultipleConcatTest,
+INSTANTIATE_TEST_SUITE_P(I_aligned_C_aligned, MultipleConcatTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),
@@ -41,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(I_aligned_C_aligned, MultipleConcatTest,
         ::testing::Values(additional_config)),
     MultipleConcatTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(I_aligned_C_unaligned, MultipleConcatTest,
+INSTANTIATE_TEST_SUITE_P(I_aligned_C_unaligned, MultipleConcatTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),
@@ -50,7 +52,7 @@ INSTANTIATE_TEST_CASE_P(I_aligned_C_unaligned, MultipleConcatTest,
         ::testing::Values(additional_config)),
     MultipleConcatTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(I_unaligned_C_aligned, MultipleConcatTest,
+INSTANTIATE_TEST_SUITE_P(I_unaligned_C_aligned, MultipleConcatTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),
@@ -59,7 +61,7 @@ INSTANTIATE_TEST_CASE_P(I_unaligned_C_aligned, MultipleConcatTest,
         ::testing::Values(additional_config)),
     MultipleConcatTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(I_unaligned_C_unaligned, MultipleConcatTest,
+INSTANTIATE_TEST_SUITE_P(I_unaligned_C_unaligned, MultipleConcatTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),

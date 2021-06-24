@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,11 +45,22 @@ class TRANSFORMATIONS_API DataPrecision {
 public:
     DataPrecision() : precision(element::undefined), min(0.f), max(0.f), hasZeroPoint(false) {}
 
+    explicit DataPrecision(const element::Type& precision) {
+        this->precision = precision;
+        min = getMinValue(precision, 256);
+        max = getMaxValue(precision, 256);
+        hasZeroPoint = false;
+    }
+
     DataPrecision(const element::Type precision, const float min, const float max, const bool hasZeroPoint) :
             precision(precision),
             min(min),
             max(max),
             hasZeroPoint(hasZeroPoint) {}
+
+    static bool isSupported(const element::Type& precision) {
+        return (precision == element::u8) || (precision == element::i8);
+    }
 
     static float getMinValue(const element::Type precision, const size_t levels) {
         if (precision == element::i8) {
@@ -66,6 +77,10 @@ public:
             return -1.0e15f;
         } else if (precision == element::f32) {
             return std::numeric_limits<float>::lowest();
+        } else if (precision == element::i4) {
+            return -8.f;
+        } else if (precision == element::u4) {
+            return 0.f;
         } else {
             NGRAPH_CHECK(false, "unexpected precision ", precision);
         }
@@ -84,6 +99,10 @@ public:
             return 1.0e15f;
         } else if (precision == element::f32) {
             return std::numeric_limits<float>::max();
+        } else if (precision == element::i4) {
+            return 7.f;
+        } else if (precision == element::u4) {
+            return 15.f;
         } else {
             THROW_TRANSFORMATION_EXCEPTION << "unexpected precision " << precision;
         }
@@ -109,29 +128,6 @@ public:
 
     static element::Type getPrecision(const size_t /* quantizationLevels */, const bool signedInterval) {
         return signedInterval ? element::i8 : element::u8;
-    }
-
-    static float getMin(const size_t quantizationLevels, const bool signedInterval) {
-        if (quantizationLevels == 255) {
-            return signedInterval  ? -127.0f : 0.0f;
-        } else if (quantizationLevels == 256) {
-            return signedInterval ? -128.0f : 0.0f;
-        } else {
-            // THROW_TRANSFORMATION_EXCEPTION << "quantization level " << quantizationLevels << " is not supported";
-            // FIXME: not completed
-            return signedInterval ? -128.0f : 0.0f;
-        }
-    }
-
-    static float getMax(const size_t quantizationLevels, const bool signedInterval) {
-        if ((quantizationLevels == 255) || (quantizationLevels == 256)) {
-            return signedInterval ? 127.0f : 255.0f;
-        } else {
-            // THROW_TRANSFORMATION_EXCEPTION << "quantization level " << quantizationLevels << " is not supported";
-            // FIXME: not completed
-            // return quantizationLevels - 1.0;
-            return signedInterval ? 127.0f : 255.0f;
-        }
     }
 };
 
@@ -167,13 +163,19 @@ public:
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
                 bool supportAsymmetricQuantization = false,
                 std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
-                std::vector<element::Type> precisionsOnWeights = { element::i8 }) :
+                std::vector<element::Type> precisionsOnWeights = { element::i8 },
+                element::Type deqPrecision = element::f32,
+                bool support3DTensorOnActivations = true,
+                bool deconvolutionSpecificChannelsRatio = false) :
                 updatePrecisions(updatePrecisions),
                 quantizedTensorAlignmentOnActivations(quantizedTensorAlignmentOnActivations),
                 quantizedTensorAlignmentOnWeights(quantizedTensorAlignmentOnWeights),
                 supportAsymmetricQuantization(supportAsymmetricQuantization),
                 precisionsOnActivations(precisionsOnActivations),
-                precisionsOnWeights(precisionsOnWeights) {
+                precisionsOnWeights(precisionsOnWeights),
+                deqPrecision(deqPrecision),
+                support3DTensorOnActivations(support3DTensorOnActivations),
+                deconvolutionSpecificChannelsRatio(deconvolutionSpecificChannelsRatio) {
             if (precisionsOnActivations.size() == 0ul) {
                 THROW_TRANSFORMATION_EXCEPTION << "precisions on activations are not specisifed";
             }
@@ -213,12 +215,25 @@ public:
             return *this;
         }
 
+        Params& setSupport3DTensorOnActivations(const bool support3DTensorOnActivations) {
+            this->support3DTensorOnActivations = support3DTensorOnActivations;
+            return *this;
+        }
+
+        Params& setDeconvolutionSpecificChannelsRatio(const bool deconvolutionSpecificChannelsRatio) {
+            this->deconvolutionSpecificChannelsRatio = deconvolutionSpecificChannelsRatio;
+            return *this;
+        }
+
         bool updatePrecisions;
         QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
         QuantizedTensorAlignment quantizedTensorAlignmentOnWeights;
         bool supportAsymmetricQuantization;
         std::vector<element::Type> precisionsOnActivations;
         std::vector<element::Type> precisionsOnWeights;
+        element::Type deqPrecision;
+        bool support3DTensorOnActivations;
+        bool deconvolutionSpecificChannelsRatio;
     };
 
     class PrecisionDetails {
@@ -293,6 +308,9 @@ protected:
     bool supportAsymmetricQuantization;
     std::vector<element::Type> precisionsOnActivations;
     std::vector<element::Type> precisionsOnWeights;
+    element::Type deqPrecision;
+    bool support3DTensorOnActivations;
+    bool deconvolutionSpecificChannelsRatio;
 
     // absolute value, used to determine quantization interval asymmetry
     float quantizationIntervalAsymmetryThreshold;
@@ -305,16 +323,12 @@ protected:
     ILayerTransformationsManager* layerTransformationsManager;
 
 protected:
-    std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const;
-
     std::shared_ptr<ngraph::Node> moveDequantizationAfter(
         TransformationContext &context,
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
         const bool moveSubtract = true) const;
-
-    void fuseConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const;
 
     void updateOutput(
         TransformationContext &context,
@@ -327,6 +341,9 @@ protected:
         std::string originalName) const;
 
     void addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const;
+
+    //TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
+    bool canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
     template <typename Operation>
     void addSingleNodePattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context) const {

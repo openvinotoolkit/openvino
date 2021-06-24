@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,8 @@ namespace vpu {
 
 CompiledGraph::Ptr compileModel(
         const Model& model,
-        Platform platform,
-        const CompilationConfig& config,
+        ncDevicePlatform_t platform,
+        const PluginConfiguration& config,
         const Logger::Ptr& log);
 
 }  // namespace vpu

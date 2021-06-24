@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
@@ -99,13 +86,11 @@ def insert_ExperimentalDetectronROIFeatureExtractor1(graph: Graph, replacement_d
     old_output_node = Node(graph, replacement_descriptions['ROIFeatureExtractor1_output'])
     input_fpn_head_nodes = [Node(graph, node_id) for node_id in input_fpn_heads]
     fpn_roi_align = ExperimentalDetectronROIFeatureExtractor(graph, {'name': 'ROIFeatureExtractor_1',
-                                                                     'distribute_rois_between_levels': 1,
-                                                                     'image_id': 0,
                                                                      'output_size': 14,
-                                                                     'preserve_rois_order': 1,
                                                                      'pyramid_scales': int64_array(
                                                                          [4, 8, 16, 32, 64]),
-                                                                     'sampling_ratio': 2, }).create_node()
+                                                                     'sampling_ratio': 2,
+                                                                     'in_ports_count': 5}).create_node()
     fpn_roi_align.in_port(0).connect(Node(graph, 'DetectionOutput').out_port(0))
     for ind, fpn_node in enumerate(input_fpn_head_nodes):
         fpn_roi_align.in_port(ind + 1).connect(fpn_node.out_port(0))
@@ -118,13 +103,11 @@ def insert_ExperimentalDetectronROIFeatureExtractor2(graph: Graph, replacement_d
     old_output_node = Node(graph, replacement_descriptions['ROIFeatureExtractor2_output'])
     input_fpn_head_nodes = [Node(graph, node_id) for node_id in input_fpn_heads]
     fpn_roi_align = ExperimentalDetectronROIFeatureExtractor(graph, {'name': 'ROIFeatureExtractor_2',
-                                                                     'distribute_rois_between_levels': 1,
-                                                                     'image_id': 0,
                                                                      'output_size': 7,
-                                                                     'preserve_rois_order': 1,
                                                                      'pyramid_scales': int64_array(
                                                                          [4, 8, 16, 32, 64]),
-                                                                     'sampling_ratio': 2, }).create_node()
+                                                                     'sampling_ratio': 2,
+                                                                     'in_ports_count': 5}).create_node()
     fpn_roi_align.in_port(0).connect(Node(graph, replacement_descriptions['ROIFeatureExtractor2_input']).out_port(0))
     for ind, fpn_node in enumerate(input_fpn_head_nodes):
         fpn_roi_align.in_port(ind + 1).connect(fpn_node.out_port(0))

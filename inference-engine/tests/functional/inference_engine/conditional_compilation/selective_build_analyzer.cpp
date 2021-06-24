@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,10 +63,12 @@ struct TestNode : public TestNodeBase {
 TEST(ConditionalCompilationTests, SimpleScopeAnalysys) {
     int n = 0;
 
-    OV_SCOPE(CCTests, Scope0, n = 42;);
+    OV_SCOPE(CCTests, Scope0) n = 42;
     EXPECT_EQ(n, 42);
 
-    OV_SCOPE(CCTests, Scope1, n = 43;);
+    OV_SCOPE(CCTests, Scope1) {
+        n = 43;
+    }
     EXPECT_EQ(n, 43);
 }
 

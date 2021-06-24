@@ -1,20 +1,11 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <algorithm>
 #include <iterator>
+#include <ngraph/validation_util.hpp>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/norm.hpp"
@@ -32,6 +23,13 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
 
+op::NormalizeL2::NormalizeL2()
+    : FusedOp()
+    , m_eps()
+    , m_eps_mode()
+{
+}
+
 op::NormalizeL2::NormalizeL2(const Output<Node>& data,
                              const Output<Node>& axes,
                              float eps,
@@ -45,6 +43,7 @@ op::NormalizeL2::NormalizeL2(const Output<Node>& data,
 
 bool ngraph::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_NormalizeL2_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("eps_mode", m_eps_mode);
     return true;
@@ -58,7 +57,8 @@ void op::NormalizeL2::pre_validate_and_infer_types()
     const auto& input_rank = input_pshape.rank();
     const auto& axes_rank = axes_pshape.rank();
 
-    NODE_VALIDATION_CHECK(this, op::is_constant(axes_node), "Input axes must be Constant type");
+    NODE_VALIDATION_CHECK(
+        this, has_and_set_equal_bounds(input_value(1)), "Input axes must be Constant type");
 
     if (axes_rank.is_static())
     {
@@ -74,7 +74,7 @@ void op::NormalizeL2::pre_validate_and_infer_types()
             for (auto axis : reduction_axes)
             {
                 NODE_VALIDATION_CHECK(this,
-                                      axis < input_rank.get_length(),
+                                      static_cast<int64_t>(axis) < input_rank.get_length(),
                                       "Reduction axis (",
                                       axis,
                                       ") is out of bounds ",
@@ -90,8 +90,7 @@ void op::NormalizeL2::pre_validate_and_infer_types()
 AxisSet op::NormalizeL2::get_reduction_axes() const
 {
     AxisSet axes;
-    auto axes_input_node = input_value(1).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
+    if (auto const_op = get_constant_from_source(input_value(1)))
     {
         axes = const_op->get_axis_set_val();
     }
@@ -116,6 +115,7 @@ OutputVector op::NormalizeL2::decompose_op() const
 
 shared_ptr<Node> op::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs);
     if (new_args.size() != 2)
     {
         throw ngraph_error("Incorrect number of new arguments");

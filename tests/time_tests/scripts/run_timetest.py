@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-# Copyright (C) 2020 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
+
 """
 This script runs timetest executable several times and aggregate
 collected statistics.
@@ -10,14 +11,21 @@ collected statistics.
 # pylint: disable=redefined-outer-name
 
 import statistics
-from pathlib import Path
 import tempfile
 import subprocess
 import logging
 import argparse
 import sys
-from pprint import pprint
+import os
 import yaml
+
+from pathlib import Path
+from pprint import pprint
+
+TIME_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(TIME_TESTS_DIR)
+
+from test_runner.utils import filter_timetest_result
 
 
 def run_cmd(args: list, log=None, verbose=True):
@@ -50,6 +58,22 @@ def run_cmd(args: list, log=None, verbose=True):
     return proc.returncode, ''.join(output)
 
 
+def parse_stats(stats: dict, res: dict):
+    """Parse raw statistics from nested list to flatten dict"""
+    for element in stats:
+        if isinstance(element, (int, float)):
+            for k, v in res.items():
+                if v is None:
+                    res.update({k: element})
+        else:
+            for k, v in element.items():
+                if len(v) == 1:
+                    res.update({k: v[0]})
+                else:
+                    res.update({k: None})
+                    parse_stats(v, res)
+
+
 def aggregate_stats(stats: dict):
     """Aggregate provided statistics"""
     return {step_name: {"avg": statistics.mean(duration_list),
@@ -75,7 +99,7 @@ def run_timetest(args: dict, log=None):
     # Run executable and collect statistics
     stats = {}
     for run_iter in range(args["niter"]):
-        tmp_stats_path = tempfile.NamedTemporaryFile().name     # create temp file, get path and delete temp file
+        tmp_stats_path = tempfile.NamedTemporaryFile().name
         retcode, msg = run_cmd(cmd_common + ["-s", str(tmp_stats_path)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
@@ -84,18 +108,28 @@ def run_timetest(args: dict, log=None):
 
         # Read raw statistics
         with open(tmp_stats_path, "r") as file:
-            raw_data = yaml.safe_load(file)
-        log.debug("Raw statistics after run of executable #{}: {}".format(run_iter, raw_data))
+            raw_data = list(yaml.load_all(file, Loader=yaml.SafeLoader))
+
+        os.unlink(tmp_stats_path)
+
+        # Parse raw data
+        flatten_data = {}
+        parse_stats(raw_data[0], flatten_data)
+
+        log.debug("Statistics after run of executable #{}: {}".format(run_iter, flatten_data))
 
         # Combine statistics from several runs
         stats = dict((step_name, stats.get(step_name, []) + [duration])
-                     for step_name, duration in raw_data.items())
+                     for step_name, duration in flatten_data.items())
+
+    # Remove outliers
+    filtered_stats = filter_timetest_result(stats)
 
     # Aggregate results
-    aggregated_stats = aggregate_stats(stats)
+    aggregated_stats = aggregate_stats(filtered_stats)
     log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
 
-    return 0, aggregated_stats
+    return 0, aggregated_stats, stats
 
 
 def check_positive_int(val):
@@ -125,7 +159,7 @@ def cli_parser():
                         type=str,
                         help='target device to infer on')
     parser.add_argument('-niter',
-                        default=3,
+                        default=10,
                         type=check_positive_int,
                         help='number of times to execute binary to aggregate statistics of')
     parser.add_argument('-s',
@@ -144,7 +178,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, aggr_stats = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
+    exit_code, aggr_stats, _ = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
 
     if args.stats_path:
         # Save aggregated results to a file
@@ -157,3 +191,19 @@ if __name__ == "__main__":
         pprint(aggr_stats)
 
     sys.exit(exit_code)
+
+
+def test_timetest_parser():
+    # Example of timetest yml file
+    raw_data_example = [{'full_run': [1, {'first_inference_latency': [2, {'load_plugin': [3]}, {
+        'create_exenetwork': [4, {'read_network': [5]}, {'load_network': [6]}]}]},
+                              {'first_inference': [7, {'fill_inputs': [8]}]}]}]
+
+    # Refactoring raw data from yml
+    flatten_dict = {}
+    parse_stats(raw_data_example, flatten_dict)
+
+    expected_result = {'full_run': 1, 'first_inference_latency': 2, 'load_plugin': 3, 'create_exenetwork': 4,
+                       'read_network': 5, 'load_network': 6, 'first_inference': 7, 'fill_inputs': 8}
+
+    assert flatten_dict == expected_result, "Statistics parsing is performed incorrectly!"

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         void run(Task task) override {
             auto workerInferRequest = _this->_workerInferRequest;
             workerInferRequest->_task = std::move(task);
-            workerInferRequest->_inferRequest.StartAsync();
+            workerInferRequest->_inferRequest->StartAsync();
         };
         MultiDeviceAsyncInferRequest* _this = nullptr;
     };
@@ -39,8 +39,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                _multiDeviceExecutableNetwork->_thisPreferredDeviceName = "";
                // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
                for (const auto &it : _multiDeviceExecutableNetwork->GetInputsInfo()) {
-                   Blob::Ptr b;
-                   _inferRequest->GetBlob(it.first.c_str(), b);
+                   auto b = _inferRequest->GetBlob(it.first);
                    auto r = b->as<RemoteBlob>();
                    if (r) {
                        const auto name = r->getDeviceName();
@@ -49,7 +48,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                                _multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend(),
                                [&name](const MultiDevicePlugin::DeviceInformation& d){ return d.deviceName == name; });
                        if (_multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend() == res) {
-                           THROW_IE_EXCEPTION << "None of the devices (for which current MULTI-device configuration was "
+                           IE_THROW() << "None of the devices (for which current MULTI-device configuration was "
                                                  "initialized) supports a remote blob created on the device named " << name;
 
                        } else {
@@ -70,15 +69,11 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         }},
         // final task in the pipeline:
         { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
-              auto status = _workerInferRequest->_status;
-              if (InferenceEngine::StatusCode::OK != status) {
-                  if (nullptr != InferenceEngine::CurrentException())
-                      std::rethrow_exception(InferenceEngine::CurrentException());
-                  else
-                      THROW_IE_EXCEPTION << InferenceEngine::details::as_status << status;
+              if (nullptr != _workerInferRequest->_exceptionPtr) {
+                  std::rethrow_exception(_workerInferRequest->_exceptionPtr);
               }
               if (_needPerfCounters)
-                  _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();
+                  _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
         }}
     };
 }
@@ -87,8 +82,9 @@ void MultiDeviceAsyncInferRequest::Infer_ThreadUnsafe() {
     InferUsingAsync();
 }
 
-void MultiDeviceAsyncInferRequest::GetPerformanceCounts_ThreadUnsafe(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
-    perfMap = std::move(_perfMap);
+std::map<std::string, InferenceEngineProfileInfo> MultiDeviceAsyncInferRequest::GetPerformanceCounts() const {
+    CheckState();
+    return std::move(_perfMap);
 }
 
 MultiDeviceAsyncInferRequest::~MultiDeviceAsyncInferRequest() {

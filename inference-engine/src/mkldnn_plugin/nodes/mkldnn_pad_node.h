@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,15 @@ namespace MKLDNNPlugin {
 
 class MKLDNNPadNode : public MKLDNNNode {
 public:
-    MKLDNNPadNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNPadNode() override = default;
+    MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     enum PadMode {
@@ -29,14 +30,13 @@ private:
         SYMMETRIC = 3
     };
 
-    void padConstantOrEdge(const float *srcData, float* dstData,
-                           InferenceEngine::SizeVector srcDims, InferenceEngine::SizeVector dstDims,
-                           const bool isEdge = false);
-    void padReflectOrSymmetric(const float *srcData, float* dstData,
-                               InferenceEngine::SizeVector srcDims, InferenceEngine::SizeVector dstDims,
-                               const bool isSymmetric = false);
+    void padConstant();
+    template<typename T> void padConstantCommon();
+    void padConstantZero();
+    void padEdge();
+    void padReflectOrSymmetric(const bool isSymmetric = false);
 
-    size_t getWorkAmountDst() const;
+    inline void getDstIdx(const InferenceEngine::SizeVector& indexes, size_t& dstIdx) const;
 
     PadMode padMode = CONSTANT;
     float padValue = 0.f;
@@ -44,12 +44,34 @@ private:
     std::vector<unsigned int> padsEnd;
 
     struct {
+        InferenceEngine::SizeVector srcDims;
+        InferenceEngine::SizeVector dstDims;
         InferenceEngine::SizeVector srcODims;
         InferenceEngine::SizeVector srcStrides;
         InferenceEngine::SizeVector dstStrides;
-        size_t padPointsNum = 0;
-        InferenceEngine::SizeVector padDims;
+        InferenceEngine::SizeVector srcDimsForReflectOrSymmetric;
+        int nThreads = 0;
+        size_t nDimsForWork = 0lu;
+        size_t workAmount = 0lu;
+        size_t lastDstDim = 1lu;
+        size_t shift = 0lu;
+        uint8_t sizeData = 1;
     } params;
+
+    template<typename T>
+    struct PadConstantEmitter {
+        void operator()(MKLDNNPadNode* node) {
+            node->padConstantCommon<T>();
+        }
+    };
+
+    std::string errorPrefix;
+    static const size_t DATA_ID = 0;
+    static const size_t PADS_BEGIN_ID = 1;
+    static const size_t PADS_END_ID = 2;
+    static const size_t PAD_VALUE_ID = 3;
+
+    bool isPadValueSpecified = false;
 };
 
 }  // namespace MKLDNNPlugin

@@ -1,22 +1,11 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #pragma once
 
 #include "kernel_selector_params.h"
+#include "cldnn/runtime/kernel_args.hpp"
 
 #include <cfloat>
 #include <cstdint>
@@ -37,6 +26,7 @@ namespace kernel_selector {
 #endif
 
 // TODO: current solution until we will have kernel selection time based
+#define KernelsPriority float
 #define FORCE_PRIORITY_1 (0.0000001f)
 #define FORCE_PRIORITY_2 (0.0000002f)
 #define FORCE_PRIORITY_3 (0.0000003f)
@@ -52,117 +42,28 @@ namespace kernel_selector {
 
 std::string GetStringEnv(const char* varName);
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// KernelString
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct KernelString {
-    std::string str;
-    std::string jit;
-    std::string options;
-    std::string entry_point;
-    bool batch_compilation;
+using KernelString = cldnn::kernel_string;
+using WorkGroupSizes = cldnn::work_group_sizes;
+using ScalarDescriptor = cldnn::scalar_desc;
+using Scalars = cldnn::scalars_desc;
+using ArgumentDescriptor = cldnn::argument_desc;
+using Arguments = cldnn::arguments_desc;
+using KernelParams = cldnn::kernel_arguments_desc;
 
-    KernelString() : str(""), jit(""), options(""), entry_point(""), batch_compilation(false) {}
 
-    std::string get_hash() { return str + jit + options + entry_point; }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// KernelCode
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct KernelCode {
+    std::shared_ptr<KernelString> kernelString;
 };
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// WorkGroupSizes
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct WorkGroupSizes {
-    std::vector<size_t> global;
-    std::vector<size_t> local;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Scalar
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct ScalarDescriptor {
-    union ValueT {
-        uint8_t u8;
-        uint16_t u16;
-        uint32_t u32;
-        uint64_t u64;
-        int8_t s8;
-        int16_t s16;
-        int32_t s32;
-        int64_t s64;
-        float f32;
-        double f64;
-    };
-
-    enum class Types {
-        UINT8,
-        UINT16,
-        UINT32,
-        UINT64,
-        INT8,
-        INT16,
-        INT32,
-        INT64,
-        FLOAT32,
-        FLOAT64,
-    };
-
-    Types t;
-    ValueT v;
-};
-
-using Scalars = std::vector<ScalarDescriptor>;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ArgumentDescpirtor
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct ArgumentDescriptor {
-    enum class Types {
-        INPUT,
-        OUTPUT,
-        WEIGHTS,
-        BIAS,
-        SCALE_TABLE,
-        SLOPE,
-        SPLIT,
-        INTERNAL_BUFFER,
-        SCALAR,
-        RECURRENT,  // RNN/LSTM/GRU recurrent weights
-        HIDDEN,     // RNN/LSTM/GRU hidden input
-        CELL,       // LSTM cell input
-        LSTM_PACK,  // LSTM packed output
-        WEIGHTS_ZERO_POINTS,
-        ACTIVATIONS_ZERO_POINTS,
-        COMPENSATION,
-        INPUT_OF_FUSED_PRIMITIVE
-    };
-
-    enum class ScalarTypes {
-        UINT8,
-        UINT16,
-        UINT32,
-        UINT64,
-        INT8,
-        INT16,
-        INT32,
-        INT64,
-        FLOAT32,
-        FLOAT64,
-    };
-
-    Types t;
-    uint32_t index;
-};
-
-using Arguments = std::vector<ArgumentDescriptor>;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // clKernelData
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct clKernelData {
-    std::shared_ptr<KernelString> kernelString;
-    WorkGroupSizes workGroups;
-    Arguments arguments;
-    Scalars scalars;
-    std::string layerID;  // TODO: in order to support run single layer. think about more appropriate place
+    KernelCode code;
+    KernelParams params;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -200,7 +101,6 @@ struct KernelData {
     std::vector<clKernelData> kernels;
     std::vector<size_t> internalBufferSizes;
     Datatype internalBufferDataType = Datatype::UNSUPPORTED;
-    float estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     uint64_t runTime = std::numeric_limits<uint64_t>::max();  // kernel run time in nanoseconds
 
     bool reorderInput = false;
@@ -215,7 +115,6 @@ struct KernelData {
         const T& orgParams = static_cast<const T&>(_params);
         kd.params = std::make_shared<T>(orgParams);
         kd.kernels.resize(kernel_nums);
-        kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;  // for KW
         kd.runTime = std::numeric_limits<uint64_t>::max();
         kd.reorderInput = false;  // for KW
         kd.autoTuneIndex = -1;
@@ -245,6 +144,7 @@ std::string toString(KernelDividerMode mode);
 std::string toString(SoftmaxDim d);
 std::string toString(NormalizeMode mode);
 std::string toString(MVNMode mode);
+std::string toString(MVNEpsMode mode);
 std::string toString(WeightsLayout layout);
 std::string toString(ConcatAxis a);
 std::string toString(GatherAxis a);

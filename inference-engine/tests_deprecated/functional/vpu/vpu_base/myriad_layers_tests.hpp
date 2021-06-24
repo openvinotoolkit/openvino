@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include "myriad_layers_reference_functions.hpp"
+#include "xml_net_builder.hpp"
 #include "vpu_layers_tests.hpp"
 #include <file_utils.h>
 
@@ -301,7 +302,6 @@ public:
         if (add_bias) {
             sz_bias = _par.out_c;
         }
-        size_t sz = sz_weights + sz_bias;
         // @todo: FullyConnected is not present in IRv10. Need to move to MatMul somehow. MatMul need different initializetion here.
         _testNet.addLayer(LayerInitParams(_irVersion == IRVersion::v10 ? "MatMul" : "FullyConnected")
                   .params(params)

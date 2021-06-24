@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import copy
 import logging as log
 
@@ -26,30 +14,6 @@ from mo.front.onnx.extractors.utils import onnx_attr
 from mo.front.onnx.loader import node_id, add_initializers_and_inputs_to_graph
 from mo.graph.graph import Graph, Node, add_opoutput
 from mo.utils.error import Error
-
-
-def connect_body_output(loop_node: Node, loop_output_port_idx: int, internal_result: Node, axis: [int, None] = None,
-                        start: [int, None] = None, end: [int, None] = None, stride: [int, None] = None,
-                        part_size: [int, None] = None):
-    assert loop_node.soft_get('op') == 'Loop'
-    assert internal_result.soft_get('op') == 'Result'
-    assert internal_result.id in loop_node.body
-
-    loop_node.output_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
-                                      'end': end, 'external_port_id': loop_output_port_idx,
-                                      'internal_layer_id': internal_result['internal_layer_id']})
-
-
-def connect_body_input(loop_node: Node, loop_input_port_idx: int, body_parameter: Node,
-                       axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
-                       stride: [int, None] = None, part_size: [int, None] = None):
-    assert loop_node.soft_get('op') == 'Loop'
-    assert body_parameter.soft_get('op') == 'Parameter'
-    assert body_parameter.id in loop_node.body
-
-    loop_node.input_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
-                                     'end': end, 'external_port_id': loop_input_port_idx,
-                                     'internal_layer_id': body_parameter['internal_layer_id']})
 
 
 class LoopExtractor(FrontExtractorOp):
@@ -83,6 +47,8 @@ class LoopExtractor(FrontExtractorOp):
             # create an NX node
             id = body_graph.unique_id(node_id(pb_node))
             body_graph.add_node(id, pb=pb_node, kind='op')
+            if hasattr(body_graph, 'op_names_statistic') and hasattr(pb_node, 'op_type'):
+                body_graph.op_names_statistic[pb_node.op_type] += 1
 
             # add incoming edges based on data_nodes_map
             for dst_port, inp in enumerate(pb_node.input):
@@ -101,7 +67,7 @@ class LoopExtractor(FrontExtractorOp):
                             # need to manually update necessary attrs for the node because extractor will not be called
                             # for it because the node does not have .pb attribute
                             Parameter.update_node_stat(parameter_node, {})
-                            external_edges.append((main_graph.graph['tensor_mapping'][inp], parameter_node))
+                            external_edges.append((main_graph.graph['tensor_mapping'][inp], parameter_node, inp))
                             src_id, src_port = param_id, 0
                             additional_params[main_graph.graph['tensor_mapping'][inp]] = parameter_node
                         else:
@@ -117,7 +83,7 @@ class LoopExtractor(FrontExtractorOp):
                     'out': src_port,
                     'in': dst_port,
                     'name': inp,
-                    'fw_tensor_debug_info': [(inp, inp)],
+                    'fw_tensor_debug_info': [(src_id, inp)],
                     'in_attrs': ['in', 'name'],
                     'out_attrs': ['out', 'name'],
                     'data_attrs': ['fw_tensor_debug_info']
@@ -168,23 +134,23 @@ class LoopExtractor(FrontExtractorOp):
         # some of the inputs/outputs may not be connected but the normalization transformation will take care of it
         # connection Loop body nodes with external input edges
         next_loop_input_port_idx = sorted(loop_node.in_edges().keys())[-1] + 1
-        for (src_node, src_port), body_node in external_edges:
+        for (src_node, src_port), body_node, tensor_name in external_edges:
             main_graph.add_edge(src_node, loop_node.id, **{'out': src_port,
                                                            'in': next_loop_input_port_idx,
                                                            'name': src_node,
-                                                           'fw_tensor_debug_info': [(src_node, src_node)],
+                                                           'fw_tensor_debug_info': [(src_node, tensor_name)],
                                                            'in_attrs': ['in', 'name'],
                                                            'out_attrs': ['out', 'name'],
                                                            'data_attrs': ['fw_tensor_debug_info']}
                                 )
-            connect_body_input(loop_node, next_loop_input_port_idx, body_node)
+            Loop.connect_body_input(loop_node, next_loop_input_port_idx, body_node)
             next_loop_input_port_idx += 1
 
         # mark current iteration input Parameter node
         Loop.mark_current_iteration_parameter_node(loop_node, body_parameters[0])
 
         # connect initial value for "execution condition" input of the loop
-        connect_body_input(loop_node, 1, body_parameters[1])
+        Loop.connect_body_input(loop_node, 1, body_parameters[1])
         # add back edge with "execution condition"
         Loop.add_back_edge(loop_node, body_parameters[1], body_results[0])
         # mark "execution condition" Result node
@@ -192,17 +158,17 @@ class LoopExtractor(FrontExtractorOp):
 
         # connect initial value for "loop carried" dependencies variables
         for idx in range(loop_carried_dependencies_count):
-            connect_body_input(loop_node, idx + 2, body_parameters[idx + 2])
+            Loop.connect_body_input(loop_node, idx + 2, body_parameters[idx + 2])
         # add back edge for "loop carried" dependencies variables
         for idx in range(loop_carried_dependencies_count):
             Loop.add_back_edge(loop_node, body_parameters[idx + 2], body_results[idx + 1])
         # connect final value for "loop carried" dependencies variables
         for idx in range(loop_carried_dependencies_count):
-            connect_body_output(loop_node, idx, body_results[idx + 1])
+            Loop.connect_body_output(loop_node, idx, body_results[idx + 1])
 
         # connect "scan outputs" and mark axis for concatenation
         for idx in range(loop_carried_dependencies_count, loop_carried_dependencies_count + scan_outputs_count):
-            connect_body_output(loop_node, idx, body_results[idx + 1], axis=0)
+            Loop.connect_body_output(loop_node, idx, body_results[idx + 1], axis=0)
 
         # run function to parse body nodes attributes similar to the main graph
         extract_node_attrs(body_graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))

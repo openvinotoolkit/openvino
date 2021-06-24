@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -23,7 +11,7 @@
 #include "lstm_dynamic/lstm_dynamic_timeloop_kernel_selector.h"
 #include "lstm_dynamic/lstm_dynamic_timeloop_kernel_base.h"
 #include "network_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -32,19 +20,22 @@ struct lstm_dynamic_timeloop_gpu : typed_primitive_gpu_impl<lstm_dynamic_timeloo
     using parent = typed_primitive_gpu_impl<lstm_dynamic_timeloop>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<lstm_dynamic_timeloop_gpu>(*this);
+    }
+
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_timeloop>& instance,
-                                                        int32_t) const override {
-        kernel::kernel_arguments_data args;
-        args.inputs = {(memory_impl::cptr) &instance.input_memory(), (memory_impl::cptr) &instance.dyn_length_memory()};
+    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_timeloop>& instance, int32_t) const override {
+        kernel_arguments_data args;
+        args.inputs = {instance.input_memory_ptr(), instance.dyn_length_memory()};
         if (instance.last_hidden_output_term())
-            args.inputs.push_back((memory_impl::cptr) &instance.last_hidden_output_memory());
+            args.inputs.push_back(instance.last_hidden_output_memory());
         if (instance.last_cell_output_term())
-            args.inputs.push_back((memory_impl::cptr) &instance.last_cell_output_memory());
-        args.output = (memory_impl::cptr) &instance.output_memory();
-        args.recurrent = (memory_impl::cptr) &instance.recurrent_memory();
-        args.hidden = (memory_impl::cptr) (instance.initial_hidden_term() ? &instance.initial_hidden_memory() : nullptr);
-        args.cell = (memory_impl::cptr) (instance.initial_cell_term() ? &instance.initial_cell_memory() : nullptr);
+            args.inputs.push_back(instance.last_cell_output_memory());
+        args.output = instance.output_memory_ptr();
+        args.recurrent = instance.recurrent_memory();
+        args.hidden = instance.initial_hidden_term() ? instance.initial_hidden_memory() : nullptr;
+        args.cell = instance.initial_cell_term() ? instance.initial_cell_memory() : nullptr;
         return args;
     }
 

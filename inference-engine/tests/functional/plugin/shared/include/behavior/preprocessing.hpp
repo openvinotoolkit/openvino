@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,20 +8,10 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ie_preprocess.hpp"
-#include "functional_test_utils/behavior_test_utils.hpp"
-
-namespace {
-void setInputNetworkPrecision(InferenceEngine::CNNNetwork &network, InferenceEngine::InputsDataMap &inputs_info,
-                              InferenceEngine::Precision input_precision) {
-    inputs_info = network.getInputsInfo();
-    ASSERT_EQ(1u, inputs_info.size());
-    inputs_info.begin()->second->setPrecision(input_precision);
-}
-
-}
+#include "base/behavior_test_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
 
@@ -93,6 +83,7 @@ public:
         SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
 
         std::tie(inPrc, channels, use_set_input, targetDevice, configuration) = this->GetParam();
+        outPrc = inPrc;
 
         bool specialZero = true;
 
@@ -119,9 +110,12 @@ public:
     }
 
     void Validate() override {
+        // w/a: copy of original function is required to provide correct op coverage report (overflow of convert counter issue)
+        auto copyOriginalFunction = function;
         //force the reference implementation to use graph with extra Convert operation
         function = reference_function;
         LayerTestsUtils::LayerTestsCommon::Validate();
+        function = copyOriginalFunction;
     }
 
 public:

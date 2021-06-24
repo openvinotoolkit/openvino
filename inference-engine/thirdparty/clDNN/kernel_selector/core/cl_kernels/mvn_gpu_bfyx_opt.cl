@@ -1,16 +1,6 @@
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "include/common.cl"
 #include "include/data_types.cl"
@@ -28,7 +18,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
     const uint workers_per_data_set = LWS;          //how many WI participates in processing of one data set
     const uint in_data_set_idx = get_global_id(0);  //this WI's id in group of items processing single data set
     const uint data_set_size = DATA_SET_SIZE;       //how many elements are in one data set
-    const uint data_sets_count = DATA_SETS_COUNT;   //how many data sets are in the processing payload     
+    const uint data_sets_count = DATA_SETS_COUNT;   //how many data sets are in the processing payload
 
     const uint data_set_offset = data_set_idx * data_set_size;
     const uint my_data_offset = data_set_offset + in_data_set_idx;
@@ -112,7 +102,12 @@ KERNEL (mvn_gpu_bfyx_opt)(
             my_variance += lg_storage[i];
 
         my_variance /= data_set_size;
+
+#   if defined EPS_OUTSIDE_SQRT
+        lg_storage[0] = native_powr(native_sqrt(my_variance) + (float)EPSILON, -1.f);
+#   elif defined EPS_INSIDE_SQRT
         lg_storage[0] = native_powr(my_variance + (float)EPSILON, -0.5f);
+#   endif
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 

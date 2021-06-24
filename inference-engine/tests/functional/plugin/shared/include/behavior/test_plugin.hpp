@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,12 @@
 #include <memory>
 #include "ie_extension.h"
 #include <condition_variable>
-#include <legacy/ie_util_internal.hpp>
 #include <common_test_utils/ngraph_test_utils.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
-#include <functional_test_utils/test_model/test_model.hpp>
 #include <fstream>
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <base/behavior_test_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
@@ -47,15 +45,6 @@ TEST_P(BehaviorTests, allocateNullBlob) {
     ASSERT_NO_THROW(blob.allocate());
 }
 
-TEST_P(BehaviorTests, canNotLoadNetworkWithoutWeights) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    InferenceEngine::Core core;
-    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
-    ASSERT_THROW(core.ReadNetwork(model.model_xml_str, InferenceEngine::Blob::CPtr()),
-                 InferenceEngine::details::InferenceEngineException);
-}
-
 TEST_P(BehaviorTests, pluginDoesNotChangeOriginalNetwork) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -83,17 +72,7 @@ TEST_P(BehaviorTestInput, canSetInputPrecisionForNetwork) {
             || targetDevice == CommonTestUtils::DEVICE_HDDL
             || targetDevice == CommonTestUtils::DEVICE_KEEMBAY)
          && netPrecision == InferenceEngine::Precision::I16) {
-        std::string msg;
-        InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
-        try {
-            ie->LoadNetwork(cnnNet, targetDevice, configuration);
-        } catch (InferenceEngine::details::InferenceEngineException ex) {
-            msg = ex.what();
-            sts = ex.getStatus();
-        }
-        ASSERT_EQ(InferenceEngine::StatusCode::GENERAL_ERROR, sts) << msg;
-        std::string refError = "Input image format I16 is not supported yet.";
-        ASSERT_EQ(refError, msg);
+        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration), InferenceEngine::GeneralError);
     } else {
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
     }
@@ -107,24 +86,14 @@ TEST_P(BehaviorTestOutput, canSetOutputPrecisionForNetwork) {
     InferenceEngine::OutputsDataMap output_info;
     InferenceEngine::CNNNetwork cnnNet(function);
     setOutputNetworkPrecision(cnnNet, output_info, netPrecision);
-
-    std::string msg;
-    InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
-
-    try {
-        InferenceEngine::ExecutableNetwork exeNetwork = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    } catch (InferenceEngine::details::InferenceEngineException ex) {
-        sts = ex.getStatus();
-        msg = ex.what();
-        std::cout << "LoadNetwork() threw InferenceEngineException. Status: " << sts << ", message: " << msg << std::endl;
-    }
-
     if ((netPrecision == InferenceEngine::Precision::I16 || netPrecision == InferenceEngine::Precision::U8)) {
         if ((targetDevice == "CPU") || (targetDevice == "GPU"))  {
-            ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
+            ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        } else {
+            GTEST_SKIP();
         }
     } else {
-        ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
     }
 }
 }  // namespace BehaviorTestsDefinitions

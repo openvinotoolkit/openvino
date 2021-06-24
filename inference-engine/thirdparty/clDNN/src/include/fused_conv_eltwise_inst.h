@@ -1,22 +1,10 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api_extension/fused_conv_eltwise.hpp"
+#include "cldnn/primitives/fused_conv_eltwise.hpp"
 #include "primitive_inst.h"
 
 #include <memory>
@@ -37,7 +25,7 @@ public:
         if (get_primitive()->eltw.with_activation) {
             auto slope = get_primitive()->eltw.activation_negative_slope;
             if (slope == 0.f) {
-                this->add_fused_activation(activation_func::relu, {});
+                this->add_fused_activation(activation_func::relu, {0.0f, 0.0f});
             } else {
                 this->add_fused_activation(activation_func::relu_negative_slope, { slope, 0.f });
             }
@@ -95,18 +83,18 @@ public:
 public:
     typed_primitive_inst(network_impl& network, fused_conv_eltwise_node const& node);
 
-    memory_impl& weights_memory(size_t index) const {
+    memory::ptr weights_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("weights offset too big");
 
-        return dep_memory(2 + index);
+        return dep_memory_ptr(2 + index);
     }
 
-    memory_impl& bias_memory(size_t index) const {
+    memory::ptr bias_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("bias offset too big");
 
-        return dep_memory(2 + node.get_split() + index);
+        return dep_memory_ptr(2 + node.get_split() + index);
     }
 
     bool bias_term() const { return node.bias_term(); }

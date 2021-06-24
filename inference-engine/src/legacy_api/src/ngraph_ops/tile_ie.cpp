@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ void op::TileIE::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_pshape);
 }
 
-bool op::TileIE::visit_attributes(AttributeVisitor& visitor){
+bool op::TileIE::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("axis", axis);
     visitor.on_attribute("tiles", tiles);
     return true;

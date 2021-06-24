@@ -106,7 +106,7 @@ graph {
             dim_value: 2
           }
           dim {
-            dim_value: 15
+            dim_value: 12
           }
         }
       }

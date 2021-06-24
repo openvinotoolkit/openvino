@@ -1,16 +1,6 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "mvn_kernel_b_fs_yx_fsv16_imad.hpp"
 #include "common/common_tools.h"
@@ -179,8 +169,7 @@ MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::Se
 }
 
 KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_params& params,
-                                                                   const optional_params& options,
-                                                                   float estimated_time) const {
+                                                                   const optional_params& options) const {
     if (!Validate(params, options))
         return {};
 
@@ -211,9 +200,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
                                          dispatchData.item_groups * intermidiate_bytes);
     }
@@ -235,9 +224,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
                                          intermidiate_bytes);
     }
@@ -259,10 +248,10 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
     }
     if (params.mvnNormalizeVariance) {
         // Variance second stage
@@ -282,9 +271,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
                                          intermidiate_bytes);
     }
@@ -307,13 +296,12 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          1,
                          GetFusedPrimitiveInputsCount(params));
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         if (params.mvnNormalizeVariance) {
-            kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         }
     }
     kd.internalBufferDataType = Datatype::F32;
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }
@@ -331,8 +319,12 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params, c
     auto enough_items = items_num >= max_lws / simd * simd * pref_work_groups;
 
     if (enough_slm && enough_lws && enough_items)
-        return GetMultiStageKernelsData(orgParams, optParams, FORCE_PRIORITY_4);
+        return GetMultiStageKernelsData(orgParams, optParams);
     else
-        return GetCommonKernelsData(params, optParams, FORCE_PRIORITY_4);
+        return GetCommonKernelsData(params, optParams);
+}
+
+KernelsPriority MVNKernel_b_fs_yx_fsv16_imad::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

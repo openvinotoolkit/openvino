@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,17 +7,23 @@
 #include <string>
 #include <memory>
 #include "lpt_ngraph_functions/fake_quantize_function.hpp"
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
+class FakeQuantizeTransformationParam {
+public:
+    ngraph::builder::subgraph::FakeQuantizeOnData fakequantize;
 
-// ngraph::builder::subgraph::FakeQuantizeOnData
+    std::string layerName;
+    std::string expectedKernelType;
+};
+
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
-    ngraph::builder::subgraph::FakeQuantizeOnData> FakeQuantizeTransformationParams;
+    FakeQuantizeTransformationParam> FakeQuantizeTransformationParams;
 
 class FakeQuantizeTransformation :
     public testing::WithParamInterface<FakeQuantizeTransformationParams>,
@@ -27,6 +33,8 @@ public:
 
 protected:
     void SetUp() override;
+
+    void Run() override;
 };
 
 }  // namespace LayerTestsDefinitions

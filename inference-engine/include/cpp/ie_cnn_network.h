@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include "details/ie_exception_conversion.hpp"
 #include "ie_extension.h"
 
 namespace ngraph {
@@ -38,18 +37,18 @@ public:
     /**
      * @brief A default constructor
      */
-    CNNNetwork() = default;
+    CNNNetwork();
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
+     * @deprecated Don't use this constructor. It will be removed soon
      * @brief Allows helper class to manage lifetime of network object
      *
      * @param network Pointer to the network object
      */
-    explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network)
-        : network(network) {
-        actual = network.get();
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-    }
+    INFERENCE_ENGINE_DEPRECATED("Don't use this constructor. It will be removed soon")
+    explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network);
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief A constructor from ngraph::Function object
@@ -62,176 +61,134 @@ public:
                         const std::vector<IExtensionPtr>& exts = {});
 
     /**
-     * @brief A destructor
+     * @brief Gets the network output Data node information. The received info is stored in the given Data node.
+     *
+     * For single and multiple outputs networks.
+     *
+     * This method need to be called to find out OpenVINO output names for using them later
+     * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
+     *
+     * If you want to use framework names, you can use InferenceEngine::CNNNetwork::getOVNameForTensor
+     * method to map framework names to OpenVINO names
+     *
+     * @return the InferenceEngine::OutputsDataMap object
      */
-    virtual ~CNNNetwork() {}
+    OutputsDataMap getOutputsInfo() const;
 
     /**
-     * @copybrief ICNNNetwork::getOutputsInfo
+     * @brief Gets the network input Data node information. The received info is stored in the given InputsDataMap
+     * object.
      *
-     * Wraps ICNNNetwork::getOutputsInfo
+     * For single and multiple inputs networks.
+     * This method need to be called to find out OpenVINO input names for using them later
+     * when calling InferenceEngine::InferRequest::SetBlob
      *
-     * @return outputs Reference to the OutputsDataMap object
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor
+     * method to map framework names to OpenVINO names
+     *
+     * @return The InferenceEngine::InputsDataMap object.
      */
-    virtual OutputsDataMap getOutputsInfo() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        OutputsDataMap outputs;
-        actual->getOutputsInfo(outputs);
-        return outputs;
-    }
+    InputsDataMap getInputsInfo() const;
 
     /**
-     * @copybrief ICNNNetwork::getInputsInfo
-     *
-     * Wraps ICNNNetwork::getInputsInfo
-     *
-     * @return inputs Reference to InputsDataMap object
-     */
-    virtual InputsDataMap getInputsInfo() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        InputsDataMap inputs;
-        actual->getInputsInfo(inputs);
-        return inputs;
-    }
-
-    /**
-     * @copybrief ICNNNetwork::layerCount
-     *
-     * Wraps ICNNNetwork::layerCount
-     *
+     * @brief Returns the number of layers in the network as an integer value
      * @return The number of layers as an integer value
      */
-    size_t layerCount() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->layerCount();
-    }
+    size_t layerCount() const;
 
     /**
-     * @copybrief ICNNNetwork::getName
-     *
-     * Wraps ICNNNetwork::getName
-     *
+     * @brief Returns the network name.
      * @return Network name
      */
-    const std::string& getName() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getName();
-    }
+    const std::string& getName() const;
 
     /**
-     * @copybrief ICNNNetwork::setBatchSize
+     * @brief Changes the inference batch size.
      *
-     * Wraps ICNNNetwork::setBatchSize
+     * @note There are several limitations and it's not recommended to use it. Set batch to the input shape and call
+     * InferenceEngine::CNNNetwork::reshape.
      *
      * @param size Size of batch to set
+     *
+     * @note Current implementation of the function sets batch size to the first dimension of all layers in the
+     * networks. Before calling it make sure that all your layers have batch in the first dimension, otherwise the
+     * method works incorrectly. This limitation is resolved via shape inference feature by using
+     * InferenceEngine::ICNNNetwork::reshape method. To read more refer to the Shape Inference section in documentation
+     *
+     * @note Current implementation of the function sets batch size to the first dimension of all layers in the
+     * networks. Before calling it make sure that all your layers have batch in the first dimension, otherwise the
+     * method works incorrectly. This limitation is resolved via shape inference feature by using
+     * InferenceEngine::ICNNNetwork::reshape method. To read more refer to the Shape Inference section in documentation
      */
-    virtual void setBatchSize(const size_t size) {
-        CALL_STATUS_FNC(setBatchSize, size);
-    }
+    void setBatchSize(const size_t size);
 
     /**
-     * @copybrief ICNNNetwork::getBatchSize
-     *
-     * Wraps ICNNNetwork::getBatchSize
-     *
+     * @brief Gets the inference batch size
      * @return The size of batch as a size_t value
      */
-    virtual size_t getBatchSize() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getBatchSize();
-    }
+    size_t getBatchSize() const;
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
+     * @deprecated InferenceEngine::ICNNNetwork interface is deprecated
      * @brief An overloaded operator cast to get pointer on current network
      *
      * @return A shared pointer of the current network
      */
-    operator ICNNNetwork::Ptr() {
-        return network;
-    }
+    INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    operator ICNNNetwork::Ptr();
 
     /**
+     * @deprecated InferenceEngine::ICNNNetwork interface is deprecated
      * @brief An overloaded operator & to get current network
      *
      * @return An instance of the current network
      */
-    operator ICNNNetwork&() {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return *actual;
-    }
+    INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    operator ICNNNetwork&();
 
     /**
+     * @deprecated InferenceEngine::ICNNNetwork interface is deprecated
      * @brief An overloaded operator & to get current network
      *
      * @return A const reference of the current network
      */
-    operator const ICNNNetwork&() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return *actual;
-    }
+    INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    operator const ICNNNetwork&() const;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Returns constant nGraph function
-     *
      * @return constant nGraph function
      */
-    std::shared_ptr<ngraph::Function> getFunction() {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getFunction();
-    }
+    std::shared_ptr<ngraph::Function> getFunction();
 
     /**
      * @brief Returns constant nGraph function
-     *
      * @return constant nGraph function
      */
-    std::shared_ptr<const ngraph::Function> getFunction() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getFunction();
-    }
+    std::shared_ptr<const ngraph::Function> getFunction() const;
 
     /**
-     * @copybrief ICNNNetwork::addOutput
-     *
-     * Wraps ICNNNetwork::addOutput
-     *
+     * @brief Adds output to the layer
      * @param layerName Name of the layer
      * @param outputIndex Index of the output
      */
-    void addOutput(const std::string& layerName, size_t outputIndex = 0) {
-        CALL_STATUS_FNC(addOutput, layerName, outputIndex);
-    }
+    void addOutput(const std::string& layerName, size_t outputIndex = 0);
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Helper method to get collect all input shapes with names of corresponding Data objects
-     *
      * @return Map of pairs: input name and its dimension.
      */
-    virtual ICNNNetwork::InputShapes getInputShapes() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        ICNNNetwork::InputShapes shapes;
-        InputsDataMap inputs;
-        actual->getInputsInfo(inputs);
-        for (const auto& pair : inputs) {
-            auto info = pair.second;
-            if (info) {
-                auto data = info->getInputData();
-                if (data) {
-                    shapes[data->getName()] = data->getTensorDesc().getDims();
-                }
-            }
-        }
-        return shapes;
-    }
+    ICNNNetwork::InputShapes getInputShapes() const;
 
     /**
      * @brief Run shape inference with new input shapes for the network
-     *
-     * @param inputShapes - map of pairs: name of corresponding data and its dimension.
+     * @param inputShapes A map of pairs: name of corresponding data and its dimension.
      */
-    virtual void reshape(const ICNNNetwork::InputShapes& inputShapes) {
-        CALL_STATUS_FNC(reshape, inputShapes);
-    }
+    void reshape(const ICNNNetwork::InputShapes& inputShapes);
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Serialize network to IR and weights files.
@@ -240,11 +197,17 @@ public:
      * @param binPath Path to output weights file. The parameter is skipped in case
      * of executable graph info serialization.
      */
-    void serialize(const std::string& xmlPath, const std::string& binPath = "") const {
-        CALL_STATUS_FNC(serialize, xmlPath, binPath);
-    }
+    void serialize(const std::string& xmlPath, const std::string& binPath = {}) const;
 
-protected:
+    /**
+     * @brief Method maps framework tensor name to OpenVINO name
+     * @param orig_name Framework tensor name
+     * @return OpenVINO name
+     */
+    std::string getOVNameForTensor(const std::string& orig_name) const;
+
+private:
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Network extra interface, might be nullptr
      */
@@ -254,10 +217,7 @@ protected:
      * @brief A pointer to the current network
      */
     ICNNNetwork* actual = nullptr;
-    /**
-     * @brief A pointer to output data
-     */
-    DataPtr output;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace InferenceEngine

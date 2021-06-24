@@ -1,30 +1,16 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
+#include <ngraph/validation_util.hpp>
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/log.hpp"
 #include "ngraph/op/convert.hpp"
-#include "ngraph/op/multiply.hpp"
 #include "ngraph/op/not.hpp"
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/reference/select.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -43,6 +29,7 @@ op::v1::Select::Select(const Output<Node>& arg0,
 
 void op::v1::Select::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Select_validate_and_infer_types);
     // Condition element type check
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_dynamic() ||
@@ -87,6 +74,7 @@ void op::v1::Select::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Select_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Select>(
         new_args.at(0), new_args.at(1), new_args.at(2), m_auto_broadcast);
@@ -94,6 +82,7 @@ shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v1::Select::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Select_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
 }
@@ -133,30 +122,19 @@ namespace detail
 
         switch (et)
         {
-            TYPE_CASE(i8)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(i16)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(i32)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(i64)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u8)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u16)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u32)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u64)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(bf16)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(f32)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(f64)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(boolean)(output_values, input_values, autob);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_select, i8, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, i16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, i32, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, i64, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u8, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, f16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
         default: rc = false; break;
         }
 
@@ -167,7 +145,33 @@ namespace detail
 bool op::v1::Select::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
+    NGRAPH_OP_SCOPE(v1_Select_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     const auto autob = get_auto_broadcast();
+    return detail::evaluate_select(
+        output_values, input_values, autob, output_values[0]->get_element_type());
+}
 
-    return detail::evaluate_select(output_values, input_values, autob, get_output_element_type(0));
+bool op::v1::Select::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Select_has_evaluate);
+    switch (get_output_element_type(0))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64:
+    case ngraph::element::boolean: return true;
+    default: break;
+    }
+    return false;
 }

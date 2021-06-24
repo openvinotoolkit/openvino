@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "lpt_ngraph_functions/group_convolution_function.hpp"
@@ -33,6 +33,7 @@ std::string GroupConvolutionTransformation::getTestCaseName(testing::TestParamIn
         param.inputShape << "_" <<
         param.outputShape << "_" <<
         param.group << "_" <<
+        param.groupCalculationDimention << "_" <<
         param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights;
     return result.str();
@@ -51,20 +52,35 @@ void GroupConvolutionTransformation::SetUp() {
         param.inputShape,
         param.outputShape,
         param.group,
+        param.groupCalculationDimention,
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
 
-    validateNGraph();
+    validate();
 }
 
-void GroupConvolutionTransformation::validateNGraph() {
+void GroupConvolutionTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto param = std::get<3>(GetParam());
+    if (!param.layerName.empty()) {
+        const auto actualPrecision = getRuntimePrecisionByType(param.layerName);
+        auto expectedPrecision = param.expectedKernelType;
+        if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+            expectedPrecision = "FP16";
+        }
+        EXPECT_EQ(actualPrecision, expectedPrecision);
+    }
+}
+
+void GroupConvolutionTransformation::validate() {
     ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     GroupConvolutionTransformationParam param;
 
     std::tie(netPrecision, targetDevice, params, param) = this->GetParam();
 
-    auto transformed = transformNGraph(params);
+    auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
     EXPECT_EQ(1ul, transformed->get_output_size());
     std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
 

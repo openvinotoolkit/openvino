@@ -1,17 +1,28 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13)
 
-if (CMAKE_BUILD_TYPE STREQUAL "")
-    message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
-    set(CMAKE_BUILD_TYPE "Release")
-endif()
+set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type")
 
-find_package(InferenceEngineDeveloperPackage QUIET)
-if (NOT InferenceEngineDeveloperPackage_FOUND)
-    find_package(InferenceEngine REQUIRED)
+project(time_tests)
+
+set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+
+# Search OpenVINO Inference Engine installed
+find_package(InferenceEngine)
+if (NOT InferenceEngine_FOUND)
+    # Search OpenVINO Inference Engine via InferenceEngine_DIR
+    find_package(IEDevScripts
+                 PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+                 NO_CMAKE_FIND_ROOT_PATH
+                 NO_DEFAULT_PATH)
+    if (NOT InferenceEngine_FOUND)
+        # Search OpenVINO Inference Engine via InferenceEngineDeveloperPackage_DIR
+        # in order to provide backward compatibility with old OpenVINO packages
+        find_package(InferenceEngineDeveloperPackage REQUIRED)
+    endif()
 endif()
 
 add_subdirectory(src)

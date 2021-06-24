@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "kernel_base.h"
 
@@ -126,17 +115,14 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             std::string fused_ops_preload;
             std::string fused_ops_calc;
             std::string in_name = c.input_var_name;
+            std::string out_name = "";
             Datatype in_type = c.input_dt;
             bool can_all_use_preload = true;
 
             for (size_t i = 0; i < params.fused_ops.size(); i++) {
                 auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
-                std::string out_var;
-                Datatype out_type;
                 jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
-                jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_var, out_type));
-                in_name = out_var;
-                in_type = out_type;
+                jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_name));
 
                 bool can_use_preload = fused_dep_codegen.CanPreloadData(c);
                 can_all_use_preload &= can_use_preload;
@@ -156,7 +142,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             jit.AddConstant(MakeJitConstant("FUSED_OPS" + c.suffix, fused_ops));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc));
-            jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, in_name));
+            jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, out_name));
 
             bool can_any_use_preload = !fused_ops_preload.empty();
             jit.AddConstant(MakeJitConstant("FUSED_OPS_CAN_USE_PRELOAD" + c.suffix,

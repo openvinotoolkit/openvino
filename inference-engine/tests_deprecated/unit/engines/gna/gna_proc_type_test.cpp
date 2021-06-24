@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <gmock/gmock-generated-actions.h>
+#include <gmock/gmock.h>
 #include <gna/gna_config.hpp>
 #include "gna_plugin.hpp"
 #include "gna_mock_api.hpp"

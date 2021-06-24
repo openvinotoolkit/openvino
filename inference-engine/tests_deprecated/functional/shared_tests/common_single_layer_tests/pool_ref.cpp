@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <legacy/ie_layers.h>
 #include <precision_utils.h>
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 #include "pool_ref.hpp"
 
 using namespace InferenceEngine;
@@ -12,7 +12,7 @@ using namespace InferenceEngine;
 void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
     auto poolLayer = dynamic_cast<InferenceEngine::PoolingLayer*>(layer);
     if (!poolLayer) {
-        THROW_IE_EXCEPTION << "Layer is not instance of PoolingLayer class";
+        IE_THROW() << "Layer is not instance of PoolingLayer class";
     }
 
     poolLayer->_kernel.clear();
@@ -81,11 +81,11 @@ void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
             std::string alg = poolLayer->GetParamAsString("pool-method", "max");
             poolLayer->_type = alg == "avg" ? InferenceEngine::PoolingLayer::AVG : InferenceEngine::PoolingLayer::MAX;
             if (alg != "max" && alg != "avg") {
-                THROW_IE_EXCEPTION << "Layer has incorrect pool-type!";
+                IE_THROW() << "Layer has incorrect pool-type!";
             }
         }
     } else {
-        for (int i = 1; i <= kernels.size(); i++) {
+        for (size_t i = 1; i <= kernels.size(); i++) {
             poolLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
         }
 
@@ -93,20 +93,20 @@ void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
         std::vector<unsigned int> default_1 = std::vector<unsigned int> (poolLayer->_kernel.size(), 1u);
 
         std::vector<unsigned int> strides = poolLayer->GetParamAsUInts("strides", default_1);
-        for (int i = 1; i <= strides.size(); i++) {
+        for (size_t i = 1; i <= strides.size(); i++) {
             if (strides[strides.size() - i] == 0) {
-                THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << poolLayer->name;
+                IE_THROW() << "Stride could not be 0.\nIn layer " << poolLayer->name;
             }
             poolLayer->_stride.insert(i - 1, strides[strides.size() - i]);
         }
 
         std::vector<unsigned int> pads_begin = poolLayer->GetParamAsUInts("pads_begin", default_0);
-        for (int i = 1; i <= pads_begin.size(); i++) {
+        for (size_t i = 1; i <= pads_begin.size(); i++) {
             poolLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
         }
 
         std::vector<unsigned int> pads_end = poolLayer->GetParamAsUInts("pads_end", pads_begin);
-        for (int i = 1; i <= pads_end.size(); i++) {
+        for (size_t i = 1; i <= pads_end.size(); i++) {
             poolLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
         }
 
@@ -114,7 +114,7 @@ void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
         std::string alg = poolLayer->GetParamAsString("pool-method", "max");
         poolLayer->_type = alg == "avg" ? InferenceEngine::PoolingLayer::AVG : InferenceEngine::PoolingLayer::MAX;
         if (alg != "max" && alg != "avg") {
-            THROW_IE_EXCEPTION << "Layer has incorrect pad-type!";
+            IE_THROW() << "Layer has incorrect pad-type!";
         }
     }
     // TODO: checks for presence of all required attributes, and that there's no extraneous parameters only.
@@ -124,7 +124,7 @@ template<>
 void ref_pool_common<float>(const std::vector<InferenceEngine::Blob::Ptr> srcs, Blob &dst,
         const CommonTestUtils::pool_common_params &p) {
     if (srcs[0]->getTensorDesc().getLayout() != Layout::NCHW)
-        THROW_IE_EXCEPTION << "Reference FP32 convolution supports NCHW layout only";
+        IE_THROW() << "Reference FP32 convolution supports NCHW layout only";
     size_t KW = p.kernel[X_AXIS];
     size_t KH = p.kernel[Y_AXIS];
 

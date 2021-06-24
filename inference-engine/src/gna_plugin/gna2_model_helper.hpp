@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 
 #include <gna2-common-api.h>
 #include <gna2-model-api.h>
+#include "backend/dnn_types.h"
 
 #include <cstdint>
 
@@ -26,6 +27,8 @@ constexpr uint32_t DelayParamIdx = 0;
 constexpr uint32_t PoolModeParamIdx = 2;
 constexpr uint32_t PoolWinParamIdx = 3;
 constexpr uint32_t PoolStrideParamIdx = 4;
+constexpr uint32_t ZeroPaddingParamIdx = 5;
+constexpr uint32_t MaximumScoreParamIdx = 0;
 
 #define GNA_MAX_OP_PARAM 10
 typedef void (*GnaUserFree)(void*);
@@ -49,6 +52,8 @@ Gna2Tensor * createGna2Tensor1D(uint32_t x, uint32_t byteSize, void* data);
 Gna2Tensor * createGna2TensorPwl(uint32_t x, void* data);
 
 Gna2Tensor * createGna2BiasTensor1D(uint32_t x, uint32_t byteSize, void* data);
+
+Gna2Tensor* createGna2Tensor(OvGnaTensor tensor, void* data);
 
 Gna2Tensor * createGna2Tensor2D(uint32_t x, uint32_t y, uint32_t byteSize, void* data);
 
@@ -101,7 +106,8 @@ void HelperGna2OperationInitConvolution(
     Gna2Tensor * filters, Gna2Tensor * biases,
     Gna2Tensor * activation,
     Gna2Shape * convolutionStride,
-    enum Gna2BiasMode * biasMode);
+    enum Gna2BiasMode * biasMode,
+    Gna2Shape* zeroPadding);
 
 void HelperGna2OperationInitCopy(
     Gna2Operation * operation,

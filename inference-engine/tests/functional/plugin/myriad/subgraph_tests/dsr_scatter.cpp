@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ TEST_P(DSR_Scatter, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicScatter, DSR_Scatter,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicScatter, DSR_Scatter,
     ::testing::Combine(
             testing::Values(
                     ngraph::element::f16),
@@ -56,6 +56,12 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicScatter, DSR_Scatter,
                         {{84, 256, 7, 7}, {100, 256, 7, 7}},
                         {{84}, {100}},
                         {{84, 256, 7, 7}, {100, 256, 7, 7}},
+                        0},
+                    ScatterTestCase{
+                        ngraph::opset5::ScatterElementsUpdate::type_info,
+                        {{142}, {300}},
+                        {{80}, {300}},
+                        {{80}, {300}},
                         0}),
     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 

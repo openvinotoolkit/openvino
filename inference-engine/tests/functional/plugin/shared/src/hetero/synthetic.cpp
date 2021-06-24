@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +89,7 @@ void HeteroSyntheticTest::SetUp() {
         bool registred = true;
         try {
             PluginCache::get().ie()->RegisterPlugin(pluginParameter._location, pluginParameter._name);
-        } catch (InferenceEngine::details::InferenceEngineException& ex) {
+        } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
                                              + "\"  is already registered in the InferenceEngine")
                 == std::string::npos) {
@@ -118,7 +117,6 @@ void HeteroSyntheticTest::TearDown() {
 }
 
 std::string HeteroSyntheticTest::SetUpAffinity() {
-    int id = 0;
     auto& param = GetParam();
     std::string affinities;
     auto& pluginParameters = std::get<Plugin>(param);

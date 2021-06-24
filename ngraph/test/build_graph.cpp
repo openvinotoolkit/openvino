@@ -1,27 +1,18 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/opsets/opset7.hpp"
 #include "util/test_tools.hpp"
 
 #include <memory>
+#include <util/type_prop.hpp>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -108,7 +99,7 @@ TEST(build_graph, function_undeclared_parameters)
     }
     catch (const ngraph_error& error)
     {
-        EXPECT_EQ(error.what(), std::string("Function references undeclared parameter"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Function references undeclared parameter"));
     }
     catch (...)
     {
@@ -195,13 +186,13 @@ TEST(build_graph, build_graph_with_sink)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
-    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg, read};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
     auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
-    auto assign = make_shared<op::Assign>(crop, "v0");
+    auto assign = make_shared<opset5::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), SinkVector({assign}), ParameterVector{arg});
 
@@ -216,13 +207,13 @@ TEST(build_graph, build_graph_with_sink_output_ctor)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
-    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg, read};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
     auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
-    auto assign = make_shared<op::Assign>(crop, "v0");
+    auto assign = make_shared<opset5::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(
         OutputVector({pattern->output(0)}), SinkVector({assign}), ParameterVector{arg});
@@ -238,13 +229,13 @@ TEST(build_graph, build_graph_with_add_sink)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
-    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg, read};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
     auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
-    auto assign = make_shared<op::Assign>(crop, "v0");
+    auto assign = make_shared<opset5::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), ParameterVector{arg});
 
@@ -265,13 +256,13 @@ TEST(build_graph, build_graph_with_wrong_remove_sink)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
-    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg, read};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
     auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
-    auto assign = make_shared<op::Assign>(crop, "v0");
+    auto assign = make_shared<opset5::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), SinkVector({assign}), ParameterVector{arg});
 
@@ -289,13 +280,13 @@ TEST(build_graph, build_graph_with_remove_sink)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
-    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg, read};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
     auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
-    auto assign = make_shared<op::Assign>(crop, "v0");
+    auto assign = make_shared<opset5::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), SinkVector({assign}), ParameterVector{arg});
 
@@ -315,7 +306,7 @@ TEST(build_graph, build_graph_with_add_result)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
-    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg, read};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
@@ -342,7 +333,7 @@ TEST(build_graph, build_graph_with_remove_result)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
-    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg, read};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
@@ -362,4 +353,210 @@ TEST(build_graph, build_graph_with_remove_result)
     EXPECT_EQ(results.size(), 1);
     nodes = f->get_ops();
     EXPECT_EQ(nodes.size(), 5);
+}
+
+TEST(build_graph, build_graph_with_add_parameter)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
+    std::vector<shared_ptr<Node>> args = {arg, read};
+    auto pattern = make_shared<op::Concat>(args, 1);
+    auto res = make_shared<op::Result>(pattern);
+    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
+    auto res2 = make_shared<op::Result>(crop, "v0");
+
+    auto f = make_shared<Function>(ResultVector({res, res2}), ParameterVector{arg});
+
+    NodeVector nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 8);
+    ParameterVector params = f->get_parameters();
+    EXPECT_EQ(params.size(), 1);
+
+    pattern->input(1).replace_source_output(arg2->output(0));
+
+    f->add_parameters(ParameterVector({arg2}));
+    params = f->get_parameters();
+    EXPECT_EQ(params.size(), 2);
+    EXPECT_EQ(params[1], arg2);
+    nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 7);
+}
+
+TEST(build_graph, build_graph_with_remove_parameter)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
+    std::vector<shared_ptr<Node>> args = {arg, arg2};
+    auto pattern = make_shared<op::Concat>(args, 1);
+    auto res = make_shared<op::Result>(pattern);
+    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
+    auto res2 = make_shared<op::Result>(crop, "v0");
+
+    auto f = make_shared<Function>(ResultVector({res, res2}), ParameterVector{arg, arg2});
+
+    NodeVector nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 7);
+    ParameterVector params = f->get_parameters();
+    EXPECT_EQ(params.size(), 2);
+
+    pattern->input(1).replace_source_output(read->output(0));
+    f->remove_parameter(arg2);
+    params = f->get_parameters();
+    EXPECT_EQ(params.size(), 1);
+    nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 8);
+}
+
+TEST(build_graph, build_graph_with_remove_parameter_indexing)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
+    auto assign = make_shared<opset5::Assign>(read, "v0");
+    assign->add_control_dependency(read);
+    std::vector<shared_ptr<Node>> args = {arg2, arg};
+    auto pattern = make_shared<op::Concat>(args, 1);
+    auto res = make_shared<op::Result>(pattern);
+    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
+    auto res2 = make_shared<op::Result>(crop, "v0");
+
+    auto f = make_shared<Function>(ResultVector({res, res2}), ParameterVector{arg2, arg});
+
+    NodeVector nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 7);
+    ParameterVector params = f->get_parameters();
+    EXPECT_EQ(params.size(), 2);
+
+    pattern->input(0).replace_source_output(read->output(0));
+    f->remove_parameter(arg2);
+    f->add_sinks(SinkVector{assign});
+    params = f->get_parameters();
+    EXPECT_EQ(params.size(), 1);
+    nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 9);
+
+    f->validate_nodes_and_infer_types();
+}
+
+TEST(build_graph, build_graph_parameters_autodetection)
+{
+    // Function with 4 parameters
+    using namespace opset7;
+    auto arg0 = make_shared<Parameter>(element::f32, Shape{7, 3});
+    auto arg1 = make_shared<Parameter>(element::f32, Shape{3});
+    auto arg2 = make_shared<Parameter>(element::f32, Shape{32, 7});
+    auto arg3 = make_shared<Parameter>(element::f32, Shape{32, 7});
+    auto broadcast_1 = builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto b1 = builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto dot = make_shared<MatMul>(arg2, arg0);
+
+    auto f = make_shared<Function>(OutputVector{dot});
+    EXPECT_EQ(f->get_parameters().size(), 2);
+}
+
+TEST(build_graph, build_graph_parameters_variables_autodetection)
+{
+    using namespace opset7;
+    auto arg = make_shared<Parameter>(element::f32, Shape{2, 4});
+    auto arg2 = make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto init_const = Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+
+    auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
+    auto read = make_shared<ReadValue>(init_const, variable);
+    auto assign = make_shared<Assign>(read, variable);
+    assign->add_control_dependency(read);
+
+    std::vector<shared_ptr<Node>> args = {arg2, arg};
+    auto pattern = make_shared<Concat>(args, 1);
+    auto res = make_shared<Result>(pattern);
+    const auto axis = Constant::create(element::i64, Shape{}, {1});
+    auto crop = make_shared<Split>(pattern, axis, 3);
+    auto res2 = make_shared<Result>(crop, "v0");
+
+    auto f = make_shared<Function>(OutputVector{res, res2}, SinkVector{assign});
+
+    NodeVector nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 10);
+    ParameterVector params = f->get_parameters();
+    EXPECT_EQ(params.size(), 2);
+    VariableVector variables = f->get_variables();
+    EXPECT_EQ(variables.size(), 1);
+}
+
+TEST(build_graph, build_graph_variables_ctors)
+{
+    using namespace opset7;
+    auto arg = make_shared<Parameter>(element::f32, Shape{2, 4});
+    auto arg2 = make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto init_const = Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+
+    auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
+    auto read = make_shared<ReadValue>(init_const, variable);
+    auto assign = make_shared<Assign>(read, variable);
+    assign->add_control_dependency(read);
+
+    std::vector<shared_ptr<Node>> args = {arg2, arg};
+    auto pattern = make_shared<Concat>(args, 1);
+    auto res = make_shared<Result>(pattern);
+    const auto axis = Constant::create(element::i64, Shape{}, {1});
+    auto crop = make_shared<Split>(pattern, axis, 3);
+    auto res2 = make_shared<Result>(crop, "v0");
+
+    {
+        auto f = make_shared<Function>(OutputVector{res, res2}, SinkVector{assign},
+                                       ParameterVector{arg, arg2}, VariableVector{variable});
+
+        NodeVector nodes = f->get_ops();
+        EXPECT_EQ(nodes.size(), 10);
+        ParameterVector params = f->get_parameters();
+        EXPECT_EQ(params.size(), 2);
+        VariableVector variables = f->get_variables();
+        EXPECT_EQ(variables.size(), 1);
+    }
+
+    // autodetect variables
+    {
+        auto f = make_shared<Function>(OutputVector{res, res2}, SinkVector{assign},
+                                         ParameterVector{arg, arg2});
+        NodeVector nodes = f->get_ops();
+        EXPECT_EQ(nodes.size(), 10);
+        ParameterVector params = f->get_parameters();
+        EXPECT_EQ(params.size(), 2);
+        VariableVector variables = f->get_variables();
+        EXPECT_EQ(variables.size(), 1);
+    }
+}
+
+TEST(build_graph, build_graph_unregistred_variables)
+{
+    using namespace opset7;
+    auto arg = make_shared<Parameter>(element::f32, Shape{2, 4});
+    auto arg2 = make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto init_const = Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+
+    auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
+    auto variable_2 = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v1"});
+    auto read = make_shared<ReadValue>(init_const, variable);
+    auto read_2 = make_shared<ReadValue>(init_const, variable_2);
+    auto assign = make_shared<Assign>(read, variable);
+    auto assign_2 = make_shared<Assign>(read_2, variable_2);
+    assign->add_control_dependency(read);
+
+    std::vector<shared_ptr<Node>> args = {arg2, arg};
+    auto pattern = make_shared<Concat>(args, 1);
+    auto res = make_shared<Result>(pattern);
+    const auto axis = Constant::create(element::i64, Shape{}, {1});
+    auto crop = make_shared<Split>(pattern, axis, 3);
+    auto res2 = make_shared<Result>(crop, "v0");
+
+    EXPECT_ANY_THROW(make_shared<Function>(OutputVector{res, res2}, SinkVector{assign, assign_2},
+                                   ParameterVector{arg, arg2}, VariableVector{variable}));
 }

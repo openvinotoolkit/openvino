@@ -1,21 +1,9 @@
-"""
- Copyright (C) 2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 try:
     import tensorflow.compat.v1 as tf_v1
+
     # disable eager execution of TensorFlow 2 environment immediately
     tf_v1.disable_eager_execution()
 except ImportError:
@@ -31,17 +19,19 @@ import logging as log
 from extensions.load.loader import Loader
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
-from mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs
-from mo.front.tf.extractor import get_tf_edges, tf_op_extractor, tf_op_extractors
+from mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs, add_outputs_identity
+from mo.front.tf.extractor import get_tf_edges, create_tf_edge, tf_op_extractor, tf_op_extractors
 from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph
 from mo.utils import tensorboard_util
 from mo.utils.error import Error
+from mo.utils.telemetry_utils import send_op_names_info, send_shapes_info, send_framework_info
 from mo.utils.utils import refer_to_faq_msg
 
 
 class TFLoader(Loader):
     enabled = True
+    run_not_recursively = True
 
     def load(self, graph: Graph):
         argv = graph.graph['cmd_params']
@@ -51,13 +41,14 @@ class TFLoader(Loader):
                 log.info('Loading library "{}" with custom operations'.format(library))
                 tf_v1.load_op_library(library)
 
-        graph_def, variables_values = load_tf_graph_def(graph_file_name=argv.input_model,
+        graph_def, variables_values, framework = load_tf_graph_def(graph_file_name=argv.input_model,
                                                         is_binary=not argv.input_model_is_text,
                                                         checkpoint=argv.input_checkpoint,
                                                         user_output_node_names_list=argv.output,
                                                         model_dir=argv.saved_model_dir,
                                                         meta_graph_file=argv.input_meta_graph,
                                                         saved_model_tags=argv.saved_model_tags)
+        send_framework_info(framework)
 
         try:
             tf_v1.import_graph_def(graph_def, name='')
@@ -95,8 +86,19 @@ class TFLoader(Loader):
         graph.graph['variables_values'] = variables_values
         del variables_values
 
-        restore_edges(graph, get_tf_edges)
+        used_tensors = restore_edges(graph, get_tf_edges)
+
+        # Tensor names information corresponding to a node is stored on outgoing edges.
+        # As output nodes do not have outgoing edges, fake outputs are required. In the following code
+        # for each output Identity node is added, and tensor name for the output is kept
+        # on (output, fake output) edge. After Result nodes adding transformation fake outputs
+        # are deleted from graph.
+        add_outputs_identity(graph, graph.nodes - used_tensors, lambda g, output, fake_node_name: g.add_edges_from([
+            create_tf_edge(output, fake_node_name, 0)]))
+
         remove_control_dependency_inputs(graph)
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
         extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
+        send_op_names_info(framework, graph)
+        send_shapes_info(framework, graph)

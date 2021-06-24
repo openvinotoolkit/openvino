@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,8 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::Shape& inputShape,
         const ngraph::element::Type& precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+        const bool haveMultiplyWithNoConstBeforeDequantization);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,

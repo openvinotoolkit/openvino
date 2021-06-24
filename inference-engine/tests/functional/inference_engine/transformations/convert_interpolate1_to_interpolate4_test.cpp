@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,12 +49,12 @@ TEST(TransformationTests, ConvertInterpolate1ToInterpolate4) {
     {
         auto data_node = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 4, 30, 30});
         auto out_shape_node = opset1::Constant::create(element::i32, Shape{4}, {2, 4, 40, 40});
-        auto default_scales_node = opset1::Constant::create(ngraph::element::f32, Shape{4}, {1.f, 1.f, 1.f, 1.f});
+        auto default_scales_node = opset1::Constant::create(ngraph::element::f32, Shape{4}, {1.f, 1.f, 4.0f / 3.0f, 4.0f / 3.0f});
         auto axes_node = opset1::Constant::create(ngraph::element::i64, Shape{4}, {0, 1, 2, 3});
 
         auto interpolate4_attr = opset4::Interpolate::InterpolateAttrs(opset4::Interpolate::InterpolateMode::nearest,
             opset4::Interpolate::ShapeCalcMode::sizes, std::vector<size_t>{0, 0, 0, 0}, std::vector<size_t>{0, 0, 0, 0},
-            opset4::Interpolate::CoordinateTransformMode::asymmetric, opset4::Interpolate::NearestMode::floor,
+            opset4::Interpolate::CoordinateTransformMode::asymmetric, opset4::Interpolate::NearestMode::simple,
             false, -0.75);
 
         auto interpolate4 = std::make_shared<opset4::Interpolate>(data_node, out_shape_node, default_scales_node, axes_node, interpolate4_attr);
@@ -62,7 +62,7 @@ TEST(TransformationTests, ConvertInterpolate1ToInterpolate4) {
         f_ref = std::make_shared<Function>(NodeVector{interpolate4}, ParameterVector{data_node});
     }
 
-    auto res = compare_functions(f, f_ref);
+    auto res = compare_functions(f, f_ref, true, false, false, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -94,19 +94,19 @@ TEST(TransformationTests, ConvertInterpolate1ToInterpolate4_1) {
     {
         auto data_node = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 4, 30, 30});
         auto out_shape_node = opset1::Constant::create(element::i32, Shape{2}, {40, 40});
-        auto default_scales_node = opset1::Constant::create(ngraph::element::f32, Shape{2}, {1.f, 1.f});
+        auto default_scales_node = opset1::Constant::create(ngraph::element::f32, Shape{2}, {4.0f / 3.0f, 4.0f / 3.0f});
         auto axes_node = opset1::Constant::create(ngraph::element::i64, Shape{2}, {2, 3});
 
         auto interpolate4_attr = opset4::Interpolate::InterpolateAttrs(opset4::Interpolate::InterpolateMode::linear_onnx,
             opset4::Interpolate::ShapeCalcMode::sizes, std::vector<size_t>{0, 0, 0, 0}, std::vector<size_t>{0, 0, 0, 0},
-            opset4::Interpolate::CoordinateTransformMode::align_corners, opset4::Interpolate::NearestMode::floor,
-            false, -0.75);
+            opset4::Interpolate::CoordinateTransformMode::asymmetric, opset4::Interpolate::NearestMode::simple,
+            true, -0.75);
 
         auto interpolate4 = std::make_shared<opset4::Interpolate>(data_node, out_shape_node, default_scales_node, axes_node, interpolate4_attr);
 
         f_ref = std::make_shared<Function>(NodeVector{interpolate4}, ParameterVector{data_node});
     }
 
-    auto res = compare_functions(f, f_ref);
+    auto res = compare_functions(f, f_ref, true, false, false, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }

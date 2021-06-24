@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 
 #include "single_layer_common.hpp"
 #include "vpu/vpu_plugin_config.hpp"
-#include <graph_transformer/include/vpu/private_plugin_config.hpp>
+#include <vpu/private_plugin_config.hpp>
 
 
 using config_t = std::map<std::string, std::string>;
@@ -24,11 +24,11 @@ static constexpr char ENV_HDDL_R[]  = "IE_VPU_ENABLE_PER_LAYER_TESTS_HDDL";
 #define DISABLE_IF(expression)                                   \
 {                                                                \
     if (expression) {                                            \
-        SKIP() << "Disabled since " << #expression << std::endl; \
+        GTEST_SKIP() << "Disabled since " << #expression << std::endl; \
     }                                                            \
 }
 
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
     #define DISABLE_ON_WINDOWS_IF(expr) DISABLE_IF((expr))
 #else
     #define DISABLE_ON_WINDOWS_IF(expr)

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,10 @@
 
 #include <map>
 #include <memory>
-#include <sstream>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
-
-#include <ngraph/pass/visualize_tree.hpp>
 #include <low_precision/fake_quantize.hpp>
 #include <low_precision/transformer.hpp>
 
@@ -81,7 +79,7 @@ const std::vector<TestValues> testValues = {
     { {}, {} }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     TransformerIsFunctionQuantized,
     ::testing::ValuesIn(testValues),

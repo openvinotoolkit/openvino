@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,11 +140,12 @@ namespace details {
 
 template <class Cont>
 void printContainer(std::ostream& os, const Cont& cont) {
-    static constexpr size_t MAX_PRINT_SIZE = 8;
+    using IndexType = decltype(cont.size());
+    static constexpr IndexType MAX_PRINT_SIZE = 8;
 
     os << '[';
 
-    size_t ind = 0;
+    IndexType ind = 0;
     for (const auto& val : cont) {
         printTo(os, val);
 

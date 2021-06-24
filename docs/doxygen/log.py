@@ -1,6 +1,11 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import argparse
 import os
 import re
+from distutils.util import strtobool
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -10,13 +15,13 @@ def parse_arguments():
                         help='Path to doxygen ignore list')
     parser.add_argument('--strip', type=str, required=False, default=os.path.abspath('../../'),
                         help='Strip from warning paths')
-    parser.add_argument('--include_omz', type=bool, required=False, default=False,
+    parser.add_argument('--include_omz', type=strtobool, required=False, default=False,
                         help='Include link check for omz docs')
-    parser.add_argument('--include_wb', type=bool, required=False, default=False,
+    parser.add_argument('--include_wb', type=strtobool, required=False, default=False,
                         help='Include link check for workbench docs')
-    parser.add_argument('--include_pot', type=bool, required=False, default=False,
+    parser.add_argument('--include_pot', type=strtobool, required=False, default=False,
                         help='Include link check for pot docs')
-    parser.add_argument('--include_gst', type=bool, required=False, default=False,
+    parser.add_argument('--include_gst', type=strtobool, required=False, default=False,
                         help='Include link check for gst docs')
     return parser.parse_args()
 

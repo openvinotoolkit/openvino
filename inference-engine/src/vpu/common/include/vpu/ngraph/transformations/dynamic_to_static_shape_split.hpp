@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 
 namespace vpu {
 
+void validateSplit(const ngraph::Node& node);
 void dynamicToStaticShapeSplit(std::shared_ptr<ngraph::Node> target);
 
 }  // namespace vpu

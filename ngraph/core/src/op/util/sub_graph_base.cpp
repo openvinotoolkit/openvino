@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/util/sub_graph_base.hpp"
 #include "ngraph/opsets/opset5.hpp"
@@ -20,6 +8,8 @@
 #include "ngraph/graph_util.hpp"
 
 using namespace ngraph;
+
+NGRAPH_RTTI_DEFINITION(op::util::SubGraphOp, "SubGraphOp", 0);
 
 constexpr DiscreteTypeInfo op::util::SubGraphOp::SliceInputDescription::type_info;
 constexpr DiscreteTypeInfo op::util::SubGraphOp::MergedInputDescription::type_info;
@@ -33,13 +23,6 @@ op::util::SubGraphOp::InputDescription::InputDescription(uint64_t input_index,
     : m_input_index(input_index)
     , m_body_parameter_index(body_parameter_index)
 {
-}
-
-bool op::util::SubGraphOp::InputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("input_index", m_input_index);
-    visitor.on_attribute("body_parameter_index", m_body_parameter_index);
-    return true;
 }
 
 op::util::SubGraphOp::SliceInputDescription::SliceInputDescription(uint64_t input_index,
@@ -65,17 +48,6 @@ std::shared_ptr<op::util::SubGraphOp::InputDescription>
         m_input_index, m_body_parameter_index, m_start, m_stride, m_part_size, m_end, m_axis);
 }
 
-bool op::util::SubGraphOp::SliceInputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    InputDescription::visit_attributes(visitor);
-    visitor.on_attribute("start", m_start);
-    visitor.on_attribute("stride", m_stride);
-    visitor.on_attribute("part_size", m_part_size);
-    visitor.on_attribute("end", m_end);
-    visitor.on_attribute("axis", m_axis);
-    return true;
-}
-
 op::util::SubGraphOp::MergedInputDescription::MergedInputDescription(uint64_t input_index,
                                                                      uint64_t body_parameter_index,
                                                                      uint64_t body_value_index)
@@ -91,13 +63,6 @@ std::shared_ptr<op::util::SubGraphOp::InputDescription>
         m_input_index, m_body_parameter_index, m_body_value_index);
 }
 
-bool op::util::SubGraphOp::MergedInputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    InputDescription::visit_attributes(visitor);
-    visitor.on_attribute("body_value_index", m_body_value_index);
-    return true;
-}
-
 op::util::SubGraphOp::InvariantInputDescription::InvariantInputDescription(
     uint64_t input_index, uint64_t body_parameter_index)
     : InputDescription(input_index, body_parameter_index)
@@ -110,24 +75,11 @@ std::shared_ptr<op::util::SubGraphOp::InputDescription>
     return std::make_shared<InvariantInputDescription>(m_input_index, m_body_parameter_index);
 }
 
-bool op::util::SubGraphOp::InvariantInputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    InputDescription::visit_attributes(visitor);
-    return true;
-}
-
 op::util::SubGraphOp::OutputDescription::OutputDescription(uint64_t body_value_index,
                                                            uint64_t output_index)
     : m_body_value_index(body_value_index)
     , m_output_index(output_index)
 {
-}
-
-bool op::util::SubGraphOp::OutputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("body_value_index", m_body_value_index);
-    visitor.on_attribute("output_index", m_output_index);
-    return true;
 }
 
 op::util::SubGraphOp::ConcatOutputDescription::ConcatOutputDescription(uint64_t body_value_index,
@@ -144,17 +96,6 @@ op::util::SubGraphOp::ConcatOutputDescription::ConcatOutputDescription(uint64_t 
     , m_end(end)
     , m_axis(axis)
 {
-}
-
-bool op::util::SubGraphOp::ConcatOutputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    OutputDescription::visit_attributes(visitor);
-    visitor.on_attribute("start", m_start);
-    visitor.on_attribute("stride", m_stride);
-    visitor.on_attribute("part_size", m_part_size);
-    visitor.on_attribute("end", m_end);
-    visitor.on_attribute("axis", m_axis);
-    return true;
 }
 
 std::shared_ptr<op::util::SubGraphOp::OutputDescription>
@@ -178,13 +119,6 @@ std::shared_ptr<op::util::SubGraphOp::OutputDescription>
     return std::make_shared<BodyOutputDescription>(m_body_value_index, m_output_index, m_iteration);
 }
 
-bool op::util::SubGraphOp::BodyOutputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    OutputDescription::visit_attributes(visitor);
-    visitor.on_attribute("iteration", m_iteration);
-    return true;
-}
-
 op::util::SubGraphOp::SubGraphOp(const OutputVector& args)
     : Op(args)
 {
@@ -198,6 +132,7 @@ void op::util::SubGraphOp::set_merged_input(const std::shared_ptr<Parameter>& bo
         input_for_value(initial_value).get_index(),
         m_body->get_parameter_index(body_parameter),
         m_body->get_result_index(successive_value)));
+    validate_and_infer_types();
 }
 
 void op::util::SubGraphOp::set_invariant_input(const std::shared_ptr<Parameter>& body_parameter,
@@ -205,6 +140,7 @@ void op::util::SubGraphOp::set_invariant_input(const std::shared_ptr<Parameter>&
 {
     m_input_descriptions.push_back(std::make_shared<TensorIterator::InvariantInputDescription>(
         input_for_value(value).get_index(), m_body->get_parameter_index(body_parameter)));
+    validate_and_infer_types();
 }
 
 Output<Node> op::util::SubGraphOp::get_iter_value(const Output<Node>& body_value, int64_t iteration)
@@ -213,6 +149,7 @@ Output<Node> op::util::SubGraphOp::get_iter_value(const Output<Node>& body_value
     m_output_descriptions.push_back(std::make_shared<BodyOutputDescription>(
         m_body->get_result_index(body_value), output_index, iteration));
     set_output_size(output_index + 1);
+    validate_and_infer_types();
     return Output<Node>(shared_from_this(), output_index);
 }
 
@@ -227,6 +164,7 @@ Output<Node> op::util::SubGraphOp::get_concatenated_slices(const Output<Node>& b
     m_output_descriptions.push_back(std::make_shared<ConcatOutputDescription>(
         m_body->get_result_index(body_value), output_index, start, stride, part_size, end, axis));
     set_output_size(output_index + 1);
+    validate_and_infer_types();
     return Output<Node>(shared_from_this(), output_index);
 }
 
@@ -246,6 +184,7 @@ void op::util::SubGraphOp::set_sliced_input(const std::shared_ptr<Parameter>& pa
                                                 part_size,
                                                 end,
                                                 axis));
+    validate_and_infer_types();
 }
 
 Input<Node> op::util::SubGraphOp::input_for_value(const Output<Node>& value)
@@ -257,103 +196,9 @@ Input<Node> op::util::SubGraphOp::input_for_value(const Output<Node>& value)
 
 namespace ngraph
 {
-    template <>
-    FactoryRegistry<op::util::SubGraphOp::InputDescription>&
-        FactoryRegistry<op::util::SubGraphOp::InputDescription>::get()
-    {
-        static FactoryRegistry<op::util::SubGraphOp::InputDescription> registry;
-        static std::mutex init_guard;
-        if (registry.m_factory_map.size() == 0)
-        {
-            std::lock_guard<std::mutex> guard(init_guard);
-            if (registry.m_factory_map.size() == 0)
-            {
-                registry.register_factory<op::util::SubGraphOp::SliceInputDescription>();
-                registry.register_factory<op::util::SubGraphOp::MergedInputDescription>();
-                registry.register_factory<op::util::SubGraphOp::InvariantInputDescription>();
-            }
-        }
-        return registry;
-    }
-
-    constexpr DiscreteTypeInfo
-        AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::InputDescription>>::type_info;
-
     constexpr DiscreteTypeInfo AttributeAdapter<
         std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>>::type_info;
 
-    AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>>::
-        AttributeAdapter(std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>& ref)
-        : m_ref(ref)
-    {
-    }
-
-    bool AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>>::
-        visit_attributes(AttributeVisitor& visitor)
-    {
-        int64_t size = m_ref.size();
-        visitor.on_attribute("size", size);
-        if (size != m_ref.size())
-        {
-            m_ref.resize(size);
-        }
-        std::ostringstream index;
-        for (int64_t i = 0; i < size; i++)
-        {
-            index.str("");
-            index << i;
-            visitor.on_attribute(index.str(), m_ref[i]);
-        }
-        return true;
-    }
-
-    template <>
-    FactoryRegistry<op::util::SubGraphOp::OutputDescription>&
-        FactoryRegistry<op::util::SubGraphOp::OutputDescription>::get()
-    {
-        static FactoryRegistry<op::util::SubGraphOp::OutputDescription> registry;
-        static std::mutex init_guard;
-        // TODO: Add a lock
-        if (registry.m_factory_map.size() == 0)
-        {
-            std::lock_guard<std::mutex> guard(init_guard);
-            if (registry.m_factory_map.size() == 0)
-            {
-                registry.register_factory<op::util::SubGraphOp::ConcatOutputDescription>();
-                registry.register_factory<op::util::SubGraphOp::BodyOutputDescription>();
-            }
-        }
-        return registry;
-    }
-
     constexpr DiscreteTypeInfo AttributeAdapter<
         std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>>::type_info;
-
-    constexpr DiscreteTypeInfo
-        AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>::type_info;
-
-    AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>>::
-        AttributeAdapter(std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>& ref)
-        : m_ref(ref)
-    {
-    }
-
-    bool AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>>::
-        visit_attributes(AttributeVisitor& visitor)
-    {
-        int64_t size = m_ref.size();
-        visitor.on_attribute("size", size);
-        if (size != m_ref.size())
-        {
-            m_ref.resize(size);
-        }
-        std::ostringstream index;
-        for (int64_t i = 0; i < size; i++)
-        {
-            index.str("");
-            index << i;
-            visitor.on_attribute(index.str(), m_ref[i]);
-        }
-        return true;
-    }
-}
+} // namespace ngraph

@@ -1,23 +1,11 @@
-/*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "deconvolution_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "deconvolution/deconvolution_kernel_selector.h"
 #include "deconvolution/deconvolution_kernel_base.h"
@@ -29,6 +17,10 @@ namespace gpu {
 struct deconvolution_gpu : typed_primitive_gpu_impl<deconvolution> {
     using parent = typed_primitive_gpu_impl<deconvolution>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<deconvolution_gpu>(*this);
+    }
 
 protected:
     // TODO: share it with convolution and fully connected
@@ -45,12 +37,11 @@ protected:
         return res;
     }
 
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<deconvolution>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(typed_primitive_inst<deconvolution>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
 
-        args.weights = (memory_impl::cptr) &instance.weights_memory(split);
-        args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory(split) : nullptr);
+        args.weights = instance.weights_memory(split);
+        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
 
         return args;
     }
@@ -81,15 +72,19 @@ public:
         auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
             arg,
             (groups > 1) ? 1 : actual_split,
-            1);
+            1,
+            primitive->grouped_weights_shape);
         auto deconv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::deconvolution_optional_params>(arg.get_program());
 
         deconv_params.split = split;
         deconv_params.groups = groups;
-        deconv_params.filterSize = {(uint32_t)weights_size.spatial[0],
-                                    (uint32_t)weights_size.spatial[1],
-                                    (uint32_t)weights_size.spatial[2]};
+
+        auto spatial_size = arg.get_output_layout().format.dimension() - 2;
+        uint32_t kx = weights_size.spatial[0];
+        uint32_t ky = weights_size.spatial[1];
+        uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
+        deconv_params.filterSize = { kx, ky, kz };
 
         deconv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
                                  (uint32_t)std::max(-input_offset.spatial[1], 0),

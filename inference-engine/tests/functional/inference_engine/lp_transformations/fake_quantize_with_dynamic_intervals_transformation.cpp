@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,10 @@
 
 #include <map>
 #include <memory>
-#include <sstream>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
-
-#include <ngraph/pass/visualize_tree.hpp>
 #include <low_precision/fake_quantize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -159,7 +157,7 @@ const std::vector<FakeQuantizeWithDynamicIntervalsTransformationTestValues> fake
 
 const std::vector<ngraph::Shape> shapes = { { 1, 32, 72, 48 } };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FakeQuantizeWithDynamicIntervalsTransformation,
     ::testing::Combine(
