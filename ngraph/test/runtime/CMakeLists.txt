@@ -64,5 +64,12 @@ if (NOT WIN32)
 endif()
 target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+if(ENABLE_DEV_PKG_INSTALL)
+    install(TARGETS ngraph_backend
+            RUNTIME DESTINATION tests
+            LIBRARY DESTINATION tests
+            COMPONENT tests)
+endif()
+
 add_subdirectory(interpreter)
 add_subdirectory(ie)

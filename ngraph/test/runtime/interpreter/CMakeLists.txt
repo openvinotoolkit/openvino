@@ -23,4 +23,11 @@ if (NGRAPH_INTERPRETER_ENABLE)
 
     target_compile_definitions(interpreter_backend PRIVATE INTERPRETER_BACKEND_EXPORTS)
     target_link_libraries(interpreter_backend PUBLIC ngraph_backend)
+
+    if(ENABLE_DEV_PKG_INSTALL)
+        install(TARGETS interpreter_backend
+                RUNTIME DESTINATION tests
+                LIBRARY DESTINATION tests
+                COMPONENT tests)
+    endif()
 endif()

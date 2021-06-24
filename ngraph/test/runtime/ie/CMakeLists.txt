@@ -28,3 +28,10 @@ endif()
 add_dependencies(ie_backend inference_engine)
 target_include_directories(ie_backend PUBLIC ${IE_MAIN_SOURCE_DIR}/include)
 target_link_libraries(ie_backend PUBLIC ngraph_backend inference_engine)
+
+if(ENABLE_DEV_PKG_INSTALL)
+    install(TARGETS ie_backend
+            RUNTIME DESTINATION tests
+            LIBRARY DESTINATION tests
+            COMPONENT tests)
+endif()
