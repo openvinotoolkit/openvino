@@ -21,6 +21,14 @@ void event::wait() {
     return;
 }
 
+void event::set() {
+    if (_set)
+        return;
+    _set = true;
+    set_impl();
+    call_handlers();
+}
+
 bool event::is_set() {
     if (_set)
         return true;

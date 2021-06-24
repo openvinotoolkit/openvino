@@ -387,10 +387,12 @@ struct non_max_suppression_cpu : typed_primitive_impl<non_max_suppression> {
         }
 
         auto& stream = instance.get_network().get_stream();
+        auto ev = stream.create_user_event(false);
 
         run(instance);
 
-        return stream.create_user_event(true);
+        ev->set();
+        return ev;
     }
 
     static primitive_impl* create(const non_max_suppression_node&) {

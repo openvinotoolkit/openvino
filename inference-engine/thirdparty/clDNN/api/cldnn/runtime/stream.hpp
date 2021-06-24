@@ -32,10 +32,8 @@ public:
     virtual void enqueue_barrier() = 0;
     virtual event::ptr group_events(std::vector<event::ptr> const& deps) = 0;
     virtual void wait_for_events(const std::vector<event::ptr>& events) = 0;
-    virtual void reset_events() = 0;
     virtual event::ptr create_user_event(bool set) = 0;
     virtual event::ptr create_base_event() = 0;
-    virtual void release_events_pool() = 0;
 
     queue_types get_queue_type() const { return queue_type; }
 

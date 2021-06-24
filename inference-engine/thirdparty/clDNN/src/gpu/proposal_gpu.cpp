@@ -425,7 +425,7 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
             }
         }
 
-        dynamic_cast<cldnn::user_event*>(ev.get())->set();  // set as complete
+        ev->set();
         return ev;
     }
 

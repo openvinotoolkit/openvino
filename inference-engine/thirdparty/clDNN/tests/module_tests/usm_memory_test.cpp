@@ -36,10 +36,6 @@ using namespace ::tests;
 #endif
 
 #include <ocl/ocl_wrapper.hpp>
-
-using namespace cldnn;
-using namespace ::tests;
-
 struct usm_test_params{
     allocation_type type;
 };
