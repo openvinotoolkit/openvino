@@ -4676,6 +4676,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32)
                 4,  5,  6,  7,
                 8,  9,  10, 11,
                 12, 13, 14, 15  });
+    /* filters
+            [[[[0.25, 0.5, 0.25],
+               [0.5,  1.0, 0.5],
+               [0.25, 0.5, 0.25]]]] */
     test_case.add_expected_output<ngraph::float16>(Shape{1, 1, 2, 2},
             {   20, 24,
                 36, 40  });

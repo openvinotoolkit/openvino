@@ -14,15 +14,15 @@ graph {
     dims: 3
     dims: 3
     data_type: 10
-    int32_data: 13312
-    int32_data: 14336
-    int32_data: 13312
-    int32_data: 14336
-    int32_data: 15360
-    int32_data: 14336
-    int32_data: 13312
-    int32_data: 14336
-    int32_data: 13312
+    int32_data: 13312 # 0.25
+    int32_data: 14336 # 0.5
+    int32_data: 13312 # 0.25
+    int32_data: 14336 # 0.5
+    int32_data: 15360 # 1.0
+    int32_data: 14336 # 0.5
+    int32_data: 13312 # 0.25
+    int32_data: 14336 # 0.5
+    int32_data: 13312 # 0.25
     name: "W"
   }
   input {
