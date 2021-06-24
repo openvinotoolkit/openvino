@@ -40,48 +40,6 @@ void calcRowArea_CVKL_U8_SSE42(const uchar  * src[],
 #endif
 
 //----------------------------------------------------------------------
-
-// Resize (bi-linear, 8UC3)
-void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
-                  const uint8_t *src0[],
-                  const uint8_t *src1[],
-                  const short    alpha[],
-                  const short    clone[],
-                  const short    mapsx[],
-                  const short    beta[],
-                        uint8_t  tmp[],
-                  const Size    &inSz,
-                  const Size    &outSz,
-                        int      lpi);
-
-// Resize (bi-linear, 8UC4)
-void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
-                  const uint8_t *src0[],
-                  const uint8_t *src1[],
-                  const short    alpha[],
-                  const short    clone[],
-                  const short    mapsx[],
-                  const short    beta[],
-                        uint8_t  tmp[],
-                  const Size    &inSz,
-                  const Size    &outSz,
-                        int      lpi);
-
-template<int numChan>
-void calcRowLinear_8UC(std::array<std::array<uint8_t*, 4>, numChan> &dst,
-                  const uint8_t *src0[],
-                  const uint8_t *src1[],
-                  const short    alpha[],
-                  const short    clone[],
-                  const short    mapsx[],
-                  const short    beta[],
-                        uint8_t  tmp[],
-                  const Size    &inSz,
-                  const Size    &outSz,
-                        int      lpi) {
-    calcRowLinear_8U(std::integral_constant<int, numChan>{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
-}
-
 template<typename isa_tag_t, typename T>
 void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan, const int chs,
                         T* out, const int length);
@@ -145,18 +103,6 @@ bool calcRowLinear8UC3C4Impl(isa_tag_t, std::array<std::array<uint8_t*, 4>, chs>
                              const short alpha[], const short clone[], const short mapsx[],
                              const short beta[], uint8_t tmp[], const Size& inSz,
                              const Size& outSz, const int lpi, const int l);
-#if 0
-template bool calcRowLinear8UC3C4Impl<sse42_tag, 3>(sse42_tag, std::array<std::array<uint8_t*, 4>, 3>& dst,
-                                                    const uint8_t* src0[], const uint8_t* src1[],
-                                                    const short alpha[], const short clone[], const short mapsx[],
-                                                    const short beta[], uint8_t tmp[], const Size& inSz,
-                                                    const Size& outSz, const int lpi, const int l);
-template bool calcRowLinear8UC3C4Impl<sse42_tag, 4>(sse42_tag, std::array<std::array<uint8_t*, 4>, 4>& dst,
-                                                    const uint8_t* src0[], const uint8_t* src1[],
-                                                    const short alpha[], const short clone[], const short mapsx[],
-                                                    const short beta[], uint8_t tmp[], const Size& inSz,
-                                                    const Size& outSz, const int lpi, const int l);
-#endif
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

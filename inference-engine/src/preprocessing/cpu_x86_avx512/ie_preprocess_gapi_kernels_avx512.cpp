@@ -375,14 +375,14 @@ bool calcRowLinear8UC3C4Impl<avx512_tag, 3>(avx512_tag,
                                             const uint8_t* src0[],
                                             const uint8_t* src1[],
                                             const short    alpha[],
-                                           const short    clone[],  // 4 clones of alpha
-                                           const short    mapsx[],
-                                           const short    beta[],
-                                               uint8_t    tmp[],
-                                           const Size&    inSz,
-                                           const Size&    outSz,
-                                           const int      lpi,
-                                           const int      ) {
+                                            const short    clone[],  // 4 clones of alpha
+                                            const short    mapsx[],
+                                            const short    beta[],
+                                                uint8_t    tmp[],
+                                            const Size&    inSz,
+                                            const Size&    outSz,
+                                            const int      lpi,
+                                            const int      ) {
     constexpr int chanNum = 3;
     return avx512::calcRowLinear_8UC_Impl<chanNum>(avx512_tag{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
@@ -390,18 +390,18 @@ bool calcRowLinear8UC3C4Impl<avx512_tag, 3>(avx512_tag,
 // Resize (bi-linear, 8UC4)
 template<>
 bool calcRowLinear8UC3C4Impl<avx512_tag, 4>(avx512_tag,
-                             std::array<std::array<uint8_t*, 4>, 4> &dst,
-                             const uint8_t* src0[],
-                             const uint8_t* src1[],
-                             const short    alpha[],
-                             const short    clone[],  // 4 clones of alpha
-                             const short    mapsx[],
-                             const short    beta[],
-                                 uint8_t    tmp[],
-                             const Size&   inSz,
-                             const Size&   outSz,
-                             const int     lpi,
-                             const int      ) {
+                                            std::array<std::array<uint8_t*, 4>, 4> &dst,
+                                            const uint8_t* src0[],
+                                            const uint8_t* src1[],
+                                            const short    alpha[],
+                                            const short    clone[],  // 4 clones of alpha
+                                            const short    mapsx[],
+                                            const short    beta[],
+                                                uint8_t    tmp[],
+                                            const Size&   inSz,
+                                            const Size&   outSz,
+                                            const int     lpi,
+                                            const int      ) {
     constexpr int chanNum = 4;
     return avx512::calcRowLinear_8UC_Impl<chanNum>(avx512_tag{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }

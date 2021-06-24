@@ -66,10 +66,10 @@ bool calcRowLinear8UC1Impl(sse42_tag,
                            const short    mapsx[],
                            const short    beta[],
                                uint8_t    tmp[],
-                            const Size&   inSz,
-                            const Size&   outSz,
-                            const int     lpi,
-                            const int) {
+                           const Size&    inSz,
+                           const Size&    outSz,
+                           const int      lpi,
+                           const int) {
     constexpr int nlanes = v_uint8::nlanes;
     constexpr int half_nlanes = (v_uint8::nlanes / 2);
 
@@ -520,18 +520,18 @@ bool calcRowLinear8UC1Impl(sse42_tag,
 #if 1
 // Resize (bi-linear, 8U, generic number of channels)
 template<int chanNum>
-bool calcRowLinear_8UC_Impl_(sse42_tag,
-                             std::array<std::array<uint8_t*, 4>, chanNum> &dst,
-                             const uint8_t* src0[],
-                             const uint8_t* src1[],
-                             const short    alpha[],
-                             const short    clone[],  // 4 clones of alpha
-                             const short    mapsx[],
-                             const short    beta[],
-                                 uint8_t    tmp[],
-                             const Size&    inSz,
-                             const Size&    outSz,
-                             const int      lpi) {
+CV_ALWAYS_INLINE bool calcRowLinear_8UC_Impl_(sse42_tag,
+                                              std::array<std::array<uint8_t*, 4>, chanNum> &dst,
+                                              const uint8_t* src0[],
+                                              const uint8_t* src1[],
+                                              const short    alpha[],
+                                              const short    clone[],  // 4 clones of alpha
+                                              const short    mapsx[],
+                                              const short    beta[],
+                                                  uint8_t    tmp[],
+                                              const Size&    inSz,
+                                              const Size&    outSz,
+                                              const int      lpi) {
     const int half_nlanes = (v_uint8::nlanes / 2);
     if ((inSz.width < half_nlanes) || (outSz.width < half_nlanes))
         return false;
@@ -913,7 +913,8 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
 
 // Resize (bi-linear, 8UC3)
 template<>
-bool calcRowLinear8UC3C4Impl<sse42_tag, 3>(sse42_tag, std::array<std::array<uint8_t*, 4>, 3> &dst,
+bool calcRowLinear8UC3C4Impl<sse42_tag, 3>(sse42_tag,
+                                           std::array<std::array<uint8_t*, 4>, 3> &dst,
                                            const uint8_t* src0[],
                                            const uint8_t* src1[],
                                            const short    alpha[],
@@ -931,18 +932,19 @@ bool calcRowLinear8UC3C4Impl<sse42_tag, 3>(sse42_tag, std::array<std::array<uint
 
 // Resize (bi-linear, 8UC4)
 template<>
-bool calcRowLinear8UC3C4Impl<sse42_tag, 4>(sse42_tag, std::array<std::array<uint8_t*, 4>, 4> &dst,
-                             const uint8_t* src0[],
-                             const uint8_t* src1[],
-                             const short    alpha[],
-                             const short    clone[],  // 4 clones of alpha
-                             const short    mapsx[],
-                             const short    beta[],
-                                 uint8_t    tmp[],
-                             const Size&   inSz,
-                             const Size&   outSz,
-                             const int     lpi,
-                             const int      ) {
+bool calcRowLinear8UC3C4Impl<sse42_tag, 4>(sse42_tag,
+                                           std::array<std::array<uint8_t*, 4>, 4> &dst,
+                                           const uint8_t* src0[],
+                                           const uint8_t* src1[],
+                                           const short    alpha[],
+                                           const short    clone[],  // 4 clones of alpha
+                                           const short    mapsx[],
+                                           const short    beta[],
+                                               uint8_t    tmp[],
+                                           const Size&    inSz,
+                                           const Size&    outSz,
+                                           const int      lpi,
+                                           const int      ) {
     constexpr int chanNum = 4;
     return calcRowLinear_8UC_Impl_<chanNum>(sse42_tag{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }

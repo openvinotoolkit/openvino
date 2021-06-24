@@ -27,47 +27,6 @@ void calcRowArea_8U(uchar dst[], const uchar *src[], const Size &inSz, const Siz
 void calcRowArea_32F(float dst[], const float *src[], const Size &inSz, const Size &outSz,
                      float yalpha, const MapperUnit32F& ymap, int xmaxdf, const int xindex[],
                      const float xalpha[], float vbuf[]);
-
-// Resize (bi-linear, 8UC3)
-void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
-                      const uint8_t *src0[],
-                      const uint8_t *src1[],
-                        const short  alpha[],
-                        const short  clone[],
-                        const short  mapsx[],
-                        const short  beta[],
-                            uint8_t  tmp[],
-                        const Size&  inSz,
-                        const Size&  outSz,
-                                int  lpi);
-
-// Resize (bi-linear, 8UC4)
-void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
-                      const uint8_t *src0[],
-                      const uint8_t *src1[],
-                        const short  alpha[],
-                        const short  clone[],
-                        const short  mapsx[],
-                        const short  beta[],
-                            uint8_t  tmp[],
-                        const Size&  inSz,
-                        const Size&  outSz,
-                                int  lpi);
-
-template<int numChan>
-void calcRowLinear_8UC(std::array<std::array<uint8_t*, 4>, numChan> &dst,
-                       const uint8_t *src0[],
-                       const uint8_t *src1[],
-                         const short  alpha[],
-                         const short  clone[],
-                         const short  mapsx[],
-                         const short  beta[],
-                             uint8_t  tmp[],
-                         const Size&  inSz,
-                         const Size&  outSz,
-                                 int  lpi) {
-    calcRowLinear_8U(std::integral_constant<int, numChan>{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
-}
 }  // namespace neon
 
 template<typename isa_tag_t, typename T>

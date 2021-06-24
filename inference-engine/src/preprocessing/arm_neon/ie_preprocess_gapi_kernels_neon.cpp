@@ -481,17 +481,17 @@ CV_ALWAYS_INLINE void horizontal_anyLPI(uint8_t* dst,
 template<>
 bool calcRowLinear8UC3C4Impl<neon_tag, 3>(neon_tag,
                                           std::array<std::array<uint8_t*, 4>, 3> &dst,
-                                           const uint8_t* src0[],
-                                           const uint8_t* src1[],
-                                           const short    alpha[],
-                                           const short    clone[],  // 4 clones of alpha
-                                           const short    mapsx[],
-                                           const short    beta[],
-                                               uint8_t    tmp[],
-                                           const Size&    inSz,
-                                           const Size&    outSz,
-                                           const int      lpi,
-                                           const int      ) {
+                                          const uint8_t* src0[],
+                                          const uint8_t* src1[],
+                                          const short    alpha[],
+                                          const short    clone[],  // 4 clones of alpha
+                                          const short    mapsx[],
+                                          const short    beta[],
+                                              uint8_t    tmp[],
+                                          const Size&    inSz,
+                                          const Size&    outSz,
+                                          const int      lpi,
+                                          const int      ) {
     constexpr int chanNum = 3;
     return neon::calcRowLinear_8UC_Impl<chanNum>(neon_tag{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
@@ -507,9 +507,9 @@ bool calcRowLinear8UC3C4Impl<neon_tag, 4>(neon_tag,
                                           const short    mapsx[],
                                           const short    beta[],
                                               uint8_t    tmp[],
-                                          const Size&   inSz,
-                                          const Size&   outSz,
-                                          const int     lpi,
+                                          const Size&    inSz,
+                                          const Size&    outSz,
+                                          const int      lpi,
                                           const int      ) {
     constexpr int chanNum = 4;
     return neon::calcRowLinear_8UC_Impl<chanNum>(neon_tag{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
