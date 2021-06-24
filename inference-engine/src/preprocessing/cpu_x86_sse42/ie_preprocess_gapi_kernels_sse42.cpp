@@ -56,17 +56,26 @@ namespace gapi {
 namespace kernels {
 
 // 8UC1 Resize (bi-linear)
-void calcRowLinear_8UC1(uint8_t       *dst[],
-                        const uint8_t *src0[],
-                        const uint8_t *src1[],
-                        const short    alpha[],
-                        const short    clone[],  // 4 clones of alpha
-                        const short    mapsx[],
-                        const short    beta[],
-                              uint8_t  tmp[],
-                        const Size&    inSz,
-                        const Size&    outSz,
-                              int      lpi) {
+template<>
+bool calcRowLinear8UC1Impl(sse42_tag,
+                                 uint8_t *dst[],
+                           const uint8_t *src0[],
+                           const uint8_t *src1[],
+                           const short    alpha[],
+                           const short    clone[],  // 4 clones of alpha
+                           const short    mapsx[],
+                           const short    beta[],
+                               uint8_t    tmp[],
+                            const Size&   inSz,
+                            const Size&   outSz,
+                            const int     lpi,
+                            const int) {
+    constexpr int nlanes = v_uint8::nlanes;
+    constexpr int half_nlanes = (v_uint8::nlanes / 2);
+
+    if (inSz.width < nlanes || outSz.width < half_nlanes)
+        return false;
+
     bool xRatioEq1 = inSz.width  == outSz.width;
     bool yRatioEq1 = inSz.height == outSz.height;
 
@@ -503,6 +512,7 @@ void calcRowLinear_8UC1(uint8_t       *dst[],
             memcpy(dst[l], src0[l], length);
         }
     }
+    return true;
 }
 
 // Resize 3C/4C universal intrinsic implementation for SSE42 version is a bit slower than original sometimes.
@@ -934,19 +944,6 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
     calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
-// Resize (bi-linear, 32F)
-void calcRowLinear_32F(float *dst[],
-                       const float *src0[],
-                       const float *src1[],
-                       const float  alpha[],
-                       const int    mapsx[],
-                       const float  beta[],
-                       const Size&  inSz,
-                       const Size&  outSz,
-                               int  lpi) {
-    calcRowLinear_32FC1(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi);
-}
-
 //------------------------------------------------------------------------------
 
 void calcRowArea_8U(uchar dst[], const uchar *src[], const Size& inSz, const Size& outSz,
@@ -1289,6 +1286,11 @@ template void mergeRowImpl<sse42_tag, uchar, 3>(sse42_tag, const std::array<cons
 template void mergeRowImpl<sse42_tag, float, 3>(sse42_tag, const std::array<const float*, 3>& ins, float* out, const int length);
 template void mergeRowImpl<sse42_tag, uchar, 4>(sse42_tag, const std::array<const uint8_t*, 4>& ins, uint8_t* out, const int length);
 template void mergeRowImpl<sse42_tag, float, 4>(sse42_tag, const std::array<const float*, 4>& ins, float* out, const int length);
+
+template void calcRowLinear32FC1Impl(sse42_tag, float* dst[], const float* src0[], const float* src1[],
+                                     const float alpha[], const int mapsx[],
+                                     const float beta[], const Size& inSz, const Size& outSz,
+                                     const int lpi, const int l);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

@@ -168,7 +168,7 @@ struct remove<list<>, t> {
 
 template <typename typelist, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t,
           typename result_t = decltype(std::declval<type_to_value_t>()(type_to_type<head_t<typelist>> {}))>
-result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value = {}) {
+inline result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value = {}) {
     return type_dispatch_impl<typelist>::template dispatch<result_t>(std::forward<type_id_t>(type_id),
                                                                      std::forward<type_to_id_t>(type_to_id),
                                                                      std::forward<type_to_value_t>(type_to_value),
@@ -177,7 +177,7 @@ result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_val
 
 template <typename typelist, typename default_t, typename pred_t, typename type_to_value_t,
           typename result_t = decltype(std::declval<type_to_value_t>()(type_to_type<head_t<typelist>> {}))>
-result_t type_dispatch(pred_t&& pred, type_to_value_t&& type_to_value, default_t default_value = {}) {
+inline result_t type_dispatch(pred_t&& pred, type_to_value_t&& type_to_value, default_t default_value = {}) {
     return type_dispatch_impl<typelist>::template dispatch<result_t>(std::forward<pred_t>(pred),
                                                                      std::forward<type_to_value_t>(type_to_value),
                                                                      std::forward<default_t>(default_value));
@@ -196,11 +196,25 @@ bool is_cv_type_in_list(const int type_id) {
     return type_dispatch<typelist>(type_id, cv_type_id{}, [](...){ return true;}, false);
 }
 
+
+G_TYPED_KERNEL(ScalePlane8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_8u") {
+    static cv::GMatDesc outMeta(const cv::GMatDesc & in, const Size & sz, int) {
+        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
+        return in.withSize(sz);
+    }
+};
+
+G_TYPED_KERNEL(ScalePlane32f, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_32f") {
+    static cv::GMatDesc outMeta(const cv::GMatDesc & in, const Size & sz, int) {
+        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
+        return in.withSize(sz);
+    }
+};
 namespace {
 using merge_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float, fp_16_t>;
 
 template<typename T, int chs>
-void mergeRowImpl(scalar_tag, const std::array<const T*, chs>& ins, T* out, const int length) {
+inline void mergeRowImpl(scalar_tag, const std::array<const T*, chs>& ins, T* out, const int length) {
     for (int x = 0; x < length; ++x) {
         for (int c = 0; c < chs; ++c) {
             out[chs * x + c] = ins[c][x];
@@ -213,9 +227,10 @@ struct typed_merge_row {
     using p_f = void (*)(const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length);
 
     template <typename type>
-    typename std::enable_if<std::is_same<isa_tag_t, scalar_tag>::value ||
-            (!std::is_same<isa_tag_t, scalar_tag>::value && !std::is_same<type, uint8_t>::value &&
-             !std::is_same<type, float>::value), p_f>::type
+    inline typename std::enable_if<std::is_same<isa_tag_t, scalar_tag>::value ||
+                                  (!std::is_same<isa_tag_t, scalar_tag>::value &&
+                                   !std::is_same<type, uint8_t>::value &&
+                                   !std::is_same<type, float>::value), p_f>::type
     operator()(type_to_type<type> ) {
         return [](const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length) {
             const auto inT = reinterpret_cast<const std::array<const type*, chs>&>(ins);
@@ -226,7 +241,7 @@ struct typed_merge_row {
     }
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
     operator()(type_to_type<uint8_t>) {
         return [](const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length) {
             tag t;
@@ -235,7 +250,7 @@ struct typed_merge_row {
     }
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
     operator()(type_to_type<float>) {
         return [](const std::array<const uint8_t*, chs>& ins, uint8_t* out, const int length) {
             const auto inT = reinterpret_cast<const std::array<const float*, chs>&>(ins);
@@ -252,7 +267,7 @@ namespace {
 using split_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float, fp_16_t>;
 
 template<typename T, int chs>
-void splitRowImpl(scalar_tag, const T* in, std::array<T*, chs>& outs, const int length) {
+inline void splitRowImpl(scalar_tag, const T* in, std::array<T*, chs>& outs, const int length) {
     for (int x = 0; x < length; ++x) {
         for (int c = 0; c < chs; ++c) {
             outs[c][x] = in[chs * x + c];
@@ -265,9 +280,10 @@ struct typed_split_row {
     using p_f = void (*)(const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length);
 
     template <typename type>
-    typename std::enable_if<std::is_same<isa_tag_t, scalar_tag>::value ||
-            (!std::is_same<isa_tag_t, scalar_tag>::value && !std::is_same<type, uint8_t>::value &&
-             !std::is_same<type, float>::value), p_f>::type
+    inline typename std::enable_if<std::is_same<isa_tag_t, scalar_tag>::value ||
+                                   (!std::is_same<isa_tag_t, scalar_tag>::value &&
+                                    !std::is_same<type, uint8_t>::value &&
+                                    !std::is_same<type, float>::value), p_f>::type
     operator()(type_to_type<type> ) {
         return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
             const auto inT = reinterpret_cast<const type*>(in);
@@ -278,7 +294,7 @@ struct typed_split_row {
     }
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
     operator()(type_to_type<uint8_t>) {
         return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
             tag t;
@@ -287,7 +303,7 @@ struct typed_split_row {
     }
 
     template<typename tag = isa_tag_t>
-    typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
     operator()(type_to_type<float>) {
         return [](const uint8_t* in, std::array<uint8_t*, chs>& outs, const int length) {
             const auto inT = reinterpret_cast<const float*>(in);
@@ -377,7 +393,7 @@ namespace {
 using chan_to_plane_supported_types = typelist<uint8_t, float>;
 
 template<typename T>
-void chanToPlaneRowImpl(scalar_tag, const T* in, int chan, int chs, T* out, int length) {
+inline void chanToPlaneRowImpl(scalar_tag, const T* in, int chan, int chs, T* out, int length) {
     for (int x = 0; x < length; x++) {
         out[x] = in[x*chs + chan];
     }
@@ -403,8 +419,8 @@ namespace {
 
 using nv12_to_rgb_supported_types = typelist<uint8_t>;
 
-void nv12ToRgbRowImpl(scalar_tag, const uint8_t** y_rows, const uint8_t* uv_row,
-    uint8_t** out_rows, const int buf_width) {
+inline void nv12ToRgbRowImpl(scalar_tag, const uint8_t** y_rows, const uint8_t* uv_row,
+                             uint8_t** out_rows, const int buf_width) {
     for (int i = 0; i < buf_width; i += 2) {
         uint8_t u = uv_row[i];
         uint8_t v = uv_row[i + 1];
@@ -428,17 +444,17 @@ void nv12ToRgbRowImpl(scalar_tag, const uint8_t** y_rows, const uint8_t* uv_row,
 template<typename isa_tag_t>
 struct typed_nv12_to_rgb_row {
     using p_f = void (*)(const uint8_t** y_rows, const uint8_t* uv_row,
-        uint8_t** out_rows, const int buf_width);
+                         uint8_t** out_rows, const int buf_width);
 
     template <typename type>
     p_f operator()(type_to_type<type>) {
         return [](const uint8_t** y_rows, const uint8_t* uv_row,
-            uint8_t** out_rows, const int buf_width) {
-                const auto inT1 = reinterpret_cast<const type**>(y_rows);
-                const auto inT2 = reinterpret_cast<const type*>(uv_row);
-                auto outT = reinterpret_cast<type**>(out_rows);
+                  uint8_t** out_rows, const int buf_width) {
+            const auto inT1 = reinterpret_cast<const type**>(y_rows);
+            const auto inT2 = reinterpret_cast<const type*>(uv_row);
+            auto outT = reinterpret_cast<type**>(out_rows);
 
-                nv12ToRgbRowImpl(isa_tag_t{}, inT1, inT2, outT, buf_width);
+            nv12ToRgbRowImpl(isa_tag_t{}, inT1, inT2, outT, buf_width);
         };
     }
 };
@@ -448,11 +464,11 @@ namespace {
 
 using i420_to_rgb_supported_types = typelist<uint8_t>;
 
-static void i420ToRgbRowImpl(scalar_tag, const  uint8_t** y_rows,
-    const  uint8_t* u_row,
-    const  uint8_t* v_row,
-    uint8_t** out_rows,
-    const int buf_width) {
+inline void i420ToRgbRowImpl(scalar_tag, const  uint8_t** y_rows,
+                             const  uint8_t* u_row,
+                             const  uint8_t* v_row,
+                             uint8_t** out_rows,
+                             const int buf_width) {
     for (int i = 0; i < buf_width; i += 2) {
         uchar u = u_row[i / 2];
         uchar v = v_row[i / 2];
@@ -493,337 +509,57 @@ struct typed_i420_to_rgb_row {
 };
 }  // namespace
 
-template <typename isa_tag_t>
-struct choose_impl {
-GAPI_FLUID_KERNEL(FChanToPlane, ChanToPlane, false) {
-    static const int Window = 1;
-    static void run(const cv::gapi::fluid::View& in, int chan,
-                    cv::gapi::fluid::Buffer& out) {
-        GAPI_DbgAssert(is_cv_type_in_list<chan_to_plane_supported_types>(out.meta().depth));
+namespace linear {
+struct Mapper {
+    typedef short alpha_type;
+    typedef short index_type;
+    constexpr static const int unity = ONE;
 
-        const auto rowFunc = type_dispatch<chan_to_plane_supported_types>(out.meta().depth, cv_type_id{}, typed_chan_to_plane_row<isa_tag_t>{}, nullptr);
+    typedef MapperUnit<short, short> Unit;
 
-        GAPI_DbgAssert(rowFunc);
+    static inline Unit map(double ratio, int start, int max, int outCoord) {
+        float f = static_cast<float>((outCoord + 0.5) * ratio - 0.5);
+        int s = cvFloor(f);
+        f -= s;
 
-        rowFunc(in.InLineB(0), chan, in.meta().chan, out.OutLineB(), in.length());
+        Unit u;
+
+        u.index0 = std::max(s - start, 0);
+        u.index1 = ((f == 0.0) || s + 1 >= max) ? s - start : s - start + 1;
+
+        u.alpha0 = saturate_cast<short>(ONE * (1.0f - f));
+        u.alpha1 = saturate_cast<short>(ONE *         f);
+
+        return u;
     }
 };
+}  // namespace linear
 
-GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
-    static const int Window = 1;
-    static const int LPI = 2;
-    static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
+namespace linear32f {
+struct Mapper {
+    typedef float alpha_type;
+    typedef int   index_type;
+    constexpr static const float unity = 1;
 
-    static void run(const cv::gapi::fluid::View & in_y,
-                    const cv::gapi::fluid::View & in_uv,
-                    cv::gapi::fluid::Buffer & out) {
-        GAPI_DbgAssert(is_cv_type_in_list<nv12_to_rgb_supported_types>(out.meta().depth));
+    typedef MapperUnit<float, int> Unit;
 
-        const uchar* uv_row = in_uv.InLineB(0);
-        const uchar* y_rows[2] = { in_y.InLineB(0), in_y.InLineB(1) };
-        uchar* out_rows[2] = { out.OutLineB(0), out.OutLineB(1) };
+    static inline Unit map(double ratio, int start, int max, int outCoord) {
+        float f = static_cast<float>((outCoord + 0.5) * ratio - 0.5);
+        int s = cvFloor(f);
+        f -= s;
 
-        int buf_width = out.length();
+        Unit u;
 
-        const auto rowFunc = type_dispatch<nv12_to_rgb_supported_types>(out.meta().depth, cv_type_id{}, typed_nv12_to_rgb_row<isa_tag_t>{}, nullptr);
+        u.index0 = std::max(s - start, 0);
+        u.index1 = ((f == 0.0) || s + 1 >= max) ? s - start : s - start + 1;
 
-        GAPI_DbgAssert(rowFunc);
+        u.alpha0 = 1.f - f;
+        u.alpha1 =       f;
 
-        rowFunc(y_rows, uv_row, out_rows, buf_width);
+        return u;
     }
 };
-
-GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
-    static const int Window = 1;
-    static const int LPI = 2;
-    static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
-
-    static void run(const cv::gapi::fluid::View & in_y,
-        const cv::gapi::fluid::View & in_u,
-        const cv::gapi::fluid::View & in_v,
-        cv::gapi::fluid::Buffer & out) {
-        GAPI_DbgAssert(is_cv_type_in_list<i420_to_rgb_supported_types>(out.meta().depth));
-
-        const uchar* u_row = in_u.InLineB(0);
-        const uchar* v_row = in_v.InLineB(0);
-        const uchar* y_rows[2] = { in_y.InLineB(0), in_y.InLineB(1) };
-        uchar* out_rows[2] = { out.OutLineB(0), out.OutLineB(1) };
-
-        int buf_width = out.length();
-        GAPI_DbgAssert(in_u.length() == in_v.length());
-
-        const auto rowFunc = type_dispatch<i420_to_rgb_supported_types>(out.meta().depth, cv_type_id{}, typed_i420_to_rgb_row<isa_tag_t>{}, nullptr);
-
-        GAPI_DbgAssert(rowFunc);
-
-        rowFunc(y_rows, u_row, v_row, out_rows, buf_width);
-    }
-};
-
-GAPI_FLUID_KERNEL(FSplit2, Split2, false) {
-    static const int LPI = 4;
-    static const int Window = 1;
-    static void run(const cv::gapi::fluid::View & in,
-        cv::gapi::fluid::Buffer & out1,
-        cv::gapi::fluid::Buffer & out2) {
-        GAPI_DbgAssert(2 == in.meta().chan);
-        GAPI_DbgAssert(1 == out1.meta().chan);
-        GAPI_DbgAssert(1 == out2.meta().chan);
-        GAPI_DbgAssert(in.meta().depth == out1.meta().depth);
-        GAPI_DbgAssert(in.meta().depth == out2.meta().depth);
-        GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
-
-        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<isa_tag_t, 2>{}, nullptr);
-        for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
-            std::array<uint8_t*, 2> outs = { out1.OutLineB(i), out2.OutLineB(i) };
-            rowFunc(in.InLineB(i), outs, in.length());
-        }
-    }
-};
-
-GAPI_FLUID_KERNEL(FSplit3, Split3, false) {
-    static const int LPI = 4;
-    static const int Window = 1;
-    static void run(const cv::gapi::fluid::View & in,
-        cv::gapi::fluid::Buffer & out1,
-        cv::gapi::fluid::Buffer & out2,
-        cv::gapi::fluid::Buffer & out3) {
-        GAPI_DbgAssert(3 == in.meta().chan);
-        GAPI_DbgAssert(1 == out1.meta().chan);
-        GAPI_DbgAssert(1 == out2.meta().chan);
-        GAPI_DbgAssert(1 == out3.meta().chan);
-        GAPI_DbgAssert(in.meta().depth == out1.meta().depth);
-        GAPI_DbgAssert(in.meta().depth == out2.meta().depth);
-        GAPI_DbgAssert(in.meta().depth == out3.meta().depth);
-
-        GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
-
-        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<isa_tag_t, 3>{}, nullptr);
-        for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
-            std::array<uint8_t*, 3> outs = { out1.OutLineB(i), out2.OutLineB(i),
-                                            out3.OutLineB(i) };
-            rowFunc(in.InLineB(i), outs, in.length());
-        }
-    }
-};
-
-GAPI_FLUID_KERNEL(FSplit4, Split4, false) {
-    static const int LPI = 4;
-    static const int Window = 1;
-    static void run(const cv::gapi::fluid::View & in,
-        cv::gapi::fluid::Buffer & out1,
-        cv::gapi::fluid::Buffer & out2,
-        cv::gapi::fluid::Buffer & out3,
-        cv::gapi::fluid::Buffer & out4) {
-        GAPI_DbgAssert(4 == in.meta().chan);
-        GAPI_DbgAssert(1 == out1.meta().chan);
-        GAPI_DbgAssert(1 == out2.meta().chan);
-        GAPI_DbgAssert(1 == out3.meta().chan);
-        GAPI_DbgAssert(1 == out4.meta().chan);
-        GAPI_DbgAssert(in.meta().depth == out1.meta().depth);
-        GAPI_DbgAssert(in.meta().depth == out2.meta().depth);
-        GAPI_DbgAssert(in.meta().depth == out3.meta().depth);
-        GAPI_DbgAssert(in.meta().depth == out4.meta().depth);
-        GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
-
-        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<isa_tag_t, 4>{}, nullptr);
-        for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
-            std::array<uint8_t*, 4> outs = { out1.OutLineB(i), out2.OutLineB(i),
-                                            out3.OutLineB(i), out4.OutLineB(i) };
-            rowFunc(in.InLineB(i), outs, in.length());
-        }
-    }
-};
-
-GAPI_FLUID_KERNEL(FMerge2, Merge2, false) {
-    static const int LPI = 4;
-    static const int Window = 1;
-    static void run(const cv::gapi::fluid::View & a,
-        const cv::gapi::fluid::View & b,
-        cv::gapi::fluid::Buffer & out) {
-        GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
-
-        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 2>{}, nullptr);
-        for (int l = 0; l < out.lpi(); l++) {
-            rowFunc({ a.InLineB(l), b.InLineB(l) }, out.OutLineB(l), a.length());
-        }
-    }
-};
-
-GAPI_FLUID_KERNEL(FMerge3, Merge3, false) {
-    static const int LPI = 4;
-    static const int Window = 1;
-    static void run(const cv::gapi::fluid::View & a,
-        const cv::gapi::fluid::View & b,
-        const cv::gapi::fluid::View & c,
-        cv::gapi::fluid::Buffer & out) {
-        GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
-
-        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 3>{}, nullptr);
-        for (int l = 0; l < out.lpi(); l++) {
-            rowFunc({ a.InLineB(l), b.InLineB(l), c.InLineB(l) }, out.OutLineB(l), a.length());
-        }
-    }
-};
-
-GAPI_FLUID_KERNEL(FMerge4, Merge4, false) {
-    static const int LPI = 4;
-    static const int Window = 1;
-    static void run(const cv::gapi::fluid::View & a,
-        const cv::gapi::fluid::View & b,
-        const cv::gapi::fluid::View & c,
-        const cv::gapi::fluid::View & d,
-        cv::gapi::fluid::Buffer & out) {
-        GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
-
-        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 4>{}, nullptr);
-        for (int l = 0; l < out.lpi(); l++) {
-            rowFunc({ a.InLineB(l), b.InLineB(l), c.InLineB(l), d.InLineB(l) }, out.OutLineB(l), a.length());
-        }
-    }
-};
-};
-
-namespace {
-struct CC_and_MergeISA {
-    cv::gapi::GKernelPackage& pckg;
-
-    CC_and_MergeISA(cv::gapi::GKernelPackage& _pckg) : pckg(_pckg) {}
-
-    template<typename isa_tag_t>
-    bool operator()(type_to_type<isa_tag_t>) {
-        pckg.include<typename choose_impl<isa_tag_t>::FI420toRGB>();
-        pckg.include<typename choose_impl<isa_tag_t>::FNV12toRGB>();
-        pckg.include<typename choose_impl<isa_tag_t>::FChanToPlane>();
-        pckg.include<typename choose_impl<isa_tag_t>::FMerge2>();
-        pckg.include<typename choose_impl<isa_tag_t>::FMerge3>();
-        pckg.include<typename choose_impl<isa_tag_t>::FMerge4>();
-        //at the moment type_dispatch requires something to be returned by the lambda
-        return true;
-    }
-};
-
-struct SplitISA {
-    cv::gapi::GKernelPackage& pckg;
-
-    SplitISA(cv::gapi::GKernelPackage& _pckg) : pckg(_pckg) {}
-
-    template<typename isa_tag_t>
-    bool operator()(type_to_type<isa_tag_t>) {
-        pckg.include<typename choose_impl<isa_tag_t>::FSplit2>();
-        pckg.include<typename choose_impl<isa_tag_t>::FSplit3>();
-        pckg.include<typename choose_impl<isa_tag_t>::FSplit4>();
-        //at the moment type_dispatch requires something to be returned by the lambda
-        return true;
-    }
-};
-}  //namespace
-
-cv::gapi::GKernelPackage FKernelsChooseISA() {
-    // At the moment AVX512 implementation of wide universal intrinsics is slower than AVX2.
-    // So, disable it for now.
-    using isas = remove_t<isas_set, avx512_tag>;
-
-    cv::gapi::GKernelPackage pckg1, pckg2;
-    CC_and_MergeISA ccISA{ pckg1 };
-    SplitISA sISA{ pckg2 };
-
-    type_dispatch<isas>(is_isa_present{}, ccISA, false);
-    type_dispatch<isas_set>(is_isa_present{}, sISA, false);
-
-    return combine(pckg1, pckg2);
-}
-
-//----------------------------------------------------------------------
-
-G_TYPED_KERNEL(ScalePlane8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_8u") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
-        return in.withSize(sz);
-    }
-};
-
-G_TYPED_KERNEL(ScalePlane32f, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_32f") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
-        return in.withSize(sz);
-    }
-};
-
-G_TYPED_KERNEL(UpscalePlaneArea8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.upscale_plane_area_8u") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
-        GAPI_DbgAssert(in.size.width < sz.width || in.size.height < sz.height);
-        return in.withSize(sz);
-    }
-};
-
-G_TYPED_KERNEL(UpscalePlaneArea32f, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.upscale_plane_area_32f") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
-        GAPI_DbgAssert(in.size.width < sz.width || in.size.height < sz.height);
-        return in.withSize(sz);
-    }
-};
-
-G_TYPED_KERNEL(ScalePlaneArea8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_area_8u") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
-        GAPI_DbgAssert(in.size.width >= sz.width && in.size.height >= sz.height);
-        return in.withSize(sz);
-    }
-};
-
-G_TYPED_KERNEL(ScalePlaneArea32f, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_area_32f") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
-        GAPI_DbgAssert(in.size.width >= sz.width && in.size.height >= sz.height);
-        return in.withSize(sz);
-    }
-};
-
-GAPI_COMPOUND_KERNEL(FScalePlane, ScalePlane) {
-    static cv::GMat expand(cv::GMat in, int type, const Size& szIn, const Size& szOut, int interp) {
-        GAPI_DbgAssert(CV_8UC1 == type || CV_32FC1 == type);
-        GAPI_DbgAssert(cv::INTER_AREA == interp || cv::INTER_LINEAR == interp);
-
-        if (cv::INTER_AREA == interp) {
-            bool upscale = szIn.width < szOut.width || szIn.height < szOut.height;
-            if (CV_8UC1 == type) {
-                if (upscale)
-                    return UpscalePlaneArea8u::on(in, szOut, interp);
-                else
-                    return   ScalePlaneArea8u::on(in, szOut, interp);
-            }
-            if (CV_32FC1 == type) {
-                if (upscale)
-                    return UpscalePlaneArea32f::on(in, szOut, interp);
-                else
-                    return   ScalePlaneArea32f::on(in, szOut, interp);
-            }
-        }
-
-        if (cv::INTER_LINEAR == interp) {
-            if (CV_8UC1 == type) {
-                return ScalePlane8u::on(in, szOut, interp);
-            }
-            if (CV_32FC1 == type) {
-                return ScalePlane32f::on(in, szOut, interp);
-            }
-        }
-
-        GAPI_Assert(!"unsupported parameters");
-        return {};
-    }
-};
-
-static inline double invRatio(int inSz, int outSz) {
-    return static_cast<double>(outSz) / inSz;
-}
-
-static inline double ratio(int inSz, int outSz) {
-    return 1 / invRatio(inSz, outSz);
-}
+}  // namespace linear32f
 
 template<typename T, typename Mapper, int chanNum>
 struct linearScratchDesc {
@@ -858,11 +594,19 @@ struct linearScratchDesc {
     }
 };
 
+static inline double invRatio(int inSz, int outSz) {
+    return static_cast<double>(outSz) / inSz;
+}
+
+static inline double ratio(int inSz, int outSz) {
+    return 1 / invRatio(inSz, outSz);
+}
+
 template<typename T, typename Mapper, int chanNum = 1>
-static void initScratchLinear(const cv::GMatDesc& in,
-                              const         Size& outSz,
-                              cv::gapi::fluid::Buffer& scratch,
-                                             int  lpi) {
+static inline void initScratchLinear(const cv::GMatDesc& in,
+                                     const         Size& outSz,
+                                     cv::gapi::fluid::Buffer& scratch,
+                                     int  lpi) {
     using alpha_type = typename Mapper::alpha_type;
     static const auto unity = Mapper::unity;
 
@@ -939,6 +683,575 @@ static void initScratchLinear(const cv::GMatDesc& in,
     }
 }
 
+template<typename T, typename IT, typename AT, class Mapper>
+inline void calcRowLinearC1Impl(T*    dst[],
+                                const T*    src0[],
+                                const T*    src1[],
+                                const AT    alpha[],
+                                const IT    mapsx[],
+                                const AT    beta[],
+                                const Size& inSz,
+                                const Size& outSz,
+                                const int   lpi,
+                                const int   length) {
+    using alpha_type = typename Mapper::alpha_type;
+    for (int l = 0; l < lpi; l++) {
+        constexpr static const auto unity = Mapper::unity;
+
+        auto beta0 = beta[l];
+        auto beta1 = saturate_cast<alpha_type>(unity - beta[l]);
+
+        for (int x = 0; x < length; x++) {
+            auto alpha0 = alpha[x];
+            auto alpha1 = saturate_cast<alpha_type>(unity - alpha[x]);
+            auto sx0 = mapsx[x];
+            auto sx1 = sx0 + 1;
+            T tmp0 = calc(beta0, src0[l][sx0], beta1, src1[l][sx0]);
+            T tmp1 = calc(beta0, src0[l][sx1], beta1, src1[l][sx1]);
+            dst[l][x] = calc(alpha0, tmp0, alpha1, tmp1);
+        }
+    }
+}
+
+namespace {
+
+using resizeLinearU8C1_suptypes = typelist<uint8_t>;
+
+template<class Mapper>
+inline void calcRowLinear8UC1Impl(scalar_tag, uint8_t* dst[],
+                                  const uint8_t* src0[],
+                                  const uint8_t* src1[],
+                                  const short    alpha[],
+                                  const short    clone[],  // 4 clones of alpha
+                                  const short    mapsx[],
+                                  const short    beta[],
+                                  uint8_t        tmp[],
+                                  const Size&    inSz,
+                                  const Size&    outSz,
+                                  const int      lpi,
+                                  const int      length) {
+    calcRowLinearC1Impl<uint8_t, short,
+                        short, Mapper>(dst, src0, src1, alpha, mapsx,
+                                       beta, inSz, outSz, lpi, length);
+}
+
+template<typename isa_tag_t, class Mapper>
+struct typed_resizeLinearU8C1 {
+    using p_f = void (*)(uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
+                         const short alpha[], const short clone[], const short mapsx[],
+                         const short beta[], uint8_t tmp[], const Size& inSz,
+                         const Size& outSz, const int lpi, const int length);
+
+    template<typename tag = isa_tag_t>
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    operator()(type_to_type<uint8_t>) {
+        return [](uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
+                  const short alpha[], const short clone[], const short mapsx[],
+                  const short beta[], uint8_t tmp[], const Size& inSz,
+                  const Size& outSz, const int lpi, const int length) {
+            if (!calcRowLinear8UC1Impl(isa_tag_t{}, dst, src0,
+                                    src1, alpha, clone,
+                                    mapsx, beta, tmp,
+                                    inSz, outSz, lpi, length))
+                calcRowLinear8UC1Impl<Mapper>(scalar_tag{}, dst, src0, src1, alpha, clone,
+                                              mapsx, beta, tmp, inSz, outSz, lpi, length);
+        };
+    }
+
+    template<typename tag = isa_tag_t>
+    inline typename std::enable_if<std::is_same<tag, scalar_tag>::value, p_f>::type
+    operator()(type_to_type<uint8_t>) {
+        return [](uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
+                  const short alpha[], const short clone[], const short mapsx[],
+                  const short beta[], uint8_t tmp[], const Size& inSz,
+                  const Size& outSz, const int lpi, const int length) {
+            calcRowLinear8UC1Impl<Mapper>(isa_tag_t{}, dst, src0, src1, alpha, clone,
+                                          mapsx, beta, tmp, inSz, outSz, lpi, length);
+        };
+    }
+};
+}  // namespace
+
+namespace {
+
+using resizeLinearF32C1_suptypes = typelist<float>;
+
+template<class Mapper>
+inline void calcRowLinear32FC1Impl(scalar_tag, float* dst[],
+                                   const float* src0[],
+                                   const float* src1[],
+                                   const float  alpha[],
+                                   const int    mapsx[],
+                                   const float  beta[],
+                                   const Size& inSz,
+                                   const Size& outSz,
+                                   const int   lpi,
+                                   const int  length) {
+    calcRowLinearC1Impl<float, int,
+                        float, Mapper>(dst, src0, src1, alpha, mapsx,
+                                       beta, inSz, outSz, lpi, length);
+}
+
+template<typename isa_tag_t, class Mapper>
+struct typed_resizeLinearF32C1 {
+    using p_f = void (*)(float* dst[], const float* src0[], const float* src1[],
+                         const float alpha[], const int mapsx[],
+                         const float beta[], const Size& inSz,
+                         const Size& outSz, const int lpi, const int length);
+
+    template<typename tag = isa_tag_t>
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+        operator()(type_to_type<float>) {
+        return [](float* dst[], const float* src0[], const float* src1[],
+                  const float alpha[], const int mapsx[],
+                  const float beta[], const Size& inSz,
+                  const Size& outSz, const int lpi, const int length) {
+                calcRowLinear32FC1Impl(isa_tag_t{}, dst, src0, src1, alpha,
+                                       mapsx, beta, inSz, outSz, lpi, length);
+        };
+    }
+
+    template<typename tag = isa_tag_t>
+    inline typename std::enable_if<std::is_same<tag, scalar_tag>::value, p_f>::type
+        operator()(type_to_type<float>) {
+        return [](float* dst[], const float* src0[], const float* src1[],
+                  const float alpha[], const int mapsx[],
+                  const float beta[], const Size& inSz,
+                  const Size& outSz, const int lpi, const int length) {
+                calcRowLinear32FC1Impl<Mapper>(isa_tag_t{}, dst, src0, src1, alpha,
+                                               mapsx, beta, inSz, outSz, lpi, length);
+        };
+    }
+};
+}  // namespace
+
+template <typename isa_tag_t>
+struct choose_impl {
+GAPI_FLUID_KERNEL(FChanToPlane, ChanToPlane, false) {
+    static const int Window = 1;
+    static void run(const cv::gapi::fluid::View& in, int chan,
+                    cv::gapi::fluid::Buffer& out) {
+        GAPI_DbgAssert(is_cv_type_in_list<chan_to_plane_supported_types>(out.meta().depth));
+
+        const auto rowFunc = type_dispatch<chan_to_plane_supported_types>(out.meta().depth, cv_type_id{}, typed_chan_to_plane_row<isa_tag_t>{}, nullptr);
+
+        GAPI_DbgAssert(rowFunc);
+
+        rowFunc(in.InLineB(0), chan, in.meta().chan, out.OutLineB(), in.length());
+    }
+};
+
+GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
+    static const int Window = 1;
+    static const int LPI = 2;
+    static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
+
+    static void run(const cv::gapi::fluid::View & in_y,
+                    const cv::gapi::fluid::View & in_uv,
+                    cv::gapi::fluid::Buffer & out) {
+        GAPI_DbgAssert(is_cv_type_in_list<nv12_to_rgb_supported_types>(out.meta().depth));
+
+        const uchar* uv_row = in_uv.InLineB(0);
+        const uchar* y_rows[2] = { in_y.InLineB(0), in_y.InLineB(1) };
+        uchar* out_rows[2] = { out.OutLineB(0), out.OutLineB(1) };
+
+        int buf_width = out.length();
+
+        const auto rowFunc = type_dispatch<nv12_to_rgb_supported_types>(out.meta().depth, cv_type_id{}, typed_nv12_to_rgb_row<isa_tag_t>{}, nullptr);
+
+        GAPI_DbgAssert(rowFunc);
+
+        rowFunc(y_rows, uv_row, out_rows, buf_width);
+    }
+};
+
+GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
+    static const int Window = 1;
+    static const int LPI = 2;
+    static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
+
+    static void run(const cv::gapi::fluid::View & in_y,
+                    const cv::gapi::fluid::View & in_u,
+                    const cv::gapi::fluid::View & in_v,
+                    cv::gapi::fluid::Buffer & out) {
+        GAPI_DbgAssert(is_cv_type_in_list<i420_to_rgb_supported_types>(out.meta().depth));
+
+        const uchar* u_row = in_u.InLineB(0);
+        const uchar* v_row = in_v.InLineB(0);
+        const uchar* y_rows[2] = { in_y.InLineB(0), in_y.InLineB(1) };
+        uchar* out_rows[2] = { out.OutLineB(0), out.OutLineB(1) };
+
+        int buf_width = out.length();
+        GAPI_DbgAssert(in_u.length() == in_v.length());
+
+        const auto rowFunc = type_dispatch<i420_to_rgb_supported_types>(out.meta().depth, cv_type_id{}, typed_i420_to_rgb_row<isa_tag_t>{}, nullptr);
+
+        GAPI_DbgAssert(rowFunc);
+
+        rowFunc(y_rows, u_row, v_row, out_rows, buf_width);
+    }
+};
+
+GAPI_FLUID_KERNEL(FSplit2, Split2, false) {
+    static const int LPI = 4;
+    static const int Window = 1;
+    static void run(const cv::gapi::fluid::View & in,
+                    cv::gapi::fluid::Buffer & out1,
+                    cv::gapi::fluid::Buffer & out2) {
+        GAPI_DbgAssert(2 == in.meta().chan);
+        GAPI_DbgAssert(1 == out1.meta().chan);
+        GAPI_DbgAssert(1 == out2.meta().chan);
+        GAPI_DbgAssert(in.meta().depth == out1.meta().depth);
+        GAPI_DbgAssert(in.meta().depth == out2.meta().depth);
+        GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
+
+        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<isa_tag_t, 2>{}, nullptr);
+        for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
+            std::array<uint8_t*, 2> outs = { out1.OutLineB(i), out2.OutLineB(i) };
+            rowFunc(in.InLineB(i), outs, in.length());
+        }
+    }
+};
+
+GAPI_FLUID_KERNEL(FSplit3, Split3, false) {
+    static const int LPI = 4;
+    static const int Window = 1;
+    static void run(const cv::gapi::fluid::View & in,
+                    cv::gapi::fluid::Buffer & out1,
+                    cv::gapi::fluid::Buffer & out2,
+                    cv::gapi::fluid::Buffer & out3) {
+        GAPI_DbgAssert(3 == in.meta().chan);
+        GAPI_DbgAssert(1 == out1.meta().chan);
+        GAPI_DbgAssert(1 == out2.meta().chan);
+        GAPI_DbgAssert(1 == out3.meta().chan);
+        GAPI_DbgAssert(in.meta().depth == out1.meta().depth);
+        GAPI_DbgAssert(in.meta().depth == out2.meta().depth);
+        GAPI_DbgAssert(in.meta().depth == out3.meta().depth);
+
+        GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
+
+        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<isa_tag_t, 3>{}, nullptr);
+        for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
+            std::array<uint8_t*, 3> outs = { out1.OutLineB(i), out2.OutLineB(i),
+                                            out3.OutLineB(i) };
+            rowFunc(in.InLineB(i), outs, in.length());
+        }
+    }
+};
+
+GAPI_FLUID_KERNEL(FSplit4, Split4, false) {
+    static const int LPI = 4;
+    static const int Window = 1;
+    static void run(const cv::gapi::fluid::View & in,
+                    cv::gapi::fluid::Buffer & out1,
+                    cv::gapi::fluid::Buffer & out2,
+                    cv::gapi::fluid::Buffer & out3,
+                    cv::gapi::fluid::Buffer & out4) {
+        GAPI_DbgAssert(4 == in.meta().chan);
+        GAPI_DbgAssert(1 == out1.meta().chan);
+        GAPI_DbgAssert(1 == out2.meta().chan);
+        GAPI_DbgAssert(1 == out3.meta().chan);
+        GAPI_DbgAssert(1 == out4.meta().chan);
+        GAPI_DbgAssert(in.meta().depth == out1.meta().depth);
+        GAPI_DbgAssert(in.meta().depth == out2.meta().depth);
+        GAPI_DbgAssert(in.meta().depth == out3.meta().depth);
+        GAPI_DbgAssert(in.meta().depth == out4.meta().depth);
+        GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
+
+        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<isa_tag_t, 4>{}, nullptr);
+        for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
+            std::array<uint8_t*, 4> outs = { out1.OutLineB(i), out2.OutLineB(i),
+                                            out3.OutLineB(i), out4.OutLineB(i) };
+            rowFunc(in.InLineB(i), outs, in.length());
+        }
+    }
+};
+
+GAPI_FLUID_KERNEL(FMerge2, Merge2, false) {
+    static const int LPI = 4;
+    static const int Window = 1;
+    static void run(const cv::gapi::fluid::View & a,
+                    const cv::gapi::fluid::View & b,
+                    cv::gapi::fluid::Buffer & out) {
+        GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
+
+        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 2>{}, nullptr);
+        for (int l = 0; l < out.lpi(); l++) {
+            rowFunc({ a.InLineB(l), b.InLineB(l) }, out.OutLineB(l), a.length());
+        }
+    }
+};
+
+GAPI_FLUID_KERNEL(FMerge3, Merge3, false) {
+    static const int LPI = 4;
+    static const int Window = 1;
+    static void run(const cv::gapi::fluid::View & a,
+                    const cv::gapi::fluid::View & b,
+                    const cv::gapi::fluid::View & c,
+                    cv::gapi::fluid::Buffer & out) {
+        GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
+
+        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 3>{}, nullptr);
+        for (int l = 0; l < out.lpi(); l++) {
+            rowFunc({ a.InLineB(l), b.InLineB(l), c.InLineB(l) }, out.OutLineB(l), a.length());
+        }
+    }
+};
+
+GAPI_FLUID_KERNEL(FMerge4, Merge4, false) {
+    static const int LPI = 4;
+    static const int Window = 1;
+    static void run(const cv::gapi::fluid::View & a,
+                    const cv::gapi::fluid::View & b,
+                    const cv::gapi::fluid::View & c,
+                    const cv::gapi::fluid::View & d,
+                    cv::gapi::fluid::Buffer & out) {
+        GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
+
+        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 4>{}, nullptr);
+        for (int l = 0; l < out.lpi(); l++) {
+            rowFunc({ a.InLineB(l), b.InLineB(l), c.InLineB(l), d.InLineB(l) }, out.OutLineB(l), a.length());
+        }
+    }
+};
+
+template<typename KT, typename TL>
+static inline void callRowFunc(uint8_t* dst[], const uint8_t* src0[],
+                               const uint8_t* src1[], const short alpha[],
+                               const short clone[], const short mapsx[],
+                               const short beta[], uint8_t tmp[], const Size& inSz,
+                               const Size& outSz, const int lpi, const int length, const int depth) {
+    const auto rowFunc = type_dispatch<TL>(depth, cv_type_id{}, KT{}, nullptr);
+
+    GAPI_DbgAssert(rowFunc);
+
+    rowFunc(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi, length);
+}
+
+template<typename KT, typename TL>
+static inline void callRowFunc(float* dst[], const float* src0[], const float* src1[],
+                               const float alpha[], const float clone[], const int mapsx[],
+                               const float beta[], float tmp[], const Size& inSz,
+                               const Size& outSz, const int lpi, const int length, const int depth) {
+    const auto rowFunc = type_dispatch<TL>(depth, cv_type_id{}, KT{}, nullptr);
+
+    GAPI_DbgAssert(rowFunc);
+
+    rowFunc(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi, length);
+}
+
+template<typename T, class Mapper, typename KT, typename LT>
+static inline void calcRowLinear(const cv::gapi::fluid::View& in,
+                                 cv::gapi::fluid::Buffer& out,
+                                 cv::gapi::fluid::Buffer& scratch) {
+    GAPI_DbgAssert(is_cv_type_in_list<LT>(out.meta().depth));
+
+    auto  inSz = in.meta().size;
+    auto outSz = out.meta().size;
+
+    auto inY = in.y();
+    int length = out.length();
+    int outY = out.y();
+    int lpi = out.lpi();
+    GAPI_DbgAssert(outY + lpi <= outSz.height);
+
+    GAPI_DbgAssert(lpi <= 4);
+
+    linearScratchDesc<T, Mapper, 1> scr(inSz.width, inSz.height, outSz.width,
+                                        outSz.height, scratch.OutLineB());
+
+    const auto* alpha = scr.alpha;
+    const auto* clone = scr.clone;
+    const auto* mapsx = scr.mapsx;
+    const auto* beta0 = scr.beta;
+    const auto* mapsy = scr.mapsy;
+    auto* tmp = scr.tmp;
+
+    const auto* beta = beta0 + outY;
+    const T* src0[4];
+    const T* src1[4];
+    T* dst[4];
+
+    for (int l = 0; l < lpi; l++) {
+        auto index0 = mapsy[outY + l] - inY;
+        auto index1 = mapsy[outSz.height + outY + l] - inY;
+        src0[l] = in.InLine<const T>(index0);
+        src1[l] = in.InLine<const T>(index1);
+        dst[l] = out.OutLine<T>(l);
+    }
+
+    callRowFunc<KT, LT>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz,
+                        lpi, length, out.meta().depth);
+}
+
+GAPI_FLUID_KERNEL(FScalePlane8u, ScalePlane8u, true) {
+    static const int Window = 1;
+    static const int LPI = 4;
+    static const auto Kind = cv::GFluidKernel::Kind::Resize;
+
+    static void initScratch(const cv::GMatDesc & in,
+                            Size outSz, int /*interp*/,
+                            cv::gapi::fluid::Buffer & scratch) {
+        initScratchLinear<uchar, linear::Mapper>(in, outSz, scratch, LPI);
+    }
+
+    static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
+    }
+
+    static void run(const cv::gapi::fluid::View & in, Size /*sz*/, int /*interp*/,
+                    cv::gapi::fluid::Buffer & out, cv::gapi::fluid::Buffer & scratch) {
+        calcRowLinear<uint8_t, linear::Mapper,
+                      typed_resizeLinearU8C1<isa_tag_t, linear::Mapper>,
+                      resizeLinearU8C1_suptypes>(in, out, scratch);
+    }
+};
+
+GAPI_FLUID_KERNEL(FScalePlane32f, ScalePlane32f, true) {
+    static const int Window = 1;
+    static const int LPI = 4;
+    static const auto Kind = cv::GFluidKernel::Kind::Resize;
+
+    static void initScratch(const cv::GMatDesc & in,
+                            Size outSz, int /*interp*/,
+                            cv::gapi::fluid::Buffer & scratch) {
+        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
+
+        initScratchLinear<float, linear32f::Mapper>(in, outSz, scratch, 0);
+    }
+
+    static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
+    }
+
+    static void run(const cv::gapi::fluid::View & in, Size /*sz*/, int /*interp*/,
+                    cv::gapi::fluid::Buffer & out, cv::gapi::fluid::Buffer & scratch) {
+        calcRowLinear<float, linear32f::Mapper,
+                      typed_resizeLinearF32C1<isa_tag_t, linear32f::Mapper>,
+                      resizeLinearF32C1_suptypes>(in, out, scratch);
+    }
+};
+};
+
+namespace {
+struct CC_and_MergeISA {
+    cv::gapi::GKernelPackage& pckg;
+
+    CC_and_MergeISA(cv::gapi::GKernelPackage& _pckg) : pckg(_pckg) {}
+
+    template<typename isa_tag_t>
+    inline bool operator()(type_to_type<isa_tag_t>) {
+        pckg.include<typename choose_impl<isa_tag_t>::FI420toRGB>();
+        pckg.include<typename choose_impl<isa_tag_t>::FNV12toRGB>();
+        pckg.include<typename choose_impl<isa_tag_t>::FChanToPlane>();
+        pckg.include<typename choose_impl<isa_tag_t>::FMerge2>();
+        pckg.include<typename choose_impl<isa_tag_t>::FMerge3>();
+        pckg.include<typename choose_impl<isa_tag_t>::FMerge4>();
+        //at the moment type_dispatch requires something to be returned by the lambda
+        return true;
+    }
+};
+
+struct Split_ResizeISA {
+    cv::gapi::GKernelPackage& pckg;
+
+    Split_ResizeISA(cv::gapi::GKernelPackage& _pckg) : pckg(_pckg) {}
+
+    template<typename isa_tag_t>
+    inline bool operator()(type_to_type<isa_tag_t>) {
+        pckg.include<typename choose_impl<isa_tag_t>::FSplit2>();
+        pckg.include<typename choose_impl<isa_tag_t>::FSplit3>();
+        pckg.include<typename choose_impl<isa_tag_t>::FSplit4>();
+        pckg.include<typename choose_impl<isa_tag_t>::FScalePlane8u>();
+        pckg.include<typename choose_impl<isa_tag_t>::FScalePlane32f>();
+        //at the moment type_dispatch requires something to be returned by the lambda
+        return true;
+    }
+};
+}  //namespace
+
+inline cv::gapi::GKernelPackage FKernelsChooseISA() {
+    // At the moment AVX512 implementation of wide universal intrinsics is slower than AVX2.
+    // So, disable it for now.
+    using isas = remove_t<isas_set, avx512_tag>;
+
+    cv::gapi::GKernelPackage pckg1, pckg2;
+    CC_and_MergeISA ccISA{ pckg1 };
+    Split_ResizeISA sISA{ pckg2 };
+
+    type_dispatch<isas>(is_isa_present{}, ccISA, false);
+    type_dispatch<isas_set>(is_isa_present{}, sISA, false);
+
+    return combine(pckg1, pckg2);
+}
+
+//----------------------------------------------------------------------
+
+G_TYPED_KERNEL(UpscalePlaneArea8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.upscale_plane_area_8u") {
+    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
+        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
+        GAPI_DbgAssert(in.size.width < sz.width || in.size.height < sz.height);
+        return in.withSize(sz);
+    }
+};
+
+G_TYPED_KERNEL(UpscalePlaneArea32f, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.upscale_plane_area_32f") {
+    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
+        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
+        GAPI_DbgAssert(in.size.width < sz.width || in.size.height < sz.height);
+        return in.withSize(sz);
+    }
+};
+
+G_TYPED_KERNEL(ScalePlaneArea8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_area_8u") {
+    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
+        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
+        GAPI_DbgAssert(in.size.width >= sz.width && in.size.height >= sz.height);
+        return in.withSize(sz);
+    }
+};
+
+G_TYPED_KERNEL(ScalePlaneArea32f, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_area_32f") {
+    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
+        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
+        GAPI_DbgAssert(in.size.width >= sz.width && in.size.height >= sz.height);
+        return in.withSize(sz);
+    }
+};
+
+GAPI_COMPOUND_KERNEL(FScalePlane, ScalePlane) {
+    static cv::GMat expand(cv::GMat in, int type, const Size& szIn, const Size& szOut, int interp) {
+        GAPI_DbgAssert(CV_8UC1 == type || CV_32FC1 == type);
+        GAPI_DbgAssert(cv::INTER_AREA == interp || cv::INTER_LINEAR == interp);
+
+        if (cv::INTER_AREA == interp) {
+            bool upscale = szIn.width < szOut.width || szIn.height < szOut.height;
+            if (CV_8UC1 == type) {
+                if (upscale)
+                    return UpscalePlaneArea8u::on(in, szOut, interp);
+                else
+                    return   ScalePlaneArea8u::on(in, szOut, interp);
+            }
+            if (CV_32FC1 == type) {
+                if (upscale)
+                    return UpscalePlaneArea32f::on(in, szOut, interp);
+                else
+                    return   ScalePlaneArea32f::on(in, szOut, interp);
+            }
+        }
+
+        if (cv::INTER_LINEAR == interp) {
+            if (CV_8UC1 == type) {
+                return ScalePlane8u::on(in, szOut, interp);
+            }
+            if (CV_32FC1 == type) {
+                return ScalePlane32f::on(in, szOut, interp);
+            }
+        }
+
+        GAPI_Assert(!"unsupported parameters");
+        return {};
+    }
+};
+
 template<typename T, class Mapper>
 static void calcRowLinear(const cv::gapi::fluid::View  & in,
                                 cv::gapi::fluid::Buffer& out,
@@ -959,11 +1272,9 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
     linearScratchDesc<T, Mapper, 1> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
 
     const auto *alpha = scr.alpha;
-    const auto *clone = scr.clone;
     const auto *mapsx = scr.mapsx;
     const auto *beta0 = scr.beta;
     const auto *mapsy = scr.mapsy;
-    auto *tmp         = scr.tmp;
 
     const auto *beta = beta0 + outY;
     const T *src0[4];
@@ -977,129 +1288,6 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
         src1[l] = in.InLine<const T>(index1);
         dst[l] = out.OutLine<T>(l);
     }
-
-    #ifdef HAVE_AVX512
-    if (with_cpu_x86_avx512_core()) {
-        if (std::is_same<T, uint8_t>::value) {
-            if (inSz.width >= 64 && outSz.width >= 32) {
-                avx512::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
-                                           reinterpret_cast<const uint8_t**>(src0),
-                                           reinterpret_cast<const uint8_t**>(src1),
-                                           reinterpret_cast<const short*>(alpha),
-                                           reinterpret_cast<const short*>(clone),
-                                           reinterpret_cast<const short*>(mapsx),
-                                           reinterpret_cast<const short*>(beta),
-                                           reinterpret_cast<uint8_t*>(tmp),
-                                           inSz, outSz, lpi);
-
-                return;
-            }
-        }
-
-        if (std::is_same<T, float>::value) {
-            avx512::calcRowLinear_32F(reinterpret_cast<float**>(dst),
-                                      reinterpret_cast<const float**>(src0),
-                                      reinterpret_cast<const float**>(src1),
-                                      reinterpret_cast<const float*>(alpha),
-                                      reinterpret_cast<const int*>(mapsx),
-                                      reinterpret_cast<const float*>(beta),
-                                      inSz, outSz, lpi);
-            return;
-        }
-    }
-    #else
-    (void)tmp;
-    (void)clone;
-    #endif
-
-    #ifdef HAVE_AVX2
-    if (with_cpu_x86_avx2()) {
-        if (std::is_same<T, uint8_t>::value) {
-            if (inSz.width >= 32 && outSz.width >= 16) {
-                avx::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
-                                        reinterpret_cast<const uint8_t**>(src0),
-                                        reinterpret_cast<const uint8_t**>(src1),
-                                        reinterpret_cast<const short*>(alpha),
-                                        reinterpret_cast<const short*>(clone),
-                                        reinterpret_cast<const short*>(mapsx),
-                                        reinterpret_cast<const short*>(beta),
-                                        reinterpret_cast<uint8_t*>(tmp),
-                                        inSz, outSz, lpi);
-
-                return;
-            }
-        }
-
-        if (std::is_same<T, float>::value) {
-            avx::calcRowLinear_32F(reinterpret_cast<float**>(dst),
-                                   reinterpret_cast<const float**>(src0),
-                                   reinterpret_cast<const float**>(src1),
-                                   reinterpret_cast<const float*>(alpha),
-                                   reinterpret_cast<const int*>(mapsx),
-                                   reinterpret_cast<const float*>(beta),
-                                   inSz, outSz, lpi);
-            return;
-        }
-    }
-    #endif
-
-    #ifdef HAVE_SSE
-    if (with_cpu_x86_sse42()) {
-        if (std::is_same<T, uint8_t>::value) {
-            if (inSz.width >= 16 && outSz.width >= 8) {
-                calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
-                                   reinterpret_cast<const uint8_t**>(src0),
-                                   reinterpret_cast<const uint8_t**>(src1),
-                                   reinterpret_cast<const short*>(alpha),
-                                   reinterpret_cast<const short*>(clone),
-                                   reinterpret_cast<const short*>(mapsx),
-                                   reinterpret_cast<const short*>(beta),
-                                   reinterpret_cast<uint8_t*>(tmp),
-                                   inSz, outSz, lpi);
-                return;
-            }
-        }
-
-        if (std::is_same<T, float>::value) {
-            calcRowLinear_32F(reinterpret_cast<float**>(dst),
-                              reinterpret_cast<const float**>(src0),
-                              reinterpret_cast<const float**>(src1),
-                              reinterpret_cast<const float*>(alpha),
-                              reinterpret_cast<const int*>(mapsx),
-                              reinterpret_cast<const float*>(beta),
-                              inSz, outSz, lpi);
-            return;
-        }
-    }
-    #endif  // HAVE_SSE
-
-#ifdef HAVE_NEON
-    if (std::is_same<T, uint8_t>::value) {
-        if (inSz.width >= 16 && outSz.width >= 8) {
-            neon::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
-                                     reinterpret_cast<const uint8_t**>(src0),
-                                     reinterpret_cast<const uint8_t**>(src1),
-                                     reinterpret_cast<const short*>(alpha),
-                                     reinterpret_cast<const short*>(clone),
-                                     reinterpret_cast<const short*>(mapsx),
-                                     reinterpret_cast<const short*>(beta),
-                                     reinterpret_cast<uint8_t*>(tmp),
-                                     inSz, outSz, lpi);
-            return;
-        }
-    }
-
-    if (std::is_same<T, float>::value) {
-        neon::calcRowLinear_32F(reinterpret_cast<float**>(dst),
-                                reinterpret_cast<const float**>(src0),
-                                reinterpret_cast<const float**>(src1),
-                                reinterpret_cast<const float*>(alpha),
-                                reinterpret_cast<const int*>(mapsx),
-                                reinterpret_cast<const float*>(beta),
-                                inSz, outSz, lpi);
-        return;
-    }
-#endif
 
     for (int l = 0; l < lpi; l++) {
         constexpr static const auto unity = Mapper::unity;
@@ -1263,59 +1451,6 @@ static void calcRowLinearC(const cv::gapi::fluid::View  & in,
 
 
 //------------------------------------------------------------------------------
-
-namespace linear {
-struct Mapper {
-    typedef short alpha_type;
-    typedef short index_type;
-    constexpr static const int unity = ONE;
-
-    typedef MapperUnit<short, short> Unit;
-
-    static inline Unit map(double ratio, int start, int max, int outCoord) {
-        float f = static_cast<float>((outCoord + 0.5) * ratio - 0.5);
-        int s = cvFloor(f);
-        f -= s;
-
-        Unit u;
-
-        u.index0 = std::max(s - start, 0);
-        u.index1 = ((f == 0.0) || s + 1 >= max) ? s - start : s - start + 1;
-
-        u.alpha0 = saturate_cast<short>(ONE * (1.0f - f));
-        u.alpha1 = saturate_cast<short>(ONE *         f);
-
-        return u;
-    }
-};
-}  // namespace linear
-
-namespace linear32f {
-struct Mapper {
-    typedef float alpha_type;
-    typedef int   index_type;
-    constexpr static const float unity = 1;
-
-    typedef MapperUnit<float, int> Unit;
-
-    static inline Unit map(double ratio, int start, int max, int outCoord) {
-        float f = static_cast<float>((outCoord + 0.5) * ratio - 0.5);
-        int s = cvFloor(f);
-        f -= s;
-
-        Unit u;
-
-        u.index0 = std::max(s - start, 0);
-        u.index1 = ((f == 0.0) || s + 1 >= max) ? s - start : s - start + 1;
-
-        u.alpha0 = 1.f - f;
-        u.alpha1 =       f;
-
-        return u;
-    }
-};
-}  // namespace linear32f
-
 namespace areaUpscale {
 struct Mapper {
     typedef short alpha_type;
@@ -2303,8 +2438,6 @@ cv::gapi::GKernelPackage preprocKernels() {
         <FScalePlanes
         , FScalePlanes4
         , FScalePlane
-        , FScalePlane32f
-        , FScalePlane8u
         , FUpscalePlaneArea8u
         , FUpscalePlaneArea32f
         , FScalePlaneArea8u
