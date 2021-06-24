@@ -49,7 +49,7 @@ std::vector<DataTypeConversionPair> dataTypeConversionPairVector {
     {ngraph::element::f16, ngraph::element::i32},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicConvert, DSR_Convert,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicConvert, DSR_Convert,
     ::testing::Combine(
         ::testing::ValuesIn(dataTypeConversionPairVector),
         ::testing::Values(DataShapeWithUpperBound{ngraph::Shape{1, 800}, ngraph::Shape{2, 1000}},
