@@ -18,14 +18,6 @@ if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "4.0.0")
-        # gtest has issues with this with v1.8.x
-        # gtest issue is supposed to be addressed after v1.8.x
-        add_compile_options(-Wno-zero-as-null-pointer-constant)
-    endif()
-endif()
-
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
@@ -300,6 +292,7 @@ set(SRC
     visitors/op/squeeze.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/swish.cpp
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
@@ -478,6 +471,7 @@ set(MULTI_TEST_SRC
     backend/squared_difference.in.cpp
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
+    backend/swish.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
     backend/tile.in.cpp
