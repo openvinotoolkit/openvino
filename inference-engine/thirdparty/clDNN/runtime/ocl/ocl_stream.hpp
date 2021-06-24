@@ -20,8 +20,6 @@
 namespace cldnn {
 namespace ocl {
 
-class events_pool;
-
 // Possible sync methods for kernels in stream
 enum class sync_methods {
     /* Build dependency graph using events. Each kernel creates proper cl_event which is set as dependency of users
@@ -58,7 +56,6 @@ public:
         , _command_queue(other._command_queue)
         , _queue_counter(other._queue_counter.load())
         , _last_barrier(other._last_barrier.load())
-        , _events_pool(std::move(other._events_pool))
         , _last_barrier_ev(other._last_barrier_ev)
         , sync_method(other.sync_method) {}
 
@@ -77,10 +74,8 @@ public:
     event::ptr group_events(std::vector<event::ptr> const& deps) override;
     void wait_for_events(const std::vector<event::ptr>& events) override;
     void enqueue_barrier() override;
-    void reset_events() override;
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
-    void release_events_pool() override;
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
 
@@ -91,7 +86,6 @@ private:
     ocl_queue_type _command_queue;
     std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};
-    std::shared_ptr<events_pool> _events_pool;
     cl::Event _last_barrier_ev;
 
     sync_methods sync_method;
