@@ -52,13 +52,6 @@ inline bool HasTo2DReshapeData(InferenceEngine::CNNLayerPtr layer) {
     if (!GNAPluginNS::LayerInfo(layer).isSyntheticScaleShift())
         return false;
 
-    // Don't reshape the first dnn layer since it breaks groups recognition
-    auto prevLayer = InferenceEngine::CNNNetPrevLayerSkipCertain(layer, 0, [](InferenceEngine::CNNLayerPtr ptr) {
-        return LayerInfo(ptr).isNonValuesChangable();
-    });
-    IE_ASSERT(prevLayer != nullptr);
-    if (LayerInfo(prevLayer).isInput()) return false;
-
     // Don't reshape diagonallayers with bias connection
     return !GNAPluginNS::LayerInfo(getCreatorLayer(layer->insData.front().lock()).lock()).has32BOutput();
 }

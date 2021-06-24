@@ -12,7 +12,7 @@ using namespace testing;
 //
 //======================================================================
 
-INSTANTIATE_TEST_CASE_P(tricky_ncdhw_avg_userpad,
+INSTANTIATE_TEST_SUITE_P(tricky_ncdhw_avg_userpad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 19, 65, 47}),
@@ -28,7 +28,7 @@ INSTANTIATE_TEST_CASE_P(tricky_ncdhw_avg_userpad,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(tricky_ncdhw_max_userpad,
+INSTANTIATE_TEST_SUITE_P(tricky_ncdhw_max_userpad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 19, 65, 47}),
@@ -43,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(tricky_ncdhw_max_userpad,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(tricky_ncdhw_avg_autopad,
+INSTANTIATE_TEST_SUITE_P(tricky_ncdhw_avg_autopad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 19, 65, 47}),
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_CASE_P(tricky_ncdhw_avg_autopad,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(tricky_ncdhw_max_autopad,
+INSTANTIATE_TEST_SUITE_P(tricky_ncdhw_max_autopad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 19, 65, 47}),
@@ -84,7 +84,7 @@ INSTANTIATE_TEST_CASE_P(tricky_ncdhw_max_autopad,
 //
 //======================================================================
 
-INSTANTIATE_TEST_CASE_P(simple_ncdhw_avg_userpad,
+INSTANTIATE_TEST_SUITE_P(simple_ncdhw_avg_userpad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 20, 64, 48}),
@@ -100,7 +100,7 @@ INSTANTIATE_TEST_CASE_P(simple_ncdhw_avg_userpad,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(simple_ncdhw_max_userpad,
+INSTANTIATE_TEST_SUITE_P(simple_ncdhw_max_userpad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 20, 64, 48}),
@@ -124,7 +124,7 @@ INSTANTIATE_TEST_CASE_P(simple_ncdhw_max_userpad,
 // Issue-15146 HW AvgPool doesn't support excludePad parameter
 //----------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(simple_ncdhw_avg_autopad_1,
+INSTANTIATE_TEST_SUITE_P(simple_ncdhw_avg_autopad_1,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 20, 64, 48}),
@@ -141,7 +141,7 @@ INSTANTIATE_TEST_CASE_P(simple_ncdhw_avg_autopad_1,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(simple_ncdhw_avg_autopad_2,
+INSTANTIATE_TEST_SUITE_P(simple_ncdhw_avg_autopad_2,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 20, 64, 48}),
@@ -158,7 +158,7 @@ INSTANTIATE_TEST_CASE_P(simple_ncdhw_avg_autopad_2,
 
 //----------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(simple_ncdhw_max_autopad,
+INSTANTIATE_TEST_SUITE_P(simple_ncdhw_max_autopad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 20, 64, 48}),
@@ -181,7 +181,7 @@ INSTANTIATE_TEST_CASE_P(simple_ncdhw_max_autopad,
 //
 //======================================================================
 
-INSTANTIATE_TEST_CASE_P(tricky_nchw_avg_userpad,
+INSTANTIATE_TEST_SUITE_P(tricky_nchw_avg_userpad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 65, 47}),
@@ -197,7 +197,7 @@ INSTANTIATE_TEST_CASE_P(tricky_nchw_avg_userpad,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(tricky_nchw_max_userpad,
+INSTANTIATE_TEST_SUITE_P(tricky_nchw_max_userpad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 65, 47}),
@@ -212,7 +212,7 @@ INSTANTIATE_TEST_CASE_P(tricky_nchw_max_userpad,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(tricky_nchw_avg_autopad,
+INSTANTIATE_TEST_SUITE_P(tricky_nchw_avg_autopad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 65, 47}),
@@ -230,7 +230,7 @@ INSTANTIATE_TEST_CASE_P(tricky_nchw_avg_autopad,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(tricky_nchw_max_autopad,
+INSTANTIATE_TEST_SUITE_P(tricky_nchw_max_autopad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 65, 47}),
@@ -253,7 +253,7 @@ INSTANTIATE_TEST_CASE_P(tricky_nchw_max_autopad,
 //
 //======================================================================
 
-INSTANTIATE_TEST_CASE_P(simple_nchw_avg_userpad,
+INSTANTIATE_TEST_SUITE_P(simple_nchw_avg_userpad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 64, 48}),
@@ -269,7 +269,7 @@ INSTANTIATE_TEST_CASE_P(simple_nchw_avg_userpad,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(simple_nchw_max_userpad,
+INSTANTIATE_TEST_SUITE_P(simple_nchw_max_userpad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 64, 48}),
@@ -293,7 +293,7 @@ INSTANTIATE_TEST_CASE_P(simple_nchw_max_userpad,
 // Issue-15146 HW AvgPool doesn't support excludePad parameter
 //----------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(simple_nchw_avg_autopad_1,
+INSTANTIATE_TEST_SUITE_P(simple_nchw_avg_autopad_1,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 64, 48}),
@@ -310,7 +310,7 @@ INSTANTIATE_TEST_CASE_P(simple_nchw_avg_autopad_1,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(simple_nchw_avg_autopad_2,
+INSTANTIATE_TEST_SUITE_P(simple_nchw_avg_autopad_2,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 64, 48}),
@@ -327,7 +327,7 @@ INSTANTIATE_TEST_CASE_P(simple_nchw_avg_autopad_2,
 
 //----------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(simple_nchw_max_autopad,
+INSTANTIATE_TEST_SUITE_P(simple_nchw_max_autopad,
                         myriadLayersPoolNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 64, 48}),
@@ -350,7 +350,7 @@ INSTANTIATE_TEST_CASE_P(simple_nchw_max_autopad,
 //
 //======================================================================
 
-INSTANTIATE_TEST_CASE_P(i3d_id10,
+INSTANTIATE_TEST_SUITE_P(i3d_id10,
                         myriadLayersPoolNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 64, 40, 112, 112}),
@@ -363,7 +363,7 @@ INSTANTIATE_TEST_CASE_P(i3d_id10,
                                 Values(RoundingType("")),
                                 Values(ExcludePad(true))));
 
-INSTANTIATE_TEST_CASE_P(i3d_id47,
+INSTANTIATE_TEST_SUITE_P(i3d_id47,
                         myriadLayersPoolNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 192, 40, 28, 28}),
@@ -376,7 +376,7 @@ INSTANTIATE_TEST_CASE_P(i3d_id47,
                                 Values(RoundingType("")),
                                 Values(ExcludePad(true))));
 
-INSTANTIATE_TEST_CASE_P(i3d_id247,
+INSTANTIATE_TEST_SUITE_P(i3d_id247,
                         myriadLayersPoolNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 832, 20, 14, 14}),
@@ -389,7 +389,7 @@ INSTANTIATE_TEST_CASE_P(i3d_id247,
                                 Values(RoundingType("")),
                                 Values(ExcludePad(true))));
 
-INSTANTIATE_TEST_CASE_P(i3d_id312,
+INSTANTIATE_TEST_SUITE_P(i3d_id312,
                         myriadLayersPoolNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 1024, 10, 7, 7}),

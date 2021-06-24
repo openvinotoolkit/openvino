@@ -75,7 +75,7 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
 
 # install
 

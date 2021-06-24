@@ -45,7 +45,7 @@ const std::vector<ConcatWithSplitTransformationParam> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithSplitTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 6, 10, 10 })),

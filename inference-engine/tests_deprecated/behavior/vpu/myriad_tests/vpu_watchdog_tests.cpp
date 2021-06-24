@@ -15,6 +15,7 @@
 #include "helpers/myriad_devices.hpp"
 
 #include <cpp/ie_plugin.hpp>
+#include <vpu/private_plugin_config.hpp>
 
 using namespace std;
 using namespace ::testing;
@@ -260,4 +261,4 @@ const BehTestParams vpuValues[] = {
     BEH_MYRIAD,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, MYRIADWatchdog, ValuesIn(vpuValues), getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, MYRIADWatchdog, ValuesIn(vpuValues), getTestCaseName);

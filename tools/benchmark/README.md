@@ -189,4 +189,4 @@ Throughput: 73.28 FPS
 ## See Also
 * [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
 * [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)
+* [Model Downloader](https://github.com/openvinotoolkit/open_model_zoo/tree/2018/model_downloader)

@@ -157,10 +157,15 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         }
 
         const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
-        if ( // Check if all dimensions of scale except the output channels are all ones
+        if (
+            // expected, it's ok: return true
+            (shape_size(constOutputShape) != 1ul) &&
+            // not expected, something wrong: return false
+            ((constOutputShape.size() <= outChannelsShapeIndex) ||
+            // Check if all dimensions of scale except the output channels are all ones
             (shape_size(constOutputShape) != constOutputShape[outChannelsShapeIndex]) ||
             ((constOutputShape[outChannelsShapeIndex] != 1ul) &&
-                (fqFromWeights->get_output_shape(0)[outChannelsShapeIndex] != constOutputShape[outChannelsShapeIndex]))) {
+                (fqFromWeights->get_output_shape(0)[outChannelsShapeIndex] != constOutputShape[outChannelsShapeIndex])))) {
             return false;
         }
     } else {
