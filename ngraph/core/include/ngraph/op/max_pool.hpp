@@ -28,7 +28,7 @@ namespace ngraph
                 /// \param pads_begin The beginning of padding shape.
                 /// \param pads_end The end of padding shape.
                 /// \param kernel The kernel shape.
-                /// \param rounding_mode Whether to use ceiling or floor rounding type while
+                /// \param rounding_type Whether to use ceiling or floor rounding type while
                 /// computing output shape.
                 /// \param auto_pad The pad type for automatically computing padding sizes.
                 MaxPool(const Output<Node>& arg,
@@ -79,7 +79,7 @@ namespace ngraph
                 /// \param pads_begin Paddings at the beginning of each spatial axis.
                 /// \param pads_end Paddings at the end of each spatial axis.
                 /// \param kernel The kernel shape.
-                /// \param rounding_mode Whether to use ceiling or floor rounding type while
+                /// \param rounding_type Whether to use ceiling or floor rounding type while
                 ///                      computing the output shape.
                 /// \param auto_pad The pad type for automatic calculation of the padding sizes.
                 /// \param index_element_type The datatype used by the second output tensor
@@ -90,7 +90,7 @@ namespace ngraph
                         const Shape& pads_begin,
                         const Shape& pads_end,
                         const Shape& kernel,
-                        const op::RoundingType rounding_mode = op::RoundingType::FLOOR,
+                        const op::RoundingType rounding_type = op::RoundingType::FLOOR,
                         const PadType& auto_pad = op::PadType::EXPLICIT,
                         const element::Type& index_element_type = element::i32);
 
