@@ -518,7 +518,9 @@ void MKLDNNROIPoolingNode::execute() {
                 }
             }
 
-            (*roi_pooling_kernel)(&arg);
+            if (roi_pooling_kernel) {
+                (*roi_pooling_kernel)(&arg);
+            }
         } else {
             size_t roi_off = n * src_roi_step;
             const auto *src_roi_ptr = &src_roi[roi_off];
