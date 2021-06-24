@@ -133,13 +133,13 @@ template <typename TestEngine,
           typename value_type = ngraph::fundamental_type_for<element_type>>
 void test_unary(std::shared_ptr<ngraph::Function> f,
                 const std::vector<value_type>& input,
-                value_type (*func)(value_type),
+                value_type (*get_expect)(value_type),
                 ArgShape ashape = {},
                 ArgTolerance tol = {})
 {
     std::vector<value_type> expected;
     for (value_type x : input)
-        expected.push_back(func(x));
+        expected.push_back(get_expect(x));
 
     test_unary<TestEngine, element_type>(f, input, expected, ashape, tol);
 }
@@ -190,13 +190,13 @@ template <typename TestEngine,
           typename value_type = ngraph::fundamental_type_for<element_type>>
 void test_unary(Creator creator,
                 const std::vector<value_type>& input,
-                value_type (*func)(value_type),
+                value_type (*get_expect)(value_type),
                 ArgShape ashape = {},
                 ArgTolerance tol = {})
 {
     std::vector<value_type> expected;
     for (value_type x : input)
-        expected.push_back(func(x));
+        expected.push_back(get_expect(x));
 
     test_unary<TestEngine, element_type, Creator>(creator, input, expected, ashape, tol);
 }
