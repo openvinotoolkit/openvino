@@ -50,6 +50,7 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 3 } }); // Indexes
     auto axis = cldnn::gather::gather_axis::along_y;
     int64_t batch_dim = -1;
+    bool negative_indexes = true;
 
     set_values(input1, {
         FLOAT16(1.f),   FLOAT16(2.f),   FLOAT16(3.f),   FLOAT16(4.f),   FLOAT16(5.f),   FLOAT16(6.f),   FLOAT16(7.f),   FLOAT16(8.f),
@@ -94,7 +95,7 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, format::bfzyx, tensor(3, 2, 2, 3, 3), batch_dim)
+        gather("gather", "InputDictionary", "InputText", axis, format::bfzyx, tensor(3, 2, 2, 3, 3), batch_dim, negative_indexes)
     );
 
     network network(engine, topology);
