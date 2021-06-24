@@ -9,7 +9,7 @@ This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learn
 > import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
 > deployment on various Intel® platforms.
 > <br>
-> Begin your journey with [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Install).
+> Begin your OpenVINO™ journey with [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Install).
 
 ## How It Works
 

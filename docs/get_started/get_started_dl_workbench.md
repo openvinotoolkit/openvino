@@ -8,11 +8,11 @@ Start working with the OpenVINO™ toolkit right from your browser: import a mod
 
 ##  User Goals
 
-* Learn what neural networks are, how they work, and how to examine their architectures with more than 200 public or Intel-trained deep learning models.
+* Learn what neural networks are, how they work, and how to examine their architectures with more than 200 deep learning models.
 * Measure and interpret model performance right after the import​.
 * Tune the model for enhanced performance.
 * Analyze the quality of your model and visualize output.
-* Use preconfigured JupyterLab\* environment to learn OpenVINO. 
+* Use preconfigured JupyterLab\* environment to learn OpenVINO™ workflow. 
 
 \htmlonly
 <iframe width="560" height="315" src="https://www.youtube.com/embed/on8xSSTKCt8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
@@ -20,7 +20,7 @@ Start working with the OpenVINO™ toolkit right from your browser: import a mod
 
 ## Run DL Workbench 
 
-You can [run DL Workbench](@ref workbench_docs_Workbench_DG_Install) on your local system or in the Intel® DevCloud for the Edge. Ensure that you have met the [prerequisites](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Prerequisites.html)
+You can [run DL Workbench](@ref workbench_docs_Workbench_DG_Install) on your local system or in the Intel® DevCloud for the Edge. Ensure that you have met the [prerequisites](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Prerequisites.html).
 
 Run DL Workbench on your local system by using the installation form. Select your options and run the commands on the local machine:
 
