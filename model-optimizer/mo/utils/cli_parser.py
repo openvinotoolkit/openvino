@@ -87,11 +87,25 @@ class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExiste
 
 def readable_file(path: str):
     """
+    Check that specified path is a readable file.
+    :param path: path to check
+    :return: path if the file is readable
+    """
+    if not os.path.isfile(path):
+        raise Error('The "{}" is not existing file'.format(path))
+    elif not os.access(path, os.R_OK):
+        raise Error('The "{}" is not readable'.format(path))
+    else:
+        return path
+
+
+def readable_file_or_dir(path: str):
+    """
     Check that specified path is a readable file or directory.
     :param path: path to check
     :return: path if the file/directory is readable
     """
-    if not os.path.isfile(path) and not os.path.exists(path):
+    if not os.path.isfile(path) and not os.path.isdir(path):
         raise Error('The "{}" is not existing file or directory'.format(path))
     elif not os.access(path, os.R_OK):
         raise Error('The "{}" is not readable'.format(path))
@@ -174,7 +188,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    ' (binary or text .pb file after freezing).\n' +
                                    ' Caffe*: a model proto file with model weights',
                               action=CanonicalizePathCheckExistenceAction,
-                              type=readable_file)
+                              type=readable_file_or_dir)
     common_group.add_argument('--model_name', '-n',
                               help='Model_name parameter passed to the final create_ir transform. ' +
                                    'This parameter is used to name ' +
@@ -620,14 +634,6 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
-
-    onnx_group = parser.add_argument_group('ONNX*-specific parameters')
-
-    onnx_group.add_argument("--use_legacy_frontend",
-                            help="Switch back to the original (legacy) frontend for ONNX model conversion. " +
-                                "By default, ONNX Importer is used as a converter.",
-                            default=False,
-                            action='store_true')
 
     return parser
 

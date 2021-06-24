@@ -67,7 +67,7 @@ const std::vector<ngraph::helpers::ActivationTypes> activations = {
     ngraph::helpers::ActivationTypes::Exp
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ActivationFQSubgraph, ActivationFakeQuantizeSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ActivationFQSubgraph, ActivationFakeQuantizeSubgraphTest,
                         ::testing::Combine(
                                 fqParams,
                                 ::testing::ValuesIn(activations),

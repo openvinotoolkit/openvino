@@ -86,7 +86,6 @@ namespace ngraph
             }
 
             // Type is not supported by decoder
-            std::cerr << "Type is not supported: " << type_info.name << std::endl;
             return nullptr;
         }
 

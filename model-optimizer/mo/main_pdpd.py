@@ -5,8 +5,10 @@ import sys
 
 from mo.utils.cli_parser import get_all_cli_parser
 
+from ngraph.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
+
+
 if __name__ == "__main__":
     from mo.main import main
-    from mo.front_ng.frontendmanager_wrapper import create_fem
-    fem = create_fem()
+    fem = FrontEndManager()
     sys.exit(main(get_all_cli_parser(fem), fem, 'pdpd'))

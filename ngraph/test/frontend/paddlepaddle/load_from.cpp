@@ -23,7 +23,7 @@ static LoadFromFEParam getTestData()
     return res;
 }
 
-INSTANTIATE_TEST_CASE_P(PDPDCutTest,
+INSTANTIATE_TEST_SUITE_P(PDPDCutTest,
                         FrontEndLoadFromTest,
                         ::testing::Values(getTestData()),
                         FrontEndLoadFromTest::getTestCaseName);

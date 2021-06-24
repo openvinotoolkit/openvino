@@ -88,7 +88,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ReduceMeanTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMeanTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 10, 10 })),

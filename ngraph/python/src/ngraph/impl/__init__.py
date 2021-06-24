@@ -41,7 +41,6 @@ from _pyngraph import Output
 from _pyngraph import Node
 from _pyngraph import Type
 from _pyngraph import PartialShape
-from _pyngraph import Dimension
 from _pyngraph import Shape
 from _pyngraph import Strides
 from _pyngraph import CoordinateDiff

@@ -18,14 +18,6 @@ if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "4.0.0")
-        # gtest has issues with this with v1.8.x
-        # gtest issue is supposed to be addressed after v1.8.x
-        add_compile_options(-Wno-zero-as-null-pointer-constant)
-    endif()
-endif()
-
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
@@ -55,7 +47,6 @@ set(SRC
     main.cpp
     matcher_pass.cpp
     misc.cpp
-    ngraph_api.cpp
     node_input_output.cpp
     op.cpp
     op_eval/binary_convolution.cpp
@@ -101,6 +92,8 @@ set(SRC
     tensor.cpp
     type_prop/abs.cpp
     type_prop/acos.cpp
+    type_prop/adaptive_avg_pool.cpp
+    type_prop/adaptive_max_pool.cpp
     type_prop/asin.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
@@ -229,6 +222,8 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/adaptive_avg_pool.cpp
+    visitors/op/adaptive_max_pool.cpp
     visitors/op/batch_norm.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
@@ -296,6 +291,7 @@ set(SRC
     visitors/op/squeeze.cpp
     visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/swish.cpp
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
@@ -472,6 +468,7 @@ set(MULTI_TEST_SRC
     backend/squared_difference.in.cpp
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
+    backend/swish.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
     backend/tile.in.cpp
@@ -510,7 +507,8 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
         onnx/onnx_import_with_editor.in.cpp)
 endif()
 
-# SOURCE AND HEADERS FOR FRONTEND TESTING
+# SOURCE FOR FRONTEND TESTING
+
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
@@ -518,18 +516,18 @@ file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/
 file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
 set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
+# ---- PaddlePaddle FrontEnd testing ------
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
-
-    find_package(Python3 COMPONENTS Interpreter)
+    find_package (PythonInterp 3 REQUIRED)
     set(PDPD_PYTHON_OK TRUE)
-    if(NOT Python3_FOUND)
+    if(NOT PYTHON_EXECUTABLE)
         message("Python3 is required to build the PDPD frontend unit tests")
         set(PDPD_PYTHON_OK FALSE)
     endif()
 
     if (PDPD_PYTHON_OK)
         execute_process(
-                COMMAND ${Python3_EXECUTABLE} -m pip show paddlepaddle
+                COMMAND ${PYTHON_EXECUTABLE} -m pip show paddlepaddle
                 RESULT_VARIABLE PIP_EXIT_CODE
                 OUTPUT_QUIET
         )
@@ -547,6 +545,7 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
         add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
     endif()
 endif()
+# ---- End PaddlePaddle FrontEnd testing ------
 
 add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
 
@@ -586,10 +585,6 @@ if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
-
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
                                         openvino::conditional_compilation)
@@ -611,7 +606,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
-target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")
 if(NOT WIN32)
     target_link_libraries(unit-test PRIVATE pthread)
 endif()
@@ -653,7 +647,7 @@ target_link_libraries(unit-test PRIVATE frontend_manager)
 add_subdirectory(frontend)
 ### END FRONTEND ###
 
-#PaddlePaddle
+#PaddlePaddle - test models generator
 if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
     set(OUT_FILES "")
@@ -662,7 +656,7 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
         set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
-                COMMAND ${Python3_EXECUTABLE}
+                COMMAND ${PYTHON_EXECUTABLE}
                         ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
                         ${GEN_SCRIPT}
                         ${TEST_PDPD_MODELS}

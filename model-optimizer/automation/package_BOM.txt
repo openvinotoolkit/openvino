@@ -937,11 +937,6 @@ mo/front/tf/partial_infer/__init__.py
 mo/front/tf/partial_infer/tf.py
 mo/front/tf/register_custom_ops.py
 mo/front/tf/replacement.py
-mo/front_ng/__init__.py
-mo/front_ng/extractor.py
-mo/front_ng/frontendmanager_wrapper.py
-mo/front_ng/pipeline.py
-mo/front_ng/serialize.py
 mo/graph/__init__.py
 mo/graph/connection.py
 mo/graph/graph.py
@@ -972,6 +967,10 @@ mo/middle/passes/infer.py
 mo/middle/passes/tensor_names.py
 mo/middle/pattern_match.py
 mo/middle/replacement.py
+mo/moc_frontend/__init__.py
+mo/moc_frontend/extractor.py
+mo/moc_frontend/pipeline.py
+mo/moc_frontend/serialize.py
 mo/ops/__init__.py
 mo/ops/activation.py
 mo/ops/assign.py

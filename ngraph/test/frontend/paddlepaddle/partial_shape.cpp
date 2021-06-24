@@ -61,7 +61,7 @@ static PartShape getTestShape_conv2d_relu()
     return res;
 }
 
-INSTANTIATE_TEST_CASE_P(PDPDPartialShapeTest,
+INSTANTIATE_TEST_SUITE_P(PDPDPartialShapeTest,
                         FrontEndPartialShapeTest,
                         ::testing::Combine(::testing::Values(BaseFEParam{
                                                PDPD, std::string(TEST_PDPD_MODELS)}),

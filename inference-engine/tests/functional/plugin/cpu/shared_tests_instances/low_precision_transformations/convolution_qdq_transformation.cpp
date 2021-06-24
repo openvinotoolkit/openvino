@@ -238,7 +238,7 @@ const std::vector<ngraph::Shape> shapes = {
     { 4, 3, 4, 4 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionQDqTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionQDqTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),

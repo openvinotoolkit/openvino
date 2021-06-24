@@ -21,6 +21,8 @@ except ImportError:
 
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
+from mo.moc_frontend.pipeline import moc_pipeline
+from mo.moc_frontend.serialize import moc_emit_ir
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
@@ -40,6 +42,9 @@ from mo.utils.utils import refer_to_faq_msg
 from mo.utils.telemetry_utils import send_params_info, send_framework_info
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
+
+# pylint: disable=no-name-in-module,import-error
+from ngraph.frontend import FrontEndManager
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -96,7 +101,7 @@ def prepare_ir(argv: argparse.Namespace):
 
     fem = argv.feManager
     new_front_ends = []
-    if 'use_legacy_frontend' in argv and not argv.use_legacy_frontend and fem is not None:
+    if fem is not None:  # in future, check of 'use_legacy_frontend' in argv can be added here
         new_front_ends = fem.get_available_front_ends()
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
@@ -168,11 +173,11 @@ def prepare_ir(argv: argparse.Namespace):
     if argv.legacy_ir_generation and len(argv.transform) != 0:
         raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
-    if not new_front_ends or argv.framework not in new_front_ends:
-        ret_code = check_requirements(framework=argv.framework)
-        if ret_code:
-            raise Error('check_requirements exit with return code {}'.format(ret_code))
-    # TODO: should we check some 'generic' requirements if 'framework' belongs to FrontEndManager?
+    use_legacy_fe = argv.framework not in new_front_ends
+    # For C++ frontends there is no specific python installation requirements, thus check only generic ones
+    ret_code = check_requirements(framework=argv.framework if use_legacy_fe else None)
+    if ret_code:
+        raise Error('check_requirements exit with return code {}'.format(ret_code))
 
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
@@ -253,19 +258,20 @@ def prepare_ir(argv: argparse.Namespace):
         send_framework_info('kaldi')
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_onnx and ('onnx' not in new_front_ends or argv.use_legacy_frontend):
+    elif is_onnx:  # in future check of 'use_legacy_frontend' can be added here
         send_framework_info('onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
     graph = None
-    ngraphFunction = None
-    if argv.feManager is None or argv.framework not in new_front_ends or argv.use_legacy_frontend:
+    ngraph_function = None
+
+    # In future check of use_legacy_frontend option can be added here
+    if argv.feManager is None or argv.framework not in new_front_ends:
         graph = unified_pipeline(argv)
     else:
-        from mo.front_ng.pipeline import moc_pipeline
-        ngraphFunction = moc_pipeline(argv)
-    return graph, ngraphFunction
+        ngraph_function = moc_pipeline(argv)
+    return graph, ngraph_function
 
 
 def emit_ir(graph: Graph, argv: argparse.Namespace):
@@ -348,12 +354,11 @@ def driver(argv: argparse.Namespace):
 
     start_time = datetime.datetime.now()
 
-    graph, nGraphFunction = prepare_ir(argv)
+    graph, ngraph_function = prepare_ir(argv)
     if graph is not None:
         ret_res = emit_ir(graph, argv)
     else:
-        from mo.front_ng.serialize import ngraph_emit_ir
-        ret_res = ngraph_emit_ir(nGraphFunction, argv)
+        ret_res = moc_emit_ir(ngraph_function, argv)
 
     if ret_res != 0:
         return ret_res
@@ -373,7 +378,7 @@ def driver(argv: argparse.Namespace):
     return ret_res
 
 
-def main(cli_parser: argparse.ArgumentParser, fem, framework: str):
+def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
     telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
@@ -430,6 +435,5 @@ def main(cli_parser: argparse.ArgumentParser, fem, framework: str):
 
 if __name__ == "__main__":
     from mo.utils.cli_parser import get_all_cli_parser
-    from mo.front_ng.frontendmanager_wrapper import create_fem
-    fem = create_fem()
+    fem = FrontEndManager()
     sys.exit(main(get_all_cli_parser(fem), fem, None))

@@ -40,7 +40,7 @@ public:
     }
 };
 
-TYPED_TEST_CASE_P(UnaryOperatorVisitor);
+TYPED_TEST_SUITE_P(UnaryOperatorVisitor);
 
 TYPED_TEST_P(UnaryOperatorVisitor, No_Attribute_4D)
 {
@@ -56,4 +56,4 @@ TYPED_TEST_P(UnaryOperatorVisitor, No_Attribute_4D)
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
 
-REGISTER_TYPED_TEST_CASE_P(UnaryOperatorVisitor, No_Attribute_4D);
+REGISTER_TYPED_TEST_SUITE_P(UnaryOperatorVisitor, No_Attribute_4D);

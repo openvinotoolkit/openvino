@@ -3,22 +3,16 @@
 #
 
 if(NOT WIN32)
-    # DEBUG - print all variables
-    # get_cmake_property(_variableNames VARIABLES)
-    # set(ALL_VARS "")
-    # foreach (_variableName ${_variableNames})
-    #     set(ALL_VARS ${ALL_VARS} -D${_variableName}=${${_variableName}}\ )
-    # endforeach()
-    # message(---------------------ALL VARS: ${ALL_VARS}-------)
-
     message(${CMAKE_CURRENT_SOURCE_DIR}/cmake_static_protobuf)
     message(BINARY ${CMAKE_CURRENT_BINARY_DIR})
 
     # There seems no suitable other way to identify exact output binary name for libprotobuf
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(PROTOBUF_STATIC_LIB_OUTPUT ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/libprotobufd.a)
+        # Use 'protobufd' directly as it is done in the same way in protobuf cmake files
+        set(PROTOBUF_STATIC_LIB_OUTPUT
+                ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${CMAKE_STATIC_LIBRARY_PREFIX}protobufd${CMAKE_STATIC_LIBRARY_SUFFIX})
     else(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(PROTOBUF_STATIC_LIB_OUTPUT ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/libprotobuf.a)
+        set(PROTOBUF_STATIC_LIB_OUTPUT ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${CMAKE_STATIC_LIBRARY_PREFIX}protobuf${CMAKE_STATIC_LIBRARY_SUFFIX})
     endif()
 
     message("Static protobuf lib: ${PROTOBUF_STATIC_LIB_OUTPUT}")
@@ -42,7 +36,6 @@ if(NOT WIN32)
             COMMAND ${CMAKE_COMMAND} --build . --target libprotobuf
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libprotobuf_static
             COMMENT "Build Protobuf Static Library"
-            # TODO: add DEPENDS - not clear what shall be the input for this command
     )
 
     add_custom_target(libprotobuf_static

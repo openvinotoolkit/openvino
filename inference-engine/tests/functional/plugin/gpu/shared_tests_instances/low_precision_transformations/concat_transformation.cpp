@@ -39,7 +39,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
