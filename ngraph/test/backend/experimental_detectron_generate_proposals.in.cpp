@@ -11,7 +11,6 @@
 #define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
 #endif
 // clang-format on
-#include <iostream>
 #include <numeric>
 #include "gtest/gtest.h"
 #include "runtime/backend.hpp"
@@ -121,25 +120,8 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_generate_proposals_eval)
     handle1->call_with_validate({output_scores},
                                 {backend_im_info, backend_anchors, backend_deltas, backend_scores});
 
-    auto output_rois_vector = read_vector<float>(output_rois);
-    auto output_scores_vector = read_vector<float>(output_scores);
-    std::cout << "Output rois:\n    ";
-    for (auto x : output_rois_vector)
-    {
-        std::cout << x << ", ";
-    }
-    std::cout << "\n\n";
-    std::cout << "Output scores:\n    ";
-    for (auto x : output_scores_vector)
-    {
-        std::cout << x << ", ";
-    }
-    std::cout << "\n\n";
-
     EXPECT_TRUE(test::all_close_f(
         expected_output_rois, read_vector<float>(output_rois), MIN_FLOAT_TOLERANCE_BITS));
     EXPECT_TRUE(test::all_close_f(
         expected_output_scores, read_vector<float>(output_scores), MIN_FLOAT_TOLERANCE_BITS));
-
-//    ASSERT_TRUE(true);
 }
