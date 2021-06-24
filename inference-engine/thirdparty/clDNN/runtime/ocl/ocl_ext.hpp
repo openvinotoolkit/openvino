@@ -52,7 +52,19 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_FEATURE_CAPABILITIES_INTE
 namespace {
 template <typename T>
 T load_entrypoint(const cl_platform_id platform, const std::string name) {
+#if defined(__GNUC__) && __GNUC__ < 5
+// OCL spec says:
+// "The function clGetExtensionFunctionAddressForPlatform returns the address of the extension function named by funcname for a given platform.
+//  The pointer returned should be cast to a function pointer type matching the extension function's definition defined in the appropriate extension
+//  specification and header file."
+// So the pointer-to-object to pointer-to-function cast below is supposed to be valid, thus we suppress warning from old GCC versions.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     T p = reinterpret_cast<T>(clGetExtensionFunctionAddressForPlatform(platform, name.c_str()));
+#if defined(__GNUC__) && __GNUC__ < 5
+#pragma GCC diagnostic pop
+#endif
     if (!p) {
         throw std::runtime_error("clGetExtensionFunctionAddressForPlatform(" + name + ") returned NULL.");
     }
@@ -93,6 +105,15 @@ template <typename T>
 T try_load_entrypoint(const cl_context context, const std::string name) {
     try {
         return load_entrypoint<T>(context, name);
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+template <typename T>
+T try_load_entrypoint(const cl_platform_id platform, const std::string name) {
+    try {
+        return load_entrypoint<T>(platform, name);
     } catch (...) {
         return nullptr;
     }
@@ -175,13 +196,10 @@ public:
         const char* fnameRel = "clEnqueueReleaseVA_APIMediaSurfacesINTEL";
 #endif
         if (!pfn_acquire) {
-            pfn_acquire =
-                reinterpret_cast<PFN_clEnqueueAcquireMediaSurfacesINTEL>
-                (clGetExtensionFunctionAddressForPlatform(platform, fnameAcq));
+            pfn_acquire = try_load_entrypoint<PFN_clEnqueueAcquireMediaSurfacesINTEL>(platform, fnameAcq);
         }
         if (!pfn_release) {
-            pfn_release = reinterpret_cast<PFN_clEnqueueReleaseMediaSurfacesINTEL>
-            (clGetExtensionFunctionAddressForPlatform(platform, fnameRel));
+            pfn_release = try_load_entrypoint<PFN_clEnqueueReleaseMediaSurfacesINTEL>(platform, fnameRel);
         }
     }
 
@@ -225,9 +243,7 @@ public:
         const char* fname = "clCreateFromVA_APIMediaSurfaceINTEL";
 #endif
         if (!pfn_clCreateFromMediaSurfaceINTEL) {
-            pfn_clCreateFromMediaSurfaceINTEL =
-                reinterpret_cast<PFN_clCreateFromMediaSurfaceINTEL>
-                (clGetExtensionFunctionAddressForPlatform((cl_platform_id)platform, fname));
+            pfn_clCreateFromMediaSurfaceINTEL = try_load_entrypoint<PFN_clCreateFromMediaSurfaceINTEL>((cl_platform_id)platform, fname);
         }
     }
 
@@ -322,8 +338,7 @@ public:
         const char* fname = "clCreateFromD3D11BufferKHR";
 
         if (!pfn_clCreateFromD3D11Buffer) {
-            pfn_clCreateFromD3D11Buffer = reinterpret_cast<PFN_clCreateFromD3D11Buffer>
-                (clGetExtensionFunctionAddressForPlatform((cl_platform_id)platform, fname));
+            pfn_clCreateFromD3D11Buffer = try_load_entrypoint<PFN_clCreateFromD3D11Buffer>((cl_platform_id)platform, fname);
         }
     }
 
@@ -427,15 +442,11 @@ public:
             return detail::errHandler(CL_INVALID_ARG_VALUE, fname);
         }
 
-        PFN_clGetDeviceIDsFromMediaAdapterINTEL pfn_clGetDeviceIDsFromMediaAdapterINTEL = NULL;
-        if (!pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
-            pfn_clGetDeviceIDsFromMediaAdapterINTEL =
-                reinterpret_cast<PFN_clGetDeviceIDsFromMediaAdapterINTEL>
-                (clGetExtensionFunctionAddressForPlatform(object_, fname));
+        PFN_clGetDeviceIDsFromMediaAdapterINTEL pfn_clGetDeviceIDsFromMediaAdapterINTEL =
+            try_load_entrypoint<PFN_clGetDeviceIDsFromMediaAdapterINTEL>(object_, fname);
 
-            if (NULL == pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
-                return CL_INVALID_PLATFORM;
-            }
+        if (NULL == pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
+            return CL_INVALID_PLATFORM;
         }
 
         cl_uint n = 0;
