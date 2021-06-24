@@ -39,22 +39,17 @@ namespace ngraph
 
                 for (const Coordinate& out_coord : output_transform)
                 {
-                    // Our output coordinate O will have the form:
+                    // Our output coordinate will have the form:
                     //
                     //   (N,chan,i_1,...,i_n)
 
                     size_t batch_index = out_coord[0];
                     size_t channel = out_coord[1];
 
-                    // For the input data we need to iterate the coordinate:
+                    // Window has the following shape:
                     //
-                    //   I:
-                    //
-                    // over the range (noninclusive on the right):
-                    //
-                    //   (N,chan,s_1*i_1,s_2*i_2,...,s_n*i_n) ->
-                    //
-                    //     (N+1,chan+1,s_1*i_1 + window_shape_1,...,s_n*i_n + window_shape_n)
+                    //   start = floor(i_2*in_2/out_2, i_3*in_3/out_3,...i_n*in_n/out_n)
+                    //   end = ceil((i_2+1)*in_2/out_2, (i_3+1)*in_3/out_3,...(i_n+1)*in_n/out_n)
 
                     Coordinate input_batch_transform_start(arg_shape.size());
                     Coordinate input_batch_transform_end(arg_shape.size());
