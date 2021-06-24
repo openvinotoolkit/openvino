@@ -8,7 +8,7 @@
 
 **Detailed description**
 
-*DepthToSpace* operation permutes elements from the input tensor with shape `[N, C, D1, D2, ..., DK]`, to the output tensor where values from the input depth dimension (features) `C` are moved to spatial blocks in `D1`, ..., `DK`. Refer to the [ONNX* specification](https://github.com/onnx/onnx/blob/master/docs/Operators.md#DepthToSpace) for an example of the 4D input tensor case.
+*DepthToSpace* operation permutes elements from the input tensor with shape `[N, C, D1, D2, ..., DK]`, to the output tensor where values from the input depth dimension (features) `C` are moved to spatial blocks in `D1`, ..., `DK`.
 
 The operation is equivalent to the following transformation of the input tensor `data` with `K` spatial dimensions of shape `[N, C, D1, D2, ..., DK]` to *Y* output tensor. If `mode = blocks_first`:
 
@@ -52,7 +52,7 @@ If `mode = depth_first`:
 
 **Outputs**
 
-*   **1**: permuted tensor with type T and shape `[N, C / block_size ^ K, D1 * block_size, D2 * block_size, ..., DK * block_size]`.
+*   **1**: permuted tensor of type T and shape `[N, C / block_size ^ K, D1 * block_size, D2 * block_size, ..., DK * block_size]`.
 
 **Types**
 
