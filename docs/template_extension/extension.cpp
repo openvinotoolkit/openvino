@@ -111,17 +111,3 @@ InferenceEngine::ILayerImpl::Ptr Extension::getImplementation(const std::shared_
 // Generate exported function
 IE_DEFINE_EXTENSION_CREATE_FUNCTION(Extension)
 //! [extension:CreateExtension]
-
-INFERENCE_EXTENSION_API(InferenceEngine::StatusCode)
-InferenceEngine::CreateExtension(InferenceEngine::IExtension*& ext, InferenceEngine::ResponseDesc* resp) noexcept {
-    try {
-        ext = new Extension();
-        return OK;
-    } catch (std::exception& ex) {
-        if (resp) {
-            std::string err = ((std::string) "Couldn't create extension: ") + ex.what();
-            err.copy(resp->msg, 255);
-        }
-        return InferenceEngine::GENERAL_ERROR;
-    }
-}
