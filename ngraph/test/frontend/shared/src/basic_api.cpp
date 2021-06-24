@@ -17,13 +17,15 @@ std::string FrontEndBasicTest::getTestCaseName(const testing::TestParamInfo<Basi
 
 void FrontEndBasicTest::SetUp()
 {
+    FrontEndTestUtils::setupTestEnv();
+    m_fem = FrontEndManager(); // re-initialize after setting up environment
     initParamTest();
 }
 
 void FrontEndBasicTest::initParamTest()
 {
     std::tie(m_feName, m_pathToModels, m_modelFile) = GetParam();
-    m_modelFile = std::string(TEST_FILES) + m_pathToModels + m_modelFile;
+    m_modelFile = m_pathToModels + m_modelFile;
 }
 
 void FrontEndBasicTest::doLoadFromFile()

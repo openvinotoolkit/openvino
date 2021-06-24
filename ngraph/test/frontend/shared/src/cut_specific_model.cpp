@@ -26,14 +26,15 @@ std::string FrontEndCutModelTest::getTestCaseName(const testing::TestParamInfo<C
 
 void FrontEndCutModelTest::SetUp()
 {
+    FrontEndTestUtils::setupTestEnv();
+    m_fem = FrontEndManager(); // re-initialize after setting up environment
     initParamTest();
 }
 
 void FrontEndCutModelTest::initParamTest()
 {
     m_param = GetParam();
-    m_param.m_modelName = std::string(TEST_FILES) + m_param.m_modelsPath + m_param.m_modelName;
-    std::cout << "Model: " << m_param.m_modelName << std::endl;
+    m_param.m_modelName = m_param.m_modelsPath + m_param.m_modelName;
 }
 
 void FrontEndCutModelTest::doLoadFromFile()

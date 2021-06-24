@@ -48,3 +48,4 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/frontend_manager
 )
 
 export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+
