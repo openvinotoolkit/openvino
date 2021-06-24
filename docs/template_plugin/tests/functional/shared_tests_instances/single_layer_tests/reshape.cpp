@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_ReshapeCheckDynBatch, ReshapeLayerTestRevise,
+    smoke_ReshapeCheckDynBatch, ReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -27,10 +27,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(std::vector<int64_t>({30, 30, 30, 30})),
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::Values(std::map<std::string, std::string>({}))),
-    ReshapeLayerTestRevise::getTestCaseName);
+    ReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_ReshapeCheck, ReshapeLayerTestRevise,
+    smoke_ReshapeCheck, ReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -41,10 +41,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(std::vector<int64_t>({10, 0, 100})),
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::Values(std::map<std::string, std::string>({}))),
-    ReshapeLayerTestRevise::getTestCaseName);
+    ReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_ReshapeCheckNegative, ReshapeLayerTestRevise,
+    smoke_ReshapeCheckNegative, ReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -55,5 +55,5 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(std::vector<int64_t>({10, -1, 100})),
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::Values(std::map<std::string, std::string>({}))),
-    ReshapeLayerTestRevise::getTestCaseName);
+    ReshapeLayerTest::getTestCaseName);
 }  // namespace

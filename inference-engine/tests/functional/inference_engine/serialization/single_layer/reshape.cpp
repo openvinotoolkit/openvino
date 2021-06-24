@@ -10,7 +10,7 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    TEST_P(ReshapeLayerTestRevise, Serialize) {
+    TEST_P(ReshapeLayerTest, Serialize) {
         Serialize();
     }
 
@@ -19,7 +19,7 @@ namespace {
             InferenceEngine::Precision::FP16
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_ReshapeSerialization, ReshapeLayerTestRevise,
+    INSTANTIATE_TEST_CASE_P(smoke_ReshapeSerialization, ReshapeLayerTest,
             ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
@@ -31,5 +31,5 @@ namespace {
                 ::testing::Values(std::vector<int64_t>({30, 30, 30, 30})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(std::map<std::string, std::string>({{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(YES)}}))),
-                ReshapeLayerTestRevise::getTestCaseName);
+                ReshapeLayerTest::getTestCaseName);
 }  // namespace

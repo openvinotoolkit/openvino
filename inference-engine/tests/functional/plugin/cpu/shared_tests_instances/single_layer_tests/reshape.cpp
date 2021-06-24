@@ -15,7 +15,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheckDynBatch, ReshapeLayerTestRevise,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheckDynBatch, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
@@ -27,9 +27,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheckDynBatch, ReshapeLayerTestRevise,
                 ::testing::Values(std::vector<int64_t>({30, 30, 30, 30})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(std::map<std::string, std::string>({{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(YES)}}))),
-                ReshapeLayerTestRevise::getTestCaseName);
+                ReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck, ReshapeLayerTestRevise,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
@@ -41,9 +41,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck, ReshapeLayerTestRevise,
                 ::testing::Values(std::vector<int64_t>({10, 0, 100})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(std::map<std::string, std::string>({}))),
-                ReshapeLayerTestRevise::getTestCaseName);
+                ReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheckNegative, ReshapeLayerTestRevise,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheckNegative, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
@@ -55,5 +55,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheckNegative, ReshapeLayerTestRevise,
                 ::testing::Values(std::vector<int64_t>({10, -1, 100})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(std::map<std::string, std::string>({}))),
-                ReshapeLayerTestRevise::getTestCaseName);
+                ReshapeLayerTest::getTestCaseName);
 }  // namespace
