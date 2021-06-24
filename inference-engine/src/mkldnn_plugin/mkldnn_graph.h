@@ -198,6 +198,7 @@ protected:
     std::map<std::string, MKLDNNNodePtr> inputNodesMap;
     std::map<std::string, MKLDNNNodePtr> outputNodesMap;
     std::vector<MKLDNNNodePtr> graphNodes;
+    std::vector<MKLDNNNodePtr> mutableGraphNodes;
     std::vector<MKLDNNEdgePtr> graphEdges;
 
     std::map<std::string, NormalizePreprocess> _normalizePreprocMap;

@@ -348,6 +348,13 @@ void MKLDNNGraph::InitGraph() {
     }
 #endif
     ExecuteConstantNodesOnly();
+
+    for (const auto& node : graphNodes) {
+        if (node->isConstant())
+            continue;
+
+        mutableGraphNodes.push_back(node);
+    }
 }
 
 void MKLDNNGraph::InitNodes() {
@@ -810,24 +817,21 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     ENABLE_CPU_DEBUG_CAP(NodeDumper nd(config.debugCaps, infer_count));
 
-    for (int i = 0; i < graphNodes.size(); i++) {
-        if (request != nullptr) {
-            request->ThrowIfCanceled();
-        }
+    for (const auto& node : mutableGraphNodes) {
+        assert(request);
+        request->ThrowIfCanceled();
 
-        PERF(graphNodes[i]);
+        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
 
-        if (batch > 0)
-            graphNodes[i]->setDynamicBatchLim(batch);
-
-        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(graphNodes[i]));
-
-        if (!graphNodes[i]->isConstant()) {
+        {
+            // PERF(graphNodes[i]);
             OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, graphNodes[i]->profiling.execute);
-            graphNodes[i]->execute(stream);
+
+            node->execute(stream);
         }
 
-        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(graphNodes[i]));
+        // ENABLE_CPU_DEBUG_CAP(graphNodes[i]->printVerbose());
+        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
     }
 
     if (infer_count != -1) infer_count++;
