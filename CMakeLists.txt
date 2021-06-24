@@ -202,4 +202,4 @@ elseif(WIN32)
             PATTERN *.sh EXCLUDE)
 endif()
 
-ie_cpack(${IE_CPACK_COMPONENTS_IRC})
+ie_cpack(${IE_CPACK_COMPONENTS_TESTS})

@@ -58,6 +58,8 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 #         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
 
 # TODO: remove once install commands above are commented out
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION tests COMPONENT tests
-        LIBRARY DESTINATION tests COMPONENT tests)
+if(ENABLE_DEV_PKG_INSTALL)
+    install(TARGETS ${TARGET_NAME}
+            RUNTIME DESTINATION tests COMPONENT tests
+            LIBRARY DESTINATION tests COMPONENT tests)
+endif()

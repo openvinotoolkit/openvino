@@ -19,9 +19,6 @@ file(GLOB
         inference_engine_tests/*.cpp
         )
 
-# TODO: enable back
-set(ENABLE_GNA OFF)
-
 if (ENABLE_GNA)
     file(GLOB
             GNA_TESTS
