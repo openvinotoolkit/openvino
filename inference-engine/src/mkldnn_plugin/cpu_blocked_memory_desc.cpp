@@ -3,6 +3,8 @@
 //
 
 #include "cpu_blocked_memory_desc.h"
+#include "mkldnn_memory.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace MKLDNNPlugin;
 
@@ -60,19 +62,19 @@ bool BlockedMemoryDesc::isDefined() const {
     return defined;
 }
 
+bool BlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
+    const MemoryDesc* pRhs = &rhs;
+    if (auto blockingDesc = dynamic_cast<const BlockedMemoryDesc*>(pRhs)) {
+        return isCompatible(*blockingDesc);
+    } else if (auto mkldnnDesc = dynamic_cast<const MKLDNNMemoryDesc*>(pRhs)) {
+        return mkldnnDesc->isCompatible(*this);
+    } else {
+        //IE_THROW() << "Cannot check compatibility with this type of memory descriptor";
+        return false;
+    }
+}
+
 bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs) const {
-    auto isEqualOrUndefined = [](const std::vector<size_t> lhs, const std::vector<size_t>& rhs) {
-        if (lhs.size() != rhs.size())
-            return false;
-
-        for (size_t i = 0; i < lhs.size(); i++) {
-            if (lhs[i] != rhs[i] && lhs[i] != Shape::UNDEFINED_DIM && rhs[i] != Shape::UNDEFINED_DIM)
-                return false;
-        }
-
-        return true;
-    };
-
     if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision())
         return false;
 

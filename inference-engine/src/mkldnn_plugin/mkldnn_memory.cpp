@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <limits>
 #include <vector>
-#include <cmath>
 #include <algorithm>
 #include <numeric>
 #include <unordered_set>
-#include <utility>
 
 #include "utils/general_utils.h"
 
@@ -21,6 +18,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "mkldnn/ie_mkldnn.h"
 #include "cpu_shape.h"
+#include "utils/cpu_utils.hpp"
 #include "cpu_memory_desc_utils.h"
 
 using namespace InferenceEngine;
@@ -934,5 +932,116 @@ size_t MKLDNNMemoryDesc::getMemSizeImp() const {
 size_t MKLDNNMemoryDesc::getOffset(size_t elemNumber) const {
     mkldnn::impl::memory_desc_wrapper wrapped(desc.data);
     return wrapped.off_l(elemNumber);
+}
+
+bool MKLDNNMemoryDesc::isCompatible(const MemoryDesc &rhs) const {
+    if (auto blockingDesc = dynamic_cast<const BlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*blockingDesc);
+    } else if (auto mkldnnDesc = dynamic_cast<const MKLDNNMemoryDesc*>(&rhs)) {
+        return *this == *mkldnnDesc;
+    } else {
+        return false;
+    }
+}
+
+/**
+ * Check compatibility with to BlockedMemoryDesc
+ *
+ * mkl:  IOhw_4i16o4i    dims {32, 64, 128, 128}
+ *   strides               // the order of outer dims is encoded here
+ *   inner_blks   4 16 4
+ *   inner_idxs   1  0 1
+ *
+ * BlockedMemoryDesc desc has more expressive ability.
+ * How to check compatibility with BlockedMemoryDesc representation:
+ *    0. Detect a new_outer_order of outer_dims via descending strides.
+ *    1. BlockedMemoryDesc strides :  concatenate strides in new_outer_order and inner strides.
+ *    2. BlockedMemoryDesc dims    :  concatenate outer dims in new_outer_order with auto padding and inner blocks
+ *    3. BlockedMemoryDesc order   :  concatenate new_outer_order and inner_idxs
+ */
+
+bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
+    if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision()) {
+        return false;
+    }
+
+    // any format is not supported by the BlockedMemoryDesc
+    if (desc.data.format_kind != dnnl_blocked) {
+        return false;
+    }
+
+    const auto dims = desc.dims();
+
+    const auto &blk_desc = desc.data.format_desc.blocking;
+
+    const size_t outer_ndims = dims.size();
+    const size_t inner_ndims = blk_desc.inner_nblks;
+    const size_t total_ndims = outer_ndims + inner_ndims;
+
+    // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
+    std::vector<size_t> outer_order(outer_ndims);
+    std::iota(outer_order.begin(), outer_order.end(), 0);
+    std::sort(outer_order.begin(), outer_order.end(),
+              [&blk_desc] (size_t ind_l, size_t ind_r) {
+                  return blk_desc.strides[ind_l] > blk_desc.strides[ind_r];
+              });
+
+    // strides of inner dims. In case of 4i16o4i will be {64, 4, 1}
+    std::vector<size_t> inner_strides(inner_ndims, 1);
+    for (size_t i = 1; i < blk_desc.inner_nblks; i++) {
+        inner_strides[blk_desc.inner_nblks - 1 - i] = inner_strides[blk_desc.inner_nblks - i] * blk_desc.inner_blks[blk_desc.inner_nblks - i];
+    }
+
+    // total inner block size. in case of 4i16o4i will be {16, 16, 1, 1}
+    std::vector<size_t> total_block_per_dim(outer_ndims, 1);
+    for (int i = 0; i < inner_ndims; i++) {
+        total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
+    }
+
+    // blocked order
+    // [new_outer_order] U [inner_idxs]
+    SizeVector blk_order(total_ndims, 0);
+    std::copy(outer_order.begin(), outer_order.end(), blk_order.begin());
+    std::copy(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, blk_order.begin() + dims.size());
+
+    if (blk_order != rhs.getOrder()) {
+        return false;
+    }
+
+    // blocked strides
+    // [outer_strides via new_outer_order] U [inner_strides]
+    SizeVector blk_strides(total_ndims, 0);
+    std::copy(inner_strides.rbegin(), inner_strides.rend(), blk_strides.rbegin());
+    std::transform(outer_order.begin(), outer_order.end(), blk_strides.begin(),
+                   [&] (size_t i) { return blk_desc.strides[i]; });
+
+    if (!isEqualOrUndefined(blk_strides, rhs.getStrides())) {
+        return false;
+    }
+
+    // blocked dims
+    // [dims via new_outer_order with auto pad] U [inner_blk_dims]
+    SizeVector blk_dims(total_ndims, 0);
+    std::copy(blk_desc.inner_blks, blk_desc.inner_blks + blk_desc.inner_nblks,
+              blk_dims.end() - blk_desc.inner_nblks);
+    std::transform(outer_order.begin(), outer_order.end(), blk_dims.begin(),
+                   [&] (size_t i) { return div_up(dims[i], total_block_per_dim[i]); });
+
+    if (!isEqualOrUndefined(blk_dims, rhs.getBlockDims())) {
+        return false;
+    }
+
+    // offset padded to data. Same as for oneDNN
+    SizeVector blk_offset_to_data {desc.data.padded_offsets, desc.data.padded_offsets + desc.data.ndims};
+    // TODO: The BlockedMemoryDesc implementation allow to specify offset_to_data for inner blocked dims.
+    //       Which is not obvious behavior. It required offset_to_data.size == total_ndims, so will
+    //       fill it with zero.
+    blk_offset_to_data.insert(blk_offset_to_data.end(), inner_ndims, 0);
+    if (!isEqualOrUndefined(blk_offset_to_data, rhs.getOffsetPaddingToData())) {
+        return false;
+    }
+
+    size_t ie_blk_offset0 = desc.data.offset0;
+    return !(ie_blk_offset0 != rhs.getOffsetPadding() && ie_blk_offset0 != Shape::UNDEFINED_DIM && rhs.getOffsetPadding() != Shape::UNDEFINED_DIM);
 }
 }  // namespace MKLDNNPlugin
