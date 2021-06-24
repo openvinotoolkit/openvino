@@ -82,6 +82,8 @@ public:
     event::ptr create_base_event() override;
     void release_events_pool() override;
 
+    const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
+
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
