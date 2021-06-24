@@ -164,7 +164,7 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
         auto meta_data = extract_node_metadata(node);
         std::shared_ptr<ngraph::Node> return_node;
         if (is_input) {
-            auto desc = node->getChildEdgeAt(0)->getMemory().GetDesc();
+            auto& desc = node->getChildEdgeAt(0)->getMemory().GetDesc();
             auto param = std::make_shared<ngraph::op::Parameter>(details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
             return_node = param;
             params.push_back(param);
@@ -176,7 +176,7 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
                 get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
-                auto desc = node->getChildEdgeAt(port)->getMemory().GetDesc();
+                auto& desc = node->getChildEdgeAt(port)->getMemory().GetDesc();
                 return_node->set_output_type(port, details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
             }
         }

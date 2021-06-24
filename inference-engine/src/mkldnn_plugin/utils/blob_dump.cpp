@@ -105,6 +105,7 @@ static Blob::Ptr prepare_plain_data(Blob::Ptr blob) {
     pln_blob->allocate();
 
     // Copy to plain
+    // TODO [mkutakov]: blob dumper should be rewritten using Memory object
     MKLDNNMemoryDesc mdesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(blob->getTensorDesc());
     mkldnn::memory::desc desc = mdesc;
     mkldnn::impl::memory_desc_wrapper blob_wrp(desc.data);
@@ -191,6 +192,7 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
     " by address 0x" << std::hex << _blob->buffer().as<long long>() << std::dec <<std::endl;
 
     // Dump data
+    // TODO [mkutakov]: blob dumper should be rewritten using Memory object
     MKLDNNMemoryDesc mdesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(_blob->getTensorDesc());
     mkldnn::memory::desc desc = mdesc;
     mkldnn::impl::memory_desc_wrapper blob_wrp(desc.data);

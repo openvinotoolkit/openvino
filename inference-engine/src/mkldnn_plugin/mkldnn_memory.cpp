@@ -21,6 +21,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "mkldnn/ie_mkldnn.h"
 #include "cpu_shape.h"
+#include "cpu_memory_desc_utils.h"
 
 using namespace InferenceEngine;
 using namespace mkldnn;
@@ -91,10 +92,15 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
     }
 }
 
+void MKLDNNMemory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
+    Create(mkldnn::memory::desc(MemoryDescUtils::convertToMKLDNNMemoryDesc(desc)), data, pads_zeroing);
+}
+
+
 void MKLDNNMemory::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size) {
     if (size != 0)
         IE_ASSERT(size <= output.GetDescriptor().get_size());
-    if (input.GetDesc() == output.GetDesc()) {
+    if (input.GetMKLDNNDesc() == output.GetMKLDNNDesc()) {
         auto srcPtr = static_cast<uint8_t*>(input.GetPtr());
         auto dstPtr = static_cast<uint8_t*>(output.GetPtr());
 
@@ -120,7 +126,7 @@ void MKLDNNMemory::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &ou
                             MKLDNNExtensionUtils::DataTypeToIEPrecision(output.GetDataType()), input.GetElementsCount());
 
                 MKLDNNMemory tmpMem(output.eng);
-                tmpMem.Create(input.GetDims(), output.GetDataType(), input.GetDesc().getFormat(), tmpBuff.data());
+                tmpMem.Create(input.GetDims(), output.GetDataType(), input.GetMKLDNNDesc().getFormat(), tmpBuff.data());
 
                 pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));
                 srcMemoryPtr = tmpMem.prim;
@@ -268,6 +274,13 @@ memory::format_tag MKLDNNMemory::Convert(const InferenceEngine::Layout layout) {
 
 std::string MKLDNNMemory::formatToString(memory::format_tag fmt) {
     return mkldnn::utils::fmt2str(fmt);
+}
+
+void *MKLDNNMemory::GetPtr() const  {
+    auto ptr = static_cast<uint8_t*>(GetData());
+    mkldnn::impl::memory_desc_wrapper wrapper(GetDescriptor().data);
+    ptr += wrapper.offset0() * wrapper.data_type_size();
+    return ptr;
 }
 
 bool MKLDNNMemoryDesc::operator==(const MKLDNNMemoryDesc &rhs) const {

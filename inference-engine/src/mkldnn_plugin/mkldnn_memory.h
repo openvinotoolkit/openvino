@@ -115,6 +115,12 @@ class MKLDNNMemory {
 public:
     explicit MKLDNNMemory(const mkldnn::engine& eng);
 
+    MKLDNNMemory(const MKLDNNMemory&) = delete;
+    MKLDNNMemory& operator= (const MKLDNNMemory&) = delete;
+
+    MKLDNNMemory(MKLDNNMemory&&) = default;
+    MKLDNNMemory& operator= (MKLDNNMemory&&) = default;
+
     const mkldnn::memory& GetPrimitive() const {
         return *prim;
     }
@@ -127,8 +133,8 @@ public:
         return prim->get_desc();
     }
 
-    const MKLDNNMemoryDesc GetDesc() const {
-        return MKLDNNMemoryDesc {prim->get_desc()};
+    const MemoryDesc& GetDesc() const {
+        return *pMemDesc;
     }
 
     /**
@@ -147,12 +153,7 @@ public:
      * Like a GetData() but offset is applied.
      * @return
      */
-    void* GetPtr() const {
-        auto ptr = static_cast<uint8_t*>(GetData());
-        ptr += GetDescriptor().data.offset0 * GetDesc().GetElementSize();
-        return ptr;
-    }
-
+    void* GetPtr() const;
 
     mkldnn::memory::data_type GetDataType() const {
         return static_cast<mkldnn::memory::data_type>(GetDescriptor().data.data_type);
@@ -166,10 +167,7 @@ public:
         return {std::begin(data.dims), std::begin(data.dims) + data.ndims};
     }
 
-    void Create(const mkldnn::memory::dims& dims, mkldnn::memory::data_type data_type, mkldnn::memory::format_tag format,
-                const void* data = nullptr);
-
-    void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    void Create(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
     // Like a plain format
     void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format, const void* data, size_t size, bool ftz = true) const;
@@ -189,6 +187,17 @@ public:
     static void reorderData(const MKLDNNMemory& input, const MKLDNNMemory& output, size_t size = 0);
 
 private:
+    void Create(const mkldnn::memory::dims& dims, mkldnn::memory::data_type data_type, mkldnn::memory::format_tag format,
+                const void* data = nullptr);
+
+    void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
+
+    const MKLDNNMemoryDesc GetMKLDNNDesc() const {
+        return MKLDNNMemoryDesc(prim->get_desc());
+    }
+
+private:
+    MemoryDescPtr pMemDesc;
     std::shared_ptr<mkldnn::memory> prim;
     mkldnn::engine eng;
 };
