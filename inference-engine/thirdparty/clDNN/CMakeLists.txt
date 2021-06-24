@@ -67,6 +67,10 @@ else()
     add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_THREADPOOL)
 endif()
 
+if(GPU_DEBUG_CONFIG)
+  add_definitions(-DGPU_DEBUG_CONFIG=1)
+endif()
+
 # Path which points to main directory of project.
 set(CLDNN__MAIN_DIR      "${CMAKE_CURRENT_SOURCE_DIR}")
 

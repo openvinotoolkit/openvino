@@ -12,6 +12,10 @@ if(CMAKE_COMPILER_IS_GNUCC)
     endif()
 endif()
 
+if(GPU_DEBUG_CONFIG)
+  add_definitions(-DGPU_DEBUG_CONFIG=1)
+endif()
+
 file(GLOB_RECURSE MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
