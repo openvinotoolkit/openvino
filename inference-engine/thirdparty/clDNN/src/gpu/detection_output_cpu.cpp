@@ -790,6 +790,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
 
         auto& stream = instance.get_network().get_stream();
 
+        auto ev = stream.create_user_event(false);
         const int num_of_images = instance.location_memory()->get_layout().size.batch[0];  // batch size
         // Per image : label -> decoded bounding boxes.
         std::vector<std::vector<std::vector<bounding_box>>> bboxes(num_of_images);
@@ -805,7 +806,8 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
             generate_detections<data_type_to_type<data_types::f16>::type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
         }
 
-        return stream.create_user_event(true);
+        ev->set();
+        return ev;
     }
 
     void init_kernels() override {}
