@@ -11,32 +11,22 @@
 *PriorBox* computes coordinates of prior boxes by following:
 1.  First calculates *center_x* and *center_y* of prior box:
     \f[
-    W \equiv Width \quad Of \quad Image
-    \f]
-    \f[
+    W \equiv Width \quad Of \quad Image \\
     H \equiv Height \quad Of \quad Image
     \f]
     *   If step equals 0:
         \f[
-        center_x=(w+0.5)
-        \f]
-        \f[
+        center_x=(w+0.5) \\
         center_y=(h+0.5)
         \f]
     *   else:
         \f[
-        center_x=(w+offset)*step
-        \f]
-        \f[
-        center_y=(h+offset)*step
-        \f]
-        \f[
-        w \subset \left( 0, W \right )
-        \f]
-        \f[
+        center_x=(w+offset)*step \\
+        center_y=(h+offset)*step \\
+        w \subset \left( 0, W \right ) \\
         h \subset \left( 0, H \right )
         \f]
-2.  Then, for each \f$ s \subset \left( 0, min_sizes \right ) \f$ calculates coordinates of prior boxes:
+2.  Then, for each \f$ s \subset \left( 0, min\_sizes \right ) \f$ calculates coordinates of prior boxes:
     \f[
     xmin = \frac{\frac{center_x - s}{2}}{W}
     \f]
