@@ -632,6 +632,11 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
 
+install(TARGETS unit-test
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
