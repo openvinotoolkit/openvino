@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
             FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
         } else if (std::string(argv[i]) == "--extend_report") {
             LayerTestsUtils::Summary::setExtendReport(true);
-        } else if (std::string(argv/**/[i]) == "--help") {
+        } else if (std::string(argv[i]) == "--help") {
             print_custom_help = true;
         } else if (std::string(argv[i]).find("--output_folder") != std::string::npos) {
             auto outputFolderPath = std::string(argv[i]).substr(std::string("--output_folder").length() + 1);
