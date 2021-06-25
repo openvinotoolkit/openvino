@@ -113,7 +113,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
     for (auto && kvp : config) {
         const auto& name = kvp.first;
-        if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
+        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
             _config[name] = kvp.second;
         else
             IE_THROW() << "Unsupported config key: " << name;
