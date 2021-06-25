@@ -79,8 +79,9 @@
             result(var2);
         }
      
-     //Function `result` connect internal networks results with *If* outputs, for example result(var1, var2). First argument `var1` is connected(associated) with first output from *If* and second argument `var2` with second output. 
 ```
+Function `result` connect internal networks results with *If* outputs, for example result(var1, var2). First argument `var1` is connected(associated) with first output from *If* and second argument `var2` with second output. 
+
 1. First, second and third examples show that all inputs(except the first input) to *If* are optional.
 2. The number of outputs from *If* is undefine in fourth example, because `then_body` has only one result and `else_body` have two results. This example is incorrect and should not work.
 3. The type of output from *If* is undefine in fifth example. This example is incorrect and should not work because result from `then_body` has `int` type and `else_body` has `double` type.
