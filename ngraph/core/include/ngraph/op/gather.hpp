@@ -46,11 +46,10 @@ namespace ngraph
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
                 int64_t get_batch_dims() const;
                 virtual int64_t get_axis() const;
-                void smooth_validate();
-                void infer_partial_shape_and_types();
-
             protected:
                 int64_t m_batch_dims = 0;
+                void validate();
+                void infer_partial_shape_and_types();
             };
         } // namespace v8
 
@@ -93,6 +92,7 @@ namespace ngraph
                        const Output<Node>& axis);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
+                void validate_and_infer_types() override;
                 int64_t get_axis() const override;
 
                 std::shared_ptr<Node>

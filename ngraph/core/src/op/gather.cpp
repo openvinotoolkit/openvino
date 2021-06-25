@@ -30,6 +30,8 @@ op::v8::Gather::Gather(const Output<Node>& data,
 void op::v8::Gather::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v8_Gather_validate_and_infer_types);
+
+    // Gather-8 has stricter condition for types: in contrast to v1 only integer indices are allowed
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(1).is_integral_number(),
                           "Indices element type must be of an integral number type.");
@@ -38,8 +40,8 @@ void op::v8::Gather::validate_and_infer_types()
                           get_input_element_type(2).is_integral_number(),
                           "Axis element type must be of an integral number type.");
 
-    op::v8::Gather::smooth_validate();
-    op::v8::Gather::infer_partial_shape_and_types();
+    validate();
+    infer_partial_shape_and_types();
 }
 
 bool ngraph::op::v8::Gather::visit_attributes(AttributeVisitor& visitor)
@@ -56,11 +58,7 @@ shared_ptr<Node> op::v8::Gather::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v8::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
 }
 
-void op::v8::Gather::smooth_validate() {}
-
-void op::v8::Gather::infer_partial_shape_and_types()
-{
-    NGRAPH_OP_SCOPE(v8_Gather_validate_and_infer_types);
+void op::v8::Gather::validate() {
     const auto& data_type = get_input_element_type(0);
 
     const auto& data_pshape = get_input_partial_shape(0);
@@ -74,12 +72,12 @@ void op::v8::Gather::infer_partial_shape_and_types()
     {
         const auto axis_is_scalar = axis_rank.get_length() == 0;
         const auto axis_has_one_elem =
-            axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
+                axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
         NODE_VALIDATION_CHECK(
-            this,
-            axis_is_scalar || axis_has_one_elem,
-            "Axis input must be scalar or have 1 element. But instead got axis_shape = ",
-            axis_pshape);
+                this,
+                axis_is_scalar || axis_has_one_elem,
+                "Axis input must be scalar or have 1 element. But instead got axis_shape = ",
+                axis_pshape);
     }
 
     int64_t batch_dims = m_batch_dims;
@@ -100,32 +98,51 @@ void op::v8::Gather::infer_partial_shape_and_types()
         // indices_rank are static.
         // If at least one of them is negative we cannot check their consistency.
         NODE_VALIDATION_CHECK(
-            this,
-            batch_dims <= axis || batch_dims < 0 || axis < 0,
-            "After normalization batch_dims must be <= axis. But instead got: batch_dims = ",
-            batch_dims,
-            ", axis = ",
-            axis);
+                this,
+                batch_dims <= axis || batch_dims < 0 || axis < 0,
+                "After normalization batch_dims must be <= axis. But instead got: batch_dims = ",
+                batch_dims,
+                ", axis = ",
+                axis);
 
         NODE_VALIDATION_CHECK(
-            this,
-            data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
-            "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
-            axis,
-            " data_rank = ",
-            data_rank.get_interval());
+                this,
+                data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
+                "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
+                axis,
+                " data_rank = ",
+                data_rank.get_interval());
     }
 
     if (indices_rank.is_static() && batch_dims >= 0)
     {
         NODE_VALIDATION_CHECK(
-            this,
-            batch_dims <= indices_rank.get_length(),
-            "The batch_dims must be <= indices_rank. But instead got: batch_dims = ",
-            batch_dims,
-            ", indices_rank = ",
-            indices_rank.get_length());
+                this,
+                batch_dims <= indices_rank.get_length(),
+                "The batch_dims must be <= indices_rank. But instead got: batch_dims = ",
+                batch_dims,
+                ", indices_rank = ",
+                indices_rank.get_length());
     }
+    // todo: move validation of the innermost dimensions from infer_partial_shape_and_types
+}
+
+void op::v8::Gather::infer_partial_shape_and_types()
+{
+
+    const auto& data_type = get_input_element_type(0);
+
+    const auto& data_pshape = get_input_partial_shape(0);
+    const auto& indices_pshape = get_input_partial_shape(1);
+    const auto& axis_pshape = get_input_partial_shape(2);
+    auto data_rank = data_pshape.rank();
+    auto indices_rank = indices_pshape.rank();
+    auto axis_rank = axis_pshape.rank();
+    int64_t batch_dims = get_batch_dims();
+
+    bool axis_is_set = false;
+    if (get_constant_from_source(input_value(2)))
+        axis_is_set = true;
 
     if (data_rank.is_static() && indices_rank.is_static())
     {
@@ -138,6 +155,7 @@ void op::v8::Gather::infer_partial_shape_and_types()
         int i = 0;
         for (; i < batch_dims; i++)
         {
+            // todo: move validation from here validate
             NODE_VALIDATION_CHECK(this,
                                   data_pshape[i].compatible(indices_pshape[i]),
                                   "Shapes ",
@@ -449,6 +467,15 @@ op::v1::Gather::Gather(const Output<Node>& data,
 {
     constructor_validate_and_infer_types();
 }
+
+void op::v1::Gather::validate_and_infer_types()
+{
+    NGRAPH_OP_SCOPE(v1_Gather_validate_and_infer_types);
+    // Gather-1 type validation is softer than for v8: float indices are allowed
+    validate();
+    infer_partial_shape_and_types();
+}
+
 
 int64_t ngraph::op::v1::Gather::get_axis() const
 {
