@@ -174,9 +174,7 @@ namespace BehaviorTestsDefinitions {
         if (targetDevice.find(CommonTestUtils::DEVICE_GNA) != std::string::npos) {
             ASSERT_THROW(ie->SetConfig(configuration, targetDevice), InferenceEngine::NotFound);
         } else {
-            try {
-                ie->SetConfig(configuration, targetDevice);
-            } catch (InferenceEngine::Exception &) {}
+            ASSERT_THROW(ie->SetConfig(configuration, targetDevice), InferenceEngine::Exception);
         }
     }
 
