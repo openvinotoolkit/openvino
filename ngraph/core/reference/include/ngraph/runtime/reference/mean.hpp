@@ -45,8 +45,8 @@ namespace ngraph
                     const size_t out_idx = std::inner_product(
                         output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
 
-                    T x = arg[in_idx];
-                    T& z = out[out_idx];
+                    details::kahan_summation(arg[in_idx], cs[out_idx], out[out_idx]);
+
                     if (index_to_count_map.find(out_idx) == index_to_count_map.end())
                     {
                         index_to_count_map[out_idx] = 1;
@@ -54,18 +54,6 @@ namespace ngraph
                     else
                     {
                         index_to_count_map[out_idx]++;
-                    }
-
-                    if (is_finite(x) && is_finite(z))
-                    {
-                        T& c = cs[out_idx];
-                        T t = z + (x - c);
-                        c = (t - z) - (x - c);
-                        z = t;
-                    }
-                    else
-                    {
-                        z = z + x;
                     }
                 }
 
