@@ -26,6 +26,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
     Add Select before saving state with Memory to avoid garbage saving
     """
     enabled = True
+    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_after(self):
         from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern

@@ -12,6 +12,7 @@ from mo.ops.memoryoffset import MemoryOffset
 class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
     enabled = True
     run_not_recursively = True
+    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_after(self):
         from extensions.front.MoveEmbeddedInputsToInputs import MoveEmbeddedInputsToInputs

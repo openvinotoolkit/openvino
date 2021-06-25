@@ -13,6 +13,7 @@ class SplitTdnnMemoryOffset(MiddleReplacementPattern):
     '''
     enabled = True
     run_not_recursively = True
+    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_before(self):
         from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern, ReplaceMemoryOffsetNodePattern

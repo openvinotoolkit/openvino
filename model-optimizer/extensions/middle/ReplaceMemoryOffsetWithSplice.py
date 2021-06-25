@@ -21,6 +21,7 @@ class ReplaceMemoryOffsetNodePattern(MiddleReplacementPattern):
     Replace MemoryOffset with Splice
     """
     enabled = True
+    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_before(self):
         from extensions.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern
@@ -102,6 +103,7 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
     """
     enabled = True
     force_shape_inference = True
+    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_before(self):
         from extensions.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern
