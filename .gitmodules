@@ -22,3 +22,6 @@
 	path = thirdparty/gtest
 	url = https://github.com/openvinotoolkit/googletest.git
 	ignore = dirty
+[submodule "thirdparty/benchmark"]
+	path = thirdparty/benchmark
+	url = https://github.com/google/benchmark.git
