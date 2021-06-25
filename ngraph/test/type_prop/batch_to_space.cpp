@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <array>
+
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -9,35 +11,37 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr size_t num_of_secundary_inputs = 3;
-struct BatchToSpaceSecondaryInputs
-{
-    element::Type in_et;
-    PartialShape in_pshape;
-};
-
-struct BatchToSpaceParams
-{
-    element::Type data_et;
-    PartialShape data_pshape;
-    vector<BatchToSpaceSecondaryInputs> inputs_params;
-};
-
-std::shared_ptr<Node> makeBatchToSpaceOp(const BatchToSpaceParams& p)
-{
-    if(p.inputs_params.size() != num_of_secundary_inputs)
+namespace {
+    constexpr size_t data_input_idx = 0;
+    constexpr size_t block_shape_input_idx = 1;
+    constexpr size_t crops_begin_input_idx = 2;
+    constexpr size_t crops_end_input_idx = 3;
+    constexpr size_t batch_to_space_required_inputs = 4;
+    struct InputInfo
     {
-        throw runtime_error("BatchToSpace requires 3 additional inputs");
+        element::Type in_et;
+        PartialShape in_pshape;
+    };
+
+    using BatchToSpaceInputParams = std::array<InputInfo, batch_to_space_required_inputs>;
+
+    std::shared_ptr<Node> makeBatchToSpaceOp(const BatchToSpaceInputParams& p)
+    {
+        if(p.size() != batch_to_space_required_inputs)
+        {
+            throw runtime_error("BatchToSpace requires 4 additional inputs");
+        }
+        auto data = make_shared<op::Parameter>(
+            p.at(data_input_idx).in_et, p.at(data_input_idx).in_pshape);
+        auto block_shape = make_shared<op::Parameter>(
+            p.at(block_shape_input_idx).in_et,  p.at(block_shape_input_idx).in_pshape);
+        auto crops_begin = make_shared<op::Parameter>(
+            p.at(crops_begin_input_idx).in_et, p.at(crops_begin_input_idx).in_pshape);
+        auto crops_end = make_shared<op::Parameter>(
+            p.at(crops_end_input_idx).in_et, p.at(crops_end_input_idx).in_pshape);
+        return make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
     }
-    auto data = make_shared<op::Parameter>(p.data_et, p.data_pshape);
-    auto block_shape = make_shared<op::Parameter>(
-        p.inputs_params[0].in_et, p.inputs_params[0].in_pshape);
-    auto crops_begin = make_shared<op::Parameter>(
-        p.inputs_params[1].in_et, p.inputs_params[1].in_pshape);
-    auto crops_end = make_shared<op::Parameter>(
-        p.inputs_params[2].in_et, p.inputs_params[2].in_pshape);
-    return make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
-}
+} // namespace
 
 TEST(type_prop, batch_to_space_incompatible_input_element_types)
 {
@@ -48,27 +52,27 @@ TEST(type_prop, batch_to_space_incompatible_input_element_types)
     Shape data_sshape{10, 26};
     Shape inputs_sshape{2};
 
-    vector<BatchToSpaceParams> test_cases;
+    vector<BatchToSpaceInputParams> test_cases;
     test_cases.push_back(
-        BatchToSpaceParams{
-            float_et, data_sshape,
-            {{integer64_et, inputs_sshape},
-             {integer32_et, inputs_sshape},
-             {integer32_et, inputs_sshape}}});
+        BatchToSpaceInputParams{
+            InputInfo{float_et, data_sshape},
+            InputInfo{integer64_et, inputs_sshape},
+            InputInfo{integer32_et, inputs_sshape},
+            InputInfo{integer32_et, inputs_sshape}});
 
     test_cases.push_back(
-        BatchToSpaceParams{
-            float_et, data_sshape,
-            {{integer32_et, inputs_sshape},
-             {integer64_et, inputs_sshape},
-             {integer32_et, inputs_sshape}}});
+        BatchToSpaceInputParams{
+            InputInfo{float_et, data_sshape},
+            InputInfo{integer32_et, inputs_sshape},
+            InputInfo{integer64_et, inputs_sshape},
+            InputInfo{integer32_et, inputs_sshape}});
 
     test_cases.push_back(
-        BatchToSpaceParams{
-            float_et, data_sshape,
-            {{integer64_et, inputs_sshape},
-             {float_et, inputs_sshape},
-             {float_et, inputs_sshape}}});
+        BatchToSpaceInputParams{
+            InputInfo{float_et, data_sshape},
+            InputInfo{integer64_et, inputs_sshape},
+            InputInfo{float_et, inputs_sshape},
+            InputInfo{float_et, inputs_sshape}});
 
     for (const auto& test_case : test_cases)
     {
@@ -96,11 +100,11 @@ TEST(type_prop, batch_to_space_invalid_input_element_types)
     Shape data_sshape{10, 26};
     Shape inputs_sshape{2};
 
-    const BatchToSpaceParams params{
-        float_et, data_sshape,
-        {{float_et, inputs_sshape},
-         {float_et, inputs_sshape},
-         {float_et, inputs_sshape}}};
+    const BatchToSpaceInputParams params{
+         InputInfo{float_et, data_sshape},
+         InputInfo{float_et, inputs_sshape},
+         InputInfo{float_et, inputs_sshape},
+         InputInfo{float_et, inputs_sshape}};
 
     try
     {
@@ -126,11 +130,11 @@ TEST(type_prop, batch_to_space_invalid_data_input_rank)
     Shape inputs_sshape{2};
     element::Type inputs_et = element::i64;
 
-    const BatchToSpaceParams params{
-        data_et, data_sshape,
-        {{inputs_et, inputs_sshape},
-         {inputs_et, inputs_sshape},
-         {inputs_et, inputs_sshape}}};
+    const BatchToSpaceInputParams params{
+         InputInfo{data_et, data_sshape},
+         InputInfo{inputs_et, inputs_sshape},
+         InputInfo{inputs_et, inputs_sshape},
+         InputInfo{inputs_et, inputs_sshape}};
 
     try
     {
@@ -156,27 +160,27 @@ TEST(type_prop, batch_to_space_incompatible_secondary_inputs_shapes)
     Shape inputs_sshape_2D{2, 1};
     element::Type inputs_et = element::i64;
 
-    vector<BatchToSpaceParams> test_cases;
+    vector<BatchToSpaceInputParams> test_cases;
     test_cases.push_back(
-        BatchToSpaceParams{
-            data_et, data_sshape,
-            {{inputs_et, inputs_sshape_2D},
-             {inputs_et, inputs_sshape_1D},
-             {inputs_et, inputs_sshape_1D}}});
+        BatchToSpaceInputParams{
+             InputInfo{data_et, data_sshape},
+             InputInfo{inputs_et, inputs_sshape_2D},
+             InputInfo{inputs_et, inputs_sshape_1D},
+             InputInfo{inputs_et, inputs_sshape_1D}});
 
     test_cases.push_back(
-        BatchToSpaceParams{
-            data_et, data_sshape,
-            {{inputs_et, inputs_sshape_1D},
-             {inputs_et, inputs_sshape_2D},
-             {inputs_et, inputs_sshape_1D}}});
+        BatchToSpaceInputParams{
+             InputInfo{data_et, data_sshape},
+             InputInfo{inputs_et, inputs_sshape_1D},
+             InputInfo{inputs_et, inputs_sshape_2D},
+             InputInfo{inputs_et, inputs_sshape_1D}});
 
     test_cases.push_back(
-        BatchToSpaceParams{
-            data_et, data_sshape,
-            {{inputs_et, inputs_sshape_1D},
-             {inputs_et, inputs_sshape_2D},
-             {inputs_et, inputs_sshape_2D}}});
+        BatchToSpaceInputParams{
+             InputInfo{data_et, data_sshape},
+             InputInfo{inputs_et, inputs_sshape_1D},
+             InputInfo{inputs_et, inputs_sshape_2D},
+             InputInfo{inputs_et, inputs_sshape_2D}});
 
     for (const auto& test_case : test_cases)
     {
@@ -205,11 +209,11 @@ TEST(type_prop, batch_to_space_invalid_secondary_inputs_rank)
     Shape inputs_sshape_2D{2, 1};
     element::Type inputs_et = element::i64;
 
-    const BatchToSpaceParams params{
-        data_et, data_sshape,
-        {{inputs_et, inputs_sshape_2D},
-         {inputs_et, inputs_sshape_2D},
-         {inputs_et, inputs_sshape_2D}}};
+    const BatchToSpaceInputParams params{
+         InputInfo{data_et, data_sshape},
+         InputInfo{inputs_et, inputs_sshape_2D},
+         InputInfo{inputs_et, inputs_sshape_2D},
+         InputInfo{inputs_et, inputs_sshape_2D}};
 
     try
     {
@@ -235,11 +239,11 @@ TEST(type_prop, batch_to_space_incompatible_data_and_secondary_inputs_shapes)
     Shape inputs_sshape{5};
     element::Type inputs_et = element::i64;
 
-    const BatchToSpaceParams params{
-        data_et, data_sshape,
-        {{inputs_et, inputs_sshape},
-         {inputs_et, inputs_sshape},
-         {inputs_et, inputs_sshape}}};
+    const BatchToSpaceInputParams params{
+        InputInfo{data_et, data_sshape},
+        InputInfo{inputs_et, inputs_sshape},
+        InputInfo{inputs_et, inputs_sshape},
+        InputInfo{inputs_et, inputs_sshape}};
 
     try
     {
