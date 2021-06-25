@@ -283,6 +283,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/softmax.cpp
@@ -669,4 +670,3 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     add_dependencies(unit-test pdpd_test_models)
     add_dependencies(unit-test paddlepaddle_ngraph_frontend)
 endif()
-
