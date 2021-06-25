@@ -92,9 +92,9 @@ Note: The shape of output from *If* can be undefine(first-fourth examples).
 
     `then_body`/`else_body` is a network that will be executed depending on the `cond` value. The network is described operation by operation as a typical IR network. The internal networks have parameters (`Parameter` operations) and results (`Result` operations).
     
-    * **Internal networks parameters** - inputs to the internal network which associated with *If* inputs via *portmap*. The number of parameters for the internal network can be any (even zero).
+    * **Internal networks parameters** - inputs to the internal network which associated with *If* inputs via *port_map*. The number of parameters for the internal network can be any (even zero).
     
-    * **Internal networks results** - outputs from the internal network which associated with *If* outputs via *portmap*. The internal network must contain at least one result. Each *If* output is associated with one result from the internal network. It follows that number of `then_body` results is the equal to the number of outputs from the *If* and the number of `else_body` results. Type of the internal network result and type of the associated output from *If* must be equal.
+    * **Internal networks results** - outputs from the internal network which associated with *If* outputs via *port_map*. The internal network must contain at least one result. Each *If* output is associated with one result from the internal network. It follows that number of `then_body` results is the equal to the number of outputs from the *If* and the number of `else_body` results. Type of the internal network result and type of the associated output from *If* must be equal.
     
 
 * **Port maps**:
@@ -145,144 +145,144 @@ Note: The shape of output from *If* can be undefine(first-fourth examples).
 *Example 1: a typical If structure*
 ```xml
 	<layer id="6" name="PartitionedCall/model/if/cond" type="If" version="opset7">
-        <input>
-            <port id="0"/>
-            <port id="1">
-                <dim>2</dim>
-                <dim>4</dim>
-            </port>
-            <port id="2">
-                <dim>2</dim>
-                <dim>4</dim>
-            </port>
-            <port id="3">
-                <dim>2</dim>
-                <dim>4</dim>
-            </port>
-        </input>
-        <output>
-            <port id="4" names="PartitionedCall/model/if/cond/Identity:0,PartitionedCall/model/if/cond:0" precision="FP32">
-                <dim>2</dim>
-                <dim>4</dim>
-            </port>
-        </output>
-        <then_port_map>
-            <input external_port_id="1" internal_layer_id="0"/>
-            <input external_port_id="2" internal_layer_id="1"/>
-            <output external_port_id="0" internal_layer_id="3"/>
-        </then_port_map>
-        <else_port_map>
-            <input external_port_id="1" internal_layer_id="0"/>
-            <input external_port_id="3" internal_layer_id="1"/>
-            <output external_port_id="0" internal_layer_id="3"/>
-        </else_port_map>
-        <then_body>
-            <layers>
-                <layer id="0" name="add_x" type="Parameter" version="opset1">
-                    <data element_type="f32" shape="2,4"/>
-                    <output>
-                        <port id="0" names="add_x:0" precision="FP32">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer id="1" name="add_z" type="Parameter" version="opset1">
-                    <data element_type="f32" shape="2,4"/>
-                    <output>
-                        <port id="0" names="add_z:0" precision="FP32">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer id="2" name="Add" type="Add" version="opset1">
-                    <data auto_broadcast="numpy"/>
-                    <input>
-                        <port id="0">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                        <port id="1">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                    </input>
-                    <output>
-                        <port id="2" names="Add:0" precision="FP32">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer id="3" name="Identity/sink_port_0" type="Result" version="opset1">
-                    <input>
-                        <port id="0">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                    </input>
-                </layer>
-            </layers>
-            <edges>
-                <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-                <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
-                <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
-            </edges>
-        </then_body>
-        <else_body>
-            <layers>
-                <layer id="0" name="add_x" type="Parameter" version="opset1">
-                    <data element_type="f32" shape="2,4"/>
-                    <output>
-                        <port id="0" names="add_x:0" precision="FP32">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer id="1" name="add_w" type="Parameter" version="opset1">
-                    <data element_type="f32" shape="2,4"/>
-                    <output>
-                        <port id="0" names="add_w:0" precision="FP32">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer id="2" name="Add" type="Add" version="opset1">
-                    <data auto_broadcast="numpy"/>
-                    <input>
-                        <port id="0">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                        <port id="1">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                    </input>
-                    <output>
-                        <port id="2" names="Add:0" precision="FP32">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer id="3" name="Identity/sink_port_0" type="Result" version="opset1">
-                    <input>
-                        <port id="0">
-                            <dim>2</dim>
-                            <dim>4</dim>
-                        </port>
-                    </input>
-                </layer>
-            </layers>
-            <edges>
-                <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-                <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
-                <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
-            </edges>
-        </else_body>
-    </layer>
+            <input>
+                <port id="0"/>
+                <port id="1">
+                    <dim>2</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="2">
+                    <dim>2</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="3">
+                    <dim>2</dim>
+                    <dim>4</dim>
+                </port>
+            </input>
+            <output>
+                <port id="4" names="PartitionedCall/model/if/cond/Identity:0,PartitionedCall/model/if/cond:0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+            <then_port_map>
+                <input external_port_id="1" internal_layer_id="0"/>
+                <input external_port_id="2" internal_layer_id="1"/>
+                <output external_port_id="0" internal_layer_id="3"/>
+            </then_port_map>
+            <else_port_map>
+                <input external_port_id="1" internal_layer_id="0"/>
+                <input external_port_id="3" internal_layer_id="1"/>
+                <output external_port_id="0" internal_layer_id="3"/>
+            </else_port_map>
+            <then_body>
+                <layers>
+                    <layer id="0" name="add_x" type="Parameter" version="opset1">
+                        <data element_type="f32" shape="2,4"/>
+                        <output>
+                            <port id="0" names="add_x:0" precision="FP32">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer id="1" name="add_z" type="Parameter" version="opset1">
+                        <data element_type="f32" shape="2,4"/>
+                        <output>
+                            <port id="0" names="add_z:0" precision="FP32">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer id="2" name="Add" type="Add" version="opset1">
+                        <data auto_broadcast="numpy"/>
+                        <input>
+                            <port id="0">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                            <port id="1">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                        </input>
+                        <output>
+                            <port id="2" names="Add:0" precision="FP32">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer id="3" name="Identity/sink_port_0" type="Result" version="opset1">
+                        <input>
+                            <port id="0">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                        </input>
+                    </layer>
+                </layers>
+                <edges>
+                    <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+                    <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+                    <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+                </edges>
+            </then_body>
+            <else_body>
+                <layers>
+                    <layer id="0" name="add_x" type="Parameter" version="opset1">
+                        <data element_type="f32" shape="2,4"/>
+                        <output>
+                            <port id="0" names="add_x:0" precision="FP32">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer id="1" name="add_w" type="Parameter" version="opset1">
+                        <data element_type="f32" shape="2,4"/>
+                        <output>
+                            <port id="0" names="add_w:0" precision="FP32">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer id="2" name="Add" type="Add" version="opset1">
+                        <data auto_broadcast="numpy"/>
+                        <input>
+                            <port id="0">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                            <port id="1">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                        </input>
+                        <output>
+                            <port id="2" names="Add:0" precision="FP32">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer id="3" name="Identity/sink_port_0" type="Result" version="opset1">
+                        <input>
+                            <port id="0">
+                                <dim>2</dim>
+                                <dim>4</dim>
+                            </port>
+                        </input>
+                    </layer>
+                </layers>
+                <edges>
+                    <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+                    <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+                    <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+                </edges>
+            </else_body>
+        </layer>
 ```
