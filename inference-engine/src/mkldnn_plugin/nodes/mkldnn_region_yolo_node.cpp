@@ -8,7 +8,7 @@
 #include <mkldnn_types.h>
 #include "ie_parallel.hpp"
 #include "mkldnn_region_yolo_node.h"
-#include <nodes/common/tensor_desc_creator.h>
+#include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_convert.h"
 #include <cpu/x64/jit_generator.hpp>

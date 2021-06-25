@@ -7,7 +7,7 @@
 #include <ie_parallel.hpp>
 #include <mkldnn_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
-#include "common/tensor_desc_creator.h"
+#include "common/blocked_desc_creator.h"
 
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"

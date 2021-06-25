@@ -17,6 +17,13 @@ enum MemoryDescType {
     Mkldnn
 };
 
+enum class GeneralLayout : unsigned {
+    nspc,       // general per channels format
+    ncsp,        // general planar
+    nCsp8c,     // general channels blocked by 8
+    nCsp16c    // general channels blocked by 16
+};
+
 // TODO [DS]: Seems like should be pure class
 class MemoryDesc {
 public:
@@ -45,15 +52,7 @@ public:
     // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding, layout, blocking etc.
     virtual size_t getOffset(size_t elemNumber) const = 0;
 
-    // TODO [DS]: Can we generalize this? Like isCompatible(format::ncsp) or smt like that.
-    bool isPlainFormat() const {
-        IE_THROW() << "[DS] Unimplemented";
-    }
-
-    bool isTailCFormat() const {
-        IE_THROW() << "[DS] Unimplemented";
-    }
-
+    virtual bool checkGeneralLayout(GeneralLayout layoutType) const = 0;
 
     // Get minimal requared memory size in bytes. Can be undefined
     size_t getMemSize() const {

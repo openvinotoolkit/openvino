@@ -81,16 +81,16 @@ void MKLDNNReorderNode::createPrimitive() {
                 inDims[1] <= 64 &&
                 inDims[1] >= 16 &&
                 (getParentEdgeAt(0)->getMemory().GetElementsCount() / inDims[1]) >= 128 &&
-                getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat() &&
-                getChildEdgeAt(0)->getMemory().GetDesc().isPlainFormat() &&
+                getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nspc) &&
+                getChildEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp) &&
                 getParentEdgeAt(0)->getMemory().GetDesc().getPrecision() == Precision::FP32 &&
                 getChildEdgeAt(0)->getMemory().GetDesc().getPrecision() == Precision::FP32) {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
             canUseOptimizedNspc2Ncsp = true;
         } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
                    MKLDNNPlugin::one_of(inDims.size(), 4, 5) &&
-                   getParentEdgeAt(0)->getMemory().GetDesc().isPlainFormat() &&
-                   getChildEdgeAt(0)->getMemory().GetDesc().isTailCFormat() &&
+                   getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp) &&
+                   getChildEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nspc) &&
                    getParentEdgeAt(0)->getMemory().GetDataType() == getChildEdgeAt(0)->getMemory().GetDataType() &&
                    MKLDNNExtensionUtils::sizeOfDataType(getParentEdgeAt(0)->getMemory().GetDataType()) == 1) {
             // oneDNN doesn't provide JIT reorder impl for non-avx2 targets so we fallback on simple c++ implementation which shows better perf
@@ -136,7 +136,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         // MKLDNN doesn't support direct reorders from planar data formats to grouped weights formats.
         // Code block below tries to detect such cases and reinterpret data planar formats (e.g. nchw)
         // as grouped weights planar formats (e.g. goihw) since they have same physical memory layout.
-        if (src_blocked->GetDesc().isPlainFormat() &&
+        if (src_blocked->GetDesc().checkGeneralLayout(GeneralLayout::ncsp) &&
             src_blocked->GetDims().size() + 1 == dst_blocked->GetDims().size()) {
             const auto newDims = dst_blocked->GetDims();
             const auto newFormat = MKLDNNMemory::GetPlainFormatByRank(newDims.size());

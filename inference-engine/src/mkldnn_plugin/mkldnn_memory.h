@@ -80,10 +80,6 @@ public:
 
     operator mkldnn::memory::desc() const;
 
-    bool isPlainFormat() const;
-    bool isBlockedCFormat(size_t blk_size = UNREACHABLE_DIM) const;
-    bool isTailCFormat() const;
-
     bool isSame(mkldnn::memory::format_tag fmt) const;
 
     dnnl_format_kind_t getFormatKind() const {
@@ -94,6 +90,8 @@ public:
         return make_unique<MKLDNNMemoryDesc>(*this);
     }
 
+    bool checkGeneralLayout(GeneralLayout layoutType) const override;
+
     bool isDefined() const override {
         return true;
     }
@@ -103,6 +101,11 @@ public:
 
 private:
     size_t getMemSizeImp() const override;
+    bool isPlainFormat() const;
+    bool isBlockedCFormat(size_t blk_size = UNREACHABLE_DIM) const;
+    bool isTailCFormat() const;
+
+private:
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();
     mkldnn::memory::desc desc;
 };

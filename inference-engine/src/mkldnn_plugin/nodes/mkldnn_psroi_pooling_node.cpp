@@ -12,7 +12,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "mkldnn_psroi_pooling_node.h"
 #include <cpu/x64/jit_generator.hpp>
-#include <nodes/common/tensor_desc_creator.h>
+#include <nodes/common/blocked_desc_creator.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;

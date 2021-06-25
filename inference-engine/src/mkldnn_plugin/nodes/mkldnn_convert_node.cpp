@@ -5,7 +5,7 @@
 #include <mkldnn_extension_utils.h>
 #include "mkldnn_convert_node.h"
 #include "common/cpu_convert.h"
-#include "common/tensor_desc_creator.h"
+#include "common/blocked_desc_creator.h"
 #include <ngraph/opsets/opset1.hpp>
 
 using namespace mkldnn;

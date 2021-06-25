@@ -397,15 +397,15 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
             precision = Precision::FP32;
         }
 
-        outPortConfs.push_back({TensorDescCreatorTypes::ncsp, precision});
+        outPortConfs.push_back({GeneralLayout::ncsp, precision});
         if (!getParentEdges().empty()) {
-            inPortConfs.push_back({TensorDescCreatorTypes::ncsp, precision, true});
+            inPortConfs.push_back({GeneralLayout::ncsp, precision, true});
         }
     } else if (getType() == Output) {
         precision = getOriginalInputPrecisionAtPort(0);
         if (precision == Precision::U16) precision = Precision::FP32;
 
-        inPortConfs.push_back({TensorDescCreatorTypes::ncsp, precision});
+        inPortConfs.push_back({GeneralLayout::ncsp, precision});
     }
 
     addSupportedPrimDesc(inPortConfs,

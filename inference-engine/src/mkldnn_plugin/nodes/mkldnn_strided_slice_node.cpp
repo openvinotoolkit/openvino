@@ -10,7 +10,7 @@
 #include "ie_parallel.hpp"
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
-#include "common/tensor_desc_creator.h"
+#include "common/blocked_desc_creator.h"
 #include "utils/general_utils.h"
 #include "mkldnn_input_node.h"
 
