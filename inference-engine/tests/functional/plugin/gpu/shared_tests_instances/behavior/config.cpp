@@ -150,14 +150,14 @@ namespace {
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                    ::testing::ValuesIn(conf)),
+                    ::testing::ValuesIn(inconfigs)),
              IncorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                    ::testing::ValuesIn(multiconf)),
+                    ::testing::ValuesIn(multiinconfigs)),
             IncorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
