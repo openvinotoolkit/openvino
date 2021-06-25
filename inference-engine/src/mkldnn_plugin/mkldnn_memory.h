@@ -79,8 +79,6 @@ public:
     bool operator != (const MKLDNNMemoryDesc& rhs) const;
 
     operator mkldnn::memory::desc() const;
-    operator InferenceEngine::TensorDesc() const;
-
 
     bool isPlainFormat() const;
     bool isBlockedCFormat(size_t blk_size = UNREACHABLE_DIM) const;

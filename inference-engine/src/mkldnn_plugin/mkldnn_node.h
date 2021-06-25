@@ -489,18 +489,14 @@ public:
 
     template <class PD, class D, typename FPD = bool>
     PD createPrimitiveDescriptor(const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) {
-        auto descsEqual = [](const std::vector<InferenceEngine::TensorDesc>& srcDescs,
-                               const std::vector<InferenceEngine::DataConfig>& selectedDescs) {
+        auto descsCompatible = [](const std::vector<MemoryDescPtr>& srcDescs,
+                               const std::vector<PortConfig>& selectedDescs) {
             if (srcDescs.empty() && selectedDescs.empty())
                 return true;
             if (srcDescs.empty() || selectedDescs.empty())
                 return false;
             for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                if (!(srcDescs[i].getBlockingDesc() == selectedDescs[i].desc.getBlockingDesc() &&
-                      srcDescs[i].getPrecision() == selectedDescs[i].desc.getPrecision() &&
-                      srcDescs[i].getDims() == selectedDescs[i].desc.getDims()) &&
-                      srcDescs[i].getLayout() != InferenceEngine::Layout::ANY)
-                    return false;
+                return srcDescs[i]->isCompatible(*selectedDescs[i].desc);
             }
             return true;
         };
@@ -513,19 +509,19 @@ public:
             auto itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
 
             while (static_cast<bool>(itpd))  {
-                std::vector<InferenceEngine::TensorDesc> srcDescs;
+                std::vector<MemoryDescPtr> srcDescs;
                 for (size_t i = 0; i < descInputNumbers(desc); i++)
-                    srcDescs.push_back(*getSrcMemDesc(itpd, i));
+                    srcDescs.push_back(getSrcMemDesc(itpd, i));
 
-                std::vector<InferenceEngine::TensorDesc> dstDescs;
+                std::vector<MemoryDescPtr> dstDescs;
                 for (size_t i = 0; i < descOutputNumbers(desc); i++)
-                    dstDescs.push_back(*getDstMemDesc(itpd, i));
+                    dstDescs.push_back(getDstMemDesc(itpd, i));
 
                 impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
                 if (impl_type == selected_pd->getImplementationType() &&
-                    descsEqual(srcDescs, selected_pd->getConfig().inConfs) &&
-                    descsEqual(dstDescs, selected_pd->getConfig().outConfs)) {
+                    descsCompatible(srcDescs, selected_pd->getConfig().inConfs) &&
+                    descsCompatible(dstDescs, selected_pd->getConfig().outConfs)) {
                     prepareMemory(selected_pd, itpd);
                     PD prim_desc = createPd<PD, D, FPD>(desc);
                     return {itpd.get()};
