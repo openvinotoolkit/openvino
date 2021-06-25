@@ -216,16 +216,15 @@ public:
                       const int64_t batch_idx,
                       const int64_t class_idx,
                       BoxInfo* filtBoxes) {
-        std::vector<std::pair<float, int>> sorted_boxes;
-        int64_t original_size = 0;
-
-        for (int box_idx = 0; box_idx < boxes_num; box_idx++) {
-            if (scores_data[box_idx] > score_threshold) {
-                original_size++;
-                sorted_boxes.emplace_back(std::make_pair(scores_data[box_idx], box_idx));
-            }
-        }
+        std::vector<int32_t> candidate_index(boxes_num);
+        std::iota(candidate_index.begin(), candidate_index.end(), 0);
+        auto end = std::remove_if(candidate_index.begin(),
+                                  candidate_index.end(),
+                                  [&scores_data, score_threshold](int32_t idx) {
+                                      return scores_data[idx] <= score_threshold;
+                                  });
         int64_t  num_det = 0;
+        int64_t original_size = std::distance(candidate_index.begin(), end);
         if (original_size <= 0) {
             return 0;
         }
@@ -233,12 +232,12 @@ public:
             original_size = top_k;
         }
 
-        parallel_sort(sorted_boxes.begin(), sorted_boxes.end(),
-                      [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
-                          return (l.first > r.first);
-                      });
-        printf("0Sort %d\n", sorted_boxes[0].second);
-        printf("1Sort %d\n", sorted_boxes[1].second);
+        std::partial_sort(candidate_index.begin(),
+                          candidate_index.begin() + original_size,
+                          end,
+                          [&scores_data](int32_t a, int32_t b) {
+                              return scores_data[a] > scores_data[b];
+                          });
 
         std::vector<T> iou_matrix((original_size * (original_size - 1)) >> 1);
         std::vector<T> iou_max(original_size);
@@ -247,9 +246,9 @@ public:
         InferenceEngine::parallel_for(original_size - 1, [&](size_t i){
             T max_iou = 0.;
             size_t actual_index = i + 1;
-            auto idx_a = sorted_boxes[actual_index].second;
+            auto idx_a = candidate_index[actual_index];
             for (int64_t j = 0; j < actual_index; j++) {
-                auto idx_b = sorted_boxes[j].second;
+                auto idx_b = candidate_index[j];
                 auto iou = intersectionOverUnion<T>(boxes_data + idx_a * box_size,
                                                     boxes_data + idx_b * box_size,
                                                     normalized);
@@ -259,17 +258,19 @@ public:
             iou_max[actual_index] = max_iou;
         });
 
-        if (scores_data[sorted_boxes[0].second] > post_threshold) {
-            auto box_index = sorted_boxes[0].second;
+        if (scores_data[candidate_index[0]] > post_threshold) {
+            auto box_index = candidate_index[0];
             auto box = boxes_data + box_index * box_size;
             filtBoxes[0].box.x1 = box[0];
             filtBoxes[0].box.y1 = box[1];
             filtBoxes[0].box.x2 = box[2];
             filtBoxes[0].box.y2 = box[3];
             filtBoxes[0].index = batch_idx * num_boxes + box_index;
-            filtBoxes[0].score = sorted_boxes[0].first;
+            filtBoxes[0].score = scores_data[candidate_index[0]];
             filtBoxes[0].batch_index = batch_idx;
             filtBoxes[0].class_index = class_idx;
+            printf("mkldnn fisrt nms_matrix batch %ld class %ld no. index %ld score %f\n", batch_idx, class_idx,
+                    filtBoxes[num_det].index, filtBoxes[num_det].score);
             num_det++;
         }
 
@@ -282,10 +283,10 @@ public:
                 auto decay = decay_fn(iou, max_iou, sigma);
                 min_decay = std::min(min_decay, decay);
             }
-            auto ds = min_decay * scores_data[sorted_boxes[i].second];
+            auto ds = min_decay * scores_data[candidate_index[i]];
             if (ds <= post_threshold)
                 continue;
-            auto box_index = sorted_boxes[i].second;
+            auto box_index = candidate_index[i];
             auto box = boxes_data + box_index * box_size;
             filtBoxes[num_det].box.x1 = box[0];
             filtBoxes[num_det].box.y1 = box[1];
@@ -295,8 +296,9 @@ public:
             filtBoxes[num_det].score = ds;
             filtBoxes[num_det].batch_index = batch_idx;
             filtBoxes[num_det].class_index = class_idx;
+//            printf("mkldnn nms_matrix batch %ld class %ld no. index %ld score %f\n", batch_idx, class_idx,
+//                    filtBoxes[num_det].index, filtBoxes[num_det].score);
             num_det++;
-//            printf("nms_matrix batch %ld class %ld no. %ld index %ld\n", batch_idx, class_idx, i, filtBoxes[num_det].index);
         }
         return num_det;
     }
@@ -387,21 +389,30 @@ public:
                 if (num_det > k)
                     num_det = k;
             }
-            for (int i = 0; i < 3; i++) {
-                printf("before sort index %ld score %f\n", batch_filtered_box[i].index, batch_filtered_box[i].score);
+
+            printf("mkldnn batch %ld num_det %ld batched %ld\n", batch, num_det, batch_filtered_box.size());
+            std::vector<int32_t> perm(batch_filtered_box.size());
+            std::iota(perm.begin(), perm.end(), 0);
+
+            for (int i = 0; i < 4; i++) {
+                printf("mkldnn batched %d index %ld score %f\n", i, batch_filtered_box[perm[i]].index,
+                       batch_filtered_box[perm[i]].score);
             }
-            printf("num_det %ld\n", num_det);
-            std::sort(batch_filtered_box.begin(),
-                        batch_filtered_box.end(),
-                              [](BoxInfo& lhs, BoxInfo& rhs) {
-                                  return lhs.score > rhs.score;
+
+            std::partial_sort(perm.begin(),
+                              perm.begin() + num_det,
+                              perm.end(),
+                              [&batch_filtered_box](int lhs, int rhs) {
+                                  return batch_filtered_box[lhs].score > batch_filtered_box[rhs].score;
                               });
-            for (int i = 0; i < 3; i++) {
-                printf("after sort index %ld score %f\n", batch_filtered_box[i].index, batch_filtered_box[i].score);
-            }
+
             auto offset = batch * real_num_classes * real_num_boxes;
             for (size_t i = 0; i < num_det; i++) {
-                filtered_boxes[offset + i] = batch_filtered_box[i];
+                if (i == 0 || i == 1 || i == 2) {
+                    printf("mkl dnn batched  %ld %ld class %ld score %f \n", batch, batch_filtered_box[perm[i]].index,
+                            batch_filtered_box[perm[i]].class_index, batch_filtered_box[perm[i]].score);
+                }
+                filtered_boxes[offset + i] = batch_filtered_box[perm[i]];
             }
             num_per_batch[batch] = num_det;
         });
@@ -416,7 +427,6 @@ public:
         }
 
         filtered_boxes.resize(start_offset);
-
         if (m_sort_result_across_batch) { /* sort across batch */
             if (m_sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::SCORE) {
                 std::sort(
@@ -473,6 +483,7 @@ public:
         }
         printf("first index %d class %f score %f \n", selected_indices[0], selected_outputs[0], selected_outputs[1]);
         printf("second index %d class %f score %f \n", selected_indices[1], selected_outputs[6], selected_outputs[7]);
+        printf("third index %d class %f score %f \n", selected_indices[2], selected_outputs[12], selected_outputs[13]);
         auto end = std::chrono::high_resolution_clock::now();
         std::cout << " NMSMatrix_parallel " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
         return OK;
