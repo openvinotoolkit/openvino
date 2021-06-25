@@ -4,7 +4,7 @@
 
 # ========================================= Name / Output settings =====================================
 
-set(CLDNN_BUILD__PROJ             "clDNN_unit_tests")
+set(CLDNN_BUILD__PROJ             "clDNN_unit_tests64")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
 set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
 
@@ -108,3 +108,7 @@ elseif((NOT ANDROID) AND (UNIX))
 endif()
 
 # ======================================================================================================
+
+ie_sse42_optimization_flags(sse4_2_flags)
+set_source_files_properties(test_utils/float16.cpp
+  PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")

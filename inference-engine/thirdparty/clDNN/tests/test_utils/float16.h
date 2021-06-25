@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cstdint>
+#include <cstddef>
+#include <limits>
+
 struct FLOAT16 {
     struct representation {
         uint16_t sign : 1;
