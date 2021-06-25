@@ -277,7 +277,7 @@ if(ENABLE_DEV_PKG_INSTALL)
     # InferenceEngineUnitTest
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
             DESTINATION tests/lib
-            COMPONENT core)
+            COMPONENT tests)
 endif()
 
 # Install cmake scripts

@@ -60,11 +60,11 @@ macro(ie_cpack_add_component NAME DIST_TYPE)
     endif()
 endmacro()
 
-ie_cpack_add_component(irc IRC)
+ie_cpack_add_component(irc IRC DISABLED)
 
 # create test component
 if(ENABLE_TESTS AND ENABLE_DEV_PKG_INSTALL)
-    ie_cpack_add_component(tests TESTS)
+    ie_cpack_add_component(tests TESTS DISABLED)
 endif()
 
 macro(ie_cpack)
@@ -76,8 +76,8 @@ macro(ie_cpack)
     set(CPACK_ARCHIVE_COMPONENT_INSTALL ON) # multiple components
     set(CPACK_PACKAGE_VENDOR "Intel Corporation")
     set(CPACK_VERBATIM_VARIABLES ON)
-    # set(CPACK_COMPONENTS_ALL ${ARGN})
-    # set(CPACK_COMPONENTS_TESTS ${ARGN})
+    set(CPACK_COMPONENTS_ALL ${ARGN})
+    set(CPACK_COMPONENTS_TESTS ${ARGN})
     set(CPACK_STRIP_FILES ON)
     set(CPACK_THREADS 8)
     # set(CPACK_PROJECT_CONFIG_FILE "${CMAKE_BINARY_DIR}/IRC-package.cmake")
