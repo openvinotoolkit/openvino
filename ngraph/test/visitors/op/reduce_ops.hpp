@@ -14,12 +14,12 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-template<class T>
+template <class T>
 class ReduceOpsAttrTest : public ::testing::Test
 {
 };
 
-TYPED_TEST_CASE_P(ReduceOpsAttrTest);
+TYPED_TEST_SUITE_P(ReduceOpsAttrTest);
 
 TYPED_TEST_P(ReduceOpsAttrTest, reduce_ops)
 {
@@ -43,6 +43,4 @@ TYPED_TEST_P(ReduceOpsAttrTest, reduce_ops)
     EXPECT_EQ(g_reduce_op->get_keep_dims(), reduce_op->get_keep_dims());
 }
 
-REGISTER_TYPED_TEST_CASE_P(
-    ReduceOpsAttrTest,
-    reduce_ops);
+REGISTER_TYPED_TEST_SUITE_P(ReduceOpsAttrTest, reduce_ops);

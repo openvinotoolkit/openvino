@@ -9,7 +9,8 @@ std::string ReshapeLayerTest::getTestCaseName(testing::TestParamInfo<reshapePara
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    InferenceEngine::SizeVector inputShapes, outFormShapes;
+    InferenceEngine::SizeVector inputShapes;
+    std::vector<int64_t> outFormShapes;
     std::string targetDevice;
     std::map<std::string, std::string> config;
     bool specialZero;
@@ -28,7 +29,8 @@ std::string ReshapeLayerTest::getTestCaseName(testing::TestParamInfo<reshapePara
 }
 
 void ReshapeLayerTest::SetUp() {
-    InferenceEngine::SizeVector inputShapes, outFormShapes;
+    InferenceEngine::SizeVector inputShapes;
+    std::vector<int64_t> outFormShapes;
     bool specialZero;
     InferenceEngine::Precision netPrecision;
     std::tie(specialZero, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, outFormShapes, targetDevice, configuration) =
