@@ -21,6 +21,7 @@ class DeformableConvolution(Op):
             'multiplication_transparent_ports': [(0, 0), (2, 0)],
             'in_ports_count': 3,
             'out_ports_count': 1,
+            'use_bilinear_interpolation_padding': False,
         }, attrs)
 
     def backend_attrs(self):
