@@ -15,18 +15,18 @@
 
 namespace testing {
 
-// Variant #1 Convolution -> Add -> Activation -> MaxPool
+// Variant Convolution -> Add -> Activation -> MaxPool : ConvAddAct
 
 template <typename ActivationT, typename ... Args>
-std::shared_ptr<ngraph::Function> createFunctionVariant1(Args&& ... args) {
+std::shared_ptr<ngraph::Function> createFunctionConvAddAct(Args&& ... args) {
     auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
     auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
-    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
+    auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-    auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
+    auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
     auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                                 weights,
@@ -53,16 +53,16 @@ std::shared_ptr<ngraph::Function> createFunctionVariant1(Args&& ... args) {
 }
 
 template <typename ActivationT, typename ... Args>
-std::shared_ptr<ngraph::Function> createReferenceFunctionVariant1(Args&& ... args) {
+std::shared_ptr<ngraph::Function> createReferenceFunctionConvAddAct(Args&& ... args) {
     auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
     auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
-    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
+    auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-    auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
+    auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
     auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                                 weights,
@@ -88,11 +88,11 @@ std::shared_ptr<ngraph::Function> createReferenceFunctionVariant1(Args&& ... arg
                                                                             input_params_add});
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationRelu) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddActActivationRelu) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant1<ngraph::opset7::Relu>();
+        func = createFunctionConvAddAct<ngraph::opset7::Relu>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -102,18 +102,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationRelu)
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant1<ngraph::opset7::Relu>();
+    reference_func = createReferenceFunctionConvAddAct<ngraph::opset7::Relu>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationSigmoid) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddActActivationSigmoid) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant1<ngraph::opset7::Sigmoid>();
+        func = createFunctionConvAddAct<ngraph::opset7::Sigmoid>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -123,18 +123,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationSigmo
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant1<ngraph::opset7::Sigmoid>();
+    reference_func = createReferenceFunctionConvAddAct<ngraph::opset7::Sigmoid>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationTanh) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddActActivationTanh) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant1<ngraph::opset7::Tanh>();
+        func = createFunctionConvAddAct<ngraph::opset7::Tanh>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -144,18 +144,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationTanh)
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant1<ngraph::opset7::Tanh>();
+    reference_func = createReferenceFunctionConvAddAct<ngraph::opset7::Tanh>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationAbs) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddActActivationAbs) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant1<ngraph::opset7::Abs>();
+        func = createFunctionConvAddAct<ngraph::opset7::Abs>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -165,18 +165,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationAbs) 
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant1<ngraph::opset7::Abs>();
+    reference_func = createReferenceFunctionConvAddAct<ngraph::opset7::Abs>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationLog) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddActActivationLog) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant1<ngraph::opset7::Log>();
+        func = createFunctionConvAddAct<ngraph::opset7::Log>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -186,18 +186,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationLog) 
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant1<ngraph::opset7::Log>();
+    reference_func = createReferenceFunctionConvAddAct<ngraph::opset7::Log>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationExp) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddActActivationExp) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant1<ngraph::opset7::Exp>();
+        func = createFunctionConvAddAct<ngraph::opset7::Exp>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -207,18 +207,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationExp) 
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant1<ngraph::opset7::Exp>();
+    reference_func = createReferenceFunctionConvAddAct<ngraph::opset7::Exp>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationSign) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddActActivationSign) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant1<ngraph::opset7::Sign>();
+        func = createFunctionConvAddAct<ngraph::opset7::Sign>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -228,18 +228,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationSign)
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant1<ngraph::opset7::Sign>();
+    reference_func = createReferenceFunctionConvAddAct<ngraph::opset7::Sign>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationClamp) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddActActivationClamp) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant1<ngraph::opset7::Clamp>(0.1, 0.2);
+        func = createFunctionConvAddAct<ngraph::opset7::Clamp>(0.1, 0.2);
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -249,25 +249,25 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant1ActivationClamp
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant1<ngraph::opset7::Clamp>(0.1, 0.2);
+    reference_func = createReferenceFunctionConvAddAct<ngraph::opset7::Clamp>(0.1, 0.2);
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-// Variant #2 Convolution -> FakeQuantize -> MaxPool
+// Variant Convolution -> FakeQuantize -> MaxPool : ConvFqMp
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant2) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvFqMp) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
         auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
+        auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-        auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
+        auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                   weights,
@@ -306,9 +306,9 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant2) {
         auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
+        auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-        auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
+        auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                   weights,
@@ -341,9 +341,9 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant2) {
     ASSERT_TRUE(result.valid);
 }
 
-// Variant #3 Convolution -> Add -> FakeQuantize -> MaxPool
+// Variant Convolution -> Add -> FakeQuantize -> MaxPool : ConvAddFqMp
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant3) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
@@ -353,9 +353,9 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant3) {
         auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
+        auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-        auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
+        auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                   weights,
@@ -400,9 +400,9 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant3) {
         auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
+        auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-        auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
+        auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                   weights,
@@ -438,16 +438,16 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant3) {
     ASSERT_TRUE(result.valid);
 }
 
-// Variant #4 Convolution -> Activation -> MaxPool
+// Variant Convolution -> Activation -> MaxPool : ConvActMp
 
 template <typename ActivationT, typename ... Args>
-std::shared_ptr<ngraph::Function> createFunctionVariant4(Args&& ... args) {
+std::shared_ptr<ngraph::Function> createFunctionConvActMp(Args&& ... args) {
     auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
-    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
+    auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-    auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
+    auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
     auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                   weights,
@@ -470,13 +470,13 @@ std::shared_ptr<ngraph::Function> createFunctionVariant4(Args&& ... args) {
 }
 
 template <typename ActivationT, typename ... Args>
-std::shared_ptr<ngraph::Function> createReferenceFunctionVariant4(Args&& ... args) {
+std::shared_ptr<ngraph::Function> createReferenceFunctionConvActMp(Args&& ... args) {
     auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
-    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32,
+    auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-    auto bias = ngraph::opset1::Constant::create(ngraph::element::f32,
+    auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
     auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                   weights,
@@ -498,11 +498,11 @@ std::shared_ptr<ngraph::Function> createReferenceFunctionVariant4(Args&& ... arg
                                                   ngraph::ParameterVector{input_params_convolution});
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationRelu) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvActMpActivationRelu) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant4<ngraph::opset7::Relu>();
+        func = createFunctionConvActMp<ngraph::opset7::Relu>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -512,18 +512,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationRelu)
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant4<ngraph::opset7::Relu>();
+    reference_func = createReferenceFunctionConvActMp<ngraph::opset7::Relu>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationSigmoid) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvActMpActivationSigmoid) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant4<ngraph::opset7::Sigmoid>();
+        func = createFunctionConvActMp<ngraph::opset7::Sigmoid>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -533,18 +533,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationSigmo
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant4<ngraph::opset7::Sigmoid>();
+    reference_func = createReferenceFunctionConvActMp<ngraph::opset7::Sigmoid>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationTanh) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvActMpActivationTanh) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant4<ngraph::opset7::Tanh>();
+        func = createFunctionConvActMp<ngraph::opset7::Tanh>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -554,18 +554,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationTanh)
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant4<ngraph::opset7::Tanh>();
+    reference_func = createReferenceFunctionConvActMp<ngraph::opset7::Tanh>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationAbs) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvActMpActivationAbs) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant4<ngraph::opset7::Abs>();
+        func = createFunctionConvActMp<ngraph::opset7::Abs>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -575,18 +575,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationAbs) 
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant4<ngraph::opset7::Abs>();
+    reference_func = createReferenceFunctionConvActMp<ngraph::opset7::Abs>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationLog) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvActMpActivationLog) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant4<ngraph::opset7::Log>();
+        func = createFunctionConvActMp<ngraph::opset7::Log>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -596,18 +596,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationLog) 
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant4<ngraph::opset7::Log>();
+    reference_func = createReferenceFunctionConvActMp<ngraph::opset7::Log>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationExp) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvActMpActivationExp) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant4<ngraph::opset7::Exp>();
+        func = createFunctionConvActMp<ngraph::opset7::Exp>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -617,18 +617,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationExp) 
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant4<ngraph::opset7::Exp>();
+    reference_func = createReferenceFunctionConvActMp<ngraph::opset7::Exp>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationSign) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvActMpActivationSign) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant4<ngraph::opset7::Sign>();
+        func = createFunctionConvActMp<ngraph::opset7::Sign>();
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -638,18 +638,18 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationSign)
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant4<ngraph::opset7::Sign>();
+    reference_func = createReferenceFunctionConvActMp<ngraph::opset7::Sign>();
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationClamp) {
+TEST(TransformationTests, ReorderActivationAndPoolingTestConvActMpActivationClamp) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunctionVariant4<ngraph::opset7::Clamp>(0.1, 0.2);
+        func = createFunctionConvActMp<ngraph::opset7::Clamp>(0.1, 0.2);
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -659,7 +659,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestVariant4ActivationClamp
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createReferenceFunctionVariant4<ngraph::opset7::Clamp>(0.1, 0.2);
+    reference_func = createReferenceFunctionConvActMp<ngraph::opset7::Clamp>(0.1, 0.2);
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
