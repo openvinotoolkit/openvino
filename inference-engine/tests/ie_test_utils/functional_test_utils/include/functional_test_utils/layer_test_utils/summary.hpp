@@ -95,8 +95,8 @@ public:
 
     static Summary &getInstance();
 
-    void savePartReport(const char* className, unsigned long passed, unsigned long failed, unsigned long skipped,
-                        unsigned long crashed);
+    void savePartReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+                        unsigned long skipped, unsigned long crashed);
 
     void saveReport();
 

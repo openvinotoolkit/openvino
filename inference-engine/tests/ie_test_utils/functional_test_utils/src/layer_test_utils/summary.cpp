@@ -51,43 +51,52 @@ void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Sta
         switch (status) {
             case PassRate::PASSED:
                 passrate.passed++;
+                if (passrate.crashed == 0) {
+                    std::cout << "!";
+                }
                 passrate.crashed--;
-                savePartReport(className, passrate.passed, passrate.failed, passrate.skipped, passrate.crashed);
+                savePartReport(className, op.name, passrate.passed, passrate.failed, passrate.skipped, passrate.crashed);
                 break;
             case PassRate::FAILED:
                 passrate.failed++;
+                if (passrate.crashed == 0) {
+                    std::cout << "!";
+                }
                 passrate.crashed--;
-                savePartReport(className, passrate.passed, passrate.failed, passrate.skipped, passrate.crashed);
+                savePartReport(className, op.name, passrate.passed, passrate.failed, passrate.skipped,
+                               passrate.crashed);
                 break;
             case PassRate::SKIPPED:
                 passrate.skipped++;
-                savePartReport(className, passrate.passed, passrate.failed, passrate.skipped, passrate.crashed);
+                savePartReport(className, op.name, passrate.passed, passrate.failed, passrate.skipped,
+                               passrate.crashed);
                 break;
             case PassRate::CRASHED:
                 passrate.crashed++;
-                savePartReport(className, passrate.passed, passrate.failed, passrate.skipped, passrate.crashed);
+                savePartReport(className, op.name, passrate.passed, passrate.failed, passrate.skipped,
+                               passrate.crashed);
                 break;
         }
     } else {
         switch (status) {
             case PassRate::PASSED:
                 opsStats[op] = PassRate(1, 0, 0, 0);
-                savePartReport(className, opsStats[op].passed, opsStats[op].failed, opsStats[op].skipped,
+                savePartReport(className, op.name, opsStats[op].passed, opsStats[op].failed, opsStats[op].skipped,
                                opsStats[op].crashed);
                 break;
             case PassRate::FAILED:
                 opsStats[op] = PassRate(0, 1, 0, 0);
-                savePartReport(className, opsStats[op].passed, opsStats[op].failed, opsStats[op].skipped,
+                savePartReport(className, op.name, opsStats[op].passed, opsStats[op].failed, opsStats[op].skipped,
                                opsStats[op].crashed);
                 break;
             case PassRate::SKIPPED:
                 opsStats[op] = PassRate(0, 0, 1, 0);
-                savePartReport(className, opsStats[op].passed, opsStats[op].failed, opsStats[op].skipped,
+                savePartReport(className, op.name, opsStats[op].passed, opsStats[op].failed, opsStats[op].skipped,
                                opsStats[op].crashed);
                 break;
             case PassRate::CRASHED:
                 opsStats[op] = PassRate(0, 0, 0, 1);
-                savePartReport(className, opsStats[op].passed, opsStats[op].failed, opsStats[op].skipped,
+                savePartReport(className, op.name, opsStats[op].passed, opsStats[op].failed, opsStats[op].skipped,
                                opsStats[op].crashed);
                 break;
         }
@@ -161,12 +170,12 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
     }
 }
 
-void Summary::savePartReport(const char* className, unsigned long passed, unsigned long failed, unsigned long skipped,
-                             unsigned long crashed) {
+void Summary::savePartReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+                             unsigned long skipped, unsigned long crashed) {
     std::string outputFilePath = "./part_report.txt";
     std::ofstream file;
     file.open(outputFilePath, std::ios_base::app);
-    file << className << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << '\n';
+    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << '\n';
     file.close();
 }
 
