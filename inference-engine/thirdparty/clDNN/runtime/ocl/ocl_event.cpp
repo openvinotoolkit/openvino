@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ocl_base_event.hpp"
+#include "ocl_event.hpp"
 
 #include <cassert>
 #include <iostream>
@@ -32,12 +32,12 @@ instrumentation::profiling_interval get_profiling_interval(const char* name, cl_
 
 }  // namespace
 
-void CL_CALLBACK base_event::ocl_event_completion_callback(cl_event, cl_int, void* me) {
-    reinterpret_cast<base_event*>(me)->_set = true;
-    reinterpret_cast<base_event*>(me)->call_handlers();
+void CL_CALLBACK ocl_event::ocl_event_completion_callback(cl_event, cl_int, void* me) {
+    reinterpret_cast<ocl_event*>(me)->_set = true;
+    reinterpret_cast<ocl_event*>(me)->call_handlers();
 }
 
-void base_event::set_ocl_callback() {
+void ocl_event::set_ocl_callback() {
     if (_callback_set)
         return;
 
@@ -47,20 +47,24 @@ void base_event::set_ocl_callback() {
     }
 }
 
-void base_event::wait_impl() {
+void ocl_event::wait_impl() {
     if (_event.get() != nullptr) {
         _event.wait();
     }
 }
 
-bool base_event::is_set_impl() {
+void ocl_event::set_impl() {
+    wait_impl();
+}
+
+bool ocl_event::is_set_impl() {
     if (_event.get() != nullptr) {
         return _event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
     }
     return true;
 }
 
-bool base_event::add_event_handler_impl(event_handler, void*) {
+bool ocl_event::add_event_handler_impl(event_handler, void*) {
     set_ocl_callback();
     return true;
 }
@@ -71,7 +75,7 @@ static const std::vector<profiling_period_ocl_start_stop> profiling_periods{
     {"executing", CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END},
 };
 
-bool base_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
+bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
     if (!is_event_profiled(_event))
         return true;
 
@@ -88,27 +92,31 @@ bool base_event::get_profiling_info_impl(std::list<instrumentation::profiling_in
     return true;
 }
 
-void base_events::wait_impl() {
+void ocl_events::wait_impl() {
     if (_last_ocl_event.get() != nullptr) {
         _last_ocl_event.wait();
     }
 }
 
-bool base_events::is_set_impl() {
+void ocl_events::set_impl() {
+    wait_impl();
+}
+
+bool ocl_events::is_set_impl() {
     if (_last_ocl_event.get() != nullptr) {
         return _last_ocl_event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
     }
     return true;
 }
 
-bool base_events::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
+bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
     // For every profiling period (i.e. submission / starting / executing),
     // the goal is to sum up all disjoint durations of its projection on the time axis
 
     std::map<std::string, std::vector<std::pair<unsigned long long, unsigned long long>>> all_durations;
 
     for (size_t i = 0; i < _events.size(); i++) {
-        auto be = downcast<base_event>(_events[i].get());
+        auto be = downcast<ocl_event>(_events[i].get());
         if (!is_event_profiled(be->_event))
             continue;
 

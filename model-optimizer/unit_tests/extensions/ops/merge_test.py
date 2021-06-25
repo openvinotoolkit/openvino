@@ -6,6 +6,7 @@ import unittest
 import numpy as np
 
 from extensions.ops.merge import Merge
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph_with_attrs
@@ -85,4 +86,32 @@ class TestMerge(unittest.TestCase):
                                                                                       'value': None}),
                                                                     ('merge', {'is_not_fully_inferred': False})])
         (flag, resp) = compare_graphs(graph, graph_ref, 'merge_output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_merge_infer_only_second_executable(self):
+        graph = build_graph_with_attrs(
+            nodes_with_attrs=self.nodes,
+            edges_with_attrs=self.edges,
+            update_nodes_attributes=[
+                ('first', {'executable': False, 'value': np.ones([2, 2]), 'shape': int64_array([2, 2])}),
+                ('second', {'executable': True, 'value': np.zeros([4, 4]), 'shape': int64_array([4, 4])})
+            ]
+        )
+
+        ref_graph = build_graph_with_attrs(
+            nodes_with_attrs=self.nodes,
+            edges_with_attrs=self.edges,
+            update_nodes_attributes=[
+                ('first', {'executable': False, 'value': np.ones([2, 2]), 'shape': int64_array([2, 2])}),
+                ('second', {'executable': True, 'value': np.zeros([4, 4]), 'shape': int64_array([4, 4])}),
+                ('merge', {'is_not_fully_inferred': False}),
+                ('merge_output', {'shape': int64_array([4, 4]), 'value': np.zeros([4, 4])})
+            ]
+        )
+
+        tested_class = Merge(graph=graph, attrs={})
+        node = Node(graph, 'merge')
+        tested_class.merge_infer(node)
+
+        (flag, resp) = compare_graphs(graph, ref_graph, 'merge_output', check_op_attrs=True)
         self.assertTrue(flag, resp)
