@@ -69,10 +69,10 @@ namespace LayerTestsDefinitions {
         s.setDeviceName(targetDevice);
 
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
+            s.updateOPsStats(function, PassRate::Statuses::SKIPPED, typeid(*this).name());
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
-            s.updateOPsStats(function, PassRate::Statuses::CRASHED);
+            s.updateOPsStats(function, PassRate::Statuses::CRASHED, typeid(*this).name());
         }
 
         try {
@@ -88,16 +88,16 @@ namespace LayerTestsDefinitions {
                 Infer();
                 Validate();
             }
-            s.updateOPsStats(function, PassRate::Statuses::PASSED);
+            s.updateOPsStats(function, PassRate::Statuses::PASSED, typeid(*this).name());
         }
         catch (const std::runtime_error &re) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(function, PassRate::Statuses::FAILED, typeid(*this).name());
             GTEST_FATAL_FAILURE_(re.what());
         } catch (const std::exception &ex) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(function, PassRate::Statuses::FAILED, typeid(*this).name());
             GTEST_FATAL_FAILURE_(ex.what());
         } catch (...) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(function, PassRate::Statuses::FAILED, typeid(*this).name());
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
     }
