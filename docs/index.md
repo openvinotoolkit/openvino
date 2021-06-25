@@ -35,15 +35,13 @@ Useful documents for model preparation:
 * [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction)
 * [OpenVINO Training Extentions](https://github.com/openvinotoolkit/training_extensions)
 
-### Model Conversion and Optimization
-#### Components: [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), [Post-training Optimization Tool](@ref pot_README)
+### Model Conversion
+#### Components: [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 The [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) is a cross-platform command-line
 tool that converts a trained neural network from its source framework to an open-source, nGraph-compatible [Intermediate Representation (IR)](MO_DG/IR_and_opsets.md) for use in inference operations. The Model Optimizer imports models trained in popular frameworks such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX* and performs a few optimizations to remove excess layers and group operations when possible into simpler, faster graphs.
 
 If your neural network contains layers that are not in the list of known layers for supported frameworks, you can adjust the conversion and optimization process using [Custom Layers](HOWTO/Custom_Layers_Guide.md).
-
-Use the [Post-training Optimization Tool](@ref pot_README) to accelerate the inference of a deep learning model by quantizing it to INT8. Models from Open Model Zoo can be quantized using the [Model Quantizer utility](https://github.com/openvinotoolkit/open_model_zoo/tree/master/tools/downloader#model-quantizer-usage). 
 
 Run the [Accuracy Checker utility](@ref omz_tools_accuracy_checker) either against source topologies or against the output representation to evaluate the accuracy of inference. You can also use the Accuracy Checker as a part of the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), an official OpenVINO™ graphical interface. 
 
@@ -54,11 +52,10 @@ Useful documents for model conversion and optimization:
 * [Intermediate Representation and Opsets](MO_DG/IR_and_opsets.md)
 * [Custom Layers Guide](HOWTO/Custom_Layers_Guide.md)
 * [Accuracy Checker utility](@ref omz_tools_accuracy_checker)
-* [Post-training Optimization Tool](@ref pot_README)
 * [Deep Learning Workbench Guide](@ref workbench_docs_Workbench_DG_Introduction)
 
 ### Running and Tuning Inference
-#### Components: [Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md), [Neural Network Compression Framework](https://github.com/openvinotoolkit/nncf)
+#### Components: [Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md), [Post-training Optimization Tool](@ref pot_README), [Neural Network Compression Framework](https://github.com/openvinotoolkit/nncf)
 
 The other core component of OpenVINO™ is the [Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md), which manages the loading and compiling of the optimized neural network model, runs inference operations on input data, and outputs the results. Inference Engine can execute synchronously or asynchronously, and its plugin architecture manages the appropriate compilations for execution on multiple Intel® devices, including both workhorse CPUs and specialized graphics and video processing platforms (see below, Packaging and Deployment).
 
@@ -66,9 +63,11 @@ You can use OpenVINO™ Tuning Utilities with the Inference Engine for trial and
 
 OpenVINO™ toolkit includes a set of [inference code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos) showing how inference is run and output processed for use in retail environments, classrooms, smart camera applications, and other solutions.
 
-OpenVINO also makes use of open-source and Intel™ tools for traditional graphics processing and performance management. Intel® Media SDK supports accelerated rich-media processing, including transcoding. OpenVINO™ optimizes calls to the rich OpenCV and OpenVX libraries for processing computer vision workloads. And the new DL Streamer integration further accelerates video pipelining and performance.
+Use the [Post-training Optimization Tool](@ref pot_README) to accelerate the inference of a deep learning model by quantizing it to INT8. Models from Open Model Zoo can be quantized using the [Model Quantizer utility](https://github.com/openvinotoolkit/open_model_zoo/tree/master/tools/downloader#model-quantizer-usage). 
 
-Besides the [Post-training Optimization Tool](@ref pot_README), the [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) can be used for model fine-tuning INT8 quantization or even for applying more aggressive compression methods, such as filter pruning, sparsity, and binarization to further speed up model inference and reduce the footprint.
+Besides the [Post-training Optimization Tool](@ref pot_README), the [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) can be used for model fine-tuning INT8 quantization or even for applying more aggressive compression methods, such as filter pruning, sparsity, and binarization to further speed up model inference and reduce the footprint. In that case the compression algorithms are integrated into your model training pipeline.
+
+OpenVINO also makes use of open-source and Intel™ tools for traditional graphics processing and performance management. Intel® Media SDK supports accelerated rich-media processing, including transcoding. OpenVINO™ optimizes calls to the rich OpenCV and OpenVX libraries for processing computer vision workloads. And the new DL Streamer integration further accelerates video pipelining and performance.
 
 Try these key tuning tools in your browser with the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) intuitive graphical interface.
 
@@ -79,6 +78,7 @@ Useful documents for inference tuning:
 * [Inference Engine API References](./api_references.html)
 * [Inference Code Samples](IE_DG/Samples_Overview.md)
 * [Application Demos](@ref omz_demos)
+* [Post-training Optimization Tool](@ref pot_README)
 * [Low Precision Optimization Guide] (@ref pot_docs_LowPrecisionOptimizationGuide)
 * [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf)
 * [Deep Learning Workbench Guide](@ref workbench_docs_Workbench_DG_Introduction)
