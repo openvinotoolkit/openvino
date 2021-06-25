@@ -26,7 +26,7 @@ endif()
 
 # install C++ samples
 
-ie_cpack_add_component(cpp_samples IRC DEPENDS cpp_samples_deps core)
+ie_cpack_add_component(cpp_samples DEPENDS cpp_samples_deps core)
 
 if(UNIX)
     install(DIRECTORY samples/
@@ -48,7 +48,7 @@ endif()
 
 # install C samples
 
-ie_cpack_add_component(c_samples IRC DEPENDS core_c)
+ie_cpack_add_component(c_samples DEPENDS core_c)
 
 if(UNIX)
     install(PROGRAMS samples/build_samples.sh
@@ -73,7 +73,7 @@ install(FILES samples/CMakeLists.txt
 # install speech demo files
 
 if(SPEECH_LIBS_AND_DEMOS)
-    ie_cpack_add_component(speech_demo_files IRC)
+    ie_cpack_add_component(speech_demo_files)
 
     install(DIRECTORY ${TEMP}/deployment_tools
                       ${TEMP}/data_processing

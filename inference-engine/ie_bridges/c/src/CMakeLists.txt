@@ -31,8 +31,8 @@ export(TARGETS ${TARGET_NAME} NAMESPACE IE::
 
 # install
 
-ie_cpack_add_component(core_c IRC DEPENDS core)
-ie_cpack_add_component(core_c_dev IRC DEPENDS core_c)
+ie_cpack_add_component(core_c DEPENDS core)
+ie_cpack_add_component(core_c_dev DEPENDS core_c)
 
 install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core_c

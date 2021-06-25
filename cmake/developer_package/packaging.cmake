@@ -26,45 +26,21 @@ endfunction()
 ie_cpack_set_library_dir()
 
 #
-# ie_cpack_add_component(NAME DIST_TYPE ...)
+# ie_cpack_add_component(NAME ...)
 #
 # Wraps original `cpack_add_component` and adds component to internal IE list
 #
-set(_components IRC DEV_PACKAGE TESTS)
-foreach(DIST_TYPE IN LISTS _components)
-    unset(IE_CPACK_COMPONENTS_${DIST_TYPE} CACHE)
-endforeach()
-
-macro(ie_cpack_add_component NAME DIST_TYPE)
-    # TODO: remove WA
-    set(dist_type ${DIST_TYPE})
-    set(args ${ARGN})
-
-    if(dist_type STREQUAL "REQUIRED")
-        list(INSERT args 0 "REQUIRED")
-        set(dist_type "IRC")
-    endif()
-
-    if(NOT dist_type IN_LIST _components)
-        message(FATAL_ERROR "${dist_type} must of on ${_components}")
-    endif()
-
-    list(APPEND IE_CPACK_COMPONENTS_${dist_type} ${NAME})
-    set(IE_CPACK_COMPONENTS_${dist_type} "${IE_CPACK_COMPONENTS_${dist_type}}" CACHE STRING "" FORCE)
+unset(IE_CPACK_COMPONENTS_ALL CACHE)
+macro(ie_cpack_add_component NAME)
+    list(APPEND IE_CPACK_COMPONENTS_ALL ${NAME})
+    set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE STRING "" FORCE)
 
     cpack_add_component(${NAME} ${args})
-
-    # dependencies for high level components
-    if(dist_type STREQUAL "IRC")
-        list(APPEND CPACK_COMPONENT_irc_DEPENDS ${NAME})
-    endif()
 endmacro()
-
-ie_cpack_add_component(irc IRC DISABLED)
 
 # create test component
 if(ENABLE_TESTS)
-    ie_cpack_add_component(tests TESTS DISABLED)
+    cpack_add_component(tests DISABLED)
 endif()
 
 macro(ie_cpack)
@@ -77,10 +53,8 @@ macro(ie_cpack)
     set(CPACK_PACKAGE_VENDOR "Intel Corporation")
     set(CPACK_VERBATIM_VARIABLES ON)
     set(CPACK_COMPONENTS_ALL ${ARGN})
-    set(CPACK_COMPONENTS_TESTS ${ARGN})
     set(CPACK_STRIP_FILES ON)
     set(CPACK_THREADS 8)
-    # set(CPACK_PROJECT_CONFIG_FILE "${CMAKE_BINARY_DIR}/IRC-package.cmake")
 
     string(REPLACE "/" "_" CPACK_PACKAGE_VERSION "${CI_BUILD_NUMBER}")
     if(WIN32)

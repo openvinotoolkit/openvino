@@ -39,7 +39,7 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # install
 
-ie_cpack_add_component(myriad_dev IRC DEPENDS myriad)
+ie_cpack_add_component(myriad_dev DEPENDS myriad)
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}

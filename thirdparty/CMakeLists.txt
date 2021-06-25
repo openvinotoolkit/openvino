@@ -98,7 +98,7 @@ endif()
 # Install
 #
 
-ie_cpack_add_component(cpp_samples_deps IRC)
+ie_cpack_add_component(cpp_samples_deps)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
         DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty

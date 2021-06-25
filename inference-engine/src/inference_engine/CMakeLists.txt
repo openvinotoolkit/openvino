@@ -228,7 +228,7 @@ list(APPEND PATH_VARS "IE_INCLUDE_DIR" "IE_NGRAPH_DIR"
                       "IE_PARALLEL_CMAKE")
 
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
-    ie_cpack_add_component(tbb IRC REQUIRED)
+    ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
     install(DIRECTORY "${TBB}/include"
@@ -258,8 +258,8 @@ endif()
 
 # Install Inference Engine
 
-ie_cpack_add_component(core IRC REQUIRED DEPENDS ${core_components})
-ie_cpack_add_component(core_dev IRC REQUIRED core ngraph_dev)
+ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
+ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
 install(DIRECTORY "${IE_MAIN_SOURCE_DIR}/include" DESTINATION ${IE_CPACK_IE_DIR}
         COMPONENT core_dev)
