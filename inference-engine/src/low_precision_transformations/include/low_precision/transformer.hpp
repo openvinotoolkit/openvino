@@ -32,6 +32,7 @@ public:
     LowPrecisionTransformations() {}
     LowPrecisionTransformations(
         const std::map<std::string, LayerTransformationPtr>& branchSpecificTransformations,
+        const std::map<std::string, LayerTransformationPtr>& decompositionTransformations,
         const std::map<std::string, LayerTransformationPtr>& transformations,
         const std::map<std::string, std::vector<std::pair<std::string, LayerTransformationPtr>>>& cleanupTransformations,
         const std::vector<StandaloneCleanup>& standaloneCleanupTransformations);
@@ -278,7 +279,7 @@ class TRANSFORMATIONS_API LowPrecisionTransformer : public IParamsManager, ILaye
 public:
     static LowPrecisionTransformations getAllTransformations(const LayerTransformation::Params& params = LayerTransformation::Params());
 
-    static bool isFunctionQuantized(const std::shared_ptr<Function>& function);
+    static bool isFunctionQuantized(const std::shared_ptr<const Function>& function);
 
     LowPrecisionTransformer();
     LowPrecisionTransformer(const LowPrecisionTransformations& transformations);

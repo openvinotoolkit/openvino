@@ -42,6 +42,7 @@ public:
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
+    bool addUnsupportedConcat;
 };
 
 inline std::ostream& operator<<(std::ostream& os,
@@ -74,7 +75,8 @@ public:
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
             testValues.splitedAxis,
-            testValues.numSplits);
+            testValues.numSplits,
+            testValues.addUnsupportedConcat);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params.setSupportAsymmetricQuantization(true));
@@ -88,7 +90,8 @@ public:
             testValues.expected.precisionAfterOperation,
             testValues.expected.dequantizationAfter,
             testValues.splitedAxis,
-            testValues.numSplits);
+            testValues.numSplits,
+            testValues.addUnsupportedConcat);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SplitTransformationParams> obj) {
@@ -429,6 +432,22 @@ const std::vector<SplitTransformationTestValues> testValues = {
             }
         }
     },
+    // issue #56781: unsupported Concat after Split
+    {
+        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{2}, size_t{3},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}},
+            ngraph::element::f32,
+            {}
+        },
+        true
+    },
     // no dequantization
     {
         ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, size_t{2},
@@ -437,7 +456,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
         { }
     },
 };
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     SplitTransformation,
     ::testing::Combine(

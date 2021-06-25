@@ -22,7 +22,7 @@ const std::vector<std::vector<int64_t>> repeats3D = {
         {1, 1, 1}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Tile, TileLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Tile, TileLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(repeats3D),
                 ::testing::ValuesIn(netPrecisions),
@@ -39,7 +39,7 @@ const std::vector<std::vector<int64_t>> repeats6D = {
         {1, 1, 1, 1, 1, 1}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Tile6d, TileLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Tile6d, TileLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(repeats6D),
                 ::testing::ValuesIn(netPrecisions),

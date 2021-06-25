@@ -54,6 +54,7 @@
 #include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
+#include "nodes/common/cpu_convert.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -202,6 +203,27 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "SoftPlus", Math},
         { "Softsign", Math},
         { "Tan", Math},
+        { "CTCLoss", CTCLoss},
+        { "Bucketize", Bucketize},
+        { "CTCGreedyDecoder", CTCGreedyDecoder},
+        { "CTCGreedyDecoderSeqLen", CTCGreedyDecoderSeqLen},
+        { "CumSum", CumSum},
+        { "DetectionOutput", DetectionOutput},
+        { "ExperimentalDetectronDetectionOutput", ExperimentalDetectronDetectionOutput},
+        { "LogSoftmax", LogSoftmax},
+        { "TopK", TopK},
+        { "GatherTree", GatherTree},
+        { "GRN", GRN},
+        { "Range", Range},
+        { "Proposal", Proposal},
+        { "ReorgYolo", ReorgYolo},
+        { "ReverseSequence", ReverseSequence},
+        { "ExperimentalDetectronTopKROIs", ExperimentalDetectronTopKROIs},
+        { "ExperimentalDetectronROIFeatureExtractor", ExperimentalDetectronROIFeatureExtractor},
+        { "ExperimentalDetectronPriorGridGenerator", ExperimentalDetectronPriorGridGenerator},
+        { "ExperimentalDetectronGenerateProposalsSingleImage", ExperimentalDetectronGenerateProposalsSingleImage},
+        { "ExtractImagePatches", ExtractImagePatches},
+        { "NonMaxSuppressionIEInternal", NonMaxSuppression}
 };
 
 Type TypeFromName(const std::string type) {
@@ -366,10 +388,10 @@ bool MKLDNNNode::isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const
 }
 
 void MKLDNNNode::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority());
+    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), false);
 }
 
-void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority) {
+void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
     for (auto& type : priority) {
         int selectedPrimitive = -1;
         int equalsFormatCount = -1;
@@ -382,6 +404,13 @@ void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_typ
                 for (size_t j = 0; j < getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size(); j++) {
                     auto parentEdge = getParentEdgeAt(j);
                     auto parentPtr = parentEdge->getParent();
+
+                    // We don't take into account constant edges since reorders on them will be executed on load network stage
+                    if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
+                        equalsLocalFormatCount++;
+                        continue;
+                    }
+
                     auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
 
                     if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
@@ -1288,7 +1317,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             fusingPort = i;
             continue;
         }
-        if (!node->isConstant() || node->getType() != Input) {
+        if (node->getType() != Input || !node->isConstant()) {
             return false;
         }
     }
@@ -1299,13 +1328,6 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             if (i == fusingPort)
                 continue;
             auto weightShape = getParentEdgeAt(i)->getDims().ToSizeVector();
-            // [NM] TODO: PRelu is not broadcastable
-            // WA: [1,32,46,46], [32] -> [1,32,46,46], [1, 32, 1, 1]
-            if (getAlgorithm() == EltwisePrelu && weightShape.size() == 1 && weightShape.back() != 1) {
-                auto newWeightShape = std::vector<size_t>(dataShape.size(), 1);
-                newWeightShape[1] = weightShape[0];
-                weightShape = newWeightShape;
-            }
             if (!isPerTensorOrPerChannelBroadcastable(dataShape, weightShape))
                 return false;
         }
@@ -1337,4 +1359,84 @@ bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
                       node->canBePerformedAsScaleShift(this);
     }
     return false;
+}
+
+void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, int align) {
+    scales.clear();
+    shifts.clear();
+    const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
+        auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
+        auto constBlob = constInputNode->getMemoryPtr();
+        auto const elementsCount = constBlob->GetElementsCount();
+        buffer.resize(elementsCount);
+        cpu_convert(constBlob->GetPtr(),
+                    &buffer[0],
+                    MKLDNNExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                    Precision::FP32,
+                    elementsCount);
+    };
+
+    const size_t constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
+
+    if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
+        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), scales);
+    } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract)) {
+        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), shifts);
+    } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
+        fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
+        fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
+    } else if (one_of(getAlgorithm(), EltwisePowerStatic)) {
+        const auto power = dynamic_cast<const MKLDNNEltwiseNode *>(this);
+        if (!power) {
+            IE_THROW() << "Cannot cast " << getName() << " to MKLDNNEltwiseNode";
+        }
+        scales.push_back(power->getBeta());
+        shifts.push_back(power->getGamma());
+    } else {
+        IE_THROW() << "Can't fill scale and shifts for node: " << getName() << " with type: " << NameFromType(getType());
+    }
+
+    const size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].ndims() > 1 ? 1 : 0]);
+    if (align == -1) {
+        align = bufferSize;
+    }
+    const size_t bufferSizeAligned = rnd_up(bufferSize, static_cast<size_t>(align));
+
+    size_t initSize = scales.size();
+    if (initSize > 0) {
+        scales.resize(bufferSizeAligned, 0);
+        if (initSize == 1) {
+            std::fill(scales.begin() + 1, scales.begin() + bufferSize, scales[0]);
+        }
+    }
+
+    initSize = shifts.size();
+    if (initSize > 0) {
+        shifts.resize(bufferSizeAligned, 0);
+        if (initSize == 1) {
+            std::fill(shifts.begin() + 1, shifts.begin() + bufferSize, shifts[0]);
+        }
+    }
+
+    switch (getAlgorithm()) {
+        case EltwiseAdd: {
+            scales.resize(bufferSizeAligned, 1.0f);
+            break;
+        }
+        case EltwiseSubtract: {
+            scales.resize(bufferSizeAligned, 1.0f);
+            std::transform(shifts.begin(), shifts.end(), shifts.begin(), [](float shift){ return -1.0f * shift; });
+            break;
+        }
+        case EltwiseMultiply: {
+            shifts.resize(bufferSizeAligned, 0.0f);
+            break;
+        }
+        case EltwiseDivide: {
+            shifts.resize(bufferSizeAligned, 0.0f);
+            std::transform(scales.begin(), scales.end(), scales.begin(), [](float scale){ return 1.0f / scale; });
+            break;
+        }
+        default: break;
+    }
 }

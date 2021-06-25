@@ -199,6 +199,11 @@ namespace ngraph
         virtual bool visit_attributes(AttributeVisitor&) { return false; }
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
+
+        /// \brief Allows to get information about availability of evaluate method for the current
+        /// operation
+        // \returns true if evaluate is available
+        virtual bool has_evaluate() const;
         /// \brief Evaluates the op on input_values putting results in output_values
         /// \param output_values Tensors for the outputs to compute. One for each result
         /// \param input_values Tensors for the inputs. One for each inputs.
@@ -429,6 +434,8 @@ namespace ngraph
 
         /// \return Version of this node
         virtual size_t get_version() const { return get_type_info().version; }
+
+        NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
         virtual std::shared_ptr<Node> get_default_value() const { return nullptr; }
         /// Use instance ids for comparison instead of memory addresses to improve determinism
         bool operator<(const Node& other) const { return m_instance_id < other.m_instance_id; }

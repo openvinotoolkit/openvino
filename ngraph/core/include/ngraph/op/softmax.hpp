@@ -15,8 +15,8 @@ namespace ngraph
             class NGRAPH_API Softmax : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Softmax", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 Softmax()
                     : m_axis(0)
                 {
@@ -34,7 +34,6 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
 
-                size_t get_version() const override { return 1; }
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -42,6 +41,7 @@ namespace ngraph
                 void set_axis(const size_t axis) { m_axis = axis; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 size_t m_axis;

@@ -330,9 +330,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_the_proper_opset_in_subgraph)
         });
     const auto body_mul_node = ngraph::as_type_ptr<default_opset::Multiply>(*body_mul_node_it);
     EXPECT_TRUE(body_mul_node);
-    EXPECT_EQ(
-        body_mul_node->get_autob().m_type,
-        ngraph::op::AutoBroadcastType::NONE); // legacy Mul from ONNX opset1 has NONE broadcasting
 }
 
 // ~~~~~~~~STATIC/DYNAMIC/CONSTANT INPUTS TESTS:~~~~~~~~

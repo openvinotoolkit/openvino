@@ -20,6 +20,10 @@ include(cmake/features.cmake)
 # These options are shared with 3rdparty plugins by means of developer package
 include(cmake/dependencies.cmake)
 
+if(ENABLE_COVERAGE)
+    include(cmake/coverage.cmake)
+endif()
+
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
@@ -47,13 +51,6 @@ function(build_ngraph)
         endif()
     endfunction()
 
-    if (ENABLE_SANITIZER)
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER ON)
-    else ()
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER OFF)
-    endif ()
-    ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
-
     if(ENABLE_TESTS AND NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)
     else()
@@ -62,27 +59,17 @@ function(build_ngraph)
 
     if(NOT (ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)) ))
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE ON)
+        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE ON)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE OFF)
+        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
     endif()
     ngraph_set(NGRAPH_INTERPRETER_ENABLE ON)
 
-    if(TREAT_WARNING_AS_ERROR)
-        ngraph_set(NGRAPH_WARNINGS_AS_ERRORS ON)
+    if(ENABLE_PYTHON)
+        ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE ON)
     else()
-        ngraph_set(NGRAPH_WARNINGS_AS_ERRORS OFF)
-    endif()
-
-    if(ENABLE_SANITIZER)
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER_ENABLE OFF)
-    endif()
-
-    if(ENABLE_THREAD_SANITIZER)
-        ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE OFF)
+        ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
     endif()
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
@@ -103,10 +90,11 @@ function(build_ngraph)
     endif()
 
     ie_cpack_add_component(ngraph REQUIRED)
+    ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
-    set(SDL_cmake_included ON)
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
+    set(FRONTEND_LIBRARIES frontend_manager PARENT_SCOPE)
     set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
 endfunction()
 
@@ -163,10 +151,11 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/temp"
                            # TODO fix and enable back:
-                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies"
-                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/demo"
-                           "${OpenVINO_MAIN_SOURCE_DIR}/ngraph"
-                           "${IE_MAIN_SOURCE_DIR}/scripts")
+                           "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/scripts/dependencies.sh"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies/install_NEO_OCL_driver.sh"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/ngraph/python/tests/test_onnx/model_zoo_preprocess.sh"
+                           )
 
 #
 # cpack
