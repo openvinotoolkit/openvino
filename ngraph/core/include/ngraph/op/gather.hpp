@@ -46,6 +46,7 @@ namespace ngraph
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
                 int64_t get_batch_dims() const;
                 virtual int64_t get_axis() const;
+
             protected:
                 int64_t m_batch_dims = 0;
                 void validate();
@@ -71,7 +72,8 @@ namespace ngraph
                        const Output<Node>& axis,
                        const int64_t batch_dims = 0);
 
-                std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
             };
         } // namespace v7
 

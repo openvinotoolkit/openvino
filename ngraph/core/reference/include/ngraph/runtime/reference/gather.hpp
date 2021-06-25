@@ -25,7 +25,10 @@ namespace ngraph
                         size_t axis,
                         size_t batch_dims = 0)
             {
-                std::memset(out, 0, shape_size(out_shape) * sizeof(T)); // todo: maybe std::fill would be better
+                std::memset(out,
+                            0,
+                            shape_size(out_shape) *
+                                sizeof(T)); // todo: maybe std::fill would be better
                 // flattened shapes
                 int64_t batch_size = shape_size(span(data_shape).subspan(0, batch_dims));
                 int64_t outer_size =

@@ -18,9 +18,9 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(op::v8::Gather, "Gather", 8);
 
 op::v8::Gather::Gather(const Output<Node>& data,
-                            const Output<Node>& indices,
-                            const Output<Node>& axis,
-                            const int64_t batch_dims)
+                       const Output<Node>& indices,
+                       const Output<Node>& axis,
+                       const int64_t batch_dims)
     : Op({data, indices, axis})
     , m_batch_dims(batch_dims)
 {
@@ -58,9 +58,8 @@ shared_ptr<Node> op::v8::Gather::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v8::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
 }
 
-void op::v8::Gather::validate() {
-    const auto& data_type = get_input_element_type(0);
-
+void op::v8::Gather::validate()
+{
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& indices_pshape = get_input_partial_shape(1);
     const auto& axis_pshape = get_input_partial_shape(2);
@@ -72,12 +71,12 @@ void op::v8::Gather::validate() {
     {
         const auto axis_is_scalar = axis_rank.get_length() == 0;
         const auto axis_has_one_elem =
-                axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
+            axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
         NODE_VALIDATION_CHECK(
-                this,
-                axis_is_scalar || axis_has_one_elem,
-                "Axis input must be scalar or have 1 element. But instead got axis_shape = ",
-                axis_pshape);
+            this,
+            axis_is_scalar || axis_has_one_elem,
+            "Axis input must be scalar or have 1 element. But instead got axis_shape = ",
+            axis_pshape);
     }
 
     int64_t batch_dims = m_batch_dims;
@@ -98,46 +97,43 @@ void op::v8::Gather::validate() {
         // indices_rank are static.
         // If at least one of them is negative we cannot check their consistency.
         NODE_VALIDATION_CHECK(
-                this,
-                batch_dims <= axis || batch_dims < 0 || axis < 0,
-                "After normalization batch_dims must be <= axis. But instead got: batch_dims = ",
-                batch_dims,
-                ", axis = ",
-                axis);
+            this,
+            batch_dims <= axis || batch_dims < 0 || axis < 0,
+            "After normalization batch_dims must be <= axis. But instead got: batch_dims = ",
+            batch_dims,
+            ", axis = ",
+            axis);
 
         NODE_VALIDATION_CHECK(
-                this,
-                data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
-                "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
-                axis,
-                " data_rank = ",
-                data_rank.get_interval());
+            this,
+            data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
+            "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
+            axis,
+            " data_rank = ",
+            data_rank.get_interval());
     }
 
     if (indices_rank.is_static() && batch_dims >= 0)
     {
         NODE_VALIDATION_CHECK(
-                this,
-                batch_dims <= indices_rank.get_length(),
-                "The batch_dims must be <= indices_rank. But instead got: batch_dims = ",
-                batch_dims,
-                ", indices_rank = ",
-                indices_rank.get_length());
+            this,
+            batch_dims <= indices_rank.get_length(),
+            "The batch_dims must be <= indices_rank. But instead got: batch_dims = ",
+            batch_dims,
+            ", indices_rank = ",
+            indices_rank.get_length());
     }
     // todo: move validation of the innermost dimensions from infer_partial_shape_and_types
 }
 
 void op::v8::Gather::infer_partial_shape_and_types()
 {
-
     const auto& data_type = get_input_element_type(0);
 
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& indices_pshape = get_input_partial_shape(1);
-    const auto& axis_pshape = get_input_partial_shape(2);
     auto data_rank = data_pshape.rank();
     auto indices_rank = indices_pshape.rank();
-    auto axis_rank = axis_pshape.rank();
     int64_t batch_dims = get_batch_dims();
 
     bool axis_is_set = false;
@@ -463,7 +459,7 @@ NGRAPH_RTTI_DEFINITION(op::v1::Gather, "Gather", 1, op::v7::Gather);
 op::v1::Gather::Gather(const Output<Node>& data,
                        const Output<Node>& indices,
                        const Output<Node>& axis)
-        : op::v7::Gather(data, indices, axis, 0)
+    : op::v7::Gather(data, indices, axis, 0)
 {
     constructor_validate_and_infer_types();
 }
@@ -475,7 +471,6 @@ void op::v1::Gather::validate_and_infer_types()
     validate();
     infer_partial_shape_and_types();
 }
-
 
 int64_t ngraph::op::v1::Gather::get_axis() const
 {
