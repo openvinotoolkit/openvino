@@ -27,47 +27,6 @@ void calcRowArea_8U(uchar dst[], const uchar *src[], const Size &inSz, const Siz
 void calcRowArea_32F(float dst[], const float *src[], const Size &inSz, const Size &outSz,
                      float yalpha, const MapperUnit32F& ymap, int xmaxdf, const int xindex[],
                      const float xalpha[], float vbuf[]);
-
-// Resize (bi-linear, 8UC3)
-void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
-                      const uint8_t *src0[],
-                      const uint8_t *src1[],
-                        const short  alpha[],
-                        const short  clone[],
-                        const short  mapsx[],
-                        const short  beta[],
-                            uint8_t  tmp[],
-                        const Size&  inSz,
-                        const Size&  outSz,
-                                int  lpi);
-
-// Resize (bi-linear, 8UC4)
-void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
-                      const uint8_t *src0[],
-                      const uint8_t *src1[],
-                        const short  alpha[],
-                        const short  clone[],
-                        const short  mapsx[],
-                        const short  beta[],
-                            uint8_t  tmp[],
-                        const Size&  inSz,
-                        const Size&  outSz,
-                                int  lpi);
-
-template<int numChan>
-void calcRowLinear_8UC(std::array<std::array<uint8_t*, 4>, numChan> &dst,
-                       const uint8_t *src0[],
-                       const uint8_t *src1[],
-                         const short  alpha[],
-                         const short  clone[],
-                         const short  mapsx[],
-                         const short  beta[],
-                             uint8_t  tmp[],
-                         const Size&  inSz,
-                         const Size&  outSz,
-                                 int  lpi) {
-    calcRowLinear_8U(std::integral_constant<int, numChan>{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
-}
 }  // namespace neon
 
 template<typename isa_tag_t, typename T>
@@ -83,7 +42,7 @@ extern template void nv12ToRgbRowImpl(neon_tag, const uint8_t** y_rows, const ui
 
 template<typename isa_tag_t>
 void i420ToRgbRowImpl(isa_tag_t, const uint8_t** y_rows, const uint8_t* u_row,
-                             const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
+                      const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
 
 extern template void i420ToRgbRowImpl(neon_tag, const uint8_t** y_rows, const uint8_t* u_row,
                                       const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
@@ -125,6 +84,13 @@ extern template void calcRowLinear32FC1Impl(neon_tag, float* dst[], const float*
                                             const int mapsx[], const float beta[],
                                             const Size& inSz, const Size& outSz,
                                             const int lpi, const int l);
+
+template<typename isa_tag_t, int chs>
+bool calcRowLinear8UC3C4Impl(isa_tag_t, std::array<std::array<uint8_t*, 4>, chs>& dst,
+                             const uint8_t* src0[], const uint8_t* src1[],
+                             const short alpha[], const short clone[], const short mapsx[],
+                             const short beta[], uint8_t tmp[], const Size& inSz,
+                             const Size& outSz, const int lpi, const int l);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
