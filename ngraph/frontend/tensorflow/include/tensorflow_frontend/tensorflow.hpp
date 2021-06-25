@@ -19,13 +19,25 @@
 // TODO: include it by just frontend_manager.hpp without path
 //#include "../../include/frontend_manager/frontend_manager.hpp"
 #include "frontend_manager/frontend_manager.hpp"
+//#include "../../src/node_context.hpp"
 
-namespace tensorflow { class GraphDef; }
+namespace tensorflow { class GraphDef; class NodeDef; namespace ngraph_bridge { class GraphIteratorProto; }  }
 
 namespace ngraph
 {
     namespace frontend
     {
+
+#if 0
+        class TFOperatorExtension
+        {
+        public:
+
+            TFOperatorExtension (const std::string& optype, function<ngraph::OutputVector(const ngraph::frontend::tensorflow::NodeContext&)> converter);
+
+        };
+#endif
+
         class PlaceTensorflow : public Place
         {
         public:
@@ -41,13 +53,18 @@ namespace ngraph
         {
         public:
 
-            std::shared_ptr<tensorflow::GraphDef> graph_def;
+            std::shared_ptr<::tensorflow::ngraph_bridge::GraphIteratorProto> graph_impl;
+
+            std::shared_ptr<::tensorflow::GraphDef> graph_def;
             std::string path;
+            std::vector<ngraph::PartialShape> input_shapes;
 
             // TODO: map from PlaceTensorflow, not from name string
             std::map<std::string, ngraph::PartialShape> partialShapes;
 
             InputModelTensorflow (const std::string& _path);
+            InputModelTensorflow (std::shared_ptr<::tensorflow::GraphDef> _graph_def, std::vector<ngraph::PartialShape> _input_shapes = {});
+            InputModelTensorflow (const std::vector<std::shared_ptr<::tensorflow::NodeDef>>& _nodes_def, std::vector<ngraph::PartialShape> _input_shapes = {});
 
             std::vector<Place::Ptr> getInputs () const override;
 
@@ -57,6 +74,10 @@ namespace ngraph
         class NGRAPH_API FrontEndTensorflow : public FrontEnd
         {
         public:
+
+            //using Converter = std::function<ngraph::OutputVector(const ngraph::frontend::tensorflow::NodeContext&)>;
+
+            //void register_converter (const std::string& op_type, const Converter&);
 
             FrontEndTensorflow ()
             {

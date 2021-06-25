@@ -21,13 +21,23 @@
 #include "ngraph_conversions.h"
 #include "default_opset.h"
 #include "node_context.hpp"
+#include "graph.hpp"
 
 
 namespace ngraph {
 namespace frontend {
 namespace tensorflow {
 
-class NodeProtoWrapper : public TFNodeDecoder {
+    using ::tensorflow::NodeDef;
+    using ::tensorflow::GraphDef;
+    using ::tensorflow::DataType;
+    using ::tensorflow::Status;
+    using ::tensorflow::ngraph_bridge::TFDataTypeToNGraphElementType;
+    using ::tensorflow::ngraph_bridge::TFTensorShapeToNGraphShape;
+    using ::tensorflow::errors;
+    namespace ng = ngraph;
+
+class NodeProtoWrapper : public ::tensorflow::TFNodeDecoder {
     const NodeDef *node_def;
     const GraphDef *graph_def;
 public:

@@ -18,10 +18,15 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURR
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
+message("slyalin: 1")
+
 find_package(Protobuf REQUIRED IMPORTED)
 include_directories(${Protobuf_INCLUDE_DIRS})
 
+message("slyalin: 2")
+
 set(TENSORFLOW_FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(TENSORFLOW_FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/tensorflow")
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -35,6 +40,8 @@ file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${proto_files})
 
 include_directories(${Protobuf_INCLUDE_DIRS})
+
+message("Tensorflow proto: " ${PROTO_HDRS})
 
 # Create shared library
 add_library(tensorflow_frontend SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
@@ -60,6 +67,14 @@ install(TARGETS tensorflow_frontend EXPORT ngraphTargets
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+
+install(DIRECTORY ${TENSORFLOW_FRONTEND_INCLUDE_DIR}/tensorflow_frontend
+        DESTINATION ${TENSORFLOW_FRONTEND_INSTALL_INCLUDE}
+        COMPONENT ngraph
+        FILES_MATCHING
+        PATTERN "*.hpp"
+        PATTERN "*.h"
+        )
 
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
     export(TARGETS tensorflow_frontend NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")

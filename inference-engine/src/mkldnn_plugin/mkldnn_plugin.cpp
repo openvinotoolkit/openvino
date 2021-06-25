@@ -62,6 +62,7 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/serialize.hpp>
 
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -107,6 +108,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork.getFunction();
 
     ngraph::pass::Manager manager;
+    //manager.register_pass<ngraph::pass::Serialize>("/openvino_tensorflow/irs/current/serialized.xml", "/openvino_tensorflow/irs/current/serialized.bin");
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
     const bool useLpt =

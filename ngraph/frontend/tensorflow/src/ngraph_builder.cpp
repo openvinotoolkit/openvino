@@ -14,6 +14,9 @@
  * limitations under the License.
  *******************************************************************************/
 
+#include <numeric>
+#include <fstream>
+
 #include "graph.pb.h"
 #include "tensor.pb.h"
 
@@ -23,10 +26,16 @@
 #include "ngraph/pass/pass_config.hpp"
 #include "ngraph/slice_plan.hpp"
 
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/pass/transpose_sinking.h>
+#include <ngraph/pass/constant_folding.hpp>
+
 #include "ngraph_builder.h"
 #include "ngraph_conversions.h"
 #include "default_opset.h"
 #include "graph.hpp"
+
+#include "../include/tensorflow_frontend/tensorflow.hpp"
 
 
 using namespace std;
@@ -1626,19 +1635,18 @@ static Status TranslateLRNOp(const TFNodeDecoder* op,
   return Status::OK();
 }
 
-static Status TranslateLogSoftmaxOp(const TFNodeDecoder* op,
-                                    const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
-                                    Builder::OpMap& ng_op_map) {
-  ng::Output<ng::Node> ng_inp;
-  TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_inp));
+#endif
+
+static OutputVector TranslateLogSoftmaxOp(const NodeContext& node) {
+  auto ng_inp = node.get_ng_input(0);
   auto inp_shape = ng_inp.get_shape();
   size_t rank = inp_shape.size();
   int64_t axes = rank - 1;
 
-  auto ng_output = ConstructNgNode<opset::LogSoftmax>(node.get_name(), ng_inp, axes);
-  SaveNgOp(ng_op_map, node.get_name(), ng_output);
-  return Status::OK();
+  return {ConstructNgNode<opset::LogSoftmax>(node.get_name(), ng_inp, axes)};
 }
+
+#if 0
 
 static Status TranslateMatMulOp(const TFNodeDecoder* op,
                                 const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
@@ -2152,22 +2160,21 @@ static OutputVector TranslateSliceOp(
   return Status::OK();
 }
 
-static Status TranslateSoftmaxOp(const TFNodeDecoder* op,
-                                 const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
-                                 Builder::OpMap& ng_op_map) {
-  ng::Output<ng::Node> ng_input;
-  TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
+#endif
 
-  auto input_shape = ng_input.get_shape();
-  auto rank = input_shape.size();
-  if (rank < 1) {
-    return errors::InvalidArgument("TF Softmax logits must be >=1 dimension");
-  }
+static OutputVector TranslateSoftmaxOp(const NodeContext& node) {
+    auto ng_inp = node.get_ng_input(0);
+    auto inp_shape = ng_inp.get_shape();
+    size_t rank = inp_shape.size();
+    int64_t axes = rank - 1;
+    if (rank < 1) {
+        throw errors::InvalidArgument("TF Softmax logits must be >=1 dimension");
+    }
 
-  SaveNgOp(ng_op_map, node.get_name(),
-           ConstructNgNode<opset::Softmax>(node.get_name(), ng_input, rank - 1));
-  return Status::OK();
+    return {ConstructNgNode<opset::Softmax>(node.get_name(), ng_inp, axes)};
 }
+
+#if 0
 
 // Translate SpaceToDepthOp
 static Status TranslateSpaceToDepthOp(const TFNodeDecoder* op,
@@ -2330,6 +2337,18 @@ static OutputVector TranslateSqueezeOp(const NodeContext& node) {
 
   return { ConstructNgNode<opset::Squeeze>(node.get_name(), ng_input, ng_const) };
 }
+
+static OutputVector ArgOp(const NodeContext& node) {
+    auto ng_et = node.get_attribute<ngraph::element::Type>("T");
+    auto overridden_shape = node.get_overridden_shapes().find(node.get_name());
+    auto index = node.get_attribute<int>("index");
+    auto shape = node.get_indexed_shapes().at(index);
+    auto ng_shape = overridden_shape == node.get_overridden_shapes().end() ?
+                    shape :
+                    overridden_shape->second;
+    return {ConstructNgNode<opset::Parameter>(node.get_name(), ng_et, ng_shape)};
+}
+
 
 static OutputVector PlaceholderOp(const NodeContext& node) {
     auto ng_et = node.get_attribute<ngraph::element::Type>("dtype");
@@ -2660,7 +2679,7 @@ const static std::map<
         {"Identity", TranslateIdentityOp},
         //{"IsFinite", TranslateIsFiniteOp},
         //{"L2Loss", TranslateL2LossOp},
-        //{"LogSoftmax", TranslateLogSoftmaxOp},
+        {"LogSoftmax", TranslateLogSoftmaxOp},
         {"Less", TranslateBinaryOp<opset::Less>},
         {"LessEqual", TranslateBinaryOp<opset::LessEqual>},
         {"Log", TranslateUnaryOp<opset::Log>},
@@ -2685,11 +2704,16 @@ const static std::map<
         {"NotEqual", TranslateBinaryOp<opset::NotEqual>},
         // Do nothing! NoOps sometimes get placed on nGraph for bureaucratic
         // reasons, but they have no data flow inputs or outputs.
-        {"NoOp", [](const NodeContext& context) { assert(context.get_ng_input_size() == 1); return OutputVector{context.get_ng_input(0)}; }},
+        {"NoOp", [](const NodeContext& node) {
+            throw errors::InvalidArgument("NoOp has " + to_string(node.get_ng_input_size()) +
+                                          " inputs, should have 1");
+                return OutputVector{node.get_ng_input(0)};
+        }},
         //{"OneHot", TranslateOneHotOp},
         //{"Pack", TranslatePackOp},
         {"Pad", TranslatePadOp},
         {"PadV2", TranslatePadOp},
+        {"_Arg", ArgOp},
         {"Placeholder", PlaceholderOp},
         {"Pow", TranslateBinaryOp<opset::Power>},
         // PreventGradient is just Identity in dataflow terms, so reuse that.
@@ -2714,7 +2738,7 @@ const static std::map<
         {"Sign", TranslateUnaryOp<opset::Sign>},
         //{"Slice", TranslateSliceOp},
         //{"Snapshot", TranslateIdentityOp},
-        //{"Softmax", TranslateSoftmaxOp},
+        {"Softmax", TranslateSoftmaxOp},
         {"Softplus", TranslateUnaryOp<opset::SoftPlus>},
         //{"SpaceToDepth", TranslateSpaceToDepthOp},
         //{"Split", TranslateSplitOp},
@@ -2741,11 +2765,11 @@ const static std::map<
 class NodeProtoWrapper : public TFNodeDecoder
 {
     const NodeDef* node_def;
-    const GraphDef* graph_def;
+    //const GraphDef* graph_def;
 public:
 
-    NodeProtoWrapper(const NodeDef* _node_def, const GraphDef* _graph_def):
-        node_def(_node_def), graph_def(_graph_def) {}
+    NodeProtoWrapper(const NodeDef* _node_def):
+        node_def(_node_def) {}
 
 #define GET_ATTR_VALUE(TYPE, FIELD) virtual void getAttrValue (const char* name, TYPE* x) const override \
     { *x = node_def->attr().at(name).FIELD(); }
@@ -2795,7 +2819,7 @@ public:
     GET_ATTR_VALUE(long int, i)
     GET_ATTR_VALUE(float, f)
 
-    virtual void getAttrValue (const char* name, std::vector<std::string>* x) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+            GET_ATTR_VALUE_VECTOR(std::string, s)
 
     // a way to read Const value as a tensor
     virtual void getAttrValue (const char* name, ngraph::frontend::tensorflow::detail::TensorWrapper** x) const override
@@ -2861,6 +2885,7 @@ public:
     virtual std::string DebugString () const override
     {
         return node_def->op() + "(with name " + node_def->name() + ")";
+        //return node_def->DebugString();
     }
 
     virtual bool IsArg () const override
@@ -2874,6 +2899,7 @@ public:
         // TODO
         return IsSink();
     }
+
 };
 
 #if 0
@@ -2892,14 +2918,25 @@ void PopulateNodesTopologicallySorted (const GraphDef* input_graph, std::vector<
 
 class GraphIteratorProto : public ng::frontend::tensorflow::GraphIterator
 {
-    const GraphDef* graph;
+    //const GraphDef* graph;
+    std::vector<const NodeDef*> nodes;
     size_t node_index = 0;
 
 public:
 
-    GraphIteratorProto (const GraphDef* _graph) :
-        graph(_graph)
+    GraphIteratorProto (const GraphDef* _graph)
     {
+        // TODO: Sort topologicaly nodes from the graph
+        nodes.resize(_graph->node_size());
+        for(size_t i = 0; i < nodes.size(); ++i)
+            nodes[i] = &_graph->node(i);
+    }
+
+    GraphIteratorProto (const std::vector<std::shared_ptr<NodeDef>>& _sorted_nodes)
+    {
+        nodes.resize(_sorted_nodes.size());
+        for(size_t i = 0; i < nodes.size(); ++i)
+            nodes[i] = _sorted_nodes[i].get();
     }
 
     /// Set iterator to the start position
@@ -2910,7 +2947,7 @@ public:
 
     virtual size_t size () const
     {
-        return graph->node_size();
+        return nodes.size();
     }
 
     /// Moves to the next node in the graph
@@ -2921,21 +2958,21 @@ public:
 
     virtual bool is_end () const
     {
-        return node_index >= graph->node_size();
+        return node_index >= nodes.size();
     }
 
     /// Return NodeContext for the current node that iterator points to
     virtual std::shared_ptr<ng::frontend::tensorflow::detail::TFNodeDecoder> get () const
     {
-        return std::make_shared<NodeProtoWrapper>(&graph->node(node_index), graph);
-
+        return std::make_shared<NodeProtoWrapper>(nodes[node_index]);
     }
 
 };
 
 void Builder::TranslateGraph(
         const std::map<std::string, ngraph::PartialShape>& inputs,
-        const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map, const GraphDef* input_graph,
+        const std::vector<ngraph::PartialShape>& indexed_shapes,
+        const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map, ngraph::frontend::tensorflow::GraphIterator& op_iter,
         const std::string name, std::shared_ptr<ngraph::Function>& ng_function) {
   //
   // The op map holds a mapping from TensorFlow op names (strings) to
@@ -2949,7 +2986,7 @@ void Builder::TranslateGraph(
   //
   // Now create the nGraph ops from TensorFlow ops.
   //
-    for (GraphIteratorProto op_iter(input_graph); !op_iter.is_end(); op_iter.next()) {
+    for (; !op_iter.is_end(); op_iter.next()) {
     #if 0
     // TODO: Investigate why do we need it
       if (n->IsSink() || n->IsSource()) {
@@ -2969,12 +3006,12 @@ void Builder::TranslateGraph(
 
     //const function<Status(const TFNodeDecoder*, const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
     //                      Builder::OpMap&)>* op_fun;
-
       const function<ngraph::OutputVector (const ngraph::frontend::tensorflow::NodeContext&)>* op_fun;
 
       try {
       op_fun = &(TRANSLATE_OP_MAP.at(op->type_string()));
-    } catch (const std::out_of_range&) {
+
+      } catch (const std::out_of_range&) {
       // -----------------------------
       // Catch-all for unsupported ops
       // -----------------------------
@@ -2989,52 +3026,62 @@ void Builder::TranslateGraph(
     try {
         // Pre-processing: prepare a list of ng inputs for the node
         ngraph::OutputVector ng_inputs;
-        for(size_t i = 0; i < op->num_inputs(); ++i)
-        {
+        for (size_t i = 0; i < op->num_inputs(); ++i) {
             std::string input_name;
             size_t port_idx;
-            op->input_node(i, &input_name, &port_idx);
-            ng_inputs.push_back(ng_op_map.at(input_name).at(port_idx));
+            try {
+                op->input_node(i, &input_name, &port_idx);
+                ng_inputs.push_back(ng_op_map.at(input_name).at(port_idx));
+            }
+            catch (const std::exception &e) {
+                std::cerr << "[ ERROR ] Exception happened when preparing input " << i << " for op '" << op->name()
+                          << "', expected input name: '" << input_name
+                          << "', expected input port index: " << port_idx << '\n';
+                throw;
+            }
         }
-        NodeContext node_context(ng_inputs, op, inputs);
+        NodeContext node_context(ng_inputs, op, inputs, indexed_shapes);
 
         // Next line does the conversion for a node by means of calling specific conversion rule
         auto outputs = (*op_fun)(node_context);
 
         // Post-processing: register outputs to the map and detect the edge ops
-        auto& node_record = ng_op_map[op->name()];
-        for(auto output: outputs)
-        {
-            if(auto result = std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr()))
-            {
+        auto &node_record = ng_op_map[op->name()];
+        for (auto output: outputs) {
+            if (auto result = std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) {
                 results.push_back(result);
                 // Do not add to ng_op_map
-            }
-            else
-            {
-                if(auto param = std::dynamic_pointer_cast<opset::Parameter>(output.get_node_shared_ptr()))
-                {
+            } else {
+                if (auto param = std::dynamic_pointer_cast<opset::Parameter>(output.get_node_shared_ptr())) {
                     params.push_back(param);
                 }
                 node_record.push_back(output);
             }
         }
+    } catch (const Status& e) {
+        throw errors::Internal("Unhandled exception in op handler: " + op->name() +
+                               " (" + op->type_string() + ")\n" +
+                               op->DebugString() + "\nDetails: " + e.message);
     } catch (const std::exception& e) {
       throw errors::Internal("Unhandled exception in op handler: " + op->name() +
                               " (" + op->type_string() + ")\n" +
                               op->DebugString() + "\n" + "what(): " +
                               e.what());
+    } catch (...) {
+        throw errors::Internal("Unhandled exception in op handler: " + op->name() +
+                               " (" + op->type_string() + ")\n" +
+                               op->DebugString());
     }
   }
 
-  // Find all terminal nodes in ngraph graph to complete list of results
-  for(const auto& p: ng_op_map)
-  {
-      for(auto output: p.second)
-      {
-          if(output.get_target_inputs().empty() &&
-            !std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) // Exclude existing Results
-              results.push_back(std::make_shared<default_opset::Result>(output));
+  if(results.empty()) { // TODO: Provide a control to trigger this at FE level, currently this is heuristics
+      // Find all terminal nodes in ngraph graph to complete list of results
+      for (const auto &p: ng_op_map) {
+          for (auto output: p.second) {
+              if (output.get_target_inputs().empty() &&
+                  !std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) // Exclude existing Results
+                  results.push_back(std::make_shared<default_opset::Result>(output));
+          }
       }
   }
 
@@ -3057,3 +3104,80 @@ void Builder::TranslateGraph(
 
 }  // namespace ngraph_bridge
 }  // namespace tensorflow
+
+using namespace google;
+
+using namespace ngraph::frontend;
+
+using ::tensorflow::GraphDef;
+
+InputModelTensorflow::InputModelTensorflow (const std::string& _path) : path(_path)
+{
+    std::ifstream pb_stream(path, std::ios::binary);
+    graph_def = std::make_shared<GraphDef>();
+    std::cout << "[ INFO ] Model Parsed: " << graph_def->ParseFromIstream(&pb_stream) << std::endl;
+    std::cout << "[ INFO ] Loaded model contains " << graph_def->node_size() << " nodes." << std::endl;
+    graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(graph_def.get());
+}
+
+InputModelTensorflow::InputModelTensorflow (std::shared_ptr<::tensorflow::GraphDef> _graph_def, std::vector<ngraph::PartialShape> _input_shapes) :
+        input_shapes(_input_shapes)
+{
+    graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(_graph_def.get());
+}
+
+InputModelTensorflow::InputModelTensorflow (const std::vector<std::shared_ptr<::tensorflow::NodeDef>>& _nodes_def, std::vector<ngraph::PartialShape> _input_shapes) :
+        input_shapes(_input_shapes)
+{
+    graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(_nodes_def);
+}
+
+std::vector<Place::Ptr> InputModelTensorflow::getInputs () const {
+// TODO: Cache results
+#if 1
+    std::vector<Place::Ptr> result;
+    for (; !graph_impl->is_end(); graph_impl->next()) {
+        std::cout << "graph_impl->get()->op() = " << graph_impl->get()->op() << "\n";
+        if (graph_impl->get()->op() == "Placeholder")
+            result.push_back(std::make_shared<PlaceTensorflow>(graph_impl->get()->name()));
+    }
+    graph_impl->reset();
+    return result;
+#else
+
+    throw "TEMPORARY DISABLED";
+
+#endif
+}
+
+void InputModelTensorflow::setPartialShape (Place::Ptr place, const ngraph::PartialShape& pshape) {
+    auto place_tf = std::dynamic_pointer_cast<PlaceTensorflow>(place);
+    partialShapes[place_tf->name] = pshape;
+}
+
+std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert (InputModel::Ptr model) const
+{
+    try {
+        auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTensorflow>(model);
+        std::cout << "[ INFO ] FrontEndTensorflow::convert invoked\n";
+
+        std::shared_ptr<ngraph::Function> f;
+        ::tensorflow::ngraph_bridge::Builder::TranslateGraph(
+                model_tf->partialShapes, model_tf->input_shapes, {}, *model_tf->graph_impl, "here_should_be_a_graph_name", f);
+        std::cout << "[ STATUS ] TranslateGraph was called successfuly.\n";
+        std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
+        std::cout << "[ STATUS ] Running Transpose Sinking transformation\n";
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::TransposeSinking>();
+        //manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.run_passes(f);
+
+        std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
+        return f;
+    } catch (::tensorflow::Status status)
+    {
+        std::cerr << "[ ERROR ] Exception happens during TF model conversion: " << status << "\n";
+        throw;
+    }
+}

@@ -23,6 +23,8 @@
 #include <algorithm>
 #include <sstream>
 
+#include "graph.hpp"
+
 // TODO: remove explicit proto dependency from this common header
 #include "graph.pb.h"
 
@@ -56,7 +58,8 @@ namespace ngraph_bridge {
  public:
   static void TranslateGraph(
       const std::map<std::string, ngraph::PartialShape>& inputs,
-      const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map, const GraphDef* tf_graph,
+      const std::vector<ngraph::PartialShape>& indexed_shapes,
+      const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map, ngraph::frontend::tensorflow::GraphIterator& op_iter,
       const std::string name, std::shared_ptr<ngraph::Function>& ng_function);
 
   using OpMap = std::unordered_map<std::string,
