@@ -148,9 +148,8 @@ For Yolo V1:
 python3 flow --model yolov1.cfg --load yolov1.weights --savepb
 ```
 
-For Yolo V2 with VOC dataset `--labels` argument should be specified and additional changes in the original 
-exporting script are required. In the file`darkflow/utils/loader.py` change line 121 
-from `self.offset = 16` to `self.offset = 20`. Then run:
+For Yolo V2 with VOC dataset `--labels` argument should be specified and additional changes in the original exporting script are required. 
+In the file`darkflow/utils/loader.py` change line 121 from `self.offset = 16` to `self.offset = 20`. Then run:
 ```sh
 python3 flow --model yolov2-voc.cfg --load yolov2-voc.weights --labels voc-labels.txt --savepb
 ```
