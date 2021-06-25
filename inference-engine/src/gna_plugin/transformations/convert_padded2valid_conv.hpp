@@ -13,11 +13,11 @@ namespace GNAPluginNS {
  * wrapped with transposes, to a valid convolution with padding added before the leading transpose,
  * POT precessed models are supported (fake quantized layers omitted below for clarity):
  *
- *                                                Padding
- *                                                   |
+ *                                                  Padding
+ *                                                     |
  *   Transpose (NHWC -> NCHW)               Transpose (NHWC -> NCHW)
  *              |                                      |
- *   Convolution with padding               Convolution with padding
+ *   Convolution with padding                  Valid convolution
  *              |                                      |
  *   Broadcast Bias (optional)              Broadcast Bias (optional)
  *              |                                      |

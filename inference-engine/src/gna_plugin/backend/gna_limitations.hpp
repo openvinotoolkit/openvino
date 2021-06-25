@@ -24,6 +24,10 @@ constexpr uint32_t noOfInputsLowPrecDivisor = 16;
 
 constexpr uint32_t affineMaxBatchSize = 8;
 
+constexpr uint32_t maxPoolMaxWindowSize = 6;
+
+constexpr uint32_t copyMaxGrouping = 8;
+
 namespace Cnn2D {
 struct RangeLimit {
     uint32_t min;
