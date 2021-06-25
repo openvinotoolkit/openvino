@@ -8,91 +8,13 @@
 
 **Detailed description**
 
-*If* must not contain empty internal networks. Each of them must have at least one operation `Result`. Also the number outputs from *If* always must be greater than zero and equal to the number outputs from each internal networks. There are examples *If* showing its features below:
-
-```
-    //---------First example with one input---------------------------
-    input(cond)
-        if(cond)
-        {
-            const Tensor<double> var1 = Tensor(shape=[2, 3]);
-            const Tensor<double> var2 = Tensor(shape=[3, 2]);
-            result(var1, var2); // body result function
-        }
-        else
-        {
-            const Tensor<double> var3 = Tensor(shape=[2, 3]);
-            const Tensor<double> var4 = Tensor(shape=[2, 3]);
-            result(var3 + var4, var4);
-        }
-        
-    //---------Second example with multiple inputs--------------------
-    input(cond, input1, input2) 
-    // input1 - Tensor<double> with shape [2,3]
-    // input2 - Tensor<int> with shape [1]
-        if(cond)
-        {
-            const Tensor<double> var1 = Tensor(shape=[2,3]);
-            const Tensor<int>    var2 = Tensor(shape=[3]);
-            result(var1 + input1, var2);
-        }
-        else
-        {
-            const Tensor<double> var3 = Tensor(shape=[1]);
-            result(Stack(var3, input2), var3*input2);
-        }
-    //---------Third example ------------------------------------------
-    input(cond, input1)
-    // input1 - Tensor<int> with shape [120]
-        if(cond)
-        {
-            return(input1);
-        }
-        else
-        {
-            const Tensor<int> var1 = Tensor(shape=[140]);
-            result(var1);
-        }
-    //---------Fourth example with incorrect outputs--------------------
-    input(cond, input1)
-    // input1 - Tensor<int> with shape [120]
-        if(cond)
-        {
-            result(input1);
-        }
-        else
-        {
-            const Tensor<int>  var1 = Tensor(shape=[120]);
-            const Tensor<int>  var2 = Tensor(shape=[150]);
-            result(var1, var2);
-        }
-    //---------Fifth example with incorrect outputs--------------------
-    input(cond)
-        if(cond)
-        {
-            const Tensor<int>  var1 = Tensor(shape=[120]);
-            return(var1);
-        }
-        else
-        {
-            const Tensor<double>  var2 = Tensor(shape=[120]);
-            result(var2);
-        }
-     
-```
-Function `result` connect internal networks results with *If* outputs, for example result(var1, var2). First argument `var1` is connected(associated) with first output from *If* and second argument `var2` with second output. 
-
-1. First, second and third examples show that all inputs(except the first input) to *If* are optional.
-2. The number of outputs from *If* is undefine in fourth example, because `then_body` has only one result and `else_body` have two results. This example is incorrect and should not work.
-3. The type of output from *If* is undefine in fifth example. This example is incorrect and should not work because result from `then_body` has `int` type and `else_body` has `double` type.
-
-Note: The shape of output from *If* can be undefine(first-fourth examples).
+*If* must not contain empty internal networks. Each of them must have at least one operation `Result`. Also the number outputs from *If* always must be greater than zero and equal to the number outputs from each internal networks.
 
 **If attributes**:
 
 * **Internal networks**:
 
-    `then_body`/`else_body` are a network that will be executed depending on the `cond` value. The network is described operation by operation as a typical IR network. The internal networks have parameters (`Parameter` operations) and results (`Result` operations).
+    `then_body`/`else_body` are networks that will be executed depending on the `cond` value. The network is described operation by operation as a typical IR network. The internal networks have parameters (`Parameter` operations) and results (`Result` operations).
     
     * **Internal networks parameters** - inputs to the internal network which associated with *If* inputs via *port_map*. The number of parameters for the internal network can be any (even zero).
     
@@ -115,7 +37,7 @@ Note: The shape of output from *If* can be undefine(first-fourth examples).
         * *internal_layer_id*
 
             * **Description**: *internal_layer_id* is a `Parameter` or `Result` operation ID inside the internal network to map to.
-            * **Range of values**: IDs of the `Parameter` or `Result` operations inside in the internal network 
+            * **Range of values**: IDs of the `Parameter` or `Result` operations in the internal network 
             * **Type**: `unsigned int`
             * **Default value**: None
             * **Required**: *yes*
@@ -129,7 +51,7 @@ Note: The shape of output from *If* can be undefine(first-fourth examples).
 
 **If Outputs**
 
-* **Multiple outputs**: Results of execution of one of internal networks. Tensors of any type and shape. *Required*.
+* **Multiple outputs**: Results of execution of one of internal networks. Tensors of any type and shape.
 
 
 **Body Inputs**
@@ -139,14 +61,14 @@ Note: The shape of output from *If* can be undefine(first-fourth examples).
 
 **Body Outputs**
 
-* **Multiple outputs**: Results of execution of the internal network. Tensors of any type and shape.  *Required*
+* **Multiple outputs**: Results of execution of the internal network. Tensors of any type and shape.
 
 
 **Examples**
 
 *Example 1: a typical If structure*
 ```xml
-	<layer id="6" name="PartitionedCall/model/if/cond" type="If" version="opset7">
+    <layer id="6" name="PartitionedCall/model/if/cond" type="If" version="opset7">
             <input>
                 <port id="0"/>
                 <port id="1">
