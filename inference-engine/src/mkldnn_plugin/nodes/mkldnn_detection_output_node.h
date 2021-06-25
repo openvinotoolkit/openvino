@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+#include "common/permute_kernel.h"
 
 namespace MKLDNNPlugin {
 
@@ -15,7 +16,7 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -81,6 +82,8 @@ private:
     std::vector<int> _num_priors_actual;
 
     std::string errorPrefix;
+
+    std::unique_ptr<PermuteKernel> permuteKernel_;
 };
 
 }  // namespace MKLDNNPlugin
