@@ -13,7 +13,7 @@ class DeformableConvolution(Op):
         super().__init__(graph, {
             'type': __class__.op,
             'op': __class__.op,
-            'version': 'opset1',
+            'version': 'opset8',
             'infer': Convolution.infer,
             'group': 1,
             'deformable_group': 1,
