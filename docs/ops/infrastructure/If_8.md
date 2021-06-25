@@ -4,7 +4,87 @@
 
 **Category**: Infrastructure
 
-**Description**: *If* operation contains two internal networks(`then_body` and `else_body`) and performs one of them depending on `cond` value. If `cond` is  `True` `then_body` will be executed. `else_body` will be executed if `cond` value is `False`. 
+**Short description**: *If* operation contains two internal networks(`then_body` and `else_body`) and performs one of them depending on `cond` value. If `cond` is  `True` `then_body` will be executed. `else_body` will be executed if `cond` value is `False`. 
+
+**Detailed description**
+
+*If* must not contain empty internal networks. Each of them must have at least one operation `Result`. Also the number outputs from *If* always must be greater than zero and equal to the number outputs from each internal networks. There are examples *If* showing its features below:
+
+```
+    //---------First example with one input---------------------------
+    input(cond) // if with one input
+        if(cond)
+        {
+            const Tensor<double> var1 = Tensor(shape=[2,3]);
+            const Tensor<double>    var2 = Tensor(shape=[3]);
+            result(var1, var2); // body result function
+        }
+        else
+        {
+            const Tensor<double> var3 = Tensor(shape=[2,3]);
+            const Tensor<double>    var4 = Tensor(shape=[2,3]);
+            result(var3 + var4, var4);
+        }
+        
+    //---------Second example with multiple inputs--------------------
+    input(cond, input1, input2) 
+    // input1 - Tensor<double> with shape [2,3] if
+    // input2 - Tensor<int> with shape [1]
+        if(cond)
+        {
+            const Tensor<double> var1 = Tensor(shape=[2,3]);
+            const Tensor<int>    var2 = Tensor(shape=[3]);
+            result(var1 + input1, var2);
+        }
+        else
+        {
+            const Tensor<double> var3 = Tensor(shape=[1]);
+            result(Stack(var3, input1), var3*input2);
+        }
+    //---------Third example ------------------------------------------
+    input(cond, input1)
+    // input1 - Tensor<int> with shape [120]
+        if(cond)
+        {
+            return(input1)
+        }
+        else
+        {
+            const Tensor<int>  var1 = Tensor(shape=[120]);
+            result(var1);
+        }
+    //---------Fourth example with incorrect outputs--------------------
+    input(cond, input1)
+    // input1 - Tensor<int> with shape [120]
+        if(cond)
+        {
+            result(input1)
+        }
+        else
+        {
+            const Tensor<int>  var1 = Tensor(shape=[120]);
+            const Tensor<int>  var2 = Tensor(shape=[150]);
+            result(var1, var2);
+        }
+    //---------Fifth example with incorrect outputs--------------------
+    input(cond)
+        if(cond)
+        {
+            const Tensor<int>  var1 = Tensor(shape=[120]);
+            return(var1);
+        }
+        else
+        {
+            const Tensor<double>  var2 = Tensor(shape=[120]);
+            result(var2);
+        }
+     
+     //Function `result` connect internal networks results with *If* outputs, for example result(var1, var2). First argument `var1` is connected(associated) with first output from *If* and second argument `var2` with second output. 
+```
+1. First, second and third examples show that all inputs(except the first) to *If* are optional. The internal networks can be independent of external inputs.
+2. The number of outputs from *If* is undefine in fourth example, because `then_body` has only one result and `else_body` have two results. This example is incorrect and should not work.
+3. The type of output from *If* is undefine in fifth example. This example is incorrect and should not work because result from `then_body` has `int` type and `else_body` has `double` type.
+Note: The shape of output from *If* can be undefine(first-fourth examples).
 
 **If attributes**:
 
