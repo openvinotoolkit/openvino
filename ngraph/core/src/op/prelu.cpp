@@ -81,3 +81,17 @@ bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }
+
+bool op::PRelu::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_PRelu_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}

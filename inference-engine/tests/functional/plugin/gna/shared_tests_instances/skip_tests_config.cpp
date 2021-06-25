@@ -60,9 +60,15 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
         // TODO: Issue 51528
         R"(.*CachingSupport.*_(u8|i16)_.*)",
-        // TODO: Issue 51527
-        R"(.*CachingSupport.*_batch2_.*)",
         // TODO: Issue 51525
         R"(.*CachingSupport.*KSOFunction.*)",
+        // TODO: Issue 57363 (Param -> Result subgraphs)
+        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=1_.*)",
+        // TODO: Issue 57368 (accuracy)
+        R"(.*smoke_MemoryTest.*LOW_LATENCY.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*iteration_count=3.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*iteration_count=4.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*iteration_count=10.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
     };
 }

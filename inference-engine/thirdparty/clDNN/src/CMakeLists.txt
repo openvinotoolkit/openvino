@@ -38,14 +38,9 @@ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
 # ========================================= Source/Header files ========================================
 
 set(__CLDNN_Label__api                 "api")
-file(GLOB __CLDNN_Headers__api
+file(GLOB_RECURSE __CLDNN_Headers__api
     "${CLDNN__API_DIR}/*.h"
     "${CLDNN__API_DIR}/*.hpp"
-  )
-
-set(__CLDNN_Label__api_extension       "api_extension")
-file(GLOB __CLDNN_Headers__api_extension
-    "${CLDNN__API_EXTENSION_DIR}/*.hpp"
   )
 
 set(__CLDNN_Label__main                "")
@@ -108,7 +103,6 @@ set(__CLDNN_AllSources
     ${__CLDNN_Headers__api}
     ${__CLDNN_Sources__graph_opt}
     ${__CLDNN_Headers__include}
-    ${__CLDNN_Headers__api_extension}
     ${__CLDNN_Sources__main}
     ${__CLDNN_Sources__gpu}
     ${__CLDNN_Sources__cache}
@@ -121,7 +115,6 @@ set_property(SOURCE ${__CLDNN_Sources__cg_cache} PROPERTY GENERATED TRUE)
 # =============================================== Filters ==============================================
 
 source_group("${__CLDNN_Label__api}"                  FILES ${__CLDNN_Headers__api})
-source_group("${__CLDNN_Label__api_extension}"        FILES ${__CLDNN_Headers__api_extension})
 source_group("${__CLDNN_Label__include}"              FILES ${__CLDNN_Headers__include})
 source_group("${__CLDNN_Label__graph_opt}"            FILES ${__CLDNN_Sources__graph_opt})
 source_group("${__CLDNN_Label__main}"                 FILES ${__CLDNN_Sources__main})
@@ -135,6 +128,7 @@ source_group("${__CLDNN_Label__cg_cache}"             FILES ${__CLDNN_Sources__c
 include_directories(
     "${CLDNN__MAIN_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CLDNN__RUNTIME_DIR}"
     "${__CLDNN_Directory__include}"
     "${__CLDNN_Directory__ks_core}"
     "${__CLDNN_Directory__ks_core}/common"
@@ -151,10 +145,14 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
+target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC
+    OpenCL
+  )
+
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
-    clDNN_OpenCL
     cldnn_kernel_selector
     openvino::itt
+    cldnn_runtime
   )
 
 if(COMMAND add_cpplint_target)
@@ -171,3 +169,5 @@ elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
+
+# ======================================================================================================

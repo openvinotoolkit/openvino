@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 
 #include "backend.hpp"
 #include "template_config.hpp"
@@ -13,7 +13,7 @@
 //! [plugin:header]
 namespace TemplatePlugin {
 
-class Plugin : public InferenceEngine::InferencePluginInternal {
+class Plugin : public InferenceEngine::IInferencePlugin {
 public:
     using Ptr = std::shared_ptr<Plugin>;
 
@@ -23,12 +23,12 @@ public:
     void SetConfig(const std::map<std::string, std::string>& config) override;
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
-                                                                       const std::map<std::string, std::string>& config) override;
-    void AddExtension(InferenceEngine::IExtensionPtr extension) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
+                                                                        const std::map<std::string, std::string>& config) override;
+    void AddExtension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-    InferenceEngine::ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& model, const std::map<std::string, std::string>& config) override;
 
 private:
     friend class ExecutableNetwork;

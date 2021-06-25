@@ -13,6 +13,8 @@ from libc.stdint cimport int64_t, uint8_t
 cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
     ctypedef vector[size_t] SizeVector
 
+    cdef cppclass CExecutableNetwork "InferenceEngine::ExecutableNetwork"
+    
     cdef cppclass TBlob[T]:
         ctypedef shared_ptr[TBlob[T]] Ptr
 
@@ -160,6 +162,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         object getConfig(const string & metric_name) except +
         int wait(int num_requests, int64_t timeout)
         int getIdleRequestId()
+        shared_ptr[CExecutableNetwork] getPluginLink() except +
 
     cdef cppclass IENetwork:
         IENetwork() except +

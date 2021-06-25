@@ -104,6 +104,7 @@ namespace convert
             TYPE_OUT_CASE(bf16, arg, out);
             TYPE_OUT_CASE(f16, arg, out);
             TYPE_OUT_CASE(f32, arg, out);
+            TYPE_OUT_CASE(f64, arg, out);
             TYPE_OUT_CASE(boolean, arg, out);
         default: rc = false; break;
         }
@@ -129,6 +130,7 @@ namespace convert
             NGRAPH_TYPE_CASE(evaluate_convert, bf16, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, f16, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, f32, arg, out);
+            NGRAPH_TYPE_CASE(evaluate_convert, f64, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, boolean, arg, out);
         default: rc = false; break;
         }
@@ -178,6 +180,53 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return convert::evaluate_convert(input_values[0], output_values[0]);
+}
+
+bool op::v0::Convert::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Convert_has_evaluate);
+
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::u1:
+    case ngraph::element::u4:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::i4:
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64:
+    case ngraph::element::boolean: break;
+    default: return false;
+    }
+    switch (get_output_element_type(0))
+    {
+    case ngraph::element::i4:
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u1:
+    case ngraph::element::u4:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64:
+    case ngraph::element::boolean: break;
+    default: return false;
+    }
+    return true;
 }
 
 bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) const

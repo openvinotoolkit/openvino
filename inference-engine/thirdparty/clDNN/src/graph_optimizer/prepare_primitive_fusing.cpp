@@ -4,13 +4,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/pooling.hpp"
-#include "api/proposal.hpp"
-#include "api/roi_pooling.hpp"
-
 #include "program_helpers.h"
 #include "pass_manager.h"
 
+#include "pooling_inst.h"
+#include "proposal_inst.h"
+#include "roi_pooling_inst.h"
 #include "quantize_inst.h"
 #include "binary_convolution_inst.h"
 #include "activation_inst.h"
@@ -51,7 +50,7 @@
 #include <string>
 #include <utility>
 #include <deque>
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 void prepare_primitive_fusing::run(program_impl& p) {
     fuse_reorders(p);
@@ -402,6 +401,25 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             // TODO: check if that's enough for correct work
             if (in_dt == data_types::u8 || in_dt == data_types::i8)
+                return true;
+
+            return false;
+        };
+
+        auto bin_conv_supports_eltw_fusings = [](binary_convolution_node& conv_node) -> bool {
+            auto& eltw_node = static_cast<const eltwise_node&>(*conv_node.get_users().front());
+            auto& eltw_prim = *eltw_node.get_primitive();
+
+            if (eltw_node.get_dependencies().size() < 2)
+                return false;
+
+            auto const_layout = eltw_node.get_dependency(1).get_output_layout();
+            auto conv_layout = conv_node.get_output_layout();
+            auto per_channel_eltwise = const_layout.size.feature[0] == conv_layout.size.feature[0];
+
+            if (eltw_node.get_dependency(1).is_constant() && per_channel_eltwise &&
+                (eltw_prim.mode == eltwise_mode::sum || eltw_prim.mode == eltwise_mode::prod) &&
+                (conv_node.get_primitive()->dilation == tensor{1}))
                 return true;
 
             return false;
@@ -798,11 +816,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = (parents[i]->is_type<convolution>() && conv_supports_fusings(parents[i]->as<convolution>())) ||
+                                      (parents[i]->is_type<binary_convolution>() && bin_conv_supports_eltw_fusings(parents[i]->as<binary_convolution>())) ||
                                       (parents[i]->is_type<mvn>() && mvn_supports_fusings(parents[i]->as<mvn>())) ||
                                       (parents[i]->is_type<deconvolution>()) ||
                                       (parents[i]->is_type<permute>()) ||
                                       (parents[i]->is_type<resample>()) ||
                                       (parents[i]->is_type<space_to_depth>()) ||
+                                      (parents[i]->is_type<fully_connected>() && fc_supports_fusings(parents[i]->as<fully_connected>())) ||
                                       (parents[i]->is_type<gemm>() && gemm_supports_fusings(parents[i]->as<gemm>())) ||
                                       (parents[i]->is_type<batch_to_space>()) ||
                                       (parents[i]->is_type<space_to_batch>()) ||
@@ -1313,23 +1333,15 @@ void prepare_conv_eltw_read_write_opt::conv_eltwise_read_write_opt(program_impl&
     // buffer shared between primitives, if second input is mutable data, then we can reuse this memory
     auto shared_buffer_mem = second_input_node->is_type<mutable_data>()
                                  ? second_input_node->as<mutable_data>().get_attached_memory_ptr()
-                                 : p.get_engine().allocate_memory(node->get_output_layout(), 0);
-
-    float zero = 0.0f;
-    layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
+                                 : p.get_engine().allocate_memory(node->get_output_layout());
 
     // this one is the first one to write data to
-    auto rw_output_prim0 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_use",
-                                                          memory::attach(dummy_layout, &zero, 1));
+    auto rw_output_prim0 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_use", shared_buffer_mem);
     // this one already expects data to be inside
-    auto rw_output_prim1 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_reuse",
-                                                          memory::attach(dummy_layout, &zero, 1));
+    auto rw_output_prim1 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_reuse", shared_buffer_mem);
 
     auto& rw_output_node0 = p.get_or_create(rw_output_prim0);
     auto& rw_output_node1 = p.get_or_create(rw_output_prim1);
-
-    rw_output_node0.as<mutable_data>().attach_memory(*shared_buffer_mem, false);
-    rw_output_node1.as<mutable_data>().attach_memory(*shared_buffer_mem, false);
 
     // add connection between second input node -> rw_output_node0 -> node
     p.add_intermediate(rw_output_node0, *node, 1, true);

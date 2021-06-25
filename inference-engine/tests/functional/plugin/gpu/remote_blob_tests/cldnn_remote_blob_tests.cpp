@@ -9,7 +9,7 @@
 
 #include <ie_compound_blob.h>
 
-#include <cldnn/cldnn_config.hpp>
+#include <gpu/gpu_config.hpp>
 #include <remote_blob_tests/remote_blob_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
@@ -175,7 +175,7 @@ TEST_P(BatchedBlob_Test, canInputNV12) {
 
     /* XXX: is it correct to set KEY_CLDNN_NV12_TWO_INPUTS in case of remote blob? */
     auto exec_net_b = ie.LoadNetwork(net_remote, CommonTestUtils::DEVICE_GPU,
-                { { CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS, PluginConfigParams::YES} });
+                { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, PluginConfigParams::YES} });
     auto inf_req_remote = exec_net_b.CreateInferRequest();
     auto cldnn_context = exec_net_b.GetContext();
     cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
@@ -269,7 +269,7 @@ TEST_P(BatchedBlob_Test, canInputNV12) {
 
 const std::vector<size_t> num_batches{1, 2, 4};
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlob, BatchedBlob_Test, ::testing::ValuesIn(num_batches), BatchedBlob_Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, BatchedBlob_Test, ::testing::ValuesIn(num_batches), BatchedBlob_Test::getTestCaseName);
 
 class TwoNets_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
     void SetUp() override {
@@ -357,4 +357,4 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
 
 const std::vector<size_t> num_streams{1, 2};
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlob, TwoNets_Test, ::testing::ValuesIn(num_streams), TwoNets_Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, TwoNets_Test, ::testing::ValuesIn(num_streams), TwoNets_Test::getTestCaseName);

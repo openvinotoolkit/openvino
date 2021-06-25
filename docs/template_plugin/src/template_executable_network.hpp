@@ -28,11 +28,9 @@ public:
 
     ExecutableNetwork(std::istream& model, const Configuration& cfg, const std::shared_ptr<Plugin>& plugin);
 
-    ~ExecutableNetwork() override = default;
-
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 
-    void ExportImpl(std::ostream& model) override;
+    void Export(std::ostream& model) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;

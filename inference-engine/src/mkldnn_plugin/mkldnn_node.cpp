@@ -203,6 +203,27 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "SoftPlus", Math},
         { "Softsign", Math},
         { "Tan", Math},
+        { "CTCLoss", CTCLoss},
+        { "Bucketize", Bucketize},
+        { "CTCGreedyDecoder", CTCGreedyDecoder},
+        { "CTCGreedyDecoderSeqLen", CTCGreedyDecoderSeqLen},
+        { "CumSum", CumSum},
+        { "DetectionOutput", DetectionOutput},
+        { "ExperimentalDetectronDetectionOutput", ExperimentalDetectronDetectionOutput},
+        { "LogSoftmax", LogSoftmax},
+        { "TopK", TopK},
+        { "GatherTree", GatherTree},
+        { "GRN", GRN},
+        { "Range", Range},
+        { "Proposal", Proposal},
+        { "ReorgYolo", ReorgYolo},
+        { "ReverseSequence", ReverseSequence},
+        { "ExperimentalDetectronTopKROIs", ExperimentalDetectronTopKROIs},
+        { "ExperimentalDetectronROIFeatureExtractor", ExperimentalDetectronROIFeatureExtractor},
+        { "ExperimentalDetectronPriorGridGenerator", ExperimentalDetectronPriorGridGenerator},
+        { "ExperimentalDetectronGenerateProposalsSingleImage", ExperimentalDetectronGenerateProposalsSingleImage},
+        { "ExtractImagePatches", ExtractImagePatches},
+        { "NonMaxSuppressionIEInternal", NonMaxSuppression}
 };
 
 Type TypeFromName(const std::string type) {
@@ -1296,7 +1317,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             fusingPort = i;
             continue;
         }
-        if (!node->isConstant() || node->getType() != Input) {
+        if (node->getType() != Input || !node->isConstant()) {
             return false;
         }
     }

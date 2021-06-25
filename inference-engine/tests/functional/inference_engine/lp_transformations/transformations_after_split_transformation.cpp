@@ -69,7 +69,7 @@ SimpleLowPrecisionTransformer getTransformerWithTransformationByName(
         transformer.add<ClampTransformation, opset1::Clamp>(params);
         return transformer;
     }
-    if (name == "ConvolutionTransformation") {
+    if (name == "ConvolutionTransformation" || name == "AsymmetricConvolutionTransformation") {
         transformer.add<ConvolutionTransformation, opset1::Convolution>(params);
         return transformer;
     }
@@ -190,6 +190,7 @@ const std::vector<std::string> transformationNames = {
     "AvgPoolTransformation",
     "ClampTransformation",
     "ConvolutionTransformation",
+    "AsymmetricConvolutionTransformation",
     "DepthToSpaceTransformation",
     "FakeQuantizeTransformation",
     "InterpolateTransformation",
@@ -212,7 +213,7 @@ const std::vector<std::string> transformationNames = {
     "SubtractMultiplyToMultiplyAddTransformation",
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     TransformationsAfterSplitTransformation,
     ::testing::ValuesIn(transformationNames),

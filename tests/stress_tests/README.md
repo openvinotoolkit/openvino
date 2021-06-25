@@ -87,4 +87,4 @@ grep -rh ./MemCheckTests-logs -e ".*<model " | sed -e "s/.*<model /<model /" | s
 
 [VDP-shared-folders]: https://wiki.ith.intel.com/display/DLSDK/VDP+shared+folders
 [gtest-parallel]: https://github.com/google/gtest-parallel
-[open_model_zoo]: https://github.com/opencv/open_model_zoo
+[open_model_zoo]: https://github.com/openvinotoolkit/open_model_zoo

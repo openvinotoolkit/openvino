@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "auto_plugin/auto_config.hpp"
-#include "multi-device/multi_device_config.hpp"
-
 #include "behavior/infer_request_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -54,58 +51,45 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> AutoConfigs = {
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-              InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-              InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA}},
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "8"}},
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, InferenceEngine::PluginConfigParams::NO}},
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, InferenceEngine::PluginConfigParams::YES}},
-            {{InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "10"}}
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferConfigTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                             InferConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, InferConfigTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferConfigTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
                             InferConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, InferConfigTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferConfigTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(autoConfigs)),
                             InferConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferConfigInTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigInTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(InConfigs)),
                             InferConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, InferConfigInTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferConfigInTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(MultiInConfigs)),
                             InferConfigInTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, InferConfigInTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferConfigInTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),

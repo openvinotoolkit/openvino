@@ -46,22 +46,10 @@ inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input
  * @param layer
  */
 inline bool HasTo2DReshapeData(InferenceEngine::CNNLayerPtr layer) {
-    if (GNAPluginNS::LayerInfo(layer).isPower())
+    if (GNAPluginNS::LayerInfo(layer).isPower() || GNAPluginNS::LayerInfo(layer).isCopy())
         return true;
 
-    if (!GNAPluginNS::LayerInfo(layer).isScaleShift())
-        return false;
-
-    // Don't reshape user-defined ScaleShift layers
-    if (layer->name.rfind("SyntheticScaleShift", 0) == std::string::npos)
-        return false;
-
-    // Don't reshape the first dnn layer since it breaks groups recognition
-    auto prevLayer = InferenceEngine::CNNNetPrevLayerSkipCertain(layer, 0, [](InferenceEngine::CNNLayerPtr ptr) {
-        return LayerInfo(ptr).isNonValuesChangable();
-    });
-    IE_ASSERT(prevLayer != nullptr);
-    if (LayerInfo(prevLayer).isInput())
+    if (!GNAPluginNS::LayerInfo(layer).isSyntheticScaleShift())
         return false;
 
     // Don't reshape diagonallayers with bias connection

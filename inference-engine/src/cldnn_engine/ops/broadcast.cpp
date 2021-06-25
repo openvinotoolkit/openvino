@@ -8,9 +8,9 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/broadcast.hpp"
-#include "api/reorder.hpp"
-#include "api/reshape.hpp"
+#include "cldnn/primitives/broadcast.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 

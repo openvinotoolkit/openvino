@@ -20,8 +20,8 @@
  * @brief Defines Inference Engine patch version
  */
 
-#define IE_VERSION_MAJOR 2021
-#define IE_VERSION_MINOR 4
+#define IE_VERSION_MAJOR 2022
+#define IE_VERSION_MINOR 1
 #define IE_VERSION_PATCH 0
 
 #include "ie_api.h"
@@ -73,6 +73,17 @@ struct Version {
         ApiVersion(int _major, int _minor) {
             major = _major;
             minor = _minor;
+        }
+
+        /**
+         * @brief A copy operator
+         * @param other An object to copy
+         * @return A copy
+         */
+        ApiVersion& operator=(const ApiVersion& other) {
+            major = other.major;
+            minor = other.minor;
+            return *this;
         }
     };
 
