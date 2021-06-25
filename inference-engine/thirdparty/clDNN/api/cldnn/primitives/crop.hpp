@@ -27,13 +27,6 @@ constexpr auto crop_borders = crop_borders_t{};
 /// @brief Performs crop operation on input.
 /// @details Crops the input to the shape of reference_input across all dimensions taking into account specified input offsets.
 /// @n       Borders variant calculated output shape from input shape minus the specified borders.
-/// @n
-/// @n\b Examples
-/// @n Crop without offset example:
-/// \image html crop_no_offset.jpg
-/// @n Crop with offset example:
-/// \image html crop_w_offset.jpg
-/// @n
 /// @n\b Requirements (reference size variant)
 /// @n - Input size cannot be greater than reference size in any dimension
 /// @n - All sizes have to have positive numbers

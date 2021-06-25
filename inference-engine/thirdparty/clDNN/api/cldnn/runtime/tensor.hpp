@@ -74,15 +74,14 @@ struct format_traits {
 /// - y - spatial, height
 /// /n
 /// For explanation how each format type is implemented in memory we will use naming shown bellow (b=2,f=3,y=3,x=3):
-/// \image html layout_memory_representation.jpg
 struct format {
     enum type : int32_t {
         // Data formats
-        bfyx,                                   ///< the most common format for activations in clDNN. \n \image html bfyx.jpg
+        bfyx,                                   ///< the most common format for activations in clDNN.
         bfzyx,                                  ///< format for 5d data tensors
         bfwzyx,                                 ///< batch, feature, 4D spatial
-        yxfb,                                   ///< batch first, feature and than spatials \n \image html yxfb.jpg
-        byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format \n \image html byxf.jpg
+        yxfb,                                   ///< batch first, feature and than spatials
+        byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
                                                 ///< for user provided formats.
         b_fs_yx_fsv16,                          ///< format used for blocked convolution
@@ -99,7 +98,6 @@ struct format {
                                                 ///< xs - x slice, bsv16 - 16 values of single slice.
         bs_x_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
                                                 ///< (responses slice), bsv16 - 16 values of single batch slice, x - flattened plane of (fyx)
-                                                ///< \n \image html bs_x_bsv16.jpg
         b_fs_yx_32fp,                           ///< format for data for binary convolutions
         winograd_2x3_s1_data,                   ///< format used for input for winograd convolution, F(2,3) -- filter 3x3 with stride 1
         nv12,                                   ///< format for media nv12 input
@@ -133,10 +131,8 @@ struct format {
                                                       ///< yx - spatials, sv64 - 64 values of single slice.
         image_2d_weights_c4_fyx_b,                    ///< image format for weights, width size is f*y*x/4
                                                       ///< (4-channels filled with fyx data), height is b
-                                                      ///< \n \image html image_2d_weights_c4_fyx_b.jpg
         image_2d_weights_c1_b_fyx,                    ///< image format for weights, width size is b,
                                                       ///< height is f*y*x, single channel
-                                                      ///< \n \image html image_2d_weights_c1_b_fyx.jpg
         winograd_2x3_s1_weights,                      ///< format used for weights for winograd non-fused
                                                       ///< convolution, F(2,3) -- filter 3x3 with stride 1
         winograd_2x3_s1_fused_weights,                ///< format used for weights for winograd fused
