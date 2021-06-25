@@ -41,12 +41,13 @@ class ModulatedDeformableConvolutionExtractor(FrontExtractorOp):
             'deformable_group': num_deformable_group,
             'output': output,
             'kernel_spatial': np.array([k for k in kernel], dtype=np.int64),
+            'use_bilinear_interpolation_padding': True,
 
             'input_feature_channel': 1,
             'output_feature_channel': 0,
             'kernel_spatial_idx': None,
             'reshape_kernel': True,
-            'weights_index': 3,
+            'weights_index': 2,
             'in_ports_count': 4,
 
             'spatial_dims': None,

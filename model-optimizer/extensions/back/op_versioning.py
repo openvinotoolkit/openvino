@@ -154,6 +154,8 @@ class OpVersioning(BackReplacementPattern):
                 if node_type in self.opset_1_types:
                     node['version'] = 'opset1'
                 elif node_type in self.opset_1_experimental_ops:
+                    print("XXXXX")
+                    print(node_type)
                     node['version'] = 'experimental'
                 elif node_type in self.opset_2_legacy_ops:
                     node['version'] = 'opset2'
