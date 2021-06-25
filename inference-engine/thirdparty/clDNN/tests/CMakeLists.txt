@@ -122,14 +122,4 @@ elseif((NOT ANDROID) AND (UNIX))
 endif()
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
 
-# =================================== Custom pre- and post-steps =======================================
-
-if(CLDNN__RUN_TESTS)
-  add_custom_command(TARGET "${CLDNN_BUILD__PROJ}" POST_BUILD
-      WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
-      COMMAND "${CLDNN_BUILD__PROJ}"
-      COMMENT "Executing tests..."
-    )
-endif()
-
 # ======================================================================================================
