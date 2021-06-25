@@ -248,17 +248,17 @@ namespace ngraph
                         using std::end;
 
                         const auto& int32_data = tensor.int32_data();
-                        std::vector<ngraph::float16> fp16_data;
-                        fp16_data.reserve(int32_data.size());
+                        std::vector<ngraph::float16> float16_data;
+                        float16_data.reserve(int32_data.size());
                         std::transform(begin(int32_data),
                                        end(int32_data),
-                                       std::back_inserter(fp16_data),
+                                       std::back_inserter(float16_data),
                                        [](int32_t elem) {
                                            return ngraph::float16::from_bits(
                                                static_cast<uint16_t>(elem));
                                        });
 
-                        return detail::__get_data<ngraph::float16>(fp16_data);
+                        return detail::__get_data<ngraph::float16>(float16_data);
                     }
                     throw error::tensor::invalid_data_type{tensor.data_type()};
                 }
