@@ -95,7 +95,6 @@ if(THREADING STREQUAL "OMP")
     install(FILES ${source_list} 
             DESTINATION "deployment_tools/inference_engine/external/omp/lib"
             COMPONENT omp)
-    
 endif()
 
 ## TBB package

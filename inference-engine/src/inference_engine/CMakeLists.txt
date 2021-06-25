@@ -273,6 +273,12 @@ install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
         DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT core)
 
+# for InferenceEngineUnitTest
+install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+        DESTINATION tests/lib
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
 # Install cmake scripts
 
 install(EXPORT InferenceEngineTargets

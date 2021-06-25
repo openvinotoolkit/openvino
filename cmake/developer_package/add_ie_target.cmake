@@ -159,4 +159,9 @@ function(addIeTargetTest)
 
     add_test(NAME ${ARG_NAME} COMMAND ${ARG_NAME})
     set_property(TEST ${ARG_NAME} PROPERTY LABELS ${ARG_LABELS})
+
+    install(TARGETS ${ARG_NAME}
+            RUNTIME DESTINATION tests
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 endfunction()

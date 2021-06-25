@@ -14,3 +14,7 @@ target_link_libraries(mock1_ngraph_frontend PRIVATE frontend_manager)
 add_dependencies(unit-test mock1_ngraph_frontend)
 
 add_clang_format_target(mock1_ngraph_frontend_clang FOR_TARGETS mock1_ngraph_frontend)
+
+install(TARGETS mock1_ngraph_frontend
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL)
