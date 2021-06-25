@@ -247,9 +247,20 @@ static auto argmax_rank(const std::vector<DataConfig>& conf) -> size_t {
     size_t max_rank_out_desc_idx = 0;
     auto i = 0;
     for (auto& d : conf) {
-        if (max_rank_out_desc < d.desc.getBlockingDesc().getBlockDims().size()) {
+        const auto desc_rank = d.desc.getBlockingDesc().getBlockDims().size();
+        if (max_rank_out_desc < desc_rank) {
             max_rank_out_desc_idx = i;
-            max_rank_out_desc =  d.desc.getBlockingDesc().getBlockDims().size();
+            max_rank_out_desc =  desc_rank;
+        } else if (max_rank_out_desc == desc_rank) {
+            const auto max_rank_dims = conf[max_rank_out_desc_idx].desc.getBlockingDesc().getBlockDims();
+            const auto desc_dims = d.desc.getBlockingDesc().getBlockDims();
+            for (int j = 0; j < desc_rank; j++) {
+                if (desc_dims[j] > max_rank_dims[j]) {
+                    max_rank_out_desc_idx = i;
+                    max_rank_out_desc =  desc_rank;
+                    break;
+                }
+            }
         }
         i++;
     }
