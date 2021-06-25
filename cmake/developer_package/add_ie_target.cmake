@@ -160,9 +160,8 @@ function(addIeTargetTest)
     add_test(NAME ${ARG_NAME} COMMAND ${ARG_NAME})
     set_property(TEST ${ARG_NAME} PROPERTY LABELS ${ARG_LABELS})
 
-    if(ENABLE_DEV_PKG_INSTALL)
-        install(TARGETS ${ARG_NAME}
-                RUNTIME DESTINATION tests
-                COMPONENT tests)
-    endif()
+    install(TARGETS ${ARG_NAME}
+            RUNTIME DESTINATION tests
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 endfunction()

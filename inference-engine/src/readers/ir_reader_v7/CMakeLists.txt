@@ -46,15 +46,12 @@ endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
-if(ENABLE_DEV_PKG_INSTALL)
-    # ieFuncTests
-    install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
-            COMPONENT tests)
-    # InferenceEngineUnitTest
-    install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION tests/lib
-            LIBRARY DESTINATION tests/lib
-            COMPONENT tests)
-endif()
+# for ieFuncTests
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+
+# for InferenceEngineUnitTest
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)

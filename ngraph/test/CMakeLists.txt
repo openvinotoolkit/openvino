@@ -631,12 +631,10 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
 
-if(ENABLE_DEV_PKG_INSTALL)
-    install(TARGETS unit-test
-            RUNTIME DESTINATION tests
-            LIBRARY DESTINATION tests
-            COMPONENT tests)
-endif()
+install(TARGETS unit-test
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})

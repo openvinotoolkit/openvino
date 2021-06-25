@@ -42,17 +42,16 @@ if(NOT ENABLE_DOCKER)
         endif()
     endforeach()
 
-    if(ENABLE_DEV_PKG_INSTALL)
-        set(install_targets template_extension)
-        if(ENABLE_TEMPLATE_PLUGIN)
-            list(APPEND install_targets templatePlugin templateFuncTests)
-        endif()
+    # install
 
-        install(TARGETS ${install_targets}
-                RUNTIME DESTINATION tests
-                LIBRARY DESTINATION tests
-                COMPONENT tests)
+    set(install_targets template_extension)
+    if(ENABLE_TEMPLATE_PLUGIN)
+        list(APPEND install_targets templatePlugin templateFuncTests)
     endif()
+
+    install(TARGETS ${install_targets}
+            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
 set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check")

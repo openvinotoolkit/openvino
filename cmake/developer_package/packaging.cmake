@@ -63,7 +63,7 @@ endmacro()
 ie_cpack_add_component(irc IRC DISABLED)
 
 # create test component
-if(ENABLE_TESTS AND ENABLE_DEV_PKG_INSTALL)
+if(ENABLE_TESTS)
     ie_cpack_add_component(tests TESTS DISABLED)
 endif()
 

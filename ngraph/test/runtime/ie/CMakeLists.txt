@@ -29,9 +29,6 @@ add_dependencies(ie_backend inference_engine)
 target_include_directories(ie_backend PUBLIC ${IE_MAIN_SOURCE_DIR}/include)
 target_link_libraries(ie_backend PUBLIC ngraph_backend inference_engine)
 
-if(ENABLE_DEV_PKG_INSTALL)
-    install(TARGETS ie_backend
-            RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB}
-            LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB}
-            COMPONENT tests)
-endif()
+install(TARGETS ie_backend
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL)

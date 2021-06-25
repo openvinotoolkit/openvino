@@ -53,11 +53,10 @@ add_dependencies(${TARGET_NAME} ${DEPENDENCIES})
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 set_property(TEST ${TARGET_NAME} PROPERTY LABELS GNA)
 
-if(ENABLE_DEV_PKG_INSTALL)
-    install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION tests
-            COMPONENT tests)
-endif()
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 if(GNA_LIBRARY_VERSION STREQUAL "GNA1")
     target_compile_definitions(${TARGET_NAME} PRIVATE GNA1_LIB)

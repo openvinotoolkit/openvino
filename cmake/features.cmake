@@ -114,8 +114,6 @@ ie_option (USE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
 
 ie_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" OFF)
 
-ie_option (ENABLE_DEV_PKG_INSTALL "Enables installation of tests, Inference Engine DevPackage" OFF)
-
 #
 # Process featues
 #
