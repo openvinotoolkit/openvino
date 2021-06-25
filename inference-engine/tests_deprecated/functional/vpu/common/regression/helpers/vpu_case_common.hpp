@@ -21,7 +21,7 @@ using namespace InferenceEngine;
 #define DISABLE_IF(expr) \
     do { \
         if (expr) { \
-            SKIP() << "Disabled since " << #expr << std::endl; \
+            GTEST_SKIP() << "Disabled since " << #expr << std::endl; \
         } \
     }while(false)
 
@@ -33,7 +33,7 @@ using namespace InferenceEngine;
 #endif
 
 #if defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64)
-#   define DISABLE_ON_ARM      SKIP() << "Disabled on ARM" << std::endl;
+#   define DISABLE_ON_ARM      GTEST_SKIP() << "Disabled on ARM" << std::endl;
 #   define VPU_REG_TEST_ARM_PLATFORM
 #else
 #   define DISABLE_ON_ARM
@@ -42,9 +42,9 @@ using namespace InferenceEngine;
 #define ENABLE_IF_MA2085 \
     do { \
         if (!CheckMA2085()) { \
-        SKIP() << "Disabled since not on MA2085" << std::endl; \
+            GTEST_SKIP() << "Disabled since not on MA2085" << std::endl; \
         }\
-    }while(false)
+    } while(false)
 
 extern bool CheckMyriadX();
 extern bool CheckMA2085();

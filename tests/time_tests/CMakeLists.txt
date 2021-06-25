@@ -21,9 +21,6 @@ if (NOT InferenceEngine_FOUND)
     if (NOT InferenceEngine_FOUND)
         # Search OpenVINO Inference Engine via InferenceEngineDeveloperPackage_DIR
         # in order to provide backward compatibility with old OpenVINO packages
-        set (HAVE_SYS_STAT_H 1)
-        set (HAVE_INTTYPES_H 1)
-        set (INTTYPES_FORMAT C99)
         find_package(InferenceEngineDeveloperPackage REQUIRED)
     endif()
 endif()

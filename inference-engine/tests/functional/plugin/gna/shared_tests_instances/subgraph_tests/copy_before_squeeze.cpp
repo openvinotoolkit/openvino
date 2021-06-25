@@ -26,7 +26,7 @@ namespace {
         {1, 640}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_copy_before_squeeze, CopyBeforeSqueezeTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_copy_before_squeeze, CopyBeforeSqueezeTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

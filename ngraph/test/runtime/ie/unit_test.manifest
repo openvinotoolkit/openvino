@@ -721,9 +721,6 @@ cum_sum_2dim
 cum_sum_3d
 cum_sum_2dim_allmodes
 
-# Unsupported primitive of type: Ceiling
-ceiling
-
 # Incorrect dimensions for broadcasting for Add
 auto_bcast_binary_elementwise_pdpd_dynamic
 
@@ -1527,6 +1524,13 @@ onnx_controlflow_loop_infinite
 # unsupported dynamic ops
 onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis
 IE_GPU.range_v4_trunc_inputs
+variadic_split_1d_dynamic
+variadic_split_2d_axis_0_dynamic
+variadic_split_2d_axis_1_dynamic
+variadic_split_4d_axis_0_dynamic
+variadic_split_4d_axis_1_dynamic
+variadic_split_4d_axis_2_dynamic
+variadic_split_4d_axis_3_dynamic
 
 # CPU plugin does not support bool type
 IE_CPU.evaluate_2D_gather_elements_3x2_data_bool

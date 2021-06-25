@@ -106,7 +106,7 @@ TEST_P(GNAMultiInputToConcatTest, InputsToConcat) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         GNALayerTests,
         GNAMultiInputToConcatTest,
         ::testing::Combine(

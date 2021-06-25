@@ -134,6 +134,8 @@ extensions/front/caffe/split_to_identity.py
 extensions/front/caffe/tanh.py
 extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
+extensions/front/CTCGreedyDecoderReplacement.py
+extensions/front/CTCLossReplacement.py
 extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/DropoutWithRandomUniformReplacer.py
@@ -274,6 +276,7 @@ extensions/front/onnx/constant_of_shape_ext.py
 extensions/front/onnx/constant_of_shape_to_broadcast.py
 extensions/front/onnx/conv_ext.py
 extensions/front/onnx/crop_ext.py
+extensions/front/onnx/CTCGreedyDecoder_ext.py
 extensions/front/onnx/cumsum_ext.py
 extensions/front/onnx/deformable_conv_ext.py
 extensions/front/onnx/depth_to_space_ext.py
@@ -370,6 +373,7 @@ extensions/front/SizeReplacer.py
 extensions/front/softmax.py
 extensions/front/Softplus_fusion.py
 extensions/front/softsign_replacer.py
+extensions/front/sparse_to_dense_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/SqueezeNormalize.py
 extensions/front/sub.py
@@ -401,9 +405,7 @@ extensions/front/tf/CorrectRollAxes.py
 extensions/front/tf/crop_and_resize_ext.py
 extensions/front/tf/CropAndResizeReplacement.py
 extensions/front/tf/CTCGreedyDecoder_ext.py
-extensions/front/tf/CTCGreedyDecoderReplacement.py
 extensions/front/tf/CTCLoss_ext.py
-extensions/front/tf/CTCLossReplacement.py
 extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
@@ -497,7 +499,6 @@ extensions/front/tf/sparse_fill_empty_rows_ext.py
 extensions/front/tf/sparse_segment_mean_ext.py
 extensions/front/tf/sparse_segment_sqrtn_ext.py
 extensions/front/tf/sparse_segment_sum_ext.py
-extensions/front/tf/sparse_to_dense_replacer.py
 extensions/front/tf/split_ext.py
 extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
@@ -946,6 +947,7 @@ mo/main_caffe.py
 mo/main_kaldi.py
 mo/main_mxnet.py
 mo/main_onnx.py
+mo/main_pdpd.py
 mo/main_tf.py
 mo/middle/__init__.py
 mo/middle/passes/__init__.py
@@ -965,6 +967,10 @@ mo/middle/passes/infer.py
 mo/middle/passes/tensor_names.py
 mo/middle/pattern_match.py
 mo/middle/replacement.py
+mo/moc_frontend/__init__.py
+mo/moc_frontend/extractor.py
+mo/moc_frontend/pipeline.py
+mo/moc_frontend/serialize.py
 mo/ops/__init__.py
 mo/ops/activation.py
 mo/ops/assign.py
