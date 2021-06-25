@@ -378,7 +378,9 @@ void MKLDNNSnippetNode::define_shedule() {
         offsets_out.resize(outputNum);
         for (int i = 0; i < outputNum; i++) {
             offsets_out[i].resize(tensorRank, 1);
-            offset_out_calc(offsets_out[i], dims_out[i]);
+            //offset_out_calc(offsets_out[i], dims_out[i]);
+            //Todo NB! Calc in and out offsets in a similar way for test purposes
+            offset_in_calc(offsets_out[i], dims_out[i], dims_out[max_rank_out_desc_idx]);
 
             for (int j = 0; j < tensorRank; j++) {
                 offsets_out[i][j] *= config.outConfs[i].desc.getPrecision().size();
