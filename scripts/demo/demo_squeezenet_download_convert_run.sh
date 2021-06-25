@@ -33,8 +33,8 @@ case $key in
     shift
     ;;
     -sample-options)
-    sampleoptions="$2 $3 $4 $5 $6"
-    echo sample-options = "${sampleoptions}"
+    sampleoptions=("${@:2}")
+    echo sample-options = "${sampleoptions[*]}"
     shift
     ;;
     *)
@@ -67,12 +67,12 @@ else
 fi
 
 if ! . "$setupvars_path" ; then
-    printf "Unable to run ./setupvars.sh. Please check its presence. %s" "${run_again}"
+    echo -ne "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
     exit 1
 fi
 
 # Step 1. Download the Caffe model and the prototxt of the model
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "\n\nDownloading the Caffe model and the prototxt"
 
 cur_path=$PWD
@@ -139,7 +139,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 if ! command -v $python_binary &>/dev/null; then
-    printf "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. %s" "${run_again}"
+    echo -ne "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. ${run_again}"
     exit 1
 fi
 
@@ -162,14 +162,14 @@ ir_dir="${irs_path}/${model_dir}/${target_precision}"
 
 if [ ! -e "$ir_dir" ]; then
     # Step 2. Configure Model Optimizer
-    printf "%s" "${dashes}"
+    echo -ne "${dashes}"
     printf "Install Model Optimizer dependencies\n\n"
     cd "${INTEL_OPENVINO_DIR}/tools/model_optimizer/install_prerequisites"
     . ./install_prerequisites.sh caffe
     cd "$cur_path"
 
     # Step 3. Convert a model with Model Optimizer
-    printf "%s" "${dashes}"
+    echo -ne "${dashes}"
     printf "Convert a model with Model Optimizer\n\n"
 
     mo_path="${INTEL_OPENVINO_DIR}/tools/model_optimizer/mo.py"
@@ -178,11 +178,11 @@ if [ ! -e "$ir_dir" ]; then
     print_and_run "$python_binary" "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
 else
     printf "\n\nTarget folder %s already exists. Skipping IR generation  with Model Optimizer." "${ir_dir}"
-    printf "If you want to convert a model again, remove the entire %s folder. %s" "${ir_dir}" "${run_again}"
+    echo -ne "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"
 fi
 
 # Step 4. Build samples
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "Build Inference Engine samples\n\n"
 
 OS_PATH=$(uname -m)
@@ -207,14 +207,14 @@ cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 make $NUM_THREADS classification_sample_async
 
 # Step 5. Run samples
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "Run Inference Engine classification sample\n\n"
 
 cd "$binaries_dir"
 
 cp -f "$ROOT_DIR/${model_name}.labels" "${ir_dir}/"
 
-print_and_run ./classification_sample_async -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" "${sampleoptions}"
+print_and_run ./classification_sample_async -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" "${sampleoptions[@]}"
 
-printf "%s" "${dashes}"
+echo -ne "${dashes}"
 printf "Demo completed successfully.\n\n"

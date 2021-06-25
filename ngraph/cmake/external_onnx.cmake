@@ -52,9 +52,7 @@ macro(onnx_set_target_properties)
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
 
-    if (NGRAPH_EXPORT_TARGETS_ENABLE)
-        export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
-    endif()
+    export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
 endmacro()
 
 FetchContent_GetProperties(ext_onnx)
