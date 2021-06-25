@@ -922,7 +922,7 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], float16_to_float32(output_ptr[i]));
+        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1851,7 +1851,7 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     };
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], float16_to_float32(output_ptr[i]));
+        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 

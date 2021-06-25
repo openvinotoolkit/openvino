@@ -296,6 +296,6 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
         1.75f, 2.9375f, 1.1875f
     };
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
-        EXPECT_EQ(expected_output_vec[i], float16_to_float32(output_ptr[i]));
+        EXPECT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }

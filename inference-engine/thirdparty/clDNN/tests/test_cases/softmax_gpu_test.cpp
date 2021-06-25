@@ -740,7 +740,7 @@ TEST(softmax_gpu_bfyx_f16, normalize_all) {
     float sum = 0.0f;
     float expected_sum = 1.0f;
     for (uint32_t i = 0; i < buf_size; i++) {
-        sum += float16_to_float32(output_ptr[i]);
+        sum += output_ptr[i];
     }
     ASSERT_NEAR(sum, expected_sum, 0.001);
 }
@@ -778,7 +778,7 @@ TEST(softmax_gpu_yxfb_f16, normalize_all) {
     float sum = 0.0f;
     float expected_sum = 1.0f;
     for (uint32_t i = 0; i < buf_size; i++) {
-        sum += float16_to_float32(output_ptr[i]);
+        sum += output_ptr[i];
     }
     ASSERT_NEAR(sum, expected_sum, 0.001);
 }
@@ -815,7 +815,7 @@ TEST(softmax_gpu_bfzyx_f16, normalize_all) {
     float sum = 0.0f;
     float expected_sum = 1.0f;
     for (uint32_t i = 0; i < buf_size; i++) {
-        sum += float16_to_float32(output_ptr[i]);
+        sum += output_ptr[i];
     }
     ASSERT_NEAR(sum, expected_sum, 0.001);
 }

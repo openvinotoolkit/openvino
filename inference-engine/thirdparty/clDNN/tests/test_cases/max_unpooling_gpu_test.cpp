@@ -346,7 +346,7 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2_fp16) {
         12.f, 0.f, 17.f,
     };
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
-        EXPECT_EQ(expected_output_vec[i], float16_to_float32(output_ptr[i]));
+        EXPECT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
