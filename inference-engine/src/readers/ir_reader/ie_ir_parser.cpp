@@ -568,6 +568,7 @@ void XmlDeserializer::on_adapter(
 
 std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     const pugi::xml_node& root, const Blob::CPtr& weights) {
+    std::cout << "XXXXXX : PARSE XML" << std::endl;
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     struct FunctionNodes {
@@ -652,6 +653,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
                 input_node->output(p_output.getRealOutputPortId(e.fromPortId));
         }
 
+        std::cout << "XXXXXX: createNode" << std::endl;
         auto node = createNode(inputs, p.xml, weights, p.params);
         id_to_node[layer_id] = node;
 
@@ -837,7 +839,9 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
             constant->alloc_buffer_on_visit_attributes(false);
         }
         ngraphNode->set_arguments(inputs);
+        std::cout << "XXXXX XmlDeserializer" << inputs.size() << std::endl;
         XmlDeserializer visitor(node, weights, opsets, variables);
+
         if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
         }
@@ -848,6 +852,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
 
     if (!ngraphNode && m_use_framework_node) {
         ngraphNode = std::make_shared<ngraph::op::FrameworkNode>(inputs);
+        std::cout << "XXXXX XmlDeserializer 2" << std::endl;
         XmlDeserializer visitor(node, weights, opsets, variables);
         ngraphNode->visit_attributes(visitor);
 

@@ -183,6 +183,7 @@ extensions/front/mxnet/adaptive_avg_pooling_ext.py
 extensions/front/mxnet/add_input_data_to_prior_boxes.py
 extensions/front/mxnet/arange_ext.py
 extensions/front/mxnet/arange_replacer.py
+extensions/front/mxnet/modulated_deformable_conv_replacer.py
 extensions/front/mxnet/block_grad_ext.py
 extensions/front/mxnet/box_nms_ext.py
 extensions/front/mxnet/cast_ext.py
