@@ -72,7 +72,6 @@ op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
 
 bool op::v8::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
 {
-    std::cout << "XXXXXXX: visit_attributes" << std::endl;
     NGRAPH_OP_SCOPE(DeformableConvolution_v8_visit_attributes);
     visitor.on_attribute("use_bilinear_interpolation_padding",
                          m_use_bilinear_interpolation_padding);
@@ -88,7 +87,6 @@ void op::v8::DeformableConvolution::validate_and_infer_types()
 std::shared_ptr<Node>
     op::v8::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    std::cout << "XXXXXXX: clone_with_new_inputs" << std::endl;
     NGRAPH_OP_SCOPE(DeformableConvolution_v8_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(
