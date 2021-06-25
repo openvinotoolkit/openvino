@@ -6,7 +6,7 @@
 
 #include <cpu/x64/jit_generator.hpp>
 #include <mkldnn_extension_utils.h>
-#include "common/tensor_desc_creator.h"
+#include "common/blocked_desc_creator.h"
 #include <utils/general_utils.h>
 #include <ngraph/opsets/opset1.hpp>
 

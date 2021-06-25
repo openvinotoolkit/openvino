@@ -21,7 +21,7 @@
 #include "mkldnn_eltwise_node.h"
 #include <limits>
 #include "common/cpu_memcpy.h"
-#include "common/tensor_desc_creator.h"
+#include "common/blocked_desc_creator.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;

@@ -7,26 +7,17 @@
 #include <ie_common.h>
 #include <functional>
 #include "cpu_shape.h"
-#include "cpu_memory_desc.h"
 #include "cpu_blocked_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
-// TODO [DS]: rename
-enum class TensorDescCreatorTypes : unsigned {
-    nspc,       // general per channels format
-    ncsp,        // general planar
-    nCsp8c,     // general channels blocked by 8
-    nCsp16c    // general channels blocked by 16
-};
-
 class CreatorsMapFilterConstIterator;
 
-class TensorDescCreator {
+class BlockedDescCreator {
 public:
-    typedef std::shared_ptr<TensorDescCreator> CreatorPtr;
-    typedef std::shared_ptr<const TensorDescCreator> CreatorConstPtr;
-    typedef std::map<TensorDescCreatorTypes, CreatorConstPtr> CreatorsMap;
+    typedef std::shared_ptr<BlockedDescCreator> CreatorPtr;
+    typedef std::shared_ptr<const BlockedDescCreator> CreatorConstPtr;
+    typedef std::map<GeneralLayout, CreatorConstPtr> CreatorsMap;
     typedef std::function<bool(const CreatorsMap::value_type&)> Predicate;
 
 public:
@@ -34,17 +25,17 @@ public:
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap &map, unsigned rank);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-    makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<TensorDescCreatorTypes>& supportedTypes);
+    makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<GeneralLayout>& supportedTypes);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap& map, Predicate predicate);
     virtual BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const = 0;
     virtual size_t getMinimalRank() const = 0;
-    virtual ~TensorDescCreator() = default;
+    virtual ~BlockedDescCreator() = default;
 };
 
 class CreatorsMapFilterConstIterator {
 public:
-    typedef TensorDescCreator::CreatorsMap::const_iterator Iterator;
+    typedef BlockedDescCreator::CreatorsMap::const_iterator Iterator;
     typedef std::iterator_traits<Iterator>::value_type value_type;
     typedef std::iterator_traits<Iterator>::reference reference;
     typedef std::iterator_traits<Iterator>::pointer pointer;

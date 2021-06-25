@@ -6,7 +6,7 @@
 
 #include <ie_iextension.h>
 #include "nodes/list.hpp"
-#include "common/tensor_desc_creator.h"
+#include "common/blocked_desc_creator.h"
 #include "ngraph/descriptor/tensor.hpp"
 #include <ie_ngraph_utils.hpp>
 #include "cpu_types.h"
@@ -66,16 +66,16 @@ protected:
         DataConfigurator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType, Precision prc = Precision::UNSPECIFIED, bool constant = false, int inplace = -1) :
                 tensorDescCreator(getTensorDescCreator(tensorDescType)), prc(prc), constant(constant), inplace(inplace) {}
 
-        DataConfigurator(const MKLDNNPlugin::TensorDescCreator::CreatorConstPtr& tensorDescCreator, Precision prc = Precision::UNSPECIFIED,
-                bool constant = false, int inplace = -1) : tensorDescCreator(tensorDescCreator), prc(prc), constant(constant), inplace(inplace) {}
+        DataConfigurator(const MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr& tensorDescCreator, Precision prc = Precision::UNSPECIFIED,
+                         bool constant = false, int inplace = -1) : tensorDescCreator(tensorDescCreator), prc(prc), constant(constant), inplace(inplace) {}
 
-        const MKLDNNPlugin::TensorDescCreator::CreatorConstPtr tensorDescCreator;
+        const MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr tensorDescCreator;
         const bool constant = false;
         const int inplace = -1;
         const Precision prc = Precision::UNSPECIFIED; // By default ngraph node precision is used
     private:
-        static MKLDNNPlugin::TensorDescCreator::CreatorConstPtr getTensorDescCreator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType) {
-            auto& creators = MKLDNNPlugin::TensorDescCreator::getCommonCreators();
+        static MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr getTensorDescCreator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType) {
+            auto& creators = MKLDNNPlugin::BlockedDescCreator::getCommonCreators();
             if (creators.find(tensorDescType) == creators.end()) {
                 IE_THROW() << "Cannot find tensor descriptor creator";
             }

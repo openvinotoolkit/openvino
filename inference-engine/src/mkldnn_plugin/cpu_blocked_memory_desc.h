@@ -67,9 +67,14 @@ public:
 
     size_t getOffset(size_t elemNumber) const override;
 
+    bool checkGeneralLayout(GeneralLayout layoutType) const override;
+
 private:
     size_t getMemSizeImp() const override;
     size_t getOffset(const InferenceEngine::SizeVector& v) const;
+    bool isPlainFormat() const;
+    bool isBlockedCFormat(size_t blk_size) const;
+    bool isTailCFormat() const;
 
 private:
     std::vector<size_t> blockedDims;

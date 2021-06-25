@@ -26,7 +26,7 @@
 #include <ngraph/ops.hpp>
 #include <ngraph/node.hpp>
 #include <ie_precision.hpp>
-#include <nodes/common/tensor_desc_creator.h>
+#include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
 #include "cpu_memory_desc.h"
@@ -203,27 +203,27 @@ class PortConfigurator {
 public:
     PortConfigurator() = default;
 
-    PortConfigurator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType, InferenceEngine::Precision prc, const Shape& shape,
+    PortConfigurator(MKLDNNPlugin::GeneralLayout blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
                      bool constant = false, int inPlace = -1) :
-            tensorDescCreator(getTensorDescCreator(tensorDescType)), prc(prc), shape(shape), constant(constant), inPlace(inPlace) {}
+            tensorDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), shape(shape), constant(constant), inPlace(inPlace) {}
 
-    PortConfigurator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
+    PortConfigurator(MKLDNNPlugin::GeneralLayout blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
                      bool constant = false, int inPlace = -1) :
-            tensorDescCreator(getTensorDescCreator(tensorDescType)), constant(constant), inPlace(inPlace) {}
+            tensorDescCreator(getBlockedDescCreator(blockedDescType)), constant(constant), inPlace(inPlace) {}
 
-    MKLDNNPlugin::TensorDescCreator::CreatorConstPtr tensorDescCreator;
+    MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr tensorDescCreator;
     const InferenceEngine::Precision prc;
     const Shape shape;
     bool constant = false;
     int inPlace = -1;
 
 private:
-    static MKLDNNPlugin::TensorDescCreator::CreatorConstPtr getTensorDescCreator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType) {
-        auto& creators = MKLDNNPlugin::TensorDescCreator::getCommonCreators();
-        if (creators.find(tensorDescType) == creators.end()) {
+    static MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(MKLDNNPlugin::GeneralLayout blockedDescType) {
+        auto& creators = MKLDNNPlugin::BlockedDescCreator::getCommonCreators();
+        if (creators.find(blockedDescType) == creators.end()) {
             IE_THROW() << "Cannot find tensor descriptor creator";
         }
-        return creators.at(tensorDescType);
+        return creators.at(blockedDescType);
     }
 };
 

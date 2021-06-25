@@ -7,7 +7,7 @@
 #include <string>
 #include "ie_parallel.hpp"
 #include "mkldnn_select_node.h"
-#include <nodes/common/tensor_desc_creator.h>
+#include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"

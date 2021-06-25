@@ -150,3 +150,64 @@ size_t BlockedMemoryDesc::getOffset(size_t elemNumber) const {
     }
     return getOffset(pos);
 }
+
+bool BlockedMemoryDesc::checkGeneralLayout(GeneralLayout layoutType) const {
+    switch (layoutType) {
+        case GeneralLayout::ncsp:
+            return isPlainFormat();
+        case GeneralLayout::nspc:
+            return isTailCFormat();
+        case GeneralLayout::nCsp8c:
+            return isBlockedCFormat(8);
+        case GeneralLayout::nCsp16c:
+            return isBlockedCFormat(16);
+        default:
+            return false;
+    }
+}
+
+bool BlockedMemoryDesc::isPlainFormat() const {
+    if (shape.getRank() != order.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < order.size(); ++i) {
+        if (order[i] != i) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool BlockedMemoryDesc::isBlockedCFormat(size_t blk_size) const {
+    if ((order.size() - shape.getRank()) != 1) {
+        return false;
+    }
+    for (size_t i = 0; i < order.size() - 1; ++i) {
+        if (order[i] != i) {
+            return false;
+        }
+    }
+    if (order.back() != 1) {
+        return false;
+    }
+    if (blockedDims.back() != blk_size) {
+        return false;
+    }
+    return true;
+}
+
+bool BlockedMemoryDesc::isTailCFormat() const {
+    if (shape.getRank() < 3) {
+        return false;
+    }
+    if (shape.getRank() != order.size()) {
+        return false;
+    }
+    if (!std::is_sorted(order.begin(), order.end()--)) {
+        return false;
+    }
+    if (order.back() != 1) {
+        return false;
+    }
+    return true;
+}

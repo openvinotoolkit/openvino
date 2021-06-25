@@ -1044,4 +1044,19 @@ bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
     size_t ie_blk_offset0 = desc.data.offset0;
     return !(ie_blk_offset0 != rhs.getOffsetPadding() && ie_blk_offset0 != Shape::UNDEFINED_DIM && rhs.getOffsetPadding() != Shape::UNDEFINED_DIM);
 }
+
+bool MKLDNNMemoryDesc::checkGeneralLayout(GeneralLayout layoutType) const {
+    switch (layoutType) {
+        case GeneralLayout::ncsp:
+            return isPlainFormat();
+        case GeneralLayout::nspc:
+            return isTailCFormat();
+        case GeneralLayout::nCsp8c:
+            return isBlockedCFormat(8);
+        case GeneralLayout::nCsp16c:
+            return isBlockedCFormat(16);
+        default:
+            return false;
+    }
+}
 }  // namespace MKLDNNPlugin

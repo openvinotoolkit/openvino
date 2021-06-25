@@ -4,7 +4,7 @@
 
 #include "mkldnn_split_node.h"
 #include "common/cpu_memcpy.h"
-#include "common/tensor_desc_creator.h"
+#include "common/blocked_desc_creator.h"
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
@@ -105,11 +105,11 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     }
 
     //Set plain and tailC formats
-    std::vector<TensorDescCreatorTypes> tdCreatorTypes{ TensorDescCreatorTypes::ncsp, TensorDescCreatorTypes::nspc };
+    std::vector<GeneralLayout> tdCreatorTypes{ GeneralLayout::ncsp, GeneralLayout::nspc };
 
     //Support channel blocked format
     if (srcShape.getRank() > 2) {
-        for (auto item : { std::make_pair(8lu, TensorDescCreatorTypes::nCsp8c), std::make_pair(16lu, TensorDescCreatorTypes::nCsp16c) }) {
+        for (auto item : { std::make_pair(8lu, GeneralLayout::nCsp8c), std::make_pair(16lu, GeneralLayout::nCsp16c) }) {
             SizeVector blkDims = srcShape.getStaticDims();
             if (blkDims[channelsPos] % item.first)
                 continue;
@@ -129,8 +129,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
     std::vector<size_t> pdIndexesToReuse;
 
-    auto& creatorsMap = TensorDescCreator::getCommonCreators();
-    auto itrRange = TensorDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(srcShape.getRank()), tdCreatorTypes);
+    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    auto itrRange = BlockedDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(srcShape.getRank()), tdCreatorTypes);
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
@@ -156,10 +156,10 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
 
-        if (itr->first == TensorDescCreatorTypes::ncsp) {
+        if (itr->first == GeneralLayout::ncsp) {
             // at least the plain layout can be optimized inplace.
             pdIndexesToReuse.emplace_back(supportedPrimitiveDescriptors.size() - 1);
-        } else if (itr->first == TensorDescCreatorTypes::nCsp8c || itr->first == TensorDescCreatorTypes::nCsp16c) {
+        } else if (itr->first == GeneralLayout::nCsp8c || itr->first == GeneralLayout::nCsp16c) {
             if (axis < 2) {
                 pdIndexesToReuse.emplace_back(supportedPrimitiveDescriptors.size() - 1);
             }
@@ -210,7 +210,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
         config.inConfs[0].desc = make_unique<BlockedMemoryDesc>(
-                creatorsMap.at(TensorDescCreatorTypes::nspc)->createDesc(inpPrecision, srcShape.getStaticDims()));
+                creatorsMap.at(GeneralLayout::nspc)->createDesc(inpPrecision, srcShape.getStaticDims()));
         config.inConfs[1].inPlace = -1;
         config.inConfs[1].constant = true;
         config.inConfs[1].desc = make_unique<BlockedMemoryDesc>(axisPrecision, SizeVector{1});
@@ -223,7 +223,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             config.outConfs[i].inPlace = -1;
             config.outConfs[i].constant = false;
-            config.outConfs[i].desc = make_unique<BlockedMemoryDesc>(creatorsMap.at(TensorDescCreatorTypes::ncsp)->createDesc(inpPrecision,
+            config.outConfs[i].desc = make_unique<BlockedMemoryDesc>(creatorsMap.at(GeneralLayout::ncsp)->createDesc(inpPrecision,
                                                                                                outputShapes[i].getStaticDims()));
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
@@ -245,17 +245,17 @@ void MKLDNNSplitNode::createPrimitive() {
     if (axis != 1)
         canUseOptimizedNspc2Ncsp = false;
 
-    // TODO [mkutakov]: rewrite using MemDesc and layout check functions
+    auto& memDesc = getParentEdgeAt(0)->getMemoryPtr()->GetDesc();
+    if (one_of(memDesc.getShape().getRank(), 4, 5)) {
+        if (memDesc.checkGeneralLayout(GeneralLayout::nspc))
+            canUseOptimizedNspc2Ncsp = false;
 
-//    if (getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NHWC &&
-//        getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NDHWC)
-//        canUseOptimizedNspc2Ncsp = false;
-//
-//    for (size_t i = 0; i < getChildEdges().size(); i++) {
-//        if (getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCHW &&
-//            getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCDHW)
-//            canUseOptimizedNspc2Ncsp = false;
-//    }
+        for (size_t i = 0; i < getChildEdges().size(); i++) {
+            auto& childMemDesc = getChildEdgeAt(i)->getMemoryPtr()->GetDesc();
+            if (childMemDesc.checkGeneralLayout(GeneralLayout::ncsp))
+                canUseOptimizedNspc2Ncsp = false;
+        }
+    }
 
     if (!isOptimized()) {
         initializeDstMemPtrs();
