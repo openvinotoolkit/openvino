@@ -24,6 +24,10 @@ mock_needed = pytest.mark.skipif(not mock_available,
 
 
 # ---------- FrontEnd tests ---------------
+def test_pickle():
+    import pickle
+    pickle.dumps(fem)
+
 @mock_needed
 def test_load_by_framework_caps():
     frontEnds = fem.get_available_front_ends()
