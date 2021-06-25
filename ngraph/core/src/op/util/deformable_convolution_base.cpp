@@ -50,13 +50,10 @@ bool op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor& vis
 
 void op::util::DeformableConvolutionBase::validate_and_infer_types()
 {
-    std::cout << "XXXXXXX: validate_and_infer_types" << std::endl;
     NGRAPH_OP_SCOPE(util_DeformableConvolutionBase_validate_and_infer_types);
     const PartialShape& data_batch_pshape = get_input_partial_shape(0);
     const PartialShape& offsets_pshape = get_input_partial_shape(1);
-    std::cout << "XXXXXXX: input size: " << get_input_size() << std::endl;
     const PartialShape& filters_pshape = get_input_partial_shape(2);
-    std::cout << "XXXXXXX: validate_and_infer_types get_input_partial_shape(2)" << std::endl;
 
     element::Type data_batch_et = get_input_element_type(0);
     element::Type offsets_et = get_input_element_type(1);
