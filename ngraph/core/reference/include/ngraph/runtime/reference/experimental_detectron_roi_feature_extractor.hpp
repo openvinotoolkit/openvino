@@ -20,7 +20,7 @@ namespace ngraph
         namespace reference
         {
             void experimental_detectron_roi_feature_extractor(
-                const std::vector<float*>& inputs,
+                const std::vector<std::vector<float>>& inputs,
                 const std::vector<Shape>& input_shapes,
                 const op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes& attrs,
                 float* output_rois_features,
@@ -33,6 +33,6 @@ namespace ngraph
                 const std::vector<float>& output_rois,
                 const Shape& output_roi_features_shape,
                 const Shape& output_rois_shape);
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
