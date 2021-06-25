@@ -458,6 +458,7 @@ set(MULTI_TEST_SRC
     backend/roll.in.cpp
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
+    backend/space_to_depth.in.cpp
     backend/select.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
