@@ -42,6 +42,8 @@ if(NOT WIN32)
             DEPENDS ${PROTOBUF_STATIC_LIB_OUTPUT})
 endif()
 
+set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
+
 add_subdirectory(frontend_manager)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)

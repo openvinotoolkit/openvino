@@ -9,7 +9,6 @@ target_compile_definitions(mock1_ngraph_frontend PRIVATE "-DMOCK_VARIANT=\"1\"")
 
 target_include_directories(mock1_ngraph_frontend PRIVATE ".")
 
-target_include_directories(mock1_ngraph_frontend PRIVATE ${FRONTEND_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH})
 target_link_libraries(mock1_ngraph_frontend PRIVATE frontend_manager)
 add_dependencies(unit-test mock1_ngraph_frontend)
 

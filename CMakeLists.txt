@@ -94,8 +94,6 @@ function(build_ngraph)
 
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
-    set(FRONTEND_LIBRARIES frontend_manager PARENT_SCOPE)
-    set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
 endfunction()
 
 function(openvino_developer_export_targets)
