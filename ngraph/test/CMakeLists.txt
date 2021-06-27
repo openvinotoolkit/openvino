@@ -18,14 +18,6 @@ if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "4.0.0")
-        # gtest has issues with this with v1.8.x
-        # gtest issue is supposed to be addressed after v1.8.x
-        add_compile_options(-Wno-zero-as-null-pointer-constant)
-    endif()
-endif()
-
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
@@ -55,7 +47,6 @@ set(SRC
     main.cpp
     matcher_pass.cpp
     misc.cpp
-    ngraph_api.cpp
     node_input_output.cpp
     op.cpp
     op_eval/binary_convolution.cpp
@@ -516,13 +507,45 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
         onnx/onnx_import_with_editor.in.cpp)
 endif()
 
-# SOURCE AND HEADERS FOR FRONTEND TESTING
+# SOURCE FOR FRONTEND TESTING
+
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
 file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
 file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
 set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+
+# ---- PaddlePaddle FrontEnd testing ------
+if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    find_package (PythonInterp 3 REQUIRED)
+    set(PDPD_PYTHON_OK TRUE)
+    if(NOT PYTHON_EXECUTABLE)
+        message("Python3 is required to build the PDPD frontend unit tests")
+        set(PDPD_PYTHON_OK FALSE)
+    endif()
+
+    if (PDPD_PYTHON_OK)
+        execute_process(
+                COMMAND ${PYTHON_EXECUTABLE} -m pip show paddlepaddle
+                RESULT_VARIABLE PIP_EXIT_CODE
+                OUTPUT_QUIET
+        )
+
+        if (NOT ${PIP_EXIT_CODE} EQUAL 0)
+            message("Python paddlepaddle package is not installed. Please use \"pip install paddlepaddle==2.0.1\".")
+            set(PDPD_PYTHON_OK FALSE)
+        endif()
+    endif()
+
+    if (PDPD_PYTHON_OK)
+        file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
+        set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+        set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
+        add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
+    endif()
+endif()
+# ---- End PaddlePaddle FrontEnd testing ------
 
 add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
 
@@ -553,10 +576,6 @@ if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
-
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
                                         openvino::conditional_compilation)
@@ -578,7 +597,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
-target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")
 if(NOT WIN32)
     target_link_libraries(unit-test PRIVATE pthread)
 endif()
@@ -613,9 +631,37 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
 
+install(TARGETS unit-test
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
 
 add_subdirectory(frontend)
 ### END FRONTEND ###
+
+#PaddlePaddle - test models generator
+if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
+    file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
+    set(OUT_FILES "")
+    foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
+        get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
+        set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
+        add_custom_command(OUTPUT ${OUT_DONE_FILE}
+                COMMAND ${PYTHON_EXECUTABLE}
+                        ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
+                        ${GEN_SCRIPT}
+                        ${TEST_PDPD_MODELS}
+                        ${OUT_DONE_FILE}
+                DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
+                )
+    endforeach()
+    add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
+    add_dependencies(unit-test pdpd_test_models)
+    add_dependencies(unit-test paddlepaddle_ngraph_frontend)
+endif()
+
