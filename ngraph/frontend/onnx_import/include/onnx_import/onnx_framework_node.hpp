@@ -36,7 +36,7 @@ namespace ngraph
 
     namespace frontend
     {
-        class NGRAPH_API ONNXFrameworkNode : public op::FrameworkNode
+        class ONNXFrameworkNode : public op::FrameworkNode
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -78,7 +78,7 @@ namespace ngraph
             onnx_import::Node m_node;
         };
 
-        class NGRAPH_API ONNXSubgraphFrameworkNode : public ONNXFrameworkNode
+        class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode
         {
         public:
             NGRAPH_RTTI_DECLARATION;
