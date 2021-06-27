@@ -1,8 +1,9 @@
 deviceList = [];
 $(document).ready(function () {
-    var opsets = {};
     LoadOpsetNumbers();
     LoadDevices();
+    $('#status').prop("disabled", true);
+    $("#status").chosen({max_selected_options: 6});
 
     $("#filters").submit(function (event) {
         event.preventDefault();
@@ -11,19 +12,24 @@ $(document).ready(function () {
     $('#reset').click(function () {
         $('#opsetNumber').val(0);
         $('#operationName').val('');
-        $('#status').prop("disabled", true).val(0);
+        $('#status').prop("disabled", true).val('');
         $('#devices').val(0);
         $('#references').val(0);
+        $("#status").chosen("destroy");
+        $("#status").chosen({max_selected_options: 6});
         filterTable();
     });
     $('#devices').on('change', function () {
         if (this.value == 0) {
-            $('#status').prop("disabled", true).val(0);
+            $('#status').prop("disabled", true).val('');
+            $("#status").chosen("destroy");
+            $("#status").chosen({max_selected_options: 6});
         } else {
             $('#status').prop("disabled", false);
+            $("#status").chosen("destroy");
+            $("#status").chosen({max_selected_options: 6});
         };
     });
-
 });
 
 function LoadOpsetNumbers() {
@@ -86,7 +92,7 @@ function filterTable() {
 
     if (operationName) {
         $("#report #data tr:not(:hidden)").filter(function () {
-            $(this).toggle($(this).find('th').text().split("-")[0].toLowerCase().indexOf(operationName.toLowerCase()) > -1);
+            $(this).toggle($(this).find('th').text().toLowerCase().indexOf(operationName.toLowerCase()) > -1);
         });
     }
 
@@ -101,31 +107,34 @@ function filterTable() {
             });
         }
     }
-    if (status != 0) {
-        if (status == 'p') {
-            $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle($(this).find('.value:visible[crashed="0"][failed="0"][skipped="0"]').length > 0)
-            });
-        } else if (status == 'f') {
-            $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle($(this).find('.value:visible[passed="0"][crashed="0"][skipped="0"]').length > 0)
-            });
-        } else if (status == 'c') {
-            $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle($(this).find('.value:visible[passed="0"][failed="0"][skipped="0"]').length > 0)
-            });
-        } else if (status == 's') {
-            $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle($(this).find('.value:visible[passed="0"][failed="0"][crashed="0"]').length > 0)
-            });
-        } else { // No tests
-
-            $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle($(this).find('.table-secondary:visible').length > 0)
-            });
-        }
+    if (status) {
+        select = status.split(',');
+        selector = [];
+        select.forEach(item => {
+            if (item == 'p') {
+               selector.push('.value:visible[crashed="0"][failed="0"][skipped="0"]');
+            }
+            if (item == 'f') {
+                selector.push('.value:visible[failed!="0"]');
+            }
+            if (item == 'c') {
+                selector.push('.value:visible[crashed!="0"]');
+            }
+            if (item == 's') {
+                selector.push('.value:visible[skipped!="0"]');
+            }
+            if (item == 'ex') {
+                selector.push('.value:visible');
+            }
+            if (item == 'na') {
+                selector.push('.table-secondary:visible');
+            }
+        });
+        elements = selector.join(',');
+        $("#report #data tr:not(:hidden)").filter(function () {
+            $(this).toggle($(this).find(elements).length > 0)
+        });
     }
-
 
     if ($("#report #data tr").length == $("#report #data tr:hidden").length) {
         $('#report').hide();
