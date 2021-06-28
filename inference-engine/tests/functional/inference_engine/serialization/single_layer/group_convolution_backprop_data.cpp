@@ -43,7 +43,7 @@ const auto groupConvBackpropData2DParams = ::testing::Combine(
     ::testing::ValuesIn(numGroups), ::testing::ValuesIn(pad_types),
     ::testing::ValuesIn(outputPadding));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_GroupConvBackpropData2D_Serialization, GroupConvBackpropLayerTest,
     ::testing::Combine(
         groupConvBackpropData2DParams,
