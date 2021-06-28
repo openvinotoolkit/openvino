@@ -29,8 +29,5 @@ target_link_libraries(${TARGET_NAME}
         ${InferenceEngine_LIBRARIES}
         )
 
-target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src")
-
 # Copy local configs to BIN_FOLDER
 configure_file(local_configs/test_config.xml ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/stress_tests_configs/memleaks_tests/test_config.xml COPYONLY)

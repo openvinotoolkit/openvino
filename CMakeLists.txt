@@ -28,7 +28,6 @@ endif()
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
 message (STATUS "OpenVINO_MAIN_SOURCE_DIR .............. " ${OpenVINO_MAIN_SOURCE_DIR})
-message (STATUS "IE_MAIN_SOURCE_DIR .................... " ${IE_MAIN_SOURCE_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
@@ -144,8 +143,6 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
                       SKIP "${OpenVINO_MAIN_SOURCE_DIR}/bin"
                            "${OpenVINO_MAIN_SOURCE_DIR}/build"
                            "${OpenVINO_MAIN_SOURCE_DIR}/thirdparty"
-                           "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest"
-                           "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/temp"
                            # TODO fix and enable back:
