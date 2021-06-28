@@ -5,5 +5,5 @@
 #include "reduce_ops.hpp"
 
 using Type = ::testing::Types<op::v1::ReduceLogicalOr>;
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop_reduce_logical_or, ReduceTest, Type);
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop_reduce_logical_or_et, ReduceLogicalTest, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_logical_or, ReduceTest, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_logical_or_et, ReduceLogicalTest, Type);
