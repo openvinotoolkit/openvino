@@ -25,8 +25,11 @@ python3 mo.py --input_model INPUT_MODEL
 ```
 To learn about all Model Optimizer parameters and conversion technics, see the [Converting a Model to IR](prepare_model/convert_model/Converting_Model.md) page.
 
-> **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models.
+> **TIP**: You can quick start with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref 
+> openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI that enables you to
+> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
+> deployment on various Intel® platforms.
 
 ## Videos
 
