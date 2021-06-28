@@ -114,7 +114,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
     if (tuning_data.tile_k_size > tuning_data.simd_size) {
         jit.AddConstants({
             MakeJitConstant("A_VEC_SIZE", tuning_data.tile_k_size / tuning_data.simd_size),
-            MakeJitConstant("A_FLOATN", std::string("UNIT_TYPE") + std::to_string(tuning_data.tile_k_size / tuning_data.simd_size)),
+            MakeJitConstant("A_FLOATN", std::string("UNIT_TYPE") + toCodeString(tuning_data.tile_k_size / tuning_data.simd_size)),
         });
     } else {
         jit.AddConstants({
@@ -126,7 +126,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
     if (tuning_data.tile_n_size > tuning_data.simd_size) {
         jit.AddConstants({
             MakeJitConstant("B_VEC_SIZE", b_vec_size),
-            MakeJitConstant("B_FLOATN", std::string("UNIT_TYPE") + std::to_string(b_vec_size)),
+            MakeJitConstant("B_FLOATN", std::string("UNIT_TYPE") + toCodeString(b_vec_size)),
         });
     } else {
         b_vec_size = 1;

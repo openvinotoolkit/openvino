@@ -134,9 +134,9 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetFusedPrimitivesJitCons
 
         std::string data_type = fused_dep_codegen.GetInputTypeName(0, 1);
         std::string vec_data_type = fused_dep_codegen.GetInputTypeName(0, 1);
-        std::string sc = "sc" + std::to_string(op_id);
-        std::string e_add = "e_add" + std::to_string(op_id);
-        std::string e_mul = "e_mul" + std::to_string(op_id);
+        std::string sc = "sc" + toCodeString(op_id);
+        std::string e_add = "e_add" + toCodeString(op_id);
+        std::string e_mul = "e_mul" + toCodeString(op_id);
 
         switch (fused_dep.GetType()) {
             case KernelType::SCALE: {
@@ -164,7 +164,7 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetFusedPrimitivesJitCons
                 auto p = fused_dep.GetOpParams<activation_fuse_params>();
                 base_activation_params activation = p->param;
                 if (activation.function != ActivationFunction::NONE) {
-                    auto suffix = "_FUSED_OP" + std::to_string(op_id);
+                    auto suffix = "_FUSED_OP" + toCodeString(op_id);
 
                     jit.Merge(MakeActivationJitConstants(activation, fused_dep.output_tensor.GetDType(), suffix));
                     eltwise_fused_ops += "\\\n\tres = ACTIVATION" + suffix + "((OUTPUT_TYPE)res, ACTIVATION_PARAMS" + suffix + ");";
