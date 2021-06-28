@@ -25,6 +25,7 @@ namespace ngraph
                     auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
                     // unsqueeze data with Shape{} to Shape{1}
+                    // it should be reverted after new version of Slice introcution (ticket 58794)
                     const auto data_shape = data.get_partial_shape();
                     if (axes.size() == 1 && axes[0] == 0 && data_shape.is_static() &&
                         ngraph::op::is_constant(data.get_node()) &&
