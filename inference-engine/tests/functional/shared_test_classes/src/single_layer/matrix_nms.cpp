@@ -47,7 +47,7 @@ void MatrixNmsLayerTest::GenerateInputs() {
         if (it == 1) {
             blob = make_blob_with_precision(info->getTensorDesc());
             blob->allocate();
-            CommonTestUtils::fill_data_random_float<Precision::FP32>(blob, 1, 0, 1000);
+            CommonTestUtils::fill_data_random_float<Precision::FP32>(blob, 1, 0, 100000);
         } else {
             blob = GenerateInput(*info);
         }

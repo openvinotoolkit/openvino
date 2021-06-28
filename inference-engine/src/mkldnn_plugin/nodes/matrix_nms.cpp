@@ -403,7 +403,12 @@ public:
                               perm.begin() + num_det,
                               perm.end(),
                               [&batch_filtered_box](int lhs, int rhs) {
-                                  return batch_filtered_box[lhs].score > batch_filtered_box[rhs].score;
+                                  return batch_filtered_box[lhs].score > batch_filtered_box[rhs].score ||
+                                          (batch_filtered_box[lhs].score == batch_filtered_box[rhs].score &&
+                                          batch_filtered_box[lhs].class_index < batch_filtered_box[rhs].class_index) ||
+                                          (batch_filtered_box[lhs].score == batch_filtered_box[rhs].score &&
+                                           batch_filtered_box[lhs].class_index == batch_filtered_box[rhs].class_index &&
+                                           batch_filtered_box[lhs].index < batch_filtered_box[rhs].index);
                               });
 
             auto offset = batch * real_num_classes * real_num_boxes;
