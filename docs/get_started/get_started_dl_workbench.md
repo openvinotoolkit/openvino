@@ -1,6 +1,6 @@
 # Quick Start with OpenVINO™ Toolkit via Deep Learning Workbench {#openvino_docs_get_started_get_started_dl_workbench}
 
-The OpenVINO™ toolkit  is a comprehensive toolkit for optimizing pretrained deep learning models to achieve high performance and prepare them for deployment on Intel® platforms. Deep Learning Workbench (DL Workbench) is an official OpenVINO™ graphical user interface designed to make the production of pretrained deep learning models significantly easier.
+The OpenVINO™ toolkit  is a comprehensive toolkit for optimizing pretrained deep learning models to achieve high performance and prepare them for deployment on Intel® platforms. Deep Learning Workbench (DL Workbench) is the OpenVINO™ toolkit UI designed to make the production of pretrained deep learning models significantly easier.
 
 Start working with the OpenVINO™ toolkit right from your browser: import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for deployment in a matter of minutes. DL Workbench will take you through the full OpenVINO™ workflow, providing the opportunity to learn about various toolkit components.
 
