@@ -269,8 +269,6 @@ public:
             filtBoxes[0].score = scores_data[candidate_index[0]];
             filtBoxes[0].batch_index = batch_idx;
             filtBoxes[0].class_index = class_idx;
-            printf("mkldnn fisrt nms_matrix batch %ld class %ld no. index %ld score %f\n", batch_idx, class_idx,
-                    filtBoxes[num_det].index, filtBoxes[num_det].score);
             num_det++;
         }
 
@@ -296,8 +294,6 @@ public:
             filtBoxes[num_det].score = ds;
             filtBoxes[num_det].batch_index = batch_idx;
             filtBoxes[num_det].class_index = class_idx;
-//            printf("mkldnn nms_matrix batch %ld class %ld no. index %ld score %f\n", batch_idx, class_idx,
-//                    filtBoxes[num_det].index, filtBoxes[num_det].score);
             num_det++;
         }
         return num_det;
@@ -305,7 +301,6 @@ public:
 
     StatusCode execute(std::vector<Blob::Ptr> &inputs, std::vector<Blob::Ptr> &outputs,
                        ResponseDesc *resp) noexcept override {
-        auto start = std::chrono::high_resolution_clock::now();
         const float *boxes = inputs[NMS_BOXES]->cbuffer().as<const float *>() +
                              inputs[NMS_BOXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         const float *scores = inputs[NMS_SCORES]->cbuffer().as<const float *>() +
@@ -363,7 +358,6 @@ public:
                                                              class_idx,
                                                              batch_filtered_box.data() + class_offset[class_idx]);
                 }
-//                printf("batch %ld class_idx %ld %ld\n", batch, class_idx, class_num_det);
                 num_per_class[class_idx] = class_num_det;
             });
             num_det = std::accumulate(num_per_class.begin(), num_per_class.end(), 0);
@@ -371,13 +365,11 @@ public:
                 return;
             }
 
-            auto start_offset = 0;
-            for (size_t i = 0; i < num_per_class.size(); i++) {
+            auto start_offset = num_per_class[0];
+            for (size_t i = 1; i < num_per_class.size(); i++) {
                 auto offset_class = class_offset[i];
                 for (size_t j = 0; j < num_per_class[i]; j++) {
                     batch_filtered_box[start_offset + j] = batch_filtered_box[offset_class + j];
-//                    printf("batch %ld class %ld no. %ld total index %ld\n", batch, i, j,
-//                            batch_filtered_box[offset_class + j].index);
                 }
                 start_offset += num_per_class[i];
             }
@@ -390,14 +382,8 @@ public:
                     num_det = k;
             }
 
-            printf("mkldnn batch %ld num_det %ld batched %ld\n", batch, num_det, batch_filtered_box.size());
             std::vector<int32_t> perm(batch_filtered_box.size());
             std::iota(perm.begin(), perm.end(), 0);
-
-            for (int i = 0; i < 4; i++) {
-                printf("mkldnn batched %d index %ld score %f\n", i, batch_filtered_box[perm[i]].index,
-                       batch_filtered_box[perm[i]].score);
-            }
 
             std::partial_sort(perm.begin(),
                               perm.begin() + num_det,
@@ -413,10 +399,6 @@ public:
 
             auto offset = batch * real_num_classes * real_num_boxes;
             for (size_t i = 0; i < num_det; i++) {
-                if (i == 0 || i == 1 || i == 2) {
-                    printf("mkl dnn batched  %ld %ld class %ld score %f \n", batch, batch_filtered_box[perm[i]].index,
-                            batch_filtered_box[perm[i]].class_index, batch_filtered_box[perm[i]].score);
-                }
                 filtered_boxes[offset + i] = batch_filtered_box[perm[i]];
             }
             num_per_batch[batch] = num_det;
@@ -486,11 +468,6 @@ public:
             selected_base[4] = filtered_boxes[i].box.x2;
             selected_base[5] = filtered_boxes[i].box.y2;
         }
-        printf("first index %d class %f score %f \n", selected_indices[0], selected_outputs[0], selected_outputs[1]);
-        printf("second index %d class %f score %f \n", selected_indices[1], selected_outputs[6], selected_outputs[7]);
-        printf("third index %d class %f score %f \n", selected_indices[2], selected_outputs[12], selected_outputs[13]);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << " NMSMatrix_parallel " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
         return OK;
     }
 

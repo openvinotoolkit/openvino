@@ -177,8 +177,6 @@ namespace ngraph
                                   [&scores_data](int32_t a, int32_t b) {
                                       return scores_data[a] > scores_data[b];
                                   });
-                printf("Ref 0Sort %d\n", candidate_index[0]);
-                printf("Ref 1Sort %d\n", candidate_index[1]);
                 std::vector<T> iou_matrix((original_size * (original_size - 1)) >> 1);
                 std::vector<T> iou_max(original_size);
 
@@ -322,10 +320,7 @@ namespace ngraph
 
                     std::vector<int32_t> perm(all_indices.size());
                     std::iota(perm.begin(), perm.end(), 0);
-                    printf("ref num_det %ld\n", num_det);
-                    for (int i = 0; i < 3; i++) {
-                        printf("before sort index %d score %f\n", all_indices[perm[i]], all_scores[perm[i]]);
-                    }
+
                     std::partial_sort(perm.begin(),
                                       perm.begin() + num_det,
                                       perm.end(),
@@ -336,9 +331,7 @@ namespace ngraph
                                                  (all_scores[lhs] == all_scores[rhs] &&
                                                   all_classes[lhs] == all_classes[rhs] && all_indices[lhs] < all_indices[rhs]);
                                       });
-                    for (int i = 0; i < 3; i++) {
-                        printf("before sort index %d score %f\n", all_indices[perm[i]], all_scores[perm[i]]);
-                    }
+
                     for (size_t i = 0; i < num_det; i++)
                     {
                         auto p = perm[i];
@@ -346,9 +339,7 @@ namespace ngraph
                         auto cls = all_classes[p];
                         auto score = all_scores[p];
                         auto bbox = boxesPtr + idx * box_shape;
-                        if ( i == 0 || i == 1) {
-                            printf("ref index %ld cls %ld score %f\n", batch * num_boxes + idx, cls, score);
-                        }
+
                         filtered_boxes.push_back(
                             BoxInfo{Rectangle{bbox[0], bbox[1], bbox[2], bbox[3]},
                                     batch * num_boxes + idx,
