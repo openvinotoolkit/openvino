@@ -70,11 +70,6 @@ SwapInputMatMul::SwapInputMatMul() {
             input_b_skip_fq = input_b_skip_fq->input_value(0).get_node_shared_ptr();
         }
 
-        if (!std::dynamic_pointer_cast<ngraph::opset7::Constant>(input_a_skip_fq) ||
-            std::dynamic_pointer_cast<ngraph::opset7::Constant>(input_b_skip_fq)) {
-            return false;
-        }
-
         if (shape_input_a[0] < 8 || ((shape_input_a[0] % 8 != 0 || shape_input_a[1] % 8 != 0))) {
             return false;
         }
