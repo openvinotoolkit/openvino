@@ -28,7 +28,6 @@ std::string runtime::Backend::s_backend_shared_library_search_directory;
 // This finds the full path of the containing shared library
 static string find_my_pathname()
 {
-#ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
 #ifdef _WIN32
     HMODULE hModule = GetModuleHandleW(L"ngraph.dll");
     WCHAR wpath[MAX_PATH];
@@ -45,9 +44,6 @@ static string find_my_pathname()
     return dl_info.dli_fname;
 #else
 #error "Unsupported OS"
-#endif
-#else
-    return {};
 #endif
 }
 
