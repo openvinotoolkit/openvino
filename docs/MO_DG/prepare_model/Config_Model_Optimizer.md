@@ -264,8 +264,9 @@ python3 -m easy_install dist/protobuf-3.6.1-py3.6-win-amd64.egg
 ```shell
 set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 ```
-
+\htmlonly
 </details>
+\endhtmlonly
 
 ## See Also
 
