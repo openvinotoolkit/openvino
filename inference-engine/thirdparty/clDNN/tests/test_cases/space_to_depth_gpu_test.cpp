@@ -54,7 +54,7 @@ TEST(space_to_depth_fp16_gpu, d1122_bs2_mbf) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -96,7 +96,7 @@ TEST(space_to_depth_fp16_gpu, d1142_bs2_mbf) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -151,7 +151,7 @@ TEST(space_to_depth_fp16_gpu, d1264_bs2_mbf) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -214,7 +214,7 @@ TEST(space_to_depth_fp16_gpu, d1199_bs3_mbf) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -446,7 +446,7 @@ TEST(space_to_depth_fp16_gpu, d1122_bs2_mdf) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -488,7 +488,7 @@ TEST(space_to_depth_fp16_gpu, d1142_bs2_mdf) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -543,7 +543,7 @@ TEST(space_to_depth_fp16_gpu, d1264_bs2_mdf) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -606,7 +606,7 @@ TEST(space_to_depth_fp16_gpu, d1199_bs3_mdf) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 

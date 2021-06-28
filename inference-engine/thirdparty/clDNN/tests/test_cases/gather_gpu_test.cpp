@@ -97,7 +97,7 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -225,7 +225,7 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -319,7 +319,7 @@ TEST(gather7_gpu_fp16, d44_axisY_bdim1) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -382,7 +382,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -444,7 +444,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -515,7 +515,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -573,7 +573,7 @@ TEST(gather_gpu_fp16, d14_axisB) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -635,7 +635,7 @@ TEST(gather_gpu_fp16, d222_axisB) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -696,7 +696,7 @@ TEST(gather_gpu_fp16, d22_axisY) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -757,7 +757,7 @@ TEST(gather_gpu_fp16, d22_axisF) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 

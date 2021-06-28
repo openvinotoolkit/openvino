@@ -87,6 +87,6 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }

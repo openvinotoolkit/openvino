@@ -33,7 +33,7 @@ inline void DoTest(engine& engine,
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 

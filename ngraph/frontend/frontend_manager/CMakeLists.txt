@@ -15,10 +15,11 @@ source_group("include" FILES ${LIBRARY_HEADERS})
 source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
 # Create shared library
+
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC ngraph)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -27,14 +28,13 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "Manager of OpenVINO nGraph Frontends")
 endif()
 
-set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/frontend_manager")
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
-                                                       $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
-target_include_directories(${TARGET_NAME} PRIVATE ${NGRAPH_INCLUDE_PATH} ${FRONTEND_INCLUDE_DIR})
+                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Installation rules
+
 install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
@@ -42,10 +42,7 @@ install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
 
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/frontend_manager
     DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-    COMPONENT ngraph
-    FILES_MATCHING
-        PATTERN "*.hpp"
-)
+    COMPONENT ngraph_dev
+    FILES_MATCHING PATTERN "*.hpp")
 
 export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
-

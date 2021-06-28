@@ -53,7 +53,7 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -95,7 +95,7 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -158,7 +158,7 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 

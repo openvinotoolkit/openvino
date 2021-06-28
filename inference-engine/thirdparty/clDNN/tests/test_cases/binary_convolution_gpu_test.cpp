@@ -239,7 +239,7 @@ TEST_P(binary_convolution_test, conv) {
             cldnn::mem_lock<float> ref(output_ref, get_test_stream());
             cldnn::mem_lock<uint16_t> opt(outputMemory, get_test_stream());
 
-            ASSERT_EQ(ref[i], opt[i]) << i;
+            ASSERT_EQ(ref[i], float16_to_float32(opt[i])) << i;
         }
     }
 }
@@ -472,6 +472,6 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     EXPECT_EQ(output_layout.size.spatial[0], 2);
 
     for (size_t i = 0; i < output_layout.count(); i++) {
-        EXPECT_EQ(output_ptr[i], output_vec[i]) << "index="<< i;
+        EXPECT_EQ(float16_to_float32(output_ptr[i]), output_vec[i]) << "index="<< i;
     }
 }

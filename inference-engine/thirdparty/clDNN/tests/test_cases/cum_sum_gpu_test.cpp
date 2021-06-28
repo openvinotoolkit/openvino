@@ -337,6 +337,6 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
 
     ASSERT_EQ(output->count(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        EXPECT_TRUE(are_equal(answers[i], float16_to_float32(output_ptr[i]))) << i;
     }
 }
