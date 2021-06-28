@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <tuple>
+
 #include "transformations/insert_transpose_before_matmul.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -14,15 +16,17 @@
 
 namespace testing {
 
-std::shared_ptr<ngraph::Function> createFunction(const std::vector<size_t>& input_values,
-                                                     const std::vector<size_t>& reshape_values,
-                                                     const std::vector<size_t>& matmul_values) {
-    auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, ngraph::Shape(input_values));
+namespace {
 
-    auto new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, reshape_values);
+std::shared_ptr<ngraph::Function> createFunction(const ngraph::PartialShape& input_values,
+                                                     const ngraph::Shape& reshape_values,
+                                                     const ngraph::Shape& matmul_values) {
+    auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_values);
+
+    auto new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_values.size()}, reshape_values);
     auto reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
 
-    auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, matmul_values);
+    auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{matmul_values.size()}, matmul_values);
     auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(reshape_operation, constant);
 
     auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
@@ -34,7 +38,7 @@ TEST(TransformationTests, InsertTransposeBeforeMatmulTestShapeNotSupported) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        func = createFunction({2, 9}, {9, 2}, {2, 1});
+        func = createFunction(ngraph::PartialShape{2, 9}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1});
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -43,7 +47,7 @@ TEST(TransformationTests, InsertTransposeBeforeMatmulTestShapeNotSupported) {
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createFunction({2, 9}, {9, 2}, {2, 1});
+    reference_func = createFunction(ngraph::PartialShape{2, 9}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1});
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
@@ -55,7 +59,7 @@ TEST(TransformationTests, InsertTransposeBeforeMatmulTestReshapeInOutEq) {
     const ngraph::Shape data_shape{9, 2};
 
     {
-        func = createFunction({9, 2}, {9, 2}, {2, 1});
+        func = createFunction(ngraph::PartialShape{9, 2}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1});
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -64,95 +68,84 @@ TEST(TransformationTests, InsertTransposeBeforeMatmulTestReshapeInOutEq) {
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    reference_func = createFunction({9, 2}, {9, 2}, {2, 1});
+    reference_func = createFunction(ngraph::PartialShape{9, 2}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1});
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, InsertTransposeBeforeMatmulTest) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    const ngraph::Shape data_shape{2, 8};
+// ---------------------------------------------------------------------------------------------------------------------
 
-    {
-        func = createFunction({2, 8}, {8, 2}, {2, 1});
+class InsertTransposeBeforeMatmulTestFixture: public CommonTestUtils::TestsCommon,
+                               public ::testing::WithParamInterface<std::tuple<ngraph::PartialShape, ngraph::Shape, ngraph::Shape>> {
+public:
+    void SetUp() override;
+    std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShape & input_shape,
+                                                   const ngraph::Shape & reshape_shape,
+                                                   const ngraph::Shape & matmul_shape);
+    std::shared_ptr<ngraph::Function> get_reference(const ngraph::PartialShape & input_shape);
+public:
+    std::shared_ptr<ngraph::Function> function, reference_function;
+};
 
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::InsertTransposeBeforeMatmul>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
+void InsertTransposeBeforeMatmulTestFixture::SetUp() {
+    const auto& input_shape = std::get<0>(GetParam());
+    const auto& reshape_shape = std::get<1>(GetParam());
+    const auto& matmul_shape = std::get<2>(GetParam());
 
-    {
-        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
+    function = get_initial_function(input_shape, reshape_shape, matmul_shape);
+    reference_function = get_reference(input_shape);
+}
 
-        auto new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {8, 2});
-        auto reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
+std::shared_ptr<ngraph::Function> InsertTransposeBeforeMatmulTestFixture::get_initial_function(const ngraph::PartialShape & input_shape,
+                                                   const ngraph::Shape & reshape_shape,
+                                                   const ngraph::Shape & matmul_shape) {
+    return createFunction(input_shape, reshape_shape, matmul_shape);
+}
 
-        auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+std::shared_ptr<ngraph::Function> InsertTransposeBeforeMatmulTestFixture::get_reference(const ngraph::PartialShape & input_shape) {
+    auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
+
+    auto new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {8, 2});
+    auto reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
+
+    auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
                                                                 std::vector<size_t>{1, 0});
-        auto transpose_operation = std::make_shared<ngraph::opset7::Transpose>(reshape_operation, transpose_order);
+    auto transpose_operation = std::make_shared<ngraph::opset7::Transpose>(reshape_operation, transpose_order);
 
-        auto new_shape_after_transpose = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {8, 2});
-        auto reshape_after_transpose = std::make_shared<ngraph::opset7::Reshape>(transpose_operation,
+    auto new_shape_after_transpose = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {8, 2});
+    auto reshape_after_transpose = std::make_shared<ngraph::opset7::Reshape>(transpose_operation,
                                                                                  new_shape_after_transpose,
                                                                                  false);
 
-        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {2, 1});
-        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(reshape_after_transpose, constant);
+    auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {2, 1});
+    auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(reshape_after_transpose, constant);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{input_params});
-    }
+    auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
+    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                              ngraph::ParameterVector{input_params});
+}
 
+void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<GNAPluginNS::InsertTransposeBeforeMatmul>();
+    manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, InsertTransposeBeforeMatmulTest1_16) {
-     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    const ngraph::Shape data_shape{1, 16};
-
-    {
-        func = createFunction({1, 16}, {8, 2}, {2, 1});
-
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::InsertTransposeBeforeMatmul>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
-
-        auto new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {8, 2});
-        auto reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
-
-        auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
-                                                                std::vector<size_t>{1, 0});
-        auto transpose_operation = std::make_shared<ngraph::opset7::Transpose>(reshape_operation, transpose_order);
-
-        auto new_shape_after_transpose = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {8, 2});
-        auto reshape_after_transpose = std::make_shared<ngraph::opset7::Reshape>(transpose_operation,
-                                                                                 new_shape_after_transpose,
-                                                                                 false);
-
-        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {2, 1});
-        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(reshape_after_transpose, constant);
-
-        auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{input_params});
-    }
-
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
+TEST_P(InsertTransposeBeforeMatmulTestFixture, CompareFunctions) {
+    execute_test(function, reference_function);
 }
+
+INSTANTIATE_TEST_CASE_P(InsertTransposeBeforeMatmulTestSuite, InsertTransposeBeforeMatmulTestFixture,
+                        ::testing::Values(std::make_tuple(ngraph::PartialShape{2, 8}, ngraph::Shape{8, 2}, ngraph::Shape{2, 1}),
+                                          std::make_tuple(ngraph::PartialShape{1, 16}, ngraph::Shape{8, 2}, ngraph::Shape{2, 1})));
+
+
+} // namespace
 
 } // namespace testing
