@@ -74,7 +74,7 @@ std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
     std::replace(kernelID.begin(), kernelID.end(), '.', '_');
     std::replace(kernelID.begin(), kernelID.end(), '/', '_');
 
-    kernelID += "_" + std::to_string(UniqeID());
+    kernelID += "_" + toCodeString(UniqeID());
 
     return kernelID;
 }
