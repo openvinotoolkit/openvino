@@ -92,6 +92,7 @@
 #include "ngraph/op/mod.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/mvn.hpp"
+#include "ngraph/op/my_node.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/op/non_max_suppression.hpp"
 #include "ngraph/op/non_zero.hpp"
