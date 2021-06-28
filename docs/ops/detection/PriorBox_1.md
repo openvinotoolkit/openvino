@@ -117,7 +117,7 @@
     * **Description**: *fixed_ratio* is an aspect ratio of a box. For example, *fixed_ratio* equal to 2.000000 means that the aspect ratio for the first box aspect ratio is 2.
     * **Range of values**: a list of positive floating-point numbers
     * **Type**: `float[]`
-    * **Default value**: None
+    * **Default value**: []
     * **Required**: *no*
 
 * *fixed_size*
@@ -125,7 +125,7 @@
     * **Description**: *fixed_size* is an initial box size (in pixels). For example, *fixed_size* equal to 15 means that the initial box size is 15.
     * **Range of values**: a list of positive floating-point numbers
     * **Type**: `float[]`
-    * **Default value**: None
+    * **Default value**: []
     * **Required**: *no*
 
 * *density*
@@ -133,7 +133,7 @@
     * **Description**: *density* is the square root of the number of boxes of each type. For example, *density* equal to 2 means that the first box generates four boxes of the same size and with the same shifted centers.
     * **Range of values**: a list of positive floating-point numbers
     * **Type**: `float[]`
-    * **Default value**: None
+    * **Default value**: []
     * **Required**: *no*
 
 **Inputs**:
