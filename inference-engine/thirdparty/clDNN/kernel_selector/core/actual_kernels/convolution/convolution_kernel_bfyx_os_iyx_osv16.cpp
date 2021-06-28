@@ -9,7 +9,7 @@
 
 namespace kernel_selector {
 // Sub-group size used by "kernel_name_bfyx_os_iyx_osv16" kernel.
-constexpr size_t sub_group_size = 16;
+static size_t sub_group_size = 16;
 
 ConvolutionKernel_bfyx_os_iyx_osv16::ConvolutionKernel_bfyx_os_iyx_osv16()
     : ConvolutionKernelBase("convolution_gpu_bfyx_os_iyx_osv16") {
@@ -107,6 +107,10 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
+    if (cp.output.Feature().v <= 8) {
+        sub_group_size = 8;
+    }
+
     if (cp.stride.x == 1 && cp.stride.y == 1) {
         if (cp.filterSize.x == 1 && cp.filterSize.y == 1) {
             option.blockWidth = 16;
@@ -143,7 +147,6 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
     if (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.output.Batch().v != 1) {
         shrink_blocks_to_output_size(cp.output.X().v, cp.output.Y().v, option.blockWidth, option.blockHeight);
     }
-
     return option;
 }
 
@@ -151,11 +154,13 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
                                                                                     int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
+
+    auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
+
     const auto of_maps = cp.output.Feature().v;
     const auto of_maps_per_group = of_maps / cp.groups;
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size) * cp.groups;
 
-    auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
     dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
