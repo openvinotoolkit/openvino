@@ -18,8 +18,6 @@ namespace
 {
     constexpr int64_t input_rois_port = 0;
     constexpr int64_t input_features_start_port = 1;
-    constexpr int64_t output_roi_features_port = 0;
-    constexpr int64_t output_rois_port = 1;
 
     void redistribute_rois(const float* rois,
                            int64_t* level_ids,
@@ -43,7 +41,8 @@ namespace
                 area = std::sqrt(area) / canonical_scale;
                 area = std::log2(area + 1e-6f);
                 target_level = static_cast<int64_t>(std::floor(area + canonical_level));
-                target_level = std::max(static_cast<int64_t>(0), std::min(levels_num - 1, target_level));
+                target_level =
+                    std::max(static_cast<int64_t>(0), std::min(levels_num - 1, target_level));
             }
 
             level_ids[i] = target_level;
@@ -58,11 +57,9 @@ namespace
                int64_t* dst_mapping)
     {
         std::iota(dst_mapping, dst_mapping + n, static_cast<int64_t>(0));
-        std::sort(dst_mapping,
-                  dst_mapping + n,
-                  [&ranks](int64_t i1, int64_t i2) {
-                      return ranks[i1] < ranks[i2];
-                  });
+        std::sort(dst_mapping, dst_mapping + n, [&ranks](int64_t i1, int64_t i2) {
+            return ranks[i1] < ranks[i2];
+        });
         for (int64_t i = 0; i < n; ++i)
         {
             const int64_t j = dst_mapping[i];
@@ -91,7 +88,8 @@ namespace
 
     // implementation taken from Caffe2
     template <typename T>
-    struct PreCalc {
+    struct PreCalc
+    {
         int64_t pos1;
         int64_t pos2;
         int64_t pos3;
@@ -126,12 +124,12 @@ namespace
                 {
                     const T yy = roi_start_h + ph * bin_size_h +
                                  static_cast<T>(iy + .5f) * bin_size_h /
-                                 static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
+                                     static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
                     for (int64_t ix = 0; ix < ix_upper; ix++)
                     {
-                        const T xx = roi_start_w + pw * bin_size_w +
-                                     static_cast<T>(ix + .5f) * bin_size_w /
-                                     static_cast<T>(roi_bin_grid_w);
+                        const T xx =
+                            roi_start_w + pw * bin_size_w +
+                            static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
 
                         T x = xx;
                         T y = yy;
@@ -212,19 +210,18 @@ namespace
     }
 
     template <typename T>
-    void ROIAlignForward_cpu_kernel(
-            const int64_t nthreads,
-            const T* bottom_data,
-            const T& spatial_scale,
-            const int64_t channels,
-            const int64_t height,
-            const int64_t width,
-            const int64_t pooled_height,
-            const int64_t pooled_width,
-            const int64_t sampling_ratio,
-            const T* bottom_rois,
-            const bool aligned,
-            T* top_data)
+    void ROIAlignForward_cpu_kernel(const int64_t nthreads,
+                                    const T* bottom_data,
+                                    const T& spatial_scale,
+                                    const int64_t channels,
+                                    const int64_t height,
+                                    const int64_t width,
+                                    const int64_t pooled_height,
+                                    const int64_t pooled_width,
+                                    const int64_t sampling_ratio,
+                                    const T* bottom_rois,
+                                    const bool aligned,
+                                    T* top_data)
     {
         int64_t roi_cols = 4;
 
@@ -257,18 +254,21 @@ namespace
             T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
 
             // We use roi_bin_grid to sample the grid and mimic integral
-            int64_t roi_bin_grid_h = (sampling_ratio > 0)
-                                 ? sampling_ratio
-                                 : static_cast<int64_t>(std::ceil(roi_height / pooled_height));  // e.g., = 2
+            int64_t roi_bin_grid_h =
+                (sampling_ratio > 0)
+                     ? sampling_ratio
+                     : static_cast<int64_t>(std::ceil(roi_height / pooled_height));  // e.g., = 2
             int64_t roi_bin_grid_w =
-                    (sampling_ratio > 0) ? sampling_ratio : static_cast<int64_t>(std::ceil(roi_width / pooled_width));
+                (sampling_ratio > 0) ? sampling_ratio
+                                     : static_cast<int64_t>(std::ceil(roi_width / pooled_width));
 
             // We do average (integral) pooling inside a bin
-            const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
+            const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w); // e.g. = 4
 
             // we want to precalculate indices and weights shared by all channels,
             // this is the key point of optimization
-            std::vector<PreCalc<T>> pre_calc(roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
+            std::vector<PreCalc<T>> pre_calc(roi_bin_grid_h * roi_bin_grid_w * pooled_width *
+                                             pooled_height);
             pre_calc_for_bilinear_interpolate(height,
                                               width,
                                               pooled_height,
@@ -286,7 +286,7 @@ namespace
             {
                 int64_t index_n_c = index_n + c * pooled_width * pooled_height;
                 const T* offset_bottom_data =
-                        bottom_data + (roi_batch_ind * channels + c) * height * width;
+                    bottom_data + (roi_batch_ind * channels + c) * height * width;
                 int64_t pre_calc_index = 0;
 
                 for (int64_t ph = 0; ph < pooled_height; ph++)
@@ -312,9 +312,9 @@ namespace
                         output_val /= count;
 
                         top_data[index] = output_val;
-                    }  // for pw
-                }  // for ph
-            }  // for c
+                    } // for pw
+                }     // for ph
+            }         // for c
         }
     }
 }
