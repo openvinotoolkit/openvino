@@ -34,6 +34,7 @@ protected:
     bool Validate(const Params& p, const optional_params& o) const override;
     bool NeedPaddedInput() const override { return true; }
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
+    size_t GetSubGroupSize(const convolution_params& params) const { return (params.output.Feature().v > 8) ? 16 : 8; }
 
 private:
     struct AutoTuneOption {
