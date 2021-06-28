@@ -1208,24 +1208,7 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
 
 // Set all non const data paths precision to BF16
 void MKLDNNGraph::EnforceBF16() {
-    // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
-    // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-    auto getNodeId = [](const MKLDNNNodePtr& node) {
-        const std::regex rx("^[a-zA-Z]*_*([0-9]+).*");
-        std::smatch match;
-
-        std::string name = node->getName();
-        if (std::regex_search(name, match, rx))
-            return std::stoi(match.str(1));
-        else
-            return 0;
-    };
-
-    auto compareById = [&](const MKLDNNNodePtr& nodeLhs, const MKLDNNNodePtr& nodeRhs) {
-        return getNodeId(nodeLhs) < getNodeId(nodeRhs);
-    };
-
-    auto findLastSignificantNode = [&]() {
+    auto findLastSignificantNodeId = [&]() {
         static std::unordered_set<Type> significantNodes {
             Convolution,
             FullyConnected,
@@ -1235,25 +1218,30 @@ void MKLDNNGraph::EnforceBF16() {
             ROIPooling,
         };
 
-        auto resultId = graphNodes[0];
+        int lsNodeId = 0;
 
-        for (const auto &node : graphNodes) {
-            if (!significantNodes.count(node->getType()))
+        for (int i = 0; i < graphNodes.size(); i++) {
+            if (!significantNodes.count(graphNodes[i]->getType()))
                 continue;
 
-            resultId = std::max(node, resultId, compareById);
+            lsNodeId = i;
         }
 
-        return resultId;
+        return lsNodeId;
     };
 
-    const auto& lsNode = findLastSignificantNode();
+    SortTopologically();
 
-    std::cout << "EnforceBF16: Last significant node is " << NameFromType(lsNode->getType()) << " " << lsNode->getName() << "\n";
+    int lsNodeId = findLastSignificantNodeId();
+    const auto lsNode = graphNodes[lsNodeId];
+
+    // std::cout << "### EnforceBF16: Last significant node is " << NameFromType(lsNode->getType()) << " " << lsNode->getName() << "\n";
 
     if (implication(isQuantized(), config.manualEnforceBF16)) {
-        for (auto &node : graphNodes) {
-            if (getNodeId(node) > getNodeId(lsNode)) {
+        for (int i = 0; i < graphNodes.size(); i++) {
+            const auto& node = graphNodes[i];
+
+            if (lsNodeId < i) {
                 // std::cout << "### Skipping node - " << node->getName() << "\n";
                 continue;
             }
