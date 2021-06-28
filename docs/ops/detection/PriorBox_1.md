@@ -39,12 +39,13 @@
     \f[
     ymin = \frac{\frac{center_y + s}{2}}{H}
     \f]
+3. If *clip* attribute is set to true, each output value is clipped between \f$ \left< 0, 1 \right> \f$.
 
 **Attributes**:
 
 * *min_size (max_size)*
 
-  * **Description**: *min_size (max_size)* is the minimum (maximum) box size (in pixels). For example, *min_size (max_size)* equal 15 means that the minimum (maximum) box size is 15.
+  * **Description**: *min_size (max_size)* is the minimum (maximum) box size (in pixels).
   * **Range of values**: positive floating point numbers
   * **Type**: `float[]`
   * **Default value**: []
@@ -52,7 +53,7 @@
 
 * *aspect_ratio*
 
-  * **Description**: *aspect_ratio* is a variance of aspect ratios. Duplicate values are ignored. For example, *aspect_ratio* equal "2.0,3.0" means that for the first box aspect_ratio is equal to 2.0 and for the second box is 3.0.
+  * **Description**: *aspect_ratio* is a variance of aspect ratios. Duplicate values are ignored.
   * **Range of values**: set of positive integer numbers
   * **Type**: `float[]`
   * **Default value**: []
@@ -60,7 +61,7 @@
 
 * *flip*
 
-  * **Description**: *flip* is a flag that denotes that each *aspect_ratio* is duplicated and flipped. For example, *flip* equals 1 and *aspect_ratio* equals to "4.0,2.0" mean that aspect_ratio is equal to "4.0,2.0,0.25,0.5".
+  * **Description**: *flip* is a flag that denotes that each *aspect_ratio* is duplicated and flipped. For example, *flip* equals 1 and *aspect_ratio* equals to `[4.0,2.0]` mean that aspect_ratio is equal to `[4.0,2.0,0.25,0.5]`.
   * **Range of values**:
     * false or 0 - each *aspect_ratio* is flipped
     * true or 1  - each *aspect_ratio* is not flipped
@@ -70,17 +71,17 @@
 
 * *clip*
 
-  * **Description**: *clip* is a flag that denotes if each value in the output tensor should be clipped to [0,1] interval.
+  * **Description**: *clip* is a flag that denotes if each value in the output tensor should be clipped to `[0,1]` interval.
   * **Range of values**:
     * false or 0 - clipping is not performed
-    * true or 1 - each value in the output tensor is clipped to [0,1] interval.
+    * true or 1 - each value in the output tensor is clipped to `[0,1]` interval.
   * **Type**: `boolean`
   * **Default value**: false
   * **Required**: *no*
 
 * *step*
 
-  * **Description**: *step* is a distance between box centers. For example, *step* equal 85 means that the distance between neighborhood prior boxes centers is 85.
+  * **Description**: *step* is a distance between box centers.
   * **Range of values**: floating point non-negative number
   * **Type**: `float`
   * **Default value**: 0
@@ -88,7 +89,7 @@
 
 * *offset*
 
-  * **Description**: *offset* is a shift of box respectively to top left corner. For example, *offset* equal 85 means that the shift of neighborhood prior boxes centers is 85.
+  * **Description**: *offset* is a shift of box respectively to top left corner.
   * **Range of values**: floating point non-negative number
   * **Type**: `float`
   * **Default value**: None
@@ -104,7 +105,7 @@
 
 * *scale_all_sizes*
 
-  * **Description**: *scale_all_sizes* is a flag that denotes type of inference. For example, *scale_all_sizes* equals 0 means that the PriorBox layer is inferred in MXNet-like manner. In particular, *max_size* attribute is ignored.
+  * **Description**: *scale_all_sizes* is a flag that denotes type of inference. For example, *scale_all_sizes* equals 0 means that *max_size* attribute is ignored.
   * **Range of values**:
     * false - *max_size* is ignored
     * true  - *max_size* is used
@@ -114,7 +115,7 @@
 
 * *fixed_ratio*
 
-    * **Description**: *fixed_ratio* is an aspect ratio of a box. For example, *fixed_ratio* equal to 2.000000 means that the aspect ratio for the first box aspect ratio is 2.
+    * **Description**: *fixed_ratio* is an aspect ratio of a box.
     * **Range of values**: a list of positive floating-point numbers
     * **Type**: `float[]`
     * **Default value**: []
@@ -122,7 +123,7 @@
 
 * *fixed_size*
 
-    * **Description**: *fixed_size* is an initial box size (in pixels). For example, *fixed_size* equal to 15 means that the initial box size is 15.
+    * **Description**: *fixed_size* is an initial box size (in pixels).
     * **Range of values**: a list of positive floating-point numbers
     * **Type**: `float[]`
     * **Default value**: []
@@ -130,7 +131,7 @@
 
 * *density*
 
-    * **Description**: *density* is the square root of the number of boxes of each type. For example, *density* equal to 2 means that the first box generates four boxes of the same size and with the same shifted centers.
+    * **Description**: *density* is the square root of the number of boxes of each type.
     * **Range of values**: a list of positive floating-point numbers
     * **Type**: `float[]`
     * **Default value**: []
@@ -144,12 +145,12 @@
 
 **Outputs**:
 
-*   **1**: 2D tensor of shape `[2, 4 * height * width * priors_per_point]` and type *T_OUT* with box coordinates. The `priors_per_point` is the number of boxes generated per each grid element. The number depends on layer attribute values.
+*   **1**: 2D tensor of shape `[2, 4 * height * width * priors_per_point]` and type *T_OUT* with box coordinates. The `priors_per_point` is the number of boxes generated per each grid element. The number depends on operation attribute values.
 
 **Types**
 
 * *T_INT*: any supported integer type.
-* *T_OUT*: floating point (`fp32`) type.
+* *T_OUT*: supported floating point type.
 
 **Example**
 
