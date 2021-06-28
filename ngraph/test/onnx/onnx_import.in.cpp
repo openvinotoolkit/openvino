@@ -4664,11 +4664,33 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_einsum_sum)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/conv_fp16_W_as_int32.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // clang-format off
+    test_case.add_input<ngraph::float16>(Shape{1, 1, 4, 4},
+            {   0,  1,  2,  3,
+                4,  5,  6,  7,
+                8,  9,  10, 11,
+                12, 13, 14, 15  });
+    /* filters
+            [[[[0.25, 0.5, 0.25],
+               [0.5,  1.0, 0.5],
+               [0.25, 0.5, 0.25]]]] */
+    test_case.add_expected_output<ngraph::float16>(Shape{1, 1, 2, 2},
+            {   20, 24,
+                36, 40  });
+    // clang-format on
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_unsqueeze_const_scalar)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze_const_scalar.prototxt"));
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<float>(Shape{1}, {3.14});
-    test_case.run();
 }

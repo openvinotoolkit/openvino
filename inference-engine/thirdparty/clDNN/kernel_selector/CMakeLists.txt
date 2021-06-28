@@ -148,7 +148,7 @@ if(COMMAND add_cpplint_target)
 endif()
 
 target_link_libraries("${CLDNN_BUILD__PROJ}"
-    clDNN_OpenCL
+    OpenCL
   )
 
 if(WIN32)
@@ -171,9 +171,9 @@ add_custom_command(OUTPUT "${__CLDNN_Directory__cg_cache}/${__CLDNN_File__cg_cac
     COMMENT "Updating file if the file changed (${__CLDNN_File__cg_cache__prim_db}) ..."
   )
 if(WIN32)
-  set(CLDNN_CACHE_PATH "${CLDNN__OUTPUT_BIN_DIR}/$<CONFIGURATION>")
+  set(CLDNN_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIGURATION>")
 else((NOT ANDROID) AND (UNIX))
-  set(CLDNN_CACHE_PATH "${CLDNN__OUTPUT_LIB_DIR}/")
+  set(CLDNN_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/")
 endif()
 
 add_custom_command(
