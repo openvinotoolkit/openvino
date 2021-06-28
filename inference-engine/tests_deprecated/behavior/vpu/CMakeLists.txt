@@ -57,6 +57,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
         target_include_directories(${TARGET_NAME} PRIVATE
                 ${CMAKE_CURRENT_SOURCE_DIR}/myriad_tests
                 ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
+                ${IE_MAIN_SOURCE_DIR}/src/inference_engine
                 ${XLINK_INCLUDE}
                 ${XLINK_PLATFORM_INCLUDE})
         target_link_libraries(${TARGET_NAME} PRIVATE mvnc)

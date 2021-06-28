@@ -144,7 +144,7 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
                            "${OpenVINO_MAIN_SOURCE_DIR}/build"
                            "${OpenVINO_MAIN_SOURCE_DIR}/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
-                           "${IE_MAIN_SOURCE_DIR}/temp"
+                           "${TEMP}"
                            # TODO fix and enable back:
                            "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/scripts/dependencies.sh"
                            "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies/install_NEO_OCL_driver.sh"
