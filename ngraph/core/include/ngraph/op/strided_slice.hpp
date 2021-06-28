@@ -90,7 +90,6 @@ namespace ngraph
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 void validate_and_infer_types() override;
-                size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const override;
                 bool has_evaluate() const override;

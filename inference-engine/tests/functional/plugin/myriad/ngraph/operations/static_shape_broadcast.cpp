@@ -151,7 +151,7 @@ TEST_P(StaticShapeBroadcastNumpyTests, CanValidateAndInferTypes) {
     ASSERT_EQ(m_tensorWithTargetShape->get_shape(), op->output(0).get_shape());
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastNumpyTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeBroadcastNumpyTests, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testNumpyStaticShapes))
 );
@@ -167,7 +167,7 @@ TEST_P(StaticShapeBroadcastExplicitTests, CanValidateAndInferTypes) {
     ASSERT_EQ(m_tensorWithTargetShape->get_shape(), op->get_output_shape(0));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastExplicitTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeBroadcastExplicitTests, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testExplicitStaticShapes))
 );
@@ -183,7 +183,7 @@ TEST_P(StaticShapeBroadcastBidirectionalTests, CanValidateAndInferTypes) {
     ASSERT_EQ(m_tensorWithOutput->get_shape(), op->output(0).get_shape());
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastBidirectionalTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeBroadcastBidirectionalTests, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testBidirectionalStaticShapes))
 );
@@ -204,7 +204,7 @@ TEST_P(StaticShapeBroadcastNumpyTestsNegativeNumInputs, ThrowsOnInvalidNumInputs
                  ngraph::NodeValidationFailure);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastNumpyTestsNegativeNumInputs, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeBroadcastNumpyTestsNegativeNumInputs, testing::Combine(
         testing::Values(ngraph::element::f16),
         testing::Values(testNumpyStaticShapes[0]))
 );
@@ -218,7 +218,7 @@ TEST_P(StaticShapeBroadcastExplicitTestsNegativeNumInputs, ThrowsOnInvalidNumInp
                  ngraph::NodeValidationFailure);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastExplicitTestsNegativeNumInputs, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeBroadcastExplicitTestsNegativeNumInputs, testing::Combine(
         testing::Values(ngraph::element::f16),
         testing::Values(testExplicitStaticShapes[0]))
 );
@@ -235,7 +235,7 @@ TEST_P(StaticShapeBroadcastBidirectionalTestsNegativeNumInputs, ThrowsOnInvalidN
 }
 
 using StaticShapeBroadcastTestsNegativeMode = StaticShapeBroadcastNumpyTests;
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastTestsNegativeMode, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeBroadcastTestsNegativeMode, testing::Combine(
         testing::Values(ngraph::element::f16),
         testing::Values(testNumpyStaticShapes[0]))
 );
@@ -249,7 +249,7 @@ TEST_P(StaticShapeBroadcastTestsNegativeEvaluate, ThrowsOnInvalidMode) {
             m_tensor, targetShape), ngraph::NodeValidationFailure);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastTestsNegativeEvaluate, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeBroadcastTestsNegativeEvaluate, testing::Combine(
         testing::Values(ngraph::element::f16),
         testing::Values(testNumpyStaticShapes[0]))
 );

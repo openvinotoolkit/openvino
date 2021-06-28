@@ -118,43 +118,6 @@ NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_depth_first)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_block_first)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
-    auto depth_to_space =
-        make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
-    auto function = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({
-        0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
-        4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
-    });
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 4, 4}, {0.f,  1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f,
-                            11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f,
-                            22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_depth_first)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
-    auto depth_to_space =
-        make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
-    auto function = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({
-        0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
-        4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
-    });
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 4, 4}, {0.f,  16.f, 2.f,  18.f, 1.f,  17.f, 3.f,  19.f, 8.f,  24.f, 10.f,
-                            26.f, 9.f,  25.f, 11.f, 27.f, 4.f,  20.f, 6.f,  22.f, 5.f,  21.f,
-                            7.f,  23.f, 12.f, 28.f, 14.f, 30.f, 13.f, 29.f, 15.f, 31.f});
-    test_case.run();
-}
 // TODO: Issue: 37521
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
 {
@@ -567,66 +530,6 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_grn_2d_with_bias)
                                           0.9889363f,
                                           0.9908301f,
                                           0.99227786f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_simple)
-{
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 15, 2, 2});
-    auto tested_op = make_shared<op::ShuffleChannels>(data, 1, 5);
-    auto function = make_shared<Function>(tested_op, ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    std::vector<int32_t> input_data(60);
-    std::iota(std::begin(input_data), std::end(input_data), 0);
-    test_case.add_input(input_data);
-
-    test_case.add_expected_output<int32_t>(
-        Shape{1, 15, 2, 2},
-        {0, 1, 2,  3,  12, 13, 14, 15, 24, 25, 26, 27, 36, 37, 38, 39, 48, 49, 50, 51,
-         4, 5, 6,  7,  16, 17, 18, 19, 28, 29, 30, 31, 40, 41, 42, 43, 52, 53, 54, 55,
-         8, 9, 10, 11, 20, 21, 22, 23, 32, 33, 34, 35, 44, 45, 46, 47, 56, 57, 58, 59});
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_negative_axis)
-{
-    // in this test the output is the same as in shuffle_channels_simple but
-    // the axis value is negative and the C(channels) value is in a different dimension(0) of the
-    // shape
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{15, 2, 1, 2});
-    auto tested_op = make_shared<op::ShuffleChannels>(data, -4, 5);
-    auto function = make_shared<Function>(tested_op, ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    std::vector<int32_t> input_data(60);
-    std::iota(std::begin(input_data), std::end(input_data), 0);
-    test_case.add_input(input_data);
-
-    test_case.add_expected_output<int32_t>(
-        Shape{15, 2, 1, 2},
-        {0, 1, 2,  3,  12, 13, 14, 15, 24, 25, 26, 27, 36, 37, 38, 39, 48, 49, 50, 51,
-         4, 5, 6,  7,  16, 17, 18, 19, 28, 29, 30, 31, 40, 41, 42, 43, 52, 53, 54, 55,
-         8, 9, 10, 11, 20, 21, 22, 23, 32, 33, 34, 35, 44, 45, 46, 47, 56, 57, 58, 59});
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_float)
-{
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{6, 1, 1, 1});
-    auto tested_op = make_shared<op::ShuffleChannels>(data, 0, 2);
-    auto function = make_shared<Function>(tested_op, ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    test_case.add_input<float>({0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
-
-    test_case.add_expected_output<float>(Shape{6, 1, 1, 1}, {0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f});
-
     test_case.run();
 }
 

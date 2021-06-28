@@ -9,13 +9,18 @@
 #include "kernel_selector_helper.h"
 #include "gather_tree/gather_tree_kernel_selector.h"
 #include "gather_tree/gather_tree_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
+
 namespace cldnn {
 namespace gpu {
 
 struct gather_tree_gpu : typed_primitive_gpu_impl<gather_tree> {
     using parent = typed_primitive_gpu_impl<gather_tree>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<gather_tree_gpu>(*this);
+    }
 
     static primitive_impl* create(const gather_tree_node& arg) {
         auto b_params = get_default_params<kernel_selector::gather_tree_params>(arg, 1);

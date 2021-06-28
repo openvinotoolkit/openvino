@@ -43,6 +43,7 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/split_squeeze_concat_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
+#include "transformations/common_optimizations/strides_optimization.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -184,6 +185,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
+
+    // StridesOptimization should be at the very end
+    // because we cannot insert any MaxPools since they may prevent
+    // other optimizations
+    manager.register_pass<ngraph::pass::StridesOptimization>();
 
     manager.run_passes(f);
 

@@ -368,44 +368,25 @@ any_2x0_to_scalar
 all_trivial
 all_2x0_to_scalar
 all_dynamic
-reduce_sum_keep_dynamic
-reduce_sum_keep_stable_simple_double
-reduce_sum_keep_stable_acc_double
-reduce_sum_keep_stable_acc
-reduce_sum_keep_3d_eliminate_zero_dim
-reduce_sum_keep_vector_zero
-reduce_sum_keep_matrix_rows_zero
-reduce_sum_dynamic
-reduce_sum_3d_eliminate_zero_dim_int32
-reduce_sum_keep_3d_eliminate_zero_dim_int32
-reduce_sum_keep_trivial_in_double
-reduce_sum_3d_eliminate_zero_dim
-reduce_sum_matrix_to_scalar_zero_by_zero
-reduce_sum_vector_zero
-reduce_sum_matrix_cols_zero
-reduce_sum_matrix_rows_zero
-reduce_sum_keep_matrix_to_scalar_zero_by_zero
-reduce_sum_keep_matrix_cols_zero
-reduce_product_matrix_columns
 
+# Reduce ops disabled/accuracy: 56520
+# disabled reference implementation
+reduce_sum_keep_2d_to_scalar_int8
+reduce_sum_2d_to_scalar_int8
+reduce_product_to_scalar_int8
+reduce_product_keep_to_scalar_int8
+reduce_min_to_scalar_int8
+reduce_min_keep_to_scalar_int8
 # accuracy
 reduce_sum_keep_stable_acc
-reduce_sum_keep_2d_to_scalar_int8
 reduce_sum_keep_3d_to_scalar_int32
 reduce_sum_keep_large_1d_to_scalar
-reduce_sum_stable_simple_double
-reduce_sum_stable_acc_double
 reduce_sum_stable_acc
-reduce_sum_trivial_in_double
-reduce_sum_2d_to_scalar_int8
 reduce_sum_3d_to_scalar_int32
 reduce_sum_large_1d_to_scalar
 
 # Doesn't throw expected exception type.
 unhandled_op
-
-# Const layer Constant_6325 has incorrect dimensions in the output data 0
-reshape_t2s
 
 # Expected equality of these values:
 #  (vector<char>{42})
@@ -413,22 +394,6 @@ reshape_t2s
 #  read_vector<char>(result)
 #    Which is: { '\0' }
 reshape_s2t1
-reshape_v2m_col
-reshape_v2m_row
-reshape_v2t_middle
-reshape_m2m_same
-reshape_m2m_transpose
-reshape_m2m_dim_change_transpose
-reshape_3d_transpose_021
-reshape_3d_transpose_210
-reshape_3d_transpose_201
-reshape_3d_transpose_102
-reshape_3d_transpose_120
-reshape_4d_transpose
-reshape_4d_no_transpose
-reshape_transposed_shape_change
-reshape_6d
-reshape_shufflenet_5d
 dyn_group_convolution_backprop_data
 group_conv
 group_conv_striding
@@ -478,77 +443,14 @@ onnx_dyn_shapes_model_tile_static
 gather_4d_indices_axis_0_uint8
 tensor_constant_with_op
 constant_equality_bool
-reduce_product_matrix_rows
-reduce_product_3d_to_matrix_most_sig
-reduce_product_3d_to_matrix_least_sig
-reduce_product_keep_matrix_columns
-reduce_product_keep_matrix_rows
-reduce_product_keep_3d_to_matrix_most_sig
-reduce_product_keep_3d_to_matrix_least_sig
-reduce_product_matrix_columns_dynamic
-reduce_product_matrix_rows_dynamic
-reduce_product_keep_matrix_columns_dynamic
-reduce_product_keep_matrix_rows_dynamic
-reduce_min_matrix_columns
-reduce_min_matrix_rows
-reduce_min_matrix_rows_int32
-reduce_min_3d_to_matrix_most_sig
-reduce_min_3d_to_matrix_least_sig
-reduce_min_keep_matrix_columns
-reduce_min_keep_matrix_rows
-reduce_min_keep_matrix_rows_int32
-reduce_min_keep_3d_to_matrix_most_sig
-reduce_min_keep_3d_to_matrix_least_sig
-reduce_min_matrix_columns_dynamic
-reduce_min_matrix_rows_dynamic
-reduce_min_keep_matrix_columns_dynamic
-reduce_min_keep_matrix_rows_dynamic
 
 # zero dimension / result mismatch
-reduce_product_matrix_rows_zero
-reduce_product_matrix_cols_zero
-reduce_product_vector_zero
-reduce_product_matrix_to_scalar_zero_by_zero
-reduce_product_3d_eliminate_zero_dim
-reduce_product_to_scalar_int8
-reduce_product_keep_matrix_rows_zero
-reduce_product_keep_matrix_cols_zero
-reduce_product_keep_vector_zero
-reduce_product_keep_matrix_to_scalar_zero_by_zero
-reduce_product_keep_3d_eliminate_zero_dim
-reduce_product_keep_to_scalar_int8
-reduce_min_to_scalar_int8
-reduce_min_matrix_rows_zero
-reduce_min_matrix_cols_zero
-reduce_min_vector_zero
-reduce_min_matrix_to_scalar_zero_by_zero
-reduce_min_3d_eliminate_zero_dim
-reduce_min_keep_to_scalar_int8
-reduce_min_keep_matrix_rows_zero
-reduce_min_keep_matrix_cols_zero
-reduce_min_keep_vector_zero
-reduce_min_keep_matrix_to_scalar_zero_by_zero
-reduce_min_keep_3d_eliminate_zero_dim
 reduce_mean_to_scalar_int8
 reduce_mean_matrix_rows_int32
 reduce_mean_keep_to_scalar_int8
 reduce_mean_keep_matrix_rows_int32
 reduce_max_to_scalar_int8
-reduce_max_matrix_rows_zero
-reduce_max_matrix_rows_zero_int32
-reduce_max_matrix_cols_zero
-reduce_max_vector_zero
-reduce_max_matrix_to_scalar_zero_by_zero
-reduce_max_3d_to_scalar_double
-reduce_max_3d_eliminate_zero_dim
 reduce_max_keep_to_scalar_int8
-reduce_max_keep_matrix_rows_zero
-reduce_max_keep_matrix_rows_zero_int32
-reduce_max_keep_matrix_cols_zero
-reduce_max_keep_vector_zero
-reduce_max_keep_matrix_to_scalar_zero_by_zero
-reduce_max_keep_3d_to_scalar_double
-reduce_max_keep_3d_eliminate_zero_dim
 
 # Incorrect precision f64!
 sum_trivial_in_double
@@ -793,11 +695,6 @@ gemm_broadcast_axes_1_input_C
 scale_shift_no_broadcast
 scale_shift
 
-# Cannot cast ngraph node ShuffleChannels to CNNLayer!
-shuffle_channels_simple
-shuffle_channels_negative_axis
-shuffle_channels_float
-
 # Detected op not belonging to opset1!
 onnx_model_quant_conv_linear
 onnx_model_quant_conv_linear_2d
@@ -825,9 +722,6 @@ cum_sum_default
 cum_sum_2dim
 cum_sum_3d
 cum_sum_2dim_allmodes
-
-# Unsupported primitive of type: Ceiling
-ceiling
 
 # Incorrect dimensions for broadcasting for Add
 auto_bcast_binary_elementwise_pdpd_dynamic
@@ -1196,6 +1090,7 @@ IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
+mish_f16
 
 # function with NMS-5 to get the nGraph function with NMSIE3 (internal
 # operation, similar with NMS-5, but with all static output shapes), before
@@ -1632,6 +1527,13 @@ onnx_controlflow_loop_infinite
 # unsupported dynamic ops
 onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis
 IE_GPU.range_v4_trunc_inputs
+variadic_split_1d_dynamic
+variadic_split_2d_axis_0_dynamic
+variadic_split_2d_axis_1_dynamic
+variadic_split_4d_axis_0_dynamic
+variadic_split_4d_axis_1_dynamic
+variadic_split_4d_axis_2_dynamic
+variadic_split_4d_axis_3_dynamic
 
 # CPU plugin does not support bool type
 IE_CPU.evaluate_2D_gather_elements_3x2_data_bool
@@ -1666,14 +1568,6 @@ IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
 # incorrect result for Minimum if u16 type is used
 minimum_u16
 IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
-
-# not implemented in CPU and GPU
-evaluate_mvn_6_no_variance
-evaluate_mvn_6
-evaluate_mvn_6_inside_sqrt
-evaluate_mvn_6_across_chanells
-evaluate_mvn_6_across_batch
-IE_CPU.onnx_mvn_v6
 
 # not yet implemented on CPU/GPU Gather 7
 gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims

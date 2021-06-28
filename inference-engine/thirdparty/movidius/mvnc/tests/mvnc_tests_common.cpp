@@ -300,7 +300,6 @@ TEST_P(MvncOpenDevice, WatchdogShouldResetDeviceWithoutConnection) {
     if (availableDevices_ == 0)
         GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
 
-    ncDeviceHandle_t*   deviceHandle = nullptr;
     std::string         deviceName;
     deviceDesc_t deviceDescToBoot = {};
     deviceDesc_t in_deviceDesc = {};
@@ -540,22 +539,22 @@ TEST_P(MvncInference, DISABLED_DoOneIterationOfInference) {
 }
 
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncOpenDevice,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncLoggingTests,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncGraphAllocations,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncInference,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
