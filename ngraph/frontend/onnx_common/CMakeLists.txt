@@ -22,15 +22,14 @@ add_library(ngraph::onnx_common ALIAS ${TARGET_NAME})
 
 set(ONNX_COMMON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(ONNX_COMMON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set(ONNX_COMMON_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_COMMON_INCLUDE_DIR}>
-                                                 $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)
+                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph)
 target_link_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx ${Protobuf_LIBRARIES})
 
-target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR} ${NGRAPH_INCLUDE_PATH} ${Protobuf_INCLUDE_DIRS})
+target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 
 if(NGRAPH_USE_PROTOBUF_LITE)
     target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)

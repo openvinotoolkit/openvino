@@ -83,7 +83,11 @@ For example, the Kaldi model optimizer inserts such a permute after convolution 
 
 Intel® GNA essentially operates in the low-precision mode, which represents a mix of 8-bit (`I8`), 16-bit (`I16`), and 32-bit (`I32`) integer computations. Outputs calculated using a reduced integer precision are different from the scores calculated using the floating point format, for example, `FP32` outputs calculated on CPU using the Inference Engine [CPU Plugin](CPU.md).
 
-Unlike other plugins supporting low-precision execution, the GNA plugin calculates quantization factors at the model loading time, so you can run a model without calibration.
+Unlike other plugins supporting low-precision execution, the GNA plugin can calculate quantization factors at the model loading time, so you can run a model without calibration using the [Post-Training Optimizaton Tool](@ref pot_README).
+However, this mode may not provide satisfactory accuracy because the internal quantization algorithm is based on heuristics which may or may not be efficient, depending on the model and dynamic range of input data.
+
+Starting with 2021.4 release of OpenVINO, GNA plugin users are encouraged to use the [POT API Usage sample for GNA](@ref pot_sample_speech_README) to get a model with quantization hints based on statistics for the provided dataset.
+
 
 ## <a name="execution-modes">Execution Modes</a>
 
@@ -112,7 +116,7 @@ When specifying key values as raw strings, that is, when using Python API, omit 
 | `KEY_GNA_SCALE_FACTOR`            | `FP32` number                                             | 1.0         | Sets the scale factor to use for input quantization.                               |
 | `KEY_GNA_DEVICE_MODE`             | `GNA_AUTO`/`GNA_HW`/`GNA_SW_EXACT`/`GNA_SW_FP32` | `GNA_AUTO`  |  One of the modes described in <a href="#execution-modes">Execution Modes</a> |
 | `KEY_GNA_FIRMWARE_MODEL_IMAGE`    | `std::string`                                             | `""`        | Sets the name for the embedded model binary dump file.                                 |
-| `KEY_GNA_PRECISION`               | `I16`/`I8`                                                | `I16`       | Sets the preferred integer weight resolution for quantization. |
+| `KEY_GNA_PRECISION`               | `I16`/`I8`                                                | `I16`       | Sets the preferred integer weight resolution for quantization (ignored for models produced using POT). |
 | `KEY_PERF_COUNT`                  | `YES`/`NO`                                                | `NO`        | Turns on performance counters reporting.                                   |
 | `KEY_GNA_LIB_N_THREADS`           | 1-127 integer number                                      | 1           | Sets the number of GNA accelerator library worker threads used for inference computation in software modes.
 
