@@ -149,7 +149,7 @@ const auto testParams2D = ::testing::Combine(fullyConnectedParams2D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D));
 
-INSTANTIATE_TEST_CASE_P(smoke_Check_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<std::pair<SizeVector, SizeVector>> IS3D = {
     {{1, 32, 120}, {120, 5}},
@@ -171,7 +171,7 @@ const auto testParams3D = ::testing::Combine(fullyConnectedParams3D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet3D));
 
-INSTANTIATE_TEST_CASE_P(smoke_Check_3D, MatMulLayerCPUTest, testParams3D, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check_3D, MatMulLayerCPUTest, testParams3D, MatMulLayerCPUTest::getTestCaseName);
 
 }; // namespace fullyConnected
 
@@ -196,7 +196,7 @@ const auto testParams = ::testing::Combine(gemmParams,
                                            ::testing::Values(MatMulNodeType::MatMul),
                                            ::testing::Values(emptyFusingSpec));
 
-INSTANTIATE_TEST_CASE_P(smoke_Check, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
 
 }; // namespace gemm
 

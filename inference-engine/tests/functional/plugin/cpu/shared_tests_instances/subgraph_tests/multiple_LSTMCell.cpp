@@ -35,7 +35,7 @@ std::map<std::string, std::string> additional_config = {
 } // namespace
 
 
-INSTANTIATE_TEST_CASE_P(MultipleLSTMCellTest, MultipleLSTMCellTest,
+INSTANTIATE_TEST_SUITE_P(MultipleLSTMCellTest, MultipleLSTMCellTest,
     ::testing::Combine(
         ::testing::ValuesIn(transformation),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),

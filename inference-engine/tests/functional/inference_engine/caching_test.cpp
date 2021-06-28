@@ -67,7 +67,7 @@ public:
     MockRemoteContext(std::string name): m_name(std::move(name)) {}
     std::string getDeviceName() const noexcept { return m_name; }
     MOCK_METHOD2(CreateBlob, RemoteBlob::Ptr(const TensorDesc&, const ParamMap&));
-    MOCK_QUALIFIED_METHOD0(getParams, const, ParamMap());
+    MOCK_CONST_METHOD0(getParams, ParamMap());
 };
 
 class MockCachingInferencePluginBase : public InferenceEngine::IInferencePlugin {
@@ -1075,7 +1075,7 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
             if (index != std::string::npos) {
                 content.replace(index, buildNum.size(), zeroBuild);
             } else {
-                SKIP();
+                return; // skip test
             }
             std::ofstream out(fileName, std::ios_base::binary);
             out.write(content.c_str(), content.size());
@@ -1505,7 +1505,7 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(CachingTest, CachingTest,
+INSTANTIATE_TEST_SUITE_P(CachingTest, CachingTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(loadVariants),
                             ::testing::ValuesIn(cacheFolders)),

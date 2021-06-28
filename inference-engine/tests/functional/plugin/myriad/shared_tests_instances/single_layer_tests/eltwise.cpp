@@ -55,7 +55,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseMathTypesINT = {
         ngraph::helpers::EltwiseTypes::DIVIDE,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseMathFP,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseMathFP,
                         EltwiseLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inShapes),
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_CASE_P(smoke_EltwiseMathFP,
                             ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         EltwiseLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseMathInt,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseMathInt,
                         EltwiseLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),

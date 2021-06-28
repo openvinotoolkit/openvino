@@ -24,6 +24,7 @@ class Merge(Op):
         # we infer only through executable input nodes
         inferred_nodes = [n for n in node.in_nodes().values() if n['is_partial_inferred']]
         assert len(inferred_nodes) != 0
+        tensor = inferred_nodes[0]
 
         if len(inferred_nodes) < len(node.in_nodes()):
             node['is_not_fully_inferred'] = True
@@ -43,7 +44,6 @@ class Merge(Op):
                     if not is_fully_defined(n.value):
                         node.out_node().value = n.value.copy()
 
-        tensor = inferred_nodes[0]
 #        node.out_port(0).data.set_shape(tensor.shape)
         # do not use set_shape(tensor.shape) here because input port shape may be different from the calculated output
         # shape and `set_shape` will raise an error that shape has changed

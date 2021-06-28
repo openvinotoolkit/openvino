@@ -16,50 +16,71 @@ OpenVINO™ toolkit:
 The following diagram illustrates the typical OpenVINO™ workflow (click to see the full-size image):
 ![](img/OpenVINO-diagram.png)
 
-### Model Preparation, Conversion and Optimization
+### Model Preparation
+#### Components: [Open Model Zoo](https://github.com/opencv/open_model_zoo), [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), [OpenVINO Training Extentions](https://github.com/openvinotoolkit/training_extensions)
 
 You can use your framework of choice to prepare and train a deep learning model or just download a pre-trained model from the Open Model Zoo. The Open Model Zoo includes deep learning solutions to a variety of vision problems, including object recognition, face recognition, pose estimation, text detection, and action recognition, at a range of measured complexities.
-Several of these pre-trained models are used also in the [code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos_README). To download models from the Open Model Zoo, the [Model Downloader](@ref omz_tools_downloader_README) tool is used.
+Several of these pre-trained models are also used in the [code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos_README). To download models from the Open Model Zoo, the [Model Downloader](@ref omz_tools_downloader_README) tool is used. 
 
-One of the core component of the OpenVINO™ toolkit is the [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) a cross-platform command-line
+[Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) provides a web-based interface to download a pre-trained model and enables you to visualize, fine-tune, and compare performance of deep learning models. 
+
+If you cannot find the needed model in Open Model Zoo or want to train your own model, use [OpenVINO Training Extentions](https://github.com/openvinotoolkit/training_extensions) which provide a convenient environment to train deep learning models.
+
+![](img/OV-diagram-step1.png)
+
+Useful documents for model preparation:
+* [Model Downloader](@ref omz_tools_downloader) utility
+* [Intel's Pretrained Models (Open Model Zoo)](@ref omz_models_group_intel)
+* [Public Pretrained Models (Open Model Zoo)](@ref omz_models_group_public)
+* [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction)
+* [OpenVINO Training Extentions](https://github.com/openvinotoolkit/training_extensions)
+
+### Model Conversion
+#### Components: [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+
+The [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) is a cross-platform command-line
 tool that converts a trained neural network from its source framework to an open-source, nGraph-compatible [Intermediate Representation (IR)](MO_DG/IR_and_opsets.md) for use in inference operations. The Model Optimizer imports models trained in popular frameworks such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX* and performs a few optimizations to remove excess layers and group operations when possible into simpler, faster graphs.
+
+If your neural network contains layers that are not in the list of known layers for supported frameworks, you can adjust the conversion and optimization process using [Custom Layers](HOWTO/Custom_Layers_Guide.md).
+
+Run the [Accuracy Checker utility](@ref omz_tools_accuracy_checker) either against source topologies or against the output representation to evaluate the accuracy of inference. You can also use the Accuracy Checker as a part of the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), an official OpenVINO™ graphical interface. 
+
 ![](img/OV-diagram-step2.png)
 
-If your neural network model contains layers that are not in the list of known layers for supported frameworks, you can adjust the conversion and optimization process through use of  [Custom Layers](HOWTO/Custom_Layers_Guide.md).
-
-Run the [Accuracy Checker utility](@ref omz_tools_accuracy_checker) either against source topologies or against the output representation to evaluate the accuracy of inference. The Accuracy Checker is also part of the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), an integrated web-based performance analysis studio.
-
-Use the [Post-training Optimization Tool](@ref pot_README) to accelerate the inference of a deep learning model by quantizing it to INT8.
-
-Useful documents for model optimization:
+Useful documents for model conversion and optimization:
 * [Model Optimizer Developer Guide](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Intermediate Representation and Opsets](MO_DG/IR_and_opsets.md)
 * [Custom Layers Guide](HOWTO/Custom_Layers_Guide.md)
 * [Accuracy Checker utility](@ref omz_tools_accuracy_checker)
-* [Post-training Optimization Tool](@ref pot_README)
-* [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction)
-* [Model Downloader](@ref omz_tools_downloader) utility
-* [Intel's Pretrained Models (Open Model Zoo)](@ref omz_models_group_intel)
-* [Public Pretrained Models (Open Model Zoo)](@ref omz_models_group_public)
+* [Deep Learning Workbench Guide](@ref workbench_docs_Workbench_DG_Introduction)
 
 ### Running and Tuning Inference
+#### Components: [Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md), [Post-training Optimization Tool](@ref pot_README), [Neural Network Compression Framework](https://github.com/openvinotoolkit/nncf)
+
 The other core component of OpenVINO™ is the [Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md), which manages the loading and compiling of the optimized neural network model, runs inference operations on input data, and outputs the results. Inference Engine can execute synchronously or asynchronously, and its plugin architecture manages the appropriate compilations for execution on multiple Intel® devices, including both workhorse CPUs and specialized graphics and video processing platforms (see below, Packaging and Deployment).
 
-You can use OpenVINO™ Tuning Utilities with the Inference Engine to trial and test inference on your model. The Benchmark utility uses an input model to run iterative tests for throughput or latency measures, and the [Cross Check Utility](../inference-engine/tools/cross_check_tool/README.md) compares performance of differently configured inferences. 
-
-For a full browser-based studio integrating these other key tuning utilities, try the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction).
-![](img/OV-diagram-step3.png)
+You can use OpenVINO™ Tuning Utilities with the Inference Engine for trial and test inference on your model. The [Benchmark utility](../inference-engine/tools/benchmark_tool/README.md) uses an input model to run iterative tests for throughput or latency measures, and the [Cross Check Utility](../inference-engine/tools/cross_check_tool/README.md) compares performance of differently configured inferences. 
 
 OpenVINO™ toolkit includes a set of [inference code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos) showing how inference is run and output processed for use in retail environments, classrooms, smart camera applications, and other solutions.
 
+Use the [Post-training Optimization Tool](@ref pot_README) to accelerate the inference of a deep learning model by quantizing it to INT8. Models from Open Model Zoo can be quantized using the [Model Quantizer utility](https://github.com/openvinotoolkit/open_model_zoo/tree/master/tools/downloader#model-quantizer-usage). 
+
+Besides the [Post-training Optimization Tool](@ref pot_README), the [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) can be used for model fine-tuning INT8 quantization or even for applying more aggressive compression methods, such as filter pruning, sparsity, and binarization to further speed up model inference and reduce the footprint. In that case the compression algorithms are integrated into your model training pipeline.
+
 OpenVINO also makes use of open-source and Intel™ tools for traditional graphics processing and performance management. Intel® Media SDK supports accelerated rich-media processing, including transcoding. OpenVINO™ optimizes calls to the rich OpenCV and OpenVX libraries for processing computer vision workloads. And the new DL Streamer integration further accelerates video pipelining and performance.
+
+Try these key tuning tools in your browser with the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) intuitive graphical interface.
+
+![](img/OV-diagram-step3.png)
 
 Useful documents for inference tuning:
 * [Inference Engine Developer Guide](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
 * [Inference Engine API References](./api_references.html)
 * [Inference Code Samples](IE_DG/Samples_Overview.md)
 * [Application Demos](@ref omz_demos)
+* [Post-training Optimization Tool](@ref pot_README)
 * [Low Precision Optimization Guide] (@ref pot_docs_LowPrecisionOptimizationGuide)
+* [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf)
 * [Deep Learning Workbench Guide](@ref workbench_docs_Workbench_DG_Introduction)
 * [Intel Media SDK](https://github.com/Intel-Media-SDK/MediaSDK)
 * [DL Streamer Samples](@ref gst_samples_README)
@@ -67,6 +88,8 @@ Useful documents for inference tuning:
 * [OpenVX](https://software.intel.com/en-us/openvino-ovx-guide)
 
 ### Packaging and Deployment
+#### Components: [Deployment Manager](./install_guides/deployment-manager-tool.md)
+
 The Intel Distribution of OpenVINO™ toolkit outputs optimized inference runtimes for the following devices:
 * Intel® CPUs
 * Intel® Processor Graphics
@@ -75,11 +98,12 @@ The Intel Distribution of OpenVINO™ toolkit outputs optimized inference runtim
 
 The Inference Engine's plug-in architecture can be extended to meet other specialized needs. [Deployment Manager](./install_guides/deployment-manager-tool.md) is a Python* command-line tool that assembles the tuned model, IR files, your application, and required dependencies into a runtime package for your target device. It outputs packages for CPU, GPU, and VPU on Linux* and Windows*, and Neural Compute Stick-optimized packages with Linux.
 
+![](img/OV-diagram-step4.png)
+
 * [Inference Engine Integration Workflow](IE_DG/Integrate_with_customer_application_new_API.md)
 * [Inference Engine API References](./api_references.html)
 * [Inference Engine Plug-in Developer Guide](./ie_plugin_api/index.html)
 * [Deployment Manager Guide](./install_guides/deployment-manager-tool.md)
-
 
 ## OpenVINO™ Toolkit Components 
 
@@ -94,12 +118,12 @@ Intel® Distribution of OpenVINO™ toolkit includes the following components:
 - [Open Model Zoo](@ref omz_models_group_intel)     
     - [Demos](@ref omz_demos): Console applications that provide robust application templates to help you implement specific deep learning scenarios.
     - Additional Tools: A set of tools to work with your models including [Accuracy Checker Utility](@ref omz_tools_accuracy_checker) and [Model Downloader](@ref omz_tools_downloader).
-    - [Documentation for Pretrained Models](@ref omz_models_group_intel): Documentation for pre-trained models that are available in the [Open Model Zoo repository](https://github.com/opencv/open_model_zoo).
-- Deep Learning Streamer (DL Streamer): Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open-source version is available on [GitHub](https://github.com/opencv/gst-video-analytics). For the DL Streamer documentation, see:
+    - [Documentation for Pretrained Models](@ref omz_models_group_intel): Documentation for pre-trained models that are available in the [Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo).
+- Deep Learning Streamer (DL Streamer): Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open-source version is available on [GitHub](https://github.com/openvinotoolkit/dlstreamer_gst). For the DL Streamer documentation, see:
     - [DL Streamer Samples](@ref gst_samples_README)
     - [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/)
-    - [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements)
-    - [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial)
+    - [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements)
+    - [Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial)
 - [OpenCV](https://docs.opencv.org/master/) : OpenCV* community version compiled for Intel® hardware
 - [Intel® Media SDK](https://software.intel.com/en-us/media-sdk) (in Intel® Distribution of OpenVINO™ toolkit for Linux only)
 

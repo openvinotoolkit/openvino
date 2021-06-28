@@ -34,10 +34,10 @@ const auto testCases = ::testing::Combine(::testing::ValuesIn(shuffleParameters)
                                           ::testing::Values(CommonTestUtils::DEVICE_GPU));
 
 
-INSTANTIATE_TEST_CASE_P(smoke_GPU_ShuffleChannels, ShuffleChannelsLayerTest, testCases, ShuffleChannelsLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_ShuffleChannels, ShuffleChannelsLayerTest, testCases, ShuffleChannelsLayerTest::getTestCaseName);
 
 // ND support tests
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels3D, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels3D, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 ::testing::Values(std::tuple<int, int>(1, 3)),
                 ::testing::ValuesIn(netPrecisions),
@@ -49,7 +49,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels3D, ShuffleChannelsLayerTest,
                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels2D, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels2D, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 ::testing::Values(std::tuple<int, int>(1, 3)),
                 ::testing::ValuesIn(netPrecisions),
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels2D, ShuffleChannelsLayerTest,
                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels1D, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels1D, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 ::testing::Values(std::tuple<int, int>(0, 3)),
                 ::testing::ValuesIn(netPrecisions),
