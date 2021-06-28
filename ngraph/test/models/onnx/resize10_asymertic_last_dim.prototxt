@@ -2,7 +2,7 @@ ir_version: 7
 producer_name: "backend-test"
 graph {
 
-  node {
+    node {
     output: "scales"
     op_type: "Constant"
     attribute {
@@ -12,8 +12,8 @@ graph {
         data_type: 1
         float_data: 1.0
         float_data: 1.0
-        float_data: 2.0
-        float_data: 2.0
+        float_data: 1.0
+        float_data: 1.9
         name: "const_tensor"
       }
       type: TENSOR
@@ -45,16 +45,15 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 2
+            dim_value: 1
           }
           dim {
-            dim_value: 2
+            dim_value: 10
           }
         }
       }
     }
   }
-
   output {
     name: "Y"
     type {
@@ -68,10 +67,10 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 4
+            dim_value: 1
           }
           dim {
-            dim_value: 4
+            dim_value: 19
           }
         }
       }

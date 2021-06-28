@@ -13,7 +13,7 @@ graph {
         float_data: 1.0
         float_data: 1.0
         float_data: 1.9
-        float_data: 1.9
+        float_data: 1.0
         name: "const_tensor"
       }
       type: TENSOR
@@ -45,10 +45,10 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 1
+            dim_value: 10
           }
           dim {
-            dim_value: 10
+            dim_value: 1
           }
         }
       }
@@ -67,10 +67,10 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 1
+            dim_value: 19
           }
           dim {
-            dim_value: 19
+            dim_value: 1
           }
         }
       }
