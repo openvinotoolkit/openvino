@@ -8,6 +8,7 @@
 
 #include <ie_extension.h>
 #include <file_utils.h>
+#include <ie_core.hpp>
 
 #include <ngraph/opsets/opset.hpp>
 
@@ -55,4 +56,28 @@ TEST(ExtensionTests, testGetImplementationThrowsIfNgraphNodeIsNullPtr) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
     ASSERT_THROW(extension->getImplementation(std::shared_ptr<ngraph::Node> (), ""),
             InferenceEngine::Exception);
+}
+
+TEST(ExtensionTests, testNewExtension) {
+    Core ie;
+    ExtensionContainer::Ptr extension = std::make_shared<SOExtension>(getExtensionPath());
+    ASSERT_EQ(2, extension->getExtensions().size());
+    ie.AddExtension(extension);
+}
+
+TEST(ExtensionTests, testNewExtensionCast) {
+    Core ie;
+    ExtensionContainer::Ptr extension = std::make_shared<SOExtension>(getExtensionPath());
+    std::vector<NewExtension::Ptr> extensions = *extension;
+    ASSERT_EQ(2, extensions.size());
+    ie.AddExtension(extension);
+}
+
+TEST(ExtensionTests, testNewExtensionFromVector) {
+    Core ie;
+    std::vector<NewExtension::Ptr> extensions;
+    for (size_t i = 0; i < 10; i++)
+        extensions.emplace_back(std::make_shared<NewExtension>());
+    ASSERT_EQ(10, extensions.size());
+    ie.AddExtension(extensions);
 }
