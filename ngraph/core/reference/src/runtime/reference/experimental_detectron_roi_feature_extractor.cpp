@@ -124,7 +124,7 @@ namespace
                 {
                     const T yy = roi_start_h + ph * bin_size_h +
                                  static_cast<T>(iy + .5f) * bin_size_h /
-                                     static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
+                                     static_cast<T>(roi_bin_grid_h); // e.g., 0.5, 1.5
                     for (int64_t ix = 0; ix < ix_upper; ix++)
                     {
                         const T xx =
@@ -256,8 +256,8 @@ namespace
             // We use roi_bin_grid to sample the grid and mimic integral
             int64_t roi_bin_grid_h =
                 (sampling_ratio > 0)
-                     ? sampling_ratio
-                     : static_cast<int64_t>(std::ceil(roi_height / pooled_height));  // e.g., = 2
+                    ? sampling_ratio
+                    : static_cast<int64_t>(std::ceil(roi_height / pooled_height)); // e.g., = 2
             int64_t roi_bin_grid_w =
                 (sampling_ratio > 0) ? sampling_ratio
                                      : static_cast<int64_t>(std::ceil(roi_width / pooled_width));
@@ -317,7 +317,7 @@ namespace
             }         // for c
         }
     }
-}
+} // namespace
 
 namespace ngraph
 {
@@ -339,9 +339,11 @@ namespace ngraph
                 int64_t pooled_height_ = output_dim_;
                 int64_t pooled_width_ = output_dim_;
 
-                const int64_t levels_num = static_cast<int64_t>(inputs.size() - input_features_start_port);
+                const int64_t levels_num =
+                    static_cast<int64_t>(inputs.size() - input_features_start_port);
                 const int64_t num_rois = static_cast<int64_t>(input_shapes[input_rois_port][0]);
-                const int64_t channels_num = static_cast<int64_t>(input_shapes[input_features_start_port][1]);
+                const int64_t channels_num =
+                    static_cast<int64_t>(input_shapes[input_features_start_port][1]);
                 const int64_t feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
                 const float* input_rois = inputs[input_rois_port].data();
@@ -351,7 +353,12 @@ namespace ngraph
 
                 std::vector<float> reordered_rois(4 * num_rois, 0);
                 std::vector<int64_t> original_rois_mapping(num_rois, 0);
-                reord(input_rois, level_ids.data(), num_rois, 4, reordered_rois.data(), original_rois_mapping.data());
+                reord(input_rois,
+                      level_ids.data(),
+                      num_rois,
+                      4,
+                      reordered_rois.data(),
+                      original_rois_mapping.data());
 
                 std::vector<int64_t> rois_per_level;
                 split_points(level_ids, rois_per_level, levels_num + 1);
@@ -364,20 +371,23 @@ namespace ngraph
                     if (level_rois_num > 0)
                     {
                         const float* featuremap = inputs[input_features_start_port + i].data();
-                        const int64_t featuremap_height = static_cast<int64_t>(input_shapes[input_features_start_port + i][2]);
-                        const int64_t featuremap_width = static_cast<int64_t>(input_shapes[input_features_start_port + i][3]);
-                        ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,
-                                                          featuremap,
-                                                          1.0f / pyramid_scales_[i],
-                                                          channels_num,
-                                                          featuremap_height,
-                                                          featuremap_width,
-                                                          pooled_height_,
-                                                          pooled_width_,
-                                                          sampling_ratio_,
-                                                          &reordered_rois[4 * level_rois_offset],
-                                                          aligned_,
-                                                          &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
+                        const int64_t featuremap_height =
+                            static_cast<int64_t>(input_shapes[input_features_start_port + i][2]);
+                        const int64_t featuremap_width =
+                            static_cast<int64_t>(input_shapes[input_features_start_port + i][3]);
+                        ROIAlignForward_cpu_kernel<float>(
+                            feaxels_per_roi * level_rois_num,
+                            featuremap,
+                            1.0f / pyramid_scales_[i],
+                            channels_num,
+                            featuremap_height,
+                            featuremap_width,
+                            pooled_height_,
+                            pooled_width_,
+                            sampling_ratio_,
+                            &reordered_rois[4 * level_rois_offset],
+                            aligned_,
+                            &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
                     }
                 }
 
@@ -451,6 +461,6 @@ namespace ngraph
                 default:;
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
