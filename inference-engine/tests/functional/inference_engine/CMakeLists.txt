@@ -179,7 +179,7 @@ function(ie_headers_compilation_with_custom_flags)
 
     if(IE_TEST_FLAGS)
         set_target_properties(${target_name} PROPERTIES
-                              COMPILE_FLAGS ${IE_TEST_FLAGS})
+                              COMPILE_OPTIONS ${IE_TEST_FLAGS})
     endif()
 
     if(IE_TEST_DEFINITIONS)

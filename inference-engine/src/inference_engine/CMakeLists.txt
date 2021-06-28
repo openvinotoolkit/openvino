@@ -67,7 +67,7 @@ if(ENABLE_SSE42)
     list(APPEND LIBRARY_SRC ${SSE_SRC})
 
     ie_sse42_optimization_flags(sse4_2_flags)
-    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_OPTIONS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
 
     if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.16")

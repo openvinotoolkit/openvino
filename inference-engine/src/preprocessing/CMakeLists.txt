@@ -29,17 +29,6 @@ function(ie_avx512_core_optimization_flags flags)
     endif()
 endfunction()
 
-function(set_ie_neon_optimization_flags neon_flags)
-    file(GLOB NEON_SRC ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.cpp)
-    file(GLOB NEON_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.hpp)
-
-    list(APPEND LIBRARY_HEADERS ${NEON_HEADERS})
-    list(APPEND LIBRARY_SRC ${NEON_SRC})
-
-    set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_FLAGS "${neon_flags}")
-    add_definitions(-DHAVE_NEON=1)
-endfunction()
-
 if(ENABLE_SSE42)
     file(GLOB SSE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.cpp)
     file(GLOB SSE_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.hpp)
@@ -48,7 +37,7 @@ if(ENABLE_SSE42)
     list(APPEND LIBRARY_SRC ${SSE_SRC})
 
     ie_sse42_optimization_flags(sse4_2_flags)
-    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_OPTIONS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
 endif()
 
@@ -60,7 +49,7 @@ if(ENABLE_AVX2)
     list(APPEND LIBRARY_SRC ${AVX2_SRC})
 
     ie_avx2_optimization_flags(avx2_flags)
-    set_source_files_properties(${AVX2_SRC} PROPERTIES COMPILE_FLAGS "${avx2_flags}")
+    set_source_files_properties(${AVX2_SRC} PROPERTIES COMPILE_OPTIONS "${avx2_flags}")
     add_definitions(-DHAVE_AVX2=1)
 endif()
 
@@ -80,7 +69,7 @@ if(ENABLE_AVX512F AND NOT GNU_5_DEBUG_CASE)
     list(APPEND LIBRARY_SRC ${AVX512_SRC})
 
     ie_avx512_core_optimization_flags(avx512_flags)
-    set_source_files_properties(${AVX512_SRC} PROPERTIES COMPILE_FLAGS "${avx512_flags}")
+    set_source_files_properties(${AVX512_SRC} PROPERTIES COMPILE_OPTIONS "${avx512_flags}")
     add_definitions(-DHAVE_AVX512=1)
 endif()
 
@@ -94,7 +83,7 @@ if(ARM OR AARCH64)
         list(APPEND LIBRARY_HEADERS ${NEON_HEADERS})
         list(APPEND LIBRARY_SRC ${NEON_SRC})
 
-        set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_FLAGS "${neon_flags}")
+        set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_OPTIONS "${neon_flags}")
         add_definitions(-DHAVE_NEON=1)
     endif()
 endif()
