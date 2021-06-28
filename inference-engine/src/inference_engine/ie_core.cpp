@@ -774,7 +774,7 @@ public:
     }
 
     /**
-     * @brief Porvides a list of plugin names in registry; physically such plugins may not be created
+     * @brief Provides a list of plugin names in registry; physically such plugins may not be created
      * @return A list of plugin names
      */
     std::vector<std::string> GetListOfDevicesInRegistry() const {
