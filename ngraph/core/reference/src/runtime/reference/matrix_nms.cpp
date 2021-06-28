@@ -325,8 +325,13 @@ namespace ngraph
                     std::partial_sort(perm.begin(),
                                       perm.begin() + num_det,
                                       perm.end(),
-                                      [&all_scores](int lhs, int rhs) {
-                                          return all_scores[lhs] > all_scores[rhs];
+                                      [&all_scores, &all_classes, &all_indices](int lhs, int rhs) {
+                                          return (all_scores[lhs] > all_scores[rhs]) ||
+                                                 (all_scores[lhs] == all_scores[rhs] &&
+                                                  all_classes[lhs] < all_classes[rhs]) ||
+                                                 (all_scores[lhs] == all_scores[rhs] &&
+                                                  all_classes[lhs] == all_classes[rhs] &&
+                                                  all_indices[lhs] < all_indices[rhs]);
                                       });
 
                     for (size_t i = 0; i < num_det; i++)
