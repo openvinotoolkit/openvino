@@ -11,7 +11,8 @@ file(GLOB SRCS
 add_executable(${TARGET_NAME} ${SRCS})
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
+    ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
+    ${IE_MAIN_SOURCE_DIR}/src/vpu/common/include
 )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
