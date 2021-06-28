@@ -14,7 +14,6 @@ class MemoryOffsetBatchUpdate(FrontReplacementPattern):
     """
     enabled = True
     run_not_recursively = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_after(self):
         from extensions.front.user_data_repack import UserDataRepack

@@ -13,7 +13,6 @@ class RemoveMemoryDuplicationPattern(MiddleReplacementPattern):
     Remove Splice nodes with context that is included in context of another Splice with the same input 
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_before(self):
         return [MergeNeighborSplicePattern]
@@ -69,7 +68,6 @@ class MergeNeighborSplicePattern(MiddleReplacementPattern):
     Merge Splices with neighbor contexts, for example: [-5, 0] and [0, 3] to context [-5, 3]
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_after(self):
         return [RemoveMemoryDuplicationPattern]

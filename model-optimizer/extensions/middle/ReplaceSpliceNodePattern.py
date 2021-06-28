@@ -38,7 +38,6 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
 
    """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_after(self):
         from extensions.middle.RemoveDuplicationMemory import MergeNeighborSplicePattern, RemoveMemoryDuplicationPattern

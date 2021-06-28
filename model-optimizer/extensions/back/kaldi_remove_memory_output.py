@@ -7,7 +7,6 @@ from mo.graph.graph import Graph
 
 class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_after(self):
         from extensions.back.pass_separator import BackFinish
