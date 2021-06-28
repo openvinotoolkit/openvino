@@ -69,7 +69,7 @@ void op::PriorBox::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, element::f32, PartialShape::dynamic());
+        set_output_type(0, element::f32, PartialShape{2, Dimension::dynamic()});
     }
 }
 
