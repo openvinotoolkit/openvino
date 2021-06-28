@@ -234,10 +234,13 @@ def get_replacers_order(transform_types: list):
     for replacer_cls in replacers:
         dependency_graph.add_node(replacer_cls)
 
+    print("dependency graph")
     for i, replacer_cls in enumerate(replacers):
         for cls_after in replacer_cls().run_before():
+            print("Run before: {} {}".format(replacer_cls, cls_after))
             dependency_graph.add_edge(replacer_cls, cls_after)
         for cls_before in replacer_cls().run_after():
+            print("Run after: {} {}".format(replacer_cls, cls_after))
             dependency_graph.add_edge(cls_before, replacer_cls)
 
     replacers_order = dependency_graph.determined_sort()
