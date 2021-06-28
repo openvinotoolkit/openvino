@@ -6,7 +6,6 @@
 #include "cldnn/runtime/engine.hpp"
 #include "implementation_map.h"
 #include "network_impl.h"
-#include "math_utils.h"
 #include "cldnn/runtime/error_handler.hpp"
 #include "register_gpu.hpp"
 

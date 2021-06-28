@@ -5,7 +5,6 @@
 #include "condition_inst.h"
 #include "network_impl.h"
 #include "implementation_map.h"
-#include "math_utils.h"
 #include "register_gpu.hpp"
 
 #include <algorithm>
