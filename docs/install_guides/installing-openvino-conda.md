@@ -5,6 +5,8 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 
 ## System Requirements
 
+**Software**
+
  - [Anaconda* distribution](https://www.anaconda.com/products/individual/)
 
 **Operating Systems**
