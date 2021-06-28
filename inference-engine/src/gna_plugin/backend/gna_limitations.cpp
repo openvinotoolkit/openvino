@@ -178,8 +178,8 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                                                if (GNAPluginNS::LayerInfo(layer).isFullyConnected()) {
                                                    size_t output_batch_size = GNAPluginNS::LayerInfo(layer).getOutputBatchSize();
                                                    if (output_batch_size > 8) {
-                                                        errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
-                                                                     ", and batch size(" + std::to_string(output_batch_size) + ") not supported";
+                                                        errMessage = layer->name + " (" + layer->type +
+                                                            ") compiles to GNA layer with unsupported batch size " + std::to_string(output_batch_size);
                                                         check_result =  false;
                                                    }
                                                }
