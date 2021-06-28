@@ -78,7 +78,7 @@ static bool VerifyAndGetConvParams(std::shared_ptr<ngraph::opset7::Convolution> 
     return true;
 }
 
-static bool TransposeOrderMatches(std::shared_ptr<ngraph::opset7::Transpose> transpose, std::vector<int64_t> order) {
+static bool TransposeOrderMatches(std::shared_ptr<ngraph::opset7::Transpose> transpose, std::vector<size_t> order) {
     if (!transpose)
         return false;
     const ngraph::Output<ngraph::Node>& transpose_order = transpose->input_value(1);
@@ -91,20 +91,22 @@ static bool TransposeOrderMatches(std::shared_ptr<ngraph::opset7::Transpose> tra
     if (!const_with_order_values)
         return false;
 
-    const int64_t* data = const_with_order_values->get_data_ptr<int64_t>();
-    if (!data)
+    const auto data = const_with_order_values->cast_vector<size_t>();
+    if (data.empty())
         return false;
 
-    for (size_t i = 0; i < order.size(); i++) {
-        if (order[i] != data[i])
-            return false;
-    }
+    if (!std::equal(order.begin(), order.end(), data.begin()))
+        return false;
 
     return true;
 }
 
 static bool VerifyBias(std::shared_ptr<ngraph::opset7::Add> bias, const size_t& filter_count) {
-    auto add_const = std::dynamic_pointer_cast<ngraph::op::Constant>(bias->input_value(1).get_node_shared_ptr());
+    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(0).get_node_shared_ptr());
+
+    // We need to check both inputs of Add when looking for constant
+    if (!add_const)
+        add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(1).get_node_shared_ptr());
 
     // The add may be a normal add not conv bias, then we just go further
     return (add_const && shape_size(add_const->get_shape()) == filter_count);
@@ -122,10 +124,11 @@ static bool VerifyMaxPool(std::shared_ptr<ngraph::opset7::MaxPool> max_pool) {
         pool_kernel[0] == pool_strides[0] && pool_kernel[0] <= 8);
 }
 
-static int32_t GetRequiredInputPadding(size_t input_size, size_t filter_size, size_t stride_size, size_t dilation_size, size_t output_size) {
-    int32_t padding_size = (output_size - 1) * stride_size + (filter_size - 1) * dilation_size + 1 - input_size;
+static size_t GetRequiredInputPadding(size_t input_size, size_t filter_size, size_t stride_size, size_t dilation_size, size_t output_size) {
+    size_t partial_padding_size = (output_size - 1) * stride_size + (filter_size - 1) * dilation_size + 1;
 
-    return padding_size >= 0 ? padding_size : 0;
+    // This way of padding size calculation avoids problem with fractional numbers
+    return (partial_padding_size > input_size) ? (partial_padding_size - input_size) : 0;
 }
 
 static size_t CalculateOutputSize(size_t input_size, size_t filter_size, size_t stride_size, size_t dilation_size, size_t padding_size) {
@@ -152,9 +155,9 @@ static bool CalculatePadding(ConvData& conv_data) {
         output_height = conv_data.output_shape[2];
         output_width = conv_data.output_shape[3];
 
-        int32_t pads_width = GetRequiredInputPadding(conv_data.input_width, conv_data.filter_width,
+        size_t pads_width = GetRequiredInputPadding(conv_data.input_width, conv_data.filter_width,
             conv_data.filter_stride_width, conv_data.filter_dilation_width, output_width);
-        int32_t pads_height = GetRequiredInputPadding(conv_data.input_height, conv_data.filter_height,
+        size_t pads_height = GetRequiredInputPadding(conv_data.input_height, conv_data.filter_height,
             conv_data.filter_stride_height, conv_data.filter_dilation_height, output_height);
 
         conv_data.pads_begin_width = conv_data.pads_end_width = pads_width / 2;
@@ -221,7 +224,7 @@ static std::shared_ptr<ngraph::Node> CreatePaddedNet(std::shared_ptr<ngraph::ops
     }
 
     auto flat_input = std::make_shared<ngraph::opset7::Reshape>(leading_transpose->input_value(0),
-        ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 },
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 },
             ngraph::Shape{ 1ull, shape_size(leading_transpose->input_value(0).get_shape()) }), false);
 
     // zero padding
@@ -292,14 +295,14 @@ static void GeneratePadding(std::shared_ptr<ngraph::opset7::Transpose> leading_t
     auto padded_input_plane = CreatePaddedNet(leading_transpose, conv, conv_data);
 
     auto padded_input_plane_reshaped = std::make_shared<ngraph::opset7::Reshape>(padded_input_plane,
-        ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { static_cast<size_t>(1),
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { static_cast<size_t>(1),
             conv_data.pads_begin_height + conv_data.input_height + conv_data.pads_end_height,
             conv_data.pads_begin_width + conv_data.input_width + conv_data.pads_end_width,
             conv_data.input_channel_count }), false);
 
-    //NHWC => NCHW
-    auto transposed2chw = std::make_shared<ngraph::op::Transpose>(padded_input_plane_reshaped,
-        ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0ull, 3ull, 1ull, 2ull })->output(0));
+    // NHWC => NCHW
+    auto transposed2chw = std::make_shared<ngraph::opset7::Transpose>(padded_input_plane_reshaped,
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0ull, 3ull, 1ull, 2ull })->output(0));
 
     auto conv_copy = std::make_shared<ngraph::opset7::Convolution>(
         transposed2chw->output(0),
@@ -357,13 +360,13 @@ std::function<bool(ngraph::Output<ngraph::Node>)> consumers_and_rank(const size_
 ConvertPadded2ValidConv::ConvertPadded2ValidConv() {
     MATCHER_SCOPE(ConvertPadded2ValidConv);
 
-    auto const_input_i64 = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::type_matches(ngraph::element::i64));
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input_i64 },
+    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
         consumers_and_rank(1, 4));
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
         { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
         ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ conv, const_input_i64 },
+    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ conv, const_input },
         consumers_and_rank(1, 4));
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -379,16 +382,15 @@ ConvertPadded2ValidConv::ConvertPadded2ValidConv() {
 ConvertPaddedWithBias2ValidConv::ConvertPaddedWithBias2ValidConv() {
     MATCHER_SCOPE(ConvertPaddedWithBias2ValidConv);
 
-    auto const_input_i64 = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::type_matches(ngraph::element::i64));
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input_i64 },
+    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
         consumers_and_rank(1, 4));
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
         { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
         ngraph::pattern::consumers_count(1));
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ conv, const_input },
         ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ bias, const_input_i64 },
+    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ bias, const_input },
         consumers_and_rank(1, 4));
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -404,9 +406,8 @@ ConvertPaddedWithBias2ValidConv::ConvertPaddedWithBias2ValidConv() {
 ConvertPaddedWithBiasAF2ValidConv::ConvertPaddedWithBiasAF2ValidConv() {
     MATCHER_SCOPE(ConvertPaddedWithBiasAF2ValidConv);
 
-    auto const_input_i64 = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::type_matches(ngraph::element::i64));
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input_i64 },
+    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
         consumers_and_rank(1, 4));
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
         { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
@@ -417,7 +418,7 @@ ConvertPaddedWithBiasAF2ValidConv::ConvertPaddedWithBiasAF2ValidConv() {
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
         ngraph::opset7::Sign, ngraph::opset7::Clamp>({ bias },
         ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ af, const_input_i64 },
+    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ af, const_input },
         consumers_and_rank(1, 4));
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -434,18 +435,17 @@ ConvertPaddedWithBiasAF2ValidConv::ConvertPaddedWithBiasAF2ValidConv() {
 ConvertPaddedWithBiasMaxPool2ValidConv::ConvertPaddedWithBiasMaxPool2ValidConv() {
     MATCHER_SCOPE(ConvertPaddedWithBiasMaxPool2ValidConv);
 
-    auto const_input_i64 = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::type_matches(ngraph::element::i64));
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input_i64 },
+    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
         consumers_and_rank(1, 4));
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
         { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
         ngraph::pattern::consumers_count(1));
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ conv, const_input },
         ngraph::pattern::consumers_count(1));
-    auto max_pool = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({ bias, const_input },
+    auto max_pool = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({ bias },
         ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ max_pool, const_input_i64 },
+    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ max_pool, const_input },
         consumers_and_rank(1, 4));
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -462,22 +462,21 @@ ConvertPaddedWithBiasMaxPool2ValidConv::ConvertPaddedWithBiasMaxPool2ValidConv()
 ConvertPaddedWithBiasMaxPoolAF2ValidConv::ConvertPaddedWithBiasMaxPoolAF2ValidConv() {
     MATCHER_SCOPE(ConvertPaddedWithBiasMaxPoolAF2ValidConv);
 
-    auto const_input_i64 = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::type_matches(ngraph::element::i64));
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input_i64 },
+    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
         consumers_and_rank(1, 4));
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
         { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
         ngraph::pattern::consumers_count(1));
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ conv, const_input },
         ngraph::pattern::consumers_count(1));
-    auto max_pool = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({ bias, const_input },
+    auto max_pool = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({ bias },
         ngraph::pattern::consumers_count(1));
     auto af = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
         ngraph::opset7::Sign, ngraph::opset7::Clamp>({ max_pool },
         ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ af, const_input_i64 },
+    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ af, const_input },
         consumers_and_rank(1, 4));
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -494,14 +493,13 @@ ConvertPaddedWithBiasMaxPoolAF2ValidConv::ConvertPaddedWithBiasMaxPoolAF2ValidCo
 ConvertPaddedTransposedWithBias2ValidConv::ConvertPaddedTransposedWithBias2ValidConv() {
     MATCHER_SCOPE(ConvertPaddedTransposedWithBias2ValidConv);
 
-    auto const_input_i64 = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::type_matches(ngraph::element::i64));
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input_i64 },
+    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
         consumers_and_rank(1, 4));
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
         { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
         ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ conv, const_input_i64 },
+    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ conv, const_input },
         consumers_and_rank(1, 4));
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ trailing_transpose, const_input },
         ngraph::pattern::consumers_count(1));
@@ -519,14 +517,13 @@ ConvertPaddedTransposedWithBias2ValidConv::ConvertPaddedTransposedWithBias2Valid
 ConvertPaddedTransposedWithBiasAF2ValidConv::ConvertPaddedTransposedWithBiasAF2ValidConv() {
     MATCHER_SCOPE(ConvertPaddedTransposedWithBiasAF2ValidConv);
 
-    auto const_input_i64 = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::type_matches(ngraph::element::i64));
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input_i64 },
+    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
         consumers_and_rank(1, 4));
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
         { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
         ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ conv, const_input_i64 },
+    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ conv, const_input },
         consumers_and_rank(1, 4));
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ trailing_transpose, const_input },
         ngraph::pattern::consumers_count(1));
