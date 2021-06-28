@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Cos::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Cos, "Cos", 0, util::UnaryElementwiseArithmetic);
 
 op::Cos::Cos(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
