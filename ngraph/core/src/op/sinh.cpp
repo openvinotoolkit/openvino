@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Sinh::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Sinh, "Sinh", 0);
 
 op::Sinh::Sinh(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)

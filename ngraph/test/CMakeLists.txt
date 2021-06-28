@@ -211,6 +211,7 @@ set(SRC
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
     type_prop/sin.cpp
+    type_prop/sinh.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
@@ -291,6 +292,7 @@ set(SRC
     visitors/op/round.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
+    visitors/op/sinh.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
     visitors/op/space_to_batch.cpp
