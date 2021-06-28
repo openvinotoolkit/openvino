@@ -46,7 +46,7 @@
 
   * **Description**: *min_size (max_size)* is the minimum (maximum) box size (in pixels). For example, *min_size (max_size)* equal 15 means that the minimum (maximum) box size is 15.
   * **Range of values**: positive floating point numbers
-  * **Type**: float[]
+  * **Type**: `float[]`
   * **Default value**: []
   * **Required**: *no*
 
@@ -54,7 +54,7 @@
 
   * **Description**: *aspect_ratio* is a variance of aspect ratios. Duplicate values are ignored. For example, *aspect_ratio* equal "2.0,3.0" means that for the first box aspect_ratio is equal to 2.0 and for the second box is 3.0.
   * **Range of values**: set of positive integer numbers
-  * **Type**: float[]
+  * **Type**: `float[]`
   * **Default value**: []
   * **Required**: *no*
 
@@ -64,7 +64,7 @@
   * **Range of values**:
     * false or 0 - each *aspect_ratio* is flipped
     * true or 1  - each *aspect_ratio* is not flipped
-  * **Type**: boolean
+  * **Type**: `boolean`
   * **Default value**: false
   * **Required**: *no*
 
@@ -74,7 +74,7 @@
   * **Range of values**:
     * false or 0 - clipping is not performed
     * true or 1 - each value in the output tensor is clipped to [0,1] interval.
-  * **Type**: boolean
+  * **Type**: `boolean`
   * **Default value**: false
   * **Required**: *no*
 
@@ -82,7 +82,7 @@
 
   * **Description**: *step* is a distance between box centers. For example, *step* equal 85 means that the distance between neighborhood prior boxes centers is 85.
   * **Range of values**: floating point non-negative number
-  * **Type**: float
+  * **Type**: `float`
   * **Default value**: 0
   * **Required**: *no*
 
@@ -90,7 +90,7 @@
 
   * **Description**: *offset* is a shift of box respectively to top left corner. For example, *offset* equal 85 means that the shift of neighborhood prior boxes centers is 85.
   * **Range of values**: floating point non-negative number
-  * **Type**: float
+  * **Type**: `float`
   * **Default value**: None
   * **Required**: *yes*
 
@@ -98,7 +98,7 @@
 
   * **Description**: *variance* denotes a variance of adjusting bounding boxes. The attribute could contain 0, 1 or 4 elements.
   * **Range of values**: floating point positive numbers
-  * **Type**: float[]
+  * **Type**: `float[]`
   * **Default value**: []
   * **Required**: *no*
 
@@ -108,7 +108,7 @@
   * **Range of values**:
     * false - *max_size* is ignored
     * true  - *max_size* is used
-  * **Type**: boolean
+  * **Type**: `boolean`
   * **Default value**: true
   * **Required**: *no*
 
@@ -116,7 +116,7 @@
 
     * **Description**: *fixed_ratio* is an aspect ratio of a box. For example, *fixed_ratio* equal to 2.000000 means that the aspect ratio for the first box aspect ratio is 2.
     * **Range of values**: a list of positive floating-point numbers
-    * **Type**: float[]
+    * **Type**: `float[]`
     * **Default value**: None
     * **Required**: *no*
 
@@ -124,7 +124,7 @@
 
     * **Description**: *fixed_size* is an initial box size (in pixels). For example, *fixed_size* equal to 15 means that the initial box size is 15.
     * **Range of values**: a list of positive floating-point numbers
-    * **Type**: float[]
+    * **Type**: `float[]`
     * **Default value**: None
     * **Required**: *no*
 
@@ -132,19 +132,24 @@
 
     * **Description**: *density* is the square root of the number of boxes of each type. For example, *density* equal to 2 means that the first box generates four boxes of the same size and with the same shifted centers.
     * **Range of values**: a list of positive floating-point numbers
-    * **Type**: float[]
+    * **Type**: `float[]`
     * **Default value**: None
     * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: `output_size` - 1D tensor with two integer elements `[height, width]`. Specifies the spatial size of generated grid with boxes. **Required**.
+*   **1**: `output_size` - 1D tensor of type *T_INT* with two elements `[height, width]`. Specifies the spatial size of generated grid with boxes. **Required**.
 
-*   **2**: `image_size` - 1D tensor with two integer elements `[image_height, image_width]` that specifies shape of the image for which boxes are generated. **Required**.
+*   **2**: `image_size` - 1D tensor of type *T_INT* with two elements `[image_height, image_width]` that specifies shape of the image for which boxes are generated. **Required**.
 
 **Outputs**:
 
-*   **1**: 2D tensor of shape `[2, 4 * height * width * priors_per_point]` with box coordinates. The `priors_per_point` is the number of boxes generated per each grid element. The number depends on layer attribute values.
+*   **1**: 2D tensor of shape `[2, 4 * height * width * priors_per_point]` and type *T_OUT* with box coordinates. The `priors_per_point` is the number of boxes generated per each grid element. The number depends on layer attribute values.
+
+**Types**
+
+* *T_INT*: any supported integer type.
+* *T_OUT*: floating point (`fp32`) type.
 
 **Example**
 
