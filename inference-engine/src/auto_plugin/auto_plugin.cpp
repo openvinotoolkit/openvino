@@ -274,34 +274,78 @@ DeviceName AutoInferencePlugin::SelectDevice(const std::vector<DeviceName>& meta
     }
 
     std::vector<DeviceName> CPU;
-    std::vector<DeviceName> GPU;
+    std::vector<DeviceName> dGPU;
+    std::vector<DeviceName> iGPU;
+    std::vector<DeviceName> MYRIAD;
+    std::vector<DeviceName> VPUX;
 
     for (auto& item : metaDevices) {
         if (item.find("CPU") == 0) {
             CPU.push_back(item);
             continue;
         }
-        if (item.find("GPU") == 0) {
-            GPU.push_back(item);
+        if (item.find("GPU.1") == 0) {
+            // dGPU found
+            dGPU.push_back(item);
+            continue;
+        } else if (item.find("GPU.0") == 0 || item.find("GPU") == 0) {
+            // iGPU found
+            iGPU.push_back(item);
+            continue;
+        }
+        if (item.find("MYRIAD") == 0) {
+            MYRIAD.push_back(item);
+            continue;
+        }
+        if (item.find("VPUX") == 0) {
+            VPUX.push_back(item);
             continue;
         }
     }
 
-    if (CPU.empty() && GPU.empty()) {
+    if (CPU.empty() && dGPU.empty() && iGPU.empty() && MYRIAD.empty() && VPUX.empty()) {
         IE_THROW(NotFound) << "No available device found";
     }
 
-    // Sort GPU by name: GPU.2 > GPU.1 > GPU.0 > GPU, so we always choose the GPU[0] as best device
-    std::sort(GPU.begin(), GPU.end(), [](const DeviceName& a, const DeviceName& b)->bool{return b < a;});
-
-    for (auto&& item : GPU) {
-        std::vector<std::string> capability = GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-        auto res = std::find(capability.begin(), capability.end(), networkPrecision);
-        if (res != capability.end()) {
-            return item;
+    // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
+    if (!dGPU.empty()) {
+        for (auto&& item : dGPU) {
+            std::vector<std::string> capability = GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
+            if (supportNetwork != capability.end()) {
+                return item;
+            }
+        }
+    } else if (!VPUX.empty()) {
+        for (auto&& item : VPUX) {
+            std::vector<std::string> capability = GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
+            if (supportNetwork != capability.end()) {
+                return item;
+            }
+        }
+    } else if (!iGPU.empty()) {
+        for (auto&& item : iGPU) {
+            std::vector<std::string> capability = GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
+            if (supportNetwork != capability.end()) {
+                return item;
+            }
+        }
+    } else if (!MYRIAD.empty()) {
+        for (auto&& item : MYRIAD) {
+            std::vector<std::string> capability = GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            // If this device supports "FP16" in "OPTIMIZATION_CAPABILITIES", supports FP32 at the same time (Currently for MYRIAD only)
+            auto supportFP16 = std::find(capability.begin(), capability.end(), "FP16");
+            if (supportFP16 != capability.end()) {
+                capability.insert(capability.begin(), "FP32");
+            }
+            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
+            if (supportNetwork != capability.end()) {
+                return item;
+            }
         }
     }
-
     if (CPU.empty()) {
         IE_THROW() << "Cannot select any device";
     }
