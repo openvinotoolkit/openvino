@@ -4,12 +4,10 @@ This topic demonstrates how to run the Benchmark Python* Tool, which performs in
 
 > **NOTE:** This topic describes usage of Python implementation of the Benchmark Tool. For the C++ implementation, refer to [Benchmark C++ Tool](../../samples/benchmark_app/README.md).
 
-> **TIP**: You also can work with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare
-> performance of deep learning models on various Intel® architecture
-> configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components.
-> <br>
-> Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
+> **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI you to 
+> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
+> deployment on various Intel® platforms.
 
 ## How It Works
 
