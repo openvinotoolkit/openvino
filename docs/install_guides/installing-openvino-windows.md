@@ -6,7 +6,7 @@
 
 > **TIP**: If you want to [quick start with OpenVINO™ toolkit](@ref 
 > openvino_docs_get_started_get_started_dl_workbench), you can use 
-> the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction). DL Workbench isthe OpenVINO™ toolkit UI  
+> the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction). DL Workbench is the OpenVINO™ toolkit UI  
 > that enables you to import a
 > model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for deployment
 > on various Intel® platforms. Begin your OpenVINO™ journey with [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Install).
