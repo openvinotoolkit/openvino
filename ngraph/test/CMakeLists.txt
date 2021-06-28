@@ -251,6 +251,7 @@ set(SRC
     visitors/op/lstm_sequence.cpp
     visitors/op/matmul.cpp
     visitors/op/max_pool.cpp
+    visitors/op/mish.cpp
     visitors/op/mod.cpp
     visitors/op/mvn.cpp
     visitors/op/negative.cpp
@@ -414,6 +415,7 @@ set(MULTI_TEST_SRC
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
+    backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
