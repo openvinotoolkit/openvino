@@ -36,7 +36,7 @@ const auto SpaceToDepthBS2 = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_SpaceToDepthBS2, SpaceToDepthLayerTest, SpaceToDepthBS2, SpaceToDepthLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SpaceToDepthBS2, SpaceToDepthLayerTest, SpaceToDepthBS2, SpaceToDepthLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShapesBS3 = {
         {1, 1, 3, 3}, {1, 1, 6, 6}, {1, 1, 9, 9}, {2, 4, 9, 9}, {2, 3, 15, 12},
@@ -51,6 +51,6 @@ const auto SpaceToDepthBS3 = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_SpaceToDepthBS3, SpaceToDepthLayerTest, SpaceToDepthBS3, SpaceToDepthLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SpaceToDepthBS3, SpaceToDepthLayerTest, SpaceToDepthBS3, SpaceToDepthLayerTest::getTestCaseName);
 
 }  // namespace

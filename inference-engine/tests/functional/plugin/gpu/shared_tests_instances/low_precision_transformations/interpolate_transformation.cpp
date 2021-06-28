@@ -48,5 +48,5 @@ const auto combineValues = ::testing::Combine(
     ::testing::Values(CommonTestUtils::DEVICE_GPU),
     ::testing::ValuesIn(interpAttrs));
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, InterpolateTransformation, combineValues, InterpolateTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, InterpolateTransformation, combineValues, InterpolateTransformation::getTestCaseName);
 }  // namespace
