@@ -21,6 +21,8 @@ except ImportError:
 
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
+from mo.moc_frontend.pipeline import moc_pipeline
+from mo.moc_frontend.serialize import moc_emit_ir
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
@@ -40,6 +42,9 @@ from mo.utils.utils import refer_to_faq_msg
 from mo.utils.telemetry_utils import send_params_info, send_framework_info
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
+
+# pylint: disable=no-name-in-module,import-error
+from ngraph.frontend import FrontEndManager
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -265,7 +270,6 @@ def prepare_ir(argv: argparse.Namespace):
     if argv.feManager is None or argv.framework not in new_front_ends:
         graph = unified_pipeline(argv)
     else:
-        from mo.moc_frontend.pipeline import moc_pipeline
         ngraph_function = moc_pipeline(argv)
     return graph, ngraph_function
 
@@ -354,7 +358,6 @@ def driver(argv: argparse.Namespace):
     if graph is not None:
         ret_res = emit_ir(graph, argv)
     else:
-        from mo.moc_frontend.serialize import moc_emit_ir
         ret_res = moc_emit_ir(ngraph_function, argv)
 
     if ret_res != 0:
@@ -375,7 +378,7 @@ def driver(argv: argparse.Namespace):
     return ret_res
 
 
-def main(cli_parser: argparse.ArgumentParser, frontEndManager, framework: str):
+def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
     telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
@@ -389,7 +392,7 @@ def main(cli_parser: argparse.ArgumentParser, frontEndManager, framework: str):
 
         if framework:
             argv.framework = framework
-        argv.feManager = frontEndManager
+        argv.feManager = fem
 
         ov_update_message = None
         if not hasattr(argv, 'silent') or not argv.silent:
@@ -432,12 +435,5 @@ def main(cli_parser: argparse.ArgumentParser, frontEndManager, framework: str):
 
 if __name__ == "__main__":
     from mo.utils.cli_parser import get_all_cli_parser
-    fem = None
-    try:
-        # pylint: disable=no-name-in-module,import-error
-        from ngraph.frontend import FrontEndManager
-        fem = FrontEndManager()
-    except ImportError:
-        pass
-
+    fem = FrontEndManager()
     sys.exit(main(get_all_cli_parser(fem), fem, None))
