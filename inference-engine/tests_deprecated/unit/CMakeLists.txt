@@ -115,6 +115,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     # dynamic libraries
     inference_engine_transformations
     inference_engine_lp_transformations
+    ngraph::frontend_manager
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
