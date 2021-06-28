@@ -4,7 +4,6 @@
 import networkx as nx
 import numpy as np
 
-from extensions.front.kaldi.memory_offset_adjustment import find_max_frame_time
 from extensions.middle.MakeKaldiConstReshapable import create_const_with_batch_from_input
 from extensions.ops.elementwise import Equal
 from extensions.ops.select import Select
@@ -23,7 +22,18 @@ from mo.utils.error import Error
 
 class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
     """
-    Add Select before saving state with Memory to avoid garbage saving
+    Add Select before saving state with Memory to avoid garbage saving.
+    We need to know delay on each node where Select
+    is adding. For that we traverse the whole graph and set frame time for each node using the following rules:
+        * Splice increases frame time by length of its context. If Crop is following Splice - it takes one concrete moment
+          of time, so frame time increases by its value
+          Example:
+                      node ---> Splice(-5, -4, ... 0) ---> node
+          frame time:  0   --->        5              --->  5
+                      node ---> Splice(-5, -4, ... 0) ---> Crop(offset = 2, dim = 1) ---> node
+          frame time:  0   --->        5              --->       3                   --->  3
+        * Nodes with several inputs have frame time= max (frame time of each input)
+        * Node with one input have the same frame time as its input
     """
     enabled = True
 
@@ -82,17 +92,15 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
                     else:
                         node.frame_time = node.in_port(0).get_source().node.frame_time
                 # for node with several inputs frame_time = maximum of delays from branches
-                elif len(node.in_edges()) > 1:
-                    # find out maximum of delay and check that we have at least one branch with another delay
-                    node.frame_time, _ = find_max_frame_time(node)
-                elif len(node.in_edges()) == 1:
-                    for p in node.in_ports():
-                        if not node.in_port(p).disconnected():
-                            node.frame_time = node.in_port(p).get_source().node.frame_time
-                            break
                 else:
-                    # for all input nodes (without inputs) frame_time is 0
+                    # find out maximum of delay and check that we have at least one branch with another delay
                     node.frame_time = 0
+                    for inp in node.in_ports():
+                        if node.in_port(inp).disconnected():
+                            continue
+                        in_node = node.in_port(inp).get_source().node
+                        if in_node.frame_time > node.frame_time:
+                            node.frame_time = in_node.frame_time
 
     @staticmethod
     def insert_select(graph: Graph, node: Node):

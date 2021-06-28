@@ -232,7 +232,11 @@ def load_priors(file_descr, graph):
     except Error:
         # just ignore if priors were not found
         return
-    graph.graph['priors'] = read_binary_vector(file_descr)
+    if graph.graph['cmd_params'].counts is not None:
+        graph.graph['priors'] = read_binary_vector(file_descr)
+    else:
+        log.error("Model contains Prior values, if you want to use it add option --counts=\"\" to command line",
+                  extra={'is_warning': True})
 
 
 def load_components(file_descr, graph, component_layer_map=None):
