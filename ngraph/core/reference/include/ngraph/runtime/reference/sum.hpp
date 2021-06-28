@@ -22,23 +22,26 @@ namespace ngraph
             {
                 // Windows doesn't seem to like it if we directly use std::isfinite on integer
                 // types, so we will roll our own thing here.
-                template <typename T>
-                typename std::enable_if<std::is_floating_point<T>::value, bool>::type is_finite(T x)
+                template <
+                    typename T,
+                    typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+                bool is_finite(T x)
                 {
                     return std::isfinite(x);
                 }
 
-                template <typename T>
-                typename std::enable_if<std::is_same<T, bfloat16>::value ||
-                                            std::is_same<T, float16>::value,
-                                        bool>::type
-                    is_finite(T x)
+                template <typename T,
+                          typename std::enable_if<std::is_same<T, bfloat16>::value ||
+                                                      std::is_same<T, float16>::value,
+                                                  bool>::type = true>
+                bool is_finite(T x)
                 {
                     return std::isfinite(static_cast<float>(x));
                 }
 
-                template <typename T>
-                typename std::enable_if<std::is_integral<T>::value, bool>::type is_finite(T /* x */)
+                template <typename T,
+                          typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+                bool is_finite(T /* x */)
                 {
                     return true;
                 }
