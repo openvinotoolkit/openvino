@@ -54,7 +54,7 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
     const std::vector<int64_t>& begin,
     const std::vector<int64_t>& end,
