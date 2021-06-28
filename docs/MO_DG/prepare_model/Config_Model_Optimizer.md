@@ -1,4 +1,4 @@
-# Install Model Optimizer Pre-Requisites {#openvino_docs_MO_DG_prepare_model_Config_Model_Optimizer}
+# Configuring the Model Optimizer {#openvino_docs_MO_DG_prepare_model_Config_Model_Optimizer}
 
 You must configure the Model Optimizer for the framework that was used to train
 the model. This section tells you how to configure the Model Optimizer either
