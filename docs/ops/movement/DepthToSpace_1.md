@@ -30,7 +30,7 @@ If `mode = depth_first`:
 
 * *block_size*
 
-  * **Description**: *block_size* specifies the size of the value block to be moved. The depth dimension size must be evenly divided by `block_size ^ (len(input.shape) - 2)`.
+  * **Description**: specifies the size of the value block to be moved. The depth dimension size must be evenly divided by `block_size ^ (len(input.shape) - 2)`.
   * **Range of values**: a positive integer
   * **Type**: `int`
   * **Default value**: 1
