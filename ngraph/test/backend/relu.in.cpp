@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "backend/unary_test.hpp"
+#include "util/unary_test.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -12,29 +12,24 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop)
 {
-    test_unary<TestEngine, element::f32>(unary_func<op::Relu>(),
-                                         {1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5},
-                                         {1, 8, 0, 17, 0, 1, 8, 0, 17, 0},
-                                         Shape{2, 5},
-                                         MIN_FLOAT_TOLERANCE_BITS);
+    test::make_unary_test<TestEngine, op::Relu, element::f32>(Shape{2, 5})
+        .test({1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5},
+              {1, 8, 0, 17, 0, 1, 8, 0, 17, 0},
+              MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop_i32)
 {
-    test_unary<TestEngine, element::i32>(unary_func<op::Relu>(),
-                                         {1, 8, -8, 17, -2, 1, 8, -8, 17, -1},
-                                         {1, 8, 0, 17, 0, 1, 8, 0, 17, 0},
-                                         Shape{2, 5});
+    test::make_unary_test<TestEngine, op::Relu, element::i32>(Shape{2, 5})
+        .test({1, 8, -8, 17, -2, 1, 8, -8, 17, -1}, {1, 8, 0, 17, 0, 1, 8, 0, 17, 0});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, relu_4Dfprop)
 {
-    test_unary<TestEngine, element::f32>(
-        unary_func<op::Relu>(),
-        {1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1},
-        {1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1},
-        Shape{2, 2, 2, 2},
-        MIN_FLOAT_TOLERANCE_BITS);
+    test::make_unary_test<TestEngine, op::Relu, element::f32>(Shape{2, 2, 2, 2})
+        .test({1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1},
+              {1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1},
+              MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fuse_max_with_constant_zero_input_as_relu)
@@ -46,9 +41,8 @@ NGRAPH_TEST(${BACKEND_NAME}, fuse_max_with_constant_zero_input_as_relu)
     auto shape_rt = Shape{2, 5};
     auto f = make_shared<Function>(max, ParameterVector{B});
 
-    test_unary<TestEngine, element::f32>(f,
-                                         {1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5},
-                                         {1, 8, 0, 17, 0, 1, 8, 0, 17, 0},
-                                         {shape_a, shape_rt},
-                                         MIN_FLOAT_TOLERANCE_BITS);
+    test::unary_test<TestEngine, element::f32>(f).test(
+        {{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5}, shape_a},
+        {{1, 8, 0, 17, 0, 1, 8, 0, 17, 0}, shape_rt},
+        MIN_FLOAT_TOLERANCE_BITS);
 }

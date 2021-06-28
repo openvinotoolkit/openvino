@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "backend/unary_test.hpp"
+#include "util/unary_test.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -12,37 +12,30 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, exp)
 {
-    test_unary<TestEngine, element::f32>(
-        unary_func<op::Exp>(), {-4, -3, -2, -1, 0, 1, 2, 3}, std::exp);
+    test::make_unary_test<TestEngine, op::Exp, element::f32>(Shape{8}).test(
+        {-4, -3, -2, -1, 0, 1, 2, 3}, std::exp);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, exp_negative)
 {
-    test_unary<TestEngine, element::f32>(unary_func<op::Exp>(), {-4, -3, -2, -1, -5}, std::exp);
+    test::make_unary_test<TestEngine, op::Exp, element::f32>(Shape{5}).test({-4, -3, -2, -1, -5},
+                                                                            std::exp);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, exp_scalar)
 {
-    test_unary<TestEngine, element::f32>(
-        unary_func<op::Exp>(), {13}, std::exp, {}, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
-}
-
-template <typename T>
-static T exp_exp(T x)
-{
-    return std::exp(std::exp(x));
+    test::make_unary_test<TestEngine, op::Exp, element::f32>(Shape{}).test(
+        {13}, std::exp, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, exp_in_place)
 {
-    auto creator = [](const ngraph::element::Type& ele_type, const PartialShape& pshape) {
-        auto A = make_shared<op::Parameter>(ele_type, pshape);
-        auto T = make_shared<op::Exp>(A);
-        auto T2 = make_shared<op::Exp>(T);
+    auto A = make_shared<op::Parameter>(element::f32, Shape{2});
+    auto T = make_shared<op::Exp>(A);
+    auto T2 = make_shared<op::Exp>(T);
+    auto f = make_shared<Function>(T2, ParameterVector{A});
 
-        return make_shared<Function>(T2, ParameterVector{A});
-    };
+    auto t = test::unary_test<TestEngine, element::f32>(f);
 
-    test_unary<TestEngine, element::f32>(
-        creator, {1, 3}, exp_exp, {}, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
+    t.test({1, 3}, [](float x) { return std::exp(std::exp(x)); }, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
