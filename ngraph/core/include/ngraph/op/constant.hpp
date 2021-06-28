@@ -155,6 +155,7 @@ namespace ngraph
                 }
 
                 Constant(const Constant& other);
+                Constant(const Constant& other, const Shape & new_shape);
                 Constant& operator=(const Constant&) = delete;
 
                 virtual ~Constant() override;
@@ -306,6 +307,8 @@ namespace ngraph
 #endif
                     return rc;
                 }
+
+                std::shared_ptr<runtime::AlignedBuffer> get_aligned_buffer() const { return m_data; }
 
                 const void* get_data_ptr() const { return (m_data ? m_data->get_ptr() : nullptr); }
                 template <typename T>
