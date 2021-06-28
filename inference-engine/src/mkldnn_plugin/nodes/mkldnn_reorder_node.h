@@ -42,6 +42,8 @@ public:
     const InferenceEngine::TensorDesc& getInput() { return input; }
     const InferenceEngine::TensorDesc& getOutput() { return output; }
 
+    bool isSame(const MKLDNNReorderNode* rhs);
+
     /**
      * @brief A pointer to a scales blob
      */

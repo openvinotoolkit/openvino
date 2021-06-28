@@ -33,6 +33,7 @@ private:
     void FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph);
 
     void DropDoubleReorders(MKLDNNGraph& graph);
+    void DropHorizontalReorders(MKLDNNGraph& graph);
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);

@@ -244,6 +244,36 @@ void MKLDNNReorderNode::optimizedNspc2Ncsp() {
     });
 }
 
+bool MKLDNNReorderNode::isSame(const MKLDNNReorderNode* rhs) {
+    auto lpd = this->supportedPrimitiveDescriptors.at(0);
+    auto rpd = rhs->supportedPrimitiveDescriptors.at(0);
+    if (lpd.getImplementationType() != rpd.getImplementationType())
+        return false;
+    if (lpd.getOutputLayouts()[0] != rpd.getOutputLayouts()[0])
+        return false;
+    auto lconf = lpd.getConfig();
+    auto rconf = rpd.getConfig();
+    if (lconf.dynBatchSupport != rconf.dynBatchSupport)
+        return false;
+    auto lInConfs = lconf.inConfs;
+    auto rInConfs = rconf.inConfs;
+    if (lInConfs.size() != 1 || rInConfs.size() != 1)
+        return false;
+    if (lInConfs[0].constant != rInConfs[0].constant)
+        return false;
+    if (lInConfs[0].desc != rInConfs[0].desc)
+        return false;
+    auto lOutConfs = lconf.outConfs;
+    auto rOutConfs = rconf.outConfs;
+    if (lOutConfs.size() != 1 || rOutConfs.size() != 1)
+        return false;
+    if (lOutConfs[0].constant != rOutConfs[0].constant)
+        return false;
+    if (lOutConfs[0].desc != rOutConfs[0].desc)
+        return false;
+    return true;
+}
+
 void MKLDNNReorderNode::execute(mkldnn::stream strm) {
     if (isOptimized)
         return;

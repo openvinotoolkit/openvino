@@ -144,6 +144,9 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     MergeTransposeAndReorder(graph);
     graph.RemoveDroppedNodes();
 
+    DropHorizontalReorders(graph);
+    graph.RemoveDroppedNodes();
+
     graph.RemoveDroppedEdges();
 }
 
@@ -1380,6 +1383,72 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
             graph.DropNode(childNode);
         } else {
             graph.DropNode(childNode);
+        }
+    }
+}
+
+// Original:
+//
+//           ___node0______
+//          /     \        \
+//         /       \        \
+//        /         \        \
+//   reorder0     reorder1  reorder2
+//        |          |        |
+//        |          |        |
+//      node1       node2    node3
+//
+// Result: if reorder0 == reorder1 == reorder2
+//
+//           node0
+//             |
+//             |
+//          reorder0
+//          /    |  \
+//         /     |   \
+//        /      |    \
+//      node1  node2  node3
+//
+void MKLDNNGraphOptimizer::DropHorizontalReorders(MKLDNNGraph &graph) {
+    int graphNodesSize = graph.GetNodes().size();
+    for (int i = 0; i < graphNodesSize; i++) {
+        MKLDNNNodePtr& node = graph.GetNodes()[i];
+        // RNN/LSTM model not suit for this optimization.
+        if (node->getType() == TensorIterator || node->getType() == RNNCell || node->getType() == RNNSeq)
+            continue;
+        std::vector<MKLDNNNodePtr> reorderNodes;
+        // reorderNodesMask to record which reorder has been merged
+        std::vector<bool> reorderNodesMask;
+        auto edges = node->getChildEdges();
+        for (auto edge : edges) {
+            auto childNode = edge.lock()->getChild();
+            if (childNode->getType() == Reorder) {
+                reorderNodes.push_back(childNode);
+                reorderNodesMask.push_back(false);
+            }
+        }
+        for (int j = 0; j < reorderNodes.size(); j++) {
+            MKLDNNReorderNode* r0 = dynamic_cast<MKLDNNReorderNode*>(reorderNodes.at(j).get());
+            if (reorderNodesMask[j])
+                continue;
+            for (int k = j + 1; k < reorderNodes.size(); k++) {
+                if (reorderNodesMask[k])
+                    continue;
+                MKLDNNReorderNode* r1 = dynamic_cast<MKLDNNReorderNode*>(reorderNodes.at(k).get());
+                if (r0->isSame(r1)) {
+                    auto parent = r0->getChildEdgeAt(0)->getParent();
+                    auto child = r1->getChildEdgeAt(0)->getChild();
+                    auto inNum = r0->getChildEdgeAt(0)->getInputNum();
+                    auto outNum = r1->getChildEdgeAt(0)->getOutputNum();
+                    r1->remove();
+                    MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
+                    auto &graphEdges = graph.GetEdges();
+                    graphEdges.push_back(newEdge);
+                    r0->addEdge(newEdge);
+                    reorderNodesMask[k] = true;
+                }
+            }
+            reorderNodesMask[j] = true;
         }
     }
 }
