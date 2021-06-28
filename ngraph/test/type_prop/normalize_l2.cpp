@@ -16,7 +16,7 @@ TEST(type_prop, normalize_l2)
     const auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int64_t>{1, 2});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
 
     EXPECT_EQ(normalize->get_element_type(), element::f32);
     EXPECT_EQ(normalize->get_output_partial_shape(0), data_shape);
@@ -29,7 +29,7 @@ TEST(type_prop, normalize_l2_dynamic)
     const auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int64_t>{1, 2});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
 
     EXPECT_EQ(normalize->get_element_type(), element::f32);
     EXPECT_EQ(normalize->get_output_partial_shape(0), data_shape);
@@ -45,7 +45,7 @@ TEST(type_prop, normalize_l2_axes_input_not_constant)
 
     try
     {
-        auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+        auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid input tensor rank.";
     }
@@ -69,7 +69,7 @@ TEST(type_prop, normalize_l2_invalid_axes_rank)
 
     try
     {
-        auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+        auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid input tensor rank.";
     }
@@ -94,7 +94,7 @@ TEST(type_prop, normalize_l2_axes_out_of_bounds)
 
     try
     {
-        auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+        auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid input tensor rank.";
     }
