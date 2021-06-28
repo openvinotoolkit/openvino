@@ -79,9 +79,8 @@ Run the `apt-cache` command to see a list of all available OpenVINO packages and
 ```sh
 apt-cache search openvino
 ```
-<details>
-<summary>Examples</summary>
-<p>
+
+#### Examples
 
 * **Runtime Packages**
   
@@ -103,9 +102,6 @@ apt-cache search openvino
   ```sh
   sudo apt-cache search intel-openvino-dev-ubuntu20
   ```
-</p>
-</details>
-
 
 ### Install the runtime or developer packages using the APT Package Manager
 Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
@@ -126,9 +122,7 @@ To install a specific version of an OpenVINO package:
 sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPDATE>.<BUILD_NUM>
 ```
 
-<details>
-<summary>Examples</summary>
-<p>
+#### Examples
 
 * **Runtime Package**
 
@@ -149,8 +143,6 @@ sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPD
   ```sh
   sudo apt install intel-openvino-dev-ubuntu20-2021.1.105
   ```
-</p>
-</details>
 
 ---
 

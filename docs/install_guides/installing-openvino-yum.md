@@ -110,15 +110,12 @@ To install the full runtime version of the OpenVINO package:
 ```sh
 sudo yum install intel-openvino-runtime-centos7-<VERSION>.<UPDATE>.<BUILD_NUM>
 ```
-<details>
-<summary>Examples</summary>
-<p>
+
+#### Examples
 
 ```sh
 sudo yum install intel-openvino-runtime-centos7-2021.3.394
  ```
-</p>
-</details>
 
 ---
 
@@ -128,6 +125,7 @@ To check a specific version of an OpenVINO package:
 ```sh
 yum list installed intel-openvino*
 ```
+
 ---
 
 ### To Uninstall a specific version
