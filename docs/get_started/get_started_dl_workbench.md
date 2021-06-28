@@ -20,7 +20,7 @@ Start working with the OpenVINO™ toolkit right from your browser: import a mod
 
 ## Run DL Workbench 
 
-You can [run DL Workbench](@ref workbench_docs_Workbench_DG_Install) on your local system or in the Intel® DevCloud for the Edge. Ensure that you have met the [prerequisites](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Prerequisites.html).
+You can [run DL Workbench](@ref workbench_docs_Workbench_DG_Install) on your local system or in the Intel® DevCloud for the Edge. Ensure that you have met the [prerequisites](@ref workbench_docs_Workbench_DG_Prerequisites).
 
 Run DL Workbench on your local system by using the installation form. Select your options and run the commands on the local machine:
 
@@ -38,10 +38,10 @@ Watch the video to learn more detailed information on how to run DL Workbench:
 <iframe width="560" height="315" src="https://www.youtube.com/embed/JBDG2g5hsoM"  frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 \endhtmlonly
 
-Congratulations, you have installed DL Workbench. Your next step is to [Get Started with DL Workbench](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets.html) and create your first project. 
+Congratulations, you have installed DL Workbench. Your next step is to [Get Started with DL Workbench](@ref workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets) and create your first project. 
 
 ## See Also
-* [Get Started with DL Workbench](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets.html)
-* [DL Workbench Overview](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html)
-* [DL Workbench Educational Resources](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Additional_Resources.html)
+* [Get Started with DL Workbench](@ref workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets)
+* [DL Workbench Overview](@ref workbench_docs_Workbench_DG_Introduction)
+* [DL Workbench Educational Resources](@ref workbench_docs_Workbench_DG_Additional_Resources)
 * [OpenVINO™ Toolkit Overview](../index.md)

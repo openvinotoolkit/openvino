@@ -5,11 +5,10 @@ This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learn
 > **NOTE:** This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../tools/benchmark_tool/README.md).
 
 > **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is an official OpenVINO™ UI that enables you to
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is an OpenVINO™ UI that enables you to
 > import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
 > deployment on various Intel® platforms.
-> <br>
-> Begin your OpenVINO™ journey with [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Install).
+
 
 ## How It Works
 
