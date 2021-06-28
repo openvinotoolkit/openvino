@@ -1,11 +1,19 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import logging as log
 import os
-import sys
 import subprocess
+import sys
 
 from mo.utils.versions_checker import check_python_version  # pylint: disable=no-name-in-module
+
+
+def log_ie_not_found():
+    log.error("Could not find the Inference Engine or nGraph Python API.\n"
+              "Consider building the Inference Engine and nGraph Python APIs"
+              " from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\""
+              .format("bat" if sys.platform == "windows" else "sh"))
 
 
 def setup_env():
@@ -14,7 +22,12 @@ def setup_env():
         sys.exit(ret_code)
 
     from mo.utils.find_ie_version import find_ie_version
-    find_ie_version(silent=True)
+
+    try:
+        if not find_ie_version(silent=True):
+            return False
+    except Exception:
+        return False
 
     mo_root_path = os.path.join(os.path.dirname(__file__), os.pardir)
 
@@ -23,6 +36,7 @@ def setup_env():
         os.environ[python_path_key] = mo_root_path
     else:
         os.environ[python_path_key] = os.pathsep.join([os.environ[python_path_key], mo_root_path])
+    return True
 
 
 def subprocess_main(framework=None):
@@ -34,7 +48,9 @@ def subprocess_main(framework=None):
         just add paths to Python modules and libraries into current env. So to make Inference Engine
         Python API to be available inside MO we need to use subprocess with new env.
     """
-    setup_env()
+    if not setup_env():
+        log_ie_not_found()
+        sys.exit(1)
 
     path_to_main = os.path.join(os.path.realpath(os.path.dirname(__file__)),
                                 'main_{}.py'.format(framework) if framework else 'main.py')
