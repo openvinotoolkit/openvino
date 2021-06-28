@@ -9,7 +9,33 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, normalize_axes_input_not_constant)
+TEST(type_prop, normalize_l2)
+{
+    PartialShape data_shape{1, 2, 3, 4};
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int64_t>{1, 2});
+    float eps{1e-6f};
+    auto eps_mode = op::EpsMode::ADD;
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
+
+    EXPECT_EQ(normalize->get_element_type(), element::f32);
+    EXPECT_EQ(normalize->get_output_partial_shape(0), data_shape);
+}
+
+TEST(type_prop, normalize_l2_dynamic)
+{
+    PartialShape data_shape{2, Dimension::dynamic(), 3, Dimension(4, 6)};
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int64_t>{1, 2});
+    float eps{1e-6f};
+    auto eps_mode = op::EpsMode::ADD;
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
+
+    EXPECT_EQ(normalize->get_element_type(), element::f32);
+    EXPECT_EQ(normalize->get_output_partial_shape(0), data_shape);
+}
+
+TEST(type_prop, normalize_l2_axes_input_not_constant)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -19,7 +45,7 @@ TEST(type_prop, normalize_axes_input_not_constant)
 
     try
     {
-        auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+        auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid input tensor rank.";
     }
@@ -33,7 +59,7 @@ TEST(type_prop, normalize_axes_input_not_constant)
     }
 }
 
-TEST(type_prop, normalize_invalid_axes_rank)
+TEST(type_prop, normalize_l2_invalid_axes_rank)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -43,7 +69,7 @@ TEST(type_prop, normalize_invalid_axes_rank)
 
     try
     {
-        auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+        auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid input tensor rank.";
     }
@@ -58,7 +84,7 @@ TEST(type_prop, normalize_invalid_axes_rank)
     }
 }
 
-TEST(type_prop, normalize_axes_out_of_bounds)
+TEST(type_prop, normalize_l2_axes_out_of_bounds)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -68,7 +94,7 @@ TEST(type_prop, normalize_axes_out_of_bounds)
 
     try
     {
-        auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+        auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid input tensor rank.";
     }

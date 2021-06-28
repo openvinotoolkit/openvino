@@ -127,7 +127,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -154,7 +154,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_empty_axes_input)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -182,7 +182,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_h_4d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -208,7 +208,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_1axis_5d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -234,7 +234,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_123axes_5d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -260,7 +260,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x2_shape)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -284,7 +284,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x4_shape)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -315,7 +315,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d_max_bias)
     float eps{5000};
     auto eps_mode = op::EpsMode::MAX;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
