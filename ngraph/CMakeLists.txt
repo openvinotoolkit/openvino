@@ -23,11 +23,12 @@ option(NGRAPH_INTERPRETER_ENABLE "Control the building of the INTERPRETER backen
 option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
 option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" OFF)
 option(NGRAPH_ONNX_EDITOR_ENABLE "Enable ONNX Editor" OFF)
+option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" OFF)
 option(NGRAPH_PYTHON_BUILD_ENABLE "Enable build nGraph python package wheel" OFF)
 option(NGRAPH_DYNAMIC_COMPONENTS_ENABLE "Enable dynamic loading of components" ON)
 option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" OFF)
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE)
     option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" OFF)
 endif()
 if(NGRAPH_ONNX_EDITOR_ENABLE AND NOT NGRAPH_ONNX_IMPORT_ENABLE)
@@ -39,6 +40,7 @@ message(STATUS "NGRAPH_DYNAMIC_COMPONENTS_ENABLE:     ${NGRAPH_DYNAMIC_COMPONENT
 message(STATUS "NGRAPH_INTERPRETER_ENABLE:            ${NGRAPH_INTERPRETER_ENABLE}")
 message(STATUS "NGRAPH_ONNX_IMPORT_ENABLE:            ${NGRAPH_ONNX_IMPORT_ENABLE}")
 message(STATUS "NGRAPH_ONNX_EDITOR_ENABLE:            ${NGRAPH_ONNX_EDITOR_ENABLE}")
+message(STATUS "NGRAPH_PDPD_FRONTEND_ENABLE:          ${NGRAPH_PDPD_FRONTEND_ENABLE}")
 message(STATUS "NGRAPH_PYTHON_BUILD_ENABLE:           ${NGRAPH_PYTHON_BUILD_ENABLE}")
 message(STATUS "NGRAPH_USE_PROTOBUF_LITE:             ${NGRAPH_USE_PROTOBUF_LITE}")
 message(STATUS "NGRAPH_UNIT_TEST_ENABLE:              ${NGRAPH_UNIT_TEST_ENABLE}")
@@ -179,7 +181,12 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
     DESTINATION "deployment_tools/ngraph/cmake"
     COMPONENT ngraph_dev)
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+set(USE_STATIC_PROTOBUF OFF)
+if (NGRAPH_PDPD_FRONTEND_ENABLE) # add more frontends here which depend on static protobuf
+    set(USE_STATIC_PROTOBUF ON)
+endif()
+
+if (NGRAPH_ONNX_IMPORT_ENABLE OR USE_STATIC_PROTOBUF)
     if (MSVC)
         # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
         # These two options can't be mixed, because they requires link two imcompatiable runtime.
@@ -195,6 +202,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
 
     set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
     set(BUILD_SHARED_LIBS ON)
+    set(BUILD_STANDALONE_STATIC OFF)
 
     if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
         include(cmake/external_protobuf.cmake)
@@ -202,13 +210,17 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
         find_package(Protobuf REQUIRED)
     endif()
 
-    # target onnx_proto will be shared lib, onnx static
-    include(cmake/external_onnx.cmake)
-    if (TARGET ext_protobuf)
-        add_dependencies(onnx ext_protobuf)
+    if (NGRAPH_ONNX_IMPORT_ENABLE)
+        # target onnx_proto will be shared lib, onnx static
+        include(cmake/external_onnx.cmake)
+        if (TARGET ext_protobuf)
+            add_dependencies(onnx ext_protobuf)
+        endif()
     endif()
+
     set(BUILD_SHARED_LIBS ${BEFORE_ONNX_BUILD_SHARED_LIBS})
     unset(BEFORE_ONNX_BUILD_SHARED_LIBS)
+    unset(BUILD_STANDALONE_STATIC)
 endif()
 
 add_subdirectory(frontend)

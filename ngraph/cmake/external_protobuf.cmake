@@ -43,10 +43,30 @@ endif()
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
 
-set(protobuf_SOURCE_DIR ${CMAKE_SOURCE_DIR}/thirdparty/protobuf)
-add_subdirectory(${protobuf_SOURCE_DIR}/cmake ${CMAKE_BINARY_DIR}/_deps/protobuf EXCLUDE_FROM_ALL)
+if (NOT BUILD_STANDALONE_STATIC)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/protobuf/cmake ${CMAKE_BINARY_DIR}/_deps/protobuf EXCLUDE_FROM_ALL)
+    get_directory_property(protobuf_VERSION DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/cmake DEFINITION protobuf_VERSION)
+endif()
+if (USE_STATIC_PROTOBUF)
+    include(FetchContent)
+    FetchContent_Declare(
+            ext_protobuf_static
+            URL ${CMAKE_CURRENT_SOURCE_DIR}/protobuf
+    )
+    FetchContent_GetProperties(ext_protobuf_static)
+    if((NOT ext_protobuf_static_POPULATED) AND BUILD_STANDALONE_STATIC)
+        FetchContent_Populate(ext_protobuf_static)
+        add_subdirectory(${ext_protobuf_static_SOURCE_DIR}/cmake ${ext_protobuf_static_BINARY_DIR} EXCLUDE_FROM_ALL)
+        get_directory_property(protobuf_VERSION DIRECTORY ${ext_protobuf_static_SOURCE_DIR}/cmake DEFINITION protobuf_VERSION)
+    endif()
+endif()
 
-set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
+if (BUILD_STANDALONE_STATIC)
+    set(Protobuf_INCLUDE_DIRS ${ext_protobuf_static_SOURCE_DIR}/src PARENT_SCOPE)
+else()
+    set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src PARENT_SCOPE)
+endif()
+
 if(NGRAPH_USE_PROTOBUF_LITE)
     set(Protobuf_LIBRARIES libprotobuf-lite)
 else()
@@ -77,7 +97,6 @@ if(NGRAPH_USE_PROTOBUF_LITE)
         VISIBILITY_INLINES_HIDDEN OFF)
 endif()
 
-get_directory_property(protobuf_VERSION DIRECTORY ${protobuf_SOURCE_DIR}/cmake DEFINITION protobuf_VERSION)
 if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
 endif()
@@ -93,9 +112,11 @@ endif()
 # Now make sure we restore the original flags
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")
 
-install(TARGETS ${Protobuf_LIBRARIES}
-    RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-    ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-    LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
-
-export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+if (NOT BUILD_STANDALONE_STATIC)
+    message("NGRAPH_INSTALL_LIB = ${NGRAPH_INSTALL_LIB}")
+    install(TARGETS ${Protobuf_LIBRARIES}
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+    export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+endif()
