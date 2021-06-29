@@ -457,13 +457,22 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         tokenization_manager.run_passes(nGraphFunc);
 #if defined (DUMP_TOKENIZATION)
         int subgraph_index = 0;
+        auto formatNodeName = [](const std::string& original_name) {
+            std::string name(original_name);
+            std::replace(name.begin(), name.end(), '\\', '_');
+            std::replace(name.begin(), name.end(), '/', '_');
+            std::replace(name.begin(), name.end(), ' ', '_');
+            std::replace(name.begin(), name.end(), ':', '-');
+            return name;
+        };
         for (auto op : nGraphFunc->get_ordered_ops()) {
             std::cout << "OUT: " << op << std::endl;
             if (auto subgraph = ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(op)) {
                 for (auto& bop : subgraph->get_body()->get_ordered_ops()) {
                     std::cout << "out:     " << bop << std::endl;
                 }
-                ngraph::pass::VisualizeTree(std::string("subgraph")+std::to_string(subgraph_index++)+".svg").run_on_function(subgraph->get_body());
+                //ngraph::pass::VisualizeTree(std::string("subgraph_")+std::to_string(subgraph_index++)+".svg").run_on_function(subgraph->get_body());
+                ngraph::pass::VisualizeTree(std::string("subgraph_")+formatNodeName(op->get_friendly_name())+".svg").run_on_function(subgraph->get_body());
             }
 
             if (auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op)) {
