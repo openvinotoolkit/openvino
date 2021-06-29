@@ -203,6 +203,11 @@ limitations under the License.
                 <tab type="usergroup" title="Command Line Samples" url="">
                     <tab type="user" title="Audio Detection Sample" url="@ref gst_samples_gst_launch_audio_detect_README"/>
                     <tab type="user" title="Face Detection And Classification Sample" url="@ref gst_samples_gst_launch_face_detection_and_classification_README"/>
+                    <tab type="user" title="Vehicle and Pedestrian Tracking Sample" url="@ref gst_samples_gst_launch_vehicle_pedestrian_tracking_README"/>
+                    <tab type="usergroup" title="Metadata Publishing Sample" url="@ref gst_samples_gst_launch_metapublish_README">
+                        <tab type="user" title="MetaPublish Listeners" url="@ref gst_samples_gst_launch_metapublish_listener"/>
+                    </tab>
+                    <tab type="user" title="gvapython Sample" url="@ref gst_samples_gst_launch_gvapython_face_detection_and_classification_README"/>
                     <tab type="user" title="Action Recognition Sample" url="@ref gst_samples_gst_launch_action_recognition_README"/>
                     <tab type="user" title="Human Pose Estimation Sample" url="@ref gst_samples_gst_launch_human_pose_estimation_README"/>
                 </tab>
