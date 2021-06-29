@@ -121,7 +121,7 @@ TEST_P(InsertTransposeBeforeMatmulTestFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
-INSTANTIATE_TEST_CASE_P(InsertTransposeBeforeMatmulTestSuite, InsertTransposeBeforeMatmulTestFixture,
+INSTANTIATE_TEST_SUITE_P(InsertTransposeBeforeMatmulTestSuite, InsertTransposeBeforeMatmulTestFixture,
                         ::testing::Values(std::make_tuple(ngraph::PartialShape{2, 8}, ngraph::Shape{8, 2}, ngraph::Shape{2, 1}),
                                           std::make_tuple(ngraph::PartialShape{1, 16}, ngraph::Shape{8, 2}, ngraph::Shape{2, 1})));
 
@@ -129,7 +129,7 @@ TEST_P(InsertTransposeBeforeMatmulTestInvalidFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
-INSTANTIATE_TEST_CASE_P(InsertTransposeBeforeMatmulTestInvalidSuite, InsertTransposeBeforeMatmulTestInvalidFixture,
+INSTANTIATE_TEST_SUITE_P(InsertTransposeBeforeMatmulTestInvalidSuite, InsertTransposeBeforeMatmulTestInvalidFixture,
                         ::testing::Values(std::make_tuple(ngraph::PartialShape{2, 9}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1}),
                                           std::make_tuple(ngraph::PartialShape{9, 2}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1})));
 
