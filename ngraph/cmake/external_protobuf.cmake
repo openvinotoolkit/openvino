@@ -45,13 +45,13 @@ set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
 
 if (NOT BUILD_STANDALONE_STATIC)
     add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/protobuf/cmake ${CMAKE_BINARY_DIR}/_deps/protobuf EXCLUDE_FROM_ALL)
-    get_directory_property(protobuf_VERSION DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/cmake DEFINITION protobuf_VERSION)
+    get_directory_property(protobuf_VERSION DIRECTORY ${CMAKE_SOURCE_DIR}/thirdparty/protobuf/cmake DEFINITION protobuf_VERSION)
 endif()
 if (USE_STATIC_PROTOBUF)
     include(FetchContent)
     FetchContent_Declare(
             ext_protobuf_static
-            URL ${CMAKE_CURRENT_SOURCE_DIR}/protobuf
+            URL ${protobuf_location}
     )
     FetchContent_GetProperties(ext_protobuf_static)
     if((NOT ext_protobuf_static_POPULATED) AND BUILD_STANDALONE_STATIC)
@@ -62,9 +62,9 @@ if (USE_STATIC_PROTOBUF)
 endif()
 
 if (BUILD_STANDALONE_STATIC)
-    set(Protobuf_INCLUDE_DIRS ${ext_protobuf_static_SOURCE_DIR}/src PARENT_SCOPE)
+    set(Protobuf_INCLUDE_DIRS ${ext_protobuf_static_SOURCE_DIR}/src)
 else()
-    set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src PARENT_SCOPE)
+    set(Protobuf_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/thirdparty/protobuf/src)
 endif()
 
 if(NGRAPH_USE_PROTOBUF_LITE)

@@ -16,6 +16,7 @@ set(BUILD_SHARED_LIBS OFF)
 set(BUILD_STANDALONE_STATIC ON)
 set(USE_STATIC_PROTOBUF ON)
 
+set(protobuf_location ${CMAKE_CURRENT_SOURCE_DIR}/../../../thirdparty/protobuf)
 include(../../cmake/external_protobuf.cmake)
 
 set(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_OLD})

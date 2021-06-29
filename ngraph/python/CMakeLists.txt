@@ -15,7 +15,7 @@ if(ngraph_FOUND)
     message("ngraph version = {${ngraph_VERSION}}")
 endif()
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pybind11 ${CMAKE_BINARY_DIR}/_deps/pybind11 EXCLUDE_FROM_ALL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pybind11 EXCLUDE_FROM_ALL)
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
