@@ -5,14 +5,12 @@
 > - If you are using Intel® Distribution of OpenVINO™ toolkit on Windows\* OS, see the [Installation Guide for Windows*](installing-openvino-windows.md).
 > - CentOS and Yocto installations will require some modifications that are not covered in this guide.
 > - An internet connection is required to follow the steps in this guide.
-> - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
-> **TIP**: If you want to [quick start with OpenVINO™ toolkit](@ref 
-> openvino_docs_get_started_get_started_dl_workbench), you can use 
-> the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench). DL Workbench is the OpenVINO™ toolkit UI 
-> that enables you to import a
-> model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for deployment
-> on various Intel® platforms. Begin your OpenVINO™ journey with [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Install).
+> **TIP**: You can quick start with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref 
+> openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is an OpenVINO™ UI that enables you to
+> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
+> deployment on various Intel® platforms.
 
 ## Introduction
 
@@ -20,7 +18,7 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 
 The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 - Enables CNN-based deep learning inference on the edge
-- Supports heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+- Supports heterogeneous execution across Intel® CPU, Intel® GPU, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 - Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
 - Includes optimized calls for computer vision standards including OpenCV\* and OpenCL™
 
@@ -47,6 +45,7 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
 * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
 * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
+* Intel® Iris® Xe MAX Graphics
 * Intel® Neural Compute Stick 2
 * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
@@ -63,6 +62,10 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 - Ubuntu 20.04.0 long-term support (LTS), 64-bit
 - CentOS 7.6, 64-bit (for target only)
 - Yocto Project v3.0, 64-bit (for target only and requires modifications)
+- For deployment scenarios on Red Hat* Enterprise Linux* 8.2 (64 bit), you can use the of Intel® Distribution of OpenVINO™ toolkit run-time package that includes the Inference Engine core libraries, nGraph, OpenCV, Python bindings, CPU and GPU plugins. The package is available as: 
+   - [Downloadable archive](https://storage.openvinotoolkit.org/repositories/openvino/packages/2021.3/l_openvino_toolkit_runtime_rhel8_p_2021.3.394.tgz)
+   - [PyPi package](https://pypi.org/project/openvino/)
+   - [Docker image](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
 
 ## Overview
 
@@ -279,20 +282,22 @@ The steps in this section are required only if you want to enable the toolkit co
 cd /opt/intel/openvino_2021/install_dependencies/
 ```
 
-2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package, to install it, make sure you have the internet connection and run the installation script:
-```sh
-sudo -E ./install_NEO_OCL_driver.sh
-```
-   The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does 
-not install a new driver. If the version of the driver is lower than the current version, the script uninstalls the lower and installs the current version with your permission:
+2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package and must be installed separately.
+   > **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Intel® Iris® Xe MAX Graphics with Linux*](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html) page for driver installation instructions.
+
+   To install the drivers, make sure you have the internet connection and run the installation script:
+   ```sh
+   sudo -E ./install_NEO_OCL_driver.sh
+   ```
+   The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does not install a new driver. If the version of the driver is lower than the current version, the script uninstalls the lower and installs the current version with your permission:
    ![](../img/NEO_check_agreement.png) 
    Higher hardware versions require a higher driver version, namely 20.35 instead of 19.41. If the script fails to uninstall the driver, uninstall it manually. During the script execution, you may see the following command line output:  
 ```sh
 Add OpenCL user to video group    
 ```
-   Ignore this suggestion and continue.<br>You can also find the most recent version of the driver, installation procedure and other information in the [https://github.com/intel/compute-runtime/](https://github.com/intel/compute-runtime/) repository.
+   Ignore this suggestion and continue.<br>You can also find the most recent version of the driver, installation procedure and other information on the [Intel® software for general purpose GPU capabilities](https://dgpu-docs.intel.com/index.html) site.
 
-4. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
+3. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
 You've completed all required configuration steps to perform inference on processor graphics. 
 Proceed to the <a href="#get-started">Get Started</a> to get started with running code samples and demo applications.
