@@ -36,7 +36,7 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
         }
     }
 
-    for (auto& pair : source_to_shape_of) {
+    for (const auto& pair : source_to_shape_of) {
         if (pair.second.size() < 2)
             continue;
         auto root_ss = pair.second[0];
@@ -46,7 +46,7 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
             }
         }
     }
-    for (auto& pair : source_to_shape_of_3) {
+    for (const auto& pair : source_to_shape_of_3) {
         if (pair.second.size() < 2)
             continue;
         auto root_ss = pair.second[0];
