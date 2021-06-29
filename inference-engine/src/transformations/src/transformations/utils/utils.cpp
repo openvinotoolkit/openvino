@@ -142,6 +142,16 @@ std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const Ou
     return try_fold_unary_output(unary_output_node);
 }
 
+std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node) {
+    std::vector<Input<Node>> result;
+    for (auto output : node->outputs()) {
+        for (auto input : output.get_target_inputs()) {
+            result.push_back(input);
+        }
+    }
+    return result;
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph
