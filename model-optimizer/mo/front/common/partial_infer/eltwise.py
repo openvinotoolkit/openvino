@@ -17,8 +17,7 @@ def eltwise_infer(node, op=None, **kwargs):
     # based on repeated application of rules https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
 
     if any([s is None for s in shapes]):
-        # nothing is known
-        return
+        raise Error('One of the input shapes for node "{}" is None'.format(node.soft_get('name', node.id)))
 
     max_dims = None
     for id, s in enumerate(shapes):
@@ -52,7 +51,7 @@ def eltwise_infer(node, op=None, **kwargs):
                 if mind == 1:
                     output_shape[ei] = maxd
                 elif mind != maxd:
-                    raise Error('Input shapes mismatch')
+                    raise Error('Input shapes mismatch: {}'.format(shapes))
             else:
                 output_shape[ei] = dynamic_dimension_value
     node.out_port(0).data.set_shape(output_shape)
