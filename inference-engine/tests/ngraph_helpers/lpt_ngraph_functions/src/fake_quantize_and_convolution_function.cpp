@@ -52,7 +52,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
 
 std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnDataWithConstant& fqOnData,
     const DequantizationOperations::Convert& convertOnData,
     const DequantizationOperations& dequantizationOnData,
@@ -82,7 +82,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
 
 std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnDataWithConstant& fqOnData,
     const DequantizationOperations::Convert& convertOnData,
     const DequantizationOperations& dequantizationOnData,
@@ -97,7 +97,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const DequantizationOperations& dequantizationAfter,
     const std::string operation,
     bool multiplyAfter) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
 
     std::shared_ptr<Node> parentOnActivation = input;
     {
@@ -118,13 +118,16 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
 
     std::shared_ptr<Node> parentOnWeights;
     {
-        size_t numGroups = inputShape[1];
-        size_t inputChannelsCount = inputShape[1];
-        size_t outputChannelsCount = inputShape[1] * 2;
+        const bool isDynamicChannel = inputShape.is_dynamic() || inputShape[1].is_dynamic();
+        size_t numGroups = !isDynamicChannel ? inputShape[1].get_length() : 3ul;
+        size_t inputChannelsCount = !isDynamicChannel ? inputShape[1].get_length() : 3ul;
+        size_t outputChannelsCount = inputChannelsCount * 2;
+
         if (operation == "GroupConvolution") {
-            inputChannelsCount = inputShape[1] / numGroups;
-            outputChannelsCount = inputShape[1];
+            inputChannelsCount /= numGroups;
+            outputChannelsCount = numGroups;
         }
+
         const Shape shape = constantOnWeights.shapeIsDefined ? constantOnWeights.shape : ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
         parentOnWeights = ngraph::opset1::Constant::create(
             constantOnWeights.outPrecision,
