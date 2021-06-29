@@ -85,7 +85,6 @@ extensions/front/caffe/bn.py
 extensions/front/caffe/bn_ext.py
 extensions/front/caffe/concat_ext.py
 extensions/front/caffe/conv_ext.py
-extensions/front/caffe/correlation_ext.py
 extensions/front/caffe/crop_ext.py
 extensions/front/caffe/ctcgreedydecoder_ext.py
 extensions/front/caffe/CustomLayersMapping.xml.example
@@ -675,7 +674,6 @@ extensions/ops/ClipByValueTF.py
 extensions/ops/constant_fill.py
 extensions/ops/ConvertLike.py
 extensions/ops/copyop.py
-extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py
 extensions/ops/ctc_greedy_decoder_seq_len.py
 extensions/ops/ctc_loss.py
