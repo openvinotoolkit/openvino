@@ -301,7 +301,7 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ReduceMinTransformation,
     ::testing::Combine(

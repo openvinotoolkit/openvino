@@ -38,6 +38,7 @@ std::shared_ptr<Function> ConvolutionBackpropDataFunction::get(
         CoordinateDiff{ 0, 0 },
         CoordinateDiff{ 0, 0 },
         Strides{ 1, 1 });
+    convolutionBackpropData->set_friendly_name("convolutionBackpropData");
 
     ngraph::ResultVector results{ std::make_shared<opset1::Result>(convolutionBackpropData) };
     return std::make_shared<ngraph::Function>(results, ParameterVector{ input }, "ConvolutionBackpropDataTransformation");

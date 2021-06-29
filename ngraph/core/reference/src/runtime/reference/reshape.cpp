@@ -2,46 +2,67 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <stdio.h>
+#include <cstring>
+#include <numeric>
 
 #include "ngraph/check.hpp"
+#include "ngraph/coordinate_range.hpp"
+#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
 
-using namespace ngraph;
-
-void runtime::reference::reshape(const char* arg,
-                                 char* out,
-                                 const Shape& in_shape,
-                                 const AxisVector& in_axis_order,
-                                 const Shape& out_shape,
-                                 size_t elem_size)
+namespace ngraph
 {
-    // Unfortunately we don't yet have a constructor for CoordinateTransform that lets
-    // us pass only source_space_shape
-    // and source_axis_order so we have to construct the defaults here.
-    Shape in_start_corner(in_shape.size(), 0); // (0,...0)
-    Strides in_strides(in_shape.size(), 1);    // (1,...,1)
-
-    CoordinateTransform input_transform(
-        in_shape, in_start_corner, in_shape, in_strides, in_axis_order);
-    CoordinateTransform output_transform(out_shape);
-
-    NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) ==
-                 shape_size(output_transform.get_target_shape()));
-
-    CoordinateTransform::Iterator output_it = output_transform.begin();
-
-    for (const Coordinate& input_coord : input_transform)
+    namespace runtime
     {
-        if (output_it == output_transform.end())
-            break;
-        const Coordinate& output_coord = *output_it;
+        namespace reference
+        {
+            namespace
+            {
+                std::vector<size_t> reorder(const std::vector<size_t>& origin,
+                                            const AxisVector& order)
+                {
+                    std::vector<size_t> reordered = origin;
+                    auto out = begin(reordered);
+                    NGRAPH_CHECK(origin.size() <= order.size());
+                    for (size_t i = 0; i < origin.size(); ++i)
+                    {
+                        *out = origin.at(order[i]);
+                        ++out;
+                    }
+                    return reordered;
+                }
+            } // namespace
 
-        memcpy(out + output_transform.index(output_coord) * elem_size,
-               arg + input_transform.index(input_coord) * elem_size,
-               elem_size);
+            void reshape(const char* arg,
+                         char* out,
+                         const Shape& in_shape,
+                         const AxisVector& in_axis_order,
+                         const Shape& out_shape,
+                         size_t elem_size)
+            {
+                if (shape_size(in_shape) == 1)
+                {
+                    std::memcpy(out, arg, elem_size);
+                    return;
+                }
 
-        ++output_it;
-    }
-}
+                char* output = out;
+                const char* const output_end = out + shape_size(out_shape) * elem_size;
+                const auto axis_strides = reorder(row_major_strides(in_shape), in_axis_order);
+                for (const auto& coordinate :
+                     CoordinateTransformBasic(reorder(in_shape, in_axis_order)))
+                {
+                    if (output >= output_end)
+                    {
+                        break;
+                    }
+                    const auto elem_offset = std::inner_product(
+                        begin(coordinate), end(coordinate), begin(axis_strides), 0ll);
+                    const auto input = arg + elem_offset * elem_size;
+                    std::memcpy(output, input, elem_size);
+                    output += elem_size;
+                }
+            }
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

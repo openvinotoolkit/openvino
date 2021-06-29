@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <regex>
-#include <algorithm>
 #include "../include/partial_shape.hpp"
 #include "../include/utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-std::string FrontEndPartialShapeTest::getTestCaseName(const testing::TestParamInfo<PartialShapeParam>& obj)
+std::string
+    FrontEndPartialShapeTest::getTestCaseName(const testing::TestParamInfo<PartialShapeParam>& obj)
 {
     BaseFEParam base;
     PartShape part;
@@ -18,21 +17,22 @@ std::string FrontEndPartialShapeTest::getTestCaseName(const testing::TestParamIn
     std::string res = base.m_frontEndName + "_" + part.m_modelName + "_" + part.m_tensorName;
     for (auto s : part.m_newPartialShape)
     {
-        res += "_" + std::to_string(s);
+        res += "_" + (s.is_dynamic() ? "dyn" : std::to_string(s.get_length()));
     }
     return FrontEndTestUtils::fileToTestName(res);
 }
 
 void FrontEndPartialShapeTest::SetUp()
 {
+    FrontEndTestUtils::setupTestEnv();
+    m_fem = FrontEndManager(); // re-initialize after setting up environment
     initParamTest();
 }
 
 void FrontEndPartialShapeTest::initParamTest()
 {
     std::tie(m_baseParam, m_partShape) = GetParam();
-    m_partShape.m_modelName = std::string(TEST_FILES) + m_baseParam.m_modelsPath + m_partShape.m_modelName;
-    std::cout << "Model: " << m_partShape.m_modelName << std::endl;
+    m_partShape.m_modelName = m_baseParam.m_modelsPath + m_partShape.m_modelName;
 }
 
 void FrontEndPartialShapeTest::doLoadFromFile()
@@ -55,18 +55,12 @@ TEST_P(FrontEndPartialShapeTest, testCheckOldPartialShape)
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
-    auto it = std::find_if(ops.begin(), ops.end(),
-                           [&](const std::shared_ptr<ngraph::Node>& node)
-                           {
-                               return node->get_friendly_name().find(m_partShape.m_tensorName) != std::string::npos;
-                           });
+    auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
+        return node->get_friendly_name().find(m_partShape.m_tensorName) != std::string::npos;
+    });
     ASSERT_NE(it, ops.end());
-    auto shape = (*it)->get_output_partial_shape(0).get_shape();
-    ASSERT_EQ(shape.size(), m_partShape.m_oldPartialShape.size());
-    for (std::size_t i = 0; i < shape.size(); i++)
-    {
-        EXPECT_EQ(shape.at(i), m_partShape.m_oldPartialShape.at(i));
-    }
+    auto shape = (*it)->get_output_partial_shape(0);
+    ASSERT_EQ(shape, m_partShape.m_oldPartialShape);
 }
 
 TEST_P(FrontEndPartialShapeTest, testSetNewPartialShape)
@@ -75,21 +69,16 @@ TEST_P(FrontEndPartialShapeTest, testSetNewPartialShape)
     Place::Ptr place;
     ASSERT_NO_THROW(place = m_inputModel->get_place_by_tensor_name(m_partShape.m_tensorName));
     ASSERT_NE(place, nullptr);
-    ASSERT_NO_THROW(m_inputModel->set_partial_shape(place, PartialShape{m_partShape.m_newPartialShape}));
+    ASSERT_NO_THROW(
+        m_inputModel->set_partial_shape(place, PartialShape{m_partShape.m_newPartialShape}));
 
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
-    auto it = std::find_if(ops.begin(), ops.end(),
-                           [&](const std::shared_ptr<ngraph::Node>& node)
-                           {
-                               return node->get_friendly_name().find(m_partShape.m_tensorName) != std::string::npos;
-                           });
+    auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
+        return node->get_friendly_name().find(m_partShape.m_tensorName) != std::string::npos;
+    });
     ASSERT_NE(it, ops.end());
-    auto shape = (*it)->get_output_partial_shape(0).get_shape();
-    ASSERT_EQ(shape.size(), m_partShape.m_newPartialShape.size());
-    for (std::size_t i = 0; i < shape.size(); i++)
-    {
-        EXPECT_EQ(shape.at(i), m_partShape.m_newPartialShape.at(i));
-    }
+    auto shape = (*it)->get_output_partial_shape(0);
+    ASSERT_EQ(shape, m_partShape.m_newPartialShape);
 }
