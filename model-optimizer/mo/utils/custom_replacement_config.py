@@ -6,6 +6,8 @@ import logging as log
 import os
 from re import compile, match
 
+import fastjsonschema as json_validate
+
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
@@ -347,6 +349,15 @@ def parse_custom_replacement_config_file(file_name: str):
             data = json.load(f)
     except Exception as exc:
         raise Error("Failed to parse custom replacements configuration file '{}': {}. ".format(file_name, exc) +
+                    refer_to_faq_msg(70)) from exc
+
+    try:
+        with open('schema.json', 'r') as f:
+            schema = json.load(f)
+            validator = json_validate.compile(schema)
+            validator(json)
+    except Exception as exc:
+        raise Error("Failed to validate custom replacements configuration file '{}': {}. ".format(file_name, exc) +
                     refer_to_faq_msg(70)) from exc
 
     result = list()
