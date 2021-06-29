@@ -28,11 +28,11 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
 ie_cpack_add_component(setupvars REQUIRED)
 
 if(UNIX)
-    install(PROGRAMS scripts/setupvars/setupvars.sh
+    install(PROGRAMS setupvars/setupvars.sh
             DESTINATION bin
             COMPONENT setupvars)
 elseif(WIN32)
-    install(PROGRAMS scripts/setupvars/setupvars.bat
+    install(PROGRAMS setupvars/setupvars.bat
             DESTINATION bin
             COMPONENT setupvars)
 endif()
@@ -41,7 +41,7 @@ endif()
 
 if(UNIX)
     ie_cpack_add_component(install_dependencies REQUIRED)
-    install(DIRECTORY scripts/install_dependencies/
+    install(DIRECTORY install_dependencies/
             DESTINATION install_dependencies
             COMPONENT install_dependencies)
 endif()
@@ -51,13 +51,13 @@ endif()
 ie_cpack_add_component(demo_scripts DEPENDS core)
 
 if(UNIX)
-    install(DIRECTORY scripts/demo/
+    install(DIRECTORY demo/
             DESTINATION deployment_tools/demo
             COMPONENT demo_scripts
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE)
 elseif(WIN32)
-    install(DIRECTORY scripts/demo/
+    install(DIRECTORY demo/
             DESTINATION deployment_tools/demo
             COMPONENT demo_scripts
             USE_SOURCE_PERMISSIONS
