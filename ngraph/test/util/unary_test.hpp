@@ -46,24 +46,24 @@ namespace ngraph
         template <typename TestEngine, ngraph::element::Type_t et>
         class unary_test;
 
+        struct rand_normal_tag
+        {
+        };
+        struct rand_uniform_int_tag
+        {
+        };
+        struct rand_uniform_real_tag
+        {
+        };
+
         template <ngraph::element::Type_t eleType>
         class Data
         {
         public:
             using T = ngraph::fundamental_type_for<eleType>;
 
-            static struct rand_normal_t
-            {
-            } rand_normal;
-            static struct rand_uniform_int_t
-            {
-            } rand_uniform_int;
-            static struct rand_uniform_real_t
-            {
-            } rand_uniform_real;
-
             // random (normal-distrubition) generate data
-            Data(rand_normal_t, double mean, double stddev, const ngraph::Shape& s)
+            Data(rand_normal_tag, double mean, double stddev, const ngraph::Shape& s)
                 : value(ngraph::shape_size(s))
                 , shape(s)
             {
@@ -74,7 +74,7 @@ namespace ngraph
             }
 
             // random (uniform-int-distrubition) generate data
-            Data(rand_uniform_int_t, int64_t low, int64_t high, const ngraph::Shape& s)
+            Data(rand_uniform_int_tag, int64_t low, int64_t high, const ngraph::Shape& s)
                 : value(ngraph::shape_size(s))
                 , shape(s)
             {
@@ -85,7 +85,7 @@ namespace ngraph
             }
 
             // random (uniform-real-distrubition) generate data
-            Data(rand_uniform_real_t, double low, double high, const ngraph::Shape& s)
+            Data(rand_uniform_real_tag, double low, double high, const ngraph::Shape& s)
                 : value(ngraph::shape_size(s))
                 , shape(s)
             {
