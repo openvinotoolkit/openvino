@@ -51,7 +51,7 @@ def is_fully_defined(value):
             return value is not dynamic_dimension
         return np.all([item is not dynamic_dimension for item in value])
     elif isinstance(value, list):
-        return True
+        return np.ma.masked not in value
     elif value is dynamic_dimension:
         return False
     return True

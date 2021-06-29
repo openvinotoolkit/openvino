@@ -49,10 +49,13 @@ def concat_infer(node):
         return
 
     # if one of the input values are dynamic then we need to properly keep data type of the input
+    output_dtype = np.int64
+    for input in values:
+        if is_fully_defined(input):
+            output_dtype = input.dtype
+
     if any([not is_fully_defined(v) for v in values]):
-        # TODO FIXME need to correctly determine data type of output. We need to analyze data type of all non-dynamic
-        # inputs and take type from it.
-        node.out_port(0).data.set_value(np.ma.concatenate(values, axis=node.axis))
+        node.out_port(0).data.set_value(np.ma.concatenate(values, axis=node.axis).astype(output_dtype))
     else:  # there is a serious performance benefit to use concatenation as it is implemented below
         node.out_node(0).value = np.concatenate(values, axis=node.axis).astype(values[0].dtype, copy=False)
         node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)
@@ -63,5 +66,4 @@ def tf_pack_infer(node):
     values = [node.in_node(i).value for i in range(node.N)]
     if any(v is None for v in values):
         return
-    node.out_node().value = np.stack(values, node.axis)
-    node.out_node().shape = np.array(node.out_node().value.shape, dtype=np.int64)
+    node.out_port(0).data.set_value(np.stack(values, node.axis))

@@ -847,7 +847,6 @@ mo/front/common/partial_infer/eltwise.py
 mo/front/common/partial_infer/multi_box_detection.py
 mo/front/common/partial_infer/multi_box_prior.py
 mo/front/common/partial_infer/random_uniform.py
-mo/front/common/partial_infer/reshape.py
 mo/front/common/partial_infer/roipooling.py
 mo/front/common/partial_infer/utils.py
 mo/front/common/register_custom_ops.py
