@@ -79,14 +79,14 @@ private:
 Stage StageBuilder::addResampleNearestStage(
             const Model& model,
             const std::string& name,
-            const ie::CNNLayerPtr& layer,
+            const NodePtr& node,
             bool antialias,
             InterpolateCoordTransMode coordinateTransformationMode,
             InterpolateNearestMode nearestMode,
             float factor,
             const Data& input,
             const Data& output) {
-    auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, {input}, {output});
+    auto stage = model->addNewStage<ResampleStage>(node->get_name(), StageType::Resample, node, {input}, {output});
 
     stage->attrs().set<bool>(g_antialias, antialias);
     stage->attrs().set<InterpolateCoordTransMode>(g_coordinate_transformation_mode, coordinateTransformationMode);
@@ -96,39 +96,39 @@ Stage StageBuilder::addResampleNearestStage(
 
     return stage;
 }
+// resample/interpolate case
+void FrontEnd::parseResample(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    // VPU_THROW_UNLESS(inputs.size() == 1,
+    //                  "Resample stage with name {} must have only 1 input, "
+    //                  "actually provided {}", node->get_friendly_name(), inputs.size());
+    // VPU_THROW_UNLESS(outputs.size() == 1,
+    //                  "Resample stage with name {} must have only 1 output, "
+    //                  "actually provided {}", layer->name, outputs.size());
 
-void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    VPU_THROW_UNLESS(inputs.size() == 1,
-                     "Resample stage with name {} must have only 1 input, "
-                     "actually provided {}", layer->name, inputs.size());
-    VPU_THROW_UNLESS(outputs.size() == 1,
-                     "Resample stage with name {} must have only 1 output, "
-                     "actually provided {}", layer->name, outputs.size());
+    // ie::details::CaselessEq<std::string> cmp;
+    // const auto method  = layer->GetParamAsString(g_type, "caffe.ResampleParameter.NEAREST");
+    // const auto coord   = layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
+    // const auto nearest = layer->GetParamAsString(g_nearest_mode, g_round_prefer_ceil);
 
-    ie::details::CaselessEq<std::string> cmp;
-    const auto method  = layer->GetParamAsString(g_type, "caffe.ResampleParameter.NEAREST");
-    const auto coord   = layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
-    const auto nearest = layer->GetParamAsString(g_nearest_mode, g_round_prefer_ceil);
+    // const auto coordModeIt   = coordTransformModeMap.find(coord);
+    // const auto nearestModeIt = nearestModeMap.find(nearest);
+    // VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Resample stage does not support this coordinate transforation mode");
+    // VPU_THROW_UNLESS(nearestModeIt != nearestModeMap.end(), "Resample stage does not support this nearest transforation mode");
+    // auto coordinateTransformationMode = coordModeIt->second;
+    // auto nearestMode = nearestModeIt->second;
 
-    const auto coordModeIt   = coordTransformModeMap.find(coord);
-    const auto nearestModeIt = nearestModeMap.find(nearest);
-    VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Resample stage does not support this coordinate transforation mode");
-    VPU_THROW_UNLESS(nearestModeIt != nearestModeMap.end(), "Resample stage does not support this nearest transforation mode");
-    auto coordinateTransformationMode = coordModeIt->second;
-    auto nearestMode = nearestModeIt->second;
-
-    if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
-        _stageBuilder->addResampleNearestStage(model,
-                                               layer->name,
-                                               layer,
-                                               layer->GetParamAsInt(g_antialias, 0),
-                                               coordinateTransformationMode, nearestMode,
-                                               layer->GetParamAsFloat(g_factor, -1),
-                                               inputs[0],
-                                               outputs[0]);
-    } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " supports only caffe.ResampleParameter.NEAREST resample type";
-    }
+    // if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
+    //     _stageBuilder->addResampleNearestStage(model,
+    //                                            layer->name,
+    //                                            layer,
+    //                                            layer->GetParamAsInt(g_antialias, 0),
+    //                                            coordinateTransformationMode, nearestMode,
+    //                                            layer->GetParamAsFloat(g_factor, -1),
+    //                                            inputs[0],
+    //                                            outputs[0]);
+    // } else {
+    //     VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " supports only caffe.ResampleParameter.NEAREST resample type";
+    // }
 }
 
 }  // namespace vpu

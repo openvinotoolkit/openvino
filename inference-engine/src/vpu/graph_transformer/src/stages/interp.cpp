@@ -68,13 +68,13 @@ private:
 Stage StageBuilder::addInterpStage(
                         const Model& model,
                         const std::string& name,
-                        const ie::CNNLayerPtr& layer,
+                        const NodePtr& node,
                         bool align_corners,
                         InterpolateMode mode,
                         InterpolateCoordTransMode coordinateTransMode,
                         const Data& input,
                         const Data& output) {
-    auto stage = model->addNewStage<InterpStage>(layer->name, StageType::Interp, layer, {input}, {output});
+    auto stage = model->addNewStage<InterpStage>(node->get_name(), StageType::Interp, node, {input}, {output});
     stage->attrs().set<bool>(g_align_corners, align_corners);
     stage->attrs().set<InterpolateMode>(g_mode, mode);
     stage->attrs().set<InterpolateCoordTransMode>(g_coordinate_transformation_mode, coordinateTransMode);
@@ -82,25 +82,28 @@ Stage StageBuilder::addInterpStage(
     return stage;
 }
 
-void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    VPU_THROW_UNLESS(inputs.size() == 1,
-                     "Interp stage with name {} must have only 1 input, "
-                     "actually provided {}", layer->name, inputs.size());
-    VPU_THROW_UNLESS(outputs.size() == 1,
-                     "Interp stage with name {} must have only 1 output, "
-                     "actually provided {}", layer->name, outputs.size());
-    const auto coord = layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
-    const auto interpMode = layer->GetParamAsString(g_mode, g_linear);
-    const auto interpModeIt = interpModeMap.find(interpMode);
-    const auto coordModeIt  = coordTransformModeMap.find(coord);
-    VPU_THROW_UNLESS(interpModeIt != interpModeMap.end(), "Interp stage with name {} does not support this interp mode", layer->name);
-    VPU_THROW_UNLESS(interpModeIt->second == InterpolateMode::Linear || interpModeIt->second  == InterpolateMode::LinearOnnx,
-                     "Interp stage supports linear and linear_onnx modes");
-    VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Interp stage does not support this coordinate transforation mode");
-    auto coordinateTransMode = coordModeIt->second;
-    auto mode = interpModeIt->second;
+// need to rework logic
+void FrontEnd::parseInterp(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    // const auto& interp = ngraph::as_type_ptr<ngraph::op::v4::Interpolate>(node);
+    // IE_ASSERT(interp != nullptr);
+    // VPU_THROW_UNLESS(inputs.size() == 1,
+    //                  "Interp stage with name {} must have only 1 input, "
+    //                  "actually provided {}", interp->get_name(), inputs.size());
+    // VPU_THROW_UNLESS(outputs.size() == 1,
+    //                  "Interp stage with name {} must have only 1 output, "
+    //                  "actually provided {}", interp->get_name(), outputs.size());
+    // const auto attrs = interp->get_attrs();
+    // const auto coord = attrs.coordinate_transformation_mode;
+    // const auto interpMode = attrs.mode;
+    // // const auto interpModeIt = interpModeMap.find(interpMode);  ??
+    // // const auto coordModeIt  = attrs.coordinate_transformation_mode; ??
+    // VPU_THROW_UNLESS(interpMode == ngraph::op::v4::Interpolate::InterpolateMode::linear ||
+    //                  interpMode == ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
+    //                  "Interp stage supports linear and linear_onnx modes");
+    // auto coordinateTransMode = coordModeIt->second;
+    // auto mode = interpModeIt->second;
 
-    _stageBuilder->addInterpStage(model, layer->name, layer, layer->GetParamAsInt(g_align_corners, 0), mode, coordinateTransMode, inputs[0], outputs[0]);
+    // _stageBuilder->addInterpStage(model, node->get_friendly_name(), node, layer->GetParamAsInt(g_align_corners, 0), mode, coordinateTransMode, inputs[0], outputs[0]);
 }
 
 }  // namespace vpu

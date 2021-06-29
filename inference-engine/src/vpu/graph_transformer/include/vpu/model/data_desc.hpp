@@ -15,7 +15,8 @@
 #include <utility>
 
 #include <ie_layouts.h>
-
+#include <ie_ngraph_utils.hpp>
+#include <ngraph/descriptor/tensor.hpp>
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/io.hpp>
 #include <vpu/utils/dot_io.hpp>
@@ -539,6 +540,7 @@ public:
     explicit DataDesc(const std::vector<IntValue>& dims) : DataDesc(DataType::FP16, DimsOrder::fromNumDims(dims.size()), dims) {}
 
     explicit DataDesc(const ie::TensorDesc& ieDesc);
+    explicit DataDesc(const ngraph::descriptor::Tensor& ngraphDesc);
 
     DataDesc(DataType type, DimsOrder dimsOrder, const DimValues& dims);
 

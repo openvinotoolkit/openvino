@@ -50,13 +50,13 @@ private:
 Stage StageBuilder::addNoneStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const DataVector& inputs,
         const DataVector& outputs) {
     return model->addNewStage<NoneStage>(
         name,
         StageType::None,
-        layer,
+        node,
         {inputs},
         {outputs});
 }

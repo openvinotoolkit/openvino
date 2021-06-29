@@ -57,7 +57,7 @@ void PassImpl::runForStage(const Model& model, const Stage& convert) {
         _stageBuilder->addCopyStage(
                 model,
                 convert->name() + "@replaced-with-copy",
-                convert->origLayer(),
+                convert->origNode(),
                 input,
                 output,
                 "eliminateRedundantConversions");

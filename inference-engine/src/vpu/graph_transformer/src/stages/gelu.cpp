@@ -24,15 +24,15 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseGelu(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseGelu(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS(inputs.size() == 1,
                      "Gelu stage with name %s must have only 1 input, "
-                     "actually provided %d", layer->name, inputs.size());
+                     "actually provided %d", node->get_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "Gelu stage with name %s must have only 1 output, "
-                     "actually provided %d", layer->name, outputs.size());
+                     "actually provided %d", node->get_name(), outputs.size());
 
-    model->addNewStage<GeluStage>(layer->name, StageType::Gelu, layer, inputs, outputs);
+    model->addNewStage<GeluStage>(node->get_name(), StageType::Gelu, node, inputs, outputs);
 }
 
 }  // namespace vpu

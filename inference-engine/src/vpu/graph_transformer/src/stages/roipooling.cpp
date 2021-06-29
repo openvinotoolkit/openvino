@@ -79,20 +79,20 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseROIPooling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    ie::details::CaselessEq<std::string> cmp;
-
+void FrontEnd::parseROIPooling(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    const auto& roiPooling = ngraph::as_type_ptr<ngraph::op::v0::ROIPooling>(node);
+    IE_ASSERT(roiPooling != nullptr);
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
 
-    auto stage = model->addNewStage<ROIPoolingStage>(layer->name, StageType::ROIPooling, layer, inputs, outputs);
+    auto stage = model->addNewStage<ROIPoolingStage>(roiPooling->get_name(), StageType::ROIPooling, roiPooling, inputs, outputs);
+    
+    stage->attrs().set<int>("pooled_w", roiPooling->get_output_size()[1]);
+    stage->attrs().set<int>("pooled_h", roiPooling->get_output_size()[0]);
+    stage->attrs().set<float>("spatial_scale", roiPooling->get_spatial_scale());
 
-    stage->attrs().set<int>("pooled_w", layer->GetParamAsInt("pooled_w", 7));
-    stage->attrs().set<int>("pooled_h", layer->GetParamAsInt("pooled_h", 7));
-    stage->attrs().set<float>("spatial_scale", layer->GetParamAsFloat("spatial_scale", 0.0625f));
-
-    auto method = layer->GetParamAsString("method", "max");
-    if (cmp(method, "bilinear")) {
+    const auto method = roiPooling->get_method();
+    if (method == "bilinear") {
         stage->attrs().set("method", ROIPoolingMethod::Bilinear);
     } else {
         stage->attrs().set("method", ROIPoolingMethod::Max);

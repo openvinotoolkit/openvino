@@ -55,18 +55,18 @@ private:
 
 }  // namespace
 
-void FrontEnd::parsePriorBox(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parsePriorBox(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
 
-    model->addNewStage<StubPriorBoxStage>(layer->name, StageType::StubPriorBox, layer, inputs, outputs);
+    model->addNewStage<StubPriorBoxStage>(node->get_name(), StageType::StubPriorBox, node, inputs, outputs);
 }
 
-void FrontEnd::parsePriorBoxClustered(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parsePriorBoxClustered(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
 
-    model->addNewStage<StubPriorBoxStage>(layer->name, StageType::StubPriorBoxClustered, layer, inputs, outputs);
+    model->addNewStage<StubPriorBoxStage>(node->get_name(), StageType::StubPriorBoxClustered, node, inputs, outputs);
 }
 
 }  // namespace vpu

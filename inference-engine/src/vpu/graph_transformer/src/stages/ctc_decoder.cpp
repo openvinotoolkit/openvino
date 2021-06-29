@@ -66,19 +66,20 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseCTCDecoder(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseCTCDecoder(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
-
-    auto ctc_merge_repeated_ = layer->GetParamAsInt("ctc_merge_repeated", 1);
+    const auto& ctcDecoder = ngraph::as_type_ptr<ngraph::op::v0::CTCGreedyDecoder>(node);
+    IE_ASSERT(ctcDecoder != nullptr);
+    auto ctc_merge_repeated_ = ctcDecoder->get_ctc_merge_repeated();
     if (ctc_merge_repeated_ != 1) {
         VPU_THROW_EXCEPTION
-            << layer->name <<  " [" << layer->type
+            << ctcDecoder->get_name() <<  " [" << ctcDecoder->get_type_name()
             << "] has incorrect ctc_merge_repeated param value."
             << " Kernel support case when ctc_merge_repeated_ == 1 only";
     }
 
-    model->addNewStage<CTCDecoderStage>(layer->name, StageType::CTCDecoder, layer, inputs, outputs);
+    model->addNewStage<CTCDecoderStage>(ctcDecoder->get_name(), StageType::CTCDecoder, ctcDecoder, inputs, outputs);
 }
 
 }  // namespace vpu

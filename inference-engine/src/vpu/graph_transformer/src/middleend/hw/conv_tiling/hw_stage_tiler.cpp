@@ -59,7 +59,7 @@ int getMaxOutputChannels(const HwConvTilingPtr& tiling) {
 
 void HWConvStageTiler::addPoolStage(const HWConvStageIO& stageIO, const HWConvStageOptions& stageOptions) {
     const auto& name = _original->name();
-    const auto& orig = _original->origLayer();
+    const auto& orig = _original->origNode();
 
     auto hwPoolInput = _model->addNewData(name, stageIO.origOutputDesc);
     hwPoolInput->attrs().copyFrom(stageIO.origOutput->attrs());
@@ -87,7 +87,7 @@ void HWConvStageTiler::addPoolStage(const HWConvStageIO& stageIO, const HWConvSt
 
 void HWConvStageTiler::expandInput(int numChannels) {
     const auto& name = _original->name();
-    const auto& orig = _original->origLayer();
+    const auto& orig = _original->origNode();
 
     auto newDesc = hwInput->desc();
     newDesc.setDim(Dim::C, numChannels);
@@ -222,7 +222,7 @@ Data HWConvStageTiler::createOutputTile(const HwConvPlaneTilePtr& planeTile, con
         _stageBuilder->addCopyStage(
             _model,
             _original->name() + tilePostfix + "@align-output-ptr",
-            _original->origLayer(),
+            _original->origNode(),
             hwOutputPlaneTileAligned,
             hwOutputPlaneTile,
             "HWConvTiler::output");
@@ -259,7 +259,7 @@ Data HWConvStageTiler::createInputTile(const HwConvPlaneTilePtr& planeTile, cons
         _stageBuilder->addCopyStage(
             _model,
             _original->name() + tilePostfix + "@align-input-ptr",
-            _original->origLayer(),
+            _original->origNode(),
             hwInputTile,
             hwInputTileAligned,
             "HWConvTiler::input");
@@ -293,7 +293,7 @@ Data HWConvStageTiler::reducePartialOverChannelsOutputs(const Data& hwOutputPlan
             _stageBuilder->addSumStage(
                 _model,
                 _original->name() + tilePostfix + "@accum",
-                _original->origLayer(),
+                _original->origNode(),
                 prevPartialSum, hwConvPartialOutput,
                 sumPartialOutput);
 
@@ -301,7 +301,7 @@ Data HWConvStageTiler::reducePartialOverChannelsOutputs(const Data& hwOutputPlan
                 _stageBuilder->addReLUStage(
                     _model,
                     _original->name() + tilePostfix + "@ReLU",
-                    _original->origLayer(),
+                    _original->origNode(),
                     stageOptions.negativeSlope,
                     sumPartialOutput,
                     hwOutputTile);
@@ -311,7 +311,7 @@ Data HWConvStageTiler::reducePartialOverChannelsOutputs(const Data& hwOutputPlan
                 _stageBuilder->addClampStage(
                     _model,
                     _original->name() + tilePostfix + "@Clamp",
-                    _original->origLayer(),
+                    _original->origNode(),
                     0.0,
                     stageOptions.clampMax,
                     sumPartialOutput,
@@ -339,7 +339,7 @@ Data HWConvStageTiler::reducePartialOverChannelsOutputs(const Data& hwOutputPlan
         _stageBuilder->addCropStage(
             _model,
             _original->name() + tilePostfix + "@remove-junk",
-            _original->origLayer(),
+            _original->origNode(),
             hwOutputTileWithJunk,
             hwOutputTile,
             innerOffset);
@@ -398,14 +398,14 @@ Data HWConvStageTiler::createIntermediateTileWeights(const HwConvChannelTilePtr&
     _stageBuilder->addReshapeStage(
         _model,
         _original->name() + channelTilePostfix + "@reshape",
-        _original->origLayer(),
+        _original->origNode(),
         hwTileWeights,
         hwTileWeightsConvolved);
 
     _stageBuilder->addPermuteStage(
         _model,
         _original->name() + channelTilePostfix + "@transpose",
-        _original->origLayer(),
+        _original->origNode(),
         hwTileWeightsConvolved,
         hwTileWeightsRepacked,
         DimValues_<Dim>{{Dim::N, Dim::N}, {Dim::H, Dim::W}, {Dim::W, Dim::H}, {Dim::D, Dim::D}, {Dim::C, Dim::C}});
@@ -450,7 +450,7 @@ void HWConvStageTiler::createHWStageForTile(const Data& hwInputTile,
     auto hwStage = _model->addNewStage<MyriadXHwStage>(
         _original->name() + tilePostfix,
         StageType::MyriadXHwOp,
-        _original->origLayer(),
+        _original->origNode(),
         {hwInputTile, hwTileWeightsFinal, hwTileBiases, hwScales},
         {hwOutputTile});
 

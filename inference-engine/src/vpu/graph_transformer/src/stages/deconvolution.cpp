@@ -15,33 +15,37 @@
 
 namespace vpu {
 
-void FrontEnd::parseDeconvolution(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseDeconvolution(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
-
+    auto deconv = ngraph::as_type_ptr<ngraph::opset4::ConvolutionBackpropData>(node);
+    VPU_THROW_UNLESS(deconv != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", deconv->get_friendly_name(), deconv->get_type_name());
     //
     // Extract parameters
     //
+    auto filtersShape = deconv->input_value(1).get_partial_shape().to_shape();
+    auto strides = deconv->get_strides();
+    auto padsBegin = deconv->get_pads_begin();
+    auto padsEnd = deconv->get_pads_end();
+    auto dilations = deconv->get_dilations();
+    size_t group = deconv->input_value(1).get_shape()[0];
 
-    auto deconvLayer = std::dynamic_pointer_cast<ie::DeconvolutionLayer>(layer);
-    IE_ASSERT(deconvLayer != nullptr);
+    int kernelSizeX = filtersShape[0]; //deconvLayer->_kernel_x;
+    int kernelSizeY = filtersShape[1];
 
-    int kernelSizeX = deconvLayer->_kernel_x;
-    int kernelSizeY = deconvLayer->_kernel_y;
+    int kernelStrideX = strides[0];  //deconvLayer->_stride_x;
+    int kernelStrideY = strides[1];  //deconvLayer->_stride_y;
 
-    int kernelStrideX = deconvLayer->_stride_x;
-    int kernelStrideY = deconvLayer->_stride_y;
+    // auto paddings = getPaddings(*deconvLayer);
+    int padLeft = padsBegin[0]; // paddings.begin.exist(ie::X_AXIS) ? paddings.begin[ie::X_AXIS] : 0;
+    int padRight = padsEnd[0];  // paddings.end.exist(ie::X_AXIS) ? paddings.end[ie::X_AXIS] : padLeft;
+    int padTop =  padsBegin[1]; // paddings.begin.exist(ie::Y_AXIS) ? paddings.begin[ie::Y_AXIS] : 0;
+    int padBottom = padsEnd[1]; // paddings.end.exist(ie::Y_AXIS) ? paddings.end[ie::Y_AXIS] : 0;
 
-    auto paddings = getPaddings(*deconvLayer);
-    int padLeft = paddings.begin.exist(ie::X_AXIS) ? paddings.begin[ie::X_AXIS] : 0;
-    int padRight = paddings.end.exist(ie::X_AXIS) ? paddings.end[ie::X_AXIS] : padLeft;
-    int padTop = paddings.begin.exist(ie::Y_AXIS) ? paddings.begin[ie::Y_AXIS] : 0;
-    int padBottom = paddings.end.exist(ie::Y_AXIS) ? paddings.end[ie::Y_AXIS] : 0;
+    int dilationX = dilations[0]; // deconvLayer->_dilation_x;
+    int dilationY = dilations[1]; // deconvLayer->_dilation_y;
 
-    int dilationX = deconvLayer->_dilation_x;
-    int dilationY = deconvLayer->_dilation_y;
-
-    int groupSize = deconvLayer->_group;
+    int groupSize = group; // deconvLayer->_group;
 
     //
     // Create const datas
@@ -59,7 +63,9 @@ void FrontEnd::parseDeconvolution(const Model& model, const ie::CNNLayerPtr& lay
     }
 
     Data weights, biases;
-    std::tie(weights, biases) = getWeightsAndBiases(model, layer);
+    const auto weightsNode = deconv->input_value(1).get_node_shared_ptr();
+    const auto biasNode = deconv->inputs().size() == 3 ? deconv->input_value(2).get_node_shared_ptr() : NodePtr();
+    std::tie(weights, biases) = getWeightsAndBiases(model, deconv->get_friendly_name(), weightsNode, biasNode);
 
     IE_ASSERT(weights->desc().totalDimSize() >=
               kernelSizeX * kernelSizeY * (input->desc().dim(Dim::C) / groupSize) * output->desc().dim(Dim::C));
@@ -85,9 +91,9 @@ void FrontEnd::parseDeconvolution(const Model& model, const ie::CNNLayerPtr& lay
     //
 
     auto stage = model->addNewStage<StubStage>(
-        layer->name,
+        deconv->get_friendly_name(),
         StageType::StubDeconv,
-        layer,
+        deconv,
         {input, weights, biases, model->addFakeData()},
         {output});
 

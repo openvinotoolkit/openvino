@@ -235,7 +235,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addConcatStage(
             model,
             poolStage->name() + "@concat",
-            poolStage->origLayer(),
+            poolStage->origNode(),
             Dim::C,
             subOutputs,
             poolOutput);

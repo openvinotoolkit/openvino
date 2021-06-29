@@ -4,6 +4,7 @@
 
 #include <vpu/frontend/frontend.hpp>
 #include <vpu/compile_env.hpp>
+#include "vpu/ngraph/operations/static_shape_non_maximum_suppression.hpp"
 #include <precision_utils.h>
 
 #include <memory>
@@ -105,25 +106,27 @@ bool isOneSliceEnough(int cmxSize, const std::vector<int>& bufferSizes) {
 }  // namespace
 
 
-void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseStaticShapeNMS(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto staticShapeNMS = ngraph::as_type_ptr<ngraph::vpu::op::StaticShapeNonMaxSuppression>(node);
+    IE_ASSERT(staticShapeNMS != nullptr);
     VPU_THROW_UNLESS(inputs.size() == 6,
         "StaticShapeNMS with name {} parsing failed, expected number of inputs: 6, but {} provided",
-        layer->name, inputs.size());
+        staticShapeNMS->get_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 3,
         "StaticShapeNMS with name {} parsing failed, expected number of outputs: 4, but {} provided",
-        layer->name, outputs.size());
+        staticShapeNMS->get_name(), outputs.size());
 
     const auto softNMSSigmaData = inputs[5];
     VPU_THROW_UNLESS(softNMSSigmaData->usage() == DataUsage::Const,
         "StaticShapeNMS with name {} parsing failed: softNMSSigma should have usage {} while it actually has {}",
-        layer->type, DataUsage::Const, softNMSSigmaData->usage());
+        staticShapeNMS->get_type_name(), DataUsage::Const, softNMSSigmaData->usage());
     VPU_THROW_UNLESS(softNMSSigmaData->desc().totalDimSize() == 1,
         "StaticShapeNMS with name {} parsing failed: softNMSSigma input should contain 1 value, while it has {} values",
-        layer->type, softNMSSigmaData->desc().totalDimSize());
+        staticShapeNMS->get_type_name(), softNMSSigmaData->desc().totalDimSize());
     const auto softNMSSigma = InferenceEngine::PrecisionUtils::f16tof32(softNMSSigmaData->content()->get<InferenceEngine::ie_fp16>()[0]);
     VPU_THROW_UNLESS(softNMSSigma == 0,
         "StaticShapeNMS with name {} parsing failed: the only supported value for softNMSSigma is 0, while it actually equal to {}",
-        layer->name, softNMSSigma);
+        staticShapeNMS->get_name(), softNMSSigma);
 
     auto usedInputs = inputs;
     // Erase unused softNMSSigma input
@@ -135,15 +138,15 @@ void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& la
 
     VPU_THROW_UNLESS(outScores == nullptr,
         "StaticShapeNMS with name {} parsing failed: selected_scores output is not supported {}",
-        layer->name);
+        staticShapeNMS->get_name());
 
-    const auto sortResultDescending = layer->GetParamAsBool("sort_result_descending");
-    const auto centerPointBox = layer->GetParamAsBool("center_point_box");
+    const auto sortResultDescending = staticShapeNMS->get_sort_result_descending();
+    const auto centerPointBox = staticShapeNMS->get_box_encoding() == ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER ? true : false;
 
     VPU_THROW_UNLESS(sortResultDescending == false,
-        "StaticShapeNMS with name {}: parameter sortResultDescending=true is not supported on VPU", layer->name);
+        "StaticShapeNMS with name {}: parameter sortResultDescending=true is not supported on VPU", staticShapeNMS->get_friendly_name());
 
-    auto stage = model->addNewStage<StaticShapeNMS>(layer->name, StageType::StaticShapeNMS, layer, usedInputs, DataVector{outIndices, outShape});
+    auto stage = model->addNewStage<StaticShapeNMS>(staticShapeNMS->get_friendly_name(), StageType::StaticShapeNMS, staticShapeNMS, usedInputs, DataVector{outIndices, outShape});
     stage->attrs().set<bool>("center_point_box", centerPointBox);
 
     const auto inputDims0 = inputs[0]->desc().dims();

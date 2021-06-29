@@ -16,8 +16,8 @@ public:
     const ngraph::NodeTypeInfo& get_type_info() const override { return type_info; }
 
     FullyConnectedNode() = default;
-
     FullyConnectedNode(const ngraph::Output<Node> &A,
+
                        const ngraph::Output<Node> &B,
                        const ngraph::Shape &output_shape,
                        const ngraph::element::Type output_type = ngraph::element::undefined);

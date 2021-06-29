@@ -29,11 +29,11 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseExp(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseExp(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    model->addNewStage<ExpStage>(layer->name, StageType::Exp, layer, inputs, outputs);
+    model->addNewStage<ExpStage>(node->get_name(), StageType::Exp, node, inputs, outputs);
 }
 
 }  // namespace vpu

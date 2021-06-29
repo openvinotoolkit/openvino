@@ -11,27 +11,27 @@ namespace vpu {
 
 namespace {
 
-std::uint32_t maskStrToInt(std::string mask) {
-    std::uint32_t result = 0;
-    int idx = 0;
+// std::uint32_t maskStrToInt(std::string mask) {
+//     std::uint32_t result = 0;
+//     int idx = 0;
 
-    for (const auto& character : mask) {
-        switch (character) {
-            case ',':
-                continue;
-            case '1':
-                result |= (0x1 << idx++);
-                break;
-            case '0':
-                idx++;
-                break;
-            default:
-                VPU_THROW_FORMAT("Unsupported mask value: only 0 or 1 are supported, but got {} instead", character);
-        }
-    }
+//     for (const auto& character : mask) {
+//         switch (character) {
+//             case ',':
+//                 continue;
+//             case '1':
+//                 result |= (0x1 << idx++);
+//                 break;
+//             case '0':
+//                 idx++;
+//                 break;
+//             default:
+//                 VPU_THROW_FORMAT("Unsupported mask value: only 0 or 1 are supported, but got {} instead", character);
+//         }
+//     }
 
-    return result;
-}
+//     return result;
+// }
 
 class StridedSliceStage final : public StageNode {
 public:
@@ -75,19 +75,19 @@ private:
             numInputs() == 3 ? expectedInputs3Types : expectedInputs4Types,
             {{input0DataType}});
     }
-
+    // need to rework
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        const auto& beginMask = origLayer()->GetParamAsString("begin_mask", "");
-        const auto& endMask = origLayer()->GetParamAsString("end_mask", "");
-        serializer.append(maskStrToInt(beginMask));
-        serializer.append(maskStrToInt(endMask));
+        // const auto& beginMask = origLayer()->GetParamAsString("begin_mask", "");
+        // const auto& endMask = origLayer()->GetParamAsString("end_mask", "");
+        // serializer.append(maskStrToInt(beginMask));
+        // serializer.append(maskStrToInt(endMask));
 
-        const auto& newAxisMask = origLayer()->GetParamAsString("new_axis_mask", "");
-        const auto& shrinkAxisMask = origLayer()->GetParamAsString("shrink_axis_mask", "");
-        const auto& ellipsisMask = origLayer()->GetParamAsString("ellipsis_mask", "");
-        serializer.append(maskStrToInt(newAxisMask));
-        serializer.append(maskStrToInt(shrinkAxisMask));
-        serializer.append(maskStrToInt(ellipsisMask));
+        // const auto& newAxisMask = origLayer()->GetParamAsString("new_axis_mask", "");
+        // const auto& shrinkAxisMask = origLayer()->GetParamAsString("shrink_axis_mask", "");
+        // const auto& ellipsisMask = origLayer()->GetParamAsString("ellipsis_mask", "");
+        // serializer.append(maskStrToInt(newAxisMask));
+        // serializer.append(maskStrToInt(shrinkAxisMask));
+        // serializer.append(maskStrToInt(ellipsisMask));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -101,20 +101,20 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseStridedSlice(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseStridedSlice(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS(inputs.size() == 3 || inputs.size() == 4,
         "Parsing layer {} with type {} failed: number of input should be 3 or 4, but {} were provided",
-        layer->name, layer->type, inputs.size());
+        node->get_name(), node->get_type_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
         "Parsing layer {} with type {} failed: number of outputs should be 1, but {} were provided",
-        layer->name, layer->type, outputs.size());
+        node->get_name(), node->get_type_name(), outputs.size());
 
     DataVector extendedInputs{inputs.begin(), inputs.end()};
     if (inputs.size() == 3) {
         extendedInputs.push_back(model->addFakeData());
     }
 
-    model->addNewStage<StridedSliceStage>(layer->name, StageType::StridedSlice, layer, extendedInputs, outputs);
+    model->addNewStage<StridedSliceStage>(node->get_name(), StageType::StridedSlice, node, extendedInputs, outputs);
 }
 
 }  // namespace vpu

@@ -13,11 +13,11 @@
 
 namespace vpu {
 
-void FrontEnd::parseCopy(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseCopy(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    _stageBuilder->addCopyStage(model, layer->name, layer, inputs[0], outputs[0], "parseCopy");
+    _stageBuilder->addCopyStage(model, node->get_name(), node, inputs[0], outputs[0], "parseCopy");
 }
 
 namespace {
@@ -74,14 +74,14 @@ protected:
 Stage StageBuilder::addCopyStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input,
         const Data& output,
         const std::string& origin) {
     Stage copyStage = model->addNewStage<CopyStage>(
         name,
         StageType::Copy,
-        layer,
+        node,
         {input},
         {output});
     copyStage->attrs().set<std::string>("origin", origin);

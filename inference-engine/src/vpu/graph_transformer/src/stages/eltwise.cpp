@@ -15,14 +15,22 @@
 
 #include <vpu/utils/numeric.hpp>
 
-#define MAP_ELEMENTS(op, f) {InferenceEngine::EltwiseLayer::eOperation::op, &f<StageType::op>}
+#define MAP_ELEMENTS(op, f) {vpu::EltwiseOperation::op, &f<StageType::op>}
+
+
+// void FrontEnd::parseSubtract(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+//     auto subtract = ngraph::as_type_ptr<ngraph::opset4::Subtract>(node);
+//     VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+//     auto eltwiseOp = EltwiseOperation::Sub;
+//     parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+    
+// }
 
 namespace vpu {
 
 namespace {
-
 template<StageType T>
-StageType onlyOneInput(ie::EltwiseLayer::eOperation op, size_t input_size) {
+StageType onlyOneInput(EltwiseOperation op, size_t input_size) {
     if (input_size != 1) {
         VPU_THROW_EXCEPTION << "Eltwise operation: " << T << " supports only one input";
     }
@@ -30,7 +38,7 @@ StageType onlyOneInput(ie::EltwiseLayer::eOperation op, size_t input_size) {
 }
 
 template<StageType T>
-StageType onlyTwoInputs(ie::EltwiseLayer::eOperation op, size_t input_size) {
+StageType onlyTwoInputs(EltwiseOperation op, size_t input_size) {
     if (input_size != 2) {
         VPU_THROW_EXCEPTION << "Eltwise operation: " << T << " supports only two inputs";
     }
@@ -38,7 +46,7 @@ StageType onlyTwoInputs(ie::EltwiseLayer::eOperation op, size_t input_size) {
 }
 
 template<StageType T>
-StageType moreThanOneInput(ie::EltwiseLayer::eOperation op, size_t input_size) {
+StageType moreThanOneInput(EltwiseOperation op, size_t input_size) {
     if (input_size < 2) {
         VPU_THROW_EXCEPTION << "Eltwise operation: " << T << " supports two inputs and more";
     }
@@ -46,14 +54,14 @@ StageType moreThanOneInput(ie::EltwiseLayer::eOperation op, size_t input_size) {
 }
 
 template<StageType T>
-StageType onlyThreeInputs(ie::EltwiseLayer::eOperation op, size_t input_size) {
+StageType onlyThreeInputs(EltwiseOperation op, size_t input_size) {
     if (input_size != 3) {
         VPU_THROW_EXCEPTION << "Eltwise operation: " << T << " supports only three inputs";
     }
     return T;
 }
 
-static const std::map<ie::EltwiseLayer::eOperation, std::function<StageType(ie::EltwiseLayer::eOperation, size_t)>> eltwise_map = {
+static const std::map<EltwiseOperation, std::function<StageType(EltwiseOperation, size_t)>> eltwise_map = {
         MAP_ELEMENTS(Sum,           moreThanOneInput),
         MAP_ELEMENTS(Prod,          moreThanOneInput),
         MAP_ELEMENTS(Max,           moreThanOneInput),
@@ -220,37 +228,143 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseEltwise(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    auto layer = std::dynamic_pointer_cast<ie::EltwiseLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+
+// Rework it by using macroses
+void FrontEnd::parseSubtract(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::Subtract>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Sub;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+    
+}
+
+void FrontEnd::parseAdd(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::Add>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Sum;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+
+void FrontEnd::parseMultiply(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::Multiply>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Prod;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseMaximum(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::Maximum>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Max;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseDivide(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::Divide>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Div;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseMinimum(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::Minimum>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Min;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseSquaredDifference(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::SquaredDifference>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Squared_diff;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseEqual(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::Equal>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Equal;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseNotEqual(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::NotEqual>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Not_equal;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseGreater(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::Greater>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Greater;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseGreaterEqual(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::GreaterEqual>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Greater_equal;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseLess(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::Less>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Less;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseLessEqual(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::LessEqual>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Less_equal;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseLogicalNot(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::LogicalNot>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Logical_NOT;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseLogicalAnd(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::LogicalAnd>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Logical_AND;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseLogicalOr(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::LogicalOr>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Logical_OR;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+void FrontEnd::parseLogicalXor(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto subtract = ngraph::as_type_ptr<ngraph::opset4::LogicalXor>(node);
+    VPU_THROW_UNLESS(subtract != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    auto eltwiseOp = EltwiseOperation::Logical_XOR;
+    parseEltwiseImpl(model, node, inputs, outputs, eltwiseOp);
+}
+
+void FrontEnd::parseEltwiseImpl(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs, const EltwiseOperation eltwiseOperation) const {
 
     IE_ASSERT(outputs.size() == 1);
-
     auto stageType = StageType::None;
     auto subCoefficient = 1;
 
-    if (layer->_operation == ie::EltwiseLayer::eOperation::Sub) {
+    if (eltwiseOperation == EltwiseOperation::Sub) {
         if (inputs.size() != 2) {
-            VPU_THROW_EXCEPTION << "Eltwise operation: " << layer->_operation << " with multiple inputs is not supported";
+            VPU_THROW_EXCEPTION << "Eltwise operation: " << node->get_type_name() << " with multiple inputs is not supported";
         }
         stageType = StageType::Sum;
         subCoefficient = -1;
-    } else if (layer->_operation == ie::EltwiseLayer::eOperation::Mean) {
-        if (inputs.size() != 2) {
-            VPU_THROW_EXCEPTION << "Eltwise operation: " << layer->_operation << " with multiple inputs is not supported";
-        }
-        stageType = StageType::Sum;
-    } else {
-        if (eltwise_map.find(layer->_operation) != eltwise_map.end()) {
-            stageType = eltwise_map.at(layer->_operation)(layer->_operation, inputs.size());
+    }
+    //  else if (/*layer->_operation == ie::EltwiseLayer::eOperation::Mean*/1) {
+    //     if (inputs.size() != 2) {
+    //         VPU_THROW_EXCEPTION << "Eltwise operation: " << eltwiseOperation << " with multiple inputs is not supported";
+    //     }
+    //     stageType = StageType::Sum;
+    else {
+        if (eltwise_map.find(eltwiseOperation) != eltwise_map.end()) {
+            stageType = eltwise_map.at(eltwiseOperation)(eltwiseOperation, inputs.size());
         } else {
-            VPU_THROW_EXCEPTION << "Eltwise operation: " << layer->_operation << " is not supported";
+            VPU_THROW_EXCEPTION << "Eltwise operation: " << eltwiseOperation << " is not supported";
         }
     }
 
-    if (stageType != StageType::Sum && !layer->coeff.empty()) {
-        VPU_THROW_EXCEPTION << layer->name << " coefficients only supported for Sum/Sub operations.";
-    }
+    // if (stageType != StageType::Sum && !layer->coeff.empty()) {
+    //     VPU_THROW_EXCEPTION << layer->name << " coefficients only supported for Sum/Sub operations.";
+    // }
 
     auto output = outputs[0];
 
@@ -271,32 +385,33 @@ void FrontEnd::parseEltwise(const Model& model, const ie::CNNLayerPtr& _layer, c
 
     tempInputs[2] = model->addFakeData();
 
-    auto stage = model->addNewStage<EltwiseStage>(layer->name, stageType, layer, tempInputs, {tempOutput});
+    auto stage = model->addNewStage<EltwiseStage>(node->get_friendly_name(), stageType, node, tempInputs, {tempOutput});
 
     const auto& type = inputs.front()->desc().type();
     IE_ASSERT(type == DataType::FP16 || type == DataType::S32);
 
-    if (layer->_operation == ie::EltwiseLayer::eOperation::Mean) {
-        // Mean supports only FP16
-        IE_ASSERT(type == DataType::FP16);
-        stage->attrs().set<float>("coeff1",  0.5);
-        stage->attrs().set<float>("coeff2",  0.5);
-    } else {
-        if (layer->coeff.size() > 0) {
-            if (type == DataType::FP16) {
-                stage->attrs().set<float>("coeff1", layer->coeff[0]);
-            } else {
-                stage->attrs().set<std::int32_t>("coeff1", static_cast<int32_t>(layer->coeff[0]));
-            }
-        }
-        if (layer->coeff.size() > 1 || subCoefficient != 1) {
-            if (type == DataType::FP16) {
-                stage->attrs().set<float>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1.0f));
-            } else {
-                stage->attrs().set<std::int32_t>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? static_cast<int32_t>(layer->coeff[1]) : 1));
-            }
-        }
-    }
+    // if (eltwiseOperation == ie::EltwiseLayer::eOperation::Mean) {
+    //     // Mean supports only FP16
+    //     auto mean = ngraph::as_type_ptr<ngraph::opset4::Add>(node);
+    //     IE_ASSERT(type == DataType::FP16);
+    //     stage->attrs().set<float>("coeff1",  0.5);
+    //     stage->attrs().set<float>("coeff2",  0.5);
+    // } else {
+    //     if (layer->coeff.size() > 0) {
+    //         if (type == DataType::FP16) {
+    //             stage->attrs().set<float>("coeff1", layer->coeff[0]);
+    //         } else {
+    //             stage->attrs().set<std::int32_t>("coeff1", static_cast<int32_t>(layer->coeff[0]));
+    //         }
+    //     }
+    //     if (layer->coeff.size() > 1 || subCoefficient != 1) {
+    //         if (type == DataType::FP16) {
+    //             stage->attrs().set<float>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1.0f));
+    //         } else {
+    //             stage->attrs().set<std::int32_t>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? static_cast<int32_t>(layer->coeff[1]) : 1));
+    //         }
+    //     }
+    // }
 
     stage->attrs().set<StageType>("postOperation", StageType::Empty);
 
@@ -313,35 +428,34 @@ void FrontEnd::parseEltwise(const Model& model, const ie::CNNLayerPtr& _layer, c
         }
 
         stage = model->addNewStage<EltwiseStage>(
-            layer->name + "@" + std::to_string(ind - 1),
+            node->get_friendly_name() + "@" + std::to_string(ind - 1),
             stageType,
-            layer,
+            node,
             tempInputs,
             {tempOutput});
 
-        if (layer->coeff.size() > ind) {
-            stage->attrs().set<float>("coeff2", layer->coeff[ind]);
-        }
+        // if (layer->coeff.size() > ind) {
+        //     stage->attrs().set<float>("coeff2", layer->coeff[ind]);
+        // }
 
         tempInputs[0] = tempOutput;
     }
 }
 
-void FrontEnd::parseSelect(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    auto layer = std::dynamic_pointer_cast<ie::SelectLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-
+void FrontEnd::parseSelect(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto select = ngraph::as_type_ptr<ngraph::opset4::Select>(node);
+    VPU_THROW_UNLESS(select != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
     if (inputs.size() != 3) {
         VPU_THROW_EXCEPTION << "Select supports only three inputs";
     }
 
-    auto stage = model->addNewStage<EltwiseStage>(layer->name, StageType::Select, layer, inputs, outputs);
+    auto stage = model->addNewStage<EltwiseStage>(select->get_friendly_name(), StageType::Select, select, inputs, outputs);
 }
 
 Stage StageBuilder::addSumStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input0,
         const Data& input1,
         const Data& output) {
@@ -349,7 +463,7 @@ Stage StageBuilder::addSumStage(
     return model->addNewStage<EltwiseStage>(
         name,
         StageType::Sum,
-        layer,
+        node,
         {input0, input1, fakeInput2},
         {output});
 }
@@ -357,7 +471,7 @@ Stage StageBuilder::addSumStage(
 Stage StageBuilder::addProdStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input0,
         const Data& input1,
         const Data& output) {
@@ -365,7 +479,7 @@ Stage StageBuilder::addProdStage(
     return model->addNewStage<EltwiseStage>(
             name,
             StageType::Prod,
-            layer,
+            node,
             {input0, input1, fakeInput2},
             {output});
 }
@@ -373,7 +487,7 @@ Stage StageBuilder::addProdStage(
 Stage StageBuilder::addMaxStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input0,
         const Data& input1,
         const Data& output) {
@@ -381,7 +495,7 @@ Stage StageBuilder::addMaxStage(
     return model->addNewStage<EltwiseStage>(
         name,
         StageType::Max,
-        layer,
+        node,
         {input0, input1, fakeInput2},
         {output});
 }

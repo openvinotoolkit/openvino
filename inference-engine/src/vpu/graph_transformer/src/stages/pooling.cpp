@@ -17,10 +17,12 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
 
-namespace vpu {
+#include <ngraph/ops.hpp>
 
+namespace vpu {
+namespace {
 static
-bool canTryHW(const ie::PoolingLayer::PoolType poolType,
+bool canTryHW(const PoolMethod poolType,
               const int inputWidth,
               const int inputHeight,
               const int outputWidth,
@@ -82,21 +84,21 @@ bool canTryHW(const ie::PoolingLayer::PoolType poolType,
     }
 
     // TODO: 3x3s2 Avg pooling is not supported by HW
-    if (kernelSizeX == 3 && kernelSizeY == 3 && kernelStrideX == 2 && poolType == ie::PoolingLayer::AVG) {
+    if (kernelSizeX == 3 && kernelSizeY == 3 && kernelStrideX == 2 && poolType == PoolMethod::Pool_avg) {
         tryHW = false;
     }
 
     // TODO: Avg pooling with even kernel size and odd input is not supported
     if ((kernelSizeX % 2 == 0 || kernelSizeY % 2 == 0)) {
         if (inputWidth % 2 == 1 || inputHeight % 2 == 1) {
-            if (poolType == ie::PoolingLayer::PoolType::AVG) {
+            if (poolType == PoolMethod::Pool_avg) {
                 tryHW = false;
             }
         }
     }
 
     // TODO : 5x5s3 Avg pooling hangs device
-    if (kernelSizeX == 5 && kernelSizeY == 5 && kernelStrideX == 3 && poolType == ie::PoolingLayer::PoolType::AVG) {
+    if (kernelSizeX == 5 && kernelSizeY == 5 && kernelStrideX == 3 && poolType == PoolMethod::Pool_avg) {
         tryHW = false;
     }
 
@@ -110,7 +112,7 @@ bool canTryHW(const ie::PoolingLayer::PoolType poolType,
     // TODO: 3x3s2 Max Pooling with [2,2] padding is not supported by HW
     if (kernelSizeX == 3 && kernelSizeY == 3 &&
         kernelStrideX == 2 && kernelStrideY == 2 &&
-        poolType == ie::PoolingLayer::MAX &&
+        poolType == PoolMethod::Pool_max &&
         padLeft == 0 && padTop == 0 &&
         padRight == 2 && padBottom == 2) {
         tryHW = false;
@@ -119,7 +121,7 @@ bool canTryHW(const ie::PoolingLayer::PoolType poolType,
     //  FIX #14949, enable HW AVG pooling, need SW postproc
     //  HW AVG pooling will output wrong results in borders when excludePad=true
     bool hasPad = padLeft || padTop || padRight || padBottom;
-    if (excludePad && hasPad && poolType == ie::PoolingLayer::PoolType::AVG) {
+    if (excludePad && hasPad && poolType == PoolMethod::Pool_avg) {
         // Only apply to small output tensors for now
         // May need to loose the condition if accuracy issues are met
         if (outputWidth <= 5 && outputHeight <= 5) {
@@ -128,7 +130,7 @@ bool canTryHW(const ie::PoolingLayer::PoolType poolType,
     }
 
     // FIX #16406, #18639 AVG pooling result is always 0 in case of 1x1 kernel
-    if (kernelSizeX == 1 && kernelSizeY == 1 && poolType == ie::PoolingLayer::PoolType::AVG) {
+    if (kernelSizeX == 1 && kernelSizeY == 1 && poolType == PoolMethod::Pool_avg) {
         tryHW = false;
     }
 
@@ -146,7 +148,7 @@ bool canTryHW(const ie::PoolingLayer::PoolType poolType,
     if (inputWidth == 382 && inputHeight == 214 &&
         kernelSizeX == 2 && kernelSizeY == 2 &&
         kernelStrideX == 2 && kernelStrideY ==2 &&
-        poolType == ie::PoolingLayer::MAX) {
+        poolType == PoolMethod::Pool_max) {
         tryHW = false;
     }
 
@@ -159,27 +161,24 @@ bool canTryHW(const ie::PoolingLayer::PoolType poolType,
 
 static
 void parsePool2D(const     Model      & model,
-                 const ie::CNNLayerPtr& layer,
+                 const     NodePtr    & node,
                  const     Data       & input,
-                 const     Data       & output) {
+                 const     Data       & output,
+                 const     PoolingParams & poolParams) {
     //
     // Extract parameters
     //
+    int kernelSizeX = poolParams.kernel[0]; //poolLayer->_kernel_x;
+    int kernelSizeY = poolParams.kernel[1]; //->_kernel_y;
 
-    auto poolLayer = std::dynamic_pointer_cast<ie::PoolingLayer>(layer);
-    VPU_THROW_UNLESS(poolLayer != nullptr, "failed dynamic cast to PoolingLayer");
+    int kernelStrideX = poolParams.strides[0];
+    int kernelStrideY = poolParams.strides[1];
 
-    int kernelSizeX = poolLayer->_kernel_x;
-    int kernelSizeY = poolLayer->_kernel_y;
-
-    int kernelStrideX = poolLayer->_stride_x;
-    int kernelStrideY = poolLayer->_stride_y;
-
-    auto paddings  = getPaddings(*poolLayer);
-    int  padLeft   = paddings.begin.exist(ie::X_AXIS) ? paddings.begin[ie::X_AXIS] : 0;
-    int  padRight  = paddings.end.exist(ie::X_AXIS)   ? paddings.end[ie::X_AXIS]   : padLeft;
-    int  padTop    = paddings.begin.exist(ie::Y_AXIS) ? paddings.begin[ie::Y_AXIS] : 0;
-    int  padBottom = paddings.end.exist(ie::Y_AXIS)   ? paddings.end[ie::Y_AXIS]   : padTop;
+    // auto paddings  = getPaddings(*poolLayer);
+    int  padLeft   = poolParams.padsBegin[0];//  paddings.begin.exist(ie::X_AXIS) ? paddings.begin[ie::X_AXIS] : 0;
+    int  padRight  = poolParams.padsEnd[0];  //paddings.end.exist(ie::X_AXIS)   ? paddings.end[ie::X_AXIS]   : padLeft;
+    int  padTop    = poolParams.padsBegin[1]; //paddings.begin.exist(ie::Y_AXIS) ? paddings.begin[ie::Y_AXIS] : 0;
+    int  padBottom = poolParams.padsEnd[1]; // paddings.end.exist(ie::Y_AXIS)   ? paddings.end[ie::Y_AXIS]   : padTop;
 
     // for old IR's IE doesn't return valid padding. Fix paddings
     {
@@ -201,19 +200,19 @@ void parsePool2D(const     Model      & model,
         }
     }
 
-    auto poolType = poolLayer->_type;
+    auto poolType = poolParams.poolMethod;
 
-    auto excludePad = poolLayer->_exclude_pad;
+    auto excludePad = poolParams.excludePad;
 
-    auto autoPad = poolLayer->_auto_pad;
+    auto autoPad = poolParams.autoPad;
 
     auto stageType = StageType::None;
-    if (poolType == ie::PoolingLayer::MAX) {
+    if (poolType == PoolMethod::Pool_max) {
         stageType = StageType::StubMaxPool;
-    } else if (poolType == ie::PoolingLayer::AVG) {
+    } else if (poolType == PoolMethod::Pool_avg) {
         stageType = StageType::StubAvgPool;
     } else {
-        VPU_THROW_EXCEPTION << "Pooling Layer " << poolLayer->name << " has unsupported type: " << poolType;
+        VPU_THROW_EXCEPTION << "Pooling Layer " << node->get_friendly_name() << " has unsupported type: " << poolType;
     }
 
     //
@@ -222,7 +221,7 @@ void parsePool2D(const     Model      & model,
 
     const auto& env = CompileEnv::get();
     bool hwOptimization = env.config.compileConfig().hwOptimization;
-    bool hwDisabled = env.config.compileConfig().hwDisabled(layer->name);
+    bool hwDisabled = env.config.compileConfig().hwDisabled(node->get_friendly_name() );
 
     int inputWidth = input->desc().dim(Dim::W);
     int inputHeight = input->desc().dim(Dim::H);
@@ -256,9 +255,9 @@ void parsePool2D(const     Model      & model,
     //
 
     auto stage = model->addNewStage<StubStage>(
-        layer->name,
+        node->get_friendly_name(),
         stageType,
-        layer,
+        node,
         {input},
         {output});
 
@@ -280,11 +279,6 @@ void parsePool2D(const     Model      & model,
 
 //----------------------------------------------------------------------
 
-enum PoolNDMethod   { PoolND_max = 1, PoolND_avg = 2 };
-
-enum PoolNDRounding { PoolND_floor = 3, PoolND_ceil  = 4 };
-
-namespace {
 
 class PoolNDStage final : public StageNode {
 public:
@@ -372,21 +366,19 @@ private:
     }
 };
 
-}  // namespace
+
 
 static
 void parsePoolND(const     Model      & model,
-                 const ie::CNNLayerPtr& layer,
+                 const     NodePtr    & node,
                  const     Data       & input,
-                 const     Data       & output) {
+                 const     Data       & output,
+                 const     PoolingParams & poolparams) {
     //
     // Check layer parameters
     //
 
-    auto poolLayer = std::dynamic_pointer_cast<ie::PoolingLayer>(layer);
-    VPU_THROW_UNLESS(poolLayer != nullptr, "failed dynamic cast to PoolingLayer");
-
-    auto kernel_shape = poolLayer->_kernel;
+    auto kernel_shape =  poolparams.kernel; // poolLayer->_kernel;
     int kernel_ndims = static_cast<int>(kernel_shape.size());
     // Yet, only 3D kernel supported (NCDHW)
     // Later, if support 4D, 5D, etc, please
@@ -395,9 +387,9 @@ void parsePoolND(const     Model      & model,
     // parsePool2D() function
     VPU_THROW_UNLESS(kernel_ndims == 3, "unsupported kernel ndims=%d", kernel_ndims);
 
-    auto paddings = getPaddings(*poolLayer);
-    auto pads_begin = paddings.begin;
-    auto pads_end   = paddings.end;
+    //auto paddings = getPaddings(*poolLayer);
+    auto pads_begin = poolparams.padsBegin; // paddings.begin;
+    auto pads_end   = poolparams.padsEnd; // paddings.end;
     VPU_THROW_UNLESS(pads_begin.size() == kernel_ndims,
                      "incompatible pad ndims: actual=%lu, expected=%d",
                      pads_begin.size(), kernel_ndims);
@@ -405,7 +397,7 @@ void parsePoolND(const     Model      & model,
                      "incompatible pad ndims: actual=%lu, expected=%d",
                      pads_end.size(), kernel_ndims);
 
-    auto strides = poolLayer->_stride;
+    auto strides = poolparams.strides;
     VPU_THROW_UNLESS(strides.size() == kernel_ndims,
                      "incompatible stride ndims: actual=%lu, expected=%d",
                      strides.size(), kernel_ndims);
@@ -459,13 +451,13 @@ void parsePoolND(const     Model      & model,
     int interleaved = 0;
 
     int pooling_method;
-    if (poolLayer->_type == ie::PoolingLayer::MAX) {
+    if (poolparams.poolMethod == PoolMethod::Pool_max) {
         pooling_method = PoolND_max;
-    } else if (poolLayer->_type == ie::PoolingLayer::AVG) {
+    } else if (poolparams.poolMethod == PoolMethod::Pool_avg) {
         pooling_method = PoolND_avg;
     } else {
-        VPU_THROW_EXCEPTION << "Pooling Layer " << poolLayer->name
-                   << " has unsupported type: " << poolLayer->_type;
+        VPU_THROW_EXCEPTION << "Pooling Layer " << node->get_friendly_name()
+                   << " has unsupported type: " << node->get_type_name();
     }
 
     // TODO: Check rounding type! (after this becomes possible)
@@ -473,7 +465,7 @@ void parsePoolND(const     Model      & model,
     // so by default we assume rounding type is `floor`
     int rounding_type = PoolND_floor;
 
-    int exclude_pad = poolLayer->_exclude_pad ? 1 : 0;
+    int exclude_pad = poolparams.excludePad ? 1 : 0;
 
     //
     // Check if HW is applicable
@@ -481,9 +473,9 @@ void parsePoolND(const     Model      & model,
 
     const auto& env = CompileEnv::get();
     bool hwOptimization = env.config.compileConfig().hwOptimization;
-    bool hwDisabled = env.config.compileConfig().hwDisabled(layer->name);
+    bool hwDisabled = env.config.compileConfig().hwDisabled(node->get_friendly_name());
 
-    bool tryHW = canTryHW(poolLayer->_type,
+    bool tryHW = canTryHW(poolparams.poolMethod,
                           input_shape[0],
                           input_shape[1],
                           output_shape[0],
@@ -496,8 +488,8 @@ void parsePoolND(const     Model      & model,
                           pads_end[0],
                           pads_begin[1],
                           pads_end[1],
-                          poolLayer->_auto_pad,
-                          poolLayer->_exclude_pad,
+                          poolparams.autoPad,
+                          poolparams.excludePad,
                           hwOptimization,
                           hwDisabled);
     int try_hw = tryHW ? 1 : 0;
@@ -507,9 +499,9 @@ void parsePoolND(const     Model      & model,
     //
 
     auto stage = model->addNewStage<PoolNDStage>(
-        layer->name,
+        node->get_friendly_name(),
         StageType::PoolND,
-        layer,
+        node,
         {input},
         {output});
 
@@ -525,13 +517,73 @@ void parsePoolND(const     Model      & model,
 
     stage->attrs().set("try_hw", try_hw);
 }
-
+}  // namespace
 //----------------------------------------------------------------------
+PoolingParams getPoolingParams(const ngraph::Strides strides, const ngraph::Shape kernel, const ngraph::Shape pads_begin,
+                                const ngraph::Shape pads_end, const ngraph::op::PadType padType, bool excludePad) {
+    PoolingParams result;
+    result.kernel = static_cast<std::vector<size_t>>(kernel);
+    result.strides = static_cast<std::vector<size_t>>(strides);
+    result.padsBegin = static_cast<std::vector<size_t>>(pads_begin);
+    result.padsEnd = static_cast<std::vector<size_t>>(pads_end);
+    result.excludePad = excludePad;
+    
+    switch (padType)
+    {
+    case ngraph::op::PadType::EXPLICIT :
+        result.autoPad = "explicit";
+        break;
+    case ngraph::op::PadType::SAME_UPPER :
+        result.autoPad = "same_upper";
+        break;
+    case ngraph::op::PadType::SAME_LOWER :
+        result.autoPad = "same_lower";
+        break;
+    case ngraph::op::PadType::VALID :
+        result.autoPad = "valid";
+        break;
+    default:
+        result.autoPad = "explicit";
+        break;
+    }
+    return result;
+}
+void FrontEnd::parseAvgPooling(const     Model      & model,
+                               const     NodePtr    & node,
+                               const     DataVector & inputs,
+                               const     DataVector & outputs) const {
+    auto pool = ngraph::as_type_ptr<ngraph::opset4::AvgPool>(node);
+    auto params = getPoolingParams(pool->get_kernel(),
+                                   pool->get_strides(),
+                                   pool->get_pads_begin(),
+                                   pool->get_pads_end(),
+                                   pool->get_auto_pad(),
+                                   pool->get_exclude_pad());
+    params.poolMethod = Pool_avg;
+    VPU_THROW_UNLESS(pool != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    parsePoolingImpl(model, node, inputs, outputs, params);
+}
 
-void FrontEnd::parsePooling(const     Model      & model,
-                            const ie::CNNLayerPtr& layer,
-                            const     DataVector & inputs,
-                            const     DataVector & outputs) const {
+void FrontEnd::parseMaxPooling(const     Model      & model,
+                               const     NodePtr    & node,
+                               const     DataVector & inputs,
+                               const     DataVector & outputs) const {
+    auto pool = ngraph::as_type_ptr<ngraph::opset4::MaxPool>(node);
+    auto params = getPoolingParams(pool->get_strides(),
+                                   pool->get_kernel(), 
+                                   pool->get_pads_begin(),
+                                   pool->get_pads_end(),
+                                   pool->get_auto_pad(),
+                                   false);
+    params.poolMethod = Pool_avg;
+    VPU_THROW_UNLESS(pool != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+    parsePoolingImpl(model, node, inputs, outputs, params);
+}
+void FrontEnd::parsePoolingImpl(const     Model         & model,
+                                const     NodePtr       & node,
+                                const     DataVector    & inputs,
+                                const     DataVector    & outputs,
+                                const     PoolingParams & params) const {
     VPU_THROW_UNLESS(inputs.size() == 1, "number of inputs must be equal to 1, but it equals to %lu", inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1, "number of outputs must be equal to 1, but it equals to %lu", outputs.size());
 
@@ -552,18 +604,17 @@ void FrontEnd::parsePooling(const     Model      & model,
                 input->desc().numDims() == 4;  // CHW or NCHW, but not NCDWH or 6D or ...
 
     if (is2D) {
-        parsePool2D(model, layer, input, output);
+        parsePool2D(model, node, input, output, params);
     } else {
-        parsePoolND(model, layer, input, output);
+        vpu::parsePoolND(model, node, input, output, params);
     }
 }
-
 //----------------------------------------------------------------------
 
 Stage StageBuilder::addPoolingStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input,
         const Data& output,
         const ie::PoolingLayer::PoolType& poolType) {
@@ -593,7 +644,7 @@ Stage StageBuilder::addPoolingStage(
     //
     auto stage = model->addNewStage<StubStage>(name,
                                                stageType,
-                                               layer,
+                                               node,
                                                {input},
                                                {output});
     return stage;

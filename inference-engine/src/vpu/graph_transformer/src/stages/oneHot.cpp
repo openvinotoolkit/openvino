@@ -70,22 +70,29 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseOneHot(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(layer != nullptr);
+void FrontEnd::parseOneHot(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto oneHot = ngraph::as_type_ptr<ngraph::op::v1::OneHot>(node);
+    VPU_THROW_UNLESS(oneHot != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    auto oneHot = std::dynamic_pointer_cast<ie::OneHotLayer>(layer);
-    IE_ASSERT(oneHot != nullptr);
+    const auto depthNode = std::dynamic_pointer_cast<ngraph::opset1::Constant>(oneHot->input_value(1).get_node_shared_ptr());
+    const auto onValueNode = std::dynamic_pointer_cast<ngraph::opset1::Constant>(oneHot->input_value(2).get_node_shared_ptr());
+    const auto offValueNode = std::dynamic_pointer_cast<ngraph::opset1::Constant>(oneHot->input_value(3).get_node_shared_ptr());
+    VPU_THROW_UNLESS(depthNode != nullptr && onValueNode != nullptr && offValueNode != nullptr,
+                    "Can't parse node with name %s and type %s. Can't get params", node->get_friendly_name(), node->get_type_name());
 
-    auto axis = oneHot->axis == -1 ? 0 : inputs[0]->desc().numDims() - oneHot->axis;
+    int axis = oneHot->get_axis() == -1 ? 0 : inputs[0]->desc().numDims() - oneHot->get_axis();
+    auto depthValue = std::stoi(depthNode->convert_value_to_string(0));
+    auto onValue = std::stof(onValueNode->convert_value_to_string(0));
+    auto offValue = std::stof(offValueNode->convert_value_to_string(0));
 
-    auto stage = model->addNewStage<OneHot>(layer->name, StageType::OneHot, layer, inputs, outputs);
+    auto stage = model->addNewStage<OneHot>(oneHot->get_name(), StageType::OneHot, oneHot, inputs, outputs);
 
     stage->attrs().set<int>("axis", axis);
-    stage->attrs().set<unsigned int>("depth", oneHot->depth);
-    stage->attrs().set<float>("on_value", oneHot->on_value);
-    stage->attrs().set<float>("off_value", oneHot->off_value);
+    stage->attrs().set<unsigned int>("depth", depthValue);
+    stage->attrs().set<float>("on_value", onValue);
+    stage->attrs().set<float>("off_value", offValue);
 }
 
 }  // namespace vpu

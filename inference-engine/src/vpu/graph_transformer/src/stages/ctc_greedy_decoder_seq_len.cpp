@@ -105,37 +105,38 @@ private:
 
 Stage StageBuilder::addCTCGreedyDecoderSeqLenStage(const Model& model,
                                                    const std::string& name,
-                                                   const ie::CNNLayerPtr& layer,
+                                                   const NodePtr& node,
                                                    const DataVector& inputs,
                                                    const DataVector& outputs,
                                                    bool mergeRepeated,
                                                    int32_t blankIndex) {
     auto stage = model->addNewStage<CTCGreedyDecoderSeqLenStage>(name,
                                                                  StageType::CTCGreedyDecoderSeqLen,
-                                                                 layer, inputs, outputs);
+                                                                 node, inputs, outputs);
     stage->attrs().set<bool>("mergeRepeated", mergeRepeated);
     stage->attrs().set<int32_t>("blankIndex", blankIndex);
 
     return stage;
 }
 
-void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLayerPtr& layer,
+void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const NodePtr& node,
                                            const DataVector& inputs, const DataVector& outputs) const {
-    VPU_THROW_UNLESS(layer, "CNNLayer pointer is null.");
+    auto ctcGreedyDecoderSeqLen = ngraph::as_type_ptr<ngraph::op::v6::CTCGreedyDecoderSeqLen>(node);
+    VPU_THROW_UNLESS(ctcGreedyDecoderSeqLen != nullptr, "Node pointer is null.");
     VPU_THROW_UNLESS(inputs.size() == 2 || inputs.size() == 3,
                      "{} layer with name {} must have 2 or 3 inputs, actually "
                      "provided {} inputs",
-                     layer->type, layer->name, inputs.size());
+                     ctcGreedyDecoderSeqLen->get_type_name(), ctcGreedyDecoderSeqLen->get_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 2,
                      "{} layer with name {} must have 2 outputs, actually "
                      "provided {} outputs",
-                     layer->type, layer->name, outputs.size());
+                     ctcGreedyDecoderSeqLen->get_type_name(), ctcGreedyDecoderSeqLen->get_name(), outputs.size());
 
     DataVector conditionalOutputs(2);
     conditionalOutputs[0] = outputs[0];
     conditionalOutputs[1] = outputs[1] != nullptr ? outputs[1] : model->addFakeData();
 
-    const auto mergeRepeated = layer->GetParamAsBool("merge_repeated");
+    const auto mergeRepeated = ctcGreedyDecoderSeqLen->get_merge_repeated();
     const auto blankIndex = [&] {
         if (inputs.size() == 3) {
             VPU_THROW_UNLESS(inputs[2]->usage() == DataUsage::Const,
@@ -160,16 +161,16 @@ void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLaye
         return result;
     };
 
-    const auto classesIndexType = toUpper(layer->GetParamAsString("classes_index_type"));
-    const auto sequenceLengthType = toUpper(layer->GetParamAsString("sequence_length_type"));
+    const auto classesIndexType = ctcGreedyDecoderSeqLen->get_classes_index_type();//  toUpper(layer->GetParamAsString("classes_index_type"));
+    const auto sequenceLengthType = ctcGreedyDecoderSeqLen->get_sequence_length_type();
 
-    VPU_THROW_UNLESS(classesIndexType == "I32", "classes_index_type == %s. Only I32 is supported",
+    VPU_THROW_UNLESS(classesIndexType == ngraph::element::i32, "classes_index_type == %s. Only I32 is supported",
                      classesIndexType);
 
-    VPU_THROW_UNLESS(sequenceLengthType == "I32", "sequence_length_type == %s. Only I32 is supported",
+    VPU_THROW_UNLESS(sequenceLengthType == ngraph::element::i32, "sequence_length_type == %s. Only I32 is supported",
                      sequenceLengthType);
 
-    _stageBuilder->addCTCGreedyDecoderSeqLenStage(model, layer->name, layer,
+    _stageBuilder->addCTCGreedyDecoderSeqLenStage(model, ctcGreedyDecoderSeqLen->get_name(), ctcGreedyDecoderSeqLen,
                                                   inputs, conditionalOutputs, mergeRepeated, blankIndex);
 }
 

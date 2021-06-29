@@ -5,7 +5,7 @@
 #include <vpu/frontend/frontend.hpp>
 
 #include <vpu/model/data_contents/ie_blob_content.hpp>
-
+#include "vpu/ngraph/operations/out_shape_of_reshape.hpp"
 #include <vector>
 #include <map>
 #include <unordered_set>
@@ -57,15 +57,17 @@ private:
 
 void FrontEnd::parseOutShapeOfReshape(
         const Model& model,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const DataVector& inputs,
         const DataVector& outputs) const {
+    auto outShapeOfReshape = ngraph::as_type_ptr<ngraph::vpu::op::OutShapeOfReshape>(node);
+    IE_ASSERT(outShapeOfReshape != nullptr);
     VPU_THROW_UNLESS(inputs.size() == 2,
                      "OutShapeOfReshape stage with name %s must have only 2 inputs, "
-                     "actually provided %d", layer->name, inputs.size());
+                     "actually provided %d", outShapeOfReshape->get_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "OutShapeOfReshape stage with name %s must have only 1 output, "
-                     "actually provided %d", layer->name, outputs.size());
+                     "actually provided %d", outShapeOfReshape->get_name(), outputs.size());
 
     auto inDataShape = inputs[0];
     auto outShapeDescriptor = inputs[1];
@@ -73,30 +75,30 @@ void FrontEnd::parseOutShapeOfReshape(
 
     VPU_THROW_UNLESS(inDataShape->desc().numDims() == 1,
                      "OutShapeOfReshape stage with name %s must have 1D input data shape tensor, "
-                     "actually provided %dD tensor", layer->name, inDataShape->desc().numDims());
+                     "actually provided %dD tensor", outShapeOfReshape->get_name(), inDataShape->desc().numDims());
     VPU_THROW_UNLESS(outShapeDescriptor->desc().numDims() == 1,
                      "OutShapeOfReshape stage with name %s must have 1D output shape descriptor "
                      "tensor, actually provided %dD tensor",
-                     layer->name, outShapeDescriptor->desc().numDims());
+                     outShapeOfReshape->get_name(), outShapeDescriptor->desc().numDims());
     VPU_THROW_UNLESS(outDataShape->desc().numDims() == 1,
                      "OutShapeOfReshape stage with name %s must have 1D output data shape tensor, "
-                     "actually provided %dD tensor", layer->name, outDataShape->desc().numDims());
+                     "actually provided %dD tensor", outShapeOfReshape->get_name(), outDataShape->desc().numDims());
 
     VPU_THROW_UNLESS(outShapeDescriptor->desc().totalDimSize() == outDataShape->desc().totalDimSize(),
                      "OutShapeOfReshape stage with name %s must have output shape descriptor and "
                      "output data shape tensor with equal length, actually provided %d vs %d",
-                     layer->name, outShapeDescriptor->desc().totalDimSize(),
+                     outShapeOfReshape->get_name(), outShapeDescriptor->desc().totalDimSize(),
                      outDataShape->desc().totalDimSize());
 
 
     auto outShapeOfReshapeStage = model->addNewStage<OutShapeOfReshapeStage>(
-            layer->name,
+            outShapeOfReshape->get_name(),
             StageType::OutShapeOfReshape,
-            layer,
+            outShapeOfReshape,
             inputs,
             outputs);
 
-    auto specialZero = layer->GetParamAsBool("special_zero", false);
+    auto specialZero = outShapeOfReshape->getSpecialZero();
     outShapeOfReshapeStage->attrs().set<bool>("specialZero", specialZero);
 }
 

@@ -29,11 +29,11 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseTanH(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseTanH(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    model->addNewStage<TanHStage>(layer->name, StageType::Tanh, layer, inputs, outputs);
+    model->addNewStage<TanHStage>(node->get_name(), StageType::Tanh, node, inputs, outputs);
 }
 
 }  // namespace vpu

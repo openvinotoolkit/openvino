@@ -80,24 +80,26 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseExpDetectionOutput(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseExpDetectionOutput(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto expDetectionOutput = ngraph::as_type_ptr<ngraph::op::v6::ExperimentalDetectronDetectionOutput>(node);
+    IE_ASSERT(expDetectionOutput != nullptr);
     IE_ASSERT(inputs.size() == 4);
     IE_ASSERT(outputs.size() == 3);
 
     ExpDetectionOutputParams params;
-
-    const auto deltas_weights = layer->GetParamAsFloats("deltas_weights", {0.0f, 0.0f, 0.0f, 0.0f});
+    const auto attrs = expDetectionOutput->get_attrs();
+    const auto deltas_weights = attrs.deltas_weights;
     IE_ASSERT(deltas_weights.size() == numDeltasWeights);
     for (int i = 0; i < numDeltasWeights; ++i)
         params.deltas_weights[i] = deltas_weights[i];
 
-    params.max_delta_log_wh = layer->GetParamAsFloat("max_delta_log_wh", 0.0f);
-    params.nms_threshold = layer->GetParamAsFloat("nms_threshold", 0.0f);
-    params.score_threshold = layer->GetParamAsFloat("score_threshold", 0.0f);
-    params.max_detections_per_image = layer->GetParamAsInt("max_detections_per_image", 0);
-    params.num_classes = layer->GetParamAsInt("num_classes", 0);
-    params.post_nms_count = layer->GetParamAsInt("post_nms_count", 0);
-    params.class_agnostic_box_regression = layer->GetParamAsBool("class_agnostic_box_regression", false);
+    params.max_delta_log_wh = attrs.max_delta_log_wh;
+    params.nms_threshold = attrs.nms_threshold;
+    params.score_threshold = attrs.score_threshold;
+    params.max_detections_per_image = attrs.max_detections_per_image;
+    params.num_classes = attrs.num_classes;
+    params.post_nms_count = attrs.post_nms_count;
+    params.class_agnostic_box_regression = attrs.class_agnostic_box_regression;
 
     auto inputBoxes    = inputs[0];   // [numRois][4]
     auto inputDeltas   = inputs[1];   // [numRois]([numClasses][4])
@@ -134,7 +136,7 @@ void FrontEnd::parseExpDetectionOutput(const Model& model, const ie::CNNLayerPtr
     IE_ASSERT((outputScores->desc().dims().size() == 1) &&
               (outputScores->desc().dim(Dim::C) >= maxDetections));
 
-    auto stage = model->addNewStage<ExpDetectionOutputStage>(layer->name, StageType::ExpDetectionOutput, layer, inputs, outputs);
+    auto stage = model->addNewStage<ExpDetectionOutputStage>(expDetectionOutput->get_name(), StageType::ExpDetectionOutput, expDetectionOutput, inputs, outputs);
 
     stage->attrs().set("params", params);
 }

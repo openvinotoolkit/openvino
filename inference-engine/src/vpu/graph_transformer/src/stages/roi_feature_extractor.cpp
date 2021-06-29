@@ -97,16 +97,20 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseROIFeatureExtractor(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseROIFeatureExtractor(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() > 1);
     IE_ASSERT(outputs.size() == 1 || outputs.size() == 2);
+    auto roiFeatureExtractor = ngraph::as_type_ptr<ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(node);
+    VPU_THROW_UNLESS(roiFeatureExtractor != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
     auto levels_num = inputs.size() - 1;
 
-    auto stage = model->addNewStage<ROIFeatureExtractorStage>(layer->name, StageType::ROIFeatureExtractor, layer, inputs, outputs);
+    auto stage = model->addNewStage<ROIFeatureExtractorStage>(roiFeatureExtractor->get_friendly_name(), StageType::ROIFeatureExtractor, roiFeatureExtractor, inputs, outputs);
 
-    auto output_dim_ = layer->GetParamAsInt("output_size");
-    auto pyramid_scales_ = layer->GetParamAsInts("pyramid_scales");
-    auto sampling_ratio_ = layer->GetParamAsInt("sampling_ratio");
+    auto attrs = roiFeatureExtractor->get_attrs();
+
+    auto output_dim_ = attrs.output_size; //  layer->GetParamAsInt("output_size");
+    auto pyramid_scales_ = attrs.pyramid_scales; // layer->GetParamAsInts("pyramid_scales");
+    auto sampling_ratio_ = attrs.sampling_ratio; // layer->GetParamAsInt("sampling_ratio");
     auto pooled_height_ = output_dim_;
     auto pooled_width_ = output_dim_;
 

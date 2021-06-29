@@ -29,11 +29,11 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseLog(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseLog(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    model->addNewStage<LogStage>(layer->name, StageType::Log, layer, inputs, outputs);
+    model->addNewStage<LogStage>(node->get_name(), StageType::Log, node, inputs, outputs);
 }
 
 }  // namespace vpu

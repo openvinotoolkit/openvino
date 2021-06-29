@@ -101,7 +101,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addSCReluStage(
                 model,
                 "SCRelu",
-                convolutionStage->origLayer(),
+                convolutionStage->origNode(),
                 negSlope,
                 axis,
                 convStageOut,

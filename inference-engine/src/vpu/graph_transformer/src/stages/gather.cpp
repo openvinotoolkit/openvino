@@ -13,8 +13,9 @@
 
 namespace vpu {
 
-void FrontEnd::parseGather(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    VPU_THROW_UNLESS(layer != nullptr, "Encountered nullptr CNN layer");
+void FrontEnd::parseGather(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    const auto& gather = ngraph::as_type_ptr<ngraph::opset4::Gather>(node);  // not sure if this is necessary
+    VPU_THROW_UNLESS(gather != nullptr, "Encountered nullptr node");
     VPU_THROW_UNLESS(inputs.size() == 3, "Expected {} inputs (data, indices, axis), got {}", 3, inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1, "Expected {} outputs, got {}", 1, outputs.size());
 
@@ -32,7 +33,7 @@ void FrontEnd::parseGather(const Model& model, const ie::CNNLayerPtr& layer, con
     const auto perm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
     const auto axisDim = perm[input->desc().numDims() - 1 - ieNormalizedAxis];
 
-    _stageBuilder->addGatherStage(model, layer->name, layer, inputs[0], inputs[1], outputs[0], axisDim);
+    _stageBuilder->addGatherStage(model, gather->get_friendly_name(), gather, inputs[0], inputs[1], outputs[0], axisDim);
 }
 
 namespace {
@@ -102,7 +103,7 @@ protected:
 Stage StageBuilder::addGatherStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input0,
         const Data& input1,
         const Data& output,
@@ -110,7 +111,7 @@ Stage StageBuilder::addGatherStage(
     auto stage = model->addNewStage<GatherStage>(
         name,
         StageType::Gather,
-        layer,
+        node,
         {input0, input1},
         {output});
 

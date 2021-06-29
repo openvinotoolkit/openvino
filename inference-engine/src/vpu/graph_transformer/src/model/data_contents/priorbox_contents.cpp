@@ -20,10 +20,10 @@ PriorBoxContent::PriorBoxContent(
         const DataDesc& inDesc0,
         const DataDesc& inDesc1,
         const DataDesc& outDesc,
-        const ie::CNNLayerPtr &layer) :
+        const NodePtr &node) :
         _inDesc0(inDesc0), _inDesc1(inDesc1), _outDesc(outDesc),
-        _layer(layer) {
-    IE_ASSERT(layer != nullptr);
+        _node(node) {
+    IE_ASSERT(node != nullptr);
 }
 
 size_t PriorBoxContent::byteSize() const {
@@ -33,24 +33,31 @@ size_t PriorBoxContent::byteSize() const {
 
 void PriorBoxContent::fillTempBuf(void* tempBuf) const {
     VPU_PROFILE(PriorBoxContent);
-
+    
     auto tempPtr = static_cast<fp16_t*>(tempBuf);
+    auto priorBox = ngraph::as_type_ptr<ngraph::opset4::PriorBox>(_node);
+    IE_ASSERT(priorBox != nullptr);
+    auto attrs = priorBox->get_attrs();
+    auto _min_sizes = attrs.min_size;
+    auto _max_sizes = attrs.max_size;
+    auto aspect_ratios = attrs.aspect_ratio;
+    auto _flip = attrs.flip;
+    auto _clip = attrs.clip;
+    auto _variance = attrs.variance;
+    // TODO: rework logic
+    auto imgPartShape = priorBox->get_input_partial_shape(1);
+    VPU_THROW_UNLESS(!imgPartShape.is_dynamic(),"Dynamic 1-port input of PriorBox is not supported");
+    auto imgShape = imgPartShape.to_shape();
+    auto _img_h = imgShape[2]; // attrs. _layer->GetParamAsInt("img_h", 0);
+    auto _img_w = imgShape[3]; //_layer->GetParamAsInt("img_w", 0);
+    //
+    auto _step = attrs.step;
+    auto _offset = attrs.offset;
+    auto _scale_all_sizes = attrs.scale_all_sizes; // static_cast<bool>(_layer->GetParamAsInt("scale_all_sizes", 1));
 
-    auto _min_sizes = _layer->GetParamAsFloats("min_size", {});
-    auto _max_sizes = _layer->GetParamAsFloats("max_size", {});
-    auto aspect_ratios = _layer->GetParamAsFloats("aspect_ratio");
-    auto _flip = static_cast<bool>(_layer->GetParamAsInt("flip"));
-    auto _clip = static_cast<bool>(_layer->GetParamAsInt("clip"));
-    auto _variance = _layer->GetParamAsFloats("variance");
-    auto _img_h = _layer->GetParamAsInt("img_h", 0);
-    auto _img_w = _layer->GetParamAsInt("img_w", 0);
-    auto _step = _layer->GetParamAsFloat("step", 0);
-    auto _offset = _layer->GetParamAsFloat("offset", 0);
-    auto _scale_all_sizes = static_cast<bool>(_layer->GetParamAsInt("scale_all_sizes", 1));
-
-    auto _fixed_sizes = _layer->GetParamAsFloats("fixed_size", {});
-    auto _fixed_ratios = _layer->GetParamAsFloats("fixed_ratio", {});
-    auto _densitys = _layer->GetParamAsFloats("density", {});
+    auto _fixed_sizes = attrs.fixed_size; // _layer->GetParamAsFloats("fixed_size", {});
+    auto _fixed_ratios = attrs.fixed_ratio; // _layer->GetParamAsFloats("fixed_ratio", {});
+    auto _densitys = attrs.density; //  _layer->GetParamAsFloats("density", {});
 
     SmallVector<float> _aspect_ratios;
     _aspect_ratios.reserve(aspect_ratios.size() + 1);
@@ -133,7 +140,7 @@ void PriorBoxContent::fillTempBuf(void* tempBuf) const {
     if (_outDesc.dim(Dim::W) != dim || _outDesc.dim(Dim::H) != 2) {
         IE_THROW() << "[VPU] PriorBox output have invalid dimension, exptected " << dim << "x2"
                            << ", got " << _outDesc.dim(Dim::W) << "x" << _outDesc.dim(Dim::H)
-                           << ", layer name is: " << _layer->name;
+                           << ", layer name is: " << _node->get_friendly_name();
     }
 
     auto max_fp16 = [](const float value, const float min) {
@@ -287,10 +294,10 @@ PriorBoxClusteredContent::PriorBoxClusteredContent(
         const DataDesc& inDesc0,
         const DataDesc& inDesc1,
         const DataDesc& outDesc,
-        const ie::CNNLayerPtr& layer) :
+        const NodePtr& node) :
         _inDesc0(inDesc0), _inDesc1(inDesc1), _outDesc(outDesc),
-        _layer(layer) {
-    IE_ASSERT(layer != nullptr);
+        _node(node) {
+    IE_ASSERT(node != nullptr);
 }
 
 size_t PriorBoxClusteredContent::byteSize() const {
@@ -301,24 +308,27 @@ size_t PriorBoxClusteredContent::byteSize() const {
 void PriorBoxClusteredContent::fillTempBuf(void* tempBuf) const {
     VPU_PROFILE(PriorBoxClusteredContent);
 
+    auto priorBoxClustered = ngraph::as_type_ptr<ngraph::opset4::PriorBoxClustered>(_node);
+    VPU_THROW_UNLESS(priorBoxClustered != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", _node->get_friendly_name(), _node->get_type_name());
     auto tempPtr = static_cast<fp16_t*>(tempBuf);
-
-    auto widths_ = _layer->GetParamAsFloats("width");
-    auto heights_ = _layer->GetParamAsFloats("height");
-    auto clip_ = _layer->GetParamAsInt("clip");
-    auto variance_ = _layer->GetParamAsFloats("variance");
-    auto img_h_ = _layer->GetParamAsInt("img_h", 0);
-    auto img_w_ = _layer->GetParamAsInt("img_w", 0);
-    auto step_ = _layer->GetParamAsFloat("step", 0);
-    auto step_h_ = _layer->GetParamAsFloat("step_h", 0);
-    auto step_w_ = _layer->GetParamAsFloat("step_w", 0);
-    auto offset_ = _layer->GetParamAsFloat("offset", 0);
+    auto attrs = priorBoxClustered->get_attrs();
+    auto widths_ = attrs.widths; // priorBoxClustered->get_a _layer->GetParamAsFloats("width");
+    auto heights_ = attrs.heights; // _layer->GetParamAsFloats("height");
+    auto clip_ = attrs.clip; // _layer->GetParamAsInt("clip");
+    auto variance_ = attrs.variances; // = ->GetParamAsFloats("variance");
+    // TODO: rework logic
+    auto imgPartShape = priorBoxClustered->get_input_partial_shape(1);
+    VPU_THROW_UNLESS(!imgPartShape.is_dynamic(),"Dynamic 1-port input of PriorBox is not supported");
+    auto imgShape = imgPartShape.to_shape();
+    auto img_h_ = imgShape[2]; // _layer->GetParamAsInt("img_h", 0);
+    auto img_w_ = imgShape[3]; //_layer->GetParamAsInt("img_w", 0);
+    //
+    auto step_h_ = attrs.step_heights; // _layer->GetParamAsFloat("step_h", 0);
+    auto step_w_ = attrs.step_widths; // _layer->GetParamAsFloat("step_w", 0);
+    auto step_ = (std::abs(step_h_ - step_w_) < 1e-5)  ? step_w_ : 0; // = res->params["step_w"];_layer->GetParamAsFloat("step", 0);
+    auto offset_ = attrs.offset; // _layer->GetParamAsFloat("offset", 0);
 
     auto num_priors_ = widths_.size();
-
-    if (variance_.empty()) {
-        variance_.push_back(0.1f);
-    }
 
     auto layer_width  = _inDesc0.dim(Dim::W);
     auto layer_height = _inDesc0.dim(Dim::H);
@@ -336,7 +346,7 @@ void PriorBoxClusteredContent::fillTempBuf(void* tempBuf) const {
     auto expetected_output_dimx = layer_height * layer_width * num_priors_ * 4;
     if (_outDesc.dim(Dim::W) != expetected_output_dimx || _outDesc.dim(Dim::H) != 2) {
         IE_THROW() << "PriorBoxClustered output has invalid dimension, exptected " << expetected_output_dimx << "x2"
-                           << ", got " << _outDesc.dim(Dim::W) << "x" << _outDesc.dim(Dim::H) << ", layer name is: " << _layer->name;
+                           << ", got " << _outDesc.dim(Dim::W) << "x" << _outDesc.dim(Dim::H) << ", layer name is: " << _node->get_friendly_name();
     }
 
     auto offset = _outDesc.dim(Dim::W);

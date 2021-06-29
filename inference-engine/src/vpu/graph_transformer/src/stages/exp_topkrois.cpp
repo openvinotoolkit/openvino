@@ -57,13 +57,15 @@ private:
 
 void FrontEnd::parseExpTopKROIs(
         const Model& model,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const DataVector& inputs,
         const DataVector& outputs) const {
-    VPU_THROW_UNLESS(inputs.size() == 2, "Layer %s must have 2 input tensors.", layer->name);
-    VPU_THROW_UNLESS(outputs.size() == 1, "Layer %s must have 1 output tensor.", layer->name);
+    auto expTopKROIs = ngraph::as_type_ptr<ngraph::op::v6::ExperimentalDetectronTopKROIs>(node);
+    VPU_THROW_UNLESS(expTopKROIs != nullptr, "Can't parse node with name %s and type %s is nullptr", expTopKROIs->get_name(), expTopKROIs->get_type_name());
+    VPU_THROW_UNLESS(inputs.size() == 2, "Layer %s must have 2 input tensors.", expTopKROIs->get_name());
+    VPU_THROW_UNLESS(outputs.size() == 1, "Layer %s must have 1 output tensor.", expTopKROIs->get_name());
 
-    int32_t max_rois = layer->GetParamAsInt("max_rois", 0);
+    int32_t max_rois = expTopKROIs->get_max_rois();
 
     auto inputRois  = inputs[0];
     auto inputProbs = inputs[1];
@@ -72,29 +74,29 @@ void FrontEnd::parseExpTopKROIs(
     VPU_THROW_UNLESS((inputRois->desc().dims().size() == 2) &&
                      (inputRois->desc().dim(Dim::C) == 4),
                      "Wrong shape for input 0 of layer %s, expected (N, 4), got: dims size = %lu, dim C = %d",
-                     layer->name, inputRois->desc().dims().size(), inputRois->desc().dim(Dim::C));
+                     expTopKROIs->get_name(), inputRois->desc().dims().size(), inputRois->desc().dim(Dim::C));
 
     VPU_THROW_UNLESS(inputProbs->desc().dims().size() == 1,
                      "Wrong shape for input 1 of layer %s, expected dim size = 1, got: %lu",
-                     layer->name, inputProbs->desc().dims().size());
+                     expTopKROIs->get_name(), inputProbs->desc().dims().size());
 
     VPU_THROW_UNLESS(inputProbs->desc().dim(Dim::C) == inputRois->desc().dim(Dim::N),
                      "Layer %s: input0 dim N and input1 dim C must be equal, got: input0 (N = %d), input1 (C = %d)",
-                     layer->name, inputProbs->desc().dim(Dim::N), inputProbs->desc().dim(Dim::C));
+                     expTopKROIs->get_name(), inputProbs->desc().dim(Dim::N), inputProbs->desc().dim(Dim::C));
 
     VPU_THROW_UNLESS((outputRois->desc().dims().size() == 2) &&
                      (outputRois->desc().dim(Dim::C) == 4),
                      "Wrong shape for output 0 of layer %s, expected (N, 4), got: dims size = %lu, dim C = %d",
-                     layer->name, outputRois->desc().dims().size(), outputRois->desc().dim(Dim::C));
+                     expTopKROIs->get_name(), outputRois->desc().dims().size(), outputRois->desc().dim(Dim::C));
 
     VPU_THROW_UNLESS(outputRois->desc().dim(Dim::N) == max_rois,
                      "Wrong shape for output 0 of layer %s, expected dim N = %d, got: dim N = %d",
-                     layer->name, static_cast<int>(max_rois), outputRois->desc().dim(Dim::N));
+                     expTopKROIs->get_name(), static_cast<int>(max_rois), outputRois->desc().dim(Dim::N));
 
     auto stage = model->addNewStage<ExpTopKROIsStage>(
-        layer->name,
+        expTopKROIs->get_name(),
         StageType::ExpTopKROIs,
-        layer,
+        expTopKROIs,
         inputs,
         outputs);
 

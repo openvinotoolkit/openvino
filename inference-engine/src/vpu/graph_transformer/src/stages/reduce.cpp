@@ -126,55 +126,70 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseReduce(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    VPU_THROW_UNLESS(_layer != nullptr,
-                     "parseReduce expects valid CNNLayerPtr, got nullptr");
-    const auto layer = std::dynamic_pointer_cast<ie::ReduceLayer>(_layer);
-    VPU_THROW_UNLESS(layer != nullptr,
+void FrontEnd::parseReduceImpl(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs, vpu::StageType stageType, bool keepDims) const {
+    VPU_THROW_UNLESS(node != nullptr,
+                     "parseReduce expects valid NodePtr, got nullptr");
+    VPU_THROW_UNLESS(node != nullptr,
                      "Layer {} of type {} cannot be casted to ie::ReduceLayer",
-                     _layer->name, _layer->type);
+                     node->get_friendly_name(), node->get_type_name());
     VPU_THROW_UNLESS(inputs.size() == 2,
                      "Layer {} of type {} expects {} inputs, but provided {}",
-                     layer->name, layer->type, 2, inputs.size());
+                     node->get_friendly_name(), node->get_type_name(), 2, inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "Layer {} of type {} expects {} output, but provided {}",
-                     layer->name, layer->type, 1, outputs.size());
-
-    auto stageType = StageType::None;
-    if (layer->type == "ReduceAnd") {
-        stageType = StageType::ReduceAnd;
-    } else if (layer->type == "ReduceMin") {
-        stageType = StageType::ReduceMin;
-    } else if (layer->type == "ReduceMax") {
-        stageType = StageType::ReduceMax;
-    } else if (layer->type == "ReduceSum") {
-        stageType = StageType::ReduceSum;
-    } else if (layer->type == "ReduceMean") {
-        stageType = StageType::ReduceMean;
-    } else {
-        VPU_THROW_EXCEPTION << "Reduce operation: " << layer->type << " is not supported";
-    }
+                     node->get_friendly_name(), node->get_type_name(), 1, outputs.size());
 
     if (inputs.size() != 2) {
-        VPU_THROW_EXCEPTION << "Reduce operation: " << layer->type << " requires exactly 2 inputs";
+        VPU_THROW_EXCEPTION << "Reduce operation: " << node->get_type_name() << " requires exactly 2 inputs";
     }
 
     if (outputs.size() != 1) {
-        VPU_THROW_EXCEPTION << "Reduce operation: " << layer->type << " requires exactly 1 output";
+        VPU_THROW_EXCEPTION << "Reduce operation: " << node->get_type_name() << " requires exactly 1 output";
     }
 
-    _stageBuilder->addReduceStage(model, layer->name, stageType, layer, layer->keep_dims, inputs, outputs[0]);
+    _stageBuilder->addReduceStage(model, node->get_friendly_name(), stageType, node, keepDims, inputs, outputs[0]);
+}
+
+void FrontEnd::parseReduceSum(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto reduce = ngraph::as_type_ptr<ngraph::opset4::ReduceSum>(node);
+    VPU_THROW_UNLESS(reduce != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+
+    _stageBuilder->addReduceStage(model, node->get_friendly_name(), vpu::StageType::ReduceSum, node, reduce->get_keep_dims(), inputs, outputs[0]);
+}
+void FrontEnd::parseReduceMax(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto reduce = ngraph::as_type_ptr<ngraph::opset4::ReduceMax>(node);
+    VPU_THROW_UNLESS(reduce != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+
+    _stageBuilder->addReduceStage(model, node->get_friendly_name(), vpu::StageType::ReduceMax, node, reduce->get_keep_dims(), inputs, outputs[0]);
+}
+void FrontEnd::parseReduceMin(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto reduce = ngraph::as_type_ptr<ngraph::opset4::ReduceMin>(node);
+    VPU_THROW_UNLESS(reduce != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+
+    _stageBuilder->addReduceStage(model, node->get_friendly_name(), vpu::StageType::ReduceMin, node, reduce->get_keep_dims(), inputs, outputs[0]);
+}
+void FrontEnd::parseReduceAnd(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto reduce = ngraph::as_type_ptr<ngraph::opset4::ReduceLogicalAnd>(node);
+    VPU_THROW_UNLESS(reduce != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+
+    _stageBuilder->addReduceStage(model, node->get_friendly_name(), vpu::StageType::ReduceAnd, node, reduce->get_keep_dims(), inputs, outputs[0]);
+}
+void FrontEnd::parseReduceMean(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto reduce = ngraph::as_type_ptr<ngraph::opset4::ReduceMean>(node);
+    VPU_THROW_UNLESS(reduce != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", node->get_friendly_name(), node->get_type_name());
+
+    _stageBuilder->addReduceStage(model, node->get_friendly_name(), vpu::StageType::ReduceMean, node, reduce->get_keep_dims(), inputs, outputs[0]);
 }
 
 Stage StageBuilder::addReduceStage(
     const Model& model,
     const std::string& name,
     const StageType reduceType,
-    const ie::CNNLayerPtr& layer,
+    const NodePtr& node,
     const bool keep_dims,
     const DataVector& inputs,
     const Data& output) {
-    auto stage = model->addNewStage<ReduceStage>(name, reduceType, layer, inputs, {output});
+    auto stage = model->addNewStage<ReduceStage>(name, reduceType, node, inputs, {output});
 
     stage->attrs().set<int>("keep_dims", static_cast<int>(keep_dims));
     return stage;

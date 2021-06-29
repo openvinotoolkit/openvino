@@ -29,20 +29,20 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseSigmoid(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseSigmoid(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    _stageBuilder->addSigmoidStage(model, layer->name, layer, inputs, outputs);
+    _stageBuilder->addSigmoidStage(model, node->get_name(), node, inputs, outputs);
 }
 
 Stage StageBuilder::addSigmoidStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const DataVector& inputs,
         const DataVector& outputs) {
-    return model->addNewStage<SigmoidStage>(name, StageType::Sigmoid, layer, inputs, outputs);
+    return model->addNewStage<SigmoidStage>(name, StageType::Sigmoid, node, inputs, outputs);
 }
 
 }  // namespace vpu

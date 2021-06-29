@@ -232,7 +232,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addSplitStage(
             model,
             stage->name() + "@split",
-            stage->origLayer(),
+            stage->origNode(),
             Dim::C,
             input,
             subInputs);
@@ -240,7 +240,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addConcatStage(
             model,
             stage->name() + "@concat",
-            stage->origLayer(),
+            stage->origNode(),
             Dim::C,
             subOutputs,
             output);

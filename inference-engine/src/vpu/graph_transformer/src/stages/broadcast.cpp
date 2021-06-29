@@ -95,19 +95,36 @@ protected:
 };
 
 }  // namespace
+static std::string getModeAsString(const ngraph::op::BroadcastType mode) {
 
+    switch (mode)
+    {
+    case ngraph::op::BroadcastType::EXPLICIT :
+        return "explicit";
+    case ngraph::op::BroadcastType::BIDIRECTIONAL :
+        return "bidirectional";
+    case ngraph::op::BroadcastType::PDPD :
+        return "pdpd";
+    case ngraph::op::BroadcastType::NUMPY :
+        return "numpy";
+    default:
+        return "";
+    }
+}
 void FrontEnd::parseBroadcast(
         const Model& model,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const DataVector& inputs,
         const DataVector& outputs) const {
-    VPU_THROW_UNLESS(layer != nullptr,
-                     "parseBroadcast expects valid CNNLayerPtr, got nullptr");
+    auto broadcast = ngraph::as_type_ptr<ngraph::opset4::Broadcast>(node);
+    VPU_THROW_UNLESS(broadcast != nullptr,
+                     "parseBroadcast expects valid NodePtr, got nullptr");
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "{} layer with name {} must have only 1 output, actually provided {} outputs",
-                     layer->type, layer->name, outputs.size());
+                     broadcast->get_type_name(), broadcast->get_name(), outputs.size());
     const auto output = outputs[0];
-    const auto modeString = layer->GetParamAsString("mode", "numpy");
+    const auto broadcastMode =  broadcast->get_broadcast_spec().m_type;
+    std::string modeString = getModeAsString(broadcastMode);
     const std::map<std::string, BroadcastMode> modeFromString = {
         {"numpy", BroadcastMode::NUMPY},
         {"explicit", BroadcastMode::EXPLICIT},
@@ -116,31 +133,31 @@ void FrontEnd::parseBroadcast(
     const auto& modeFind = modeFromString.find(modeString);
     VPU_THROW_UNLESS(modeFind != modeFromString.end(),
                      "{} layer with name {}: Graph Transformer doesn't support {} mode",
-                     layer->type, layer->name, modeString);
+                     node->get_type_name(), node->get_friendly_name(), modeString);
     const auto mode = modeFind->second;
     if (mode == BroadcastMode::NUMPY || mode == BroadcastMode::BIDIRECTIONAL) {
         VPU_THROW_UNLESS(inputs.size() == 2,
                          "{} layer with name {} and {} mode must have 2 inputs, actually "
-                         "provided {} inputs", layer->type, layer->name, modeString, inputs.size());
+                         "provided {} inputs", node->get_type_name(), node->get_friendly_name(), modeString, inputs.size());
     } else if (mode == BroadcastMode::EXPLICIT) {
         VPU_THROW_UNLESS(inputs.size() == 3,
                          "{} layer with name {} and explicit mode must have 3 inputs, actually "
-                         "provided {} inputs", layer->type, layer->name, inputs.size());
+                         "provided {} inputs", node->get_type_name(), node->get_friendly_name(), inputs.size());
         const auto axesMappingDesc = inputs[2]->desc();
         const auto axesMappingPerm = axesMappingDesc.dimsOrder().toPermutation();
         const auto axesMappingDim = axesMappingDesc.dim(axesMappingPerm.at(0));
         VPU_THROW_UNLESS(axesMappingDesc.numDims() == 1,
                          "{} layer with name {} and explicit mode must have 1D axesMapping tensor, "
                          "actually provided {}D tensor",
-                         layer->type, layer->name, axesMappingDesc.numDims());
+                         node->get_type_name(), node->get_friendly_name(), axesMappingDesc.numDims());
         VPU_THROW_UNLESS(axesMappingDim == inputs[0]->desc().numDims(),
                          "{} layer with name {} and explicit mode must have axesMapping tensor with "
                          "size equals to number of output dims, expected [{}], provided [{}]",
-                         layer->type, layer->name, output->desc().numDims(), axesMappingDim);
+                         node->get_type_name(), node->get_friendly_name(), output->desc().numDims(), axesMappingDim);
 
     } else {
         VPU_THROW_FORMAT("{} layer with name {}: Graph Transformer doesn't support {} mode",
-                         layer->type, layer->name, modeString);
+                         node->get_type_name(), node->get_friendly_name(), modeString);
     }
 
     const auto shape = inputs[1];
@@ -149,16 +166,16 @@ void FrontEnd::parseBroadcast(
     VPU_THROW_UNLESS(shapeDesc.numDims() == 1,
                      "{} layer with name {} and explicit mode must have 1D target shape tensor, "
                      "actually provided {}D tensor",
-                     layer->type, layer->name, shapeDesc.numDims());
+                     node->get_type_name(), node->get_friendly_name(), shapeDesc.numDims());
     VPU_THROW_UNLESS(shapeDim == output->desc().numDims() || mode != BroadcastMode::EXPLICIT,
                      "{} layer with name {} and explicit mode must have target shape tensor with "
                      "size equals to number of output dims, expected [{}], provided [{}]",
-                     layer->type, layer->name, output->desc().numDims(), shapeDim);
+                     node->get_type_name(), node->get_friendly_name(), output->desc().numDims(), shapeDim);
 
     auto stage = model->addNewStage<BroadcastStage>(
-            layer->name,
+            node->get_friendly_name(),
             StageType::Broadcast,
-            layer,
+            node,
             inputs,
             outputs);
 

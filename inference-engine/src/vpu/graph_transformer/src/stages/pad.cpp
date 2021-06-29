@@ -85,41 +85,55 @@ private:
 };
 
 }  // namespace
-
-void FrontEnd::parsePad(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
+float getPadValue (const NodePtr& pad) {
+    auto result = 0.f;
+    if (pad->inputs().size() == 4) {
+        auto const_node =
+            std::dynamic_pointer_cast<ngraph::opset4::Constant>(pad->input(3).get_source_output().get_node_shared_ptr());
+        if (!const_node) {
+            VPU_THROW_UNLESS(false, "Pad {} with not constant pad_value is not allowed", pad->get_friendly_name());
+        }
+        //rework
+        result = const_node->get_vector<float>()[0];
+    }
+    return result;
+}
+void FrontEnd::parsePad(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    const auto& pad = ngraph::as_type_ptr<ngraph::opset4::Pad>(node);
+    IE_ASSERT(pad != nullptr);
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    auto layer = std::dynamic_pointer_cast<ie::PadLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-
     const auto ndims = inputs[0]->desc().dimsOrder().numDims();
-    VPU_THROW_UNLESS(ndims == 3 || ndims == 4, "Layer %s support only 3D and 4D input, but %dD provided", layer->name, ndims);
+    VPU_THROW_UNLESS(ndims == 3 || ndims == 4, "Layer %s support only 3D and 4D input, but %dD provided", pad->get_name(), ndims);
 
-    VPU_THROW_UNLESS(layer->pads_begin.size() <= 4, "Layer %s support pads_begin size less than or equal 4, but %d provided",
-                     layer->name, layer->pads_begin.size());
-    VPU_THROW_UNLESS(layer->pads_end.size() <= 4, "Layer %s support pads_end size less than or equal 4, but %d provided",
-            layer->name, layer->pads_end.size());
+    VPU_THROW_UNLESS(pad->get_pads_begin().size() <= 4, "Layer %s support pads_begin size less than or equal 4, but %d provided",
+                     pad->get_friendly_name(), pad->get_pads_begin().size());
+    VPU_THROW_UNLESS(pad->get_pads_end().size() <= 4, "Layer %s support pads_end size less than or equal 4, but %d provided",
+                     pad->get_friendly_name(), pad->get_pads_end().size());
 
     DimsOrder dimsOrder = inputs[0]->desc().dimsOrder();
+    auto padsBegin = pad->get_pads_begin();
+    auto padsEnd = pad->get_pads_end();
     DimValues pads_begin;
-    pads_begin.set(Dim::W, dimsOrder.hasDim(Dim::W) ? layer->pads_begin[dimToIeInd(Dim::W, ndims)] : 0);
-    pads_begin.set(Dim::H, dimsOrder.hasDim(Dim::H) ? layer->pads_begin[dimToIeInd(Dim::H, ndims)] : 0);
-    pads_begin.set(Dim::C, dimsOrder.hasDim(Dim::C) ? layer->pads_begin[dimToIeInd(Dim::C, ndims)] : 0);
-    pads_begin.set(Dim::N, dimsOrder.hasDim(Dim::N) ? layer->pads_begin[dimToIeInd(Dim::N, ndims)] : 0);
+    pads_begin.set(Dim::W, dimsOrder.hasDim(Dim::W) ? padsBegin[dimToIeInd(Dim::W, ndims)] : 0);
+    pads_begin.set(Dim::H, dimsOrder.hasDim(Dim::H) ? padsBegin[dimToIeInd(Dim::H, ndims)] : 0);
+    pads_begin.set(Dim::C, dimsOrder.hasDim(Dim::C) ? padsBegin[dimToIeInd(Dim::C, ndims)] : 0);
+    pads_begin.set(Dim::N, dimsOrder.hasDim(Dim::N) ? padsBegin[dimToIeInd(Dim::N, ndims)] : 0);
 
     DimValues pads_end;
-    pads_end.set(Dim::W, dimsOrder.hasDim(Dim::W) ? layer->pads_end[dimToIeInd(Dim::W, ndims)] : 0);
-    pads_end.set(Dim::H, dimsOrder.hasDim(Dim::H) ? layer->pads_end[dimToIeInd(Dim::H, ndims)] : 0);
-    pads_end.set(Dim::C, dimsOrder.hasDim(Dim::C) ? layer->pads_end[dimToIeInd(Dim::C, ndims)] : 0);
-    pads_end.set(Dim::N, dimsOrder.hasDim(Dim::N) ? layer->pads_end[dimToIeInd(Dim::N, ndims)] : 0);
+    pads_end.set(Dim::W, dimsOrder.hasDim(Dim::W) ? padsEnd[dimToIeInd(Dim::W, ndims)] : 0);
+    pads_end.set(Dim::H, dimsOrder.hasDim(Dim::H) ? padsEnd[dimToIeInd(Dim::H, ndims)] : 0);
+    pads_end.set(Dim::C, dimsOrder.hasDim(Dim::C) ? padsEnd[dimToIeInd(Dim::C, ndims)] : 0);
+    pads_end.set(Dim::N, dimsOrder.hasDim(Dim::N) ? padsEnd[dimToIeInd(Dim::N, ndims)] : 0);
+    auto padValue = getPadValue(pad);
 
     _stageBuilder->addPadStage(
         model,
-        layer->name,
-        layer,
-        static_cast<PadMode>(layer->pad_mode),
-        layer->pad_value,
+        pad->get_friendly_name(),
+        pad,
+        static_cast<PadMode>(pad->get_pad_mode()),
+        padValue,
         pads_begin,
         pads_end,
         inputs[0],
@@ -129,7 +143,7 @@ void FrontEnd::parsePad(const Model& model, const ie::CNNLayerPtr& _layer, const
 Stage StageBuilder::addPadStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         PadMode padMode,
         float pad_value,
         const DimValues& pads_begin,
@@ -139,7 +153,7 @@ Stage StageBuilder::addPadStage(
     auto stage = model->addNewStage<PadStage>(
         name,
         StageType::Pad,
-        layer,
+        node,
         {input},
         {output});
 

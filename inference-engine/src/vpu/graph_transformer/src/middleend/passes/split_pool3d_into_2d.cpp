@@ -179,7 +179,7 @@ void PassImpl::run(const Model& model) {
             preScaled = model->duplicateData(output, "@pre_scaled", outputDesc);
             _stageBuilder->addScaleStage(model,
                                          stage->name() + "@scale",
-                                         stage->origLayer(),
+                                         stage->origNode(),
                                          preScaled,
                                          scales,
                                          output);
@@ -197,7 +197,7 @@ void PassImpl::run(const Model& model) {
         }
         _stageBuilder->addConcatStage(model,
                                       stage->name() + "@concat",
-                                      stage->origLayer(),
+                                      stage->origNode(),
                                       Dim::D,
                                       subOutputs3D,
                                       preFinal);
@@ -210,7 +210,7 @@ void PassImpl::run(const Model& model) {
             subOutputs[d] = model->duplicateData(preFinal, postfix, subOutputsDesc);
             _stageBuilder->addReshapeStage(model,
                                            stage->name() + "@reshape",
-                                           stage->origLayer(),
+                                           stage->origNode(),
                                            subOutputs[d],
                                            subOutputs3D[d]);
         }
@@ -272,7 +272,7 @@ void PassImpl::run(const Model& model) {
                     auto postfix = formatString("@sum(d=%d/%d,k=%d/%d)", d + 1, OD, k + 1, KD);
                     _stageBuilder->addSumStage(model,
                                                stage->name() + postfix,
-                                               stage->origLayer(),
+                                               stage->origNode(),
                                                iCount == 2 ?
                                                    subPool[iPrev] :  // if 1st + 2nd sum,
                                                    subTemp[d][k-1],  // if 3rd or further
@@ -282,7 +282,7 @@ void PassImpl::run(const Model& model) {
                     auto postfix = formatString("@max(d=%d/%d,k=%d/%d)", d + 1, OD, k + 1, KD);
                     _stageBuilder->addMaxStage(model,
                                                stage->name() + postfix,
-                                               stage->origLayer(),
+                                               stage->origNode(),
                                                iCount == 2 ?
                                                    subPool[iPrev] :  // if 1st + 2nd sum,
                                                    subTemp[d][k-1],  // if 3rd or further
@@ -298,7 +298,7 @@ void PassImpl::run(const Model& model) {
 
             _stageBuilder->addCopyStage(model,
                                         stage->name() + "@copy",
-                                        stage->origLayer(),
+                                        stage->origNode(),
                                         iCount == 1 ?
                                             subPool[iLast] :    // if single subPool
                                             subTemp[d][kLast],  // if two or more...
@@ -328,7 +328,7 @@ void PassImpl::run(const Model& model) {
             auto postfix = formatString("@pool2d(d=%d/%d)", i + 1, ID);
             Stage pool2d = _stageBuilder->addPoolingStage(model,
                                                           stage->name() + postfix,
-                                                          stage->origLayer(),
+                                                          stage->origNode(),
                                                           subInputs[i],
                                                           subPool[i],
                                                           poolType);
@@ -362,7 +362,7 @@ void PassImpl::run(const Model& model) {
             subInputs3D[d] = model->duplicateData(input, postfix + "@3D", subInputsDesc3D);
             _stageBuilder->addReshapeStage(model,
                                            stage->name() + "@split",
-                                           stage->origLayer(),
+                                           stage->origNode(),
                                            subInputs3D[d],
                                            subInputs[d]);
         }
@@ -374,7 +374,7 @@ void PassImpl::run(const Model& model) {
         auto myAddSplitStage = [](vpu::StageBuilder::Ptr _stageBuilder,
                                   const vpu::Model       & model,
                                   const std::string      & name,
-                                  const  ie::CNNLayerPtr & layer,
+                                  const NodePtr          & node,
                                   const vpu::Dim           axis,
                                   const vpu::Data        & input,
                                   const vpu::DataVector  & outputs) {
@@ -400,7 +400,7 @@ void PassImpl::run(const Model& model) {
             VPU_THROW_UNLESS(!actualOutputs.empty(), "no actual outputs");
             auto stage = _stageBuilder->addSplitStage(model,
                                                       name,
-                                                      layer,
+                                                      node,
                                                       std::move(offsets),
                                                       input,
                                                       actualOutputs);
@@ -412,7 +412,7 @@ void PassImpl::run(const Model& model) {
         myAddSplitStage(_stageBuilder,
                         model,
                         stage->name() + "@split",
-                        stage->origLayer(),
+                        stage->origNode(),
                         Dim::D,
                         input,
                         subInputs3D);

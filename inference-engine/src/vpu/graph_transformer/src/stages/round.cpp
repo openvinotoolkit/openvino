@@ -30,28 +30,20 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseRound(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseRound(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto round = ngraph::as_type_ptr<ngraph::op::v5::Round>(node);
+    IE_ASSERT(node != nullptr);
     VPU_THROW_UNLESS(inputs.size() == 1,
                      "Round stage with name {} must have only 1 input, actually provided {} inputs",
-                     layer->name, inputs.size());
+                     round->get_name(), inputs.size());
 
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "Round stage with name {} must have only 1 output, actually provided {} outputs",
-                     layer->name, outputs.size());
+                     round->get_name(), outputs.size());
 
-    const std::map<std::string, RoundMode> modeFromString = {
-        {"half_to_even", RoundMode::HALF_TO_EVEN},
-        {"half_away_from_zero", RoundMode::HALF_AWAY_FROM_ZERO}
-    };
-
-    const auto modeString = layer->GetParamAsString("mode", "half_to_even");
-    const auto& modeFind = modeFromString.find(modeString);
-    VPU_THROW_UNLESS(modeFind != modeFromString.end(),
-                    "{} layer with name {}: Graph Transformer doesn't support {} mode",
-                    layer->type, layer->name, modeString);
-
-    const auto mode = modeFind->second;
-    auto stage = model->addNewStage<RoundStage>(layer->name, StageType::Round, layer, inputs, outputs);
+    const auto mode = round->get_mode() == ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO ?
+                                           RoundMode::HALF_AWAY_FROM_ZERO : RoundMode::HALF_TO_EVEN;
+    auto stage = model->addNewStage<RoundStage>(round->get_name(), StageType::Round, round, inputs, outputs);
     stage->attrs().set("mode", mode);
 }
 

@@ -66,15 +66,17 @@ private:
 
 void FrontEnd::parseNonZero(
         const Model& model,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const DataVector& inputs,
         const DataVector& outputs) const {
+    auto nonZero = ngraph::as_type_ptr<ngraph::op::v3::NonZero>(node);
+    VPU_THROW_UNLESS(nonZero != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", nonZero->get_name(), nonZero->get_type_name());
     VPU_THROW_UNLESS(inputs.size() == 1,
                      "Nonzero layer with name %s must have only 1 input, actually provided %d",
-                     layer->name, inputs.size());
+                     nonZero->get_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 2,
                      "Nonzero layer with name %s must have only 2 outputs, actually provided %d",
-                     layer->name, outputs.size());
+                     nonZero->get_name(), outputs.size());
 
     const auto input = inputs[0];
     const auto inputNumDims = input->desc().numDims();
@@ -87,15 +89,15 @@ void FrontEnd::parseNonZero(
     VPU_THROW_UNLESS(outIndicesDesc.numDims() == 2,
                      "NonZero layer with name %s must have 2D output Indices tensor, "
                      "actually provided %dD tensor",
-                     layer->name, outIndicesDesc.numDims());
+                     nonZero->get_name(), outIndicesDesc.numDims());
     VPU_THROW_UNLESS(minorIndicesDim >= totalIndicesDimSize,
                      "NonZero layer with name %s must have output Indices tensor with minor dim "
                      "size >= total amount of elements of input tensor, actually provided %d >= %d",
-                     layer->name, minorIndicesDim, totalIndicesDimSize);
+                     nonZero->get_name(), minorIndicesDim, totalIndicesDimSize);
     VPU_THROW_UNLESS(majorIndicesDim == inputNumDims,
                      "NonZero layer with name %s must have output Indices tensor with major dim "
                      "size == number of dimensions of input tensor, actually provided %d == %d",
-                     layer->name, majorIndicesDim, inputNumDims);
+                     nonZero->get_name(), majorIndicesDim, inputNumDims);
 
     const auto outDimsDesc = outputs[1]->desc();
     const auto outDimsPerm = outDimsDesc.dimsOrder().toPermutation();
@@ -103,16 +105,16 @@ void FrontEnd::parseNonZero(
     VPU_THROW_UNLESS(outDimsDesc.numDims() == 1,
                      "NonZero layer with name %s must have 1D output Dims tensor, "
                      "actually provided %dD tensor",
-                     layer->name, outDimsDesc.numDims());
+                     nonZero->get_name(), outDimsDesc.numDims());
     VPU_THROW_UNLESS(minorDimsDim >= 2,
                      "NonZero layer with name %s must have output Dims tensor with minor dim "
                      "size >= 2, actually provided %d",
-                     layer->name, minorDimsDim);
+                     nonZero->get_name(), minorDimsDim);
 
     model->addNewStage<NonZero>(
-            layer->name,
+            nonZero->get_name(),
             StageType::NonZero,
-            layer,
+            nonZero,
             inputs,
             outputs);
 }

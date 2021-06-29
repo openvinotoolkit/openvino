@@ -26,7 +26,7 @@ public:
 
     CompiledGraph::Ptr build(
             const Model& model,
-            const std::vector<ie::CNNLayerPtr>& allLayers);
+            const ngraph::NodeVector& allNodes);
 
     void dumpModel(
             const Model& model,
@@ -58,7 +58,7 @@ private:
 
     void getMetaData(
             const Model& model,
-            const std::vector<ie::CNNLayerPtr>& allLayers,
+            const ngraph::NodeVector& allNodes,
             GraphMetaInfo& graphMetaData);
 
     void extractDataInfo(

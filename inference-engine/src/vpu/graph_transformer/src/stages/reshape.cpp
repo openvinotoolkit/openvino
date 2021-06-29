@@ -60,17 +60,17 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseReshape(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseReshape(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS(inputs.size() == 1 || inputs.size() == 2,
-        "%v of type %v is not supported with dynamic shape", layer->name, layer->type);
+        "%v of type %v is not supported with dynamic shape", node->get_name(), node->get_type_name());
     IE_ASSERT(outputs.size() == 1);
-    _stageBuilder->addReshapeStage(model, layer->name, layer, inputs[0], outputs[0]);
+    _stageBuilder->addReshapeStage(model, node->get_name(), node, inputs[0], outputs[0]);
 }
 
 Stage StageBuilder::addReshapeStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input,
         const Data& output) {
     IE_ASSERT(input->desc().totalDimSize() == output->desc().totalDimSize());
@@ -78,7 +78,7 @@ Stage StageBuilder::addReshapeStage(
     return model->addNewStage<ReshapeStage>(
         name,
         StageType::Reshape,
-        layer,
+        node,
         {input},
         {output});
 }

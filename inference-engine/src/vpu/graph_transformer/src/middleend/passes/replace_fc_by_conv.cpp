@@ -134,7 +134,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addReshapeStage(
                 model,
                 convInput->name(),
-                stage->origLayer(),
+                stage->origNode(),
                 input,
                 convInput);
         } else {
@@ -147,7 +147,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addReshapeStage(
                 model,
                 reshaped->name(),
-                stage->origLayer(),
+                stage->origNode(),
                 input,
                 reshaped);
 
@@ -160,7 +160,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addPermuteStage(
                 model,
                 permuted->name(),
-                stage->origLayer(),
+                stage->origNode(),
                 reshaped,
                 permuted,
                 DimValues_<Dim>{{Dim::W, Dim::W}, {Dim::H, Dim::C}, {Dim::D, Dim::H}, {Dim::C, Dim::N}, {Dim::N, Dim::D}});
@@ -174,7 +174,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addReshapeStage(
                 model,
                 merged->name(),
-                stage->origLayer(),
+                stage->origNode(),
                 permuted,
                 merged);
 
@@ -191,7 +191,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addReshapeStage(
                 model,
                 convOutput->name(),
-                stage->origLayer(),
+                stage->origNode(),
                 convOutput,
                 output);
         } else {
@@ -204,7 +204,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addReshapeStage(
                 model,
                 reshaped->name(),
-                stage->origLayer(),
+                stage->origNode(),
                 reshaped,
                 output);
 
@@ -217,7 +217,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addPermuteStage(
                 model,
                 permuted->name(),
-                stage->origLayer(),
+                stage->origNode(),
                 permuted,
                 reshaped,
                 DimValues_<Dim>{{Dim::W, Dim::W}, {Dim::H, Dim::D}, {Dim::D, Dim::N}, {Dim::C, Dim::H}, {Dim::N, Dim::C}});
@@ -231,7 +231,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addReshapeStage(
                 model,
                 merged->name(),
-                stage->origLayer(),
+                stage->origNode(),
                 merged,
                 permuted);
 
@@ -250,7 +250,7 @@ void PassImpl::run(const Model& model) {
         auto convStage = model->addNewStage<StubStage>(
             stage->name() + "@fc-to-conv",
             StageType::StubConv,
-            stage->origLayer(),
+            stage->origNode(),
             {convInput, convWeights, biases, scales},
             {convOutput});
         convStage->attrs().copyFrom(stage->attrs());

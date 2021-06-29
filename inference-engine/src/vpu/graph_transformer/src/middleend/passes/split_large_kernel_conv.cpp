@@ -87,7 +87,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addCropStage(
                     model,
                     stage->name() + postfix,
-                    stage->origLayer(),
+                    stage->origNode(),
                     input,
                     subInputs[groupInd],
                     std::move(offsets));
@@ -145,7 +145,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addSumStage(
             model,
             stage->name() + "@sum",
-            stage->origLayer(),
+            stage->origNode(),
             subOutputs[0],
             subOutputs[1],
             output);

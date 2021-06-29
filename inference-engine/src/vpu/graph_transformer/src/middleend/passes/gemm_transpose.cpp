@@ -82,7 +82,7 @@ void PassImpl::run(const Model& model) {
         _stageBuilder->addPermuteStage(
             model,
             stage->name() + "@transpose",
-            stage->origLayer(),
+            stage->origNode(),
             inputA,
             inputATranspose,
             permMap);

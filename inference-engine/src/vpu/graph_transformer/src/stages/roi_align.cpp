@@ -93,17 +93,20 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseROIAlign(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseROIAlign(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    auto roiAlign = ngraph::as_type_ptr<ngraph::op::v3::ROIAlign>(node);
+    VPU_THROW_UNLESS(roiAlign != nullptr, "Can't parse node with name %s and type %s is nullptr", roiAlign->get_name(), roiAlign->get_type_name());
     VPU_THROW_UNLESS(inputs.size() == 3 || inputs.size() == 1,
                     "ROIAlign stage with name {} has invalid number of inputs: expected 3 or 1 "
-                    "actually provided {}", layer->name, inputs.size());
+                    "actually provided {}", roiAlign->get_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
                     "ROIAlign stage with name {} has invalid number of outputs: expected 1, "
-                    "actually provided {}", layer->name, outputs.size());
+                    "actually provided {}", roiAlign->get_name(), outputs.size());
 
-    const auto mode = layer->GetParamAsString("mode", "");
-    VPU_THROW_UNLESS(mode == "avg" || mode == "max", "Layer with name {} supports only (avg, max) mode", layer->name);
-    ROIAlignMode roi_align_mode = (mode == "avg") ? ROIAlignMode::Average : ROIAlignMode::Max;
+    const auto mode = roiAlign->get_mode();
+    VPU_THROW_UNLESS(mode == ngraph::op::v3::ROIAlign::PoolingMode::AVG || mode == ngraph::op::v3::ROIAlign::PoolingMode::MAX,
+                    "Layer with name {} supports only (avg, max) mode", roiAlign->get_name());
+    ROIAlignMode roi_align_mode = (mode == ngraph::op::v3::ROIAlign::PoolingMode::AVG) ? ROIAlignMode::Average : ROIAlignMode::Max;
 
     const auto width = inputs[0]->desc().dim(Dim::W);
     const auto is_input_static = (inputs[0]->parentDataToShapeEdge() == nullptr);
@@ -113,25 +116,25 @@ void FrontEnd::parseROIAlign(const Model& model, const ie::CNNLayerPtr& layer, c
     if (use_chwc_repacking) {
         repackedInput = model->duplicateData(inputs[0], formatString("@ROIAlignRepacked"));
 
-        const auto repacking_stage = model->addNewStage<ROIAlignStage>(layer->name + "Repacking",
-                                                                       StageType::ROIAlign, layer,
+        const auto repacking_stage = model->addNewStage<ROIAlignStage>(roiAlign->get_name() + "Repacking",
+                                                                       StageType::ROIAlign, roiAlign,
                                                                        {inputs[0]}, {repackedInput});
 
-        repacking_stage->attrs().set<int>(s_pooled_w, layer->GetParamAsInt("pooled_w"));
-        repacking_stage->attrs().set<int>(s_pooled_h, layer->GetParamAsInt("pooled_h"));
-        repacking_stage->attrs().set<int>(s_sampling_ratio, layer->GetParamAsInt("sampling_ratio"));
-        repacking_stage->attrs().set<float>(s_spatial_scale, layer->GetParamAsFloat("spatial_scale"));
+        repacking_stage->attrs().set<int>(s_pooled_w, roiAlign->get_pooled_w());
+        repacking_stage->attrs().set<int>(s_pooled_h, roiAlign->get_pooled_h());
+        repacking_stage->attrs().set<int>(s_sampling_ratio, roiAlign->get_sampling_ratio());
+        repacking_stage->attrs().set<float>(s_spatial_scale, roiAlign->get_spatial_scale());
         repacking_stage->attrs().set<ROIAlignMode>(s_mode, ROIAlignMode::Average);
         repacking_stage->attrs().set<ROIAlignStep>(s_step_number, ROIAlignStep::Repacking);
     }
 
-    const auto stage = model->addNewStage<ROIAlignStage>(layer->name, StageType::ROIAlign, layer, {repackedInput, inputs[1], inputs[2]}, outputs);
+    const auto stage = model->addNewStage<ROIAlignStage>(roiAlign->get_name(), StageType::ROIAlign, roiAlign, {repackedInput, inputs[1], inputs[2]}, outputs);
 
     stage->attrs().set<ROIAlignMode>(s_mode, roi_align_mode);
-    stage->attrs().set<int>(s_pooled_w, layer->GetParamAsInt("pooled_w"));
-    stage->attrs().set<int>(s_pooled_h, layer->GetParamAsInt("pooled_h"));
-    stage->attrs().set<int>(s_sampling_ratio, layer->GetParamAsInt("sampling_ratio"));
-    stage->attrs().set<float>(s_spatial_scale, layer->GetParamAsFloat("spatial_scale"));
+    stage->attrs().set<int>(s_pooled_w, roiAlign->get_pooled_w());
+    stage->attrs().set<int>(s_pooled_h, roiAlign->get_pooled_h());
+    stage->attrs().set<int>(s_sampling_ratio, roiAlign->get_sampling_ratio());
+    stage->attrs().set<float>(s_spatial_scale, roiAlign->get_spatial_scale());
     stage->attrs().set<ROIAlignStep>(s_step_number, use_chwc_repacking ? ROIAlignStep::ROIAlignCHWc : ROIAlignStep::ROIAlign);
 }
 

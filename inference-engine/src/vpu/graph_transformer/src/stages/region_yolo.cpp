@@ -69,18 +69,20 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseRegionYolo(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseRegionYolo(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
+    const auto& regionYolo = ngraph::as_type_ptr<ngraph::op::RegionYolo>(node);
 
-    auto mask = layer->GetParamAsInts("mask", {});
+    auto mask = regionYolo->get_mask();
 
-    auto stage = model->addNewStage<RegionYoloStage>(layer->name, StageType::RegionYolo, layer, inputs, outputs);
-    stage->attrs().set<int>("classes", layer->GetParamAsInt("classes", 20));
-    stage->attrs().set<int>("coords", layer->GetParamAsInt("coords", 4));
-    stage->attrs().set<int>("num", layer->GetParamAsInt("num", 5));
+    auto stage = model->addNewStage<RegionYoloStage>(regionYolo->get_name(), StageType::RegionYolo, regionYolo, inputs, outputs);
+
+    stage->attrs().set<int>("classes", regionYolo->get_num_classes());  // GetParamAsInt("classes", 20));
+    stage->attrs().set<int>("coords", regionYolo->get_num_coords());  // layer->GetParamAsInt("coords", 4));
+    stage->attrs().set<int>("num", regionYolo->get_num_regions());  // layer->GetParamAsInt("num", 5));
     stage->attrs().set<int>("maskSize", static_cast<int>(mask.size()));
-    stage->attrs().set<bool>("doSoftMax", layer->GetParamAsInt("do_softmax", 1));
+    stage->attrs().set<bool>("doSoftMax", regionYolo->get_do_softmax()); // GetParamAsInt("do_softmax", 1));
 }
 
 }  // namespace vpu

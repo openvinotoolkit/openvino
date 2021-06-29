@@ -1,208 +1,208 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
+// // Copyright (C) 2018-2021 Intel Corporation
+// // SPDX-License-Identifier: Apache-2.0
+// //
 
-#pragma once
+// #pragma once
 
-#include <list>
+// #include <list>
 
-#include <gtest/gtest.h>
-#include <tests_common.hpp>
+// #include <gtest/gtest.h>
+// #include <tests_common.hpp>
 
-#include <vpu/compile_env.hpp>
-#include <vpu/model/stage.hpp>
-#include <vpu/model/model.hpp>
-#include <vpu/frontend/frontend.hpp>
-#include <vpu/stage_builder.hpp>
-#include <vpu/middleend/pass_manager.hpp>
-#include <vpu/backend/backend.hpp>
+// #include <vpu/compile_env.hpp>
+// #include <vpu/model/stage.hpp>
+// #include <vpu/model/model.hpp>
+// #include <vpu/frontend/frontend.hpp>
+// #include <vpu/stage_builder.hpp>
+// #include <vpu/middleend/pass_manager.hpp>
+// #include <vpu/backend/backend.hpp>
 
-#include <unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp>
+// #include <unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp>
 
-namespace vpu {
+// namespace vpu {
 
-template <class Cont, class Cond>
-bool contains(const Cont& cont, const Cond& cond) {
-    for (const auto& val : cont) {
-        if (cond(val)) {
-            return true;
-        }
-    }
-    return false;
-}
+// template <class Cont, class Cond>
+// bool contains(const Cont& cont, const Cond& cond) {
+//     for (const auto& val : cont) {
+//         if (cond(val)) {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
 
-template <typename Value>
-using InOutPortMap = std::unordered_map<int, Value>;
+// template <typename Value>
+// using InOutPortMap = std::unordered_map<int, Value>;
 
-class TestStage final : public StageNode {
-public:
-    using StageNode::StageNode;
+// class TestStage final : public StageNode {
+// public:
+//     using StageNode::StageNode;
 
-private:
-    StagePtr cloneImpl() const override;
+// private:
+//     StagePtr cloneImpl() const override;
 
-    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override;
+//     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override;
 
-    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override;
+//     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override;
 
-    void finalizeDataLayoutImpl() override;
+//     void finalizeDataLayoutImpl() override;
 
-    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override;
+//     void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override;
 
-    void serializeParamsImpl(BlobSerializer&) const override;
+//     void serializeParamsImpl(BlobSerializer&) const override;
 
-    void serializeDataImpl(BlobSerializer&) const override;
-};
+//     void serializeDataImpl(BlobSerializer&) const override;
+// };
 
-enum class InputType {
-    Original,
-    PrevStageOutput
-};
+// enum class InputType {
+//     Original,
+//     PrevStageOutput
+// };
 
-struct InputInfo final {
-    InputType type = InputType::Original;
-    int originalInputInd = -1;
-    int prevStageInd = -1;
-    int prevStageOutputInd = -1;
+// struct InputInfo final {
+//     InputType type = InputType::Original;
+//     int originalInputInd = -1;
+//     int prevStageInd = -1;
+//     int prevStageOutputInd = -1;
 
-    static InputInfo fromNetwork(int ind = 0) {
-        InputInfo info;
-        info.type = InputType::Original;
-        info.originalInputInd = ind;
-        return info;
-    }
+//     static InputInfo fromNetwork(int ind = 0) {
+//         InputInfo info;
+//         info.type = InputType::Original;
+//         info.originalInputInd = ind;
+//         return info;
+//     }
 
-    static InputInfo fromPrevStage(int ind) {
-        InputInfo info;
-        info.type = InputType::PrevStageOutput;
-        info.prevStageInd = ind;
-        info.prevStageOutputInd = 0;
-        return info;
-    }
+//     static InputInfo fromPrevStage(int ind) {
+//         InputInfo info;
+//         info.type = InputType::PrevStageOutput;
+//         info.prevStageInd = ind;
+//         info.prevStageOutputInd = 0;
+//         return info;
+//     }
 
-    InputInfo& output(int ind) {
-        assert(type == InputType::PrevStageOutput);
-        prevStageOutputInd = ind;
-        return *this;
-    }
-};
+//     InputInfo& output(int ind) {
+//         assert(type == InputType::PrevStageOutput);
+//         prevStageOutputInd = ind;
+//         return *this;
+//     }
+// };
 
-enum class OutputType {
-    Original,
-    Intermediate
-};
+// enum class OutputType {
+//     Original,
+//     Intermediate
+// };
 
-struct OutputInfo final {
-    OutputType type = OutputType::Original;
-    int originalOutputInd = -1;
+// struct OutputInfo final {
+//     OutputType type = OutputType::Original;
+//     int originalOutputInd = -1;
 
-    static OutputInfo fromNetwork(int ind = 0) {
-        OutputInfo info;
-        info.type = OutputType::Original;
-        info.originalOutputInd = ind;
-        return info;
-    }
+//     static OutputInfo fromNetwork(int ind = 0) {
+//         OutputInfo info;
+//         info.type = OutputType::Original;
+//         info.originalOutputInd = ind;
+//         return info;
+//     }
 
-    static OutputInfo intermediate() {
-        OutputInfo info;
-        info.type = OutputType::Intermediate;
-        return info;
-    }
-};
+//     static OutputInfo intermediate() {
+//         OutputInfo info;
+//         info.type = OutputType::Intermediate;
+//         return info;
+//     }
+// };
 
-class TestModel final {
-public:
-    TestModel() = default;
-    TestModel(const Model& model, const DataDesc& dataDesc);
+// class TestModel final {
+// public:
+//     TestModel() = default;
+//     TestModel(const Model& model, const DataDesc& dataDesc);
 
-    const Model& getBaseModel() const { return _model; }
-    const DataVector& getInputs() const { return _inputs; }
-    const DataVector& getOutputs() const { return _outputs; }
-    const StageVector& getStages() const { return _stages; }
+//     const Model& getBaseModel() const { return _model; }
+//     const DataVector& getInputs() const { return _inputs; }
+//     const DataVector& getOutputs() const { return _outputs; }
+//     const StageVector& getStages() const { return _stages; }
 
-    void createInputs(int numInputs);
-    void createOutputs(int numOutputs);
+//     void createInputs(int numInputs);
+//     void createOutputs(int numOutputs);
 
-    int addStage(
-            std::initializer_list<InputInfo> curInputInfos,
-            std::initializer_list<OutputInfo> curOutputInfos);
+//     int addStage(
+//             std::initializer_list<InputInfo> curInputInfos,
+//             std::initializer_list<OutputInfo> curOutputInfos);
 
-    void setStageDataOrderInfo(
-            int stageInd,
-            const InOutPortMap<DimsOrder>& inputInfo,
-            const InOutPortMap<DimsOrder>& outputInfo);
-    void setStageStridesInfo(
-            int stageInd,
-            const InOutPortMap<StridesRequirement>& inputInfo,
-            const InOutPortMap<StridesRequirement>& outputInfo);
-    void setStageBatchInfo(
-            int stageInd,
-            const InOutPortMap<BatchSupport>& inputInfo);
+//     void setStageDataOrderInfo(
+//             int stageInd,
+//             const InOutPortMap<DimsOrder>& inputInfo,
+//             const InOutPortMap<DimsOrder>& outputInfo);
+//     void setStageStridesInfo(
+//             int stageInd,
+//             const InOutPortMap<StridesRequirement>& inputInfo,
+//             const InOutPortMap<StridesRequirement>& outputInfo);
+//     void setStageBatchInfo(
+//             int stageInd,
+//             const InOutPortMap<BatchSupport>& inputInfo);
 
-private:
-    Model _model;
-    DataDesc _dataDesc;
+// private:
+//     Model _model;
+//     DataDesc _dataDesc;
 
-    DataVector _inputs;
-    DataVector _outputs;
-    StageVector _stages;
-};
+//     DataVector _inputs;
+//     DataVector _outputs;
+//     StageVector _stages;
+// };
 
-template <class StageRange>
-void CheckStageTestInds(const StageRange& stageRange, std::initializer_list<int> expectedInds) {
-    auto stageVector = toVector(stageRange);
+// template <class StageRange>
+// void CheckStageTestInds(const StageRange& stageRange, std::initializer_list<int> expectedInds) {
+//     auto stageVector = toVector(stageRange);
 
-    ASSERT_EQ(expectedInds.size(), stageVector.size());
+//     ASSERT_EQ(expectedInds.size(), stageVector.size());
 
-    size_t stageInd = 0;
-    for (auto expectedInd : expectedInds) {
-        ASSERT_EQ(expectedInd, stageVector[stageInd]->attrs().template get<int>("test_ind"));
-        ++stageInd;
-    }
-}
+//     size_t stageInd = 0;
+//     for (auto expectedInd : expectedInds) {
+//         ASSERT_EQ(expectedInd, stageVector[stageInd]->attrs().template get<int>("test_ind"));
+//         ++stageInd;
+//     }
+// }
 
-template <class StageRange>
-void CheckStageTestInds(const StageRange& stageRange, std::initializer_list<int> expectedInds, const std::function<void(const Stage&)>& extraCheck) {
-    auto stageVector = toVector(stageRange);
+// template <class StageRange>
+// void CheckStageTestInds(const StageRange& stageRange, std::initializer_list<int> expectedInds, const std::function<void(const Stage&)>& extraCheck) {
+//     auto stageVector = toVector(stageRange);
 
-    ASSERT_EQ(expectedInds.size(), stageVector.size());
+//     ASSERT_EQ(expectedInds.size(), stageVector.size());
 
-    size_t stageInd = 0;
-    for (auto expectedInd : expectedInds) {
-        ASSERT_EQ(expectedInd, stageVector[stageInd]->attrs().template get<int>("test_ind"));
-        ++stageInd;
+//     size_t stageInd = 0;
+//     for (auto expectedInd : expectedInds) {
+//         ASSERT_EQ(expectedInd, stageVector[stageInd]->attrs().template get<int>("test_ind"));
+//         ++stageInd;
 
-        ASSERT_NO_FATAL_FAILURE(extraCheck(stageVector[stageInd]));
-    }
-}
+//         ASSERT_NO_FATAL_FAILURE(extraCheck(stageVector[stageInd]));
+//     }
+// }
 
-PluginConfiguration createConfiguration();
+// PluginConfiguration createConfiguration();
 
-class GraphTransformerTest : public TestsCommon {
-public:
-    ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
-    PluginConfiguration config;
+// class GraphTransformerTest : public TestsCommon {
+// public:
+//     ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
+//     PluginConfiguration config;
 
-    StageBuilder::Ptr stageBuilder;
-    FrontEnd::Ptr frontEnd;
-    PassManager::Ptr passManager;
-    BackEnd::Ptr backEnd;
+//     StageBuilder::Ptr stageBuilder;
+//     FrontEnd::Ptr frontEnd;
+//     PassManager::Ptr passManager;
+//     BackEnd::Ptr backEnd;
 
-    bool compileEnvInitialized = false;
+//     bool compileEnvInitialized = false;
 
-    void SetUp() override;
-    void TearDown() override;
+//     void SetUp() override;
+//     void TearDown() override;
 
-    void InitCompileEnv();
+//     void InitCompileEnv();
 
-    Model CreateModel();
+//     Model CreateModel();
 
-    TestModel CreateTestModel(const DataDesc& dataDesc);
+//     TestModel CreateTestModel(const DataDesc& dataDesc);
 
-private:
-    MockICore  _mockCore;
-    Logger::Ptr _log;
-    std::list<ModelPtr> _models;
-};
+// private:
+//     MockICore  _mockCore;
+//     Logger::Ptr _log;
+//     std::list<ModelPtr> _models;
+// };
 
-}
+// }

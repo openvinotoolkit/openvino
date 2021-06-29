@@ -28,16 +28,16 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseCeiling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseCeiling(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS(inputs.size() == 1,
                      "Ceiling stage with name {} must have only 1 input, actually provided {} inputs",
-                     layer->name, inputs.size());
+                     node->get_name(), inputs.size());
 
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "Ceiling stage with name {} must have only 1 output, actually provided {} outputs",
-                     layer->name, outputs.size());
+                     node->get_name(), outputs.size());
 
-    model->addNewStage<CeilingStage>(layer->name, StageType::Ceiling, layer, inputs, outputs);
+    model->addNewStage<CeilingStage>(node->get_name(), StageType::Ceiling, node, inputs, outputs);
 }
 
 }  // namespace vpu

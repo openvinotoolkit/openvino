@@ -122,15 +122,17 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    ie::details::CaselessEq<std::string> cmp;
+void FrontEnd::parseProposal(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    // ie::details::CaselessEq<std::string> cmp;
 
+    const auto& proposal = ngraph::as_type_ptr<ngraph::op::v4::Proposal>(node);
+    IE_ASSERT(proposal != nullptr);
     VPU_THROW_UNLESS((inputs.size() == 3),
                      "Proposal stage with name %s must have 3 inputs, "
-                     "actually provided %d", layer->name, inputs.size());
+                     "actually provided %d", proposal->get_name(), inputs.size());
     VPU_THROW_UNLESS((outputs.size() == 1) || (outputs.size() == 2),
                      "Proposal stage with name %s must have only 1 or 2 outputs, "
-                     "actually provided %d", layer->name, outputs.size());
+                     "actually provided %d", proposal->get_name(), outputs.size());
 
     DataVector tempOutputs(2);
     tempOutputs[0] = outputs[0];
@@ -140,40 +142,41 @@ void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, c
     else
         tempOutputs[1] = outputs[1];
 
-    auto stage = model->addNewStage<ProposalStage>(layer->name, StageType::Proposal, layer, inputs, tempOutputs);
+    auto stage = model->addNewStage<ProposalStage>(proposal->get_name(), StageType::Proposal, proposal, inputs, tempOutputs);
+    const auto& attrs = proposal->get_attrs();
+    stage->attrs().set<int>("feat_stride", attrs.feat_stride);
+    stage->attrs().set<int>("base_size", attrs.base_size);
+    stage->attrs().set<int>("min_size", attrs.min_size);
+    stage->attrs().set<int>("pre_nms_topn", attrs.pre_nms_topn);
+    stage->attrs().set<int>("post_nms_topn", attrs.post_nms_topn);
+    stage->attrs().set<float>("nms_thresh", attrs.nms_thresh);
+    stage->attrs().set<float>("pre_nms_thresh", attrs.nms_thresh); // not sure
+    stage->attrs().set<float>("box_size_scale", attrs.box_size_scale);
+    stage->attrs().set<float>("box_coordinate_scale", attrs.box_coordinate_scale);
+    stage->attrs().set<bool>("clip_before_nms", attrs.clip_before_nms);
+    stage->attrs().set<bool>("clip_after_nms", attrs.clip_after_nms);
+    stage->attrs().set<bool>("normalize", attrs.normalize);
+    
+    // if (cmp(layer->GetParamAsString("framework", ""), "TensorFlow")) {
+    //     // Settings for TensorFlow
+    //     stage->attrs().set<float>("coordinates_offset", 0.0f);
+    //     stage->attrs().set<bool>("initial_clip", true);
+    //     stage->attrs().set<bool>("shift_anchors", true);
+    //     stage->attrs().set<bool>("round_ratios", false);
+    //     stage->attrs().set<bool>("swap_xy", true);
+    // } else {                                                                         // not sure
+    //     // Settings for Caffe
 
-    stage->attrs().set<int>("feat_stride", layer->GetParamAsInt("feat_stride", 16));
-    stage->attrs().set<int>("base_size", layer->GetParamAsInt("base_size", 16));
-    stage->attrs().set<int>("min_size", layer->GetParamAsInt("min_size", 16));
-    stage->attrs().set<int>("pre_nms_topn", layer->GetParamAsInt("pre_nms_topn", 6000));
-    stage->attrs().set<int>("post_nms_topn", layer->GetParamAsInt("post_nms_topn", 300));
-    stage->attrs().set<float>("nms_thresh", layer->GetParamAsFloat("nms_thresh", 0.7f));
-    stage->attrs().set<float>("pre_nms_thresh", layer->GetParamAsFloat("pre_nms_thresh", 0.1f));
-    stage->attrs().set<float>("box_size_scale", layer->GetParamAsFloat("box_size_scale", 1.0f));
-    stage->attrs().set<float>("box_coordinate_scale", layer->GetParamAsFloat("box_coordinate_scale", 1.0f));
-    stage->attrs().set<bool>("clip_before_nms", layer->GetParamAsBool("clip_before_nms", true));
-    stage->attrs().set<bool>("clip_after_nms", layer->GetParamAsBool("clip_after_nms", false));
-    stage->attrs().set<bool>("normalize", layer->GetParamAsBool("normalize", false));
+    //     stage->attrs().set<float>("coordinates_offset", 1.0f);
+    //     stage->attrs().set<bool>("initial_clip", false);
+    //     stage->attrs().set<bool>("shift_anchors", false);
+    //     stage->attrs().set<bool>("round_ratios", true);
+    //     stage->attrs().set<bool>("swap_xy", false);
+    // }
+    
 
-    if (cmp(layer->GetParamAsString("framework", ""), "TensorFlow")) {
-        // Settings for TensorFlow
-        stage->attrs().set<float>("coordinates_offset", 0.0f);
-        stage->attrs().set<bool>("initial_clip", true);
-        stage->attrs().set<bool>("shift_anchors", true);
-        stage->attrs().set<bool>("round_ratios", false);
-        stage->attrs().set<bool>("swap_xy", true);
-    } else {
-        // Settings for Caffe
-
-        stage->attrs().set<float>("coordinates_offset", 1.0f);
-        stage->attrs().set<bool>("initial_clip", false);
-        stage->attrs().set<bool>("shift_anchors", false);
-        stage->attrs().set<bool>("round_ratios", true);
-        stage->attrs().set<bool>("swap_xy", false);
-    }
-
-    auto scales = layer->GetParamAsFloats("scale", {});
-    auto ratios = layer->GetParamAsFloats("ratio", {});
+    auto scales = attrs.scale;
+    auto ratios = attrs.ratio;
 
     stage->attrs().set("scales", scales);
     stage->attrs().set("ratios", ratios);

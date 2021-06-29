@@ -263,51 +263,49 @@ protected:
 
 void FrontEnd::parseConcat(
         const Model& model,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const DataVector& inputs,
         const DataVector& outputs) const {
+    auto concat = ngraph::as_type_ptr<ngraph::op::v0::Concat>(node);
     VPU_THROW_UNLESS(!inputs.empty(),
                      "{} layer with name {} must have no less than 1 input, "
-                     "actually provided 0 inputs", layer->type, layer->name);
+                     "actually provided 0 inputs", concat->get_type_name(), concat->get_name());
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "{} layer with name {} must have only 1 output, actually provided {} outputs",
-                     layer->type, layer->name, outputs.size());
+                     concat->get_type_name(), concat->get_name(), outputs.size());
 
     auto output = outputs[0];
 
-    VPU_THROW_UNLESS(layer != nullptr,
-                     "parseConcat expects valid CNNLayerPtr, got nullptr");
-    auto concat = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
     VPU_THROW_UNLESS(concat != nullptr,
                      "{} layer with name {} must be able to convert to ie::ConcatLayer",
-                     layer->type, layer->name);
+                     concat->get_type_name(), concat->get_name());
 
-    VPU_THROW_UNLESS(static_cast<int>(concat->_axis) < output->desc().numDims(),
+    VPU_THROW_UNLESS(static_cast<int>(concat->get_axis()) < output->desc().numDims(),
                      "{} layer with name {} must have axis attribute no grater than number of "
                      "dimensions, actually provided axis = {}, numDims = {}",
-                     layer->type, layer->name, concat->_axis, output->desc().numDims());
+                     concat->get_type_name(), concat->get_name(), concat->get_axis(), output->desc().numDims());
 
     auto perm = DimsOrder::fromNumDims(output->desc().numDims()).toPermutation();
-    auto axis = perm[output->desc().numDims() - 1 - concat->_axis];
+    auto axis = perm[output->desc().numDims() - 1 - concat->get_axis()];
 
     // If there is DSR as concat's output in the transformed graph, then we need to infer
     // concat on the device side. In other cases StubConcat stage will be added and it will
     // be replace with Data <-> Data edges.
     auto inferRequirement = ConcatInferRequirement::CanBeReplaced;
-    if (auto concatOp = std::dynamic_pointer_cast<ngraph::opset3::Concat>(layer->getNode())) {
-        inferRequirement = concatOp->get_input_source_output(0).get_node_shared_ptr()->get_type_info() ==
-                           ngraph::vpu::op::DynamicShapeResolver::type_info
-                           ? ConcatInferRequirement::NeedToInfer
-                           : ConcatInferRequirement::CanBeReplaced;
-    }
+    
+    inferRequirement = concat->get_input_source_output(0).get_node_shared_ptr()->get_type_info() ==
+                        ngraph::vpu::op::DynamicShapeResolver::type_info
+                        ? ConcatInferRequirement::NeedToInfer
+                        : ConcatInferRequirement::CanBeReplaced;
+    
 
-    _stageBuilder->addConcatStage(model, concat->name, concat, axis, inputs, output, inferRequirement);
+    _stageBuilder->addConcatStage(model, concat->get_name(), concat, axis, inputs, output, inferRequirement);
 }
 
 Stage StageBuilder::addConcatStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         Dim axis,
         const DataVector& inputs,
         const Data& output,
@@ -318,9 +316,9 @@ Stage StageBuilder::addConcatStage(
     Stage stage;
     if (inferRequirement == ConcatInferRequirement::NeedToInfer) {
         stage = model->addNewStage<ConcatStage>(
-                layer->name,
+                node->get_name(),
                 StageType::Concat,
-                layer,
+                node,
                 inputs,
                 {output});
     } else {
@@ -330,7 +328,7 @@ Stage StageBuilder::addConcatStage(
             curOffset.set(axis, curOffset[axis] + input->desc().dim(axis));
         }
 
-        stage = addConcatStage(model, name, layer, std::move(offsets), inputs, output);
+        stage = addConcatStage(model, name, node, std::move(offsets), inputs, output);
     }
 
     stage->attrs().set("axis", axis);
@@ -341,7 +339,7 @@ Stage StageBuilder::addConcatStage(
 Stage StageBuilder::addConcatStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         std::vector<DimValues>&& offsets,
         const DataVector& inputs,
         const Data& output) {
@@ -352,7 +350,7 @@ Stage StageBuilder::addConcatStage(
     auto stage = model->addNewStage<StubConcatStage>(
         name,
         StageType::StubConcat,
-        layer,
+        node,
         inputs,
         {output});
 

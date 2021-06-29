@@ -29,11 +29,11 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseFloor(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseFloor(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    model->addNewStage<FloorStage>(layer->name, StageType::Floor, layer, inputs, outputs);
+    model->addNewStage<FloorStage>(node->get_name(), StageType::Floor, node, inputs, outputs);
 }
 
 }  // namespace vpu

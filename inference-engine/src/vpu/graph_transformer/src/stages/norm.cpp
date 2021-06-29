@@ -81,18 +81,18 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseNorm(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
+void FrontEnd::parseNorm(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    // IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
-
-    auto layer = std::dynamic_pointer_cast<ie::NormLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-
-    auto stage = model->addNewStage<LRNStage>(layer->name, layer->_isAcrossMaps ? StageType::LRN : StageType::InnerLRN, layer, inputs, outputs);
-    stage->attrs().set<int>("size", layer->_size);
-    stage->attrs().set<int>("k", layer->_k);
-    stage->attrs().set<float>("alpha", layer->_alpha);
-    stage->attrs().set<float>("beta", layer->_beta);
+    const auto& lrn = ngraph::as_type_ptr<ngraph::op::v0::LRN>(node);
+    IE_ASSERT(lrn != nullptr);
+    DataVector newInput;
+    newInput.emplace_back(inputs[0]);
+    auto stage = model->addNewStage<LRNStage>(lrn->get_name(), StageType::LRN, lrn, newInput, outputs);
+    stage->attrs().set<int>("size", lrn->get_nsize());
+    stage->attrs().set<int>("k", lrn->get_bias());  //not sure
+    stage->attrs().set<float>("alpha", lrn->get_alpha());
+    stage->attrs().set<float>("beta", lrn->get_beta());
 }
 
 }  // namespace vpu

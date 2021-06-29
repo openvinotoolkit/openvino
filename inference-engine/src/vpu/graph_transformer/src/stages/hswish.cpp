@@ -24,15 +24,15 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseHSwish(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseHSwish(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS((inputs.size() == 1),
                      "HSwish stage with name {} must have only 1 input, "
-                     "actually provided {}", layer->name, inputs.size());
+                     "actually provided {}", node->get_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "HSwish stage with name {} must have only 1 output, "
-                     "actually provided {}", layer->name, outputs.size());
+                     "actually provided {}", node->get_name(), outputs.size());
 
-    model->addNewStage<HSwishStage>(layer->name, StageType::HSwish, layer, inputs, outputs);
+    model->addNewStage<HSwishStage>(node->get_name(), StageType::HSwish, node, inputs, outputs);
 }
 
 }  // namespace vpu

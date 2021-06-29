@@ -149,9 +149,10 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseDetectionOutput(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseDetectionOutput(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     const auto& env = CompileEnv::get();
 
+    const auto& detectionOutput = ngraph::as_type_ptr<ngraph::opset4::DetectionOutput>(node);
     IE_ASSERT(inputs.size() == 3 || inputs.size() == 5);
     IE_ASSERT(outputs.size() == 1);
 
@@ -160,21 +161,22 @@ void FrontEnd::parseDetectionOutput(const Model& model, const ie::CNNLayerPtr& l
     auto priors = inputs[2];
 
     DetectionOutputParams detParams;
-    detParams.num_classes = layer->GetParamAsInt("num_classes", 0);
-    detParams.background_label_id = layer->GetParamAsInt("background_label_id", 0);
-    detParams.top_k = layer->GetParamAsInt("top_k", -1);
-    detParams.variance_encoded_in_target = layer->GetParamAsInt("variance_encoded_in_target", 0);
-    detParams.keep_top_k = layer->GetParamAsInt("keep_top_k", -1);
-    detParams.nms_threshold = layer->GetParamAsFloat("nms_threshold", 0);
-    detParams.confidence_threshold = layer->GetParamAsFloat("confidence_threshold", -1.0f);
-    detParams.share_location = layer->GetParamAsInt("share_location", 1);
-    detParams.clip_before_nms = layer->GetParamAsInt("clip_before_nms", 0) || layer->GetParamAsInt("clip", 0);
-    detParams.clip_after_nms = layer->GetParamAsInt("clip_after_nms", 0);
-    detParams.decrease_label_id = layer->GetParamAsInt("decrease_label_id", 0);
-    detParams.normalized = layer->GetParamAsInt("normalized", 1);
-    detParams.image_height = layer->GetParamAsInt("input_height", 1);
-    detParams.image_width = layer->GetParamAsInt("input_width", 1);
-    detParams.objectness_score = layer->GetParamAsFloat("objectness_score", -1.0f);
+    const auto detectionOutputAttrs = detectionOutput->get_attrs();
+    detParams.num_classes = detectionOutputAttrs.num_classes;
+    detParams.background_label_id = detectionOutputAttrs.background_label_id;
+    detParams.top_k = detectionOutputAttrs.top_k;
+    detParams.variance_encoded_in_target = detectionOutputAttrs.variance_encoded_in_target;
+    detParams.keep_top_k = detectionOutputAttrs.keep_top_k[0];  //  ???
+    detParams.nms_threshold = detectionOutputAttrs.nms_threshold;
+    detParams.confidence_threshold = detectionOutputAttrs.confidence_threshold;
+    detParams.share_location = detectionOutputAttrs.share_location;
+    detParams.clip_before_nms = detectionOutputAttrs.clip_before_nms;
+    detParams.clip_after_nms = detectionOutputAttrs.clip_after_nms;
+    detParams.decrease_label_id = detectionOutputAttrs.decrease_label_id;
+    detParams.normalized = detectionOutputAttrs.normalized;
+    detParams.image_height = detectionOutputAttrs.input_height;
+    detParams.image_width = detectionOutputAttrs.input_width;
+    detParams.objectness_score = detectionOutputAttrs.objectness_score;
     detParams.has_arm_inputs = inputs.size() == 5 ? 1 : 0;
 
     int prior_size = detParams.normalized ? 4 : 5;
@@ -183,7 +185,7 @@ void FrontEnd::parseDetectionOutput(const Model& model, const ie::CNNLayerPtr& l
     detParams.num_priors = static_cast<int>(priors->desc().dim(Dim::W) / prior_size);
     detParams.num = static_cast<int>(conf->desc().dim(Dim::N));
 
-    auto code_type_str = layer->GetParamAsString("code_type", "caffe.PriorBoxParameter.CENTER_SIZE");
+    auto code_type_str = detectionOutputAttrs.code_type;
     if (code_type_str.find("CORNER_SIZE") != std::string::npos) {
         detParams.code_type = CORNER_SIZE;
     } else if (code_type_str.find("CENTER_SIZE") != std::string::npos) {
@@ -191,7 +193,7 @@ void FrontEnd::parseDetectionOutput(const Model& model, const ie::CNNLayerPtr& l
     } else if (code_type_str.find("CORNER") != std::string::npos) {
         detParams.code_type = CORNER;
     } else {
-        VPU_THROW_EXCEPTION << "Unknown code_type " << code_type_str << " for DetectionOutput layer " << layer->name;
+        VPU_THROW_EXCEPTION << "Unknown code_type " << code_type_str << " for DetectionOutput layer " << detectionOutput->get_name();
     }
 
     if (detParams.keep_top_k < 0)
@@ -212,7 +214,7 @@ void FrontEnd::parseDetectionOutput(const Model& model, const ie::CNNLayerPtr& l
     if (outputs[0]->desc().dim(Dim::W) != 7)
         VPU_THROW_EXCEPTION << "Detection Output: Support only 7 vals per detection.";
 
-    auto stage = model->addNewStage<DetectionOutputStage>(layer->name, StageType::DetectionOutput, layer, inputs, outputs);
+    auto stage = model->addNewStage<DetectionOutputStage>(detectionOutput->get_name(), StageType::DetectionOutput, detectionOutput, inputs, outputs);
 
     stage->attrs().set("params", detParams);
 

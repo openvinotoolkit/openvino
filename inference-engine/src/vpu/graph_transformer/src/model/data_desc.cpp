@@ -355,6 +355,18 @@ DataDesc::DataDesc(DataType type, DimsOrder dimsOrder, const DimValues& dims) :
     }
 }
 
+DataDesc::DataDesc(const ngraph::descriptor::Tensor& ngraphDesc) {
+    _type = fromIEPrecision(ie::details::convertPrecision(ngraphDesc.get_element_type()));
+    ngraphDesc.get_shape();
+
+    const auto& ieDims = ngraphDesc.get_shape().empty() ? ie::SizeVector{1} : static_cast<std::vector<size_t>>(ngraphDesc.get_shape());
+    _dimsOrder = DimsOrder::fromNumDims(ngraphDesc.get_shape().size());
+    const auto perm = DimsOrder::fromNumDims(ieDims.size()).toPermutation();
+    for (size_t i = 0; i < perm.size(); ++i) {
+        _dims.set(perm[i], static_cast<int>(ieDims[ieDims.size() - 1 - i]));
+    }
+}
+
 int DataDesc::elemSize() const {
     switch (_type) {
     case DataType::U8:

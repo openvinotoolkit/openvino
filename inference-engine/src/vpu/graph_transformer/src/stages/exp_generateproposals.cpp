@@ -70,18 +70,19 @@ private:
 
 void FrontEnd::parseExpGenerateProposals(
         const Model& model,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const DataVector& inputs,
         const DataVector& outputs) const {
-    VPU_THROW_UNLESS(inputs.size() == 4, "Layer %s must have 4 input tensors.", layer->name);
-    VPU_THROW_UNLESS(outputs.size() == 2, "Layer %s must have 2 output tensors.", layer->name);
+    auto expGenerateProposals = ngraph::as_type_ptr<ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(node);
+    VPU_THROW_UNLESS(inputs.size() == 4, "Layer %s must have 4 input tensors.", expGenerateProposals->get_name());
+    VPU_THROW_UNLESS(outputs.size() == 2, "Layer %s must have 2 output tensors.", expGenerateProposals->get_name());
 
     ExpGenerateProposalsParams params;
-
-    params.min_size      = layer->GetParamAsFloat("min_size", 0.0f);
-    params.nms_threshold = layer->GetParamAsFloat("nms_threshold", 0.7f);
-    params.pre_nms_topn  = layer->GetParamAsInt("pre_nms_count", 1000);
-    params.post_nms_topn = layer->GetParamAsInt("post_nms_count", 1000);
+    const auto attrs = expGenerateProposals->get_attrs();
+    params.min_size      = attrs.min_size;
+    params.nms_threshold = attrs.nms_threshold;
+    params.pre_nms_topn  = attrs.pre_nms_count;
+    params.post_nms_topn = attrs.post_nms_count;
 
     auto imInfo       = inputs[0];
     auto inputAnchors = inputs[1];
@@ -93,41 +94,41 @@ void FrontEnd::parseExpGenerateProposals(
     VPU_THROW_UNLESS((inputAnchors->desc().dims().size() == 2) &&
                      (inputAnchors->desc().dim(Dim::C) == 4),
                      "Wrong shape for input 1 of layer %s, expected (N, 4), got: dims size = %lu, dim C = %d",
-                     layer->name, inputAnchors->desc().dims().size(), inputAnchors->desc().dim(Dim::C));
+                     expGenerateProposals->get_name(), inputAnchors->desc().dims().size(), inputAnchors->desc().dim(Dim::C));
     VPU_THROW_UNLESS((imInfo->desc().dims().size() == 1) &&
                      (imInfo->desc().dim(Dim::C) == 3),
                      "Wrong shape for input 0 of layer %s, expected (3), got: dims size = %lu, dim C = %d",
-                     layer->name, imInfo->desc().dims().size(), imInfo->desc().dim(Dim::C));
+                     expGenerateProposals->get_name(), imInfo->desc().dims().size(), imInfo->desc().dim(Dim::C));
 
     VPU_THROW_UNLESS(inputDeltas->desc().dims().size() == 3,
                      "Wrong shape for input 2 of layer %s, expected dim size = 3, got: %lu",
-                     layer->name, inputDeltas->desc().dims().size());
+                     expGenerateProposals->get_name(), inputDeltas->desc().dims().size());
     VPU_THROW_UNLESS(inputScores->desc().dims().size() == 3,
                      "Wrong shape for input 3 of layer %s, expected dim size = 3, got: %lu",
-                     layer->name, inputScores->desc().dims().size());
+                     expGenerateProposals->get_name(), inputScores->desc().dims().size());
 
     VPU_THROW_UNLESS((inputDeltas->desc().dim(Dim::H) == inputScores->desc().dim(Dim::H)) &&
                      (inputDeltas->desc().dim(Dim::W) == inputScores->desc().dim(Dim::W)),
                      "Inputs 2 and 3 of layer %s must have same H and W, got: input2 (H = %d, W = %d), input3 (H = %d, W = %d)",
-                     layer->name, inputDeltas->desc().dim(Dim::H), inputDeltas->desc().dim(Dim::W),
+                     expGenerateProposals->get_name(), inputDeltas->desc().dim(Dim::H), inputDeltas->desc().dim(Dim::W),
                      inputScores->desc().dim(Dim::H), inputScores->desc().dim(Dim::W));
 
     VPU_THROW_UNLESS((outputRois->desc().dims().size() == 2) &&
                      (outputRois->desc().dim(Dim::C) == 4),
                      "Wrong shape for output 0 of layer %s, expected (N, 4), got: dims size = %lu, dim C = %d",
-                     layer->name, outputRois->desc().dims().size(), outputRois->desc().dim(Dim::C));
+                     expGenerateProposals->get_name(), outputRois->desc().dims().size(), outputRois->desc().dim(Dim::C));
     VPU_THROW_UNLESS(outputScores->desc().dims().size() == 1,
                      "Wrong shape for output 1 of layer %s, expected dim size = 1, got: %lu",
-                     layer->name, outputScores->desc().dims().size());
+                     expGenerateProposals->get_name(), outputScores->desc().dims().size());
 
     VPU_THROW_UNLESS(outputRois->desc().dim(Dim::N) == outputScores->desc().dim(Dim::C),
                      "Layer %s: output0 dim N and output1 dim C must be equal, got: output0 (N = %d), output1 (C = %d)",
-                     layer->name, outputRois->desc().dim(Dim::N), outputScores->desc().dim(Dim::C));
+                     expGenerateProposals->get_name(), outputRois->desc().dim(Dim::N), outputScores->desc().dim(Dim::C));
 
     auto stage = model->addNewStage<ExpGenerateProposalsStage>(
-        layer->name,
+        expGenerateProposals->get_name(),
         StageType::ExpGenerateProposals,
-        layer,
+        expGenerateProposals,
         inputs,
         outputs);
 

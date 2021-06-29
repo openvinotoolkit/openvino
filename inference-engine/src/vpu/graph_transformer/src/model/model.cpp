@@ -193,7 +193,8 @@ Data ModelObj::duplicateData(
 
     if (newDataUsage == DataUsage::Const) {
         const auto& content = newContent != nullptr ? newContent : origData->content();
-        const auto& desc = newDesc != DataDesc() ? newDesc : origData->desc();
+        const auto& desc = newDesc != DataDesc() ? newDesc 
+                                                 : origData->desc();
 
         VPU_THROW_UNLESS(desc.totalDimSize() * desc.elemSize() == content->byteSize(),
             "duplicateData error: while duplicating {} Const data got different "
@@ -259,7 +260,7 @@ Stage ModelObj::duplicateStage(
     stage->_name      = origStage->name() + postfix;
     stage->_id        = _stagesIdCount++;
     stage->_type      = origStage->_type;
-    stage->_origLayer = origStage->_origLayer;
+    stage->_origNode  = origStage->_origNode;
     stage->_model     = this;
 
     _initialStages.emplace(stage);
@@ -2082,7 +2083,7 @@ void ModelObj::runDFS(
 Stage ModelObj::addNewStageImpl(
     const std::string& name,
     StageType type,
-    const ie::CNNLayerPtr& origLayer,
+    const NodePtr& origNode,
     const DataVector& inputs,
     const DataVector& outputs,
     const FuncRef<StagePtr()>& creator) {
@@ -2122,7 +2123,7 @@ Stage ModelObj::addNewStageImpl(
     stage->_name      = name;
     stage->_id        = _stagesIdCount++;
     stage->_type      = type;
-    stage->_origLayer = origLayer;
+    stage->_origNode  = origNode;
     stage->_model     = this;
 
     for (const auto& input : inputs) {

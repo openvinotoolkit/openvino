@@ -17,7 +17,6 @@ IeParsedNetwork parseNetwork(const ie::CNNNetwork& network) {
     VPU_PROFILE(parseNetwork);
 
     const auto& env = CompileEnv::get();
-    ie::details::CaselessEq<std::string> cmp;
 
     env.log->trace("Parse IE network : %s", network.getName());
     VPU_LOGGER_SECTION(env.log);
@@ -25,53 +24,42 @@ IeParsedNetwork parseNetwork(const ie::CNNNetwork& network) {
     IeParsedNetwork out;
     out.networkInputs = network.getInputsInfo();
     out.networkOutputs = network.getOutputsInfo();
-
     env.log->trace("Got %d inputs and %d outputs", out.networkInputs.size(), out.networkOutputs.size());
     IE_ASSERT(!out.networkInputs.empty());
     IE_ASSERT(!out.networkOutputs.empty());
 
     env.log->trace("Perform topological sort");
-    const auto sortedLayers = ie::details::CNNNetSortTopologically(network);
-    IE_ASSERT(!sortedLayers.empty());
-
-    for (const auto& layer : sortedLayers) {
+    const auto sortedNodes = network.getFunction()->get_ordered_ops();
+    IE_ASSERT(!sortedNodes.empty());
+    for (const auto& node : sortedNodes) {
         VPU_LOGGER_SECTION(env.log);
-
-        IE_ASSERT(layer != nullptr);
-
-        if (cmp(layer->type, "Input")) {
-            env.log->trace("Found Input layer : %s", layer->name);
+        IE_ASSERT(node != nullptr);
+        if (ngraph::as_type_ptr<ngraph::op::Parameter>(node)) {
+            env.log->trace("Found Parameter node : %s", node->get_friendly_name());
+            out.networkParameters.emplace_back(node);
+            continue;
+        }
+        if (ngraph::as_type_ptr<ngraph::op::Result>(node)) {
+            env.log->trace("Found Result node : %s", node->get_friendly_name());
+            out.networkResults.emplace_back(node);
             continue;
         }
 
-        if (cmp(layer->type, "Const")) {
-            env.log->trace("Found Const layer : %s", layer->name);
-
-            if (layer->outData.size() != 1) {
+        if (ngraph::as_type_ptr<ngraph::op::Constant>(node)) {
+            env.log->trace("Found Const node : %s", node->get_friendly_name());
+            if (node->get_output_size() != 1) {
                 VPU_THROW_FORMAT(
-                    "Const layer %v has unsupported number of outputs %v",
-                    layer->name, layer->outData.size());
+                    "Const node %v has unsupported number of outputs %v",
+                    node->get_friendly_name(), node->get_output_size());
             }
 
-            if (layer->blobs.size() != 1) {
-                VPU_THROW_FORMAT(
-                    "Const layer %v has unsupported number of blobs %v",
-                    layer->name, layer->blobs.size());
-            }
-
-            const auto constData = layer->outData[0];
-            IE_ASSERT(constData != nullptr);
-
-            const auto constBlob = layer->blobs.begin()->second;
-            IE_ASSERT(constBlob != nullptr);
-
-            out.constDatas.emplace_back(constData, constBlob);
+            out.networkConstants.emplace_back(node);
 
             continue;
         }
 
-        env.log->trace("Found plain layer : %s", layer->name);
-        out.orderedLayers.push_back(layer);
+        env.log->trace("Found plain layer : %s", node->get_friendly_name());
+        out.orderedOps.push_back(node);
     }
 
     return out;

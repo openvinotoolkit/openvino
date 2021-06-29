@@ -66,16 +66,18 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseMVN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseMVN(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+
+    const auto& mvn = ngraph::as_type_ptr<ngraph::op::v6::MVN>(node);
     VPU_THROW_UNLESS(inputs.size() == 2, "%d inputs provided to %s layer, but 2 expected.",
-                                            inputs.size(), layer->name);
+                                            inputs.size(), mvn->get_name());
     VPU_THROW_UNLESS(outputs.size() == 1, "%d outputs provided to %s layer, but 1 expected.",
-                                            outputs.size(), layer->name);
+                                            outputs.size(), mvn->get_name());
 
     const auto& input = inputs[0];
     const auto ndims = input->desc().numDims();
     VPU_THROW_UNLESS(ndims == 3 || ndims == 4, "%d input rank provided to %s layer, but only 3D and 4D supported.",
-                                            ndims, layer->name);
+                                            ndims, mvn->get_name());
 
     const auto& indices = inputs[1];
     const auto indicesSize = indices->desc().totalDimSize();
@@ -91,17 +93,21 @@ void FrontEnd::parseMVN(const Model& model, const ie::CNNLayerPtr& layer, const 
 
     VPU_THROW_UNLESS(!axes.count(Dim::N) && axes.count(Dim::H) && axes.count(Dim::W),
                      "Unsupported combination of indices in layer \"%s\". "
-                     "Only across channel and full batch supported.", layer->name);
+                     "Only across channel and full batch supported.", mvn->get_name());
     const auto acrossChannels = axes.count(Dim::C) != 0;
 
-    const auto normVariance = layer->GetParamAsBool("normalize_variance");
-    const auto eps = layer->GetParamAsFloat("eps");
-    const auto epsMode = layer->GetParamAsString("eps_mode", "outside_sqrt");
-    VPU_THROW_UNLESS(epsMode == "outside_sqrt",
-                     "eps_mode == %s provided to %s layer, but only eps_mode == \"outside_sqrt\" supported.",
-                     epsMode, layer->name);
+    
+    const auto normVariance = mvn->get_normalize_variance();
 
-    auto stage = model->addNewStage<MVNStage>(layer->name, StageType::MVN, layer, inputs, outputs);
+    const auto eps = mvn->get_eps();
+    auto layer = ie::CNNLayerPtr();
+    const auto epsMode = mvn->get_eps_mode();//layer->GetParamAsString("eps_mode", "outside_sqrt");
+
+    VPU_THROW_UNLESS(epsMode == ngraph::op::MVNEpsMode::OUTSIDE_SQRT,
+                     "eps_mode == %s provided to %s layer, but only eps_mode == \"outside_sqrt\" supported.",
+                     epsMode, node->get_name());
+
+    auto stage = model->addNewStage<MVNStage>(mvn->get_name(), StageType::MVN, mvn, inputs, outputs);
     stage->attrs().set<int>("normalize", normVariance);
     stage->attrs().set<int>("across_channels", acrossChannels);
     stage->attrs().set<float>("eps", eps);

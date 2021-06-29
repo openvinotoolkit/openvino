@@ -29,11 +29,11 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseErf(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseErf(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    model->addNewStage<ErfStage>(layer->name, StageType::Erf, layer, inputs, outputs);
+    model->addNewStage<ErfStage>(node->get_name(), StageType::Erf, node, inputs, outputs);
 }
 
 }  // namespace vpu

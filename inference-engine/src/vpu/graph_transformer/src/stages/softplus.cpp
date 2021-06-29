@@ -24,15 +24,15 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseSoftPlus(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseSoftPlus(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS(inputs.size() == 1,
                      "SoftPlus stage with name %s must have only 1 input, "
-                     "actually provided %d", layer->name, inputs.size());
+                     "actually provided %d", node->get_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "SoftPlus stage with name %s must have only 1 output, "
-                     "actually provided %d", layer->name, outputs.size());
+                     "actually provided %d", node->get_name(), outputs.size());
 
-    model->addNewStage<SoftPlusStage>(layer->name, StageType::SoftPlus, layer, inputs, outputs);
+    model->addNewStage<SoftPlusStage>(node->get_name(), StageType::SoftPlus, node, inputs, outputs);
 }
 
 }  // namespace vpu

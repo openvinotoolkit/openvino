@@ -78,11 +78,21 @@ private:
 
 }  // namespace
 
-void FrontEnd::parsePermute(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parsePermute(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
-
-    const auto ieOrder = layer->GetParamAsUInts("order");
+    auto permute = ngraph::as_type_ptr<ngraph::opset4::Transpose>(node);
+    VPU_THROW_UNLESS(permute != nullptr, "Can't parse node with name %s and type %s. Node is nullptr", permute->get_friendly_name(), permute->get_type_name());
+    auto transposeConst = std::dynamic_pointer_cast<ngraph::op::Constant>(node->input_value(1).get_node_shared_ptr());
+    transposeConst->get_data_ptr();
+    VPU_THROW_UNLESS(transposeConst != nullptr, "Can't parse node with name %s and type %s. Data node is nullptr", transposeConst->get_friendly_name(), transposeConst->get_type_name());
+    auto intOrder = transposeConst->cast_vector<int64_t>();
+    std::string stringOrder;
+    for (const auto& item : intOrder) {
+        if (!stringOrder.empty()) stringOrder += ",";
+        stringOrder += std::to_string(item);
+    } 
+    const auto ieOrder = stringOrder;
     const auto perm = DimsOrder::fromNumDims(checked_cast<int>(ieOrder.size())).toPermutation();
 
     PermutationDimsMap permutation;
@@ -92,13 +102,13 @@ void FrontEnd::parsePermute(const Model& model, const ie::CNNLayerPtr& layer, co
         permutation.set(dstDim, srcDim);
     }
 
-    _stageBuilder->addPermuteStage(model, layer->name, layer, inputs[0], outputs[0], permutation);
+    _stageBuilder->addPermuteStage(model, permute->get_friendly_name(), permute, inputs[0], outputs[0], permutation);
 }
 
 Stage StageBuilder::addPermuteStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input,
         const Data& output,
         const PermutationDimsMap& permutation) {
@@ -109,7 +119,7 @@ Stage StageBuilder::addPermuteStage(
     auto stage = model->addNewStage<PermuteStage>(
         name,
         StageType::Permute,
-        layer,
+        node,
         {input},
         {output});
     stage->attrs().set(permutationKey, permutation);
@@ -119,7 +129,7 @@ Stage StageBuilder::addPermuteStage(
 Stage StageBuilder::addReorderStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input,
         const Data& output) {
     const auto* env = CompileEnv::getOrNull();
@@ -137,7 +147,7 @@ Stage StageBuilder::addReorderStage(
         permutationMap.set(dim, dim);
     }
 
-    auto stage = addPermuteStage(model, name, layer, input, output, permutationMap);
+    auto stage = addPermuteStage(model, name, node, input, output, permutationMap);
     stage->attrs().set(outputOrderKey, output->desc().dimsOrder());
     return stage;
 }

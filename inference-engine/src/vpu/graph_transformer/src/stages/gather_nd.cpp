@@ -86,35 +86,36 @@ protected:
 
 }// namespace
 
-Stage StageBuilder::addGatherNDStage(const Model &model,
-                                     const std::string &name,
-                                     const ie::CNNLayerPtr &layer,
-                                     const Data &input, const Data &indices,
-                                     const Data &output, int32_t batchDims) {
+Stage StageBuilder::addGatherNDStage(const Model& model,
+                                     const std::string& name,
+                                     const NodePtr& node,
+                                     const Data& input, const Data& indices,
+                                     const Data& output, int32_t batchDims) {
     auto stage = model->addNewStage<GatherNDStage>(
-        layer->name, StageType::GatherND, layer, {input, indices}, {output});
+        node->get_name(), StageType::GatherND, node, {input, indices}, {output});
 
     stage->attrs().set<int32_t>("batch_dims", batchDims);
 
     return stage;
 }
 
-void FrontEnd::parseGatherND(const Model &model, const ie::CNNLayerPtr &layer,
+void FrontEnd::parseGatherND(const Model &model, const NodePtr& node,
                              const DataVector &inputs,
                              const DataVector &outputs) const {
-    VPU_THROW_UNLESS(layer, "CNNLayer pointer is null.");
+    auto gatherND = ngraph::as_type_ptr<ngraph::op::v5::GatherND>(node);                                 
+    VPU_THROW_UNLESS(gatherND != nullptr, "Node pointer is null.");
     VPU_THROW_UNLESS(inputs.size() == 2,
                      "{} layer with name {} must have 2 inputs, actually "
                      "provided {} inputs",
-                     layer->type, layer->name, inputs.size());
+                     gatherND->get_type_name(), gatherND->get_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "{} layer with name {} must have 1 output, actually "
                      "provided {} outputs",
-                     layer->type, layer->name, outputs.size());
+                     gatherND->get_type_name(), gatherND->get_name(), outputs.size());
 
-    const auto batchDims = layer->GetParamAsInt("batch_dims", 0);
+    const auto batchDims = gatherND->get_batch_dims();
 
-    _stageBuilder->addGatherNDStage(model, layer->name, layer, inputs[0],
+    _stageBuilder->addGatherNDStage(model, gatherND->get_name(), gatherND, inputs[0],
                                     inputs[1], outputs[0], batchDims);
 }
 

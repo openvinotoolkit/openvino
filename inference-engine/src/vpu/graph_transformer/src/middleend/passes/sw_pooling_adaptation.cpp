@@ -131,7 +131,7 @@ void PassImpl::run(const Model& model) {
         auto swStage = model->addNewStage<PoolStage>(
             stage->name(),
             stageType,
-            stage->origLayer(),
+            stage->origNode(),
             {input},
             {output});
 

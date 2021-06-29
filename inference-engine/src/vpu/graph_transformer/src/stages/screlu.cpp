@@ -89,22 +89,22 @@ private:
 }  // namespace
 
 Stage StageBuilder::addSCReluStage(
-        const vpu::Model &model,
-        const std::string &name,
-        const InferenceEngine::CNNLayerPtr &layer,
+        const vpu::Model& model,
+        const std::string& name,
+        const NodePtr& node,
         float negativeSlope,
         Dim axis,
-        const vpu::Data &input,
-        const vpu::Data &output,
-        const vpu::Data &scales,
-        const vpu::Data &biases
+        const vpu::Data& input,
+        const vpu::Data& output,
+        const vpu::Data& scales,
+        const vpu::Data& biases
         ) {
     auto stageType = StageType::SCRelu;
     const Data& fakeInput = model->addFakeData();
     auto stage = model->addNewStage<SCReluStage>(
             name,
             stageType,
-            layer,
+            node,
             {input},
             {output});
 

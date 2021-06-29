@@ -5,8 +5,9 @@
 #pragma once
 
 #include <legacy/ie_layers.h>
+#include <vpu/frontend/frontend.hpp>
 #include <vpu/model/data_contents/calculated_data_content.hpp>
-
+#include <vpu/model/model.hpp>
 namespace vpu {
 
 //
@@ -19,7 +20,7 @@ public:
             const DataDesc& inDesc0,
             const DataDesc& inDesc1,
             const DataDesc& outDesc,
-            const ie::CNNLayerPtr &layer);
+            const NodePtr &node);
 
     size_t byteSize() const override;
 
@@ -30,7 +31,7 @@ private:
     DataDesc _inDesc0;
     DataDesc _inDesc1;
     DataDesc _outDesc;
-    ie::CNNLayerPtr _layer;
+    NodePtr _node;
 };
 
 //
@@ -43,7 +44,7 @@ public:
             const DataDesc& inDesc0,
             const DataDesc& inDesc1,
             const DataDesc& outDesc,
-            const ie::CNNLayerPtr& layer);
+            const NodePtr& node);
 
     size_t byteSize() const override;
 
@@ -54,7 +55,7 @@ private:
     DataDesc _inDesc0;
     DataDesc _inDesc1;
     DataDesc _outDesc;
-    ie::CNNLayerPtr _layer;
+    NodePtr _node;
 };
 
 } // namespace vpu

@@ -73,8 +73,8 @@ void dumpStageToDot(DotSerializer& out, const Stage& stage, int stageExecIdx) {
 
         DotLabel lbl(caption.str(), out);
         lbl.appendPair("type", stage->type());
-        if (stage->origLayer() != nullptr) {
-            lbl.appendPair("origLayer", stage->origLayer());
+        if (stage->origNode() != nullptr) {
+            lbl.appendPair("origLayer", stage->origNode());
         }
         lbl.appendPair("numSHAVEs", stage->numSHAVEs());
         if (!stage->attrs().empty()) {
@@ -154,8 +154,8 @@ void BackEnd::dumpModelToDot(
                 lbl.appendPair("desc", data->desc());
                 lbl.appendPair("requiredStrides", data->requiredStrides());
                 lbl.appendPair("strides", data->strides());
-                if (data->origData() != nullptr) {
-                    lbl.appendPair("origData", data->origData());
+                if (data->origNode() != nullptr) {
+                    lbl.appendPair("origNode", data->origNode());
                 }
                 if (data->content() != nullptr) {
                     if (data->desc().type() == DataType::U8) {

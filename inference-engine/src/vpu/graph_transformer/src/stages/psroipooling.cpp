@@ -69,14 +69,16 @@ private:
 
 }  // namespace
 
-void FrontEnd::parsePSROIPooling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parsePSROIPooling(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    const auto& psROIPooling = ngraph::as_type_ptr<ngraph::op::v0::PSROIPooling>(node);
+    IE_ASSERT(psROIPooling != nullptr);
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
 
-    auto stage = model->addNewStage<PSROIPoolingStage>(layer->name, StageType::PSROIPooling, layer, inputs, outputs);
-    stage->attrs().set<int>("group_size", layer->GetParamAsInt("group_size", 7));
-    stage->attrs().set<int>("output_dim", layer->GetParamAsInt("output_dim", 21));
-    stage->attrs().set<float>("spatial_scale", layer->GetParamAsFloat("spatial_scale", 0.0625f));
+    auto stage = model->addNewStage<PSROIPoolingStage>(psROIPooling->get_name(), StageType::PSROIPooling, psROIPooling, inputs, outputs);
+    stage->attrs().set<int>("group_size", psROIPooling->get_group_size());
+    stage->attrs().set<int>("output_dim", psROIPooling->get_output_dim());
+    stage->attrs().set<float>("spatial_scale", psROIPooling->get_spatial_scale());
 }
 
 }  // namespace vpu

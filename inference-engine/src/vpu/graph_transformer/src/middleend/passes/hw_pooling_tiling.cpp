@@ -84,7 +84,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addReLUStage(
                     model,
                     origStage->name() + "@ReLU",
-                    origStage->origLayer(),
+                    origStage->origNode(),
                     0.0,
                     swOutput,
                     stageIO.origOutput);
@@ -110,7 +110,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addSplitStage(
                     model,
                     origStage->name() + "@split-input",
-                    origStage->origLayer(),
+                    origStage->origNode(),
                     std::move(hwStageTiler.hwInputTilesOffsets),
                     hwStageTiler.hwInput,
                     hwStageTiler.hwInputTiles);
@@ -120,7 +120,7 @@ void PassImpl::run(const Model& model) {
                 _stageBuilder->addConcatStage(
                     model,
                     origStage->name() + "@concat-output",
-                    origStage->origLayer(),
+                    origStage->origNode(),
                     std::move(hwStageTiler.hwOutputTilesOffsets),
                     hwStageTiler.hwOutputTiles,
                     hwStageTiler.hwOutput);

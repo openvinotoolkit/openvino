@@ -60,15 +60,16 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseGRN(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseGRN(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    auto layer = std::dynamic_pointer_cast<ie::GRNLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+    const auto& grn = ngraph::as_type_ptr<ngraph::op::GRN>(node);
+    IE_ASSERT(grn != nullptr);
 
-    auto stage = model->addNewStage<GRNStage>(layer->name, StageType::GRN, layer, inputs, outputs);
-    stage->attrs().set<float>("bias", layer->bias);
+    auto stage = model->addNewStage<GRNStage>(grn->get_name(), StageType::GRN, grn, inputs, outputs);
+
+    stage->attrs().set<float>("bias", grn->get_bias());
 }
 
 }  // namespace vpu

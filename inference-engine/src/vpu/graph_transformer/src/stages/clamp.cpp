@@ -35,20 +35,19 @@ protected:
 
 }  // namespace
 
-void FrontEnd::parseClamp(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseClamp(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
+    const auto& clamp = ngraph::as_type_ptr<ngraph::op::Clamp>(node);
+    IE_ASSERT(clamp != nullptr);
 
-    auto layer = std::dynamic_pointer_cast<ie::ClampLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-
-    _stageBuilder->addClampStage(model, layer->name, layer, layer->min_value,  layer->max_value, inputs[0], outputs[0]);
+    _stageBuilder->addClampStage(model, clamp->get_name(), clamp, clamp->get_min(),  clamp->get_max(), inputs[0], outputs[0]);
 }
 
 Stage StageBuilder::addClampStage(
             const Model& model,
             const std::string& name,
-            const ie::CNNLayerPtr& layer,
+            const NodePtr& node,
             float min,
             float max,
             const Data& input,
@@ -56,7 +55,7 @@ Stage StageBuilder::addClampStage(
         auto stage = model->addNewStage<ClampStage>(
                 name,
                 StageType::Clamp,
-                layer,
+                node,
                 {input},
                 {output});
 

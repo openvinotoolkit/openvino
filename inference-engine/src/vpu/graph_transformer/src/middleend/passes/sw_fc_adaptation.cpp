@@ -108,7 +108,7 @@ void PassImpl::run(const Model& model) {
         model->addNewStage<FullyConnectedStage>(
             stage->name(),
             StageType::FC,
-            stage->origLayer(),
+            stage->origNode(),
             {input, weights},
             {output});
 
@@ -123,7 +123,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addBiasStage(
                 model,
                 stage->name() + "@biases",
-                stage->origLayer(),
+                stage->origNode(),
                 biasesInput, biases,
                 output);
         }
@@ -139,7 +139,7 @@ void PassImpl::run(const Model& model) {
             _stageBuilder->addScaleStage(
                 model,
                 stage->name() + "@scales",
-                stage->origLayer(),
+                stage->origNode(),
                 scalesInput, scales,
                 output);
         }
@@ -157,7 +157,7 @@ Pass::Ptr PassManager::swFullyConnectedAdaptation() {
 Stage StageBuilder::addSwFullyConnectedStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input,
         const Data& weights,
         const Data& biases,
@@ -174,7 +174,7 @@ Stage StageBuilder::addSwFullyConnectedStage(
     auto fcStage = model->addNewStage<FullyConnectedStage>(
         name,
         StageType::FC,
-        layer,
+        node,
         {input, fcWeights},
         {output});
 
@@ -189,7 +189,7 @@ Stage StageBuilder::addSwFullyConnectedStage(
         addBiasStage(
             model,
             name + "@biases",
-            layer,
+            node,
             biasesInput, biases,
             output);
     }
@@ -205,7 +205,7 @@ Stage StageBuilder::addSwFullyConnectedStage(
         addScaleStage(
             model,
             name + "@scales",
-            layer,
+            node,
             scalesInput, scales,
             output);
     }

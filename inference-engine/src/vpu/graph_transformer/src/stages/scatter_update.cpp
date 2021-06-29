@@ -198,9 +198,14 @@ void checkTensorShapes(const vpu::Data& input,
 }
 
 void FrontEnd::parseScatterUpdate(const Model      & model,
-                                  const CNNLayerPtr& layer,
+                                  const NodePtr& node,
                                   const DataVector & inputs,
                                   const DataVector & outputs) const {
+    auto scatterUpdate = ngraph::as_type_ptr<ngraph::op::v3::ScatterUpdate>(node);
+    VPU_THROW_UNLESS(scatterUpdate != nullptr,
+                     "this layer is not an instance of ScatterUpdateLayer: "
+                     "layer name = \"%s\", layer type = \"%s\"",
+                     scatterUpdate->get_name(), scatterUpdate->get_type_name());
     VPU_THROW_UNLESS(inputs.size() == 4, "invalid number of inputs: %lu", inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1, "invalid number of outputs: %lu", outputs.size());
 
@@ -212,23 +217,16 @@ void FrontEnd::parseScatterUpdate(const Model      & model,
 
     checkTensorShapes(input, output, indices, updates, axis);
 
-    auto scatterUpdateLayer = std::dynamic_pointer_cast<ie::ScatterUpdateLayer>(layer);
-
-    VPU_THROW_UNLESS(scatterUpdateLayer != nullptr,
-                     "this layer is not an instance of ScatterUpdateLayer: "
-                     "layer name = \"%s\", layer type = \"%s\"",
-                     layer->name.c_str(), layer->type.c_str());
-
-    auto stage = model->addNewStage<ScatterUpdateStage>(layer->name,
+    auto stage = model->addNewStage<ScatterUpdateStage>(scatterUpdate->get_name(),
                                                         StageType::ScatterUpdate,
-                                                        layer,
+                                                        scatterUpdate,
                                                         {input, indices, updates, axis},
                                                         {output});
 
     VPU_THROW_UNLESS(stage != nullptr,
                      "failed to create ScatterUpdateStage: "
-                     "layer name = \"%s\", layer type = \"%s\"",
-                     layer->name.c_str(), layer->type.c_str());
+                     "node name = \"%s\", node type = \"%s\"",
+                     scatterUpdate->get_name(), scatterUpdate->get_type_name());
 }
 
 //----------------------------------------------------------------------
@@ -236,7 +234,7 @@ void FrontEnd::parseScatterUpdate(const Model      & model,
 Stage StageBuilder::addScatterUpdateStage(
         const Model& model,
         const std::string& name,
-        const ie::CNNLayerPtr& layer,
+        const NodePtr& node,
         const Data& input,
         const Data& output,
         const Data& indices,
@@ -246,14 +244,14 @@ Stage StageBuilder::addScatterUpdateStage(
 
     auto stage = model->addNewStage<ScatterUpdateStage>(name,
                                                         StageType::ScatterUpdate,
-                                                        layer,
+                                                        node,
                                                         {input, indices, updates, axis},
                                                         {output});
 
     VPU_THROW_UNLESS(stage != nullptr,
                      "failed to create ScatterUpdateStage: "
-                     "layer name = \"%s\", layer type = \"%s\"",
-                     layer->name.c_str(), layer->type.c_str());
+                     "layer name = \"{}\", layer type = \"{}\"",
+                     node->get_name(), node->get_type_name());
 
     return stage;
 }

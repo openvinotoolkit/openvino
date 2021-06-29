@@ -209,7 +209,7 @@ void PassImpl::splitStagesWithOneDescriptor(
             _stageBuilder->addConcatStage(
                 model,
                 stage->name() + "@concat-output",
-                stage->origLayer(),
+                stage->origNode(),
                 Dim::N,
                 dimOutputs,
                 output);
@@ -295,7 +295,7 @@ void PassImpl::splitStagesWithManyDescriptors(
             _stageBuilder->addConcatStage(
                 model,
                 stage->name() + "@concat-output",
-                stage->origLayer(),
+                stage->origNode(),
                 Dim::N,
                 dimOutputs,
                 output);
@@ -459,7 +459,7 @@ void PassImpl::splitHwConv(
     _stageBuilder->addConcatStage(
         model,
         stage->name() + "@concat-output",
-        stage->origLayer(),
+        stage->origNode(),
         Dim::C,
         newOutputs,
         output);
@@ -525,7 +525,7 @@ Data PassImpl::splitHwPool(
     _stageBuilder->addSplitStage(
         model,
         stage->name() + "@dim-split",
-        stage->origLayer(),
+        stage->origNode(),
         std::move(inputOffsets),
         input,
         newInputs);
@@ -537,7 +537,7 @@ Data PassImpl::splitHwPool(
     _stageBuilder->addConcatStage(
         model,
         stage->name() + "@dim-concat",
-        stage->origLayer(),
+        stage->origNode(),
         Dim::C,
         newOutputs,
         newOutput);

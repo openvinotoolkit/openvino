@@ -78,7 +78,7 @@ Data HWPoolStageTiler::createInputTile(const HwPoolPlaneTilePtr& planeTile, cons
         _stageBuilder->addCopyStage(
             _model,
             _original->name() + tilePostfix + "@align-input-ptr",
-            _original->origLayer(),
+            _original->origNode(),
             hwInputTile,
             hwInputTileAligned,
             "HWPoolTiler::input");
@@ -116,7 +116,7 @@ Data HWPoolStageTiler::createOutputTile(const HwPoolPlaneTilePtr& planeTile, con
         _stageBuilder->addCopyStage(
             _model,
             _original->name() + tilePostfix + "@align-output-ptr",
-            _original->origLayer(),
+            _original->origNode(),
             hwOutputTileAligned,
             hwOutputTile,
             "HWPoolTiler::output");
@@ -139,7 +139,7 @@ Data HWPoolStageTiler::createOutputTile(const HwPoolPlaneTilePtr& planeTile, con
         _stageBuilder->addCropStage(
             _model,
             _original->name() + tilePostfix + "@remove-junk",
-            _original->origLayer(),
+            _original->origNode(),
             hwOutputTileWithJunk,
             hwOutputTile,
             innerOffset);
@@ -164,7 +164,7 @@ void HWPoolStageTiler::createHWStageForTile(const Data& hwInputTile,
     auto hwStage = _model->addNewStage<MyriadXHwStage>(
         _original->name() + tilePostfix,
         StageType::MyriadXHwOp,
-        _original->origLayer(),
+        _original->origNode(),
         {hwInputTile, hwTileWeights, hwTileBiases, hwTileScales},
         {hwOutputTile});
 

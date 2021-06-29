@@ -44,7 +44,7 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
         auto lstm_cell_ie = std::make_shared<ngraph::op::LSTMCellIE> (lstm_cell->input(0).get_source_output(),  // X
                                                                       lstm_cell->input(1).get_source_output(),  // initial_hidden_state
                                                                       lstm_cell->input(2).get_source_output(),  // initial_cell_state
-                                                                      concat->output(0),                       // WR
+                                                                      concat->output(0),                        // WR
                                                                       lstm_cell->input(5).get_source_output(),  // B
                                                                       lstm_cell->get_hidden_size(),
                                                                       lstm_cell->get_activations(),

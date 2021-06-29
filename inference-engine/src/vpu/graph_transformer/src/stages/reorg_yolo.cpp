@@ -68,18 +68,19 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseReorgYolo(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseReorgYolo(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
-
+    const auto& reorgYolo = ngraph::as_type_ptr<ngraph::op::ReorgYolo>(node);
+    IE_ASSERT(reorgYolo != nullptr);
     auto stage = model->addNewStage<ReorgYoloStage>(
-        layer->name,
+        reorgYolo->get_name(),
         StageType::ReorgYolo,
-        layer,
+        reorgYolo,
         inputs,
         outputs);
 
-    stage->attrs().set<int>("stride", layer->GetParamAsInt("stride", 2));
+    stage->attrs().set<int>("stride", reorgYolo->get_strides()[0]);  // add some condition?
 }
 
 }  // namespace vpu

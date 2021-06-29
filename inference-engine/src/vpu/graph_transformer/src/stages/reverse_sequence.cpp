@@ -64,18 +64,20 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseReverseSequence(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseReverseSequence(const Model& model, const NodePtr& node, const DataVector& inputs, const DataVector& outputs) const {
+    const auto& reverseSequence = ngraph::as_type_ptr<ngraph::op::v0::ReverseSequence>(node);
+    IE_ASSERT(reverseSequence != nullptr);
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
 
-    auto stage = model->addNewStage<ReverseSequenceStage>(layer->name, StageType::ReverseSequence, layer, inputs, outputs);
+    auto stage = model->addNewStage<ReverseSequenceStage>(reverseSequence->get_name(), StageType::ReverseSequence, reverseSequence, inputs, outputs);
 
     auto input = inputs[0];
 
     auto perm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
-    auto seq_axis = layer->GetParamAsInt("seq_axis");
+    auto seq_axis = reverseSequence->get_sequence_axis();
     auto seq_axis_index = perm[input->desc().numDims() - 1 - seq_axis];
-    auto batch_axis = layer->GetParamAsInt("batch_axis");
+    auto batch_axis = reverseSequence->get_batch_axis();
     auto batch_axis_index = perm[input->desc().numDims() - 1 - batch_axis];
 
     stage->attrs().set<Dim>("seq_axis", seq_axis_index);

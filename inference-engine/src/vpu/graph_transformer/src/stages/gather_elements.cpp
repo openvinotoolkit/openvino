@@ -109,14 +109,14 @@ protected:
 
 }// namespace
 
-Stage StageBuilder::addGatherElementsStage(const Model &model,
-                                           const std::string &name,
-                                           const ie::CNNLayerPtr &layer,
-                                           const DataVector &inputs,
-                                           const Data &output, int32_t axis,
+Stage StageBuilder::addGatherElementsStage(const Model& model,
+                                           const std::string& name,
+                                           const NodePtr& node,
+                                           const DataVector& inputs,
+                                           const Data& output, int32_t axis,
                                            bool rowIndicesMode) {
     auto stage = model->addNewStage<GatherElementsStage>(
-        layer->name, StageType::GatherElements, layer, inputs, {output});
+        node->get_name(), StageType::GatherElements, node, inputs, {output});
 
     stage->attrs().set<int32_t>("axis", axis);
     stage->attrs().set<int32_t>("rowIndicesMode", rowIndicesMode);
@@ -124,22 +124,23 @@ Stage StageBuilder::addGatherElementsStage(const Model &model,
     return stage;
 }
 
-void FrontEnd::parseGatherElements(const Model &model, const ie::CNNLayerPtr &layer,
+void FrontEnd::parseGatherElements(const Model &model, const NodePtr& node,
                                    const DataVector &inputs,
                                    const DataVector &outputs) const {
-    VPU_THROW_UNLESS(layer != nullptr, "CNNLayer pointer is null.");
+    auto gatherElements = ngraph::as_type_ptr<ngraph::op::v6::GatherElements>(node);
+    VPU_THROW_UNLESS(gatherElements != nullptr, "Node pointer is null.");
     VPU_THROW_UNLESS(inputs.size() == 2 || inputs.size() == 3,
                      "{} layer with name {} must have 2 inputs, actually "
                      "provided {} inputs",
-                     layer->type, layer->name, inputs.size());
+                     gatherElements->get_type_name(), gatherElements->get_name(), inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "{} layer with name {} must have only 1 output, actually "
                      "provided {} outputs",
-                     layer->type, layer->name, outputs.size());
+                     gatherElements->get_type_name(), gatherElements->get_name(), outputs.size());
 
     bool rowIndicesMode = (inputs.size() == 3);
 
-    const auto axis = layer->GetParamAsInt("axis");
+    const auto axis = gatherElements->get_axis();
     const auto rank = inputs[0]->desc().numDims();
 
     VPU_THROW_UNLESS(rank >= 1, "rank has to be more than or equal to 1, actually {}", rank);
@@ -161,7 +162,7 @@ void FrontEnd::parseGatherElements(const Model &model, const ie::CNNLayerPtr &la
                         rank, axis);
     }
 
-    _stageBuilder->addGatherElementsStage(model, layer->name, layer, inputs, outputs[0], axis, rowIndicesMode);
+    _stageBuilder->addGatherElementsStage(model, gatherElements->get_name(), gatherElements, inputs, outputs[0], axis, rowIndicesMode);
 }
 
 }// namespace vpu

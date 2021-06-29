@@ -165,13 +165,13 @@ void printTo(DotLabel& lbl, const ie::Blob::Ptr& ieBlob) {
     }
 }
 
-void printTo(DotLabel& lbl, const ie::CNNLayerPtr& ieLayer) {
-    VPU_INTERNAL_CHECK(ieLayer != nullptr, "NULL pointer");
+void printTo(DotLabel& lbl, const NodePtr& node) {
+    VPU_INTERNAL_CHECK(node != nullptr, "NULL pointer");
 
     DotLabel subLbl(lbl);
-    subLbl.appendPair("name", ieLayer->name);
-    subLbl.appendPair("type", ieLayer->type);
-    subLbl.appendPair("precision", ieLayer->precision.name());
+    subLbl.appendPair("name", node->get_name());
+    subLbl.appendPair("type", node->get_type_name());
+    subLbl.appendPair("precision", node->get_element_type());
 }
 
 }  // namespace vpu
