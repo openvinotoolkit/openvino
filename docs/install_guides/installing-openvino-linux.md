@@ -295,7 +295,7 @@ cd /opt/intel/openvino_2021/install_dependencies/
 ```sh
 Add OpenCL user to video group    
 ```
-   Ignore this suggestion and continue.<br>You can also find the most recent version of the driver, installation procedure and other information in the [https://github.com/intel/compute-runtime/](https://github.com/intel/compute-runtime/) repository.
+   Ignore this suggestion and continue.<br>You can also find the most recent version of the driver, installation procedure and other information on the [Intel® software for general purpose GPU capabilities](https://dgpu-docs.intel.com/index.html) site.
 
 3. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
