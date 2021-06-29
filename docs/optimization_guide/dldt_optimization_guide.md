@@ -87,7 +87,7 @@ Networks training is typically done on high-end data centers, using popular trai
 
 ![](../img/workflow_steps.png)
 
-As described in the [Model Optimizer Guide](../MO_DG/prepare_model/Prepare_Trained_Model.md), there are a number of device-agnostic optimizations the tool performs.  For example, certain primitives like linear operations (BatchNorm and ScaleShift), are automatically fused into convolutions. Generally, these layers should not be manifested in the resulting IR:
+As described in the [Model Optimizer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), there are a number of device-agnostic optimizations the tool performs. For example, certain primitives like linear operations (BatchNorm and ScaleShift), are automatically fused into convolutions. Generally, these layers should not be manifested in the resulting IR:
 
 ![](../img/resnet_269.png)
 
