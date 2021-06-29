@@ -91,6 +91,9 @@ TEST(DISABLED_util, dump)
 }
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include "windows.h"
 #define usleep(a) Sleep(a / 1000)
 #endif
