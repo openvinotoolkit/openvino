@@ -11,7 +11,7 @@ license terms for third party or open source software included in or with the So
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
 
-The **developer package** includes the following components installed by default:
+**The developer package includes the following components installed by default:**
 
 | Component        | Console Script                                                                   | Description                                                                                                                                                                                                                                                                                                   |  
 |------------------|---------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -21,8 +21,9 @@ The **developer package** includes the following components installed by default
 | [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html)| `pot` |**Post-Training Optimization Tool** allows you to optimize trained models with advanced capabilities, such as quantization and low-precision optimizations, without the need to retrain or fine-tune models. Optimizations are also available through the [API](https://docs.openvinotoolkit.org/latest/pot_compression_api_README.html).                                            |
 | [Model Downloader and other Open Model Zoo tools](https://docs.openvinotoolkit.org/latest/omz_tools_downloader.html)| `omz_downloader` <br> `omz_converter` <br> `omz_quantizer` <br> `omz_info_dumper`| **Model Downloader** is a tool for getting access to the collection of high-quality and extremely fast pre-trained deep learning [public](https://docs.openvinotoolkit.org/latest/omz_models_group_public.html) and [intel](https://docs.openvinotoolkit.org/latest/omz_models_group_intel.html)-trained models. Use these free pre-trained models instead of training your own models to speed up the development and production deployment process. The principle of the tool is as follows: it downloads model files from online sources and, if necessary, patches them with Model Optimizer to make them more usable. A number of additional tools are also provided to automate the process of working with downloaded models:<br> **Model Converter** is a tool for converting the models stored in a format other than the Intermediate Representation (IR) into that format using Model Optimizer. <br> **Model Quantizer** is a tool for automatic quantization of full-precision IR models into low-precision versions using Post-Training Optimization Tool. <br> **Model Information Dumper** is a helper utility for dumping information about the models in a stable machine-readable format.|
 
+> **NOTE**: The developer package also installs the OpenVINO™ runtime package as a dependency.
 
-**Developer package** also provides the **runtime package** installed as a dependency. The runtime package includes the following components:
+**The runtime package installs the following components:**
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -87,10 +88,10 @@ python -m pip install --upgrade pip
 
 To install and configure the components of the development package for working with specific frameworks, use the `pip install openvino-dev[extras]` command, where `extras` is a list of extras from the table below: 
 
-| DL Framework                                                                     | Extra                          |
+| DL Framework                                                                     | Extra                           |
 | :------------------------------------------------------------------------------- | :-------------------------------|
 |   [Caffe*](https://caffe.berkeleyvision.org/)                                    | caffe                           |
-|   [Caffe2*](https://caffe2.ai/)                                                 | caffe2                          |
+|   [Caffe2*](https://caffe2.ai/)                                                  | caffe2                          |
 |   [Kaldi*](https://kaldi-asr.org/)                                               | kaldi                           |
 |   [MXNet*](https://mxnet.apache.org/)                                            | mxnet                           |
 |   [ONNX*](https://github.com/microsoft/onnxruntime/)                             | onnx                            |
