@@ -57,9 +57,6 @@ else
     python_binary=python3
 fi
 
-# latest pip is needed to install tensorflow
-"$python_binary" -m pip install --upgrade pip
-
 install_latest_ov() {
     if $2; then
         sudo -E "$1" -m pip install openvino
@@ -169,14 +166,18 @@ find_ie_bindings() {
 }
 
 if [[ $V_ENV -eq 1 ]]; then
-    "$python_binary" -m venv "$SCRIPTDIR/../venv${postfix}"
-    source "$SCRIPTDIR/../venv${postfix}/bin/activate"
-    venv_python_binary="$SCRIPTDIR/../venv${postfix}/bin/$python_binary"
+    "$python_binary" -m venv "$HOME/venv_mo${postfix}"
+    source "$HOME/venv_mo${postfix}/bin/activate"
+    venv_python_binary="$HOME/venv_mo${postfix}/bin/$python_binary"
+    # latest pip is needed to install tensorflow
+    "$venv_python_binary" -m pip install --upgrade pip
     $venv_python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     find_ie_bindings "$venv_python_binary" false
     echo
-    echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv${postfix}/bin/activate\""
+    echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${HOME}/venv_mo${postfix}/bin/activate\""
 else
+    # latest pip is needed to install tensorflow
+    "$python_binary" -m pip install --upgrade pip
     "$python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     find_ie_bindings "$python_binary" false
     echo "[WARNING] All Model Optimizer dependencies are installed globally."
