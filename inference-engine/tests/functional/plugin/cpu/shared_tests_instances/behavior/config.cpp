@@ -31,7 +31,8 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> AutoConfigs = {
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}}
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}, {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "YES"}},
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}, {std::string("AUTO_"), "NAN"}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
@@ -72,7 +73,9 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> autoinconfigs = {
         {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU},
-            {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "OFF"}}
+            {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "OFF"}},
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU},
+            {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "ON"}}
     };
 
     const std::vector<std::map<std::string, std::string>> multiconf = {
@@ -93,13 +96,6 @@ namespace {
             ::testing::ValuesIn(multiconf)),
             CorrectConfigAPITests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigAPITests,
-            ::testing::Combine(
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-            ::testing::ValuesIn(AutoConfigs)),
-            CorrectConfigAPITests::getTestCaseName);
-
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
@@ -112,6 +108,13 @@ namespace {
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
             ::testing::ValuesIn(multiinconfigs)),
+            IncorrectConfigTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
+            ::testing::Combine(
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+            ::testing::ValuesIn(autoinconfigs)),
             IncorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
