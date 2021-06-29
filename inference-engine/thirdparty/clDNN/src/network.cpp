@@ -563,8 +563,6 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
         prim.second->reset_output_change();
     }
 
-    get_stream().reset_events();
-
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.

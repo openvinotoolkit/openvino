@@ -42,175 +42,52 @@
 
 namespace InferenceEngine {
 namespace gapi {
-
-//using namespace kernels;
-
 namespace kernels {
+
+using isas_set = typelist<
+#ifdef HAVE_AVX512
+        avx512_tag,
+#endif
+#ifdef HAVE_AVX2
+        avx2_tag,
+#endif
+#ifdef HAVE_SSE
+        sse42_tag,
+#endif
+#ifdef HAVE_NEON
+        neon_tag,
+#endif
+    //scalar "ISA" have to be the last one in the list,
+    //as the search for supported ISA is performed until first match
+    scalar_tag>;
+#ifdef HAVE_AVX512
+    bool is_present(avx512_tag) { return with_cpu_x86_avx512f(); }
+#endif  // HAVE_AVX512
+
+#ifdef HAVE_AVX2
+    bool is_present(avx2_tag) { return with_cpu_x86_avx2(); }
+#endif  // HAVE_AVX2
+
+#ifdef HAVE_SSE
+    bool is_present(sse42_tag) { return with_cpu_x86_sse42(); }
+#endif  // HAVE_SSE
+
+#ifdef HAVE_NEON
+    bool is_present(neon_tag) { return true; }
+#endif  // HAVE_NEON
+
+//scalar version of kernels is always available
+bool is_present(scalar_tag) { return true; }
+
+struct is_isa_present {
+    template< typename isa_tag_t>
+    bool operator()(type_to_type<isa_tag_t>) {
+        return is_present(isa_tag_t{});
+    }
+};
+
 namespace {
 
-struct fp_16_t {
-    int16_t v;
-};
-
-
-template<typename type>
-struct cv_type_to_depth;
-
-template<> struct cv_type_to_depth<std::uint8_t>    { enum { depth = CV_8U  }; };
-template<> struct cv_type_to_depth<std::int8_t>     { enum { depth = CV_8S  }; };
-template<> struct cv_type_to_depth<std::uint16_t>   { enum { depth = CV_16U }; };
-template<> struct cv_type_to_depth<std::int16_t>    { enum { depth = CV_16S }; };
-template<> struct cv_type_to_depth<std::int32_t>    { enum { depth = CV_32S }; };
-template<> struct cv_type_to_depth<float>           { enum { depth = CV_32F }; };
-template<> struct cv_type_to_depth<fp_16_t>         { enum { depth = CV_16F }; };
-
-template<typename ... types>
-struct typelist {};
-
-template<typename type_list>
-struct head;
-
-template<template<typename ...> class list, typename head_t, typename ... types>
-struct head<list<head_t, types...>> { using type = head_t;};
-
-template<typename typelist>
-using head_t = typename head<typelist>::type;
-
-template<typename type>
-struct type_to_type {};
-
-template <typename typelist>
-struct type_dispatch_impl;
-
-//FIXME: add test for type_dispatch
-template <template<typename ...> class typelist, typename... type>
-struct type_dispatch_impl<typelist<type...>> {
-    template <typename result_t, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t>
-    static result_t dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value) {
-        result_t res = default_value;
-
-        bool matched = false;
-        std::initializer_list<int> ({
-            !matched && (type_id == type_to_id(type_to_type<type>{})) ?
-                    (matched = true, res = type_to_value(type_to_type<type>{})), 0
-                    : 0
-            ...
-        });
-        return res;
-    }
-
-    template <typename result_t, typename default_t, typename pred_t, typename type_to_value_t>
-    static result_t dispatch(pred_t&& pred, type_to_value_t&& type_to_value, default_t default_value) {
-        result_t res = default_value;
-
-        bool matched = false;
-        std::initializer_list<int> ({
-            !matched && pred(type_to_type<type>{}) ?
-                    (matched = true, res = type_to_value(type_to_type<type>{})), 0
-                    : 0
-            ...
-        });
-        return res;
-    }
-};
-
-template<typename left_typelsist, typename right_typelsist>
-struct concat;
-
-template<typename left_typelsist, typename right_typelsist>
-using concat_t = typename concat<left_typelsist, right_typelsist>::type;
-
-template<template<typename ...> class left_list, typename ... left_types, template<typename ...> class right_list, typename ... right_types>
-struct concat<left_list<left_types...>, right_list<right_types...>>{
-    using type = left_list<left_types... , right_types...>;
-};
-
-template< class T, class U >
-using is_same_t = typename std::is_same<T, U>::type;
-
-template<bool C, class T, class E> struct if_c_impl;
-
-template<class T, class E> struct if_c_impl<true, T, E> {
-    using type = T;
-};
-
-template<class T, class E> struct if_c_impl<false, T, E> {
-    using type = E;
-};
-
-template<bool C, class T, class E>
-using if_c = typename if_c_impl<C, T, E>::type;
-
-template<class C, class T, class E>
-using if_ = typename if_c_impl<C::value != 0, T, E>::type;
-
-template<typename typelist, typename type>
-struct remove;
-
-template<typename typelist, typename type>
-using remove_t = typename remove<typelist, type>::type;
-
-
-template<template<typename ...> class list, typename head_t, typename ... types, typename t>
-struct remove<list<head_t, types...>, t> {
-    using type = concat_t<
-            if_<is_same_t<head_t, t>, list<>, list<head_t>>,
-            remove_t<list<types...>, t>
-            >;
-};
-
-template<template<typename ...> class list, typename t>
-struct remove<list<>, t> {
-    using type = list<>;
-};
-
-}  // namespace
-
-template <typename typelist, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t,
-          typename result_t = decltype(std::declval<type_to_value_t>()(type_to_type<head_t<typelist>> {}))>
-inline result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value = {}) {
-    return type_dispatch_impl<typelist>::template dispatch<result_t>(std::forward<type_id_t>(type_id),
-                                                                     std::forward<type_to_id_t>(type_to_id),
-                                                                     std::forward<type_to_value_t>(type_to_value),
-                                                                     std::forward<default_t>(default_value));
-}
-
-template <typename typelist, typename default_t, typename pred_t, typename type_to_value_t,
-          typename result_t = decltype(std::declval<type_to_value_t>()(type_to_type<head_t<typelist>> {}))>
-inline result_t type_dispatch(pred_t&& pred, type_to_value_t&& type_to_value, default_t default_value = {}) {
-    return type_dispatch_impl<typelist>::template dispatch<result_t>(std::forward<pred_t>(pred),
-                                                                     std::forward<type_to_value_t>(type_to_value),
-                                                                     std::forward<default_t>(default_value));
-}
-namespace {
-
-struct cv_type_id {
-    template <typename type>
-    const int operator()(type_to_type<type> ) { return cv_type_to_depth<type>::depth;}
-};
-
-}  // namespace
-
-template <typename typelist>
-bool is_cv_type_in_list(const int type_id) {
-    return type_dispatch<typelist>(type_id, cv_type_id{}, [](...){ return true;}, false);
-}
-
-
-G_TYPED_KERNEL(ScalePlane8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_8u") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc & in, const Size & sz, int) {
-        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
-        return in.withSize(sz);
-    }
-};
-
-G_TYPED_KERNEL(ScalePlane32f, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_32f") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc & in, const Size & sz, int) {
-        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
-        return in.withSize(sz);
-    }
-};
-namespace {
 using merge_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float, fp_16_t>;
 
 template<typename T, int chs>
@@ -314,49 +191,6 @@ struct typed_split_row {
     }
 };
 }  // namespace
-
-//----------------------------------------------------------------------
-using isas_set = typelist<
-#ifdef HAVE_AVX512
-        avx512_tag,
-#endif
-#ifdef HAVE_AVX2
-        avx2_tag,
-#endif
-#ifdef HAVE_SSE
-        sse42_tag,
-#endif
-#ifdef HAVE_NEON
-        neon_tag,
-#endif
-        //scalar "ISA" have to be the last one in the list,
-        //as the search for supported ISA is performed until first match
-        scalar_tag>;
-#ifdef HAVE_AVX512
-bool is_present(avx512_tag) { return with_cpu_x86_avx512f(); }
-#endif  // HAVE_AVX512
-
-#ifdef HAVE_AVX2
-bool is_present(avx2_tag)   { return with_cpu_x86_avx2();    }
-#endif  // HAVE_AVX2
-
-#ifdef HAVE_SSE
-bool is_present(sse42_tag)  { return with_cpu_x86_sse42();   }
-#endif  // HAVE_SSE
-
-#ifdef HAVE_NEON
-bool is_present(neon_tag)   { return true; }
-#endif  // HAVE_NEON
-
-//scalar version of kernels is always available
-bool is_present(scalar_tag) { return true; }
-
-struct is_isa_present {
-    template< typename isa_tag_t>
-    bool operator()(type_to_type<isa_tag_t>) {
-        return is_present(isa_tag_t{});
-    }
-};
 
 //    GAPI_OCV_KERNEL(OCVChanToPlane, ChanToPlane) {
 //        static void run(const cv::Mat &in, int chan, cv::Mat &out) {
@@ -806,8 +640,8 @@ struct typed_resizeLinearF32C1 {
                   const float alpha[], const int mapsx[],
                   const float beta[], const Size& inSz,
                   const Size& outSz, const int lpi, const int length) {
-                calcRowLinear32FC1Impl(isa_tag_t{}, dst, src0, src1, alpha,
-                                       mapsx, beta, inSz, outSz, lpi, length);
+            calcRowLinear32FC1Impl(isa_tag_t{}, dst, src0, src1, alpha,
+                                   mapsx, beta, inSz, outSz, lpi, length);
         };
     }
 
@@ -818,8 +652,87 @@ struct typed_resizeLinearF32C1 {
                   const float alpha[], const int mapsx[],
                   const float beta[], const Size& inSz,
                   const Size& outSz, const int lpi, const int length) {
-                calcRowLinear32FC1Impl<Mapper>(isa_tag_t{}, dst, src0, src1, alpha,
-                                               mapsx, beta, inSz, outSz, lpi, length);
+            calcRowLinear32FC1Impl<Mapper>(isa_tag_t{}, dst, src0, src1, alpha,
+                                           mapsx, beta, inSz, outSz, lpi, length);
+        };
+    }
+};
+}  // namespace
+
+namespace {
+
+using resizeLinearU8C3C4_suptypes = typelist<uint8_t>;
+
+template<class Mapper, int chs>
+inline void calcRowLinear8UC3C4Impl(scalar_tag,
+                                    std::array<std::array<uint8_t*, 4>, chs>& dst,
+                                    const uint8_t* src0[],
+                                    const uint8_t* src1[],
+                                    const short    alpha[],
+                                    const short    clone[],  // 4 clones of alpha
+                                    const short    mapsx[],
+                                    const short    beta[],
+                                    uint8_t        tmp[],
+                                    const Size&    inSz,
+                                    const Size&    outSz,
+                                    const int      lpi,
+                                    const int      length) {
+    using alpha_type = typename Mapper::alpha_type;
+    for (int l = 0; l < lpi; l++) {
+        constexpr static const auto unity = Mapper::unity;
+
+        auto beta0 = beta[l];
+        auto beta1 = saturate_cast<alpha_type>(unity - beta[l]);
+
+        for (int x = 0; x < length; x++) {
+            auto alpha0 = alpha[x];
+            auto alpha1 = saturate_cast<alpha_type>(unity - alpha[x]);
+            auto sx0 = mapsx[x];
+            auto sx1 = sx0 + 1;
+
+            for (int c = 0; c < chs; c++) {
+                auto idx0 = chs * sx0 + c;
+                auto idx1 = chs * sx1 + c;
+                uint8_t tmp0 = calc(beta0, src0[l][idx0], beta1, src1[l][idx0]);
+                uint8_t tmp1 = calc(beta0, src0[l][idx1], beta1, src1[l][idx1]);
+                dst[c][l][x] = calc(alpha0, tmp0, alpha1, tmp1);
+            }
+        }
+    }
+}
+
+template<typename isa_tag_t, class Mapper, int chs>
+struct typed_resizeLinearU8C3C4 {
+    using p_f = void (*)(std::array<std::array<uint8_t*, 4>, chs>& dst, const uint8_t* src0[], const uint8_t* src1[],
+                         const short alpha[], const short clone[], const short mapsx[],
+                         const short beta[], uint8_t tmp[], const Size& inSz,
+                         const Size& outSz, const int lpi, const int length);
+
+    template<typename tag = isa_tag_t>
+    inline typename std::enable_if<!std::is_same<tag, scalar_tag>::value, p_f>::type
+    operator()(type_to_type<uint8_t>) {
+        return [](std::array<std::array<uint8_t*, 4>, chs>& dst, const uint8_t* src0[], const uint8_t* src1[],
+                  const short alpha[], const short clone[], const short mapsx[],
+                  const short beta[], uint8_t tmp[], const Size& inSz,
+                  const Size& outSz, const int lpi, const int length) {
+            if (!calcRowLinear8UC3C4Impl<isa_tag_t, chs>(isa_tag_t{}, dst, src0,
+                                         src1, alpha, clone,
+                                         mapsx, beta, tmp,
+                                         inSz, outSz, lpi, length))
+                calcRowLinear8UC3C4Impl<Mapper, chs>(scalar_tag{}, dst, src0, src1, alpha, clone,
+                                                   mapsx, beta, tmp, inSz, outSz, lpi, length);
+        };
+    }
+
+    template<typename tag = isa_tag_t>
+    inline typename std::enable_if<std::is_same<tag, scalar_tag>::value, p_f>::type
+    operator()(type_to_type<uint8_t>) {
+        return [](std::array<std::array<uint8_t*, 4>, chs>& dst, const uint8_t* src0[],
+                  const uint8_t* src1[], const short alpha[], const short clone[],
+                  const short mapsx[], const short beta[], uint8_t tmp[], const Size& inSz,
+                  const Size& outSz, const int lpi, const int length) {
+            calcRowLinear8UC3C4Impl<Mapper, chs>(isa_tag_t{}, dst, src0, src1, alpha, clone,
+                                                 mapsx, beta, tmp, inSz, outSz, lpi, length);
         };
     }
 };
@@ -1129,6 +1042,107 @@ GAPI_FLUID_KERNEL(FScalePlane32f, ScalePlane32f, true) {
                       resizeLinearF32C1_suptypes>(in, out, scratch);
     }
 };
+
+template<typename T, class Mapper, int chs>
+static inline void calcRowLinearC(const cv::gapi::fluid::View& in,
+                           std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, chs>& out,
+                           cv::gapi::fluid::Buffer& scratch) {
+    GAPI_DbgAssert(is_cv_type_in_list<resizeLinearU8C3C4_suptypes>(in.meta().depth));
+
+    auto  inSz =  in.meta().size;
+    auto outSz = out[0].get().meta().size;
+
+    auto inY  = in.y();
+    auto outY = out[0].get().y();
+    auto lpi  = out[0].get().lpi();
+
+    GAPI_DbgAssert(outY + lpi <= outSz.height);
+    GAPI_DbgAssert(lpi <= 4);
+
+    linearScratchDesc<T, Mapper, chs> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
+
+    const auto *alpha = scr.alpha;
+    const auto *clone = scr.clone;
+    const auto *mapsx = scr.mapsx;
+    const auto *beta0 = scr.beta;
+    const auto *mapsy = scr.mapsy;
+    auto *tmp         = scr.tmp;
+
+    const auto *beta = beta0 + outY;
+    const T *src0[4];
+    const T *src1[4];
+    std::array<std::array<T*, 4>, chs> dst;
+
+    for (int l = 0; l < lpi; l++) {
+        auto index0 = mapsy[outY + l] - inY;
+        auto index1 = mapsy[outSz.height + outY + l] - inY;
+        src0[l] = in.InLine<const T>(index0);
+        src1[l] = in.InLine<const T>(index1);
+        for (int c=0; c < chs; c++) {
+            dst[c][l] = out[c].get().template OutLine<T>(l);
+        }
+    }
+    auto length = out[0].get().length();
+
+    const auto rowFunc = type_dispatch<resizeLinearU8C3C4_suptypes>(in.meta().depth,
+                                                                    cv_type_id{},
+                                                                    typed_resizeLinearU8C3C4<isa_tag_t, Mapper, chs>{},
+                                                                    nullptr);
+    GAPI_DbgAssert(rowFunc);
+
+    rowFunc(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi, length);
+}
+
+GAPI_FLUID_KERNEL(FScalePlanes, ScalePlanes, true) {
+    static const int Window = 1;
+    static const int LPI = 4;
+    static const auto Kind = cv::GFluidKernel::Kind::Resize;
+
+    static void initScratch(const cv::GMatDesc& in, int, Size,
+                            Size outSz, int /*interp*/,
+                            cv::gapi::fluid::Buffer &scratch) {
+        initScratchLinear<uchar, linear::Mapper, 3>(in, outSz, scratch, LPI);
+    }
+
+    static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
+    }
+
+    static void run(const cv::gapi::fluid::View& in, int, Size, Size/*sz*/, int /*interp*/,
+                    cv::gapi::fluid::Buffer& out1,
+                    cv::gapi::fluid::Buffer& out2,
+                    cv::gapi::fluid::Buffer& out3,
+                    cv::gapi::fluid::Buffer& scratch) {
+        constexpr int numChan = 3;
+        std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, numChan> out = {out1, out2, out3};
+        calcRowLinearC<uint8_t, linear::Mapper, numChan>(in, out, scratch);
+    }
+};
+
+GAPI_FLUID_KERNEL(FScalePlanes4, ScalePlanes4, true) {
+    static const int Window = 1;
+    static const int LPI = 4;
+    static const auto Kind = cv::GFluidKernel::Kind::Resize;
+
+    static void initScratch(const cv::GMatDesc& in, int, Size,
+                            Size outSz, int /*interp*/,
+                            cv::gapi::fluid::Buffer &scratch) {
+        initScratchLinear<uchar, linear::Mapper, 4>(in, outSz, scratch, LPI);
+    }
+
+    static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
+    }
+
+    static void run(const cv::gapi::fluid::View& in, int, Size, Size/*sz*/, int /*interp*/,
+                    cv::gapi::fluid::Buffer& out1,
+                    cv::gapi::fluid::Buffer& out2,
+                    cv::gapi::fluid::Buffer& out3,
+                    cv::gapi::fluid::Buffer& out4,
+                    cv::gapi::fluid::Buffer& scratch) {
+        constexpr int numChan = 4;
+        std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, numChan> out = {out1, out2, out3, out4};
+        calcRowLinearC<uint8_t, linear::Mapper, numChan>(in, out, scratch);
+    }
+};
 };
 
 namespace {
@@ -1162,6 +1176,8 @@ struct Split_ResizeISA {
         pckg.include<typename choose_impl<isa_tag_t>::FSplit4>();
         pckg.include<typename choose_impl<isa_tag_t>::FScalePlane8u>();
         pckg.include<typename choose_impl<isa_tag_t>::FScalePlane32f>();
+        pckg.include<typename choose_impl<isa_tag_t>::FScalePlanes>();
+        pckg.include<typename choose_impl<isa_tag_t>::FScalePlanes4>();
         //at the moment type_dispatch requires something to be returned by the lambda
         return true;
     }
@@ -1184,38 +1200,6 @@ inline cv::gapi::GKernelPackage FKernelsChooseISA() {
 }
 
 //----------------------------------------------------------------------
-
-G_TYPED_KERNEL(UpscalePlaneArea8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.upscale_plane_area_8u") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
-        GAPI_DbgAssert(in.size.width < sz.width || in.size.height < sz.height);
-        return in.withSize(sz);
-    }
-};
-
-G_TYPED_KERNEL(UpscalePlaneArea32f, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.upscale_plane_area_32f") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
-        GAPI_DbgAssert(in.size.width < sz.width || in.size.height < sz.height);
-        return in.withSize(sz);
-    }
-};
-
-G_TYPED_KERNEL(ScalePlaneArea8u, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_area_8u") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_8U && in.chan == 1);
-        GAPI_DbgAssert(in.size.width >= sz.width && in.size.height >= sz.height);
-        return in.withSize(sz);
-    }
-};
-
-G_TYPED_KERNEL(ScalePlaneArea32f, <cv::GMat(cv::GMat, Size, int)>, "com.intel.ie.scale_plane_area_32f") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const Size &sz, int) {
-        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
-        GAPI_DbgAssert(in.size.width >= sz.width && in.size.height >= sz.height);
-        return in.withSize(sz);
-    }
-};
 
 GAPI_COMPOUND_KERNEL(FScalePlane, ScalePlane) {
     static cv::GMat expand(cv::GMat in, int type, const Size& szIn, const Size& szOut, int interp) {
@@ -1306,149 +1290,6 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
         }
     }
 }
-
-template<typename T, class Mapper, int numChan>
-static void calcRowLinearC(const cv::gapi::fluid::View  & in,
-                           std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, numChan>& out,
-                           cv::gapi::fluid::Buffer& scratch) {
-    using alpha_type = typename Mapper::alpha_type;
-
-    auto  inSz =  in.meta().size;
-    auto outSz = out[0].get().meta().size;
-
-    auto inY  = in.y();
-    auto outY = out[0].get().y();
-    auto lpi  = out[0].get().lpi();
-
-    GAPI_DbgAssert(outY + lpi <= outSz.height);
-    GAPI_DbgAssert(lpi <= 4);
-
-    linearScratchDesc<T, Mapper, numChan> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
-
-    const auto *alpha = scr.alpha;
-    const auto *clone = scr.clone;
-    const auto *mapsx = scr.mapsx;
-    const auto *beta0 = scr.beta;
-    const auto *mapsy = scr.mapsy;
-    auto *tmp         = scr.tmp;
-
-    const auto *beta = beta0 + outY;
-    const T *src0[4];
-    const T *src1[4];
-    std::array<std::array<T*, 4>, numChan> dst;
-
-    for (int l = 0; l < lpi; l++) {
-        auto index0 = mapsy[outY + l] - inY;
-        auto index1 = mapsy[outSz.height + outY + l] - inY;
-        src0[l] = in.InLine<const T>(index0);
-        src1[l] = in.InLine<const T>(index1);
-        for (int c=0; c < numChan; c++) {
-            dst[c][l] = out[c].get().template OutLine<T>(l);
-        }
-    }
-
-#ifdef HAVE_AVX512
-    if (with_cpu_x86_avx512_core()) {
-        if (std::is_same<T, uint8_t>::value) {
-            if (inSz.width >= 64 && outSz.width >= 32) {
-                avx512::calcRowLinear_8UC<numChan>(dst,
-                                                   reinterpret_cast<const uint8_t**>(src0),
-                                                   reinterpret_cast<const uint8_t**>(src1),
-                                                   reinterpret_cast<const short*>(alpha),
-                                                   reinterpret_cast<const short*>(clone),
-                                                   reinterpret_cast<const short*>(mapsx),
-                                                   reinterpret_cast<const short*>(beta),
-                                                   reinterpret_cast<uint8_t*>(tmp),
-                                                   inSz, outSz, lpi);
-                return;
-            }
-        }
-    }
-#else
-    (void)tmp;
-    (void)clone;
-#endif
-
-#ifdef HAVE_AVX2
-    if (with_cpu_x86_avx2()) {
-        if (std::is_same<T, uint8_t>::value) {
-            if (inSz.width >= 32 && outSz.width >= 16) {
-                avx::calcRowLinear_8UC<numChan>(dst,
-                                                reinterpret_cast<const uint8_t**>(src0),
-                                                reinterpret_cast<const uint8_t**>(src1),
-                                                reinterpret_cast<const short*>(alpha),
-                                                reinterpret_cast<const short*>(clone),
-                                                reinterpret_cast<const short*>(mapsx),
-                                                reinterpret_cast<const short*>(beta),
-                                                reinterpret_cast<uint8_t*>(tmp),
-                                                inSz, outSz, lpi);
-                return;
-            }
-        }
-    }
-#endif
-
-#ifdef HAVE_SSE
-    if (with_cpu_x86_sse42()) {
-        if (std::is_same<T, uint8_t>::value) {
-            if (inSz.width >= 16 && outSz.width >= 8) {
-                calcRowLinear_8UC<numChan>(dst,
-                                           reinterpret_cast<const uint8_t**>(src0),
-                                           reinterpret_cast<const uint8_t**>(src1),
-                                           reinterpret_cast<const short*>(alpha),
-                                           reinterpret_cast<const short*>(clone),
-                                           reinterpret_cast<const short*>(mapsx),
-                                           reinterpret_cast<const short*>(beta),
-                                           reinterpret_cast<uint8_t*>(tmp),
-                                           inSz, outSz, lpi);
-                return;
-            }
-        }
-    }
-#endif  // HAVE_SSE
-
-#ifdef HAVE_NEON
-    if (std::is_same<T, uint8_t>::value) {
-        if (inSz.width >= 16 && outSz.width >= 8) {
-            neon::calcRowLinear_8UC<numChan>(dst,
-                                             reinterpret_cast<const uint8_t**>(src0),
-                                             reinterpret_cast<const uint8_t**>(src1),
-                                             reinterpret_cast<const short*>(alpha),
-                                             reinterpret_cast<const short*>(clone),
-                                             reinterpret_cast<const short*>(mapsx),
-                                             reinterpret_cast<const short*>(beta),
-                                             reinterpret_cast<uint8_t*>(tmp),
-                                             inSz, outSz, lpi);
-            return;
-         }
-    }
-#endif  // HAVE_NEON
-
-    auto length = out[0].get().length();
-
-    for (int l = 0; l < lpi; l++) {
-        constexpr static const auto unity = Mapper::unity;
-
-        auto beta0 =                                   beta[l];
-        auto beta1 = saturate_cast<alpha_type>(unity - beta[l]);
-
-        for (int x = 0; x < length; x++) {
-            auto alpha0 =                                   alpha[x];
-            auto alpha1 = saturate_cast<alpha_type>(unity - alpha[x]);
-            auto sx0 = mapsx[x];
-            auto sx1 = sx0 + 1;
-
-            for (int c = 0; c < numChan; c++) {
-                auto idx0 = numChan*sx0 + c;
-                auto idx1 = numChan*sx1 + c;
-                T tmp0 = calc(beta0, src0[l][idx0], beta1, src1[l][idx0]);
-                T tmp1 = calc(beta0, src0[l][idx1], beta1, src1[l][idx1]);
-                dst[c][l][x] = calc(alpha0, tmp0, alpha1, tmp1);
-            }
-        }
-    }
-}
-
 
 //------------------------------------------------------------------------------
 namespace areaUpscale {
@@ -2138,57 +1979,6 @@ GAPI_FLUID_KERNEL(FScalePlane8u, ScalePlane8u, true) {
     }
 };
 
-GAPI_FLUID_KERNEL(FScalePlanes, ScalePlanes, true) {
-    static const int Window = 1;
-    static const int LPI = 4;
-    static const auto Kind = cv::GFluidKernel::Kind::Resize;
-
-    static void initScratch(const cv::GMatDesc& in, int, Size,
-                            Size outSz, int /*interp*/,
-                            cv::gapi::fluid::Buffer &scratch) {
-        initScratchLinear<uchar, linear::Mapper, 3>(in, outSz, scratch, LPI);
-    }
-
-    static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
-    }
-
-    static void run(const cv::gapi::fluid::View& in, int, Size, Size/*sz*/, int /*interp*/,
-                    cv::gapi::fluid::Buffer& out1,
-                    cv::gapi::fluid::Buffer& out2,
-                    cv::gapi::fluid::Buffer& out3,
-                    cv::gapi::fluid::Buffer& scratch) {
-        constexpr int numChan = 3;
-        std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, numChan> out = {out1, out2, out3};
-        calcRowLinearC<uint8_t, linear::Mapper, numChan>(in, out, scratch);
-    }
-};
-
-GAPI_FLUID_KERNEL(FScalePlanes4, ScalePlanes4, true) {
-    static const int Window = 1;
-    static const int LPI = 4;
-    static const auto Kind = cv::GFluidKernel::Kind::Resize;
-
-    static void initScratch(const cv::GMatDesc& in, int, Size,
-                            Size outSz, int /*interp*/,
-                            cv::gapi::fluid::Buffer &scratch) {
-        initScratchLinear<uchar, linear::Mapper, 4>(in, outSz, scratch, LPI);
-    }
-
-    static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
-    }
-
-    static void run(const cv::gapi::fluid::View& in, int, Size, Size/*sz*/, int /*interp*/,
-                    cv::gapi::fluid::Buffer& out1,
-                    cv::gapi::fluid::Buffer& out2,
-                    cv::gapi::fluid::Buffer& out3,
-                    cv::gapi::fluid::Buffer& out4,
-                    cv::gapi::fluid::Buffer& scratch) {
-        constexpr int numChan = 4;
-        std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, numChan> out = {out1, out2, out3, out4};
-        calcRowLinearC<uint8_t, linear::Mapper, numChan>(in, out, scratch);
-    }
-};
-
 GAPI_FLUID_KERNEL(FUpscalePlaneArea8u, UpscalePlaneArea8u, true) {
     static const int Window = 1;
     static const int LPI = 4;
@@ -2228,29 +2018,6 @@ GAPI_FLUID_KERNEL(FUpscalePlaneArea32f, UpscalePlaneArea32f, true) {
         calcRowLinear<float, areaUpscale32f::Mapper>(in, out, scratch);
     }
 };
-
-GAPI_FLUID_KERNEL(FScalePlane32f, ScalePlane32f, true) {
-    static const int Window = 1;
-    static const int LPI = 4;
-    static const auto Kind = cv::GFluidKernel::Kind::Resize;
-
-    static void initScratch(const cv::GMatDesc& in,
-                            Size outSz, int /*interp*/,
-                            cv::gapi::fluid::Buffer &scratch) {
-        GAPI_DbgAssert(in.depth == CV_32F && in.chan == 1);
-
-        initScratchLinear<float, linear32f::Mapper>(in, outSz, scratch, 0);
-    }
-
-    static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
-    }
-
-    static void run(const cv::gapi::fluid::View& in, Size /*sz*/, int /*interp*/,
-                    cv::gapi::fluid::Buffer& out, cv::gapi::fluid::Buffer &scratch) {
-        calcRowLinear<float, linear32f::Mapper>(in, out, scratch);
-    }
-};
-
 //----------------------------------------------------------------------
 
 GAPI_FLUID_KERNEL(FScalePlaneArea32f, ScalePlaneArea32f, true) {
@@ -2435,9 +2202,7 @@ cv::gapi::GKernelPackage preprocKernels() {
     return combine(
         FKernelsChooseISA(),
         cv::gapi::kernels
-        <FScalePlanes
-        , FScalePlanes4
-        , FScalePlane
+        < FScalePlane
         , FUpscalePlaneArea8u
         , FUpscalePlaneArea32f
         , FScalePlaneArea8u
