@@ -24,6 +24,10 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         return false;
     }
 
+    if (NetworkHelper::isFQByDynamicDimension(layer)) {
+        return false;
+    }
+
     layer = NetworkHelper::fuseConvert(layer);
     if (NetworkHelper::isConstantPath(layer)) {
         // fold fq if constant just before fq and child layers aren't supported in LPT
