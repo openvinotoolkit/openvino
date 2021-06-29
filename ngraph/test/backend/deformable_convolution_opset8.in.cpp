@@ -2867,3 +2867,74 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_gro
             filter_shape, mask, mask_shape, outputs, outputs_shape, strides, padding,
             dilations, group, deformable_group, tolerance_bits, true);
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_neg_offsets_groups_and_deforgroups_modulation_scalars)
+{
+    const Strides strides{1, 1};
+    const CoordinateDiff padding{0, 0};
+    const Strides dilations{1, 1};
+    const int64_t group = 1;
+    const int64_t deformable_group = 2;
+    const Shape inputs_shape{1, 2, 3, 3};
+    const std::vector<float> inputs{1.0f, 2.0f, 3.0f,
+                                    4.0f, 5.0f, 6.0f,
+                                    7.0f, 8.0f, 9.0f,
+                                    10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f,
+                                    16.0f, 17.0f, 18.0f,};
+    const Shape filter_shape{2, 2, 2, 2};
+    const std::vector<float> filter{1.0f, 2.0f,
+                                    3.0f, 4.0f,
+                                    5.0f, 6.0f,
+                                    7.0f, 8.0f,
+                                    -1.0f, -2.0f,
+                                    -3.0f, -4.0f,
+                                    -5.0f, -6.0f,
+                                    -7.0f, -8.0f,
+    };
+    const Shape offsets_shape{1, 16, 2, 2};
+    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), -1.1);
+    const Shape outputs_shape{1, 2, 2, 2};
+    const std::vector<float> outputs{45.910797,  104.8302,
+                                     63.12059 ,  151.47789,
+                                     -45.910797, -104.8302,
+                                     -63.12059 , -151.47789};
+    const Shape mask_shape{1, 8, 2, 2};
+    const std::vector<float> mask{0.64f,
+                                  0.18f,
+                                  0.23f,
+                                  0.74f,
+                                  0.89f,
+                                  0.70f,
+                                  0.13f,
+                                  0.99f,
+                                  0.48f,
+                                  0.20f,
+                                  0.67f,
+                                  0.88f,
+                                  0.17f,
+                                  0.19f,
+                                  0.53f,
+                                  0.22f,
+                                  0.50f,
+                                  0.07f,
+                                  0.21f,
+                                  0.99f,
+                                  0.09f,
+                                  0.28f,
+                                  0.66f,
+                                  0.91f,
+                                  0.28f,
+                                  0.89f,
+                                  0.91f,
+                                  0.39f,
+                                  0.70f,
+                                  0.67f,
+                                  0.26f,
+                                  0.09f
+    };
+    const size_t tolerance_bits = 6;
+    DeformableConvolutionOpset8Test(inputs, inputs_shape, offsets, offsets_shape, filter,
+                                    filter_shape, mask, mask_shape, outputs, outputs_shape, strides, padding,
+                                    dilations, group, deformable_group, tolerance_bits, true);
+}
