@@ -43,4 +43,4 @@ class TensorArrayWriter(Op):
         # flow_out
         for _, out_node in node.graph.out_edges(node.id):
             node.graph.node[out_node]['shape'] = shape_array(output_shape)
-            node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)
+            node.graph.node[out_node]['value'] = None if output_value is None else output_value.copy()

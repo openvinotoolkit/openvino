@@ -36,8 +36,8 @@ class ONNXResize11Op(Op):
             return
 
         assert (node.is_in_port_connected(0) and (node.is_in_port_connected(2) or node.is_in_port_connected(3))), \
-            "One of the scales or sizes inputs must be connected to Node {} with op {}.".format(node.soft_get("name", node.id),
-                                                                                                node.op)
+            "One of the scales or sizes inputs must be connected to Node {} with op {}." \
+            "".format(node.soft_get("name", node.id), node.op)
 
         assert node.coordinate_transformation_mode != 'tf_crop_and_resize', \
             'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(node.op,
@@ -57,6 +57,6 @@ class ONNXResize11Op(Op):
                 "Node {} with op {} has no value in input port 3".format(node.soft_get("name", node.id), node.op)
             output_shape = input_shape.copy()
             spatial_dimension_indices = range(2, len(input_shape))
-            output_shape[spatial_dimension_indices] = int64_array(sizes)[2:]
+            output_shape[spatial_dimension_indices] = sizes[2:]
 
-        node.out_port(0).data.set_shape(output_shape.copy())
+        node.out_port(0).data.set_shape(output_shape)
