@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import mark_input_bins
+from mo.front.common.partial_infer.utils import mark_input_bins, shape_array
 from mo.graph.graph import Node, add_opoutput, Graph
 from mo.ops.op import Op
 
@@ -96,7 +96,7 @@ class LSTMSequence(Op):
                         node.in_node(port).value = np.repeat(node.in_node(port).value, input_shape[i], axis=i)
                         node.in_node(port).shape[i] = input_shape[i]
 
-        out_shape = np.array([input_shape[node.sequence_dim], input_shape[node.batch_dim], node.hidden_size], dtype=np.int64)
+        out_shape = shape_array([input_shape[node.sequence_dim], input_shape[node.batch_dim], node.hidden_size])
         assert not node.has_num_directions or node.sequence_dim == 0, \
             'If has_num_directions == True, then node.sequence_dim should be equal 0, but it is {}'.format(
                 node.sequence_dim)
@@ -104,12 +104,12 @@ class LSTMSequence(Op):
         num_layers = node.num_layers
         if node.has_num_directions:
             # insert extra dimension to output shape for num_directions
-            out_shape = np.insert(out_shape, 1, np.int64(num_directions))
+            out_shape = np.ma.concatenate([out_shape[:1], [np.int64(num_directions)], out_shape[1:]])
         node.out_node(0).shape = out_shape
         # extra outputs for hidden/cell states
-        state_size = np.array([input_shape[1], node.hidden_size], dtype=np.int64)
+        state_size = shape_array([input_shape[1], node.hidden_size])
         if node.has_num_directions:
-            state_size = np.insert(state_size, 0, num_directions*num_layers)
+            state_size = np.ma.concatenate([[num_directions * num_layers], state_size])
         for i in [1,2]:
             if i not in node.out_nodes():
                 data_node = Op._create_data_node(

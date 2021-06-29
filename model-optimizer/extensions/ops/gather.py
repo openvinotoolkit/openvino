@@ -84,14 +84,15 @@ class Gather(Op):
         indices_value = node.in_port(1).data.get_value()
         if data_value is not None and indices_value is not None and is_fully_defined(indices_value):
             if batch_dims == 0:
-                node.out_port(0).data.set_value(np.take(data_value, indices_value, axis))
+                node.out_port(0).data.set_value(np.ma.take(data_value, indices_value, axis))
             else:
                 out_value = np.empty(out_shape)
                 for batch_idx in np.ndindex(tuple(batch_dims_range)):
-                    out_value[batch_idx] = np.take(data_value[batch_idx], indices_value[batch_idx], axis - batch_dims)
+                    out_value[batch_idx] = np.ma.take(data_value[batch_idx], indices_value[batch_idx],
+                                                      axis - batch_dims)
                 node.out_port(0).data.set_value(out_value)
         else:
-            node.out_port(0).data.set_shape(int64_array(out_shape))
+            node.out_port(0).data.set_shape(out_shape)
 
 
 class AttributedGather(Op):
