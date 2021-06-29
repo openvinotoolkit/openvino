@@ -15,7 +15,7 @@ namespace subgraph {
 class ReluFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
@@ -25,7 +25,7 @@ public:
         const FakeQuantizeOnData& fqOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,
