@@ -9,6 +9,7 @@
 #include "mkldnn_itt.h"
 
 #include <threading/ie_executor_manager.hpp>
+#include <chrono>
 #include <memory>
 #include <ie_plugin_config.hpp>
 #include <vector>
@@ -125,6 +126,16 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
+
+    ngraph::pass::Manager m;
+    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ngraph::pass::ConstantFolding>();
+    m.run_passes(nGraphFunc);
+
+    auto before = std::chrono::steady_clock::now();
+    nGraphFunc->validate_nodes_and_infer_types();
+    auto after = std::chrono::steady_clock::now();
+    std::cout << "Validate time: " << std::chrono::duration_cast<std::chrono::microseconds>(after - before).count() << " microseconds" << std::endl;
 
     auto get_convert_precisions = []() {
         precisions_array array = {
