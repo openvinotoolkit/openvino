@@ -140,12 +140,10 @@ class TestLSTM(Caffe2OnnxLayerTest):
         return onnx_net, None
 
     @pytest.mark.precommit
+    @pytest.mark.timeout(300)  # "Sporadic TimeoutError (Inference Engine running timed out)"
     @pytest.mark.parametrize('direction', ["forward", "bidirectional", "reverse"])
     @pytest.mark.parametrize('cell_type', ["LSTM", "GRU", "RNN"])
     def test_lstm_simple_precommit(self, direction, cell_type, ie_device, precision, ir_version, temp_dir):
-        if ie_device == 'GPU':
-            # TODO: add test to precommit after heavy/light optimization
-            pytest.skip("Sporadic TimeoutError (Inference Engine running timed out) on GPU")
         self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version, temp_dir=temp_dir)
 
     # LSTM/RNN/GRU Sequence Generation
