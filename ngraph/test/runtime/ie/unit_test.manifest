@@ -1119,6 +1119,7 @@ IE_CPU.onnx_model_reduce_sum_13_axes_empty_dynamic_rank_input
 IE_CPU.onnx_model_reduce_sum_dynamic_rank_input
 IE_CPU.transpose_axes_parameter_static_shapes
 IE_CPU.transpose_axes_parameter_dynamic_shapes
+IE_CPU.mish_dynamic
 
 # Axes has zero dimension which is not allowed
 IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
