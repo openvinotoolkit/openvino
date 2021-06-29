@@ -75,7 +75,6 @@ extensions/front/AttributedRollToRoll.py
 extensions/front/binary_quantize_normalization.py
 extensions/front/broadcast_with_range.py
 extensions/front/caffe/__init__.py
-extensions/front/caffe/accum_ext.py
 extensions/front/caffe/argmax_ext.py
 extensions/front/caffe/ArgMaxFlatten.py
 extensions/front/caffe/axpy.py
@@ -658,7 +657,6 @@ extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
 extensions/middle/UselessSplitEraser.py
 extensions/ops/__init__.py
-extensions/ops/accum.py
 extensions/ops/activation_ops.py
 extensions/ops/adaptive_avg_pooling.py
 extensions/ops/argmax.py
