@@ -9,6 +9,8 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
+        // TODO: FIX BUG 23741 (Open)
+        ".*InferRequestTests\\.canRun3SyncRequestsConsistentlyFromThreads.*",
         // TODO: FIX BUG 31661
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
