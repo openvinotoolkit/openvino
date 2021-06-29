@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 KERNEL(shuffle_channels_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {

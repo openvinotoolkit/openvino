@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 KERNEL(reorder_weights_image_winograd_6x3_s1)(const __global INPUT0_TYPE* input, write_only image2d_t output)
 {
@@ -10,15 +11,15 @@ KERNEL(reorder_weights_image_winograd_6x3_s1)(const __global INPUT0_TYPE* input,
     const uint input_tile_height = 3;
     const uint in_tile_x_idx = get_global_id(1);
     const uint in_tile_y_idx = get_global_id(0);
-    
+
     const uint output_tile_width = 8;
     const uint output_tile_height = 1;
-    
+
     const uint tile_x_idx = get_global_id(0);
     const uint tile_y_idx = get_global_id(1);
     const uint feature_idx = (uint)get_global_id(2) % INPUT0_IFM_NUM;
     const uint batch_idx = (uint)get_global_id(2) / INPUT0_IFM_NUM;
-    
+
     uint in_idx = batch_idx * INPUT0_OFM_PITCH
         + feature_idx * INPUT0_IFM_PITCH
         + in_tile_y_idx * input_tile_height * INPUT0_Y_PITCH
@@ -34,7 +35,7 @@ KERNEL(reorder_weights_image_winograd_6x3_s1)(const __global INPUT0_TYPE* input,
 
 #if OUTPUT_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB
     const uint ySize = OUTPUT_OFM_NUM * OUTPUT_SIZE_X * OUTPUT_SIZE_Y;
-    uint idx = batch_idx % 16 + 
+    uint idx = batch_idx % 16 +
         tile_y_idx * output_tile_height * weightsOSplit +
         tile_x_idx * output_tile_width * weightsOSplit * OUTPUT_SIZE_Y +
         batch_idx / 16 * weightsOSplit * OUTPUT_SIZE_X * OUTPUT_SIZE_Y +
@@ -42,7 +43,7 @@ KERNEL(reorder_weights_image_winograd_6x3_s1)(const __global INPUT0_TYPE* input,
     uint idx_x = idx%ySize;
     uint idx_y = idx/ySize;
     const uint Stride = weightsOSplit * OUTPUT_SIZE_Y;
-    
+
     write_imagef(output, (int2)(idx_x, idx_y), TO_OUTPUT_TYPE(+90.0 / 90 * tile.x)); idx_x += Stride; //if (idx_x >= ySize) { idx_x = idx_x % ySize; idx_y++; }
     write_imagef(output, (int2)(idx_x, idx_y), TO_OUTPUT_TYPE(-20.0 / 90 * tile.x - 20.0 / 90 * tile.y - 20.0 / 90 * tile.z)); idx_x += Stride;  //if (idx_x >= ySize) { idx_x = idx_x % ySize; idx_y++; }
     write_imagef(output, (int2)(idx_x, idx_y), TO_OUTPUT_TYPE(-20.0 / 90 * tile.x + 20.0 / 90 * tile.y - 20.0 / 90 * tile.z)); idx_x += Stride;  //if (idx_x >= ySize) { idx_x = idx_x % ySize; idx_y++; }
@@ -63,7 +64,7 @@ KERNEL(reorder_weights_image_winograd_6x3_s1)(const __global INPUT0_TYPE* input,
     uint idx_x = idx%ySize;
     uint idx_y = idx/ySize;
     const uint Stride = INPUT0_IFM_NUM;
-    
+
     write_imagef(output, (int2)(idx_x, idx_y), TO_OUTPUT_TYPE(+90.0 / 90 * tile.x)); idx_y += Stride; //if (idx_x >= ySize) { idx_x = idx_x % ySize; idx_y++; }
     write_imagef(output, (int2)(idx_x, idx_y), TO_OUTPUT_TYPE(-20.0 / 90 * tile.x - 20.0 / 90 * tile.y - 20.0 / 90 * tile.z)); idx_y += Stride;  //if (idx_x >= ySize) { idx_x = idx_x % ySize; idx_y++; }
     write_imagef(output, (int2)(idx_x, idx_y), TO_OUTPUT_TYPE(-20.0 / 90 * tile.x + 20.0 / 90 * tile.y - 20.0 / 90 * tile.z)); idx_y += Stride;  //if (idx_x >= ySize) { idx_x = idx_x % ySize; idx_y++; }
@@ -72,7 +73,7 @@ KERNEL(reorder_weights_image_winograd_6x3_s1)(const __global INPUT0_TYPE* input,
     write_imagef(output, (int2)(idx_x, idx_y), TO_OUTPUT_TYPE(+64.0 / 90 * tile.x + 32.0 / 90 * tile.y + 16.0 / 90 * tile.z)); idx_y += Stride;  //if (idx_x >= ySize) { idx_x = idx_x % ySize; idx_y++; }
     write_imagef(output, (int2)(idx_x, idx_y), TO_OUTPUT_TYPE(+64.0 / 90 * tile.x - 32.0 / 90 * tile.y + 16.0 / 90 * tile.z)); idx_y += Stride;  //if (idx_x >= ySize) { idx_x = idx_x % ySize; idx_y++; }
     write_imagef(output, (int2)(idx_x, idx_y), TO_OUTPUT_TYPE(+90.0 / 90 * tile.z));
-    
+
 #endif
 
 

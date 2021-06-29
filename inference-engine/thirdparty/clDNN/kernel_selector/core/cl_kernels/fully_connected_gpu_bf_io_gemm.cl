@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #if defined(__fc_f16)
 
@@ -26,19 +27,19 @@ KERNEL(fc_f16)(
     const unsigned batch_id = 0;
 #else
     const unsigned batch_id = get_global_id(2);
-    
+
     const unsigned out_z = y / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const unsigned out_yx = y % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const unsigned out_y = out_yx / (OUTPUT_SIZE_X);
     const unsigned out_x = out_yx % (OUTPUT_SIZE_X);
-    
+
     const unsigned oidx = batch_id*OUTPUT_BATCH_PITCH + out_z*OUTPUT_FEATURE_PITCH + out_y*OUTPUT_Y_PITCH + out_x + OUTPUT_OFFSET;
 #endif
-    
+
     // TODO: we need to support multi dims. currently it doesn't
     // TODO: check cases we have padding in y/z dimensions
     unsigned w = INPUT0_BATCH_PITCH;
-    
+
     #if (LAST_INPUT_SIZE_DIV_4 == 0)
     w /= VEC_SIZE;
     __global const half4 *mat_read    = (__global const half4 *) (matrix);
@@ -115,7 +116,7 @@ KERNEL(fc_f16)(
     if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0], ACTIVATION_PARAMS);
     #endif
 }
-#endif 
+#endif
 
 
 #if defined(__fc_f32)
@@ -140,18 +141,18 @@ KERNEL(fc_f32)(
     const unsigned batch_id = 0;
 #else
     const unsigned batch_id = get_global_id(2);
-    
+
     const unsigned out_z = y / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const unsigned out_yx = y % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const unsigned out_y = out_yx / (OUTPUT_SIZE_X);
     const unsigned out_x = out_yx % (OUTPUT_SIZE_X);
-    
+
     const unsigned oidx = batch_id*OUTPUT_BATCH_PITCH + out_z*OUTPUT_FEATURE_PITCH + out_y*OUTPUT_Y_PITCH + out_x + OUTPUT_OFFSET;
 #endif
     // TODO: we need to support multi dims. currently it doesn't
     // TODO: check cases we have padding in y/z dimensions
     unsigned w = INPUT0_BATCH_PITCH;
-    
+
     #if BIAS_TERM
     const float bias = biases[y];
     #else
@@ -229,5 +230,4 @@ KERNEL(fc_f32)(
 
     if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0] + bias, ACTIVATION_PARAMS);
 }
-#endif 
-
+#endif

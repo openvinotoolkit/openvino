@@ -4,7 +4,6 @@
 
 #include "include/common.cl"
 #include "include/data_types.cl"
-#include "include/fetch.cl"
 #include "include/imad.cl"
 
 #define INPUT0_PACKED_TYPE uint

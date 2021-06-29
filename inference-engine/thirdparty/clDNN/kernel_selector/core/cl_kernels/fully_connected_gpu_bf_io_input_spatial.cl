@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 // Required JIT constants:
 //  - FP16_SUPPORTED        - [0/1] Value indicating whether device supports FP16 OpenCL extension (cl_khr_fp16).
@@ -74,4 +75,3 @@ KERNEL (fully_connected_gpu_bf_io_input_spatial)(
         output[x] = ACTIVATION((UNIT_TYPE)(result), ACTIVATION_PARAMS);
     }
 }
-

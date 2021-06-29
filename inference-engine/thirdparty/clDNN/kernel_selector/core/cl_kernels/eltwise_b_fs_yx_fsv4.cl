@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
-#include "include/common.cl"
 #include "include/data_types.cl"
-
+#include "include/fetch_data.cl"
 
 #define OUTPUT_TYPE_BLOCK               MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 #define TO_TYPE(type, val)              CAT(convert_, type)(val)

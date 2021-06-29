@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #define INPUT_AXIS_INDEX (uint)indices[indices_idx]
 #define GET_DICTIONARY_INDEX(idx_order) INPUT0_GET_INDEX(idx_order)
