@@ -1282,9 +1282,6 @@ void InsertSplitAligningFilterPass::run() {
                     auto inputData = splitOutput;
 
                     size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(currentOffset) - 64));
-                    size_t
-                            newOutputSize = (currentOffset + ALIGN(outputSize, 8) * bytesPerSplitElement - aligned64_offset)
-                                            / bytesPerSplitElement;
 
                     IE_ASSERT(filterLayer != nullptr);
 
@@ -1295,8 +1292,6 @@ void InsertSplitAligningFilterPass::run() {
                     if (dims.size() > 3) {
                         THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
                     }
-
-                    auto num_rows_out = dims[1] * (dims.size() != 2 ? dims[2] : 1);
 
                     auto offset = (currentOffset - aligned64_offset) / bytesPerSplitElement;
                     auto convolution_filter_size = offset + 4;

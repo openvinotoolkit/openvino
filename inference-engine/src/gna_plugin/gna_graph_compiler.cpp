@@ -162,8 +162,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
                         InferenceEngine::details::product(begin(dataOutput->getDims()),
                                                         end(dataOutput->getDims())) * dataOutput->getPrecision().size();
 
-                if (//LayerInfo(outFunctionalLayer.first).isAffineFilter() ||
-                    LayerInfo(outFunctionalLayer.first).isConvolutionFilter()) {
+                if (LayerInfo(outFunctionalLayer.first).isConvolutionFilter()) {
                     size_t aligned64_offset = outFunctionalLayer.first->GetParamAsInt("offset");
                     layerInfoItem.splitOutputLayers.emplace_back(
                         outFunctionalLayer.first,
@@ -1757,18 +1756,17 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
         GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
     uint32_t num_columns_in = GetDataDimSize(inputs, 1);
     uint32_t num_columns_out = GetDataDimSize(outputs, 1);
-    uint32_t num_rows_in = 1;
-    uint32_t num_filters = 4;
+    const auto num_filters = GNALimitations::convMinFiltersNum;
+    const auto convolutionStride = num_filters;
     uint32_t num_filter_coefficients = num_filters + 16 + 4;
     num_columns_in += num_filter_coefficients;
-    num_columns_out = (num_columns_in - num_filter_coefficients) / 4 + 1;
+    // TODO reuse formula for number of outputs
+    num_columns_out = (num_columns_in - num_filter_coefficients) / convolutionStride + 1;
     num_columns_out *= num_filters;
-    //uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
     const auto& biasPrecision = filterLayer->_biases ? filterLayer->_biases->getTensorDesc().getPrecision() : outputs->getPrecision();
     auto& currentComponent = dnnComponents.addComponent(layer->name, "affine");
 
-    uint32_t num_feature_map_columns = num_filters;
-    uint32_t num_feature_map_rows = num_columns_in / num_feature_map_columns;
+    uint32_t num_feature_map_rows = num_columns_in / convolutionStride;
     layer->params["num_rows_for_pwl"] = std::to_string(num_columns_out);
     dnn->InitConvolutional1DComponent(currentComponent,
         num_columns_in,
@@ -1780,7 +1778,7 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
         num_filters,
         num_filter_coefficients,
         num_feature_map_rows,
-        num_feature_map_columns,
+        convolutionStride,
         quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
         quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
         ptr_inputs,
@@ -1797,26 +1795,10 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
     connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-    //if (num_padding == 0) {
-        gnamem->readonly().push_ptr(ptr_weights,
-            filterLayer->_weights->cbuffer().as<const void*>(),
-            filterLayer->_weights->byteSize(),
-            64);
-    // } else {
-    //     auto elementsIn = (num_rows_in + num_padding) * num_columns_in;
-    //     auto paddedWeights = elementsIn * num_rows_out;
-    //     auto paddedWeightsSize = paddedWeights * filterLayer->precision.size();
-    // 
-    //     gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
-    //         size_t offset = 0;
-    //         for (uint32_t i = 0; i < num_rows_out && size >= offset; i++) {
-    //             ie_memcpy(reinterpret_cast<uint8_t*>(data) + offset, size - offset,
-    //                 filterLayer->_weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * filterLayer->precision.size(),
-    //                 num_rows_in* filterLayer->precision.size());
-    //             offset += (num_rows_in + num_padding) * filterLayer->precision.size();
-    //         }
-    //         }, 64);
-    // }
+    gnamem->readonly().push_ptr(ptr_weights,
+        filterLayer->_weights->cbuffer().as<const void*>(),
+        filterLayer->_weights->byteSize(),
+        64);
 
     if (filterLayer->_biases) {
         gnamem->readonly().push_ptr(ptr_biases,
@@ -1899,7 +1881,6 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         if (num_rows_for_pwl != 0) {
             num_rows = num_rows_for_pwl;
         }
-
     }
     size_t num_data_bytes_out = num_columns * num_rows * outputs->getPrecision().size();
     size_t num_data_bytes_in = num_columns * num_rows * inputs->getPrecision().size();
