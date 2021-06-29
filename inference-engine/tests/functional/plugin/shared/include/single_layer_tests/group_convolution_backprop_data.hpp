@@ -8,7 +8,12 @@
 
 namespace LayerTestsDefinitions {
 
+// DEPRECATED, remove this old API when KMB (#58495) and ARM (#58496) plugins are migrated to new API
 TEST_P(GroupConvBackpropDataLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(GroupConvBackpropLayerTest, CompareWithRefs) {
     Run();
 }
 
