@@ -335,7 +335,8 @@ namespace
                                                           op->get_strides(),
                                                           op->get_dilations(),
                                                           op->get_pads_begin(),
-                                                          op->get_pads_end());
+                                                          op->get_pads_end(),
+                                                          op->get_output_padding());
         return true;
     }
 
