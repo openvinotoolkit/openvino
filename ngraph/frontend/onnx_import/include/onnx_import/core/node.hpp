@@ -48,7 +48,7 @@ namespace ngraph
         {
         public:
             Node() = delete;
-            Node(const ONNX_NAMESPACE::NodeProto& node_proto, std::shared_ptr<Graph> graph);
+            Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph);
 
             Node(Node&&) noexcept;
             Node(const Node&);

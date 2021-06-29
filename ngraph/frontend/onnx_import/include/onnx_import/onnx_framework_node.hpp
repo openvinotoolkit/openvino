@@ -41,19 +41,15 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
 
-            ONNXFrameworkNode(const std::shared_ptr<onnx_import::Graph>& graph,
-                              const onnx_import::Node& node)
+            ONNXFrameworkNode(const onnx_import::Node& node)
                 : FrameworkNode(node.get_ng_inputs(), node.get_outputs_size())
-                , m_graph(graph)
                 , m_node(node)
             {
             }
 
-            ONNXFrameworkNode(const std::shared_ptr<onnx_import::Graph>& graph,
-                              const onnx_import::Node& node,
+            ONNXFrameworkNode(const onnx_import::Node& node,
                               const OutputVector& inputs)
                 : FrameworkNode(inputs, node.get_outputs_size())
-                , m_graph(graph)
                 , m_node(node)
             {
             }
@@ -74,7 +70,6 @@ namespace ngraph
             }
 
         private:
-            std::shared_ptr<onnx_import::Graph> m_graph;
             onnx_import::Node m_node;
         };
 
@@ -83,10 +78,9 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
 
-            ONNXSubgraphFrameworkNode(const std::shared_ptr<onnx_import::Graph>& graph,
-                                      const onnx_import::Node& node,
+            ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
                                       const OutputVector& inputs)
-                : ONNXFrameworkNode(graph, node, inputs)
+                : ONNXFrameworkNode(node, inputs)
             {
             }
 

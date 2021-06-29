@@ -20,7 +20,7 @@ namespace ngraph
 {
     namespace onnx_import
     {
-        class Graph : public std::enable_shared_from_this<Graph>
+        class Graph
         {
         public:
             Graph(std::unique_ptr<Model>&& model);

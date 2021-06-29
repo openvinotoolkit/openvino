@@ -71,7 +71,7 @@ namespace ngraph
             void enable_opset_domain(const std::string& domain);
 
         private:
-            const std::unique_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
+            std::unique_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
             std::unordered_map<std::string, OperatorSet> m_opset;
         };
 

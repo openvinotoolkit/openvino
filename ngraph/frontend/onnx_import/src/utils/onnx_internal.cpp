@@ -17,15 +17,6 @@ namespace ngraph
     {
         namespace detail
         {
-            std::shared_ptr<Function> decode_model(const ONNX_NAMESPACE::ModelProto& model_proto)
-            {
-                auto p_model_proto = common::make_unique<ONNX_NAMESPACE::ModelProto>(model_proto);
-                auto model = common::make_unique<Model>(std::move(p_model_proto));
-
-                auto graph = std::make_shared<Graph>(std::move(model));
-                return graph->decode_model();
-            }
-
             void remove_dangling_parameters(std::shared_ptr<Function>& function)
             {
                 auto parameters = function->get_parameters();
@@ -110,7 +101,10 @@ namespace ngraph
                 transform::fixup_legacy_operators(model_proto);
                 transform::update_external_data_paths(model_proto, model_path);
 
-                auto function = detail::decode_model(model_proto);
+                auto p_model_proto = common::make_unique<ONNX_NAMESPACE::ModelProto>(model_proto);
+                auto model = common::make_unique<Model>(std::move(p_model_proto));
+                Graph graph{std::move(model)};
+                auto function = graph.decode_model();
                 detail::convert_function(function);
                 return function;
             }

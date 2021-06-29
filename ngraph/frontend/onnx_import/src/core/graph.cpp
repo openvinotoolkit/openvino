@@ -163,7 +163,7 @@ namespace ngraph
             // Process ONNX graph nodes, convert to nGraph nodes
             for (const auto& node_proto : m_model->get_graph().node())
             {
-                m_nodes.emplace_back(node_proto, shared_from_this());
+                m_nodes.emplace_back(node_proto, *this);
                 const Node& node{m_nodes.back()};
                 std::shared_ptr<frontend::ONNXFrameworkNode> framework_node;
                 if (node.has_subgraph())
@@ -173,13 +173,11 @@ namespace ngraph
                     auto inputs = node.get_ng_inputs();
                     for (const auto& input : subgraph->get_inputs_from_parent())
                         inputs.push_back(input);
-                    framework_node = std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(
-                        shared_from_this(), node, inputs);
+                    framework_node = std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(node, inputs);
                 }
                 else
                 {
-                    framework_node = std::make_shared<ngraph::frontend::ONNXFrameworkNode>(
-                        shared_from_this(), node);
+                    framework_node = std::make_shared<ngraph::frontend::ONNXFrameworkNode>(node);
                 }
                 OutputVector ng_nodes{framework_node->outputs()};
                 set_friendly_names(node, ng_nodes);

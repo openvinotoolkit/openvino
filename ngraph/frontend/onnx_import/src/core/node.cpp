@@ -19,11 +19,11 @@ namespace ngraph
         public:
             Impl() = delete;
 
-            Impl(const ONNX_NAMESPACE::NodeProto& node_proto, std::shared_ptr<Graph> graph)
+            Impl(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph)
                 : m_node_proto{&node_proto}
                 , m_name{node_proto.has_name() ? node_proto.name() : ""}
                 , m_domain{get_node_domain(node_proto)}
-                , m_graph{graph}
+                , m_graph{&graph}
                 , m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())}
                 , m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())}
             {
@@ -39,12 +39,12 @@ namespace ngraph
             }
 
             Impl(const ONNX_NAMESPACE::NodeProto& node_proto,
-                 std::shared_ptr<Graph> graph,
+                 const Graph& graph,
                  std::shared_ptr<Subgraph> subgraph)
                 : m_node_proto{&node_proto}
                 , m_name{node_proto.has_name() ? node_proto.name() : ""}
                 , m_domain{get_node_domain(node_proto)}
-                , m_graph{graph}
+                , m_graph{&graph}
                 , m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())}
                 , m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())}
                 , m_has_subgraph(subgraph != nullptr)
@@ -77,7 +77,7 @@ namespace ngraph
             T get_attribute_value(const std::string& name) const;
 
             const ONNX_NAMESPACE::NodeProto& node_proto() const;
-            std::shared_ptr<Graph> graph() const;
+            const Graph& graph() const;
 
         private:
             Subgraph get_subgraph_from_attribute(const std::string& name) const;
@@ -85,7 +85,7 @@ namespace ngraph
             const ONNX_NAMESPACE::NodeProto* m_node_proto;
             std::string m_name;
             std::string m_domain;
-            std::shared_ptr<Graph> m_graph;
+            const Graph* m_graph;
             std::vector<Attribute> m_attributes;
             std::vector<std::reference_wrapper<const std::string>> m_output_names;
             mutable std::string m_description;
@@ -95,7 +95,7 @@ namespace ngraph
         };
 
         const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const { return *m_node_proto; }
-        std::shared_ptr<Graph> Node::Impl::graph() const { return m_graph; }
+        const Graph& Node::Impl::graph() const { return *m_graph; }
         const std::vector<Attribute>& Node::Impl::attributes() const { return m_attributes; }
         const std::string& Node::Impl::domain() const { return m_domain; }
         const std::string& Node::Impl::op_type() const { return m_node_proto->op_type(); }
@@ -213,7 +213,7 @@ namespace ngraph
             return m_description;
         }
 
-        Node::Node(const ONNX_NAMESPACE::NodeProto& node_proto, std::shared_ptr<Graph> graph)
+        Node::Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph)
             : m_pimpl{new Impl{node_proto, graph}, [](Impl* impl) { delete impl; }}
         {
         }
