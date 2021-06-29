@@ -110,19 +110,17 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-set (GFLAGS_IS_SUBPROJECT TRUE)
-set (HAVE_SYS_STAT_H 1)
-set (HAVE_INTTYPES_H 1)
-set (INTTYPES_FORMAT C99)
-set (BUILD_TESTING OFF)
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
+    NOT DEFINED IE_MAIN_SOURCE_DIR)
     function(add_gflags)
-        if(NOT WIN32)
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-all")
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
-        endif()
+        # common gflags settings
+        set(GFLAGS_IS_SUBPROJECT TRUE)
+        set(HAVE_SYS_STAT_H 1)
+        set(HAVE_INTTYPES_H 1)
+        set(INTTYPES_FORMAT C99)
+        set(BUILD_TESTING OFF)
         set(BUILD_SHARED_LIBS OFF)
+
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
         set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
     endfunction()
@@ -154,7 +152,7 @@ elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wrapper")
 endif()
 
 # samples build can be switched off during whole IE build
-if (IE_MAIN_SOURCE_DIR AND NOT ENABLE_SAMPLES)
+if (DEFINED IE_MAIN_SOURCE_DIR AND NOT ENABLE_SAMPLES)
     return()
 endif()
 

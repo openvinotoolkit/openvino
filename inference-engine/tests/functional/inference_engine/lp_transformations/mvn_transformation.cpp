@@ -298,7 +298,7 @@ TEST_P(MVNTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     MVNTransformation,
     ::testing::Combine(

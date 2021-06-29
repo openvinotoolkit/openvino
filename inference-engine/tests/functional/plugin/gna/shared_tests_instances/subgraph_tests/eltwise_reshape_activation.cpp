@@ -30,7 +30,7 @@ std::vector<std::map<std::string, std::string>>  additional_config = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseReshapeActivationTest, EltwiseReshapeActivation,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseReshapeActivationTest, EltwiseReshapeActivation,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shapes),
                                 ::testing::ValuesIn(netPrecisions),

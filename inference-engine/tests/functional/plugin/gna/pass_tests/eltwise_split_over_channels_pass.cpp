@@ -80,7 +80,7 @@ const std::vector<std::vector<size_t>> inputShape = {
     {1, 500000}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseSplitOverChennels, EltwiseSplitOverChannelsPassTest,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseSplitOverChennels, EltwiseSplitOverChannelsPassTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),

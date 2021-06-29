@@ -14,17 +14,17 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-template<class T>
+template <class T>
 class ReduceOpsAttrTest : public ::testing::Test
 {
 };
 
-TYPED_TEST_CASE_P(ReduceOpsAttrTest);
+TYPED_TEST_SUITE_P(ReduceOpsAttrTest);
 
 TYPED_TEST_P(ReduceOpsAttrTest, reduce_ops)
 {
     Shape in_shape{3, 4, 5};
-    element::Type in_et = element::f32;
+    element::Type in_et = element::dynamic;
 
     Shape axes_shape{2};
     element::Type axes_et = element::i64;
@@ -43,6 +43,4 @@ TYPED_TEST_P(ReduceOpsAttrTest, reduce_ops)
     EXPECT_EQ(g_reduce_op->get_keep_dims(), reduce_op->get_keep_dims());
 }
 
-REGISTER_TYPED_TEST_CASE_P(
-    ReduceOpsAttrTest,
-    reduce_ops);
+REGISTER_TYPED_TEST_SUITE_P(ReduceOpsAttrTest, reduce_ops);
