@@ -18,11 +18,11 @@ class ConstantFill(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'input_as_shape': 1,
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': __class__.infer
+            'infer': self.infer
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -41,5 +41,4 @@ class ConstantFill(Op):
         shape = node.in_node(0).value
         assert shape is not None
 
-        node.out_node(0).value = np.full(shape, node.fill_value, np.float32)
-        node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)
+        node.out_port(0).data.set_value(np.full(shape, node.fill_value, np.float32))

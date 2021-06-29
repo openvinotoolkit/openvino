@@ -43,7 +43,7 @@ class BlockLSTM(Op):
         input_shape = node.in_node(0).shape
 
         assert len(input_shape) == 3
-        out_shape = input_shape
-        node.out_node(0).shape = out_shape
-        if len(node.out_nodes()) > 1:
-            node.out_node(1).shape = out_shape
+        out_shape = input_shape.copy()
+        node.out_port(0).data.set_shape(out_shape)
+        if node.is_out_port_connected(1):
+            node.out_port(1).data.set_shape(out_shape)
