@@ -34,45 +34,23 @@ std::shared_ptr<ngraph::Function> createFunction(const ngraph::PartialShape& inp
                                               ngraph::ParameterVector{input_params});
 }
 
-TEST(TransformationTests, InsertTransposeBeforeMatmulTestShapeNotSupported) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
+// ---------------------------------------------------------------------------------------------------------------------
 
-    {
-        func = createFunction(ngraph::PartialShape{2, 9}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1});
+class InsertTransposeBeforeMatmulTestInvalidFixture: public CommonTestUtils::TestsCommon,
+                               public ::testing::WithParamInterface<std::tuple<ngraph::PartialShape, ngraph::Shape, ngraph::Shape>> {
+public:
+    void SetUp() override;
+public:
+    std::shared_ptr<ngraph::Function> function, reference_function;
+};
 
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::InsertTransposeBeforeMatmul>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
+void InsertTransposeBeforeMatmulTestInvalidFixture::SetUp() {
+    ngraph::PartialShape input_shape;
+    ngraph::Shape reshape_shape, matmul_shape;
+    std::tie(input_shape, reshape_shape, matmul_shape) = this->GetParam();
 
-    reference_func = createFunction(ngraph::PartialShape{2, 9}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1});
-
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-
-TEST(TransformationTests, InsertTransposeBeforeMatmulTestReshapeInOutEq) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    const ngraph::Shape data_shape{9, 2};
-
-    {
-        func = createFunction(ngraph::PartialShape{9, 2}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1});
-
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::InsertTransposeBeforeMatmul>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    reference_func = createFunction(ngraph::PartialShape{9, 2}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1});
-
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
+    function = createFunction(input_shape, reshape_shape, matmul_shape);
+    reference_function = createFunction(input_shape, reshape_shape, matmul_shape);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -90,9 +68,9 @@ public:
 };
 
 void InsertTransposeBeforeMatmulTestFixture::SetUp() {
-    const auto& input_shape = std::get<0>(GetParam());
-    const auto& reshape_shape = std::get<1>(GetParam());
-    const auto& matmul_shape = std::get<2>(GetParam());
+    ngraph::PartialShape input_shape;
+    ngraph::Shape reshape_shape, matmul_shape;
+    std::tie(input_shape, reshape_shape, matmul_shape) = this->GetParam();
 
     function = get_initial_function(input_shape, reshape_shape, matmul_shape);
     reference_function = get_reference(input_shape);
@@ -127,6 +105,8 @@ std::shared_ptr<ngraph::Function> InsertTransposeBeforeMatmulTestFixture::get_re
                                               ngraph::ParameterVector{input_params});
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -145,6 +125,13 @@ INSTANTIATE_TEST_CASE_P(InsertTransposeBeforeMatmulTestSuite, InsertTransposeBef
                         ::testing::Values(std::make_tuple(ngraph::PartialShape{2, 8}, ngraph::Shape{8, 2}, ngraph::Shape{2, 1}),
                                           std::make_tuple(ngraph::PartialShape{1, 16}, ngraph::Shape{8, 2}, ngraph::Shape{2, 1})));
 
+TEST_P(InsertTransposeBeforeMatmulTestInvalidFixture, CompareFunctions) {
+    execute_test(function, reference_function);
+}
+
+INSTANTIATE_TEST_CASE_P(InsertTransposeBeforeMatmulTestInvalidSuite, InsertTransposeBeforeMatmulTestInvalidFixture,
+                        ::testing::Values(std::make_tuple(ngraph::PartialShape{2, 9}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1}),
+                                          std::make_tuple(ngraph::PartialShape{9, 2}, ngraph::Shape{9, 2}, ngraph::Shape{2, 1})));
 
 } // namespace
 
