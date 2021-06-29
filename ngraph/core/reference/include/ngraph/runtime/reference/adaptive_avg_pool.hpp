@@ -20,78 +20,143 @@ namespace ngraph
     {
         namespace reference
         {
+            inline size_t window_start(size_t idx, size_t arg_shape, size_t out_shape)
+            {
+                return floor(static_cast<double>(idx * arg_shape) / out_shape);
+            }
+            inline size_t window_end(size_t idx, size_t arg_shape, size_t out_shape)
+            {
+                return ceil(static_cast<double>((idx + 1) * arg_shape) / out_shape);
+            }
+            template <typename T>
+            T avg(const T sum, size_t n)
+            {
+                if (n == 0)
+                {
+                    throw std::runtime_error("AdaptiveAvgPool elements == 0, must be non-zero");
+                }
+
+                if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value)
+                {
+                    return static_cast<T>(std::nearbyint(static_cast<float>(sum) / n));
+                }
+                else
+                {
+                    return sum / n;
+                }
+            }
+
+            template <typename T>
+            void adaptive_avg_pool_1d(const T* arg, T* out, size_t h_in, size_t h_out)
+            {
+                for (int i = 0; i < h_out; i++)
+                {
+                    size_t h_start = window_start(i, h_in, h_out);
+                    size_t h_end = window_end(i, h_in, h_out);
+                    out[i] =
+                        avg(std::accumulate(arg + h_start, arg + h_end, T{0}), h_end - h_start);
+                }
+            }
+            template <typename T>
+            void adaptive_avg_pool_2d(
+                const T* arg, T* out, size_t h_in, size_t h_out, size_t w_in, size_t w_out)
+            {
+                for (int i = 0; i < h_out; i++)
+                {
+                    size_t h_start = window_start(i, h_in, h_out);
+                    size_t h_end = window_end(i, h_in, h_out);
+                    for (int j = 0; j < w_out; j++)
+                    {
+                        size_t w_start = window_start(j, w_in, w_out);
+                        size_t w_end = window_end(j, w_in, w_out);
+                        T result = 0;
+                        for (size_t n = h_start; n < h_end; n++)
+                            result = std::accumulate(
+                                arg + n * w_in + w_start, arg + n * w_in + w_end, result);
+                        out[i * w_out + j] = avg(result, (w_end - w_start) * (h_end - h_start));
+                    }
+                }
+            }
+            template <typename T>
+            void adaptive_avg_pool_3d(const T* arg,
+                                      T* out,
+                                      size_t d_in,
+                                      size_t d_out,
+                                      size_t h_in,
+                                      size_t h_out,
+                                      size_t w_in,
+                                      size_t w_out)
+            {
+                for (int i = 0; i < d_out; i++)
+                {
+                    size_t d_start = window_start(i, d_in, d_out);
+                    size_t d_end = window_end(i, d_in, d_out);
+                    for (int j = 0; j < h_out; j++)
+                    {
+                        size_t h_start = window_start(j, h_in, h_out);
+                        size_t h_end = window_end(j, h_in, h_out);
+                        for (int k = 0; k < w_out; k++)
+                        {
+                            size_t w_start = window_start(k, w_in, w_out);
+                            size_t w_end = window_end(k, w_in, w_out);
+                            T result = 0;
+                            for (size_t n = d_start; n < d_end; n++)
+                                for (size_t m = h_start; m < h_end; m++)
+                                {
+                                    auto pos = arg + n * h_in * w_in + m * w_in;
+                                    result = std::accumulate(pos + w_start, pos + w_end, result);
+                                }
+                            out[i * h_out * w_out + j * w_out + k] = avg(
+                                result, (d_end - d_start) * (w_end - w_start) * (h_end - h_start));
+                        }
+                    }
+                }
+            }
             template <typename T>
             void adaptive_avg_pool(const T* arg,
                                    T* out,
                                    const Shape& arg_shape,
                                    const Shape& out_shape)
             {
-                // At the outermost level we will walk over every output coordinate O.
-                CoordinateTransform output_transform(out_shape);
-
-                for (const Coordinate& out_coord : output_transform)
+                size_t channel_size = 1;
+                for (int i = 2; i < arg_shape.size(); i++)
+                    channel_size *= arg_shape[i];
+                size_t batch_size = arg_shape[1] * channel_size;
+                size_t out_channel_size = 1;
+                for (int i = 2; i < out_shape.size(); i++)
+                    out_channel_size *= out_shape[i];
+                size_t out_batch_size = arg_shape[1] * out_channel_size;
+                for (int b = 0; b < arg_shape[0]; b++)
                 {
-                    // Our output coordinate will have the form:
-                    //
-                    //   (N,chan,i_2,...,i_n)
-
-                    size_t batch_index = out_coord[0];
-                    size_t channel = out_coord[1];
-
-                    // Window has the following shape:
-                    //
-                    //   start = floor(i_2*in_2/out_2, i_3*in_3/out_3,...i_n*in_n/out_n)
-                    //   end = ceil((i_2+1)*in_2/out_2, (i_3+1)*in_3/out_3,...(i_n+1)*in_n/out_n)
-
-                    Coordinate input_batch_transform_start(arg_shape.size());
-                    Coordinate input_batch_transform_end(arg_shape.size());
-
-                    input_batch_transform_start[0] = batch_index;
-                    input_batch_transform_end[0] = batch_index + 1;
-                    input_batch_transform_start[1] = channel;
-                    input_batch_transform_end[1] = channel + 1;
-
-                    for (size_t i = 2; i < arg_shape.size(); i++)
+                    for (int c = 0; c < arg_shape[1]; c++)
                     {
-                        input_batch_transform_start[i] = (size_t)floor(
-                            double(out_coord[i] * arg_shape[i]) / double(out_shape[i]));
-                        input_batch_transform_end[i] = (size_t)ceil(
-                            double((out_coord[i] + 1) * arg_shape[i]) / double(out_shape[i]));
-                    }
-
-                    CoordinateTransform input_batch_transform(
-                        arg_shape, input_batch_transform_start, input_batch_transform_end);
-
-                    // As we go, we compute the sum value:
-                    //
-                    //   output[O] := output[O] + arg[I]
-                    //
-                    // and the number of elements:
-                    //
-                    //   n_elements := n_elements + 1
-
-                    T result = 0;
-                    size_t n_elements = 0;
-
-                    for (const Coordinate& input_batch_coord : input_batch_transform)
-                    {
-                        result += arg[input_batch_transform.index(input_batch_coord)];
-                        n_elements++;
-                    }
-
-                    if (n_elements == 0)
-                    {
-                        throw std::runtime_error("AvgPool elements == 0, must be non-zero");
-                    }
-
-                    if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value)
-                    {
-                        out[output_transform.index(out_coord)] =
-                            static_cast<T>(std::nearbyint(static_cast<float>(result) / n_elements));
-                    }
-                    else
-                    {
-                        out[output_transform.index(out_coord)] = result / n_elements;
+                        if (arg_shape.size() == 3 && out_shape.size() == 3)
+                        {
+                            adaptive_avg_pool_1d<T>(arg + b * batch_size + c * channel_size,
+                                                    out + b * out_batch_size + c * out_channel_size,
+                                                    arg_shape[2],
+                                                    out_shape[2]);
+                        }
+                        else if (arg_shape.size() == 4 && out_shape.size() == 4)
+                        {
+                            adaptive_avg_pool_2d<T>(arg + b * batch_size + c * channel_size,
+                                                    out + b * out_batch_size + c * out_channel_size,
+                                                    arg_shape[2],
+                                                    out_shape[2],
+                                                    arg_shape[3],
+                                                    out_shape[3]);
+                        }
+                        else if (arg_shape.size() == 5 && out_shape.size() == 5)
+                        {
+                            adaptive_avg_pool_3d<T>(arg + b * batch_size + c * channel_size,
+                                                    out + b * out_batch_size + c * out_channel_size,
+                                                    arg_shape[2],
+                                                    out_shape[2],
+                                                    arg_shape[3],
+                                                    out_shape[3],
+                                                    arg_shape[4],
+                                                    out_shape[4]);
+                        }
                     }
                 }
             }
