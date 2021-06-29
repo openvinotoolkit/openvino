@@ -88,7 +88,6 @@ extensions/front/caffe/conv_ext.py
 extensions/front/caffe/crop_ext.py
 extensions/front/caffe/ctcgreedydecoder_ext.py
 extensions/front/caffe/CustomLayersMapping.xml.example
-extensions/front/caffe/data_augmentation_ext.py
 extensions/front/caffe/detection_output.py
 extensions/front/caffe/dropout_ext.py
 extensions/front/caffe/elementwise_ext.py
@@ -678,7 +677,7 @@ extensions/ops/ctc_greedy_decoder.py
 extensions/ops/ctc_greedy_decoder_seq_len.py
 extensions/ops/ctc_loss.py
 extensions/ops/cumsum.py
-extensions/ops/data_augmentation.py
+extensions/ops/depth_to_space.py
 extensions/ops/depth_to_space.py
 extensions/ops/dequantize_linear.py
 extensions/ops/DetectionOutput.py
