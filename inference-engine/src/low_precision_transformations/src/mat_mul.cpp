@@ -23,8 +23,11 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     }
 
     matMul = as_type_ptr<opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
-    if (!support3DTensorOnActivations && (matMul->input(0).get_shape().size() == 3ul)) {
-        return false;
+    if (!support3DTensorOnActivations) {
+        const auto inputRank = matMul->get_input_partial_shape(0).rank();
+        if (inputRank.is_dynamic() || inputRank.get_length() == 3) {
+            return false;
+        }
     }
 
     const auto dequantization1 = NetworkHelper::getDequantization(matMul, 0);
@@ -67,10 +70,13 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     // dequantization with subtract on activations & constant weights
     if (dequantization1.subtract) {
         auto broadcastShape = NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(dequantization1.subtractConstant)) ?
-            Shape(dequantization1.subtract->get_shape().size(), 1) :
+            Shape(dequantization1.subtract->get_output_partial_shape(0).rank().get_length(), 1) :
             dequantization1.subtractConstant->get_shape();
-        const size_t lastIdx = matMul->get_transpose_a() ? broadcastShape.size() - 2 : broadcastShape.size() - 1;
-        broadcastShape[lastIdx] = dequantization1.subtract->get_shape()[lastIdx];
+
+        const auto weightsShape = newMatMul->get_input_shape(1);
+        const size_t firstWeightsIdx = matMul->get_transpose_b() ? weightsShape.size() - 1ul : weightsShape.size() - 2ul;
+        const size_t lastDataIdx = matMul->get_transpose_a() ? broadcastShape.size() - 2 : broadcastShape.size() - 1;
+        broadcastShape[lastDataIdx] = weightsShape[firstWeightsIdx];
 
         // broadcasted sub const to form [1, ..., 1, Y]
         const auto broadcastedConst = fold<opset1::Broadcast>(
@@ -112,12 +118,12 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     if (NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(mulConst2))) {
         mulConst2 = NetworkHelper::toScalar(as_type_ptr<opset1::Constant>(mulConst2));
     } else {
-        auto constShape = mulConst2->get_shape();
-        auto inputShape = matMul->get_input_shape(0);
+        const auto constShape = mulConst2->get_shape();
+        const size_t inputRank = matMul->get_input_partial_shape(0).rank().get_length();
 
         // unsqueeze from the left side to make both shapes of the same rank
-        if (constShape.size() < inputShape.size()) {
-            Shape unsqueezeConstantShape(inputShape.size() - constShape.size());
+        if (constShape.size() < inputRank) {
+            Shape unsqueezeConstantShape(inputRank - constShape.size());
             std::iota(unsqueezeConstantShape.begin(), unsqueezeConstantShape.end(), 0ul);
 
             mulConst2 = fold<opset1::Unsqueeze>(
@@ -167,6 +173,10 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
+    if (NetworkHelper::isDQByDynamicDimension(layer, 1)) {
+        return false;
+    }
+
     std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(layer);
     if (matMul == nullptr) {
         return false;
@@ -180,11 +190,13 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
 
         if (!NetworkHelper::isScalarLike(dequantization1.multiplyConstant)) {
             const auto constantShape = dequantization1.multiplyConstant->get_shape();
-            const auto mulShape = dequantization1.multiply->get_shape();
-            const size_t columnsIdx = matMul->get_transpose_a() ? mulShape.size() - 2ul : mulShape.size() - 1ul;
+            const auto mulShape = dequantization1.multiply->get_output_partial_shape(0);
+            const size_t rank = mulShape.rank().get_length();
+
+            const size_t columnsIdx = matMul->get_transpose_a() ? rank - 2 : rank - 1;
 
             // dequantization scales by columns in tensor A can't be propagate
-            if ((constantShape.size() == mulShape.size()) && (constantShape[columnsIdx] != 1)) {
+            if ((constantShape.size() == rank) && (constantShape[columnsIdx] != 1)) {
                 return false;
             }
         }
@@ -209,11 +221,13 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
 
         if (!NetworkHelper::isScalarLike(dequantization2.multiplyConstant)) {
             const auto constantShape = dequantization2.multiplyConstant->get_shape();
-            const auto mulShape = dequantization2.multiply->get_shape();
-            const size_t rowsIdx = matMul->get_transpose_b() ? mulShape.size() - 1ul : mulShape.size() - 2ul;
+            const auto mulShape = dequantization2.multiply->get_output_partial_shape(0);
+            const size_t rank = mulShape.rank().get_length();
+
+            const size_t rowsIdx = matMul->get_transpose_b() ? rank - 1ul : rank - 2ul;
 
             // dequantization scales by rows in tensor B can't be propagate
-            if ((constantShape.size() == mulShape.size()) && (constantShape[rowsIdx] != 1)) {
+            if ((constantShape.size() == rank) && (constantShape[rowsIdx] != 1)) {
                 return false;
             }
         }
@@ -233,12 +247,14 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
 
         const auto outLowShape = fakeQuantize->get_input_node_shared_ptr(3)->get_shape();
         const auto outHighShape = fakeQuantize->get_input_node_shared_ptr(4)->get_shape();
-        const auto fakeQuantizeShape = fakeQuantize->get_shape();
-        const size_t rowsIdx = matMul->get_transpose_b() ? fakeQuantizeShape.size() - 1 : fakeQuantizeShape.size() - 2;
+        const auto fakeQuantizeShape = fakeQuantize->get_output_partial_shape(0);
+        const size_t rank = fakeQuantizeShape.rank().get_length();
+
+        const size_t rowsIdx = matMul->get_transpose_b() ? rank - 1 : rank - 2;
 
         // dequantization scales by rows in tensor B can't be propagate
-        if (((outLowShape.size() == fakeQuantizeShape.size()) && (outLowShape[rowsIdx] != 1)) ||
-            ((outHighShape.size() == fakeQuantizeShape.size()) && (outHighShape[rowsIdx] != 1))) {
+        if (((outLowShape.size() == rank) && (outLowShape[rowsIdx] != 1)) ||
+            ((outHighShape.size() == rank) && (outHighShape[rowsIdx] != 1))) {
             return false;
         }
     }

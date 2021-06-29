@@ -26,14 +26,14 @@ public:
         const size_t blockSize);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
         const size_t blockSize,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
         const size_t blockSize,
         const ngraph::element::Type precisionBeforeDequantization,
