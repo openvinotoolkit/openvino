@@ -12,7 +12,6 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, asin)
 {
-    Shape shape{11};
-    test::make_unary_test<TestEngine, op::Asin, element::f32>(shape).test(
+    test::make_unary_test<TestEngine, op::Asin, element::f32>(Shape{11}).test(
         {-1.f, -0.75f, -0.5f, -0.25f, -0.125f, 0.f, 0.125f, 0.25f, 0.5f, 0.75f, 1.f}, std::asin);
 }

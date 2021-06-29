@@ -35,7 +35,6 @@ NGRAPH_TEST(${BACKEND_NAME}, exp_in_place)
     auto T2 = make_shared<op::Exp>(T);
     auto f = make_shared<Function>(T2, ParameterVector{A});
 
-    auto t = test::unary_test<TestEngine, element::f32>(f);
-
-    t.test({1, 3}, [](float x) { return std::exp(std::exp(x)); }, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
+    test::unary_test<TestEngine, element::f32>(f).test(
+        {1, 3}, [](float x) { return std::exp(std::exp(x)); }, DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }

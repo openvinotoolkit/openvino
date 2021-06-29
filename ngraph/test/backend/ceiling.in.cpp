@@ -12,16 +12,12 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, ceiling)
 {
-    auto t = test::make_unary_test<TestEngine, op::Ceiling, element::f32>(Shape{2, 2});
-
-    t.test({-2.5f, -2.0f, 0.3f, 4.8f}, {-2.0f, -2.0f, 1.0f, 5.0f}, MIN_FLOAT_TOLERANCE_BITS);
+    test::make_unary_test<TestEngine, op::Ceiling, element::f32>(Shape{2, 2})
+        .test({-2.5f, -2.0f, 0.3f, 4.8f}, {-2.0f, -2.0f, 1.0f, 5.0f}, MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, ceiling_int64)
 {
-    auto t = test::make_unary_test<TestEngine, op::Ceiling, element::i64>(Shape{3});
-
-    t.test({0, 1, 0x4000000000000001},
-           {0, 1, 0x4000000000000001},
-           MIN_FLOAT_TOLERANCE_BITS);
+    test::make_unary_test<TestEngine, op::Ceiling, element::i64>(Shape{3}).test(
+        {0, 1, 0x4000000000000001}, {0, 1, 0x4000000000000001}, MIN_FLOAT_TOLERANCE_BITS);
 }

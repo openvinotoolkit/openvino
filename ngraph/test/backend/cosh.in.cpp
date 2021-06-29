@@ -12,6 +12,6 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, cosh)
 {
-    auto t = test::make_unary_test<TestEngine, op::Cosh, element::f32>(Shape{6});
-    t.test({1.0f, 0.0f, -0.0f, -1.0f, 5.0f, -5.0f}, std::cosh);
+    test::make_unary_test<TestEngine, op::Cosh, element::f32>(Shape{6}).test(
+        {1.0f, 0.0f, -0.0f, -1.0f, 5.0f, -5.0f}, std::cosh);
 }

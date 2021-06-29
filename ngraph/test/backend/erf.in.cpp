@@ -12,7 +12,6 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, erf)
 {
-    auto t = test::make_unary_test<TestEngine, op::Erf, element::f32>(Shape{8});
-
-    t.test({-4.0f, -3.0f, -2.0f, -1.0f, 0.0f, 1.0f, 2.0f, 3.0f}, std::erf);
+    test::make_unary_test<TestEngine, op::Erf, element::f32>(Shape{8}).test(
+        {-4.0f, -3.0f, -2.0f, -1.0f, 0.0f, 1.0f, 2.0f, 3.0f}, std::erf);
 }
