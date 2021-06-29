@@ -124,7 +124,7 @@ namespace ngraph
 
                 template <typename T>
                 void convolve_2D_channels(const ConvolutionParams& p,
-                                          const bool use_use_bilinear_interpolation_paddingding,
+                                          const bool use_bilinear_interpolation_padding,
                                           const int64_t deformable_groups,
                                           const T* batch,
                                           const Shape& batch_shape,
@@ -191,7 +191,7 @@ namespace ngraph
                                             mask_channel += mask_channel_size;
 
                                             bool padding;
-                                            if (use_use_bilinear_interpolation_paddingding)
+                                            if (use_bilinear_interpolation_padding)
                                             {
                                                 padding =
                                                     !((static_cast<int>(rel_i_x) > -1 &&
@@ -215,7 +215,7 @@ namespace ngraph
                                                        rel_i_y,
                                                        input_size_x,
                                                        input_size_y,
-                                                       use_use_bilinear_interpolation_paddingding) *
+                                                       use_bilinear_interpolation_padding) *
                                                    filter_channel[f_buf_idx] * mask_val;
                                         }
                                     }
@@ -226,7 +226,6 @@ namespace ngraph
                                 group_mask_channel += mask_size / deformable_groups;
                             }
                             out[out_idx++] = sum;
-                            std::cout << sum << std::endl;
                         }
                     }
                 }
@@ -288,7 +287,7 @@ namespace ngraph
 
                 const Shape group_mask_shape = shape_scale(shape_reduce(m_shape), groups);
                 const size_t group_mask_size = shape_size(group_mask_shape);
-                const size_t group_mask_batch_size = shape_size(shape_reduce(group_mask_shape));
+                const size_t group_mask_batch_size = shape_size(shape_reduce(m_shape));
 
                 const size_t out_ch_size = shape_size(shape_reduce(shape_reduce(out_shape)));
 
