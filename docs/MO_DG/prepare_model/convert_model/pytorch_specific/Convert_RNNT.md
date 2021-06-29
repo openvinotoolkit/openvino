@@ -20,15 +20,15 @@ mkdir rnnt_for_openvino
 cd rnnt_for_openvino
 ```
 
-**Step 3**. Download pretrained weights for PyTorch implementation from https://zenodo.org/record/3662521#.YG21DugzZaQ.
-For UNIX*-like systems you can use wget:
+**Step 3**. Download pretrained weights for PyTorch implementation from [https://zenodo.org/record/3662521#.YG21DugzZaQ](https://zenodo.org/record/3662521#.YG21DugzZaQ).
+For UNIX*-like systems you can use `wget`:
 ```bash
 wget https://zenodo.org/record/3662521/files/DistributedDataParallel_1576581068.9962234-epoch-100.pt
 ```
 The link was taken from `setup.sh` in the `speech_recoginitin/rnnt` subfolder. You will get exactly the same weights as 
-if you were following the steps from https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt.
+if you were following the steps from [https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt](https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt).
 
-**Step 4**. Install required python* packages:
+**Step 4**. Install required Python packages:
 ```bash
 pip3 install torch toml
 ```
@@ -37,7 +37,7 @@ pip3 install torch toml
 `export_rnnt_to_onnx.py` and run it in the current directory `rnnt_for_openvino`:
 
 > **NOTE**: If you already have a full clone of MLCommons inference repository, you need to
-> specify `mlcommons_inference_path` variable.
+> specify the `mlcommons_inference_path` variable.
 
 ```python
 import toml
@@ -92,8 +92,7 @@ torch.onnx.export(model.joint, (f, g), "rnnt_joint.onnx", opset_version=12,
 python3 export_rnnt_to_onnx.py
 ```
 
-After completing this step, the files rnnt_encoder.onnx, rnnt_prediction.onnx, and rnnt_joint.onnx will be saved in 
-the current directory. 
+After completing this step, the files `rnnt_encoder.onnx`, `rnnt_prediction.onnx`, and `rnnt_joint.onnx` will be saved in the current directory. 
 
 **Step 6**. Run the conversion command:
 
@@ -102,6 +101,6 @@ python3 {path_to_openvino}/mo.py --input_model rnnt_encoder.onnx --input "input.
 python3 {path_to_openvino}/mo.py --input_model rnnt_prediction.onnx --input "input.1[1 1],1[2 1 320],2[2 1 320]"
 python3 {path_to_openvino}/mo.py --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
 ```
-Please note that hardcoded value for sequence length = 157 was taken from the MLCommons, but conversion to IR preserves 
-network [reshapeability](../../../../IE_DG/ShapeInference.md); this means you can change input shapes manually to any value either during conversion or 
-inference. 
+Please note that hardcoded value for sequence length = 157 was taken from the MLCommons but conversion to IR preserves 
+network [reshapeability](../../../../IE_DG/ShapeInference.md), this means you can change input shapes manually to any value either during conversion or 
+inference.

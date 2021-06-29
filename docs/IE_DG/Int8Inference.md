@@ -17,25 +17,25 @@ Low-precision 8-bit inference is optimized for:
 
 ## Introduction
 
-A lot of investigation was made in the field of deep learning with the idea of using low precision computations during inference in order to boost deep learning pipelines and gather higher performance. For example, one of the popular approaches is to shrink the precision of activations and weights values from `fp32` precision to smaller ones, for example, to `fp11` or `int8`. For more information about this approach, refer to 
+A lot of investigation was made in the field of deep learning with the idea of using low-precision computation during inference in order to boost deep learning pipelines and achieve higher performance. For example, one of the popular approaches is to shrink the precision of activations and weights values from `fp32` precision to smaller ones, for example, to `fp11` or `int8`. For more information about this approach, refer to the
 **Brief History of Lower Precision in Deep Learning** section in [this whitepaper](https://software.intel.com/en-us/articles/lower-numerical-precision-deep-learning-inference-and-training).
 
-8-bit computations (referred to as `int8`) offer better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is a reduced accuracy. However, it is proved that an accuracy drop can be negligible and depends on task requirements, so that the application engineer can set up the maximum accuracy drop that is acceptable.
+8-bit computation (referred to as `int8`) offers better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is reduced accuracy. However, it has been proven that the drop in accuracy can be negligible and depends on task requirements, so that an application engineer configure the maximum accuracy drop that is acceptable.
 
-
-Let's explore quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
+Let's explore the quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use the [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
 ```sh
-./downloader.py --name resnet-50-tf --precisions FP16-INT8
+cd $INTEL_OPENVINO_DIR/deployment_tools/tools/model_downloader
+./downloader.py --name resnet-50-tf --precisions FP16-INT8 --output_dir <your_model_directory>
 ```
-After that you should quantize model by the [Model Quantizer](@ref omz_tools_downloader) tool.
+After that, you should quantize the model by the [Model Quantizer](@ref omz_tools_downloader) tool. For the dataset, you can choose to download the ImageNet dataset from [here](https://www.image-net.org/download.php).
 ```sh
-./quantizer.py --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
+./quantizer.py --model_dir --name public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
 ```
-The simplest way to infer the model and collect performance counters is [C++ Benchmark Application](../../inference-engine/samples/benchmark_app/README.md). 
+The simplest way to infer the model and collect performance counters is the [C++ Benchmark Application](../../inference-engine/samples/benchmark_app/README.md). 
 ```sh
 ./benchmark_app -m resnet-50-tf.xml -d CPU -niter 1 -api sync -report_type average_counters  -report_folder pc_report_dir
 ```
-If you infer the model with the OpenVINO™ CPU plugin and collect performance counters, all operations (except last not quantized SoftMax) are executed in INT8 precision.  
+If you infer the model with the OpenVINO™ CPU plugin and collect performance counters, all operations (except the last non-quantized SoftMax) are executed in INT8 precision.  
 
 ## Low-Precision 8-bit Integer Inference Workflow
 
