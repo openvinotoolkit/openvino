@@ -14,7 +14,7 @@
     public:                                                                                        \
         static constexpr VariantTypeInfo type_info{info, 0};                                       \
         const VariantTypeInfo& get_type_info() const override { return type_info; }                \
-        VariantWrapper(const value_type& value)                                                    \
+        VariantWrapper<TYPE>(const value_type& value)                                              \
             : VariantImpl<value_type>(value)                                                       \
         {                                                                                          \
         }                                                                                          \
