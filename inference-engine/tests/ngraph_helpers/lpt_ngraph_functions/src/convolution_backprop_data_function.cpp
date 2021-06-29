@@ -92,7 +92,7 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
 std::shared_ptr<Function> ConvolutionBackpropDataFunction::getOriginal(
     const element::Type precision,
     const element::Type netPrecision,
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::DequantizationOperations& dequantization,
     const std::shared_ptr<Node>& weights) {
@@ -117,7 +117,7 @@ std::shared_ptr<Function> ConvolutionBackpropDataFunction::getOriginal(
 std::shared_ptr<Function>  ConvolutionBackpropDataFunction::getReference(
     const element::Type precision,
     const element::Type netPrecision,
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::DequantizationOperations& dequantization,
     const std::shared_ptr<Node>& weights,
