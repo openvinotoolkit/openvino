@@ -72,7 +72,7 @@ ConvolutionConfiguration<float> ConvolutionModelConfiguration() {
 
 // benchmark for pure runtime::reference::convolution()
 // (can be written if there is no evaluate())
-static void convolution_2D_reference(benchmark::State& state) {
+static void smoke_Convolution_1_InputShape1x1x512x512_Reference(benchmark::State& state) {
     // setup
     const auto cfg = ConvolutionModelConfiguration();
     std::vector<float> out(shape_size(cfg.outputs_shape));
@@ -88,13 +88,13 @@ static void convolution_2D_reference(benchmark::State& state) {
         benchmark::ClobberMemory();
     }
 }
-BENCHMARK(convolution_2D_reference)->Unit(benchmark::kMicrosecond);
+BENCHMARK(smoke_Convolution_1_InputShape1x1x512x512_Reference)->Unit(benchmark::kMicrosecond);
 
 // benchmark for InferenceEngine::InferRequest::Infer()
 // (can be used for plugins & reference if it has evaluate() via TEMPLATE
 // plugin)
 template <DeviceType dev>
-static void convolution_2D_plugin(benchmark::State& state) {
+static void smoke_Convolution_1_InputShape1x1x512x512_Plugin(benchmark::State& state) {
     // setup
     const auto cfg = ConvolutionModelConfiguration();
     const auto f = ConvolutionModel(cfg);
@@ -132,7 +132,7 @@ static void convolution_2D_plugin(benchmark::State& state) {
         inference_req.Infer();
     }
 }
-BENCHMARK_TEMPLATE(convolution_2D_plugin, DeviceType::TEMPLATE)
+BENCHMARK_TEMPLATE(smoke_Convolution_1_InputShape1x1x512x512_Plugin, DeviceType::TEMPLATE)
     ->Unit(benchmark::kMicrosecond);
-BENCHMARK_TEMPLATE(convolution_2D_plugin, DeviceType::CPU)
+BENCHMARK_TEMPLATE(smoke_Convolution_1_InputShape1x1x512x512_Plugin, DeviceType::CPU)
     ->Unit(benchmark::kMicrosecond);
