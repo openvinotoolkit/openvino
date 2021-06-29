@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import compare_dimensions
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.op import Op
@@ -105,7 +106,7 @@ class ONNXRNNSequenceNormalize(MiddleReplacementPattern):
                 for x in (W, R)]
 
         input_size = match['input'].shape[2]
-        assert input_size == W.shape[-1]
+        assert compare_dimensions(input_size, W.shape[-1])
 
         # Reorder gates: iofc --> fico
         gate_reorder = rnn_layer.gate_order

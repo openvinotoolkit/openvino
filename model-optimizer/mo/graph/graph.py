@@ -9,6 +9,7 @@ from typing import List
 import networkx as nx
 import numpy as np
 
+from mo.front.common.partial_infer.utils import dynamic_dimension_value
 from mo.graph.port import Port
 from mo.middle.passes.eliminate import mark_output_reachable_nodes, shape_inference, mark_undead_nodes, \
     mark_const_producer_nodes, eliminate_dead_nodes, add_constant_operations
@@ -747,7 +748,8 @@ class Graph(nx.MultiDiGraph):
             if not data_node.has('shape'):
                 data_nodes_with_wrong_shapes.append((data_node.name, "no shape attribute"))
                 continue
-            if data_node.shape is not None and not isinstance(data_node.shape, np.ndarray):
+            if data_node.shape is not None and not isinstance(data_node.shape, np.ndarray) and \
+                    dynamic_dimension_value not in data_node.shape:
                 data_nodes_with_wrong_shapes.append((data_node.name, type(data_node.shape)))
         if len(data_nodes_with_wrong_shapes) > 0:
             raise Error("Graph contains data nodes ({}) with inconsistent shapes: {}".format(

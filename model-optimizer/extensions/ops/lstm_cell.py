@@ -27,10 +27,10 @@ class LSTMCell(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset4',
-            'infer': __class__.infer,
+            'infer': self.infer,
             'in_ports_count': 5,
             'out_ports_count': 2,
             'wr_input_id': 3,
