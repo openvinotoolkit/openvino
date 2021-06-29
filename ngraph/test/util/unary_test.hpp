@@ -125,6 +125,8 @@ namespace ngraph
                 std::copy(v.begin(), v.end(), value.begin());
             }
 
+            // we would duplicate by circular-copy or truncate initializer list when number of
+            // element provided in initializer list is not matching the desired shape
             Data(const std::initializer_list<T>& v, const ngraph::Shape& s)
                 : value(ngraph::shape_size(s))
                 , shape{s}
