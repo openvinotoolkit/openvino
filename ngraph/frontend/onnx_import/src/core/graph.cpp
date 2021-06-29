@@ -166,7 +166,6 @@ namespace ngraph
                 m_nodes.emplace_back(node_proto, shared_from_this());
                 const Node& node{m_nodes.back()};
                 std::shared_ptr<frontend::ONNXFrameworkNode> framework_node;
-                const auto& ng_inputs = node.get_ng_inputs();
                 if (node.has_subgraph())
                 {
                     auto subgraph = node.get_subgraph();

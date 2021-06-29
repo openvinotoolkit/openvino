@@ -27,8 +27,8 @@ namespace ngraph
             {
                 OutputVector add(const Node& node)
                 {
-                    return OutputVector{std::make_shared<default_opset::Add>(
-                        node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
+                    return {std::make_shared<default_opset::Add>(node.get_ng_inputs().at(0),
+                                                                 node.get_ng_inputs().at(1))};
                 }
 
             } // namespace set_7
