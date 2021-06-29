@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <onnx/onnx_pb.h>
 #include <utility>
 #include <vector>
@@ -243,7 +244,21 @@ namespace ngraph
                     }
                     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT16)
                     {
-                        return detail::__get_data<ngraph::float16>(tensor.int32_data());
+                        using std::begin;
+                        using std::end;
+
+                        const auto& int32_data = tensor.int32_data();
+                        std::vector<ngraph::float16> float16_data;
+                        float16_data.reserve(int32_data.size());
+                        std::transform(begin(int32_data),
+                                       end(int32_data),
+                                       std::back_inserter(float16_data),
+                                       [](int32_t elem) {
+                                           return ngraph::float16::from_bits(
+                                               static_cast<uint16_t>(elem));
+                                       });
+
+                        return detail::__get_data<ngraph::float16>(float16_data);
                     }
                     throw error::tensor::invalid_data_type{tensor.data_type()};
                 }
