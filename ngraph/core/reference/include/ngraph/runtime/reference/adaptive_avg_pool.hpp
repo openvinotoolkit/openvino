@@ -49,7 +49,7 @@ namespace ngraph
             template <typename T>
             void adaptive_avg_pool_1d(const T* arg, T* out, size_t h_in, size_t h_out)
             {
-                for (int i = 0; i < h_out; i++)
+                for (size_t i = 0; i < h_out; i++)
                 {
                     size_t h_start = window_start(i, h_in, h_out);
                     size_t h_end = window_end(i, h_in, h_out);
@@ -61,11 +61,11 @@ namespace ngraph
             void adaptive_avg_pool_2d(
                 const T* arg, T* out, size_t h_in, size_t h_out, size_t w_in, size_t w_out)
             {
-                for (int i = 0; i < h_out; i++)
+                for (size_t i = 0; i < h_out; i++)
                 {
                     size_t h_start = window_start(i, h_in, h_out);
                     size_t h_end = window_end(i, h_in, h_out);
-                    for (int j = 0; j < w_out; j++)
+                    for (size_t j = 0; j < w_out; j++)
                     {
                         size_t w_start = window_start(j, w_in, w_out);
                         size_t w_end = window_end(j, w_in, w_out);
@@ -87,15 +87,15 @@ namespace ngraph
                                       size_t w_in,
                                       size_t w_out)
             {
-                for (int i = 0; i < d_out; i++)
+                for (size_t i = 0; i < d_out; i++)
                 {
                     size_t d_start = window_start(i, d_in, d_out);
                     size_t d_end = window_end(i, d_in, d_out);
-                    for (int j = 0; j < h_out; j++)
+                    for (size_t j = 0; j < h_out; j++)
                     {
                         size_t h_start = window_start(j, h_in, h_out);
                         size_t h_end = window_end(j, h_in, h_out);
-                        for (int k = 0; k < w_out; k++)
+                        for (size_t k = 0; k < w_out; k++)
                         {
                             size_t w_start = window_start(k, w_in, w_out);
                             size_t w_end = window_end(k, w_in, w_out);
@@ -119,16 +119,16 @@ namespace ngraph
                                    const Shape& out_shape)
             {
                 size_t channel_size = 1;
-                for (int i = 2; i < arg_shape.size(); i++)
+                for (size_t i = 2; i < arg_shape.size(); i++)
                     channel_size *= arg_shape[i];
                 size_t batch_size = arg_shape[1] * channel_size;
                 size_t out_channel_size = 1;
-                for (int i = 2; i < out_shape.size(); i++)
+                for (size_t i = 2; i < out_shape.size(); i++)
                     out_channel_size *= out_shape[i];
                 size_t out_batch_size = arg_shape[1] * out_channel_size;
-                for (int b = 0; b < arg_shape[0]; b++)
+                for (size_t b = 0; b < arg_shape[0]; b++)
                 {
-                    for (int c = 0; c < arg_shape[1]; c++)
+                    for (size_t c = 0; c < arg_shape[1]; c++)
                     {
                         if (arg_shape.size() == 3 && out_shape.size() == 3)
                         {
