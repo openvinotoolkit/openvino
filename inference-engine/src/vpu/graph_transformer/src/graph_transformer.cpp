@@ -151,7 +151,7 @@ void CompileEnv::free() {
 
 namespace {
 
-CompiledGraph::Ptr compileImpl(const ie::CNNNetwork& network, const ie::ICore* core) {
+CompiledGraph::Ptr compileImpl(const ie::CNNNetwork& network, const std::shared_ptr<ie::ICore> core) {
     const auto& env = CompileEnv::get();
 
     env.log->debug("Compile network [%s]", network.getName());
@@ -199,7 +199,7 @@ CompiledGraph::Ptr compileImpl(const Model& model) {
 }  // namespace
 
 CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, ncDevicePlatform_t platform, const PluginConfiguration& config, const Logger::Ptr& log,
-                                  const ie::ICore* core) {
+                                  const std::shared_ptr<ie::ICore> core) {
     CompileEnv::init(platform, config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
@@ -225,7 +225,7 @@ CompiledGraph::Ptr compileModel(
     return compileImpl(model);
 }
 
-CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const PluginConfiguration& subConfig, const ie::ICore* core) {
+CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const PluginConfiguration& subConfig, const std::shared_ptr<ie::ICore> core) {
     VPU_PROFILE(compileSubNetwork);
 
     const auto& env = CompileEnv::get();
@@ -249,7 +249,7 @@ std::set<std::string> getSupportedLayers(
     ncDevicePlatform_t platform,
     const PluginConfiguration& config,
     const Logger::Ptr& log,
-    const ie::ICore* core) {
+    const std::shared_ptr<ie::ICore> core) {
     CompileEnv::init(platform, config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();

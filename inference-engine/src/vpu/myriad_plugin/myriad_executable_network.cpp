@@ -27,7 +27,7 @@ ExecutableNetwork::ExecutableNetwork(
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
         const MyriadConfiguration& config,
-        const ie::ICore* core) :
+        const std::shared_ptr<ie::ICore> core) :
             _config(config),
             _core(core) {
     VPU_PROFILE(ExecutableNetwork);
@@ -59,7 +59,7 @@ ExecutableNetwork::ExecutableNetwork(
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
         const MyriadConfiguration& config,
-        const ie::ICore* core) :
+        const std::shared_ptr<ie::ICore> core) :
             ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
 
@@ -148,7 +148,7 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
 }
 
 ExecutableNetwork::ExecutableNetwork(std::istream& strm, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool,
-    const MyriadConfiguration& config, const ie::ICore* core) :
+    const MyriadConfiguration& config, const std::shared_ptr<ie::ICore> core) :
     ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
     Import(strm, devicePool, config);
@@ -159,7 +159,7 @@ ExecutableNetwork::ExecutableNetwork(
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
         const MyriadConfiguration& config,
-        const ie::ICore* core) :
+        const std::shared_ptr<ie::ICore> core) :
     ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
     std::ifstream blobFile{blobFilename, std::ios::binary};

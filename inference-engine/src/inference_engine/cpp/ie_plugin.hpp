@@ -44,7 +44,7 @@ public:
         PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
 
-    void SetCore(ICore* core) {
+    void SetCore(std::weak_ptr<InferenceEngine::ICore> core) {
         PLUGIN_CALL_STATEMENT(_ptr->SetCore(core));
     }
 

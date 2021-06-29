@@ -108,7 +108,7 @@ MockPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
     }
 }
 
-void MockPlugin::SetCore(InferenceEngine::ICore* core) noexcept {
+void MockPlugin::SetCore(std::weak_ptr<InferenceEngine::ICore> core) noexcept {
     if (_target) {
         _target->SetCore(core);
     }

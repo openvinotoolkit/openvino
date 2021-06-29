@@ -106,7 +106,7 @@ std::pair<int, int> getResolution(const std::string& str) {
 ie::CNNNetwork loadSubNetwork(
         const std::string& fileName,
         const std::pair<int, int>& imgSize,
-        const ie::ICore* core,
+        const std::shared_ptr<ie::ICore> core,
         int* zdir_batchsize = nullptr) {
     //
     // Load network

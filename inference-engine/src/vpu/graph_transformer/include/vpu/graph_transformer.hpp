@@ -72,16 +72,16 @@ struct CompiledGraph final {
 //
 
 CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, ncDevicePlatform_t platform, const PluginConfiguration& config, const Logger::Ptr& log,
-                                  const ie::ICore* core);
+                                  const std::shared_ptr<ie::ICore> core);
 
-CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const PluginConfiguration& subConfig, const ie::ICore* core);
+CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const PluginConfiguration& subConfig, const std::shared_ptr<ie::ICore> core);
 
 //
 // getSupportedLayers
 //
 
 std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, ncDevicePlatform_t platform, const PluginConfiguration& config, const Logger::Ptr& log,
-                                         const ie::ICore* core);
+                                         const std::shared_ptr<ie::ICore> core);
 
 //
 // Blob version and checks

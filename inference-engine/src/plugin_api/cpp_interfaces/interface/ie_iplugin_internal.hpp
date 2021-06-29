@@ -238,13 +238,13 @@ public:
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface
      */
-    virtual void SetCore(ICore* core);
+    virtual void SetCore(std::weak_ptr<ICore> core);
 
     /**
      * @brief Gets reference to ICore interface
      * @return Reference to ICore interface
      */
-    virtual ICore* GetCore() const noexcept;
+    virtual std::shared_ptr<ICore> GetCore() const noexcept;
 
     /**
      * @brief      Queries a plugin about supported layers in network
@@ -298,7 +298,7 @@ protected:
 
     std::string _pluginName;  //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values
-    ICore* _core = nullptr;  //!< A pointer to ICore interface
+    std::weak_ptr<ICore> _core;  //!< A pointer to ICore interface
 };
 
 namespace details {
