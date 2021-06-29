@@ -180,7 +180,7 @@ const static std::vector<unary_test_param> unary_test_array = {
 
 };
 
-INSTANTIATE_TEST_CASE_P(Unary,
+INSTANTIATE_TEST_SUITE_P(Unary,
                         UnaryEval,
                         ::testing::ValuesIn(unary_test_array),
                         UnaryEval::getTestCaseName);
