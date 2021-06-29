@@ -152,9 +152,7 @@ pip3 install -r requirements_onnx.txt
 ```
 
 ## Using the protobuf Library in the Model Optimizer for Caffe\*
-\htmlonly
-<details>
-\endhtmlonly
+\htmlonly<details>\endhtmlonly
     <summary>Click to expand</summary>
 
 
