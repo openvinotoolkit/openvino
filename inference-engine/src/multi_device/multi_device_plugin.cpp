@@ -28,6 +28,7 @@ namespace {
         }
         return config;
     }
+    std::vector<std::string> supported_configKeys = {MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES};
 }  // namespace
 
 std::map<std::string, std::string> MultiDeviceInferencePlugin::GetSupportedConfig(
@@ -111,7 +112,11 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
     for (auto && kvp : config) {
-        _config[kvp.first] = kvp.second;
+        const auto& name = kvp.first;
+        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
+            _config[name] = kvp.second;
+        else
+            IE_THROW() << "Unsupported config key: " << name;
     }
 }
 
@@ -134,9 +139,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         std::string device_name = { "MULTI" };
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, device_name);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys = {
-            MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES};
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, supported_configKeys);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
