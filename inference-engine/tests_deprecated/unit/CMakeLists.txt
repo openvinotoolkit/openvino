@@ -15,7 +15,6 @@ SET (CMAKE_SKIP_RPATH OFF)
 
 file(GLOB
         TEST_SRC
-        graph_tools/*.cpp
         inference_engine_tests/*.cpp
         )
 
@@ -24,6 +23,7 @@ if (ENABLE_GNA)
             GNA_TESTS
             engines/gna/*cpp
             engines/gna/layers/*cpp
+            engines/gna/graph_tools/*cpp
             )
     source_group("gna" FILES ${GNA_TESTS})
     list(APPEND TEST_SRC ${GNA_TESTS})

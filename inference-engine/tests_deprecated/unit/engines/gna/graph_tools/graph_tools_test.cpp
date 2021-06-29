@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 #include <legacy/graph_tools.hpp>
-// #include <gna_graph_tools.hpp>
 #include "graph_test_base.hpp"
+#include <gna_graph_tools.hpp>
 #include <unordered_set>
 #include <gmock/gmock.h>
 #include "ie_common.h"

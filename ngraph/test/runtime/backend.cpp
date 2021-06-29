@@ -3,6 +3,9 @@
 //
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
 #error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
