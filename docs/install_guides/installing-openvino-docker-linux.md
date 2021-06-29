@@ -312,7 +312,7 @@ For instructions for previous releases with FPGA Support, see documentation for 
 
 ## Troubleshooting
 
-If you got proxy issues, please setup proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) topic.
+If you got proxy issues, please setup proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Run_Locally) topic.
 
 ## Additional Resources
 
