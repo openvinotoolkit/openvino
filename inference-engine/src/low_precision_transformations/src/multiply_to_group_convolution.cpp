@@ -37,8 +37,8 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
 
     const element::Type weightsPrecision = updatePrecisions ? precisionsOnWeights[0] : dequantization.data.get_element_type();
 
-    const size_t inputChannelsCount = input->get_output_shape(0)[1];
-    const size_t outputChannelsCount = multiply->get_output_shape(0)[1];
+    const size_t inputChannelsCount = input->get_output_partial_shape(0)[1].get_length();
+    const size_t outputChannelsCount = multiply->get_output_partial_shape(0)[1].get_length();
     const size_t group = outputChannelsCount / groupSize;
     const size_t weightsSize = outputChannelsCount * inputChannelsCount / group;
     std::vector<float> weightsBuffer(weightsSize);
@@ -63,15 +63,15 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         }
     }
 
-    const Shape shape = multiply->output(0).get_shape();
+    const PartialShape pShape = multiply->get_output_partial_shape(0);
 
-    Shape weightsShape = Shape(shape.size() + 1, 1ul);
+    Shape weightsShape = Shape(pShape.rank().get_length() + 1, 1ul);
     weightsShape[0] = group;
     weightsShape[1] = outputChannelsCount / group;
     weightsShape[2] = inputChannelsCount / group;
     const auto weightsNode = std::make_shared<opset1::Constant>(weightsPrecision, weightsShape, weightsBuffer);
 
-    const size_t spatialDimsSize = shape.size() - 2;
+    const size_t spatialDimsSize = pShape.rank().get_length() - 2;
     ngraph::Strides strides(spatialDimsSize, 1ul);
     ngraph::CoordinateDiff pads(spatialDimsSize, 0ul);
     ngraph::Strides dilations(spatialDimsSize, 1ul);
@@ -104,8 +104,22 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
 }
 
 bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    const Shape shape = operation->output(0).get_shape();
-    if ((shape.size() != 4ul) && (shape.size() != 5ul)) {
+    const PartialShape outPShape = operation->get_output_partial_shape(0);
+    const auto rank = outPShape.rank();
+    if (rank.is_dynamic()) {
+        return false;
+    }
+
+    if ((rank.get_length() != 4ul) && (rank.get_length() != 5ul)) {
+        return false;
+    }
+
+    if (outPShape[1].is_dynamic() || outPShape[1].get_length() % groupSize != 0) {
+        return false;
+    }
+
+    auto inPShape = operation->get_input_partial_shape(0);
+    if (inPShape.rank().is_dynamic() || inPShape[1].is_dynamic()) {
         return false;
     }
 
@@ -129,11 +143,6 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
     const auto dequantization = NetworkHelper::getDequantization(operation, inputIndex);
 
     if (dequantization.empty()) {
-        return false;
-    }
-
-    const Shape outShape = operation->get_output_shape(0);
-    if (outShape[1] % groupSize != 0) {
         return false;
     }
 
@@ -161,8 +170,13 @@ bool MultiplyToGroupConvolutionTransformation::isQuantized(std::shared_ptr<Node>
         return false;
     }
 
-    const Shape shape = layer->output(0).get_shape();
-    return (shape.size() == 4ul) || (shape.size() == 5ul);
+    const PartialShape pShape = layer->get_output_partial_shape(0);
+    const auto rank = pShape.rank();
+    if (rank.is_dynamic()) {
+        return false;
+    }
+
+    return (pShape.rank().get_length() == 4ul) || (pShape.rank().get_length() == 5ul);
 }
 
 void MultiplyToGroupConvolutionTransformation::setGroupSize(const size_t groupSize) {

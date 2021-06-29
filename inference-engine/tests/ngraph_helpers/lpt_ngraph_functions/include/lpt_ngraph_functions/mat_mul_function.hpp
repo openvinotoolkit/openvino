@@ -39,16 +39,16 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const element::Type netPrecision,
-        const ngraph::Shape& inputShape1,
+        const ngraph::PartialShape& inputShape1,
         const ngraph::element::Type precisionBeforeDequantization1,
         const DequantizationOperations& dequantization1,
-        const ngraph::Shape& inputShape2,
+        const ngraph::PartialShape& inputShape2,
         const ngraph::element::Type precisionBeforeDequantization2,
         const DequantizationOperations& dequantization2);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const DequantizationOperations& deqOnData,
         const Constant& weights,
@@ -57,17 +57,17 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape1,
+        const ngraph::PartialShape& inputShape1,
         const ngraph::element::Type precisionBeforeDequantization1,
         const DequantizationOperations& dequantization1,
-        const ngraph::Shape& inputShape2,
+        const ngraph::PartialShape& inputShape2,
         const ngraph::element::Type precisionBeforeDequantization2,
         const DequantizationOperations& dequantization2,
         const DequantizationOperations& resultDequantization);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const DequantizationOperations& dequantization,
         const Constant& weights,

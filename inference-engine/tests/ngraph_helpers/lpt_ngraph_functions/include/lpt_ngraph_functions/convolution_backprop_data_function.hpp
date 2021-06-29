@@ -36,14 +36,14 @@ public:
     static std::shared_ptr<Function> getOriginal(
         const element::Type precision,
         const element::Type netPrecision,
-        const Shape& inputShape,
+        const PartialShape& inputShape,
         const Shape& outputShape,
         const builder::subgraph::DequantizationOperations& dequantization,
         const std::shared_ptr<Node>& weights);
     static std::shared_ptr<Function> getReference(
         const element::Type precision,
         const element::Type netPrecision,
-        const Shape& inputShape,
+        const PartialShape& inputShape,
         const Shape& outputShape,
         const builder::subgraph::DequantizationOperations& dequantization,
         const std::shared_ptr<Node>& weights,

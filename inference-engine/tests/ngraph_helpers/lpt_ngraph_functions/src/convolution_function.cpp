@@ -25,7 +25,7 @@ namespace subgraph {
 std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     const ngraph::element::Type netPrecision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ngraph::opset1::Constant> weights,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
@@ -34,8 +34,10 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     dequantizationStructure.multiply.outPrecision = netPrecision;
     const auto dequantization = makeDequantization(input, dequantizationStructure);
 
-    const size_t inputChannelsCount = inputShape[1];
-    const size_t outputChannelsCount = 2 * inputShape[1];
+    bool channelsIsDynamic = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
+
+    const size_t inputChannelsCount = !channelsIsDynamic ? inputShape[1].get_length() : 3ul;
+    const size_t outputChannelsCount = 2 * inputChannelsCount;
 
     if ((weights->cast_vector<float>().size() != 1ul) && (weights->cast_vector<float>().size() != (inputChannelsCount * outputChannelsCount))) {
         throw std::runtime_error("unexpected actual weights values size");
@@ -213,7 +215,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
 std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const ngraph::element::Type netPrecision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ngraph::opset1::Constant> weights,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
@@ -225,8 +227,10 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     dequantizationBeforeStructure.multiply.outPrecision = netPrecision;
     const auto deqBefore = makeDequantization(input, dequantizationBeforeStructure);
 
-    const size_t inputChannelsCount = inputShape[1];
-    const size_t outputChannelsCount = 2 * inputShape[1];
+    bool channelsIsDynamic = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
+
+    const size_t inputChannelsCount = !channelsIsDynamic ? inputShape[1].get_length() : 3ul;
+    const size_t outputChannelsCount = 2 * inputChannelsCount;
 
     if ((weights->cast_vector<float>().size() != 1ul) && (weights->cast_vector<float>().size() != (inputChannelsCount * outputChannelsCount))) {
         throw std::runtime_error("unexpected actual weights values size");

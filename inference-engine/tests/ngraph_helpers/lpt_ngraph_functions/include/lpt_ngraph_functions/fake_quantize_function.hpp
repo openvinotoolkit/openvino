@@ -20,8 +20,8 @@ class FakeQuantizeFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const FakeQuantizeOnData& fakeQuantizeOnData);
+        const ngraph::PartialShape& inputShape,
+        const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithMaxPool(
             const ngraph::element::Type precision,
@@ -30,9 +30,9 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool updatePrecisions,
-        const FakeQuantizeOnData& fakeQuantizeOnData,
+        const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
         const ngraph::element::Type fakeQuantizeOutputPrecision,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 };

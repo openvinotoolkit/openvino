@@ -24,10 +24,6 @@ void ReluTransformation::registerMatcherIn(GraphRewrite &pass, TransformationCon
 
 bool ReluTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> relu = m.get_match_root();
-    if (!LayerTransformation::canBeTransformed(context, relu)) {
-        return false;
-    }
-
     if (!canBeTransformed(context, relu)) {
         return false;
     }
@@ -52,8 +48,7 @@ bool ReluTransformation::canBeTransformed(const TransformationContext& context, 
         return false;
     }
 
-    const std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(dequantization.multiply->input_value(1).get_node_shared_ptr());
-    const auto scales = constant->cast_vector<float>();
+    const auto scales = dequantization.multiplyConstant->cast_vector<float>();
     if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.f; })) {
         return false;
     }

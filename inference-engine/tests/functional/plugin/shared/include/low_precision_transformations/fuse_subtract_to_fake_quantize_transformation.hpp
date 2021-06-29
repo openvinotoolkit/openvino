@@ -18,7 +18,7 @@ class FuseSubtractToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 

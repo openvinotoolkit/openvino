@@ -30,11 +30,11 @@ bool UnsqueezeTransformation::transform(TransformationContext& context, ngraph::
     }
 
     auto unsqueezeOnConstant = [](const std::shared_ptr<ngraph::Node>& unsqueeze,
-                                const std::shared_ptr<ngraph::Node>& dequantizationOperation,
-                                const ngraph::Shape& inputShape) {
-        std::shared_ptr<ngraph::Node> dequantizationOpConstant = dequantizationOperation->get_input_node_shared_ptr(1);
-        if (dequantizationOpConstant->get_shape() == inputShape && dequantizationOpConstant->get_shape().size() > 1) {
-            return fold<opset1::Unsqueeze>(dequantizationOpConstant, unsqueeze->get_input_node_shared_ptr(1));
+                                const std::shared_ptr<ngraph::opset1::Constant>& dequantizationOpConstant,
+                                const ngraph::PartialShape& inputShape) {
+        const size_t inputRankValue = inputShape.rank().get_length();
+        if (dequantizationOpConstant->get_shape().size() == inputRankValue) {
+            return as_type_ptr<opset1::Constant>(fold<opset1::Unsqueeze>(dequantizationOpConstant, unsqueeze->get_input_node_shared_ptr(1)));
         }
         return dequantizationOpConstant;
     };
@@ -43,16 +43,16 @@ bool UnsqueezeTransformation::transform(TransformationContext& context, ngraph::
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(unsqueeze);
 
     if (dequantization.multiply != nullptr) {
-        auto newConstant = unsqueezeOnConstant(unsqueeze, dequantization.multiply, dequantization.data.get_shape());
-        dequantization.multiply->set_argument(1, newConstant);
+        auto newConstant = unsqueezeOnConstant(unsqueeze, dequantization.multiplyConstant, dequantization.data.get_partial_shape());
+        replace_node(dequantization.multiplyConstant, newConstant);
     }
 
     if (dequantization.subtract != nullptr) {
-        auto newConstant = unsqueezeOnConstant(unsqueeze, dequantization.subtract, dequantization.data.get_shape());
-        dequantization.subtract->set_argument(1, newConstant);
+        auto newConstant = unsqueezeOnConstant(unsqueeze, dequantization.subtractConstant, dequantization.data.get_partial_shape());
+        replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    moveDequantizationAfter(context, unsqueeze, dequantization, false);
+    moveDequantizationAfter(context, unsqueeze, NetworkHelper::getDequantization(unsqueeze), false);
     return true;
 }
 

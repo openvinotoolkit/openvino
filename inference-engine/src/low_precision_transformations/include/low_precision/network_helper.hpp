@@ -122,7 +122,7 @@ public:
         const float dequantizationMul,
         const float dequantizationSub,
         const ngraph::element::Type originalPrecision,
-        const ngraph::Shape dataNodeOutputShape,
+        const ngraph::PartialShape dataNodeOutputShape,
         element::Type precision,
         const element::Type deqPrecision = element::f32);
 
@@ -195,6 +195,10 @@ public:
     static std::vector<element::Type> precisionIntersection(
             const std::vector<element::Type>& v1,
             const std::vector<element::Type>& v2) noexcept;
+
+    static bool isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq);
+
+    static bool isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx = 0);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(

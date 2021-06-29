@@ -37,7 +37,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginalWithNeighbors(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
         const FakeQuantizeOnData& fqOnData3,
@@ -46,20 +46,20 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginalWithIntermediate(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool transparentIntermediate,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithIntermediateAvgPool(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithSplitedIntermediate(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
         const bool addConvolution);
@@ -73,7 +73,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginalWithStridedSlice(
         const ngraph::element::Type precision,
-        const ngraph::Shape inputShape,
+        const ngraph::PartialShape inputShape,
         const FakeQuantizeOnData& fq1,
         const FakeQuantizeOnData& fq2,
         const bool ssBeforeConcat,
@@ -81,13 +81,13 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginalWithDifferentPrecisionOnChildren(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithIntermediateWithConstant(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool transparentIntermediate,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2);
@@ -115,7 +115,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantize1,
         const DequantizationOperations::Convert& convert1,
         const DequantizationOperations& dequantization1,
@@ -128,7 +128,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
         const FakeQuantizeOnData& fqOnData3,
@@ -143,7 +143,7 @@ public:
     // TODO: refactor: dequantizationBefore2 <=> dequantizationOperations2
     static std::shared_ptr<ngraph::Function> getReferenceWithIntermediate(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool transparentIntermediate,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
@@ -156,7 +156,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReferenceWithIntermediateAvgPool(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
         const ngraph::element::Type precisionBeforeOp,
@@ -168,7 +168,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReferenceWithSplitedIntermediate(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
         const ngraph::element::Type precisionBeforeOp,
@@ -194,7 +194,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReferenceWithStridedSlice(
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape inputShape,
+        const ngraph::PartialShape inputShape,
         const FakeQuantizeOnData& fq1,
         const FakeQuantizeOnData& fq2,
         const DequantizationOperations& deqBefore,
@@ -207,7 +207,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReferenceWithDifferentPrecisionOnChildren(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool multiChannel,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
@@ -219,7 +219,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReferenceWithIntermediateWithConstant(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool transparentIntermediate,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,

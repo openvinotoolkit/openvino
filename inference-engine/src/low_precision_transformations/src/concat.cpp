@@ -167,7 +167,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             dequantizationMul,
             dequantizationSub,
             subgraph.quantizationLayers[0]->get_output_element_type(0),
-            subgraph.quantizationLayers[0]->get_output_shape(0),
+            subgraph.quantizationLayers[0]->get_output_partial_shape(0),
             updatePrecisions ? dataPrecision.precision : subgraph.quantizationLayers[0]->get_output_element_type(0),
             deqPrecision);
 
@@ -249,8 +249,17 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
     }
 
     const auto axis = concat->get_axis();
-    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, concat->get_output_partial_shape(0).rank());
-    return normalizedAxis == 1ul;
+    const auto outPShape = concat->get_output_partial_shape(0);
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outPShape.rank());
+    if (normalizedAxis != 1ul) {
+        return false;
+    }
+
+    if (outPShape.rank().is_dynamic() || outPShape[normalizedAxis].is_dynamic()) {
+        return false;
+    }
+
+    return true;
 }
 
 void ConcatTransformation::fillDequantizationNodes(
@@ -290,8 +299,8 @@ void ConcatTransformation::fillDequantizationNodes(
         for (size_t i = 0; i < layerDequantizations.size(); ++i) {
             const auto& dequantization = layerDequantizations[i];
             const ngraph::element::Type precision = deqPrecision;
-            ngraph::Shape targetShape(layer->get_input_shape(i).size(), 1ul);
-            targetShape[1] = layer->get_input_shape(i)[1];
+            ngraph::Shape targetShape(layer->get_input_partial_shape(i).rank().get_length(), 1ul);
+            targetShape[1] = layer->get_input_partial_shape(i)[1].get_length();
 
             if (dequantization.convert != nullptr) {
                 convertNodes.push_back(dequantization.convert);

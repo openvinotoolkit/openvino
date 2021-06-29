@@ -21,7 +21,7 @@ class SplitFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const element::Type& precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
         const int64_t splitedAxis,
@@ -37,7 +37,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReference(
         const element::Type& precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type inputPrecision,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,

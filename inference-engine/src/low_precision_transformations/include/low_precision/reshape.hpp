@@ -23,8 +23,8 @@ public:
     static bool canBeTransformed(
         const ngraph::Shape& subtractShape,
         const ngraph::Shape& multiplyShape,
-        const ngraph::Shape& inputShape,
-        const ngraph::Shape& outputShape);
+        const ngraph::PartialShape& inputShape,
+        const ngraph::PartialShape& outputShape);
 };
 
 } // namespace low_precision

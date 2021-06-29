@@ -13,18 +13,18 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> FuseConvertFunction::get(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type inputPrecision,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const bool constInput) {
     std::shared_ptr<Node> parent;
     std::shared_ptr<op::Parameter> input;
     if (constInput) {
-        parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape, std::vector<float>{ 128.f });
+        parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape.to_shape(), std::vector<float>{ 128.f });
     } else {
         input = std::make_shared<ngraph::opset1::Parameter>(
             inputPrecision,
-            ngraph::Shape(inputShape));
+            inputShape);
         parent = input;
     }
 

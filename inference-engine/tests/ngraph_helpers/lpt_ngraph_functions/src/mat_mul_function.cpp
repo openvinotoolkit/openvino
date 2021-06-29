@@ -118,10 +118,10 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const element::Type netPrecision,
-    const ngraph::Shape& inputShape1,
+    const ngraph::PartialShape& inputShape1,
     const ngraph::element::Type precisionBeforeDequantization1,
     const DequantizationOperations& dequantization1,
-    const ngraph::Shape& inputShape2,
+    const ngraph::PartialShape& inputShape2,
     const ngraph::element::Type precisionBeforeDequantization2,
     const DequantizationOperations& dequantization2) {
     if (!dequantization1.convert.empty() && (precisionBeforeDequantization1 == dequantization1.convert.outPrecision)) {
@@ -132,10 +132,10 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
         throw std::runtime_error("unexpected input arguments for branch 2");
     }
 
-    const std::shared_ptr<ngraph::opset1::Parameter> input1 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization1, inputShape1);
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization1, inputShape1);
     input1->set_friendly_name("input1");
 
-    const std::shared_ptr<ngraph::opset1::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization2, inputShape2);
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization2, inputShape2);
     input2->set_friendly_name("input2");
 
     DequantizationOperations deqSructure1 = dequantization1;
@@ -166,15 +166,13 @@ std::shared_ptr<ngraph::Function> getOriginalWithConstant2(
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
     const DequantizationOperations& deqOnData,
     const Constant& weights,
     const FakeQuantizeOnWeights& fqOnWeights,
     const DequantizationOperations& deqOnWeights) {
-    const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        inputShape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     input->set_friendly_name("input1");
 
     const auto dequantizationOnData = makeDequantization(input, deqOnData);
@@ -207,10 +205,10 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape1,
+    const ngraph::PartialShape& inputShape1,
     const ngraph::element::Type precisionBeforeDequantization1,
     const DequantizationOperations& dequantization1,
-    const ngraph::Shape& inputShape2,
+    const ngraph::PartialShape& inputShape2,
     const ngraph::element::Type precisionBeforeDequantization2,
     const DequantizationOperations& dequantization2,
     const DequantizationOperations& resultDequantizationOperations) {
@@ -222,10 +220,10 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
         throw std::runtime_error("unexpected input arguments for branch 2");
     }
 
-    const std::shared_ptr<ngraph::opset1::Parameter> input1 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization1, inputShape1);
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization1, inputShape1);
     input1->set_friendly_name("input1");
 
-    const std::shared_ptr<ngraph::opset1::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization2, inputShape2);
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization2, inputShape2);
     input2->set_friendly_name("input2");
 
     DequantizationOperations deqSructure1 = dequantization1;
@@ -260,14 +258,12 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
     const DequantizationOperations& dequantization,
     const Constant& weights,
     const DequantizationOperations& resultDequantization) {
-    const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        inputShape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     input->set_friendly_name("input1");
 
     const std::shared_ptr<ngraph::Node> lastDequantizationBefore = makeDequantization(input, dequantization);

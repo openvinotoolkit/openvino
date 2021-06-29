@@ -19,8 +19,8 @@ namespace subgraph {
 class FuseMultiplyToFakeQuantizeFunction {
 public:
     static std::shared_ptr<ngraph::Function> get(
-        const ngraph::Shape& inputShape,
-        const FakeQuantizeOnData& fqOnData,
+        const ngraph::PartialShape& inputShape,
+        const FakeQuantizeOnDataWithConstant& fqOnData,
         const DequantizationOperations& dequantization);
 };
 

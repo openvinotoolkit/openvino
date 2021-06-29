@@ -15,7 +15,7 @@ namespace builder {
 namespace subgraph {
 std::shared_ptr<Function> ShuffleChannelsFunction::getOriginal(
     const element::Type inputPrecision,
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const builder::subgraph::DequantizationOperations& deqBefore,
     const std::int64_t axis,
     const std::int64_t group) {
@@ -55,7 +55,7 @@ std::shared_ptr<ngraph::Function> ShuffleChannelsFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> ShuffleChannelsFunction::getReference(
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::DequantizationOperations& deqBefore,
     const std::int64_t axis,
     const std::int64_t group,

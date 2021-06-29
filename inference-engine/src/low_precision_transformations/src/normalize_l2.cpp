@@ -65,10 +65,11 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
 
     const ngraph::Shape outputShape = scalesConst->get_output_shape(0);
     const size_t size = ngraph::shape_size(outputShape);
-    const size_t channels = operation->get_output_shape(0)[1];
-
-    if (size != channels && size != 1) {
-        return false;
+    if (size != 1ul) {
+        const auto channelsInterval = operation->get_output_partial_shape(0)[1];
+        if (channelsInterval.is_dynamic() || static_cast<size_t>(channelsInterval.get_length()) != size) {
+            return false;
+        }
     }
 
     if (!NetworkHelper::isScalarLike(scalesConst)) {

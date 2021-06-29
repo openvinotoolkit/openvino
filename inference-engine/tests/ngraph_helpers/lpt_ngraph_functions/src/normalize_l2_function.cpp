@@ -62,12 +62,12 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
 std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& shape,
+    const ngraph::PartialShape& shape,
     const ngraph::op::EpsMode& epsMode,
     const std::vector<size_t>& axes,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
 
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision.is_real() ? precision : inputPrecision, shape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, shape);
 
     auto deqStructure = dequantization;
     deqStructure.multiply.outPrecision = precision;
@@ -87,13 +87,13 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
 std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
     const ngraph::element::Type precision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& shape,
+    const ngraph::PartialShape& shape,
     const ngraph::op::EpsMode& epsMode,
     const std::vector<size_t>& axes,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision.is_real() ? precision : inputPrecision, shape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, shape);
 
     auto deqBeforeStructure = dequantizationBefore;
     if (dequantizationAfter.empty()) {

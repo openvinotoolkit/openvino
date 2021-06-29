@@ -12,14 +12,12 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> InterpolateFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::Shape& outputShape,
     const ngraph::op::InterpolateAttrs& interpAttrs,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const auto dequantizationOp = makeDequantization(input, dequantization);
     const auto outShape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ outputShape.size() }, outputShape);
@@ -49,16 +47,14 @@ std::shared_ptr<ngraph::Function> InterpolateFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> InterpolateFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::Shape& outputShape,
     const ngraph::op::InterpolateAttrs& interpAttrs,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto outShape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ outputShape.size() }, outputShape);
@@ -72,15 +68,13 @@ std::shared_ptr<ngraph::Function> InterpolateFunction::getReference(
 
 // v4:interpolate
 std::shared_ptr<ngraph::Function> InterpolateFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::Shape& outputShape,
     const ngraph::Shape& scalesShape,
     const ngraph::op::v4::Interpolate::InterpolateAttrs& interpAttrs,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const auto dequantizationOp = makeDequantization(input, dequantization);
     const auto outShape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ outputShape.size() }, outputShape);
@@ -113,7 +107,7 @@ std::shared_ptr<ngraph::Function> InterpolateFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> InterpolateFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::Shape& outputShape,
     const ngraph::Shape& scalesShape,
     const ngraph::op::v4::Interpolate::InterpolateAttrs& interpAttrs,
@@ -121,9 +115,7 @@ std::shared_ptr<ngraph::Function> InterpolateFunction::getReference(
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto outShape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ outputShape.size() }, outputShape);

@@ -16,7 +16,7 @@ class MVNFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const AxisSet& reductionAxes,
         const bool& normalizeVariance,
         const ngraph::element::Type precisionBeforeDequantization,
@@ -31,7 +31,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReference(
         const element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const AxisSet& reductionAxes,
         const bool& normalizeVariance,
         const ngraph::element::Type precisionBeforeDequantization,

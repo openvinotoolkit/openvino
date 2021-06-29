@@ -112,18 +112,18 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithChildAndOutput(
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithNeighbors(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
     const FakeQuantizeOnData& fqOnData3,
     const std::string& neighborType,
     const std::string& additionalLayer) {
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
     fakeQuantize2->set_friendly_name("fakeQuantize2");
@@ -140,8 +140,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithNeighbors(
 
     ngraph::ResultVector results { };
     if (additionalLayer == "convolution") {
-        auto convShape = inputShape;
-        convShape[1] += convShape[1];
+        ngraph::Shape convShape(4);
+        convShape[1] = inputShape[1].get_length() + inputShape[1].get_length();
         convShape[0] = convShape[1] * 2;
         convShape[2] = convShape[3] = 1;
         auto convolutionAddition = std::make_shared<ngraph::opset1::Convolution>(
@@ -157,7 +157,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithNeighbors(
         results.push_back(std::make_shared<ngraph::opset1::Result>(convolutionAddition));
     }
     if (neighborType == "concat") {
-        const auto input3 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+        const auto input3 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
         input3->set_friendly_name("input3");
         const auto fakeQuantize3 = makeFakeQuantize(input3, precision, fqOnData3);
         fakeQuantize3->set_friendly_name("fakeQuantize3");
@@ -172,8 +172,9 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithNeighbors(
         results.push_back(std::make_shared<ngraph::opset1::Result>(concat1));
         results.push_back(std::make_shared<ngraph::opset1::Result>(concat2));
     } else if (neighborType == "convolution") {
-        auto convShape = inputShape;
-        convShape[0] = convShape[1] * 2;
+        ngraph::Shape convShape(4);
+        convShape[0] = inputShape[1].get_length() * 2;
+        convShape[1] = inputShape[1].get_length();
         convShape[2] = convShape[3] = 1;
         auto convolutionNeighbor = std::make_shared<ngraph::opset1::Convolution>(
                 fakeQuantize2,
@@ -199,24 +200,27 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithNeighbors(
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediate(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const bool transparentIntermediate,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2) {
-    const std::vector<size_t> inputShape1 = {
-        inputShape[0],
-        inputShape[1],
-        inputShape[2] - (transparentIntermediate ? 2 : 0),
-        inputShape[3] - (transparentIntermediate ? 2 : 0)
-    };
+    const size_t channels = inputShape[1].is_dynamic() ? 3ul : inputShape[1].get_length();
+    ngraph::PartialShape inputShape1 = inputShape;
 
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape1));
+    if (inputShape1[2].is_static() && transparentIntermediate) {
+        inputShape1[2] = inputShape1[2].get_length() - 2;
+    }
+
+    if (inputShape1[3].is_static() && transparentIntermediate) {
+        inputShape1[3] = inputShape1[3].get_length() - 2;
+    }
+
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
@@ -228,8 +232,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediate(
     } else {
         auto weights = ngraph::opset1::Constant::create(
             precision,
-            ngraph::Shape{ inputShape[1], inputShape[1], 1, 1 },
-            std::vector<float>(inputShape[1] * inputShape[1], 1));
+            ngraph::Shape{ channels, channels, 1, 1 },
+            std::vector<float>(channels * channels, 1));
 
         intermediateOp = std::make_shared<ngraph::opset1::Convolution>(
             fakeQuantize2->output(0),
@@ -249,7 +253,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediate(
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
 
-    auto weights = ngraph::opset1::Constant::create(precision, ngraph::Shape{ inputShape[1], inputShape[1], 1, 1 }, { 1 });
+    auto weights = ngraph::opset1::Constant::create(precision, ngraph::Shape{ channels, channels, 1, 1 }, { 1 });
     auto convolution = std::make_shared<ngraph::opset1::Convolution>(
         intermediateOp,
         weights,
@@ -274,18 +278,24 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediate(
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediateAvgPool(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2) {
-    const std::vector<size_t> inputShape1 = { inputShape[0], inputShape[1], inputShape[2] - 2, inputShape[3] - 2 };
+    ngraph::PartialShape inputShape1 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
+    if (inputShape1[2].is_static()) {
+        inputShape1[2] = inputShape[2].get_length() - 2;
+    }
+    if (inputShape1[3].is_static()) {
+        inputShape1[3] = inputShape[3].get_length() - 2;
+    }
 
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape1));
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
+    const ngraph::PartialShape inputShape2 = inputShape;
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2);
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
@@ -326,28 +336,22 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediateAvg
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithSplitedIntermediate(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
     const bool addConvolution) {
     size_t numSplit = 2;
     size_t splitedAxis = 1;
 
+    auto inputShape1 = inputShape;
+    inputShape1[1] = inputShape1[1].get_length() / numSplit;
 
-    const std::vector<size_t> inputShape1 = {
-        inputShape[0],
-        inputShape[1] / numSplit,
-        inputShape[2],
-        inputShape[3]
-    };
-
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape1));
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
@@ -369,7 +373,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithSplitedIntermed
 
     Output<Node> lastOutput = intermediateOp->output(1);
     if (addConvolution) {
-        auto weights = ngraph::opset1::Constant::create(precision, ngraph::Shape{ inputShape[1] / numSplit, inputShape[1] / numSplit, 1, 1 }, { 1 });
+        auto weights = ngraph::opset1::Constant::create(
+            precision, ngraph::Shape{ inputShape[1].get_length() / numSplit, inputShape[1].get_length() / numSplit, 1, 1 }, { 1 });
         auto convolution = std::make_shared<ngraph::opset1::Convolution>(
             intermediateOp->output(1),
             weights,
@@ -488,7 +493,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalSelectionWithInterm
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithStridedSlice(
     const ngraph::element::Type precision,
-    const ngraph::Shape inputShape,
+    const ngraph::PartialShape inputShape,
     const FakeQuantizeOnData& fq1,
     const FakeQuantizeOnData& fq2,
     const bool ssBeforeConcat,
@@ -500,16 +505,17 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithStridedSlice(
 
     std::shared_ptr<ngraph::Node> parent1 = fakeQuantize1;
 
+    const size_t rank = inputShape.rank().get_length();
     if (ssBeforeConcat) {
         const auto beginParam = ngraph::op::Constant::create(
             ngraph::element::i64,
-            ngraph::Shape{ inputShape.size() },
-            std::vector<int64_t>(inputShape.size(), 0));
+            ngraph::Shape{ rank },
+            std::vector<int64_t>(rank, 0));
 
         const auto endParam = ngraph::op::Constant::create(
             ngraph::element::i64,
-            ngraph::Shape{ inputShape.size() },
-            std::vector<size_t>{ inputShape[0], inputShape[1] - 2ul, inputShape[2], inputShape[3] });
+            ngraph::Shape{ rank },
+            std::vector<int64_t>{ 0, inputShape[1].get_length() - 2, 0, 0 });
 
         const std::vector<int64_t> beginMask{ 1, 0, 1, 1 };
         const std::vector<int64_t> endMask{ 1, 0, 1, 1 };
@@ -529,16 +535,16 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithStridedSlice(
 
     ngraph::ResultVector results;
     if (ssAfterConcat) {
-        const auto concatShape = concat->get_output_shape(0);
+        const auto concatShape = concat->get_output_partial_shape(0);
         const auto beginParam = ngraph::op::Constant::create(
             ngraph::element::i64,
-            ngraph::Shape{ concatShape.size() },
-            std::vector<int64_t>(concatShape.size(), 0));
+            ngraph::Shape{ rank },
+            std::vector<int64_t>(rank, 0));
 
         const auto endParam = ngraph::op::Constant::create(
             ngraph::element::i64,
-            ngraph::Shape{ concatShape.size() },
-            std::vector<size_t>{ concatShape[0], concatShape[1] - 2ul, concatShape[2], concatShape[3] });
+            ngraph::Shape{ rank },
+            std::vector<int64_t>{ 0, concatShape[1].get_length() - 2, 0, 0 });
 
         const std::vector<int64_t> beginMask{ 1, 0, 1, 1 };
         const std::vector<int64_t> endMask{ 1, 0, 1, 1 };
@@ -586,15 +592,14 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithStridedSlice(
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecisionOnChildren(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2) {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
 
-    const std::vector<size_t> inputShape2 = inputShape;
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
 
@@ -646,16 +651,16 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecis
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediateWithConstant(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const bool transparentIntermediate,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2) {
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input");
     const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input2->set_friendly_name("input");
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
     fakeQuantize2->set_friendly_name("fakeQuantize2");
@@ -675,7 +680,9 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediateWit
         attributes.pads_end = { 0 };
         const auto outputShape = op::Constant::create(
             ngraph::element::i64, ngraph::Shape{ 2 },
-            ngraph::Shape{ inputShape[2], inputShape[3] });
+            ngraph::Shape{
+                inputShape[2].is_dynamic() ? 9ul : static_cast<size_t>(inputShape[2].get_length()),
+                inputShape[3].is_dynamic() ? 9ul : static_cast<size_t>(inputShape[3].get_length()) });
         intermediateOp = std::make_shared<ngraph::opset1::Interpolate>(pooling->output(0), outputShape, attributes);
         intermediateOp->set_friendly_name("intermediate");
     } else {
@@ -838,7 +845,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
 
 std::shared_ptr<ngraph::Function> ConcatFunction::get(
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnDataWithConstant& fqOnData1,
     const DequantizationOperations::Convert& convert1,
     const DequantizationOperations& dequantization1,
@@ -889,7 +896,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
     const FakeQuantizeOnData& fqOnData3,
@@ -935,8 +942,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
             mainBranch = makeDequantization(mainBranch, deqSubtract);
             deqCopy1.subtract.erase();
         }
-        auto convShape = inputShape;
-        convShape[1] += convShape[1];
+        ngraph::Shape convShape(4);
+        convShape[1] = inputShape[1].get_length() + inputShape[1].get_length();
         convShape[0] = convShape[1] * 2;
         convShape[2] = convShape[3] = 1;
         auto convolutionAddition = std::make_shared<op::TypeRelaxed<opset1::Convolution>>(
@@ -980,8 +987,9 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
             neighbor = makeDequantization(neighbor, deqSubtract);
             deqCopy2.subtract.erase();
         }
-        auto convShape = inputShape;
-        convShape[0] = convShape[1] * 2;
+        ngraph::Shape convShape(4);
+        convShape[0] = inputShape[1].get_length() * 2;
+        convShape[1] = inputShape[1].get_length();
         convShape[2] = convShape[3] = 1;
         auto convolutionNeighbor = std::make_shared<op::TypeRelaxed<ngraph::opset1::Convolution>>(
                 element::TypeVector{ element::f32, element::f32 },
@@ -1018,7 +1026,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const bool transparentIntermediate,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
@@ -1028,13 +1036,18 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
     const ngraph::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationAfter1,
     const DequantizationOperations& dequantizationAfter2) {
-    const std::vector<size_t> inputShape1 = {
-        inputShape[0],
-        inputShape[1],
-        inputShape[2] - (transparentIntermediate ? 2 : 0),
-        inputShape[3] - (transparentIntermediate ? 2 : 0)
-    };
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape1));
+    const size_t channels = inputShape[1].is_dynamic() ? 3ul : inputShape[1].get_length();
+    ngraph::PartialShape inputShape1 = inputShape;
+
+    if (inputShape1[2].is_static() && transparentIntermediate) {
+        inputShape1[2] = inputShape1[2].get_length() - 2;
+    }
+
+    if (inputShape1[3].is_static() && transparentIntermediate) {
+        inputShape1[3] = inputShape1[3].get_length() - 2;
+    }
+
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
     input1->set_friendly_name("input1");
 
     const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
@@ -1042,8 +1055,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
     fakeQuantize1->set_friendly_name("fakeQuantize1");
     const auto deqBefore1 = makeDequantization(fakeQuantize1, dequantizationBefore1);
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
@@ -1057,8 +1069,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
     } else {
         const auto weights = ngraph::opset1::Constant::create(
             precision,
-            ngraph::Shape{ inputShape[1], inputShape[1], 1, 1 },
-            std::vector<float>(inputShape[1] * inputShape[1], 1));
+            ngraph::Shape{ channels, channels, 1, 1 },
+            std::vector<float>(channels * channels, 1));
 
         intermediateOp = std::make_shared<ngraph::opset1::Convolution>(
             deqBefore2,
@@ -1085,7 +1097,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
 
     const std::shared_ptr<ngraph::Node> lastDequantization2 = makeDequantization(intermediateOp, dequantizationAfter2);
 
-    auto weights = ngraph::opset1::Constant::create(precision, ngraph::Shape{ inputShape[1], inputShape[1], 1, 1 }, { 1 });
+    auto weights = ngraph::opset1::Constant::create(precision, ngraph::Shape{ channels, channels, 1, 1 }, { 1 });
     auto convolution = std::make_shared<ngraph::opset1::Convolution>(
         lastDequantization2,
         weights,
@@ -1110,7 +1122,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateAvgPool(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
     const ngraph::element::Type precisionBeforeOp,
@@ -1119,8 +1131,15 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateAv
     const ngraph::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationAfter1,
     const DequantizationOperations& dequantizationAfter2) {
-    const std::vector<size_t> inputShape1 = { inputShape[0], inputShape[1], inputShape[2] - 2, inputShape[3] - 2};
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape1));
+    ngraph::PartialShape inputShape1 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
+    if (inputShape1[2].is_static()) {
+        inputShape1[2] = inputShape[2].get_length() - 2;
+    }
+    if (inputShape1[3].is_static()) {
+        inputShape1[3] = inputShape[3].get_length() - 2;
+    }
+
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
     input1->set_friendly_name("input1");
 
     const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
@@ -1128,8 +1147,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateAv
     fakeQuantize1->set_friendly_name("fakeQuantize1");
     const auto deqBefore1 = makeDequantization(fakeQuantize1, dequantizationBefore1);
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
@@ -1181,7 +1199,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateAv
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedIntermediate(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
     const ngraph::element::Type precisionBeforeOp,
@@ -1194,14 +1212,10 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
     size_t numSplit = 2;
     size_t splitedAxis = 1;
 
-    const std::vector<size_t> inputShape1 = {
-        inputShape[0],
-        inputShape[1] / numSplit,
-        inputShape[2],
-        inputShape[3]
-    };
+    auto inputShape1 = inputShape;
+    inputShape1[1] = inputShape1[1].get_length() / numSplit;
 
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape1));
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
     input1->set_friendly_name("input1");
 
     const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
@@ -1210,8 +1224,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
     const auto deqBefore1 = makeDequantization(fakeQuantize1, dequantizationBefore1);
 
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
@@ -1247,7 +1260,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
     if (addConvolution) {
         auto weights = ngraph::opset1::Constant::create(
             precision,
-            ngraph::Shape{ inputShape[1] / numSplit, inputShape[1] / numSplit, 1, 1 }, { 1 });
+            ngraph::Shape{ inputShape[1].get_length() / numSplit, inputShape[1].get_length() / numSplit, 1, 1 }, { 1 });
 
         auto convolution = std::make_shared<ngraph::opset1::Convolution>(
             lastDequantization2,
@@ -1374,7 +1387,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceSelectionWithInter
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithStridedSlice(
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape inputShape,
+    const ngraph::PartialShape inputShape,
     const FakeQuantizeOnData& fq1,
     const FakeQuantizeOnData& fq2,
     const DequantizationOperations& deqBefore,
@@ -1393,16 +1406,17 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithStridedSlice(
 
     std::shared_ptr<ngraph::Node> parent1 = fakeQuantize1;
 
+    const size_t rank = inputShape.rank().get_length();
     if (ssBeforeConcat) {
         const auto beginParam = ngraph::op::Constant::create(
             ngraph::element::i64,
-            ngraph::Shape{ inputShape.size() },
-            std::vector<int64_t>(inputShape.size(), 0));
+            ngraph::Shape{ rank },
+            std::vector<int64_t>(rank, 0));
 
         const auto endParam = ngraph::op::Constant::create(
             ngraph::element::i64,
-            ngraph::Shape{ inputShape.size() },
-            std::vector<size_t>{ inputShape[0], inputShape[1] - 2ul, inputShape[2], inputShape[3] });
+            ngraph::Shape{ rank },
+            std::vector<int64_t>{ 0, inputShape[1].get_length() - 2, 0, 0 });
 
         const std::vector<int64_t> beginMask{ 1, 0, 1, 1 };
         const std::vector<int64_t> endMask{ 1, 0, 1, 1 };
@@ -1424,16 +1438,16 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithStridedSlice(
 
     ngraph::ResultVector results;
     if (ssAfterConcat) {
-        const auto concatShape = concat->get_output_shape(0);
+        const auto concatShape = concat->get_output_partial_shape(0);
         const auto beginParam = ngraph::op::Constant::create(
             ngraph::element::i64,
-            ngraph::Shape{ concatShape.size() },
-            std::vector<int64_t>(concatShape.size(), 0));
+            ngraph::Shape{ rank },
+            std::vector<int64_t>(rank, 0));
 
         const auto endParam = ngraph::op::Constant::create(
             ngraph::element::i64,
-            ngraph::Shape{ concatShape.size() },
-            std::vector<size_t>{ concatShape[0], concatShape[1] - 2ul, concatShape[2], concatShape[3] });
+            ngraph::Shape{ rank },
+            std::vector<int64_t>{ 0, concatShape[1].get_length() - 2, 0, 0 });
 
         const std::vector<int64_t> beginMask{ 1, 0, 1, 1 };
         const std::vector<int64_t> endMask{ 1, 0, 1, 1 };
@@ -1485,7 +1499,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithStridedSlice(
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithDifferentPrecisionOnChildren(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const bool multiChannel,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
@@ -1566,7 +1580,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithDifferentPreci
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateWithConstant(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const bool transparentIntermediate,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
@@ -1575,13 +1589,13 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateWi
     const ngraph::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationAfter,
     const ngraph::element::Type precisionAfterDequantization) {
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input");
     const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
     fakeQuantize1->set_friendly_name("fakeQuantize1");
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize1, precisionBeforeOp);
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input2->set_friendly_name("input");
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
     fakeQuantize2->set_friendly_name("fakeQuantize2");
@@ -1603,7 +1617,9 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateWi
 
         const auto outputShape = op::Constant::create(
             ngraph::element::i64, ngraph::Shape{ 2 },
-            ngraph::Shape{ inputShape[2], inputShape[3] });
+            ngraph::Shape{
+                inputShape[2].is_dynamic() ? 9ul : static_cast<size_t>(inputShape[2].get_length()),
+                inputShape[3].is_dynamic() ? 9ul : static_cast<size_t>(inputShape[3].get_length())});
         intermediateOp = std::make_shared<ngraph::opset1::Interpolate>(pooling->output(0), outputShape, attributes);
         intermediateOp->set_friendly_name("intermediate");
     } else {

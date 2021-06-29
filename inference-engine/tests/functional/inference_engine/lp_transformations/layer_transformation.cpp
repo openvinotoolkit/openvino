@@ -71,7 +71,7 @@ void LayerTransformation::transform(std::shared_ptr<ngraph::Function> function) 
 
 std::string LayerTransformation::getTestCaseNameByParams(
     const ngraph::element::Type& type,
-    const ngraph::Shape& shape,
+    const ngraph::PartialShape& shape,
     const ngraph::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;
     result << type << "_" << shape << "_" << toString(params);

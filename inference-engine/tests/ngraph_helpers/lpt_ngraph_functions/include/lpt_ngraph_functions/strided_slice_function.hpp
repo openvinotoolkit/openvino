@@ -19,7 +19,7 @@ class StridedSliceFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
         const std::vector<int64_t>& begin,
         const std::vector<int64_t>& end,
@@ -45,7 +45,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const std::vector<int64_t>& begin,
         const std::vector<int64_t>& end,
         const std::vector<int64_t>& strides,

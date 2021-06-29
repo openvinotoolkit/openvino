@@ -12,13 +12,11 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const std::vector<int>& reshapeConstValues,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
 
@@ -37,7 +35,7 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
     const std::vector<int>& reshapeConstValues,
     const ngraph::element::Type precisionBeforeFq,
     const FakeQuantizeOnData& fqOnData) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeFq,
         ngraph::Shape(inputShape));
 
@@ -55,15 +53,13 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> ReshapeFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const std::vector<int>& reshapeConstValues,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
 

@@ -57,7 +57,8 @@ class AddFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape1,
+        const ngraph::PartialShape& inputShape2,
         const bool broadcast,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::element::Type& precision1,
@@ -77,7 +78,8 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape1,
+        const ngraph::PartialShape& inputShape2,
         const bool broadcast,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::element::Type& precision1,
