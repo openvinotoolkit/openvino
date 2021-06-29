@@ -12,10 +12,7 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -80,7 +77,5 @@ TEST(TransformationTests, ShapeSubGraphTest) {
     }
 
     auto res = compare_functions(f, f_ref, true);
-    ngraph::pass::VisualizeTree("/localdisk/f.svg").run_on_function(f);
-    ngraph::pass::VisualizeTree("/localdisk/f_ref.svg").run_on_function(f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
