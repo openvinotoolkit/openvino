@@ -103,7 +103,7 @@ limitations under the License.
                 <tab type="usergroup" title="Performance Benchmark Results" url="@ref openvino_docs_performance_benchmarks">
                     <tab type="usergroup" title="Intel® Distribution of OpenVINO™ toolkit Benchmark Results" url="@ref openvino_docs_performance_benchmarks_openvino">
                         <tab type="user" title="Performance Information Frequently Asked Questions" url="@ref openvino_docs_performance_benchmarks_faq"/>
-                        <tab type="user" title="Download Performance Data Spreadsheet in MS Excel* Format" url="https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.3-Download-Excel.xlsx"/>
+                        <tab type="user" title="Download Performance Data Spreadsheet in MS Excel* Format" url="https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.4-Download-Excel.xlsx"/>
                         <tab type="user" title="INT8 vs. FP32 Comparison on Select Networks and Platforms" url="@ref openvino_docs_performance_int8_vs_fp32"/>
                     </tab>
                     <tab type="user" title="OpenVINO™ Model Server Benchmark Results" url="@ref openvino_docs_performance_benchmarks_ovms"/>
