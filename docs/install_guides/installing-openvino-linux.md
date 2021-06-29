@@ -282,10 +282,14 @@ The steps in this section are required only if you want to enable the toolkit co
 cd /opt/intel/openvino_2021/install_dependencies/
 ```
 
-2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package, to install it, make sure you have the internet connection and run the installation script:
-```sh
-sudo -E ./install_NEO_OCL_driver.sh
-```
+2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package and must be installed separately.
+
+   > **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Intel® Iris® Xe MAX Graphics with Linux*](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html) page for driver installation instructions.
+
+   To install the drivers, make sure you have the internet connection and run the installation script:
+   ```sh
+   sudo -E ./install_NEO_OCL_driver.sh
+   ```
    The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does 
 not install a new driver. If the version of the driver is lower than the current version, the script uninstalls the lower and installs the current version with your permission:
    ![](../img/NEO_check_agreement.png) 
