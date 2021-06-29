@@ -33,6 +33,8 @@ class LoopExtractor(FrontExtractorOp):
         del main_graph_attrs_copy['tensor_mapping']
         body_graph.graph.update(main_graph_attrs_copy)
         loop_node['body'] = body_graph
+        # save graph for nested loops
+        body_graph.graph['parent_graph'] = main_graph
 
         # maps a tensor name to a node produced it and the node port: str -> (node_id, node_port)
         data_nodes_map = {}
@@ -40,8 +42,8 @@ class LoopExtractor(FrontExtractorOp):
 
         body_parameters = add_initializers_and_inputs_to_graph(body_graph, body_graph_proto, data_nodes_map)
 
-        external_edges = []  # (src_node, src_out_port), dest_body_parameter_node
-        additional_params = {}  # (src_node, src_out_port) -> parameter_node (for manually added Parameters)
+        external_edges = [[]]  # (src_node, src_out_port), dest_body_parameter_node
+        additional_params = [{}]  # (src_node, src_out_port) -> parameter_node (for manually added Parameters)
         # Go through all nodes in the original model order because data nodes are defined on-the-fly and order matters
         for pb_node in body_graph_proto.node:
             # create an NX node
@@ -57,24 +59,93 @@ class LoopExtractor(FrontExtractorOp):
                     if inp == '':
                         # input is omitted; most likely it corresponds to an optional input for an operator
                         continue
-                    elif inp in main_graph.graph['tensor_mapping']:
-                        log.debug('The edge between outer and inner graphs detected: {} -> {}'.format(inp, id))
-                        if main_graph.graph['tensor_mapping'][inp] not in additional_params:
-                            # create new Parameter body node and connect the body node with the outer graph using it
-                            param_id = str(inp)
-                            body_graph.add_node(param_id, kind='op', op='Parameter', name=param_id, pb=None, shape=None)
-                            parameter_node = Node(body_graph, param_id)
-                            # need to manually update necessary attrs for the node because extractor will not be called
-                            # for it because the node does not have .pb attribute
-                            Parameter.update_node_stat(parameter_node, {})
-                            external_edges.append((main_graph.graph['tensor_mapping'][inp], parameter_node, inp))
-                            src_id, src_port = param_id, 0
-                            additional_params[main_graph.graph['tensor_mapping'][inp]] = parameter_node
-                        else:
-                            src_id, src_port = additional_params[main_graph.graph['tensor_mapping'][inp]].id, 0
-                    else:
-                        raise Error('Reference to "{}" is not satisfied. A node refer not existing data tensor. ONNX '
-                                    'model is not consistent. Protobuf fragment: {}', inp, pb_node)
+                    else :
+                        cur_graph = body_graph
+                        counter = 0
+                        is_finished = False
+                        transit_parameter = None
+                        while not is_finished and 'parent_graph' in cur_graph.graph:
+                            parent_graph = cur_graph.graph['parent_graph']
+                            if inp in parent_graph.graph['tensor_mapping']:
+                                log.debug('The edge between outer and inner graphs detected: {} -> {}'.format(inp, id))
+                                if parent_graph.graph['tensor_mapping'][inp] not in additional_params[counter]:
+                                    if transit_parameter is None:
+                                        # create new Parameter body node and connect the body node with the outer graph using it
+                                        param_id = str(inp)
+                                        cur_graph.add_node(param_id, kind='op', op='Parameter', name=param_id, pb=None, shape=None)
+                                        parameter_node = Node(cur_graph, param_id)
+                                        # need to manually update necessary attrs for the node because extractor will not be called
+                                        # for it because the node does not have .pb attribute
+                                        Parameter.update_node_stat(parameter_node, {})
+                                    else:
+                                        parameter_node = transit_parameter
+                                    external_edges[counter].append((parent_graph.graph['tensor_mapping'][inp], parameter_node))
+                                    src_id, src_port = param_id, 0
+                                    additional_params[counter][parent_graph.graph['tensor_mapping'][inp]] = parameter_node
+                                else:
+                                    src_id, src_port = additional_params[counter][parent_graph.graph['tensor_mapping'][inp]].id, 0
+                                is_finished = False
+                            else:
+                                # create new Parameter in hope that we will find node later
+                                param_id = str(inp)
+                                cur_graph.add_node(param_id, kind='op', op='Parameter', name=param_id, pb=None,
+                                                   shape=None)
+                                parameter_node = Node(cur_graph, param_id)
+                                # need to manually update necessary attrs for the node because extractor will not be called
+                                # for it because the node does not have .pb attribute
+                                Parameter.update_node_stat(parameter_node, {})
+
+                                parent_param_id = str(inp)+"_transit"
+                                parent_graph.add_node(parent_param_id, kind='op', op='Parameter', name=parent_param_id,
+                                                      pb=None, shape=None)
+                                parent_parameter_node = Node(cur_graph, parent_param_id)
+                                # need to manually update necessary attrs for the node because extractor will not be called
+                                # for it because the node does not have .pb attribute
+                                Parameter.update_node_stat(parent_parameter_node, {})
+
+                                external_edges[counter].append((parent_parameter_node, parameter_node))
+                                src_id, src_port = param_id, 0
+                                additional_params[counter][parent_param_id] = parameter_node
+                                transit_parameter = parent_parameter_node
+
+                            assert (cur_graph.has_node(src_id))
+                            edge_attrs = {
+                                'out': src_port,
+                                'in': dst_port,
+                                'name': inp,
+                                'fw_tensor_debug_info': [(inp, inp)],
+                                'in_attrs': ['in', 'name'],
+                                'out_attrs': ['out', 'name'],
+                                'data_attrs': ['fw_tensor_debug_info']
+                            }
+                            cur_graph.add_edge(src_id, id, **edge_attrs)
+
+                            cur_graph = parent_graph
+                            counter += 1
+
+                        if not is_finished:
+                            raise Error(
+                                'Reference to "{}" is not satisfied. A node refer not existing data tensor. ONNX '
+                                'model is not consistent. Protobuf fragment: {}', inp, pb_node)
+                    #                    elif inp in main_graph.graph['tensor_mapping']:
+                    #    log.debug('The edge between outer and inner graphs detected: {} -> {}'.format(inp, id))
+                    #    if main_graph.graph['tensor_mapping'][inp] not in additional_params:
+                    #        # create new Parameter body node and connect the body node with the outer graph using it
+                    #        param_id = str(inp)
+                    #        body_graph.add_node(param_id, kind='op', op='Parameter', name=param_id, pb=None, shape=None)
+                    #        parameter_node = Node(body_graph, param_id)
+                    #        # need to manually update necessary attrs for the node because extractor will not be called
+                    #        # for it because the node does not have .pb attribute
+                    #       Parameter.update_node_stat(parameter_node, {})
+                    #        external_edges.append((main_graph.graph['tensor_mapping'][inp], parameter_node, inp))
+                    #        src_id, src_port = param_id, 0
+                    #        additional_params[main_graph.graph['tensor_mapping'][inp]] = parameter_node
+                    #    else:
+                    #        src_id, src_port = additional_params[main_graph.graph['tensor_mapping'][inp]].id, 0
+                    #else:
+                    #    raise Error('Reference to "{}" is not satisfied. A node refer not existing data tensor. ONNX '
+                    #                'model is not consistent. Protobuf fragment: {}', inp, pb_node)
+
                 else:
                     src_id, src_port = data_nodes_map[inp]
 
