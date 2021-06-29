@@ -85,6 +85,12 @@ export PATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PATH:+:$PATH}
 export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
 
 
+
+if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader" ]; then
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader:$PYTHONPATH"
+    export PATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader:$PATH"
+fi
+
 if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_checker" ]; then
     export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_checker:$PYTHONPATH"
 fi
