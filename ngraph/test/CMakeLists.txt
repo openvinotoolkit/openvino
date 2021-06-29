@@ -163,7 +163,7 @@ set(SRC
     type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
     type_prop/non_zero.cpp
-    type_prop/normalize.cpp
+    type_prop/normalize_l2.cpp
     type_prop/one_hot.cpp
     type_prop/pad.cpp
     type_prop/parameter.cpp
@@ -233,6 +233,7 @@ set(SRC
     visitors/op/convolution_backprop.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
+    visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
@@ -251,6 +252,7 @@ set(SRC
     visitors/op/lstm_sequence.cpp
     visitors/op/matmul.cpp
     visitors/op/max_pool.cpp
+    visitors/op/mish.cpp
     visitors/op/mod.cpp
     visitors/op/mvn.cpp
     visitors/op/negative.cpp
@@ -381,6 +383,7 @@ set(MULTI_TEST_SRC
     backend/dft.in.cpp
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
+    backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
     backend/experimental_detectron_generate_proposals.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
@@ -415,6 +418,7 @@ set(MULTI_TEST_SRC
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
+    backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
