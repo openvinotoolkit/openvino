@@ -160,7 +160,7 @@ set(SRC
     type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
     type_prop/non_zero.cpp
-    type_prop/normalize.cpp
+    type_prop/normalize_l2.cpp
     type_prop/one_hot.cpp
     type_prop/pad.cpp
     type_prop/parameter.cpp
