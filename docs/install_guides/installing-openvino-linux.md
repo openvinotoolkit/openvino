@@ -283,15 +283,13 @@ cd /opt/intel/openvino_2021/install_dependencies/
 ```
 
 2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package and must be installed separately.
-
    > **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Intel® Iris® Xe MAX Graphics with Linux*](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html) page for driver installation instructions.
 
    To install the drivers, make sure you have the internet connection and run the installation script:
    ```sh
    sudo -E ./install_NEO_OCL_driver.sh
    ```
-   The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does 
-not install a new driver. If the version of the driver is lower than the current version, the script uninstalls the lower and installs the current version with your permission:
+   The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does not install a new driver. If the version of the driver is lower than the current version, the script uninstalls the lower and installs the current version with your permission:
    ![](../img/NEO_check_agreement.png) 
    Higher hardware versions require a higher driver version, namely 20.35 instead of 19.41. If the script fails to uninstall the driver, uninstall it manually. During the script execution, you may see the following command line output:  
 ```sh
@@ -299,7 +297,7 @@ Add OpenCL user to video group
 ```
    Ignore this suggestion and continue.<br>You can also find the most recent version of the driver, installation procedure and other information in the [https://github.com/intel/compute-runtime/](https://github.com/intel/compute-runtime/) repository.
 
-4. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
+3. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
 You've completed all required configuration steps to perform inference on processor graphics. 
 Proceed to the <a href="#get-started">Get Started</a> to get started with running code samples and demo applications.
