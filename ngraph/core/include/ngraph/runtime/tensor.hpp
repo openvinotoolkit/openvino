@@ -54,17 +54,6 @@ namespace ngraph
             NGRAPH_DEPRECATED("Only output ports have names")
             const std::string& get_name() const;
 
-            /// \brief Get the stale value of the tensor. A tensor is stale if its data is
-            /// changed.
-            /// \return true if there is new data in this tensor
-            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
-            bool get_stale() const;
-
-            /// \brief Set the stale value of the tensor. A tensor is stale if its data is
-            /// changed.
-            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
-            void set_stale(bool val);
-
             /// \brief Write bytes directly into the tensor
             /// \param p Pointer to source of data
             /// \param n Number of bytes to write, must be integral number of elements.
@@ -74,15 +63,6 @@ namespace ngraph
             /// \param p Pointer to destination for data
             /// \param n Number of bytes to read, must be integral number of elements.
             virtual void read(void* p, size_t n) const = 0;
-
-            /// \brief check tensor for new data, call may block.
-            ///    backends may use this to ensure tensor is updated (eg: lazy eval).
-            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
-            virtual void wait_for_read_ready() {}
-            /// \brief notify tensor of new data, call may block.
-            ///    backends may use this as indication of new data in tensor.
-            NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2022.1 release")
-            virtual void wait_for_write_ready() {}
 
         protected:
             std::shared_ptr<ngraph::descriptor::Tensor> m_descriptor;
