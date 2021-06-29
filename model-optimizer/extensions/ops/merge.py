@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import is_fully_defined
+from mo.front.common.partial_infer.utils import is_fully_defined, compare_shapes
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -30,7 +30,7 @@ class Merge(Op):
             node['is_not_fully_inferred'] = True
         else:
             node['is_not_fully_inferred'] = False
-            assert np.ma.allequal(node.shape == inferred_nodes[0].shape for node in inferred_nodes)
+            assert np.all(compare_shapes(node.shape, inferred_nodes[0].shape) for node in inferred_nodes)
 
             inferred_and_executable = [n for n in node.in_nodes().values() if n['is_partial_inferred'] and
                                        'executable' in n and n['executable']]
