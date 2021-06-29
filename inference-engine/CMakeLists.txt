@@ -46,6 +46,10 @@ elseif(WIN32)
             PATTERN .clang-format EXCLUDE)
 endif()
 
+install(TARGETS format_reader
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+
 # install C samples
 
 ie_cpack_add_component(c_samples DEPENDS core_c)

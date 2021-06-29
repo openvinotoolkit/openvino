@@ -5,18 +5,24 @@
 file(GLOB SRC *.cpp)
 file(GLOB HDR *.hpp)
 
-add_library(fluid_test_computations SHARED ${SRC} ${HDR})
+set(TARGET_NAME fluid_test_computations)
+
+add_library(${TARGET_NAME} SHARED ${SRC} ${HDR})
 
 # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
 if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
    (CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 5.5))
-    set_target_properties(fluid_test_computations PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
+    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
 endif()
 
-target_include_directories(fluid_test_computations PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
-target_link_libraries(fluid_test_computations PRIVATE inference_engine_preproc_s inference_engine fluid)
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_preproc_s inference_engine fluid)
 
-target_compile_definitions(fluid_test_computations PRIVATE IMPLEMENT_FLUID_COMPUTATION_API)
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_FLUID_COMPUTATION_API)
 
-add_dependencies(fluid_test_computations inference_engine_preproc)
+add_dependencies(${TARGET_NAME} inference_engine_preproc)
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
