@@ -6,12 +6,11 @@
 > - CentOS and Yocto installations will require some modifications that are not covered in this guide.
 > - An internet connection is required to follow the steps in this guide.
 
-> **TIP**: If you want to [quick start with OpenVINO™ toolkit](@ref 
-> openvino_docs_get_started_get_started_dl_workbench), you can use 
-> the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench). DL Workbench is the OpenVINO™ toolkit UI 
-> that enables you to import a
-> model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for deployment
-> on various Intel® platforms. Begin your OpenVINO™ journey with [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Install).
+> **TIP**: You can quick start with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref 
+> openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is an OpenVINO™ UI that enables you to
+> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
+> deployment on various Intel® platforms.
 
 ## Introduction
 
