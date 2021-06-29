@@ -4,23 +4,9 @@
 
 # ========================================= Name / Output settings =====================================
 
-set(CLDNN_BUILD__PROJ             "clDNN_unit_tests")
+set(CLDNN_BUILD__PROJ             "clDNN_unit_tests64")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
 set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
-
-# =========================================== Compiler options =========================================
-intel_config_flag_apply_settings(CompilerOptions CMAKE_CXX_FLAGS ALL_PATTERN ""
-    SET
-      WarnLevel3
-      StandardCxx11
-  )
-if (NOT MSVC)
-  intel_config_flag_apply_settings(CompilerOptions CMAKE_CXX_FLAGS ALL_PATTERN ""
-      SET_RAW
-        "-Wno-error=conversion-null"
-        "-Wno-error=type-limits"
-    )
-endif ()
 
 # ========================================= Source/Header files ========================================
 
@@ -120,16 +106,9 @@ if(WIN32)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
-target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
-
-# =================================== Custom pre- and post-steps =======================================
-
-if(CLDNN__RUN_TESTS)
-  add_custom_command(TARGET "${CLDNN_BUILD__PROJ}" POST_BUILD
-      WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
-      COMMAND "${CLDNN_BUILD__PROJ}"
-      COMMENT "Executing tests..."
-    )
-endif()
 
 # ======================================================================================================
+
+ie_sse42_optimization_flags(sse4_2_flags)
+set_source_files_properties(${__CLDNN_AllSources}
+  PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
