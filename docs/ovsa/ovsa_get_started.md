@@ -669,7 +669,7 @@ The access controlled model is ready to be shared with the User and the referenc
    cd $OVSA_DEV_ARTEFACTS
    /opt/ovsa/bin/ovsatool licgen -t TimeLimit -l30 -n "Time Limit License Config" -v 1.0 -u "<isv-developer-vm-ip-address>:<license_server-port>" /opt/ovsa/certs/server.crt  -k isv_keystore -o 30daylicense.config
    ```
-   **NOTE**: The parameter /opt/ovsa/certs/server.crt  contains the certificate used by the License Server. The server certificate will be added to the customer license and validated during use. Refer to [OpenVINO™ Security Add-on License Server Certificate Pinning](ovsa_license_server_cert_pinning.md)
+   **NOTE**: The parameter /opt/ovsa/certs/server.crt  contains the certificate used by the License Server. The server certificate will be added to the customer license and validated during use. Refer to [OpenVINO™ Security Add-on License Server Certificate Pinning](https://github.com/openvinotoolkit/security_addon/blob/release_2021_4/docs/ovsa_license_server_cert_pinning.md)
 3. Create the customer license
    ```sh
    cd $OVSA_DEV_ARTEFACTS
