@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBox::type_info;
+NGRAPH_RTTI_DEFINITION(op::PriorBox, "PriorBox", 0);
 
 op::PriorBox::PriorBox(const Output<Node>& layer_shape,
                        const Output<Node>& image_shape,
