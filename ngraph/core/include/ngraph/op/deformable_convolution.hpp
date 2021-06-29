@@ -117,7 +117,7 @@ namespace ngraph
                 /// \param offsets            Node producing the deformable values tensor.
                 /// \param filters            Node producing the filters(kernels) tensor with OIZYX
                 ///                           layout.
-                /// \param mask Node producing the mask(mask) tensor.
+                /// \param mask               Node producing the mask(mask) tensor.
                 /// \param strides            Convolution strides.
                 /// \param pads_begin         Amount of padding to be added to the beginning along
                 ///                           each axis. For example in case of a 2D input the value
