@@ -35,13 +35,11 @@ namespace ngraph
         namespace pdpd
         {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            typedef std::wstring path_type;
-            std::wstring SUFFIX = L".pdmodel";
-            std::wstring MODEL_NAME = L"/__model__";
+            const path_type SUFFIX = L".pdmodel";
+            const path_type MODEL_NAME = L"/__model__";
 #else
-            typedef std::string path_type;
-            std::string SUFFIX = ".pdmodel";
-            std::string MODEL_NAME = "/__model__";
+            const path_type SUFFIX = ".pdmodel";
+            const path_type MODEL_NAME = "/__model__";
 #endif
 
             NamedOutputs make_ng_node(std::map<pdpd::TensorName, Output<Node>>& nodes,
@@ -176,10 +174,10 @@ namespace ngraph
                 return false;
 
             // Validating first path, it must contain a model
-            if (is_type<VariantWrapper<pdpd::path_type>>(variants[0]))
+            if (is_type<VariantWrapper<path_type>>(variants[0]))
             {
-                pdpd::path_type model_path =
-                    as_type_ptr<VariantWrapper<pdpd::path_type>>(variants[0])->get();
+                path_type model_path =
+                    as_type_ptr<VariantWrapper<path_type>>(variants[0])->get();
                 if (model_path.length() < pdpd::SUFFIX.length() ||
                     (0 != model_path.compare(model_path.length() - pdpd::SUFFIX.length(),
                                              pdpd::SUFFIX.length(),
@@ -208,12 +206,12 @@ namespace ngraph
         {
             if (variants.size() == 1)
             {
-                if (is_type<VariantWrapper<pdpd::path_type>>(variants[0]))
+                if (is_type<VariantWrapper<path_type>>(variants[0]))
                 {
                     // The case when folder with __model__ and weight files is provided or .pdmodel
                     // file
                     return std::make_shared<InputModelPDPD>(
-                        as_type_ptr<VariantWrapper<pdpd::path_type>>(variants[0])->get());
+                        as_type_ptr<VariantWrapper<path_type>>(variants[0])->get());
                 }
                 else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
                 {
@@ -233,10 +231,10 @@ namespace ngraph
                 std::ifstream weights_stream;
                 std::istream* p_model_stream;
                 std::istream* p_weights_stream;
-                if (is_type<VariantWrapper<pdpd::path_type>>(variants[0]))
+                if (is_type<VariantWrapper<path_type>>(variants[0]))
                 {
                     const auto& model_path =
-                        as_type_ptr<VariantWrapper<pdpd::path_type>>(variants[0])->get();
+                        as_type_ptr<VariantWrapper<path_type>>(variants[0])->get();
                     model_stream.open(model_path, std::ios::in | std::ifstream::binary);
                     FRONT_END_INITIALIZATION_CHECK(model_stream && model_stream.is_open(),
                                                    "Cannot open model file.");
@@ -249,10 +247,10 @@ namespace ngraph
                             ->get();
                     p_model_stream = m_stream.get();
                 }
-                if (is_type<VariantWrapper<pdpd::path_type>>(variants[1]))
+                if (is_type<VariantWrapper<path_type>>(variants[1]))
                 {
                     const auto& weights_path =
-                        as_type_ptr<VariantWrapper<pdpd::path_type>>(variants[1])->get();
+                        as_type_ptr<VariantWrapper<path_type>>(variants[1])->get();
                     weights_stream.open(weights_path, std::ios::in | std::ifstream::binary);
                     PDPD_ASSERT(weights_stream && weights_stream.is_open(),
                                 "Cannot open weights file.");
