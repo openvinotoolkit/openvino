@@ -173,7 +173,8 @@ namespace ngraph
                     auto inputs = node.get_ng_inputs();
                     for (const auto& input : subgraph->get_inputs_from_parent())
                         inputs.push_back(input);
-                    framework_node = std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(node, inputs);
+                    framework_node =
+                        std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(node, inputs);
                 }
                 else
                 {

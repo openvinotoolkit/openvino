@@ -47,8 +47,7 @@ namespace ngraph
             {
             }
 
-            ONNXFrameworkNode(const onnx_import::Node& node,
-                              const OutputVector& inputs)
+            ONNXFrameworkNode(const onnx_import::Node& node, const OutputVector& inputs)
                 : FrameworkNode(inputs, node.get_outputs_size())
                 , m_node(node)
             {
@@ -78,8 +77,7 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
 
-            ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
-                                      const OutputVector& inputs)
+            ONNXSubgraphFrameworkNode(const onnx_import::Node& node, const OutputVector& inputs)
                 : ONNXFrameworkNode(node, inputs)
             {
             }
