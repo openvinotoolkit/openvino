@@ -120,11 +120,9 @@ extensions/front/caffe/roipooling_ext.py
 extensions/front/caffe/scale_ext.py
 extensions/front/caffe/shufflechannel_ext.py
 extensions/front/caffe/sigmoid.py
-extensions/front/caffe/simplernms_ext.py
 extensions/front/caffe/slice_ext.py
 extensions/front/caffe/slice_to_split.py
 extensions/front/caffe/softmax_ext.py
-extensions/front/caffe/spatial_transformer_ext.py
 extensions/front/caffe/split_to_identity.py
 extensions/front/caffe/tanh.py
 extensions/front/ChangePlaceholderTypes.py
@@ -725,7 +723,6 @@ extensions/ops/ONNXResize11.py
 extensions/ops/pack.py
 extensions/ops/parameter.py
 extensions/ops/pnorm.py
-extensions/ops/prediction_heatmap.py
 extensions/ops/prelu.py
 extensions/ops/priorbox.py
 extensions/ops/priorbox_clustered.py
@@ -753,7 +750,6 @@ extensions/ops/scatter.py
 extensions/ops/scatternd.py
 extensions/ops/select.py
 extensions/ops/shufflechannel.py
-extensions/ops/simplernms.py
 extensions/ops/size.py
 extensions/ops/slice_like.py
 extensions/ops/space_to_depth.py
@@ -762,7 +758,6 @@ extensions/ops/sparse_reshape.py
 extensions/ops/sparse_segment_mean.py
 extensions/ops/sparse_segment_sqrtn.py
 extensions/ops/sparse_segment_sum.py
-extensions/ops/spatial_transformer.py
 extensions/ops/splice.py
 extensions/ops/split.py
 extensions/ops/stop_gradient.py
