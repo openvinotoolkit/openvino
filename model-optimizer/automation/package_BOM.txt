@@ -104,7 +104,6 @@ extensions/front/caffe/MVNCaffeToMVN.py
 extensions/front/caffe/normalize_ext.py
 extensions/front/caffe/permute_ext.py
 extensions/front/caffe/pooling_ext.py
-extensions/front/caffe/power_file_ext.py
 extensions/front/caffe/prelu_ext.py
 extensions/front/caffe/priorbox_clustered_ext.py
 extensions/front/caffe/priorbox_ext.py
@@ -726,7 +725,6 @@ extensions/ops/ONNXResize11.py
 extensions/ops/pack.py
 extensions/ops/parameter.py
 extensions/ops/pnorm.py
-extensions/ops/power_file.py
 extensions/ops/prediction_heatmap.py
 extensions/ops/prelu.py
 extensions/ops/priorbox.py
