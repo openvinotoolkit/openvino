@@ -5,7 +5,6 @@
 > - If you are using Intel® Distribution of OpenVINO™ toolkit on Windows\* OS, see the [Installation Guide for Windows*](installing-openvino-windows.md).
 > - CentOS and Yocto installations will require some modifications that are not covered in this guide.
 > - An internet connection is required to follow the steps in this guide.
-> - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
 > **TIP**: If you want to [quick start with OpenVINO™ toolkit](@ref 
 > openvino_docs_get_started_get_started_dl_workbench), you can use 
@@ -20,7 +19,7 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 
 The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 - Enables CNN-based deep learning inference on the edge
-- Supports heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+- Supports heterogeneous execution across Intel® CPU, Intel® GPU, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 - Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
 - Includes optimized calls for computer vision standards including OpenCV\* and OpenCL™
 
@@ -47,6 +46,7 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
 * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
 * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
+* Intel® Iris® Xe MAX Graphics
 * Intel® Neural Compute Stick 2
 * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
@@ -63,6 +63,10 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 - Ubuntu 20.04.0 long-term support (LTS), 64-bit
 - CentOS 7.6, 64-bit (for target only)
 - Yocto Project v3.0, 64-bit (for target only and requires modifications)
+- For deployment scenarios on Red Hat* Enterprise Linux* 8.2 (64 bit), you can use the of Intel® Distribution of OpenVINO™ toolkit run-time package that includes the Inference Engine core libraries, nGraph, OpenCV, Python bindings, CPU and GPU plugins. The package is available as: 
+   - [Downloadable archive](https://storage.openvinotoolkit.org/repositories/openvino/packages/2021.3/l_openvino_toolkit_runtime_rhel8_p_2021.3.394.tgz)
+   - [PyPi package](https://pypi.org/project/openvino/)
+   - [Docker image](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
 
 ## Overview
 

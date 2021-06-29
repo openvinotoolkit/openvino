@@ -2,7 +2,6 @@
 
 > **NOTES**:
 > - This guide applies to Microsoft Windows\* 10 64-bit. For Linux* OS information and instructions, see the [Installation Guide for Linux](installing-openvino-linux.md).
-> - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
 > **TIP**: If you want to [quick start with OpenVINO™ toolkit](@ref 
 > openvino_docs_get_started_get_started_dl_workbench), you can use 
@@ -53,7 +52,7 @@ For more information, see the online [Intel® Distribution of OpenVINO™ toolk
 The Intel® Distribution of OpenVINO™ toolkit for Windows\* 10 OS:
 
 - Enables CNN-based deep learning inference on the edge
-- Supports heterogeneous execution across Intel® CPU, Intel® Processor Graphics (GPU), Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+- Supports heterogeneous execution across Intel® CPU, Intel® GPU, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 - Speeds time-to-market through an easy-to-use library of computer vision functions and pre-optimized kernels
 - Includes optimized calls for computer vision standards including OpenCV\* and OpenCL™
 
@@ -81,6 +80,7 @@ The following components are installed by default:
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
 * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
 * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
+* Intel® Iris® Xe MAX Graphics
 * Intel® Neural Compute Stick 2
 * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
