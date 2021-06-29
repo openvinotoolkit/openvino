@@ -43,8 +43,6 @@ class AddMeanScaleValues(MiddleReplacementPattern):
             return
         assert input_node.has_valid('shape')
         features_dim_idx = get_features_dim(graph.graph['layout'], len(input_node.shape))
-        print(value.size)
-        print(input_node.shape[features_dim_idx])
         assert compare_dimensions(value.size, input_node.shape[features_dim_idx]) or value.size == 1
 
         shape = np.ones(len(input_node.shape), dtype=np.int64)
