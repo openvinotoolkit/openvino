@@ -51,11 +51,9 @@ class Unsqueeze(Op):
         if node.in_port(1).get_source().node.op == 'Const':
             node.in_port(1).data.set_value(unsqueeze_dims)
 
-        output_shape = int64_array(input_shape.copy())
+        output_shape = input_shape.copy()
         for dim in unsqueeze_dims:
-            output_shape = np.insert(output_shape, dim, 1)
-        # convert int64_array to shape array again
-        output_shape = shape_array(int64_array(output_shape))
+            output_shape = np.ma.concatenate([output_shape[:dim], [1], output_shape[dim:]])
 
         if input_value is not None and is_fully_defined(output_shape):
             node.out_port(0).data.set_value(input_value.reshape(output_shape))

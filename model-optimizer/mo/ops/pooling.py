@@ -145,7 +145,7 @@ class Pooling(Op):
 
         output_shape = input_shape.copy()
         output_shape[node.spatial_dims] = node.output_spatial_shape
-        node.out_node().shape = output_shape
+        node.out_port(0).data.set_shape(output_shape)
 
         # Add permute_attrs
         PermuteAttrs.create_permute_attrs(node, attrs=[('pad', 'input:0'),
