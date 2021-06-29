@@ -453,8 +453,8 @@ KERNEL (detection_output_stage_1_caffe_opt)(
 
         int range_step = 2;
         const int first_id = workItemId * 2;
-        for (int i = 0; i < PARTITION_STEP; ++i, range_step *= 2) {
-            if (workItemId <= i) {
+        for (int i = 0, maxWorkingNum = 1; i < PARTITION_STEP; ++i, maxWorkingNum *= 2, range_step *= 2) {
+            if (workItemId < maxWorkingNum) {
                 const int begin_id = __range[localClassId][first_id];
                 const int end_id = __range[localClassId][first_id + 1];
                 const int second_id = first_id + range_step;
