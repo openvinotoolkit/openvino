@@ -34,19 +34,14 @@ def test_cc_collect(test_id, model, openvino_ref, test_info,
     for path in prev_result:
         os.remove(path)
     # run use case
-    sys_executable = (
-        os.path.join(sys.prefix, "python.exe")
-        if sys.platform == "win32"
-        else os.path.join(sys.prefix, "bin", "python")
-    )
     return_code, output = cmd_exec(
         [
-            sys_executable,
+            sys.executable,
             str(sea_runtool),
             f"--output={out}",
             f"--bindir={collector_dir}",
             "!",
-            sys_executable,
+            sys.executable,
             infer_tool,
             f"-m={model}",
             "-d=CPU",

@@ -178,7 +178,7 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
             // for intermediate layers we should get Dq operations to be inserted between layer and child
             assert(dequantizationsToConcatenate.size() == 1ul);
             const size_t sourceOutputIdx = NetworkHelper::getParentOutputIndex(layer, child);
-            if (layer->get_input_shape(0)[1] != layer->get_output_shape(sourceOutputIdx)[1]) {
+            if (layer->get_input_partial_shape(0)[1] != layer->get_output_partial_shape(sourceOutputIdx)[1]) {
                 dequantizationsToConcatenate[0] = getFoldedDequantization(layer, dequantizationsToConcatenate[0], sourceOutputIdx);
             }
         }
@@ -246,7 +246,7 @@ void ConcatMultiChannelsTransformation::fillDequantization(
                     dequantization.push_back(getConcatenatedDequantization(concat, dequantizationToConcatenate));
                 } else {
                     const size_t sourceOutputIdx = NetworkHelper::getParentOutputIndex(parent, layer);
-                    if (parent->get_input_shape(0)[1] != parent->get_output_shape(sourceOutputIdx)[1]) {
+                    if (parent->get_input_partial_shape(0)[1] != parent->get_output_partial_shape(sourceOutputIdx)[1]) {
                         std::vector<FakeQuantizeDequantization> dequantizationToPropagate;
                         fillDequantization(parent, dequantizationByFakeQuantize, dequantizationToPropagate);
 
