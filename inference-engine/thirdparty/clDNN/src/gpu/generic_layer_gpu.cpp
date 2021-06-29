@@ -86,6 +86,7 @@ struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
         auto input_mem = instance.input_memory_ptr();
         auto output_mem = instance.output_memory_ptr();
 
+        auto ev = stream.create_user_event(false);
         std::vector<event::ptr> tmp_events(events);
 
         for (auto& a : events) {
@@ -99,7 +100,8 @@ struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
 
         cpu_kernel.Execute(old_pointer.data(), old_pointer.size(), new_pointer.data(), new_pointer.size());
 
-        return stream.create_user_event(true);
+        ev->set();
+        return ev;
     }
 
     void init_kernels() override {}

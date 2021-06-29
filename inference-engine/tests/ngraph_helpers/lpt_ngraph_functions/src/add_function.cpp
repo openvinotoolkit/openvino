@@ -19,7 +19,8 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape1,
+    const ngraph::PartialShape& inputShape2,
     const bool broadcast,
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::element::Type& precision1,
@@ -34,12 +35,12 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     if (constInput == 0) {
         parent1 = std::make_shared<ngraph::opset1::Constant>(
             precision,
-            inputShape,
+            inputShape1.to_shape(),
             constValues);
     } else {
         input1 = std::make_shared<ngraph::opset1::Parameter>(
             additionalLayer != "" ? precision : (precision1.is_real() ? precision : precision1),
-            broadcast ? ngraph::Shape({inputShape[0], inputShape[1], 1, 1}) : ngraph::Shape(inputShape));
+            broadcast ? ngraph::PartialShape({inputShape1[0], inputShape1[1], 1, 1}) : inputShape1);
         if (additionalLayer != "") {
             parent1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
                 input1,
@@ -62,11 +63,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     if (constInput == 1) {
         input2 = std::make_shared<ngraph::opset1::Constant>(
             precision,
-            inputShape,
+            inputShape2.to_shape(),
             constValues);
     } else {
         input2 = std::make_shared<ngraph::opset1::Parameter>(
-            precision2.is_real() ? precision : precision2, ngraph::Shape(inputShape));
+            precision2.is_real() ? precision : precision2, inputShape2);
     }
     auto parent = input2;
     if (additionalLayer == "convolution") {
@@ -189,7 +190,8 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape1,
+    const ngraph::PartialShape& inputShape2,
     const bool broadcast,
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::element::Type& precision1,
@@ -206,12 +208,12 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     if (constInputIndex == 0) {
         parent1 = std::make_shared<ngraph::opset1::Constant>(
             dequantizationAfter.empty() ? precision : element::f32,
-            inputShape,
+            inputShape1.to_shape(),
             constValues);
     } else {
         input1 = std::make_shared<ngraph::opset1::Parameter>(
             additionalLayer != "" ? precision : (precision1.is_real() ? precision : precision1),
-            broadcast ? ngraph::Shape({inputShape[0], inputShape[1], 1, 1}) : ngraph::Shape(inputShape));
+            broadcast ? ngraph::PartialShape({inputShape1[0], inputShape1[1], 1, 1}) : inputShape1);
         if (additionalLayer != "") {
             parent1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
                     input1,
@@ -230,11 +232,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     if (constInputIndex == 1) {
         input2 = std::make_shared<ngraph::opset1::Constant>(
             dequantizationAfter.empty() ? precision : element::f32,
-            inputShape,
+            inputShape2.to_shape(),
             constValues);
     } else {
         input2 = std::make_shared<ngraph::opset1::Parameter>(
-            precision2.is_real() ? precision : precision2, ngraph::Shape(inputShape));
+            precision2.is_real() ? precision : precision2, inputShape2);
     }
     auto parent = input2;
     if (additionalLayer == "convolution") {

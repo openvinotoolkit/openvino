@@ -64,5 +64,9 @@ if (NOT WIN32)
 endif()
 target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+install(TARGETS ngraph_backend
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL)
+
 add_subdirectory(interpreter)
 add_subdirectory(ie)

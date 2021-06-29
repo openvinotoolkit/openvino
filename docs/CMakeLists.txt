@@ -25,23 +25,32 @@ if(NOT ENABLE_DOCKER)
         set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
     endif()
 
-    if (NGRAPH_ONNX_IMPORT_ENABLE)
+    if(NGRAPH_ONNX_IMPORT_ENABLE)
         add_subdirectory(onnx_custom_op)
     endif()
     add_subdirectory(template_extension)
 
     set(all_docs_targets
         ie_docs_snippets
-        template_extension
-        templatePlugin TemplateBehaviorTests TemplateFunctionalTests)
+        template_extension templatePlugin templateFuncTests)
     foreach(target_name IN LISTS all_docs_targets)
-        if (TARGET ${target_name})
+        if(TARGET ${target_name})
             set_target_properties(${target_name} PROPERTIES FOLDER docs)
             if(WIN32)
                 set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
             endif()
         endif()
     endforeach()
+
+    # install
+
+    install(TARGETS templatePlugin template_extension
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+    if(ENABLE_FUNCTIONAL_TESTS)
+        install(TARGETS templateFuncTests
+                RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
 set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check")
