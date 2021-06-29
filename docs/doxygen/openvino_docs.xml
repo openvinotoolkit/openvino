@@ -118,6 +118,9 @@ limitations under the License.
                     <xi:include href="omz_docs.xml" xpointer="omz_tools_accuracy_checker">
                         <xi:fallback/>
                     </xi:include>
+                    <xi:include href="omz_docs.xml" xpointer="omz_data">
+                        <xi:fallback/>
+                    </xi:include>
                     <tab type="user" title="Using Cross Check Tool for Per-Layer Comparison Between Plugins" url="@ref openvino_inference_engine_tools_cross_check_tool_README"/>
                 </tab>
                 <tab type="user" title="Case Studies" url="https://www.intel.com/openvino-success-stories"/>
@@ -158,9 +161,6 @@ limitations under the License.
             <xi:include href="omz_docs.xml" xpointer="omz_models">
                 <xi:fallback/>
             </xi:include>
-            <tab type="user" title="Dataset Preparation Guide" url="@ref omz_data_datasets"/>
-            <tab type="user" title="Intel's Pre-Trained Models Device Support" url="@ref omz_models_intel_device_support"/>
-            <tab type="user" title="Public Pre-Trained Models Device Support" url="@ref omz_models_public_device_support"/>
             <xi:include href="omz_docs.xml" xpointer="omz_demos">
                 <xi:fallback/>
             </xi:include>
