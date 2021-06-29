@@ -132,6 +132,8 @@ public:
     using factory_type = std::function<primitive_impl*(const typed_program_node<primitive_kind>&)>;
     using map_type = singleton_map<key_type, factory_type>;
 
+    // TODO: Replace enigne_type here with impl_type
+    // And add a check that engine do support specific impl_type
     static factory_type get(engine_types engine_type, const typed_program_node<primitive_kind>& primitive) {
         // lookup in database; throw if not found
         auto key = key_builder()(engine_type, primitive);

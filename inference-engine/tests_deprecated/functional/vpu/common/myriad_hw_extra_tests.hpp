@@ -8,7 +8,7 @@
 
 TEST_F(MyriadX_HW_Tests_nightly, SeveralLayers) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     tensor_test_params dims1{1, 3, 224, 224};
@@ -78,7 +78,7 @@ TEST_F(MyriadX_HW_Tests_nightly, SeveralLayers) {
 
 TEST_F(MyriadX_HW_Tests_nightly, LargePoolWithConv) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     tensor_test_params dims1{1, 16, 448, 448};
@@ -139,7 +139,7 @@ TEST_F(MyriadX_HW_Tests_nightly, LargePoolWithConv) {
 
 TEST_F(MyriadX_HW_Tests_nightly, ConvWithPool) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     tensor_test_params dims1{1, 16, 4, 4};
@@ -202,7 +202,7 @@ TEST_F(MyriadX_HW_Tests_nightly, ConvWithPool) {
 
 TEST_F(MyriadX_HW_Tests_nightly, WithConcat) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -391,7 +391,7 @@ TEST_F(MyriadX_HW_Tests_nightly, WithConcat) {
 
 TEST_F(MyriadX_HW_Tests_nightly, WithConcatMisaligned) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -548,7 +548,7 @@ TEST_F(MyriadX_HW_Tests_nightly, WithConcatMisaligned) {
 
 TEST_F(MyriadX_HW_Tests_nightly, With_3_FC_Layers) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -693,7 +693,7 @@ TEST_F(MyriadX_HW_Tests_nightly, With_3_FC_Layers) {
 
 TEST_F(MyriadX_HW_Tests_nightly, WithEltwise) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -913,7 +913,7 @@ TEST_F(MyriadX_HW_Tests_nightly, WithEltwise) {
 
 TEST_F(MyriadX_HW_Tests_nightly, WithEltwiseReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -1152,7 +1152,7 @@ TEST_F(MyriadX_HW_Tests_nightly, WithEltwiseReLU) {
 
 TEST_F(MyriadX_HW_Tests_nightly, PermuteFlattenConcat) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -1378,7 +1378,7 @@ TEST_F(MyriadX_HW_Tests_nightly, PermuteFlattenConcat) {
 
 TEST_F(MyriadX_HW_Tests_nightly, VGG_FirstTwoConvs) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     IN_OUT_desc in_tensor, out_tensor;

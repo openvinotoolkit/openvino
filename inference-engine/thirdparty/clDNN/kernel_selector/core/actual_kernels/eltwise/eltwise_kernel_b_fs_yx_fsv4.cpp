@@ -47,11 +47,11 @@ KernelsData EltwiseKernel_b_fs_yx_fsv4::GetKernelsData(const Params& params, con
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = dispatchData.gws;
-    kernel.workGroups.local = dispatchData.lws;
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
 
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,
                                    GetFusedPrimitiveInputsCount(params));
@@ -125,11 +125,11 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::MakeLoadJitConstants(const eltwise_para
     JitConstants jit = {};
     std::string vload_decls;
     for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
-        const std::string op_num_str = std::to_string(op_num);
+        const std::string op_num_str = toCodeString(op_num);
         const auto &ew = params.operations[op_num];
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
             const auto &input = ew.inputs[input_idx];
-            const std::string name = "INPUT_" + op_num_str + "_" + std::to_string(input_idx);
+            const std::string name = "INPUT_" + op_num_str + "_" + toCodeString(input_idx);
 
             switch (input.mode) {
                 case EltwiseInputMode::SCALAR:
@@ -137,36 +137,36 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::MakeLoadJitConstants(const eltwise_para
                     break;
                 case EltwiseInputMode::INPUT_BUFFER:
                 {
-                    const std::string idx_order = "INPUT" + std::to_string(input.index) + "_IDX_ORDER";
+                    const std::string idx_order = "INPUT" + toCodeString(input.index) + "_IDX_ORDER";
                     jit.AddConstant(MakeJitConstant(idx_order, "b, f_block*4, y, x"));
 
                     if (params.inputs[input.index].LogicalSize() == 1) {
-                        const std::string vload_name = "DO_VLOAD" + std::to_string(op_num) + "_" + std::to_string(input_idx);
-                        const std::string vload_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) tmp_a" + std::to_string(op_num) +
-                                                        "_" + std::to_string(input_idx) + " = " "(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4))" +
-                                                        "(input" + std::to_string(input.index) + "[0])";
+                        const std::string vload_name = "DO_VLOAD" + toCodeString(op_num) + "_" + toCodeString(input_idx);
+                        const std::string vload_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) tmp_a" + toCodeString(op_num) +
+                                                        "_" + toCodeString(input_idx) + " = " "(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4))" +
+                                                        "(input" + toCodeString(input.index) + "[0])";
                         jit.AddConstant(MakeJitConstant(vload_name, vload_value));
-                        jit.AddConstant(MakeJitConstant(name, "tmp_a" + std::to_string(op_num) + "_" + std::to_string(input_idx)));
+                        jit.AddConstant(MakeJitConstant(name, "tmp_a" + toCodeString(op_num) + "_" + toCodeString(input_idx)));
                     } else {
                         bool feature_broadcasting = (params.inputs[input_idx].Feature().v == 1 && params.output.Feature().v != 1);
 
                         if (feature_broadcasting) {
-                            const std::string broadcast_name = "DO_FEATURE_BROADCAST" + std::to_string(op_num) + "_" + std::to_string(input_idx);
-                            std::string broadcast_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) tmp_b" + std::to_string(op_num) +
-                                                        " = " "(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4))"+"(input" + std::to_string(input.index) +
-                                                        "[GET_INDEX(INPUT, " + std::to_string(input.index) + ", " + idx_order + ")]);";
+                            const std::string broadcast_name = "DO_FEATURE_BROADCAST" + toCodeString(op_num) + "_" + toCodeString(input_idx);
+                            std::string broadcast_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) tmp_b" + toCodeString(op_num) +
+                                                        " = " "(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4))"+"(input" + toCodeString(input.index) +
+                                                        "[GET_INDEX(INPUT, " + toCodeString(input.index) + ", " + idx_order + ")]);";
 
                             jit.AddConstant(MakeJitConstant(broadcast_name, broadcast_value));
-                            jit.AddConstant(MakeJitConstant(name, "tmp_b" + std::to_string(op_num)));
+                            jit.AddConstant(MakeJitConstant(name, "tmp_b" + toCodeString(op_num)));
                         } else {
-                            const std::string vload_name = "DO_VLOAD" + std::to_string(op_num) + "_" + std::to_string(input_idx);
-                            const std::string vload_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) tmp_a" + std::to_string(op_num) +
-                                                            "_" + std::to_string(input_idx) + " = TO_TYPE(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, " +
-                                                            std::to_string(vec_size) + "), vload4(0, &input" + std::to_string(input.index) +
-                                                            "[GET_INDEX(INPUT," + std::to_string(input.index) + ", " + idx_order + ")]));";
+                            const std::string vload_name = "DO_VLOAD" + toCodeString(op_num) + "_" + toCodeString(input_idx);
+                            const std::string vload_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) tmp_a" + toCodeString(op_num) +
+                                                            "_" + toCodeString(input_idx) + " = TO_TYPE(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, " +
+                                                            toCodeString(vec_size) + "), vload4(0, &input" + toCodeString(input.index) +
+                                                            "[GET_INDEX(INPUT," + toCodeString(input.index) + ", " + idx_order + ")]));";
 
                             jit.AddConstant(MakeJitConstant(vload_name, vload_value));
-                            jit.AddConstant(MakeJitConstant(name, "tmp_a" + std::to_string(op_num) + "_" + std::to_string(input_idx)));
+                            jit.AddConstant(MakeJitConstant(name, "tmp_a" + toCodeString(op_num) + "_" + toCodeString(input_idx)));
                         }
                     }
                     break;
@@ -177,10 +177,10 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::MakeLoadJitConstants(const eltwise_para
                 case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(
                             name,
-                            "input" + std::to_string(input.index) + "[(size_t)tmp" + std::to_string(input.tmpIndex) + "]"));
+                            "input" + toCodeString(input.index) + "[(size_t)tmp" + toCodeString(input.tmpIndex) + "]"));
                     break;
                 case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
-                    jit.AddConstant(MakeJitConstant(name, "tmp" + std::to_string(input.tmpIndex)));
+                    jit.AddConstant(MakeJitConstant(name, "tmp" + toCodeString(input.tmpIndex)));
                     break;
                 default:
                     break;
@@ -214,15 +214,15 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
                 continue;
 
             if (InputHasFeatureBroadcast(params, op_num, input_idx)) {
-                do_eltwise += "\\\n\tDO_FEATURE_BROADCAST" + std::to_string(op_num) + "_" + std::to_string(input_idx) + ";";
+                do_eltwise += "\\\n\tDO_FEATURE_BROADCAST" + toCodeString(op_num) + "_" + toCodeString(input_idx) + ";";
             } else {
-                do_eltwise += "\\\n\tDO_VLOAD" + std::to_string(op_num) + "_" + std::to_string(input_idx) + ";";
+                do_eltwise += "\\\n\tDO_VLOAD" + toCodeString(op_num) + "_" + toCodeString(input_idx) + ";";
             }
         }
-        do_eltwise += "\\\n\tOPERATION" + std::to_string(op_num) + ";";
+        do_eltwise += "\\\n\tOPERATION" + toCodeString(op_num) + ";";
     }
 
-    do_eltwise += "\\\n\tres = tmp" + std::to_string(operations.size() - 1) + ";";
+    do_eltwise += "\\\n\tres = tmp" + toCodeString(operations.size() - 1) + ";";
 
     jit.AddConstant(MakeJitConstant("DO_ELTWISE", do_eltwise));
 

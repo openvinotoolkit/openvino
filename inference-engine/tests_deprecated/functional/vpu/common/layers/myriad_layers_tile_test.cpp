@@ -4,7 +4,7 @@
 
 #include "myriad_layers_tile_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracyAdd, myriadLayerTestTile_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracyAdd, myriadLayerTestTile_smoke,
                         ::testing::Combine(
                                 ::testing::Values<test_params>(
                                         MAKE_STRUCT(tile_test::nd_tensor_test_params, {4, 5, 6}, 0)
@@ -21,7 +21,7 @@ INSTANTIATE_TEST_CASE_P(accuracyAdd, myriadLayerTestTile_smoke,
                                 , ::testing::Values<tiles>(2, 3, 5)
                         ));
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerTestTile_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerTestTile_smoke,
                         ::testing::Combine(
                                 ::testing::Values<test_params>(
                                         MAKE_STRUCT(tile_test::nd_tensor_test_params, {4, 5, 6}, 1)
