@@ -25,15 +25,14 @@ namespace ngraph
                     auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
                     // unsqueeze data with Shape{} to Shape{1}
-                    // it should be reverted after new version of Slice introcution (ticket 58794)
+                    // it should be reverted after new version of Slice introduction (ticket 58794)
                     const auto data_shape = data.get_partial_shape();
                     if (axes.size() == 1 && axes[0] == 0 && data_shape.is_static() &&
                         ngraph::op::is_constant(data.get_node()) &&
                         ngraph::is_scalar(data_shape.to_shape()))
                     {
                         const auto* const_data_ptr =
-                            as_type_ptr<default_opset::Constant>(data.get_node_shared_ptr())
-                                ->get_data_ptr();
+                            ngraph::get_constant_from_source(data)->get_data_ptr();
                         return {std::make_shared<default_opset::Constant>(
                             data.get_element_type(), ngraph::Shape{1}, const_data_ptr)};
                     }
