@@ -374,9 +374,10 @@ namespace ngraph
                 }
                 break;
                 default:;
-                    throw ngraph_error("Unsupported input data type: "
-                                       "ExperimentalDetectronGenerateProposalsSingleImage operation"
-                                       " supports only fp32, fp16, or bf16 data.");
+                    throw ngraph_error(
+                        "Unsupported input data type: "
+                        "ExperimentalDetectronGenerateProposalsSingleImage operation"
+                        " supports only fp32, fp16, or bf16 data.");
                 }
             }
         } // namespace reference
