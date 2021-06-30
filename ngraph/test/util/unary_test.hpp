@@ -48,53 +48,19 @@ namespace ngraph
                   ngraph::element::Type_t et_output>
         class unary_test;
 
-        struct rand_normal_tag
-        {
-        };
-        struct rand_uniform_int_tag
-        {
-        };
-        struct rand_uniform_real_tag
-        {
-        };
-
         template <ngraph::element::Type_t eleType>
         class Data
         {
         public:
             using T = ngraph::fundamental_type_for<eleType>;
 
-            // random (normal-distrubition) generate data
-            Data(rand_normal_tag, double mean, double stddev, const ngraph::Shape& s)
+            // random generate data of specified shape
+            Data(std::function<T()> generator, const ngraph::Shape& s)
                 : value(ngraph::shape_size(s))
                 , shape(s)
             {
-                std::mt19937 gen{0};
-                std::normal_distribution<> d{mean, stddev};
                 for (size_t i = 0; i < value.size(); ++i)
-                    value[i] = d(gen);
-            }
-
-            // random (uniform-int-distrubition) generate data
-            Data(rand_uniform_int_tag, int64_t low, int64_t high, const ngraph::Shape& s)
-                : value(ngraph::shape_size(s))
-                , shape(s)
-            {
-                std::mt19937 gen{0};
-                std::uniform_int_distribution<int64_t> d{low, high};
-                for (size_t i = 0; i < value.size(); ++i)
-                    value[i] = d(gen);
-            }
-
-            // random (uniform-real-distrubition) generate data
-            Data(rand_uniform_real_tag, double low, double high, const ngraph::Shape& s)
-                : value(ngraph::shape_size(s))
-                , shape(s)
-            {
-                std::mt19937 gen{0};
-                std::uniform_real_distribution<> d{low, high};
-                for (size_t i = 0; i < value.size(); ++i)
-                    value[i] = d(gen);
+                    value[i] = generator();
             }
 
             Data() = default;
