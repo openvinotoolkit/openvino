@@ -92,6 +92,8 @@ public:
 
     bool checkGeneralLayout(GeneralLayout layoutType) const override;
 
+    std::string serializeFormat() const override;
+
     bool isDefined() const override {
         return true;
     }

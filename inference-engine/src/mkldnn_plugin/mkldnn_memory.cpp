@@ -1059,4 +1059,9 @@ bool MKLDNNMemoryDesc::checkGeneralLayout(GeneralLayout layoutType) const {
             return false;
     }
 }
+
+std::string MKLDNNMemoryDesc::serializeFormat() const {
+    auto fmt = getFormat();
+    return mkldnn::utils::fmt2str(fmt);
+}
 }  // namespace MKLDNNPlugin
