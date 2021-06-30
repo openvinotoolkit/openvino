@@ -23,4 +23,8 @@ if (NGRAPH_INTERPRETER_ENABLE)
 
     target_compile_definitions(interpreter_backend PRIVATE INTERPRETER_BACKEND_EXPORTS)
     target_link_libraries(interpreter_backend PUBLIC ngraph_backend)
+
+    install(TARGETS interpreter_backend
+            RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL)
 endif()

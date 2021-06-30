@@ -42,7 +42,7 @@ namespace {
                                     ::testing::ValuesIn(Multiconfigs)),
                             InferRequestTests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_AutoPlugin_BehaviorTests, InferRequestTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
