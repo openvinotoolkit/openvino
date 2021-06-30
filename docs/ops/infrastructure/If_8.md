@@ -4,26 +4,33 @@
 
 **Category**: Infrastructure
 
-**Short description**: *If* operation contains two internal networks (`then_body` and `else_body`) and performs one of them depending on `cond` value. If `cond` is  `True` `then_body` will be executed. `else_body` will be executed if `cond` value is `False`. 
+**Short description**: *If* operation contains two internal networks(subgraphs) such as `then_body` and `else_body`, and performs one of them depending on `cond` value. If `cond` is  `True` `then_body` will be executed. `else_body` will be executed if `cond` value is `False`. 
 
 **Detailed description**
 
-*If* must not contain empty internal networks. Each of them must have at least one operation `Result`. Also the number outputs from *If* always must be greater than zero and equal to the number outputs from each internal networks.
+*If* must not contain empty subgraphs. Each of them must have at least one operation `Result`. Also the number outputs from *If* always must be greater than zero and equal to the number outputs from each subgraph.
 
 **If attributes**:
 
-* **Internal networks**:
+* **Subgraphs**:
 
-    `then_body`/`else_body` are networks that will be executed depending on the `cond` value. The network is described operation by operation as a typical IR network. The internal networks have parameters (`Parameter` operations) and results (`Result` operations).
+    `then_body`/`else_body` are subgraphs that will be executed depending on the `cond` value. 
+    The subgraph is described operation by operation as a typical IR network. 
+    The subgraph has parameters (`Parameter` operations) and results (`Result` operations).
     
-    * **Internal networks parameters** - inputs to the internal network which associated with *If* inputs via *port_map*. The number of parameters for the internal network can be any (even zero).
+    * **Subgraph's parameters** - inputs to the subgraph which associated with *If* inputs via *port_map*. The number of parameters for the subgraph can be any (even zero).
     
-    * **Internal networks results** - outputs from the internal network which associated with *If* outputs via *port_map*. The internal network must contain at least one result. Each *If* output is associated with one result from the internal network. It follows that number of `then_body` results is the equal to the number of outputs from the *If* and the number of `else_body` results. Type of the internal network result and type of the associated output from *If* must be equal.
+    * **Subgraph's results** - outputs from the subgraph which associated with *If* outputs via *port_map*.
+    The subgraph must contain at least one result. Each *If* output is associated with one result from the subgraph. 
+    It follows that number of `then_body` results is the equal to the number of outputs from the *If* and the number of `else_body` results. 
+    Type of the subgraph result and type of the associated output from *If* must be equal.
     
 
 * **Port maps**:
     
-    *port_map* is a set of rules to map input or output data tensors of *If* operation onto the internal network data tensors. The `port_map` entries can be `input` and `output`. Each entry describes a corresponding mapping rule. *If* has two *port_maps* - `then_port_map` for `then_body` and `else_port_map` for `else_body`.
+    *port_map* is a set of rules to map input or output data tensors of *If* operation onto the subgraph data tensors. 
+    The `port_map` entries can be `input` and `output`. Each entry describes a corresponding mapping rule. 
+    *If* has two *port_maps* - `then_port_map` for `then_body` and `else_port_map` for `else_body`.
 
     * **Port map attributes**:
 
@@ -36,8 +43,8 @@
 
         * *internal_layer_id*
 
-            * **Description**: *internal_layer_id* is a `Parameter` or `Result` operation ID inside the internal network to map to.
-            * **Range of values**: IDs of the `Parameter` or `Result` operations in the internal network 
+            * **Description**: *internal_layer_id* is a `Parameter` or `Result` operation ID inside the subgraph to map to.
+            * **Range of values**: IDs of the `Parameter` or `Result` operations in the subgraph
             * **Type**: `unsigned int`
             * **Default value**: None
             * **Required**: *yes*
@@ -45,13 +52,13 @@
 **If Inputs**
 
 
-* **cond**: A scalar or 1D tensor with 1 element of `boolean` type specifying which an internal network  to execute. `True` value means to execute the `then_body`, `False` - `else_body`. *Required*.
+* **cond**: A scalar or 1D tensor with 1 element of `boolean` type specifying which an subgraph to execute. `True` value means to execute the `then_body`, `False` - `else_body`. *Required*.
 
 * **Multiple other inputs**: tensors of different types and shapes. *Optional*.
 
 **If Outputs**
 
-* **Multiple outputs**: Results of execution of one of internal networks. Tensors of any type and shape.
+* **Multiple outputs**: Results of execution of one of subgraph. Tensors of any type and shape.
 
 
 **Body Inputs**
@@ -61,7 +68,7 @@
 
 **Body Outputs**
 
-* **Multiple outputs**: Results of execution of the internal network. Tensors of any type and shape.
+* **Multiple outputs**: Results of execution of the subgraph. Tensors of any type and shape.
 
 
 **Examples**
