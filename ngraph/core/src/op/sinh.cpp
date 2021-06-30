@@ -3,8 +3,8 @@
 //
 
 #include "ngraph/op/sinh.hpp"
-#include "ngraph/runtime/reference/sinh.hpp"
 #include <ngraph/validation_util.hpp>
+#include "ngraph/runtime/reference/sinh.hpp"
 
 #include "itt.hpp"
 
