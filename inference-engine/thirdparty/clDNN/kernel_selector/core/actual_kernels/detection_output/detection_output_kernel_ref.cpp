@@ -132,6 +132,14 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
             // dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
             dispatchData.lws = {1, 1, 1};
         }
+    } else if (idx == 3) {
+        if (detectOutParams.decrease_label_id) {
+            dispatchData.gws = {1, 1, 1};
+            dispatchData.lws = {1, 1, 1};
+        } else {
+            dispatchData.gws = {input.Batch().v, 1, 1};
+            dispatchData.lws = {1, 1, 1};
+        }
     } else {
         dispatchData.gws = {1, 1, 1};
         dispatchData.lws = {1, 1, 1};
@@ -239,7 +247,8 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
             if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER_MXNET", "true"));
             } else {
-                cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER_CAFFE", "true"));
+                // cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER_CAFFE", "true"));
+                cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER_CAFFE_OPT", "true"));
             }
         }
 
