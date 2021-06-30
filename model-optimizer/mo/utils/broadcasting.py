@@ -104,7 +104,7 @@ def uni_directional_broadcasting(input_value: np.array, target_shape: np.array):
     assert uni_directional_shape_broadcasting(shape_array(input_value.shape), target_shape) is not None, \
         'The tensor of shape "{}" cannot be uni-directionally broadcasted to shape "{}"'.format(input_value.shape,
                                                                                                 target_shape)
-    return np.broadcast_to(input_value, target_shape)
+    return input_value * np.ones(target_shape).astype(input_value.dtype)
 
 
 def bi_directional_broadcasting(input_value: np.array, second_shape: np.array):
@@ -117,7 +117,7 @@ def bi_directional_broadcasting(input_value: np.array, second_shape: np.array):
     assert bi_directional_shape_broadcasting(shape_array(input_value.shape), second_shape) is not None, \
         'The tensor of shape "{}" cannot be bi-directionally broadcasted to shape "{}"'.format(input_value.shape,
                                                                                                second_shape)
-    return np.array(input_value * np.ones(second_shape), dtype=input_value.dtype)
+    return input_value * np.ones(second_shape).astype(input_value.dtype)
 
 
 def explicit_broadcasting(input_value: np.array, target_shape: np.array, axes_mapping: np.array) -> np.array:

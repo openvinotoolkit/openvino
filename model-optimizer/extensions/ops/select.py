@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import is_fully_defined, shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-from mo.utils.broadcasting import bi_directional_shape_broadcasting
+from mo.utils.broadcasting import bi_directional_shape_broadcasting, bi_directional_broadcasting, \
+    uni_directional_broadcasting
 
 
 class Select(Op):
@@ -42,21 +42,23 @@ class Select(Op):
         output_shape = bi_directional_shape_broadcasting(a_shape, b_shape)
         assert output_shape is not None, 'Input shapes for node {} are not broadcast-able'.format(node_name)
         node.out_port(0).data.set_shape(output_shape)
-        # Case with unknown condition
-        if condition_value is not None and is_fully_defined(condition_value):
-            fully_defined_values = is_fully_defined(resulting_tensors[0]) and is_fully_defined(resulting_tensors[1])
-            output_value = np.where(condition_value, resulting_tensors[0], resulting_tensors[1])
+
+        if condition_value is not None:
+            if resulting_tensors[0] is not None:
+                resulting_tensors[0] = bi_directional_broadcasting(resulting_tensors[0], b_shape)
+            if resulting_tensors[1] is not None:
+                resulting_tensors[1] = bi_directional_broadcasting(resulting_tensors[1], a_shape)
+            condition_value = bi_directional_broadcasting(condition_value, output_shape)
+
+            output_value = np.ma.where(condition_value, resulting_tensors[0], resulting_tensors[1])
             if condition_value.size != 1:
                 if np.any(output_value == None):
                     # If any element of output value is None that means that we use the value from the 'then' or the
                     # 'else' tensor which is not defined, this means that we cannot perform value propagation.
                     output_value = None
             else:
-                output_value = np.array(output_value,
-                                        dtype=resulting_tensors[not np.bool(condition_value.item(0))].dtype)
+                output_value = output_value.astype(resulting_tensors[not np.bool(condition_value.item(0))].dtype)
 
-            if output_value is not None and not fully_defined_values:
-                output_value = shape_array(output_value)
             if output_value is not None:
                 node.out_port(0).data.set_value(output_value)
 
