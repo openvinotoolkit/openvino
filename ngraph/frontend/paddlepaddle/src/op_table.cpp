@@ -8,6 +8,7 @@
 #include "op/clip.hpp"
 #include "op/concat.hpp"
 #include "op/conv2d.hpp"
+#include "op/deformable_conv.hpp"
 #include "op/elementwise_ops.hpp"
 #include "op/relu.hpp"
 #include "op/scale.hpp"
@@ -30,6 +31,8 @@ namespace ngraph
                         {"clip", op::clip},
                         {"concat", op::concat},
                         {"conv2d", op::conv2d},
+                        {"deformable_conv", op::deformable_conv},
+                        {"deformable_conv_v1", op::deformable_conv},
                         {"elementwise_add", op::elementwise_add},
                         {"elementwise_div", op::elementwise_div},
                         {"elementwise_max", op::elementwise_max},
