@@ -29,7 +29,7 @@ class TensorArraySize(Op):
         ta_node = Node(node.graph, str(handle.value))
         assert ta_node.has_valid('size')
 
-        output_value = shape_array(ta_node['size'])
+        output_value = np.array(ta_node['size'])
         output_shape = output_value.shape
 
         for _, out_node in node.graph.out_edges(node.id):
