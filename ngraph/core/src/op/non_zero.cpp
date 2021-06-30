@@ -15,7 +15,7 @@
 using namespace ngraph;
 using namespace std;
 
-constexpr NodeTypeInfo op::v3::NonZero::type_info;
+NGRAPH_RTTI_DEFINITION(op::v3::NonZero, "NonZero", 3);
 
 op::v3::NonZero::NonZero(const Output<Node>& arg)
     : Op({arg})
@@ -47,25 +47,20 @@ bool ngraph::op::v3::NonZero::visit_attributes(AttributeVisitor& visitor)
 void op::v3::NonZero::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v3_NonZero_validate_and_infer_types);
-    const PartialShape& input_shape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
-
     // For scalar non-zero value case, onnx test case expects output shape {1, 1}
-    if (input_shape.rank() == 0)
+    const PartialShape& input_shape = get_input_partial_shape(0);
+    if (input_shape.rank().compatible(0))
     {
         set_output_type(0, m_output_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
     }
     else
     {
-        const Dimension dim = input_shape.is_static()
-                                  ? std::accumulate(begin(input_shape),
-                                                    end(input_shape),
-                                                    Dimension(0, 1),
-                                                    std::multiplies<Dimension>())
-                                  : Dimension();
+        const Dimension dim = std::accumulate(
+            begin(input_shape), end(input_shape), Dimension(0, 1), std::multiplies<Dimension>());
         set_output_type(0, m_output_type, PartialShape{input_shape.rank(), dim});
     }
 
