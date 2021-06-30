@@ -62,7 +62,7 @@ class GRUCell(Op):
     def infer(node: Node):
         assert len(node.out_nodes()) in [1, 2]
 
-        hidden_shape = node.in_port(1).data.get_shape.copy()
+        hidden_shape = node.in_port(1).data.get_shape().copy()
 
         mark_input_bins(node, start_port=2)
         node.out_port(0).data.set_shape(hidden_shape)
