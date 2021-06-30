@@ -14,6 +14,8 @@
 
 namespace testing {
 
+namespace {
+
 class IActivationNodeFactory
 {
 public:
@@ -384,5 +386,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
 }
+
+} // namespace
 
 } // namespace testing
