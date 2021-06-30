@@ -159,47 +159,85 @@ namespace ngraph
             }
 
             template <ngraph::element::Type_t eleType = et>
-            void test(const Data<eleType>& input, const Data<eleType>& expeted, Tolerance tol = {})
+            void test(const std::initializer_list<Data<eleType>>& inputs,
+                      const std::initializer_list<Data<eleType>>& expeted,
+                      Tolerance tol = {})
             {
                 if (m_function->is_dynamic())
                 {
                     auto test_case =
                         ngraph::test::TestCase<TestEngine, ngraph::test::TestCaseType::DYNAMIC>(
                             m_function);
-                    do_test<eleType>(test_case, {input}, {expeted}, tol);
+                    do_test<eleType>(test_case, inputs, expeted, tol);
                 }
                 else
                 {
                     auto test_case =
                         ngraph::test::TestCase<TestEngine, ngraph::test::TestCaseType::STATIC>(
                             m_function);
-                    do_test<eleType>(test_case, {input}, {expeted}, tol);
+                    do_test<eleType>(test_case, inputs, expeted, tol);
                 }
+            }
+
+            // SISO: single inputs, single output
+            template <ngraph::element::Type_t eleType = et>
+            void test(const Data<eleType>& input, const Data<eleType>& expeted, Tolerance tol = {})
+            {
+                test<eleType>(
+                    std::initializer_list<Data<eleType>>{input}, std::initializer_list<Data<eleType>>{expeted}, tol);
+            }
+
+            // MISO: multiple inputs, single output
+            template <ngraph::element::Type_t eleType = et>
+            void test(const std::initializer_list<Data<eleType>>& inputs,
+                      const Data<eleType>& expeted,
+                      Tolerance tol = {})
+            {
+                test<eleType>(inputs, std::initializer_list<Data<eleType>>{expeted}, tol);
             }
 
             // this overload supports passing a predictor with overloaded i/o types
             template <ngraph::element::Type_t eleType = et,
                       typename T = ngraph::fundamental_type_for<eleType>>
-            void test(const Data<eleType>& input, T (*elewise_predictor)(T), Tolerance tol = {})
+            void test(const std::initializer_list<Data<eleType>>& inputs,
+                      T (*elewise_predictor)(T),
+                      Tolerance tol = {})
             {
-                Data<eleType> expeted = input;
+                auto first = inputs.begin();
+                Data<eleType> expeted = *first;
 
-                for (size_t i = 0; i < input.value.size(); i++)
-                    expeted.value[i] = elewise_predictor(input.value[i]);
+                for (size_t i = 0; i < first->value.size(); i++)
+                    expeted.value[i] = elewise_predictor(first->value[i]);
 
-                test<eleType>({input}, {expeted}, tol);
+                test<eleType>(inputs, expeted, tol);
             }
 
             // this overload supports passing a lambda as predictor
             template <ngraph::element::Type_t eleType = et, typename Predictor>
+            void test(const std::initializer_list<Data<eleType>>& inputs,
+                      Predictor elewise_predictor,
+                      Tolerance tol = {})
+            {
+                auto first = inputs.begin();
+                Data<eleType> expeted = *first;
+
+                for (size_t i = 0; i < first->value.size(); i++)
+                    expeted.value[i] = elewise_predictor(first->value[i]);
+
+                test<eleType>(inputs, expeted, tol);
+            }
+
+            template <ngraph::element::Type_t eleType = et,
+                      typename T = ngraph::fundamental_type_for<eleType>>
+            void test(const Data<eleType>& input, T (*elewise_predictor)(T), Tolerance tol = {})
+            {
+                test<eleType>(std::initializer_list<Data<eleType>>{input}, elewise_predictor, tol);
+            }
+
+            template <ngraph::element::Type_t eleType = et, typename Predictor>
             void test(const Data<eleType>& input, Predictor elewise_predictor, Tolerance tol = {})
             {
-                Data<eleType> expeted = input;
-
-                for (size_t i = 0; i < input.value.size(); i++)
-                    expeted.value[i] = elewise_predictor(input.value[i]);
-
-                test<eleType>({input}, {expeted}, tol);
+                test<eleType>(std::initializer_list<Data<eleType>>{input}, elewise_predictor, tol);
             }
 
         private:
@@ -209,23 +247,20 @@ namespace ngraph
                       typename TC,
                       typename T = ngraph::fundamental_type_for<eleType>>
             void do_test(TC& test_case,
-                         const std::vector<Data<eleType>>& input,
-                         const std::vector<Data<eleType>>& expeted,
+                         const std::initializer_list<Data<eleType>>& input,
+                         const std::initializer_list<Data<eleType>>& expeted,
                          Tolerance tol)
             {
-                for (size_t i = 0; i < input.size(); i++)
+                for (const auto& item: input)
                 {
-                    const auto& item = input[i];
                     if (item.no_shape)
                         test_case.template add_input<T>(item.value);
                     else
                         test_case.template add_input<T>(item.shape, item.value);
                 }
 
-                for (size_t i = 0; i < expeted.size(); i++)
+                for (const auto& item: expeted)
                 {
-                    const auto& item = expeted[i];
-
                     if (item.no_shape)
                         test_case.template add_expected_output<T>(item.value);
                     else
