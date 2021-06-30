@@ -6,7 +6,7 @@ set(TARGET_NAME cpuFuncTests)
 
 add_library(cpuSpecificRtInfo STATIC ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin/utils/rt_info/memory_formats_attribute.hpp
                                      ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin/utils/rt_info/memory_formats_attribute.cpp)
-target_link_libraries(cpuSpecificRtInfo PRIVATE ${NGRAPH_LIBRARIES})
+target_link_libraries(cpuSpecificRtInfo PRIVATE ngraph)
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin)
 set(DEPENDENCIES MKLDNNPlugin AutoPlugin)

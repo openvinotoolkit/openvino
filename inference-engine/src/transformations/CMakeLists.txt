@@ -27,7 +27,7 @@ ie_faster_build(${TARGET_NAME}
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Transformations library")
 
-target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
+target_link_libraries(${TARGET_NAME} PUBLIC ngraph
                                      PRIVATE ngraph_reference openvino::itt ngraph::builder pugixml::static)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>

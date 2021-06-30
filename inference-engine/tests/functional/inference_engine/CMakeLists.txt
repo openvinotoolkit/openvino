@@ -155,7 +155,7 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
-            $<TARGET_PROPERTY:${NGRAPH_LIBRARIES},INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         # OpenCL headers if any

@@ -21,7 +21,7 @@ addIeTargetTest(
             vpu_graph_transformer_test_static
             unitTestUtils
             mvnc
-            ${NGRAPH_LIBRARIES}
+            ngraph
             ngraph_backend
             interpreter_backend
             inference_engine_lp_transformations # for ngraphFunctions

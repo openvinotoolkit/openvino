@@ -19,7 +19,7 @@ function(add_common_utils ADD_TARGET_NAME)
                 ${EXPORT_DEPENDENCIES}
             LINK_LIBRARIES
                 PUBLIC
-                    ${NGRAPH_LIBRARIES}
+                    ngraph
                     ${EXPORT_DEPENDENCIES}
                     inference_engine_transformations
     )

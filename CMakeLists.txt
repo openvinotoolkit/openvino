@@ -90,7 +90,6 @@ function(build_ngraph)
     ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
     add_subdirectory(ngraph)
-    set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
 endfunction()
 
 function(openvino_developer_export_targets)

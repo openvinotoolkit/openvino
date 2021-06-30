@@ -49,7 +49,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
 
     target_link_libraries(${TARGET_NAME}
         PUBLIC
-            ${NGRAPH_LIBRARIES}
+            ngraph
             inference_engine_plugin_api
         PRIVATE
             openvino::itt

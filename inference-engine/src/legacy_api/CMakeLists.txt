@@ -62,7 +62,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
                                      PRIVATE pugixml::static openvino::itt
-                                             ${NGRAPH_LIBRARIES} inference_engine_transformations)
+                                             ngraph inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
 
