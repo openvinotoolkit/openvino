@@ -16,20 +16,17 @@ namespace testing {
 
 namespace {
 
-class IActivationNodeFactory
-{
+class IActivationNodeFactory {
 public:
     virtual ~IActivationNodeFactory() = default;
     virtual std::shared_ptr<ngraph::Node> createNode(const ngraph::Output<ngraph::Node>& in) = 0;
 };
 
 template <typename ActivationT>
-class ActivationNodeFactory : public IActivationNodeFactory
-{
+class ActivationNodeFactory : public IActivationNodeFactory {
 public:
     ActivationNodeFactory() = default;
-    std::shared_ptr<ngraph::Node> createNode(const ngraph::Output<ngraph::Node>& operation_before) override
-    {
+    std::shared_ptr<ngraph::Node> createNode(const ngraph::Output<ngraph::Node>& operation_before) override {
         return std::make_shared<ActivationT>(operation_before);
     }
 private:
@@ -38,12 +35,10 @@ private:
 };
 
 template <>
-class ActivationNodeFactory <ngraph::opset7::Clamp> : public IActivationNodeFactory
-{
+class ActivationNodeFactory <ngraph::opset7::Clamp> : public IActivationNodeFactory {
 public:
     ActivationNodeFactory(const double min, const double max) : min_(min), max_(max) {}
-    std::shared_ptr<ngraph::Node> createNode(const ngraph::Output<ngraph::Node>& operation_before) override
-    {
+    std::shared_ptr<ngraph::Node> createNode(const ngraph::Output<ngraph::Node>& operation_before) override {
         return std::make_shared<ngraph::opset7::Clamp>(operation_before, min_, max_);
     }
 private:
@@ -113,8 +108,7 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_init
                                                                                 ngraph::Strides{1, 1});
 
     std::shared_ptr<ngraph::op::Op> last_operation = convolution_operation;
-    if (isAddNodeNeeded)
-    {
+    if (isAddNodeNeeded) {
         auto add_operation = std::make_shared<ngraph::opset7::Add>(convolution_operation,
                                                                    input_params_add);
         last_operation = add_operation;
@@ -153,12 +147,11 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_refe
                                                                                 ngraph::Strides{1, 1});
 
     std::shared_ptr<ngraph::op::Op> last_operation = convolution_operation;
-    if (isAddNodeNeeded)
-    {
+    if (isAddNodeNeeded) {
         auto add_operation = std::make_shared<ngraph::opset7::Add>(convolution_operation,
                                                                         input_params_convolution);
         last_operation = add_operation;
-    }                               
+    }
 
     auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(last_operation,
                                                                         ngraph::Strides{1, 1},
