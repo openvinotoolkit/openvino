@@ -30,6 +30,8 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_input_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_convert_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reference_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
 )
 
@@ -46,6 +48,8 @@ file(GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_input_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_convert_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reference_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/base.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.hpp

@@ -1130,7 +1130,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             portConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1;
             portConfig.constant = false;
 
-            portConfig.desc = std::move(createMemoryDesc(getParentEdgeAt(i), inputPrecisions[i], offset));
+            portConfig.desc = createMemoryDesc(getParentEdgeAt(i), inputPrecisions[i], offset);
 
             config.inConfs.push_back(portConfig);
         }
@@ -1139,7 +1139,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         portConfig.inPlace = -1;
         portConfig.constant = false;
 
-        portConfig.desc = std::move(createMemoryDesc(getChildEdgeAt(0), outputPrecision, offset));
+        portConfig.desc = createMemoryDesc(getChildEdgeAt(0), outputPrecision, offset);
 
         config.outConfs.push_back(portConfig);
 

@@ -331,7 +331,7 @@ void MKLDNNGraph::InitGraph() {
 
     // TODO [DS]: Uncomment
 //    optimizer.ApplyImplSpecificGraphOptimizations(*this);
-//    SortTopologically();
+    SortTopologically();
 
     Allocate();
 
