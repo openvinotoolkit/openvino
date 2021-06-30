@@ -90,24 +90,4 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
     }
     return precision;
 }
-
-/**
-* @brief Compare two vectors that may contain the special Shape::UNDEFINED_DIM value.
-* @param lhs
-* first vector
-* @param rhs
-* second vector
-* @return result of the comparison true or false
-*/
-inline bool isEqualOrUndefined(const std::vector<size_t> lhs, const std::vector<size_t>& rhs) {
-    if (lhs.size() != rhs.size())
-        return false;
-
-    for (size_t i = 0; i < lhs.size(); i++) {
-        if (lhs[i] != rhs[i] && lhs[i] != Shape::UNDEFINED_DIM && rhs[i] != Shape::UNDEFINED_DIM)
-            return false;
-    }
-
-    return true;
-}
 }  // namespace MKLDNNPlugin

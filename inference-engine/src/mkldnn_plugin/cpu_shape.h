@@ -113,11 +113,13 @@ public:
         return !(*this == rhs);
     }
 
-    static constexpr size_t UNDEFINED_DIM = std::numeric_limits<size_t>::max();
+    enum : size_t {
+        UNDEFINED_DIM = 0xffffffffffffffff
+    };
 
 private:
     void initDims() {
-        dims.reserve(minDims.size());
+        dims.resize(minDims.size());
         for (int i = 0; i < minDims.size(); i++) {
             dims[i] = minDims[i] == maxDims[i] ? minDims[i] : UNDEFINED_DIM;
         }
@@ -133,4 +135,15 @@ private:
     std::vector<size_t> dims;
 };
 
+inline bool isEqualOrUndefined(const std::vector<size_t> lhs, const std::vector<size_t>& rhs) {
+    if (lhs.size() != rhs.size())
+        return false;
+
+    for (size_t i = 0; i < lhs.size(); i++) {
+        if (lhs[i] != rhs[i] && lhs[i] != Shape::UNDEFINED_DIM && rhs[i] != Shape::UNDEFINED_DIM)
+            return false;
+    }
+
+    return true;
+}
 }  // namespace MKLDNNPlugin

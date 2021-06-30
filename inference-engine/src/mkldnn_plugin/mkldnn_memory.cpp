@@ -91,6 +91,7 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
 }
 
 void MKLDNNMemory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
+    pMemDesc = desc.clone();
     Create(mkldnn::memory::desc(MemoryDescUtils::convertToMKLDNNMemoryDesc(desc)), data, pads_zeroing);
 }
 
