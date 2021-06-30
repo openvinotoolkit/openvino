@@ -21,7 +21,7 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type netPrecision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         std::shared_ptr<ngraph::opset1::Constant> weights,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights);
@@ -52,7 +52,7 @@ public:
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type netPrecision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         std::shared_ptr<ngraph::opset1::Constant> weights,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,

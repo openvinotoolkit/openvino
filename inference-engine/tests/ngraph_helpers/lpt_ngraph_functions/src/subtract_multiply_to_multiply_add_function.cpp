@@ -16,13 +16,11 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const ngraph::element::Type precisionAfterDequantization) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     dequantizationOp->set_friendly_name("output");
@@ -59,15 +57,13 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getOrig
 }
 
 std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const ngraph::element::Type precisionAfterDequantization,
     const ngraph::builder::subgraph::Multiply& multiply,
     const ngraph::builder::subgraph::Add& add) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     std::shared_ptr<Node> parent = dequantizationOp;
