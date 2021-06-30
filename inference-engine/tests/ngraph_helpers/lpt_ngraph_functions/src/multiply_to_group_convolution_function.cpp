@@ -13,19 +13,15 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type& precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const bool haveMultiplyWithNoConstBeforeDequantization) {
-    std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     std::shared_ptr<ngraph::op::Op> parent = input;
     std::shared_ptr<ngraph::op::Parameter> secondInput;
     if (haveMultiplyWithNoConstBeforeDequantization) {
-        secondInput = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+        secondInput = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
         parent = std::make_shared<ngraph::opset1::Multiply>(input, secondInput);
     }
     const auto dequantizationOp = makeDequantization(parent, dequantization);
@@ -58,16 +54,14 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOrigina
 }
 
 std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type& inputPrecision,
     const std::shared_ptr<ngraph::opset1::Constant>& weights,
     const std::shared_ptr<ngraph::opset1::Constant>& biases,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        inputPrecision,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
 
-    const size_t spatialDimsSize = inputShape.size() - 2;
+    const size_t spatialDimsSize = inputShape.rank().get_length() - 2;
     ngraph::Strides strides(spatialDimsSize, 1ul);
     ngraph::CoordinateDiff pads(spatialDimsSize, 0ul);
     ngraph::Strides dilations(spatialDimsSize, 1ul);
