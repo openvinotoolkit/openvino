@@ -12,6 +12,9 @@
 #include <vector>
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #define DL_HANDLE HMODULE
 #else
