@@ -48,15 +48,6 @@
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
 
-/*****************************************************
- * Debug capability
- *  - PRINT_GRAPH_INFO : Define it to enable printing
- *    additional information to std output.
- *
- * @todo Align with CPU_DEBUG_CAPS implementation
- *****************************************************/
-// #define PRINT_GRAPH_INFO
-
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -606,6 +597,9 @@ void MKLDNNGraph::AllocateWithReuse() {
             int e_finish = edge->getChild()->execIndex;
 
             int64_t e_size = edge->getDesc().getMemSize();  // size in bytes (from begin of data to last element)
+            if (e_size == MemoryDesc::UNDEFINED_SIZE) {
+                IE_THROW() << "Can not allocate memory since the size is undefined.";
+            }
 
             box.start = std::min(e_start, box.start);
             box.finish = std::max(e_finish, box.finish);

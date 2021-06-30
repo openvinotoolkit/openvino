@@ -201,8 +201,6 @@ static std::string NameFromType(Type type) {
 
 class PortConfigurator {
 public:
-    PortConfigurator() = default;
-
     PortConfigurator(MKLDNNPlugin::GeneralLayout blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
                      bool constant = false, int inPlace = -1) :
             tensorDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), shape(shape), constant(constant), inPlace(inPlace) {}

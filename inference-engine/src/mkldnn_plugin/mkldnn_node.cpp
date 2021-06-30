@@ -992,30 +992,14 @@ std::unique_ptr<MemoryDesc> MKLDNNNode::getDefinedInputDesc(const NodeConfig &co
         if (parentConf.desc->isDefined() && parentConf.desc->isCompatible(*config.inConfs[idx].desc)) {
             return parentConf.desc->clone();
         }
-
-//        if (config.inConfs[idx].desc.getLayout() == InferenceEngine::Layout::ANY &&
-//            parentConf.desc.getLayout() != InferenceEngine::Layout::ANY) {
-//            return InferenceEngine::TensorDesc(parentConf.desc.getPrecision(),
-//                                               parentConf.desc.getDims(), {
-//                                                       parentConf.desc.getBlockingDesc().getBlockDims(),
-//                                                       parentConf.desc.getBlockingDesc().getOrder()
-//                                               });
-//        }
     }
 
-    IE_THROW() << "Cannot get defined input memory descriptor for " << getType() << " node with name `" << getName() << "`";
+    // TODO [mkutakov]: revise inPlace logic and rewrite
+    if (auto desc = dynamic_cast<BlockedMemoryDesc*>(config.inConfs[idx].desc.get())) {
+        return make_unique<BlockedMemoryDesc>(desc->getPrecision(), desc->getShape().getDims(), desc->getBlockDims(), desc->getOrder());
+    }
 
-//    if (config.inConfs[idx].desc.getLayout() != InferenceEngine::Layout::ANY) {
-//        return InferenceEngine::TensorDesc(config.inConfs[idx].desc.getPrecision(),
-//                                           config.inConfs[idx].desc.getDims(), {
-//                                                   config.inConfs[idx].desc.getBlockingDesc().getBlockDims(),
-//                                                   config.inConfs[idx].desc.getBlockingDesc().getOrder()
-//                                           });
-//    }
-
-//    return InferenceEngine::TensorDesc(config.inConfs[idx].desc.getPrecision(),
-//                                       config.inConfs[idx].desc.getDims(),
-//                                       InferenceEngine::TensorDesc::getLayoutByDims(config.inConfs[idx].desc.getDims()));
+    IE_THROW() << "Cannot get defined input memory descriptor for " << getTypeStr() << " node with name `" << getName() << "`";
 }
 
 std::unique_ptr<MemoryDesc> MKLDNNNode::getDefinedOutputDesc(const NodeConfig &config, size_t idx) const {
@@ -1055,19 +1039,12 @@ std::unique_ptr<MemoryDesc> MKLDNNNode::getDefinedOutputDesc(const NodeConfig &c
 //        }
     }
 
-    IE_THROW() << "Cannot get defined input memory descriptor for " << getType() << " node with name `" << getName() << "`";
+    // TODO [mkutakov]: revise inPlace logic and rewrite
+    if (auto desc = dynamic_cast<BlockedMemoryDesc*>(config.outConfs[idx].desc.get())) {
+        return make_unique<BlockedMemoryDesc>(desc->getPrecision(), desc->getShape().getDims(), desc->getBlockDims(), desc->getOrder());
+    }
 
-//    if (config.outConfs[idx].desc.getLayout() != InferenceEngine::Layout::ANY) {
-//        return InferenceEngine::TensorDesc(config.outConfs[idx].desc.getPrecision(),
-//                                                                config.outConfs[idx].desc.getDims(), {
-//                                                                        config.outConfs[idx].desc.getBlockingDesc().getBlockDims(),
-//                                                                        config.outConfs[idx].desc.getBlockingDesc().getOrder()
-//                                                                });
-//    }
-
-//    return InferenceEngine::TensorDesc(config.outConfs[idx].desc.getPrecision(),
-//                                       config.outConfs[idx].desc.getDims(),
-//                                       InferenceEngine::TensorDesc::getLayoutByDims(config.outConfs[idx].desc.getDims()));
+    IE_THROW() << "Cannot get defined output memory descriptor for " << getTypeStr() << " node with name `" << getName() << "`";
 }
 
 void MKLDNNNode::initOptimalPrimitiveDescriptor() {
