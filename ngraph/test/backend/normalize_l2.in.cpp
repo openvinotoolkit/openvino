@@ -29,6 +29,21 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
+static void normalize_l2_results_test(std::vector<float>& data, Shape& data_shape, std::vector<int32_t>& axes, ngraph::op::EpsMode eps_mode, float eps, std::vector<float>& expected_output)
+{
+    auto data_input = std::make_shared<op::Parameter>(element::f32, data_shape);
+    const auto axes_input = std::make_shared<op::Constant>(element::i32, Shape{axes.size()}, axes);
+
+    auto normalize = std::make_shared<op::v0::NormalizeL2>(data_input, axes_input, eps, eps_mode);
+    auto function = std::make_shared<Function>(normalize, ParameterVector{data_input});
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(data_shape, expected_output);
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 4);
+}
+
 // ----------------------- eps_mode = ngraph::op::EpsMode::ADD ----------------------- //
 
 NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_across_all_2d_add)
