@@ -157,9 +157,7 @@ namespace ngraph
                       ngraph::element::Type_t et_o = et_output>
             void test(const Data<et_i>& input, const Data<et_o>& expeted, Tolerance tol = {})
             {
-                test<et_i, et_o>(std::initializer_list<Data<et_i>>{input},
-                                 std::initializer_list<Data<et_o>>{expeted},
-                                 tol);
+                test<et_i, et_o>({input}, {expeted}, tol);
             }
 
             // MISO: multiple inputs, single output
@@ -169,7 +167,7 @@ namespace ngraph
                       const Data<et_o>& expeted,
                       Tolerance tol = {})
             {
-                test<et_i, et_o>(inputs, std::initializer_list<Data<et_o>>{expeted}, tol);
+                test<et_i, et_o>(inputs, {expeted}, tol);
             }
 
             // this overload supports passing a predictor with overloaded i/o types
@@ -219,7 +217,7 @@ namespace ngraph
                       typename To = ngraph::fundamental_type_for<et_o>>
             void test(const Data<et_i>& input, To (*elewise_predictor)(Ti), Tolerance tol = {})
             {
-                test<et_i, et_o>(std::initializer_list<Data<et_i>>{input}, elewise_predictor, tol);
+                test<et_i, et_o>({input}, elewise_predictor, tol);
             }
 
             template <ngraph::element::Type_t et_i = et_input,
@@ -227,7 +225,7 @@ namespace ngraph
                       typename Predictor>
             void test(const Data<et_i>& input, Predictor elewise_predictor, Tolerance tol = {})
             {
-                test<et_i, et_o>(std::initializer_list<Data<et_i>>{input}, elewise_predictor, tol);
+                test<et_i, et_o>({input}, elewise_predictor, tol);
             }
 
         private:
