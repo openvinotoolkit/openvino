@@ -128,7 +128,8 @@ void Gather8LayerTest::SetUp() {
     auto functionParams = ngraph::builder::makeParams(ngPrc, { inputShape });
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
     auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
-                                                          inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1, 0);
+                                                          inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1,
+                                                          1 - int(inputShape[axis < 0 ? axis + inputShape.size() : axis]) );
     auto axisNode = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
     auto gather = std::make_shared<ngraph::opset8::Gather>(paramOuts[0], indicesNode, axisNode, batchIdx);
     ngraph::ResultVector results{ std::make_shared<ngraph::opset8::Result>(gather) };
