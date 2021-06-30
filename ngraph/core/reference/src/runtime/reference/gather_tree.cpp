@@ -90,7 +90,6 @@ void runtime::reference::gather_tree(const char* step_ids,
     {
         memcpy(out + cordinate_transform.index(coord) * elem_size, end_token, elem_size);
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 
     for (size_t batch = 0; batch < batch_size; ++batch)
     {
@@ -138,4 +137,5 @@ void runtime::reference::gather_tree(const char* step_ids,
             }
         }
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
