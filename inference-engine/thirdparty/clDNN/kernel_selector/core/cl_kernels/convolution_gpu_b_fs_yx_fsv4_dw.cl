@@ -4,7 +4,8 @@
 
 #include "include/imad.cl"
 #include "include/data_types.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
+#include "include/fetch_weights.cl"
 
 // ======================================================================================
 // Host side jit-constants:
