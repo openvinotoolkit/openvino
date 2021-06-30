@@ -44,7 +44,7 @@ class Tile(Op):
         if shape.size < tile_array.size:
             shape = np.ma.concatenate([shape_array([1] * (tile_array.size - shape.size)), shape])
         elif shape.size > tile_array.size:
-            tile_array = np.ma.concatenate([shape_array([1] * (shape.size - tile_array.size))], tile_array)
+            tile_array = np.ma.concatenate([shape_array([1] * (shape.size - tile_array.size)), tile_array])
 
         if node.in_port(0).data.get_value() is not None and is_fully_defined(shape) and is_fully_defined(tile_array):
             node.out_port(0).data.set_value(np.tile(node.in_port(0).data.get_value().reshape(shape), tile_array))
