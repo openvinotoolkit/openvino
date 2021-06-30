@@ -4,7 +4,7 @@
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension
 from mo.graph.graph import Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
@@ -45,7 +45,7 @@ class Squeeze(Op):
             squeeze_dims = squeeze_dims.reshape([1])
 
         for dim in squeeze_dims:
-            if output_shape[dim] == 1:
+            if output_shape[dim] == 1 or output_shape[dim] is dynamic_dimension:
                 real_squeeze_dims = np.ma.append(real_squeeze_dims, get_canonical_axis_index(output_shape, dim))
             else:
                 raise Error('Trying to squeeze dimension not equal to 1 for node "{}"'.format(node_name))

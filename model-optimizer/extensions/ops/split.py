@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
@@ -57,9 +57,9 @@ class VariadicSplitBase(Op):
             ''.format(op, split_lengths, name)
 
         input_elements = input_shape[axis]
-        assert undefined_elements.size != 0 or input_elements == np.sum(split_lengths), \
-            'The sum of split_lengths=`{}` must match data.shape[axis]=`{}`. Node: {}' \
-            ''.format(split_lengths, input_elements, name)
+        assert undefined_elements.size != 0 or input_elements is dynamic_dimension or \
+               input_elements == np.sum(split_lengths), 'The sum of split_lengths=`{}` must match data.shape[axis]=' \
+                                                        '`{}`. Node: {}'.format(split_lengths, input_elements, name)
 
         assert len(split_lengths) >= len([port for i, port in node.out_ports().items() if not port.disconnected()]), \
             'Number of split_lengths=`{}` is less than connected output ports. Node: {}'.format(split_lengths, name)
@@ -70,8 +70,7 @@ class VariadicSplitBase(Op):
         for i in reversed(range(len(split_lengths))):
             if split_lengths[i] == 0:
                 if node.out_port(i).disconnected():
-                    size_splits = list(split_lengths)
-                    split_lengths = np.delete(int64_array(split_lengths), i)
+                    split_lengths = np.ma.concatenate([split_lengths[:i], split_lengths[i + 1:]])
                     if op == 'VariadicSplit':
                         node.in_port(2).data.set_value(split_lengths)
                     else:
