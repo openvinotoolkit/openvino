@@ -3,8 +3,6 @@
 #
 
 function(add_common_utils ADD_TARGET_NAME)
-    list(APPEND EXPORT_DEPENDENCIES gtest gtest_main)
-
     # create target
     addIeTarget(
             NAME ${ADD_TARGET_NAME}
@@ -15,12 +13,10 @@ function(add_common_utils ADD_TARGET_NAME)
             ADD_CPPLINT
             DEVELOPER_PACKAGE
                 inference_engine_tests
-            EXPORT_DEPENDENCIES
-                ${EXPORT_DEPENDENCIES}
             LINK_LIBRARIES
                 PUBLIC
                     ngraph
-                    ${EXPORT_DEPENDENCIES}
+                    gtest gtest_main
                     inference_engine_transformations
     )
 
