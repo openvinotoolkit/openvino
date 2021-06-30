@@ -69,6 +69,8 @@ public:
 
     bool checkGeneralLayout(GeneralLayout layoutType) const override;
 
+    std::string serializeFormat() const override;
+
 private:
     size_t getMemSizeImp() const override;
     size_t getOffset(const InferenceEngine::SizeVector& v) const;

@@ -74,12 +74,11 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
     auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
 
     if (!outDescs.empty()) {
-        auto fmt0 = MemoryDescUtils::getLayout(*outDescs[0].desc);
-        outputLayoutsStr = mkldnn::utils::fmt2str(fmt0);
+        outputLayoutsStr = outDescs[0].desc->serializeFormat();
 
         bool isAllEqual = true;
         for (size_t i = 1; i < outDescs.size(); i++) {
-            if (MemoryDescUtils::getLayout(*outDescs[i - 1].desc) != MemoryDescUtils::getLayout(*outDescs[i].desc)) {
+            if (outDescs[i - 1].desc->serializeFormat() != outDescs[i].desc->serializeFormat()) {
                 isAllEqual = false;
                 break;
             }
@@ -88,8 +87,7 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
         // If all output layouts are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < outDescs.size(); i++) {
-                auto fmt = MemoryDescUtils::getLayout(*outDescs[i].desc);
-                outputLayoutsStr += "," + std::string(mkldnn::utils::fmt2str(fmt));
+                outputLayoutsStr += "," + outDescs[i].desc->serializeFormat();
             }
         }
     } else {
@@ -235,17 +233,17 @@ void serializeToCout(const MKLDNNGraph &graph) {
     for (const auto& node : graph.GetNodes()) {
         std::cout << "name: " << node->getName() << " [ ";
         auto nodeDesc = node->getSelectedPrimitiveDescriptor();
-        if (!nodeDesc) {
+        if (nodeDesc) {
             auto& inConfs = nodeDesc->getConfig().inConfs;
             if (!inConfs.empty()) {
                 std::cout << "in: " << inConfs.front().desc->getPrecision().name()
-                          << "/l=" << "Not implemented yet" // prnt_out_desc.getLayout()
+                          << "/l=" << inConfs.front().desc->serializeFormat()
                           << "; ";
             }
             auto& outConfs = nodeDesc->getConfig().outConfs;
             if (!outConfs.empty()) {
                 std::cout << "out: " << outConfs.front().desc->getPrecision().name()
-                          << "/l=" << "Not implemented yet"; // chld_in_desc.getLayout();
+                          << "/l=" << outConfs.front().desc->serializeFormat();
             }
         }
         std::cout << " ]"  << std::endl;

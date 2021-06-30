@@ -16,7 +16,6 @@ namespace MKLDNNPlugin {
 
 class MemoryDescUtils {
 public:
-    static mkldnn::memory::format_tag getLayout(const MemoryDesc& desc);
 
     static InferenceEngine::TensorDesc convertToTensorDesc(const MemoryDesc& desc);
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const MemoryDesc& desc);

@@ -196,11 +196,11 @@ std::string MKLDNNExtensionUtils::getReorderArgs(const MemoryDesc &parentDesc, c
         inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
         outArgs += (outArgs.empty() ? "" : "_") + std::string(childDesc.getPrecision().name());
     }
-    auto fmt_tag_src = MemoryDescUtils::getLayout(parentDesc);
-    auto fmt_tag_dst = MemoryDescUtils::getLayout(childDesc);
-    if (fmt_tag_src != fmt_tag_dst || one_of(mkldnn::memory::format_tag::undef, fmt_tag_src, fmt_tag_dst)) {
-        inArgs += (inArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(fmt_tag_src);
-        outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(fmt_tag_dst);
+    auto formatSrc = parentDesc.serializeFormat();
+    auto formatDst = childDesc.serializeFormat();
+    if (formatSrc != formatDst || one_of(std::string("undef"), formatSrc, formatDst)) {
+        inArgs += (inArgs.empty() ? "" : "_") + formatSrc;
+        outArgs += (outArgs.empty() ? "" : "_") + formatDst;
     }
     return inArgs + "_" + outArgs;
 }

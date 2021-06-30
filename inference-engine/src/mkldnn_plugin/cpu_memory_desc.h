@@ -54,6 +54,8 @@ public:
 
     virtual bool checkGeneralLayout(GeneralLayout layoutType) const = 0;
 
+    virtual std::string serializeFormat() const = 0;
+
     // Get minimal requared memory size in bytes. Can be undefined
     size_t getMemSize() const {
         size_t retVal = UNDEFINED_SIZE;
