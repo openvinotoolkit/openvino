@@ -1,12 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-import pytest
+import pickle
 
 from ngraph import PartialShape
 from ngraph.frontend import FrontEndManager, InitializationFailure
 from ngraph.utils.types import get_element_type
+
+import numpy as np
+
+import pytest
 
 mock_available = True
 try:
@@ -24,6 +27,11 @@ mock_needed = pytest.mark.skipif(not mock_available,
 
 
 # ---------- FrontEnd tests ---------------
+def test_pickle():
+    pickle.dumps(fem)
+
+
+
 def test_load_by_unknown_framework():
     frontEnds = fem.get_available_front_ends()
     assert not("UnknownFramework" in frontEnds)

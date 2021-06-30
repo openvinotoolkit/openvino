@@ -21,6 +21,10 @@ void regclass_pyngraph_FrontEndManager(py::module m)
 
     fem.def(py::init<>());
 
+    // Empty pickle dumps are supported as FrontEndManager doesn't have any state
+    fem.def(py::pickle([](const ngraph::frontend::FrontEndManager&) { return py::make_tuple(0); },
+                       [](py::tuple t) { return ngraph::frontend::FrontEndManager(); }));
+
     fem.def("get_available_front_ends",
             &ngraph::frontend::FrontEndManager::get_available_front_ends,
             R"(
