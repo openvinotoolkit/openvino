@@ -16,7 +16,6 @@ namespace MKLDNNPlugin {
 
 class MemoryDescUtils {
 public:
-
     static InferenceEngine::TensorDesc convertToTensorDesc(const MemoryDesc& desc);
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const MemoryDesc& desc);
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const BlockedMemoryDesc& desc);

@@ -231,15 +231,22 @@ struct PortConfig {
     PortConfig(const PortConfig& rhs) {
         this->constant = rhs.constant;
         this->inPlace = rhs.inPlace;
-        this->desc = rhs.desc->clone();
+        if (rhs.desc) {
+            this->desc = rhs.desc->clone();
+        }
     }
 
     PortConfig& operator=(const PortConfig& rhs) {
         this->constant = rhs.constant;
         this->inPlace = rhs.inPlace;
-        this->desc = rhs.desc->clone();
+        if (rhs.desc) {
+            this->desc = rhs.desc->clone();
+        }
         return *this;
     }
+
+    PortConfig(PortConfig&& rhs) = default;
+    PortConfig& operator=(PortConfig&& rhs) = default;
 
     // TODO [DS]: better to make private and const
     bool constant = false;
