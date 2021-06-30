@@ -86,6 +86,7 @@ VERIFIED_OP_REFERENCES = [
     'ShapeOf-3',
     'Sigmoid-1',
     'Sin-1',
+    'Sinh-1'
     'SoftPlus-4',
     'Softmax-1',
     'Split-1',

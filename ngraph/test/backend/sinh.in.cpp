@@ -75,7 +75,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sinh_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, sinh_in_place)
 {
     Shape shape{2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);;
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto T = make_shared<op::Sinh>(A);
     auto T2 = make_shared<op::Sinh>(T);
 
