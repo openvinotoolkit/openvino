@@ -24,11 +24,19 @@ BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::
 BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::vector<size_t>& dims, const std::vector<size_t>& blockedDims,
                   const std::vector<size_t>& order, size_t offsetPadding, const std::vector<size_t>& offsetPaddingToData,
                   const std::vector<size_t>& strides) : MemoryDesc(dims, prc, Blocked) {
+    if (std::any_of(order.begin(), order.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+        IE_THROW() << "BlockedMemoryDesc do not support undefined order.";
+    }
+
+    if (std::any_of(blockedDims.begin() + dims.size(), blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+        IE_THROW() << "BlockedMemoryDesc do not support undefined blocks.";
+    }
+
     this->order = order;
     this->blockedDims = blockedDims;
     this->offsetPadding = offsetPadding;
 
-    if (offsetPaddingToData.empty()) {
+    if (offsetPaddingToData.empty() && !order.empty()) {
         this->offsetPaddingToData.resize(order.size());
         this->offsetPaddingToData[order.size() - 1] = 0;
         for (size_t i = 2; i <= order.size(); i++) {
@@ -38,11 +46,15 @@ BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::
         this->offsetPaddingToData = offsetPaddingToData;
     }
 
-    if (strides.empty()) {
-        this->strides.resize(order.size());
-        this->strides[order.size() - 1] = 1;
-        for (size_t i = 2; i <= order.size(); i++) {
-            this->strides[order.size() - i] = this->strides[order.size() - (i - 1)] * this->blockedDims[blockedDims.size() - (i - 1)];
+    if (strides.empty() && !order.empty()) {
+        if (std::any_of(this->blockedDims.begin(), this->blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+            this->strides.resize(order.size(), Shape::UNDEFINED_DIM);
+        } else {
+            this->strides.resize(order.size());
+            this->strides[order.size() - 1] = 1;
+            for (size_t i = 2; i <= order.size(); i++) {
+                this->strides[order.size() - i] = this->strides[order.size() - (i - 1)] * this->blockedDims[blockedDims.size() - (i - 1)];
+            }
         }
     } else {
         this->strides = strides;
