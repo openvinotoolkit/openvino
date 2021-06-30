@@ -49,8 +49,8 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
 
     @staticmethod
     def calculate_frame_time(graph: Graph):
-        # in Kaldi can be 1 or 2 inputs. Only main input can change delay in network.
-        # Usually ivector input have name 'ivector'.
+        # there are either one or two inputs in Kaldi. Only main input can change delay in network.
+        # Usually ivector input has name 'ivector'.
         inputs = graph.get_op_nodes(op='Parameter')
         if len(inputs) == 1:
             inp_name = inputs[0].name
@@ -124,8 +124,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
                                                                ('mem_in_data', dict(shape=int64_array([context_len]))),
                                                                ('crop_mem_in', dict(op='Crop', axis=int64_array([1]),
                                                                                     offset=int64_array([1]),
-                                                                                    dim=int64_array(
-                                                                                        [context_len - 1]))),
+                                                                                    dim=int64_array([context_len - 1]))),
                                                                ('crop_mem_in_data', dict()),
                                                                ('concat', dict(op='Concat', axis=1)),
                                                                ('concat_data', dict()),

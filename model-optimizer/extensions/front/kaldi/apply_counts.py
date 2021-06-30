@@ -116,8 +116,10 @@ class ApplyCountsFilePattern(FrontReplacementSubgraph):
                 ]
 
     def find_and_replace_pattern(self, graph: Graph):
-        # if empty string in counts, read priors from model itself (on loader stage)
+        # if empty string is in counts, read priors from model itself (on loader stage)
         if graph.graph['cmd_params'].counts == "":
+            assert isinstance(graph.graph['priors'], (list, np.ndarray)) and len(graph.graph['priors']) != 0, \
+                "Model file does not contain Priors tag with counts values, use separate file instead"
             counts = graph.graph['priors'].copy()
         else:
             # read counts from given file
@@ -127,5 +129,8 @@ class ApplyCountsFilePattern(FrontReplacementSubgraph):
                 raise Error('Model Optimizer is not able to read counts file {}'.format(graph.graph['cmd_params'].counts) +
                             refer_to_faq_msg(92)) from e
 
+        # calculate normalized counts as follows:
+        # c_i=log(c_i/sum(c_j))
+        # set max_float/2 for almost zero c_i (< 1.e-10)
         counts = counts_to_priors(counts)
         apply_biases_to_last_layer(graph, counts)
