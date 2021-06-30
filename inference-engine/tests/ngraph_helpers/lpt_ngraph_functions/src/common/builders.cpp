@@ -43,7 +43,8 @@ std::shared_ptr<Node> makeDequantization(
             if (dequantizationOperations.subtract.values.size() == 1ul) {
                 shape = std::vector<size_t>({});
             } else {
-                shape = std::vector<size_t>(parent.get_shape().size(), 1ul);
+                const auto rank = parent.get_partial_shape().rank();
+                shape = std::vector<size_t>(rank.is_dynamic() ? 4ul : rank.get_length(), 1ul);
                 shape[shape.size() >= 2 ? 1ul : 0] = dequantizationOperations.subtract.values.size();
             }
         }
@@ -155,7 +156,8 @@ std::shared_ptr<Node> makeMultiply(const Output<Node>& parent, const Dequantizat
         if (values.size() == 1ul) {
             shape = std::vector<size_t>({});
         } else {
-            shape = std::vector<size_t>(parent.get_shape().size(), 1ul);
+            const auto rank = parent.get_partial_shape().rank();
+            shape = std::vector<size_t>(rank.is_dynamic() ? 4ul : rank.get_length(), 1ul);
             shape[shape.size() >= 2 ? 1ul : 0] = values.size();
         }
     }
