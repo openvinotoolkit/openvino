@@ -46,7 +46,7 @@ elseif(WIN32)
             PATTERN .clang-format EXCLUDE)
 endif()
 
-install(TARGETS format_reader
+install(TARGETS format_reader benchmark_app
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 
