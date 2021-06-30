@@ -27,7 +27,7 @@ namespace ngraph
                 , m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())}
                 , m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())}
             {
-                auto it =
+                const auto it =
                     std::find_if(std::begin(m_attributes),
                                  std::end(m_attributes),
                                  [&](const Attribute& attribute) { return attribute.is_graph(); });

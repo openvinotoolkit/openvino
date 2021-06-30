@@ -19,14 +19,14 @@ namespace ngraph
         {
             void remove_dangling_parameters(std::shared_ptr<Function>& function)
             {
-                auto parameters = function->get_parameters();
+                const auto parameters = function->get_parameters();
                 for (auto parameter : parameters)
                 {
-                    auto parameter_users = parameter->get_users();
+                    const auto parameter_users = parameter->get_users();
                     // if a Parameter is connected to a ONNXFrameworkNode that was not converted
                     // during convert_function it means, this Parameter is dangling and we can
                     // remove it from function
-                    bool is_dangling_parameter = std::all_of(
+                    const bool is_dangling_parameter = std::all_of(
                         parameter_users.begin(),
                         parameter_users.end(),
                         [](const std::shared_ptr<ngraph::Node>& node) -> bool {
@@ -42,13 +42,13 @@ namespace ngraph
 
             void remove_dangling_results(std::shared_ptr<Function>& function)
             {
-                auto results = function->get_results();
+                const auto results = function->get_results();
                 for (auto result : results)
                 {
                     // we can remove Result from function if after function conversion,
                     // Result is connected to NullNode only
-                    auto result_inputs = result->input_values();
-                    bool is_dangling_result =
+                    const auto result_inputs = result->input_values();
+                    const bool is_dangling_result =
                         std::all_of(result_inputs.begin(),
                                     result_inputs.end(),
                                     [](const Output<ngraph::Node>& node) -> bool {
