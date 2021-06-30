@@ -12,10 +12,9 @@
 #include "framework.pb.h"
 #include "node_context.hpp"
 
-
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-#include <locale>
 #include <codecvt>
+#include <locale>
 #endif
 
 namespace ngraph
@@ -56,7 +55,7 @@ namespace ngraph
 
         private:
             void loadPlaces();
-            void loadConsts(const path_type &folder_with_weights, std::istream* weight_stream);
+            void loadConsts(const path_type& folder_with_weights, std::istream* weight_stream);
 
             std::vector<std::shared_ptr<OpPlacePDPD>> m_op_places;
             std::map<std::string, std::shared_ptr<TensorPlacePDPD>> m_var_places;

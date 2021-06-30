@@ -176,8 +176,7 @@ namespace ngraph
             // Validating first path, it must contain a model
             if (is_type<VariantWrapper<path_type>>(variants[0]))
             {
-                path_type model_path =
-                    as_type_ptr<VariantWrapper<path_type>>(variants[0])->get();
+                path_type model_path = as_type_ptr<VariantWrapper<path_type>>(variants[0])->get();
                 if (model_path.length() < pdpd::SUFFIX.length() ||
                     (0 != model_path.compare(model_path.length() - pdpd::SUFFIX.length(),
                                              pdpd::SUFFIX.length(),

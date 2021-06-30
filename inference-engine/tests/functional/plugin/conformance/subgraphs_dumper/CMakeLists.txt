@@ -19,6 +19,7 @@ addIeTargetTest(
         DEPENDENCIES
             ${DEPENDENCIES}
             inference_engine_ir_reader
+            frontend_manager
         LINK_LIBRARIES
             PRIVATE
                 ${DEPENDENCIES}
