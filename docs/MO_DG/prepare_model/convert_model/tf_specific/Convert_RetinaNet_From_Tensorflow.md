@@ -6,5 +6,5 @@ This tutorial explains how to convert RetinaNet model to Intermediate Representa
 
 After you convert model to TensorFlow* you can run the Model-Optimizer command below:
 ```sh
-python mo.py --input "input_1[1 1333 1333 3]" --input_model retinanet_resnet50_coco_best_v2.1.0.pb --data_type FP32 --output filtered_detections/map/TensorArrayStack/TensorArrayGatherV3,filtered_detections/map/TensorArrayStack_1/TensorArrayGatherV3,iltered_detections/map/TensorArrayStack_2/TensorArrayGatherV3 --transformations_config ./extensions/front/tf/retinanet.json
+python mo.py --input "input_1[1 1333 1333 3]" --input_model retinanet_resnet50_coco_best_v2.1.0.pb --data_type FP32 --transformations_config ./extensions/front/tf/retinanet.json
 ```
