@@ -30,7 +30,7 @@ static string find_my_pathname()
 {
 #ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
 #ifdef _WIN32
-    HMODULE hModule = GetModuleHandleW(L"ngraph.dll");
+    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"ngraph" SHARED_LIB_SUFFIX);
     WCHAR wpath[MAX_PATH];
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
     wstring ws(wpath);
