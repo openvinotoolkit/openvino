@@ -37,7 +37,7 @@ class ReorgYoloOp(Op):
         output_shape[node.batch_dims] = input_shape[node.batch_dims]  # pylint: disable=unsupported-assignment-operation
         output_shape[node.channel_dims] = input_shape[node.channel_dims] * stride ** 2  # pylint: disable=unsupported-assignment-operation
         # Round as in caffe
-        output_shape[node.spatial_dims] = np.ma.round(input_shape[node.spatial_dims] // stride)  # pylint: disable=unsupported-assignment-operation
+        output_shape[node.spatial_dims] = np.ma.round(input_shape[node.spatial_dims] / stride)  # pylint: disable=unsupported-assignment-operation
 
         node.out_port(0).data.set_shape(output_shape)
         PermuteAttrs.create_permute_attrs(node, attrs=[('channel_dims', 'input:0'), ('spatial_dims', 'input:0')])
