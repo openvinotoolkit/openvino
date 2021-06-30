@@ -18,7 +18,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Validated Models           | [fast-neural-style-mosaic-onnx](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/fast-neural-style-mosaic-onnx.md) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                                                                                    |
 | Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                                                                                     |
-| Other language realization | [C++](../../../../samples/style_transfer_sample)                                                                                                                            |
+| Other language realization | [C++](../../../../samples/style_transfer_sample/README.md)                                                                                                                            |
 
 ## How It Works
 
