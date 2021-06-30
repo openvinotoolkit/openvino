@@ -25,6 +25,7 @@
 #include "dnn_types.h"
 #include "gna_types.h"
 #include "gna_limitations.hpp"
+#include "layers/gna_convolution_layer.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -50,6 +51,9 @@
 
 using namespace GNAPluginNS::backend;
 
+using GNAPluginNS::GNAConvolutionLayer::outputFromConv;
+using GNAPluginNS::GNAConvolutionLayer::outputFromPooling;
+using GNAPluginNS::GNAConvolutionLayer::outputFromPoolingLegacy;
 
 void GNAPluginNS::backend::AMIntelDNN::BeginNewWrite(uint32_t index) {
     dump_write_index = index;
@@ -1362,35 +1366,6 @@ uint32_t GNAPluginNS::backend::AMIntelDNN::CountLayers() {
     return n;
 }
 
-namespace {
-uint32_t outputFromConv(const uint32_t in, const uint32_t flt, const uint32_t stride) {
-    // floor[(in - flt)/stride] + 1, GNA Spec 1.24
-    if (flt > in || flt == 0 || stride == 0) {
-        THROW_GNA_EXCEPTION << "Invalid (input, filter, stride) = (" << in << "," << flt << "," << stride << ")";
-    }
-    return (in - flt) / stride + 1;
-}
-
-uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint32_t stride) {
-    // ceil[(in - window)/stride] + 1, GNA Spec 1.24
-    if (window > in || window == 0 || stride == 0) {
-        THROW_GNA_EXCEPTION << "Invalid (input, window, stride) = (" << in << "," << window << "," << stride << ")";
-    }
-    if (window == in) return 1;
-
-    return (in - window - 1) / stride + 2;
-}
-
-uint32_t outputFromPoolingLegacy(const uint32_t in, const uint32_t stride) {
-    // floor[(in - 1)/stride] + 1, GNA 1.0/2.0 HW Spec
-    if (in == 0 || stride == 0) {
-        THROW_GNA_EXCEPTION << "Invalid (input, stride) = (" << in << "," << stride << ")";
-    }
-    return (in - 1) / stride + 1;
-}
-
-} // namespace
-
 #if GNA_LIB_VER == 2
 void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel) {
     Gna2Operation * gnaOperation;
@@ -1750,8 +1725,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         auto fltStrideSz = pConvolutionalLayer->nFeatureMaps * pConvolutionalLayer->nFeatureMapColumns;  // always move 1 "row"
                         auto outFromConv = outputFromConv(pLayer->nInputColumns, nFltSize, fltStrideSz);
                         // FLAT input matrix, pooled outputs per filter
-                        // TODO: Issue 50386 check why (outFromConv - 1) an not (outFromConv - nPoolSize)
-                        pLayer->nOutputColumns = pConvolutionalLayer->nFilters * ((outFromConv - 1) / pConvolutionalLayer->nPoolStride + 1);
+                        pLayer->nOutputColumns = pConvolutionalLayer->nFilters * outputFromPoolingLegacy(outFromConv, pConvolutionalLayer->nPoolStride);
                     }
 #endif
                 } else {

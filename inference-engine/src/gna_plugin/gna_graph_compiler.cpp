@@ -1752,16 +1752,15 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
     auto outputs = *layer->outData.begin();
     auto inputs = layer->insData.begin()->lock();
 
-    const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
-        GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
+    // const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+    //     GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
     uint32_t num_columns_in = GetDataDimSize(inputs, 1);
     uint32_t num_columns_out = GetDataDimSize(outputs, 1);
     const auto num_filters = GNALimitations::convMinFiltersNum;
     const auto convolutionStride = num_filters;
     uint32_t num_filter_coefficients = num_filters + 16 + 4;
     num_columns_in += num_filter_coefficients;
-    // TODO reuse formula for number of outputs
-    num_columns_out = (num_columns_in - num_filter_coefficients) / convolutionStride + 1;
+    num_columns_out = GNAConvolutionLayer::outputFromConv(num_columns_in, num_filter_coefficients, convolutionStride);
     num_columns_out *= num_filters;
     const auto& biasPrecision = filterLayer->_biases ? filterLayer->_biases->getTensorDesc().getPrecision() : outputs->getPrecision();
     auto& currentComponent = dnnComponents.addComponent(layer->name, "affine");
