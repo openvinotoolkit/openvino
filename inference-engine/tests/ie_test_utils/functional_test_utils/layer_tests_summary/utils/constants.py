@@ -21,6 +21,7 @@ VERIFIED_OP_REFERENCES = [
     'ConvertLike-1',
     'Convolution-1',
     'Constant-1',
+    'Cos-1',
     'DeformableConvolution-1',
     'DeformablePSROIPooling-1',
     'DetectionOutput-1',
