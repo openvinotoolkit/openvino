@@ -33,7 +33,8 @@ namespace ngraph
                                                  const T_F* filter,
                                                  const Shape& filter_shape,
                                                  T_IN*& out,
-                                                 const float pad_value)
+                                                 const float pad_value,
+                                                 int bit_offset)
                 {
                     const int n_bits = 8;
                     const int input_size_z = batch_shape[1];
@@ -102,9 +103,12 @@ namespace ngraph
                                                     (f_y * filter_size_x) + f_x;
 
                                                 int f_byte_idx =
-                                                    (f_buf_idx + filter_count) / n_bits;
-                                                int bit_idx = (n_bits - 1) -
-                                                              ((f_buf_idx + filter_count) % n_bits);
+                                                    (f_buf_idx + filter_count + bit_offset) /
+                                                    n_bits;
+                                                int bit_idx =
+                                                    (n_bits - 1) -
+                                                    ((f_buf_idx + filter_count + bit_offset) %
+                                                     n_bits);
                                                 uint8_t f_val =
                                                     extract_bit(filter[f_byte_idx], bit_idx);
 
@@ -165,14 +169,22 @@ namespace ngraph
                 const size_t filter_size = shape_size(filter_shape);
 
                 auto batch = in;
+                const int n_bits = 8;
                 for (size_t batch_idx = 0; batch_idx < batches_count; ++batch_idx)
                 {
-                    auto filter = f;
                     for (size_t f_idx = 0; f_idx < filters_count; ++f_idx)
                     {
-                        details::binary_convolve_3D_channels(
-                            params, batch, batch_shape, filter, filter_shape, out, pad_value);
-                        filter += filter_size;
+                        int bit_offset = f_idx * filter_size % n_bits;
+                        int filter_offset = f_idx * filter_size / n_bits;
+                        auto filter = f + filter_offset;
+                        details::binary_convolve_3D_channels(params,
+                                                             batch,
+                                                             batch_shape,
+                                                             filter,
+                                                             filter_shape,
+                                                             out,
+                                                             pad_value,
+                                                             bit_offset);
                     }
                     batch += batch_size;
                 }
