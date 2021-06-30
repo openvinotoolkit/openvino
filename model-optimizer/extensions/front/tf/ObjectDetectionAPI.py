@@ -1312,7 +1312,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
 
         # compared to the IE's DetectionOutput, the TF keeps the locations in YXYX, need to get back to the XYXY
         # for last convolutions that operate the locations need to swap the X and Y for output feature weights & biases
-        conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'])
+        conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'], ['ShapeOf'])
         swap_weights_xy(graph, conv_nodes)
 
         # As outputs are replaced with a postprocessing node, outgoing tensor names are no longer
