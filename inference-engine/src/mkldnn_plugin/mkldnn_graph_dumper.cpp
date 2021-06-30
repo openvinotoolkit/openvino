@@ -46,27 +46,26 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
-        // TODO [mkutakov]: rewrite using MemDesc
-//        outputPrecisionsStr = node->getChildEdgeAt(0)->getTensorDesc().getPrecision().name();
-//
+        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().GetDesc().getPrecision().name();
+
         bool isAllEqual = true;
-//        for (size_t i = 1; i < node->getChildEdges().size(); i++) {
-//            if (node->getChildEdgeAt(i - 1)->getTensorDesc().getPrecision() != node->getChildEdgeAt(i)->getTensorDesc().getPrecision()) {
-//                isAllEqual = false;
-//                break;
-//            }
-//        }
+        for (size_t i = 1; i < node->getChildEdges().size(); i++) {
+            if (node->getChildEdgeAt(i - 1)->getMemory().GetDesc().getPrecision() != node->getChildEdgeAt(i)->getMemory().GetDesc().getPrecision()) {
+                isAllEqual = false;
+                break;
+            }
+        }
 
         // If all output precisions are the same, we store the name only once
         if (!isAllEqual) {
-//            for (size_t i = 1; i < node->getChildEdges().size(); i++)
-//                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getTensorDesc().getPrecision().name());
+            for (size_t i = 1; i < node->getChildEdges().size(); i++)
+                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getMemory().GetDesc().getPrecision().name());
         }
     } else {
         // Branch to correctly handle output nodes
-//        if (!node->getParentEdges().empty()) {
-//            outputPrecisionsStr = node->getParentEdgeAt(0)->getTensorDesc().getPrecision().name();
-//        }
+        if (!node->getParentEdges().empty()) {
+            outputPrecisionsStr = node->getParentEdgeAt(0)->getMemory().GetDesc().getPrecision().name();
+        }
     }
     serialization_info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
 
