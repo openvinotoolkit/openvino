@@ -64,7 +64,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sinh_scalar)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
 
-    vector<float> a{13};
+    const vector<float> a{13};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({a});
@@ -81,7 +81,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sinh_in_place)
 
     auto f = make_shared<Function>(T2, ParameterVector{A});
 
-    vector<float> a{1, 3};
+    const vector<float> a{1, 3};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({a});
@@ -89,22 +89,17 @@ NGRAPH_TEST(${BACKEND_NAME}, sinh_in_place)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, sinh_int32)
+NGRAPH_TEST(${BACKEND_NAME}, sinh_i32)
 {
     Shape shape{5};
-    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto A = make_shared<op::Parameter>(element::i32, shape);;
     auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape);
     const vector<int32_t> input{2, 1, 0, -1, -2};
     const vector<int32_t> expected{4, 1, 0, -1, -4};
-    copy_data(a, input);
-    auto result = backend->create_tensor(element::i32, shape);
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ(expected, read_vector<int32_t>(result));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int32_t>({input});
+    test_case.add_expected_output<int32_t>(shape, {expected});
+    test_case.run();
 }

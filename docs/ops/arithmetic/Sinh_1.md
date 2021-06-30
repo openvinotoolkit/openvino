@@ -4,33 +4,29 @@
 
 **Category**: Arithmetic unary operation 
 
-**Short description**: *Sinh* performs element-wise hyperbolic sine (sinh) operation with given tensor.
+**Short description**: *Sinh* performs element-wise hyperbolic sine (sinh) operation on a given input tensor
 
-**Detailed description**: *Sinh* does the following with the input tensor *a*:
+**Detailed description**: *Sinh* performs element-wise hyperbolic sine (sinh) operation on a given input tensor, based on the following mathematical formula:
 
 \f[
 a_{i} = sinh(a_{i})
 \f]
 
-**Attributes**: 
-
-    No attributes available.
+**Attributes**: *Sinh* operation has no attributes.
 
 **Inputs**
 
-* **1**: An tensor of type T and arbitrary shape. **Required.**
+* **1**: An tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise sinh operation. A tensor of type T and the same shape as input.
+* **1**: The result of element-wise *Sinh* operation applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 
-* *T*: any numeric type.
+* *T*: any supported numeric type.
 
-**Examples**
-
-*Example 1*
+**Example**
 
 ```xml
 <layer ... type="Sinh">
