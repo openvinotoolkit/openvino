@@ -10,35 +10,10 @@
 #include <shared_test_classes/base/layer_test_utils.hpp>
 #include <tuple>
 
-#include "transformations/utils/utils.hpp"
-// #include "ngraph/runtime/reference/convert.hpp"
-// #include "ngraph/runtime/tensor.hpp"
-// #include "runtime/backend.hpp"
-// #include "util/all_close.hpp"
-// #include "util/all_close_f.hpp"
-// #include "util/engine/test_engines.hpp"
-// #include "util/ndarray.hpp"
-// #include "util/test_case.hpp"
-// #include "util/test_control.hpp"
-// #include "util/test_tools.hpp"
+#include "base_reference_test.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
-
-template <class T>
-InferenceEngine::Blob::Ptr create_blob(const ngraph::element::Type& element_type, std::vector<T> values, size_t size = 0) {
-    size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
-    auto blob = make_blob_with_precision(
-        InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(element_type), {real_size}, InferenceEngine::Layout::C));
-    blob->allocate();
-    MemoryBlob::Ptr minput = as<MemoryBlob>(blob);
-    IE_ASSERT(minput);
-    auto minputHolder = minput->wmap();
-
-    std::memcpy(minputHolder.as<void*>(), values.data(), sizeof(T) * values.size());
-
-    return blob;
-}
 
 struct ConvertParams {
     template <class IT, class OT>
@@ -48,185 +23,14 @@ struct ConvertParams {
         inType = iType;
         outType = oType;
 
-        inputData = create_blob(iType, iValues, iSize);
-        refData = create_blob(oType, oValues, oSize);
+        inputData = CreateBlob(iType, iValues, iSize);
+        refData = CreateBlob(oType, oValues, oSize);
     }
     ngraph::PartialShape pshape;
     ngraph::element::Type inType;
     ngraph::element::Type outType;
     InferenceEngine::Blob::Ptr inputData;
     InferenceEngine::Blob::Ptr refData;
-};
-
-class CommonReferenceTest {
-public:
-    CommonReferenceTest(): targetDevice("TEMPLATE") {
-        core = PluginCache::get().ie(targetDevice);
-    }
-
-    void Exec() {
-        LoadNetwork();
-        FillInputs();
-        Infer();
-        Compare();
-    }
-
-    void LoadNetwork() {
-        InferenceEngine::CNNNetwork cnnNetwork(function);
-        auto inputInfo = cnnNetwork.getInputsInfo();
-        auto outputInfo = cnnNetwork.getOutputsInfo();
-        for (const auto& param : function->get_parameters()) {
-            inputInfo[param->get_friendly_name()]->setPrecision(InferenceEngine::details::convertPrecision(param->get_element_type()));
-        }
-        for (const auto& result : function->get_results()) {
-            outputInfo[ngraph::op::util::create_ie_output_name(result->input_value(0))]->setPrecision(
-                InferenceEngine::details::convertPrecision(result->get_element_type()));
-        }
-        executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice);
-    }
-
-    void FillInputs() {
-        const auto& inputInfo = executableNetwork.GetInputsInfo();
-        const auto& params = function->get_parameters();
-        ASSERT_EQ(params.size(), inputData.size());
-        ASSERT_EQ(inputInfo.size(), inputData.size());
-
-        for (size_t i = 0; i < params.size(); i++) {
-            const auto& param = params[i];
-            const auto infoIt = inputInfo.find(param->get_friendly_name());
-            GTEST_ASSERT_NE(infoIt, inputInfo.cend());
-
-            const auto& info = infoIt->second;
-            auto blob = make_blob_with_precision(info->getTensorDesc());
-            blob->allocate();
-
-            ASSERT_EQ(blob->byteSize(), inputData[i]->byteSize());
-
-            MemoryBlob::Ptr mInputData = as<MemoryBlob>(inputData[i]);
-            ASSERT_NE(mInputData, nullptr);
-            auto minputDataHolder = mInputData->rmap();
-
-            MemoryBlob::Ptr mBlob = as<MemoryBlob>(blob);
-            ASSERT_NE(mBlob, nullptr);
-            auto mBlobHolder = mBlob->wmap();
-
-            std::memcpy(mBlobHolder.as<void*>(), minputDataHolder.as<const void*>(), inputData[i]->byteSize());
-            inputData[i] = blob;
-        }
-    }
-
-    void Infer() {
-        inferRequest = executableNetwork.CreateInferRequest();
-
-        const auto& inputsInfo = executableNetwork.GetInputsInfo();
-        const auto& functionParams = function->get_parameters();
-        for (int i = 0; i < functionParams.size(); ++i) {
-            const auto& param = functionParams[i];
-            const auto infoIt = inputsInfo.find(param->get_friendly_name());
-            GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
-
-            const auto& info = infoIt->second;
-            auto blob = inputData[i];
-
-            inferRequest.SetBlob(info->name(), blob);
-        }
-        inferRequest.Infer();
-    }
-
-    void Compare() {
-        ASSERT_EQ(executableNetwork.GetOutputsInfo().size(), refOutData.size());
-        std::vector<InferenceEngine::Blob::Ptr> outputs;
-        for (const auto& result : function->get_results()) {
-            auto name = ngraph::op::util::create_ie_output_name(result->input_value(0));
-            outputs.emplace_back(inferRequest.GetBlob(name));
-        }
-
-        ASSERT_EQ(refOutData.size(), outputs.size());
-        for (size_t i = 0; i < refOutData.size(); i++) {
-            CompareBlobs(refOutData[i], outputs[i]);
-        }
-    }
-
-protected:
-    const std::string targetDevice;
-    std::shared_ptr<InferenceEngine::Core> core;
-    std::shared_ptr<ngraph::Function> function;
-
-    InferenceEngine::ExecutableNetwork executableNetwork;
-    InferenceEngine::InferRequest inferRequest;
-    std::vector<InferenceEngine::Blob::Ptr> inputData;
-    std::vector<InferenceEngine::Blob::Ptr> refOutData;
-    float threshold = 1e-2f;
-
-private:
-    void CompareBlobs(const InferenceEngine::Blob::Ptr& refBlob, const InferenceEngine::Blob::Ptr& outBlob) {
-        ASSERT_TRUE(refBlob != nullptr);
-        ASSERT_TRUE(outBlob != nullptr);
-        ASSERT_EQ(refBlob->getTensorDesc().getPrecision(), outBlob->getTensorDesc().getPrecision());
-        ASSERT_EQ(refBlob->byteSize(), outBlob->byteSize());
-
-        auto mRef = as<InferenceEngine::MemoryBlob>(refBlob);
-        IE_ASSERT(mRef);
-        const auto refLockMemory = mRef->rmap();
-        const auto refBuffer = refLockMemory.as<const std::uint8_t*>();
-
-        auto mOut = as<InferenceEngine::MemoryBlob>(outBlob);
-        IE_ASSERT(mOut);
-        const auto outLockMemory = mOut->rmap();
-        const auto outBuffer = outLockMemory.as<const std::uint8_t*>();
-
-        const auto& precision = refBlob->getTensorDesc().getPrecision();
-        switch (precision) {
-        case InferenceEngine::Precision::FP32:
-            LayerTestsUtils::LayerTestsCommon::Compare<float, float>(reinterpret_cast<const float*>(refBuffer), reinterpret_cast<const float*>(outBuffer),
-                                                                     refBlob->size(), threshold);
-            break;
-        case InferenceEngine::Precision::I32:
-            LayerTestsUtils::LayerTestsCommon::Compare<int32_t, int32_t>(reinterpret_cast<const int32_t*>(refBuffer),
-                                                                         reinterpret_cast<const int32_t*>(outBuffer), refBlob->size(), threshold);
-            break;
-        case InferenceEngine::Precision::I64:
-            LayerTestsUtils::LayerTestsCommon::Compare<int64_t, int64_t>(reinterpret_cast<const int64_t*>(refBuffer),
-                                                                         reinterpret_cast<const int64_t*>(outBuffer), refBlob->size(), threshold);
-            break;
-        case InferenceEngine::Precision::I8:
-            LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(reinterpret_cast<const int8_t*>(refBuffer), reinterpret_cast<const int8_t*>(outBuffer),
-                                                                       refBlob->size(), threshold);
-            break;
-        case InferenceEngine::Precision::U16:
-            LayerTestsUtils::LayerTestsCommon::Compare<uint16_t, uint16_t>(reinterpret_cast<const uint16_t*>(refBuffer),
-                                                                           reinterpret_cast<const uint16_t*>(outBuffer), refBlob->size(), threshold);
-            break;
-        case InferenceEngine::Precision::I16:
-            LayerTestsUtils::LayerTestsCommon::Compare<int16_t, int16_t>(reinterpret_cast<const int16_t*>(refBuffer),
-                                                                         reinterpret_cast<const int16_t*>(outBuffer), refBlob->size(), threshold);
-            break;
-        case InferenceEngine::Precision::BOOL:
-        case InferenceEngine::Precision::U8:
-            LayerTestsUtils::LayerTestsCommon::Compare<uint8_t, uint8_t>(reinterpret_cast<const uint8_t*>(refBuffer),
-                                                                         reinterpret_cast<const uint8_t*>(outBuffer), refBlob->size(), threshold);
-            break;
-        case InferenceEngine::Precision::U64:
-            LayerTestsUtils::LayerTestsCommon::Compare<uint64_t, uint64_t>(reinterpret_cast<const uint64_t*>(refBuffer),
-                                                                           reinterpret_cast<const uint64_t*>(outBuffer), refBlob->size(), threshold);
-            break;
-        case InferenceEngine::Precision::BF16:
-            LayerTestsUtils::LayerTestsCommon::Compare<ngraph::bfloat16, ngraph::bfloat16>(
-                reinterpret_cast<const ngraph::bfloat16*>(refBuffer), reinterpret_cast<const ngraph::bfloat16*>(outBuffer), refBlob->size(), threshold);
-            break;
-        case InferenceEngine::Precision::FP16:
-            LayerTestsUtils::LayerTestsCommon::Compare<ngraph::float16, ngraph::float16>(
-                reinterpret_cast<const ngraph::float16*>(refBuffer), reinterpret_cast<const ngraph::float16*>(outBuffer), refBlob->size(), threshold);
-            break;
-        case InferenceEngine::Precision::I4:
-        case InferenceEngine::Precision::U4:
-            LayerTestsUtils::LayerTestsCommon::Compare<uint8_t, uint8_t>(reinterpret_cast<const uint8_t*>(refBuffer),
-                                                                         reinterpret_cast<const uint8_t*>(outBuffer), refBlob->size() / 2, threshold);
-            break;
-        default:
-            FAIL() << "Comparator for " << precision << " precision isn't supported";
-        }
-    }
 };
 
 class ReferenceConvertLayerTest : public testing::TestWithParam<ConvertParams>, public CommonReferenceTest {
@@ -266,6 +70,54 @@ INSTANTIATE_TEST_SUITE_P(
                                           std::numeric_limits<float>::min(), std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity()},
                       std::vector<char> {0, 1, 1, 0, 1, 1, 1, 1, 1}),
 
+        // destination bf16
+        ConvertParams(ngraph::PartialShape {1, 1, 3, 5}, ngraph::element::f32, ngraph::element::bf16,
+                      std::vector<float> {0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f},
+                      std::vector<bfloat16> {0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f}),
+        ConvertParams(ngraph::PartialShape {11}, ngraph::element::u8, ngraph::element::bf16,
+                      std::vector<uint8_t> {0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142},
+                      std::vector<bfloat16> {0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142}),
+
+        // destination f16
+        ConvertParams(ngraph::PartialShape {1, 1, 3, 5}, ngraph::element::f32, ngraph::element::f16,
+                      std::vector<float> {0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f},
+                      std::vector<float16> {0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f}),
+        ConvertParams(ngraph::PartialShape {11}, ngraph::element::u8, ngraph::element::f16, std::vector<uint8_t> {0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142},
+                      std::vector<float16> {0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142}),
+
+        // destination f32
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::u1, ngraph::element::f32, std::vector<uint8_t> {0xA0},
+                      std::vector<float> {1.0f, 0.0f, 1.0f, 0.0f}, 4),
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::u4, ngraph::element::f32, std::vector<uint8_t> {0xFB, 0x0A},
+                      std::vector<float> {15.0f, 11.0f, 0.0f, 10.0f}, 4),
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::u8, ngraph::element::f32, std::vector<uint8_t> {255, 128, 32, 0},
+                      std::vector<float> {255.0f, 128.0f, 32.0f, 0.0f}),
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::u16, ngraph::element::f32, std::vector<uint16_t> {64000, 32000, 128, 0},
+                      std::vector<float> {64000.0f, 32000.0f, 128.0f, 0.0f}),
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::u32, ngraph::element::f32, std::vector<uint32_t> {4000000, 2000000, 128, 0},
+                      std::vector<float> {4000000.0f, 2000000.0f, 128.0f, 0.0f}),
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::u64, ngraph::element::f32, std::vector<uint64_t> {4000000, 2000000, 128, 0},
+                      std::vector<float> {4000000.0f, 2000000.0f, 128.0f, 0.0f}),
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::i4, ngraph::element::f32, std::vector<uint8_t> {0xFE, 0xF2},
+                      std::vector<float> {-1.0f, -2.0f, -1.0f, 2.0f}, 4),
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::i8, ngraph::element::f32, std::vector<int8_t> {-127, -0, 0, 127},
+                      std::vector<float> {-127.0f, -0.0f, 0.0f, 127.0f}),
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::i16, ngraph::element::f32, std::vector<int16_t> {-32000, -0, 0, 32000},
+                      std::vector<float> {-32000.0f, -0.0f, 0.0f, 32000.0f}),
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::i32, ngraph::element::f32, std::vector<int32_t> {-64000, -0, 0, 64000},
+                      std::vector<float> {-64000.0f, -0.0f, 0.0f, 64000.0f}),
+        ConvertParams(ngraph::PartialShape {2, 2}, ngraph::element::i64, ngraph::element::f32, std::vector<int64_t> {-64000, -0, 0, 64000},
+                      std::vector<float> {-64000.0f, -0.0f, 0.0f, 64000.0f}),
+        ConvertParams(ngraph::PartialShape {1, 1, 3, 5}, ngraph::element::bf16, ngraph::element::f32,
+                      std::vector<bfloat16> {0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f},
+                      std::vector<float> {0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f}),
+        ConvertParams(ngraph::PartialShape {1, 1, 3, 5}, ngraph::element::f16, ngraph::element::f32,
+                      std::vector<float16> {0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f},
+                      std::vector<float> {0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f}),
+        ConvertParams(ngraph::PartialShape {1, 1, 3, 5}, ngraph::element::f32, ngraph::element::f32,
+                      std::vector<float> {0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f},
+                      std::vector<float> {0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f}),
+
         // destination i4
         ConvertParams(ngraph::PartialShape {4}, ngraph::element::u1, ngraph::element::i4, std::vector<uint8_t> {0xA0}, std::vector<uint8_t> {0x10, 0x10}, 4, 4),
         ConvertParams(ngraph::PartialShape {4}, ngraph::element::u4, ngraph::element::i4, std::vector<uint8_t> {0x12, 0x03}, std::vector<uint8_t> {0x12, 0x03},
@@ -293,4 +145,294 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::i4, std::vector<ngraph::bfloat16> {-1, -2, 0, 3},
                       std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
         ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::i4, std::vector<float> {-1, -2, 2, 3}, std::vector<uint8_t> {0xFE, 0x23},
-                      4, 4)));
+                      4, 4),
+        // destination i8
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u1, ngraph::element::i8, std::vector<uint8_t> {0x81},
+                      std::vector<int8_t> {1, 0, 0, 0, 0, 0, 0, 1}, 8),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u4, ngraph::element::i8, std::vector<uint8_t> {0x21, 0x43}, std::vector<int8_t> {2, 1, 4, 3},
+                      4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u8, ngraph::element::i8, std::vector<uint8_t> {1, 2, 0, 3}, std::vector<int8_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u16, ngraph::element::i8, std::vector<uint16_t> {1, 2, 0, 3},
+                      std::vector<int8_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u32, ngraph::element::i8, std::vector<uint32_t> {1, 2, 0, 3},
+                      std::vector<int8_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u64, ngraph::element::i8, std::vector<uint64_t> {1, 2, 0, 3},
+                      std::vector<int8_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i4, ngraph::element::i8, std::vector<uint8_t> {0x21, 0x43}, std::vector<int8_t> {2, 1, 4, 3},
+                      4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i8, ngraph::element::i8, std::vector<int8_t> {-1, -2, 2, 3},
+                      std::vector<int8_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i16, ngraph::element::i8, std::vector<int16_t> {-1, -2, 2, 3},
+                      std::vector<int8_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i32, ngraph::element::i8, std::vector<int32_t> {-1, -2, 2, 3},
+                      std::vector<int8_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i64, ngraph::element::i8, std::vector<int64_t> {-1, -2, 2, 3},
+                      std::vector<int8_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f16, ngraph::element::i8, std::vector<ngraph::float16> {-1, -2, 0, 3},
+                      std::vector<int8_t> {-1, -2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::i8, std::vector<ngraph::bfloat16> {-1, -2, 0, 3},
+                      std::vector<int8_t> {-1, -2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::i8, std::vector<float> {-1, -2, 2, 3},
+                      std::vector<int8_t> {-1, -2, 2, 3}),
+        // destination i16
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u1, ngraph::element::i16, std::vector<uint8_t> {0x81},
+                      std::vector<int16_t> {1, 0, 0, 0, 0, 0, 0, 1}, 8),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u4, ngraph::element::i16, std::vector<uint8_t> {0x21, 0x43}, std::vector<int16_t> {2, 1, 4, 3},
+                      4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u8, ngraph::element::i16, std::vector<uint8_t> {1, 2, 0, 3},
+                      std::vector<int16_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u16, ngraph::element::i16, std::vector<uint16_t> {1, 2, 0, 3},
+                      std::vector<int16_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u32, ngraph::element::i16, std::vector<uint32_t> {1, 2, 0, 3},
+                      std::vector<int16_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u64, ngraph::element::i16, std::vector<uint64_t> {1, 2, 0, 3},
+                      std::vector<int16_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i4, ngraph::element::i16, std::vector<uint8_t> {0x21, 0x43}, std::vector<int16_t> {2, 1, 4, 3},
+                      4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i8, ngraph::element::i16, std::vector<int8_t> {-1, -2, 2, 3},
+                      std::vector<int16_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i16, ngraph::element::i16, std::vector<int16_t> {-1, -2, 2, 3},
+                      std::vector<int16_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i32, ngraph::element::i16, std::vector<int32_t> {-1, -2, 2, 3},
+                      std::vector<int16_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i64, ngraph::element::i16, std::vector<int64_t> {-1, -2, 2, 3},
+                      std::vector<int16_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f16, ngraph::element::i16, std::vector<ngraph::float16> {-1, -2, 0, 3},
+                      std::vector<int16_t> {-1, -2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::i16, std::vector<ngraph::bfloat16> {-1, -2, 0, 3},
+                      std::vector<int16_t> {-1, -2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::i16, std::vector<float> {-1, -2, 2, 3},
+                      std::vector<int16_t> {-1, -2, 2, 3}),
+        // destination i32
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u1, ngraph::element::i32, std::vector<uint8_t> {0x81},
+                      std::vector<int32_t> {1, 0, 0, 0, 0, 0, 0, 1}, 8),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u4, ngraph::element::i32, std::vector<uint8_t> {0x21, 0x43}, std::vector<int32_t> {2, 1, 4, 3},
+                      4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u8, ngraph::element::i32, std::vector<uint8_t> {1, 2, 0, 3},
+                      std::vector<int32_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u16, ngraph::element::i32, std::vector<uint16_t> {1, 2, 0, 3},
+                      std::vector<int32_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u32, ngraph::element::i32, std::vector<uint32_t> {1, 2, 0, 3},
+                      std::vector<int32_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u64, ngraph::element::i32, std::vector<uint64_t> {1, 2, 0, 3},
+                      std::vector<int32_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i4, ngraph::element::i32, std::vector<uint8_t> {0x21, 0x43}, std::vector<int32_t> {2, 1, 4, 3},
+                      4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i8, ngraph::element::i32, std::vector<int8_t> {-1, -2, 2, 3},
+                      std::vector<int32_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i16, ngraph::element::i32, std::vector<int16_t> {-1, -2, 2, 3},
+                      std::vector<int32_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i32, ngraph::element::i32, std::vector<int32_t> {-1, -2, 2, 3},
+                      std::vector<int32_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i64, ngraph::element::i32, std::vector<int64_t> {-1, -2, 2, 3},
+                      std::vector<int32_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f16, ngraph::element::i32, std::vector<ngraph::float16> {-1, -2, 0, 3},
+                      std::vector<int32_t> {-1, -2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::i32, std::vector<ngraph::bfloat16> {-1, -2, 0, 3},
+                      std::vector<int32_t> {-1, -2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::i32, std::vector<float> {-1, -2, 2, 3},
+                      std::vector<int32_t> {-1, -2, 2, 3}),
+        // destination i64
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u1, ngraph::element::i64, std::vector<uint8_t> {0x81},
+                      std::vector<int64_t> {1, 0, 0, 0, 0, 0, 0, 1}, 8),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u4, ngraph::element::i64, std::vector<uint8_t> {0x21, 0x43}, std::vector<int64_t> {2, 1, 4, 3},
+                      4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u8, ngraph::element::i64, std::vector<uint8_t> {1, 2, 0, 3},
+                      std::vector<int64_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u16, ngraph::element::i64, std::vector<uint16_t> {1, 2, 0, 3},
+                      std::vector<int64_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u32, ngraph::element::i64, std::vector<uint32_t> {1, 2, 0, 3},
+                      std::vector<int64_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u64, ngraph::element::i64, std::vector<uint64_t> {1, 2, 0, 3},
+                      std::vector<int64_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i4, ngraph::element::i64, std::vector<uint8_t> {0x21, 0x43}, std::vector<int64_t> {2, 1, 4, 3},
+                      4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i8, ngraph::element::i64, std::vector<int8_t> {-1, -2, 2, 3},
+                      std::vector<int64_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i16, ngraph::element::i64, std::vector<int16_t> {-1, -2, 2, 3},
+                      std::vector<int64_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i32, ngraph::element::i64, std::vector<int32_t> {-1, -2, 2, 3},
+                      std::vector<int64_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i64, ngraph::element::i64, std::vector<int64_t> {-1, -2, 2, 3},
+                      std::vector<int64_t> {-1, -2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f16, ngraph::element::i64, std::vector<ngraph::float16> {-1, -2, 0, 3},
+                      std::vector<int64_t> {-1, -2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::i64, std::vector<ngraph::bfloat16> {-1, -2, 0, 3},
+                      std::vector<int64_t> {-1, -2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::i64, std::vector<float> {-1, -2, 2, 3},
+                      std::vector<int64_t> {-1, -2, 2, 3}),
+
+        // destination u1
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u1, ngraph::element::u1, std::vector<uint8_t> {0xA0}, std::vector<uint8_t> {0xA0}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u4, ngraph::element::u1, std::vector<uint8_t> {0x10, 0x01, 0x00, 0x00},
+                      std::vector<uint8_t> {0x90}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u8, ngraph::element::u1, std::vector<uint8_t> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u16, ngraph::element::u1, std::vector<uint16_t> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u32, ngraph::element::u1, std::vector<uint32_t> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u64, ngraph::element::u1, std::vector<uint64_t> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::i4, ngraph::element::u1, std::vector<uint8_t> {0x10, 0x01, 0x00, 0x00},
+                      std::vector<uint8_t> {0x90}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::i8, ngraph::element::u1, std::vector<int8_t> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::i16, ngraph::element::u1, std::vector<int16_t> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::i32, ngraph::element::u1, std::vector<int32_t> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::i64, ngraph::element::u1, std::vector<int64_t> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::f16, ngraph::element::u1, std::vector<ngraph::float16> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::bf16, ngraph::element::u1, std::vector<ngraph::bfloat16> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::f32, ngraph::element::u1, std::vector<float> {1, 0, 1, 0, 0, 0, 0, 1},
+                      std::vector<uint8_t> {0xA1}, 8, 8),
+
+        // destination u4
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u1, ngraph::element::u4, std::vector<uint8_t> {0xA0}, std::vector<uint8_t> {0x10, 0x10}, 4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u4, ngraph::element::u4, std::vector<uint8_t> {0x12, 0x03}, std::vector<uint8_t> {0x12, 0x03},
+                      4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u8, ngraph::element::u4, std::vector<uint8_t> {1, 2, 0, 3}, std::vector<uint8_t> {0x12, 0x03},
+                      4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u16, ngraph::element::u4, std::vector<uint16_t> {1, 2, 0, 3},
+                      std::vector<uint8_t> {0x12, 0x03}, 4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u32, ngraph::element::u4, std::vector<uint32_t> {1, 2, 0, 3},
+                      std::vector<uint8_t> {0x12, 0x03}, 4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u64, ngraph::element::u4, std::vector<uint64_t> {1, 2, 0, 3},
+                      std::vector<uint8_t> {0x12, 0x03}, 4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i4, ngraph::element::u4, std::vector<uint8_t> {0xFE, 0x03}, std::vector<uint8_t> {0xFE, 0x03},
+                      4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i8, ngraph::element::u4, std::vector<int8_t> {-1, -2, 2, 3}, std::vector<uint8_t> {0xFE, 0x23},
+                      4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i16, ngraph::element::u4, std::vector<int16_t> {-1, -2, 2, 3},
+                      std::vector<uint8_t> {0xFE, 0x23}, 4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i32, ngraph::element::u4, std::vector<int32_t> {-1, -2, 2, 3},
+                      std::vector<uint8_t> {0xFE, 0x23}, 4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i64, ngraph::element::u4, std::vector<int64_t> {-1, -2, 2, 3},
+                      std::vector<uint8_t> {0xFE, 0x23}, 4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f16, ngraph::element::u4, std::vector<ngraph::float16> {-1, -2, 0, 3},
+                      std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::u4, std::vector<ngraph::bfloat16> {-1, -2, 0, 3},
+                      std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::u4, std::vector<float> {-1, -2, 2, 3}, std::vector<uint8_t> {0xFE, 0x23},
+                      4, 4),
+
+        // destination u8
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u1, ngraph::element::u8, std::vector<uint8_t> {0x81},
+                      std::vector<uint8_t> {1, 0, 0, 0, 0, 0, 0, 1}, 8),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u4, ngraph::element::u8, std::vector<uint8_t> {0x21, 0x43}, std::vector<uint8_t> {2, 1, 4, 3},
+                      4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u8, ngraph::element::u8, std::vector<uint8_t> {1, 2, 0, 3}, std::vector<uint8_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u16, ngraph::element::u8, std::vector<uint16_t> {1, 2, 0, 3},
+                      std::vector<uint8_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u32, ngraph::element::u8, std::vector<uint32_t> {1, 2, 0, 3},
+                      std::vector<uint8_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u64, ngraph::element::u8, std::vector<uint64_t> {1, 2, 0, 3},
+                      std::vector<uint8_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i4, ngraph::element::u8, std::vector<uint8_t> {0x21, 0x43}, std::vector<uint8_t> {2, 1, 4, 3},
+                      4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i8, ngraph::element::u8, std::vector<int8_t> {1, 2, 2, 3}, std::vector<uint8_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i16, ngraph::element::u8, std::vector<int16_t> {1, 2, 2, 3},
+                      std::vector<uint8_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i32, ngraph::element::u8, std::vector<int32_t> {1, 2, 2, 3},
+                      std::vector<uint8_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i64, ngraph::element::u8, std::vector<int64_t> {1, 2, 2, 3},
+                      std::vector<uint8_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f16, ngraph::element::u8, std::vector<ngraph::float16> {1, 2, 0, 3},
+                      std::vector<uint8_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::u8, std::vector<ngraph::bfloat16> {1, 2, 0, 3},
+                      std::vector<uint8_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::u8, std::vector<float> {1, 2, 2, 3}, std::vector<uint8_t> {1, 2, 2, 3}),
+
+        // destination u16
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u1, ngraph::element::u16, std::vector<uint8_t> {0x81},
+                      std::vector<uint16_t> {1, 0, 0, 0, 0, 0, 0, 1}, 8),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u4, ngraph::element::u16, std::vector<uint8_t> {0x21, 0x43},
+                      std::vector<uint16_t> {2, 1, 4, 3}, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u8, ngraph::element::u16, std::vector<uint8_t> {1, 2, 0, 3},
+                      std::vector<uint16_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u16, ngraph::element::u16, std::vector<uint16_t> {1, 2, 0, 3},
+                      std::vector<uint16_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u32, ngraph::element::u16, std::vector<uint32_t> {1, 2, 0, 3},
+                      std::vector<uint16_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u64, ngraph::element::u16, std::vector<uint64_t> {1, 2, 0, 3},
+                      std::vector<uint16_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i4, ngraph::element::u16, std::vector<uint8_t> {0x21, 0x43},
+                      std::vector<uint16_t> {2, 1, 4, 3}, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i8, ngraph::element::u16, std::vector<int8_t> {1, 2, 2, 3},
+                      std::vector<uint16_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i16, ngraph::element::u16, std::vector<int16_t> {1, 2, 2, 3},
+                      std::vector<uint16_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i32, ngraph::element::u16, std::vector<int32_t> {1, 2, 2, 3},
+                      std::vector<uint16_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i64, ngraph::element::u16, std::vector<int64_t> {1, 2, 2, 3},
+                      std::vector<uint16_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f16, ngraph::element::u16, std::vector<ngraph::float16> {1, 2, 0, 3},
+                      std::vector<uint16_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::u16, std::vector<ngraph::bfloat16> {1, 2, 0, 3},
+                      std::vector<uint16_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::u16, std::vector<float> {1, 2, 2, 3},
+                      std::vector<uint16_t> {1, 2, 2, 3}),
+
+        // destination u32
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u1, ngraph::element::u32, std::vector<uint8_t> {0x81},
+                      std::vector<uint32_t> {1, 0, 0, 0, 0, 0, 0, 1}, 8),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u4, ngraph::element::u32, std::vector<uint8_t> {0x21, 0x43},
+                      std::vector<uint32_t> {2, 1, 4, 3}, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u8, ngraph::element::u32, std::vector<uint8_t> {1, 2, 0, 3},
+                      std::vector<uint32_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u16, ngraph::element::u32, std::vector<uint16_t> {1, 2, 0, 3},
+                      std::vector<uint32_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u32, ngraph::element::u32, std::vector<uint32_t> {1, 2, 0, 3},
+                      std::vector<uint32_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u64, ngraph::element::u32, std::vector<uint64_t> {1, 2, 0, 3},
+                      std::vector<uint32_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i4, ngraph::element::u32, std::vector<uint8_t> {0x21, 0x43},
+                      std::vector<uint32_t> {2, 1, 4, 3}, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i8, ngraph::element::u32, std::vector<int8_t> {1, 2, 2, 3},
+                      std::vector<uint32_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i16, ngraph::element::u32, std::vector<int16_t> {1, 2, 2, 3},
+                      std::vector<uint32_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i32, ngraph::element::u32, std::vector<int32_t> {1, 2, 2, 3},
+                      std::vector<uint32_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i64, ngraph::element::u32, std::vector<int64_t> {1, 2, 2, 3},
+                      std::vector<uint32_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f16, ngraph::element::u32, std::vector<ngraph::float16> {1, 2, 0, 3},
+                      std::vector<uint32_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::u32, std::vector<ngraph::bfloat16> {1, 2, 0, 3},
+                      std::vector<uint32_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::u32, std::vector<float> {1, 2, 2, 3},
+                      std::vector<uint32_t> {1, 2, 2, 3}),
+
+        // destination u64
+        ConvertParams(ngraph::PartialShape {8}, ngraph::element::u1, ngraph::element::u64, std::vector<uint8_t> {0x81},
+                      std::vector<uint64_t> {1, 0, 0, 0, 0, 0, 0, 1}, 8),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u4, ngraph::element::u64, std::vector<uint8_t> {0x21, 0x43},
+                      std::vector<uint64_t> {2, 1, 4, 3}, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u8, ngraph::element::u64, std::vector<uint8_t> {1, 2, 0, 3},
+                      std::vector<uint64_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u16, ngraph::element::u64, std::vector<uint16_t> {1, 2, 0, 3},
+                      std::vector<uint64_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u32, ngraph::element::u64, std::vector<uint32_t> {1, 2, 0, 3},
+                      std::vector<uint64_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::u64, ngraph::element::u64, std::vector<uint64_t> {1, 2, 0, 3},
+                      std::vector<uint64_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i4, ngraph::element::u64, std::vector<uint8_t> {0x21, 0x43},
+                      std::vector<uint64_t> {2, 1, 4, 3}, 4),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i8, ngraph::element::u64, std::vector<int8_t> {1, 2, 2, 3},
+                      std::vector<uint64_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i16, ngraph::element::u64, std::vector<int16_t> {1, 2, 2, 3},
+                      std::vector<uint64_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i32, ngraph::element::u64, std::vector<int32_t> {1, 2, 2, 3},
+                      std::vector<uint64_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::i64, ngraph::element::u64, std::vector<int64_t> {1, 2, 2, 3},
+                      std::vector<uint64_t> {1, 2, 2, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f16, ngraph::element::u64, std::vector<ngraph::float16> {1, 2, 0, 3},
+                      std::vector<uint64_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::u64, std::vector<ngraph::bfloat16> {1, 2, 0, 3},
+                      std::vector<uint64_t> {1, 2, 0, 3}),
+        ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::u64, std::vector<float> {1, 2, 2, 3},
+                      std::vector<uint64_t> {1, 2, 2, 3})));
