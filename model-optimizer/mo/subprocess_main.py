@@ -23,11 +23,15 @@ def setup_env():
 
     from mo.utils.find_ie_version import find_ie_version
 
+    ie_found = True
     try:
-        if not find_ie_version(silent=True):
-            return False
+        ie_found = find_ie_version(silent=True)
     except Exception:
-        return False
+        ie_found = False
+
+    if not ie_found:
+        log_ie_not_found()
+        sys.exit(1)
 
     mo_root_path = os.path.join(os.path.dirname(__file__), os.pardir)
 
@@ -48,9 +52,7 @@ def subprocess_main(framework=None):
         just add paths to Python modules and libraries into current env. So to make Inference Engine
         Python API to be available inside MO we need to use subprocess with new env.
     """
-    if not setup_env():
-        log_ie_not_found()
-        sys.exit(1)
+    setup_env()
 
     path_to_main = os.path.join(os.path.realpath(os.path.dirname(__file__)),
                                 'main_{}.py'.format(framework) if framework else 'main.py')
