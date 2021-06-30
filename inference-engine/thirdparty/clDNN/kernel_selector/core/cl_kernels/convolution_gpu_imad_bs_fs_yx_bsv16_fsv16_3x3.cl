@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
+#include "include/fetch_weights.cl"
 #include "include/imad.cl"
 #if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
@@ -43,7 +43,7 @@ uint split_idx)
     const uint out_y = (uint)get_global_id(1);
     const uint out_f = (uint)get_group_id(2) * 16 % OUTPUT_FEATURE_NUM;
     const uint out_b = ((uint)get_group_id(2) * 16 / OUTPUT_FEATURE_NUM) * 16 + get_sub_group_local_id();
-    
+
     ACCUMULATOR_TYPE dotProd[16] = {0};
     const int input_x = out_x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = out_y * STRIDE_SIZE_Y - PADDING_SIZE_Y;

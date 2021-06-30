@@ -23,7 +23,7 @@ public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         ngraph::element::Type precisionAfterDequantization;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
     };
 
     ngraph::Shape inputShape;

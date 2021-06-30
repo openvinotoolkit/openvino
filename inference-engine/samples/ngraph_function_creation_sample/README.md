@@ -19,7 +19,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 
 | Options  | Values |
 |:---                              |:---
-| Validated Models                 | LeNet (image classification network)
+| Validated Models                 | LeNet
 | Model Format                     | Network weights file (\*.bin)
 | Validated images                 | single-channel `ubyte` images
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |

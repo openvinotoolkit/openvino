@@ -163,7 +163,7 @@ set(SRC
     type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
     type_prop/non_zero.cpp
-    type_prop/normalize.cpp
+    type_prop/normalize_l2.cpp
     type_prop/one_hot.cpp
     type_prop/pad.cpp
     type_prop/parameter.cpp
@@ -233,6 +233,7 @@ set(SRC
     visitors/op/convolution_backprop.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
+    visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
@@ -251,10 +252,12 @@ set(SRC
     visitors/op/lstm_sequence.cpp
     visitors/op/matmul.cpp
     visitors/op/max_pool.cpp
+    visitors/op/mish.cpp
     visitors/op/mod.cpp
     visitors/op/mvn.cpp
     visitors/op/negative.cpp
     visitors/op/non_max_suppression.cpp
+    visitors/op/non_zero.cpp
     visitors/op/normalize_l2.cpp
     visitors/op/one_hot.cpp
     visitors/op/pad.cpp
@@ -324,7 +327,7 @@ if (ENABLE_CLDNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     endif()
 endif()
 
-if (NGRAPH_INTERPRETER_ENABLE AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
+if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     list(APPEND SRC
         builder.cpp
         backend_api.cpp)
@@ -381,6 +384,7 @@ set(MULTI_TEST_SRC
     backend/dft.in.cpp
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
+    backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
@@ -414,6 +418,7 @@ set(MULTI_TEST_SRC
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
+    backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -507,13 +512,45 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
         onnx/onnx_import_with_editor.in.cpp)
 endif()
 
-# SOURCE AND HEADERS FOR FRONTEND TESTING
+# SOURCE FOR FRONTEND TESTING
+
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
 file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
 file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
 set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+
+# ---- PaddlePaddle FrontEnd testing ------
+if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    find_package (PythonInterp 3 REQUIRED)
+    set(PDPD_PYTHON_OK TRUE)
+    if(NOT PYTHON_EXECUTABLE)
+        message("Python3 is required to build the PDPD frontend unit tests")
+        set(PDPD_PYTHON_OK FALSE)
+    endif()
+
+    if (PDPD_PYTHON_OK)
+        execute_process(
+                COMMAND ${PYTHON_EXECUTABLE} -m pip show paddlepaddle
+                RESULT_VARIABLE PIP_EXIT_CODE
+                OUTPUT_QUIET
+        )
+
+        if (NOT ${PIP_EXIT_CODE} EQUAL 0)
+            message("Python paddlepaddle package is not installed. Please use \"pip install paddlepaddle==2.0.1\".")
+            set(PDPD_PYTHON_OK FALSE)
+        endif()
+    endif()
+
+    if (PDPD_PYTHON_OK)
+        file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
+        set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+        set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
+        add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
+    endif()
+endif()
+# ---- End PaddlePaddle FrontEnd testing ------
 
 add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
 
@@ -594,10 +631,12 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_editor)
 endif()
 
-if (NGRAPH_INTERPRETER_ENABLE)
-    target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
-    target_link_libraries(unit-test PRIVATE interpreter_backend)
-endif()
+target_link_libraries(unit-test PRIVATE interpreter_backend)
+
+install(TARGETS unit-test
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
@@ -605,3 +644,26 @@ target_link_libraries(unit-test PRIVATE frontend_manager)
 
 add_subdirectory(frontend)
 ### END FRONTEND ###
+
+#PaddlePaddle - test models generator
+if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
+    file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
+    set(OUT_FILES "")
+    foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
+        get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
+        set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
+        add_custom_command(OUTPUT ${OUT_DONE_FILE}
+                COMMAND ${PYTHON_EXECUTABLE}
+                        ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
+                        ${GEN_SCRIPT}
+                        ${TEST_PDPD_MODELS}
+                        ${OUT_DONE_FILE}
+                DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
+                )
+    endforeach()
+    add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
+    add_dependencies(unit-test pdpd_test_models)
+    add_dependencies(unit-test paddlepaddle_ngraph_frontend)
+endif()
+
