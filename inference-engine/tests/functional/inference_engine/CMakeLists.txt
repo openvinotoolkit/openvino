@@ -179,7 +179,7 @@ function(ie_headers_compilation_with_custom_flags)
 
     if(IE_TEST_FLAGS)
         set_target_properties(${target_name} PROPERTIES
-                              COMPILE_OPTIONS ${IE_TEST_FLAGS})
+                              COMPILE_OPTIONS "${IE_TEST_FLAGS}")
     endif()
 
     if(IE_TEST_DEFINITIONS)
@@ -203,16 +203,16 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
-                                                 FLAGS "-Werror-all -Werror -Wall")
+                                                 FLAGS -Werror-all -Werror -Wall)
     else()
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS "-Wpedantic")
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
                                              HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                              "gpu/gpu_context_api_ocl.hpp"
                                                              "gpu/gpu_context_api_dx.hpp"
-                                             FLAGS  "/we4996 /W4 /WX")
+                                             FLAGS /we4996 /W4 /WX)
 endif()
 
 # compilation with -Wweak-vtables
@@ -230,15 +230,15 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWarningsAreErrors
-                                                 FLAGS "-Werror-all -Werror -Wall"
+                                                 FLAGS -Werror-all -Werror -Wall
                                                  PLUGIN_API)
     else()
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS "-Wpedantic"
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS -Wpedantic
                                                  PLUGIN_API)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
-                                             FLAGS  "/we4996 /W4 /WX"
+                                             FLAGS /we4996 /W4 /WX
                                              PLUGIN_API)
 endif()
 
