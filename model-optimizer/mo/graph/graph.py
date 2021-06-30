@@ -1039,7 +1039,7 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep
     :param node_name: name of existing node in the graph that we want to add Result to
     :param port: output port of node to connect Result to
     :param cut: determines way of operating with edge specified by node_name and port
-    :param keep_output_port: special attribute determines will this operation be saved in IR or not
+    :param keep_output_port: special attribute determines if this operation is saved in IR or not
     """
     # we import it here because Op imports add_attrs_props and update_ie_fields from this file
     from mo.ops.result import Result
