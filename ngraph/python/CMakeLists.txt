@@ -20,7 +20,7 @@ include(FetchContent)
 FetchContent_Declare(
     pybind11
     GIT_REPOSITORY "https://github.com/pybind/pybind11.git"
-    GIT_TAG        "v2.5.0"
+    GIT_TAG        "v2.6.2"
 )
 
 FetchContent_GetProperties(pybind11)
@@ -29,15 +29,11 @@ if(NOT pybind11_POPULATED)
     add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
 endif()
 
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
+# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
+set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+message("Python version=${PYTHON_VERSION}")
 
-if(PYTHON_FOUND)
-    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-    message("Python version={${Python_VERSION}}")
-else()
-    message(FATAL_ERROR "Python was not found!")
-endif()
-
+set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 if(OpenVINO_MAIN_SOURCE_DIR)
     if(WIN32)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/)
@@ -78,9 +74,23 @@ file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph)
+
+target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::frontend_manager)
+
 if (TARGET ngraph::onnx_importer)
     add_dependencies(_${PROJECT_NAME} ngraph::onnx_importer)
+endif()
+
+if(NGRAPH_UNIT_TEST_ENABLE)
+    add_subdirectory(tests/mock/mock_py_ngraph_frontend)
+    add_dependencies(_${PROJECT_NAME} mock_py_ngraph_frontend)
+    set_target_properties(mock_py_ngraph_frontend PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
+            ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
+            COMPILE_PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
+            PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN})
+
+    add_subdirectory(tests/mock/pyngraph_fe_mock_api)
+    add_dependencies(_${PROJECT_NAME} pybind_mock_frontend)
 endif()
 
 # perform copy
@@ -92,6 +102,10 @@ if(OpenVINO_MAIN_SOURCE_DIR)
 endif()
 
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+    if(COMMAND ie_python_minimal_api)
+        ie_python_minimal_api(_${PROJECT_NAME})
+    endif()
+
     add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
     ie_cpack_add_component(pyngraph_${PYTHON_VERSION})

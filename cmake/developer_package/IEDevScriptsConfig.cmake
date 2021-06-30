@@ -187,6 +187,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
+set(CMAKE_WARN_DEPRECATED OFF)
+set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON)
+
 # LTO
 
 if(ENABLE_LTO)
@@ -223,6 +226,7 @@ include(api_validator/api_validator)
 include(vs_version/vs_version)
 include(plugins/plugins)
 include(add_ie_target)
+include(CMakePackageConfigHelpers)
 
 if(ENABLE_FUZZING)
     enable_fuzzing()

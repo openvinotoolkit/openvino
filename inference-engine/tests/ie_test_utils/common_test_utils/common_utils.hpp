@@ -15,6 +15,11 @@
 #include <memory>
 
 #include <cpp/ie_cnn_network.h>
+#include <ngraph/function.hpp>
+
+namespace ngraph {
+::std::ostream& operator << (::std::ostream &, const Function&);
+}
 
 namespace InferenceEngine {
 class CNNLayer;

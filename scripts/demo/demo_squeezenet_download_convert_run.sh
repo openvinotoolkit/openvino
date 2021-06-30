@@ -33,8 +33,8 @@ case $key in
     shift
     ;;
     -sample-options)
-    sampleoptions="$2 $3 $4 $5 $6"
-    echo sample-options = "${sampleoptions}"
+    sampleoptions=("${@:2}")
+    echo sample-options = "${sampleoptions[*]}"
     shift
     ;;
     *)
@@ -46,7 +46,7 @@ done
 
 target_precision="FP16"
 
-printf "target_precision = ${target_precision}\n"
+printf "target_precision = %s\n" "${target_precision}"
 
 models_path="$HOME/openvino_models/models"
 models_cache="$HOME/openvino_models/cache"
@@ -67,12 +67,12 @@ else
 fi
 
 if ! . "$setupvars_path" ; then
-    printf "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
+    echo -ne "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
     exit 1
 fi
 
 # Step 1. Download the Caffe model and the prototxt of the model
-printf "${dashes}"
+echo -ne "${dashes}"
 printf "\n\nDownloading the Caffe model and the prototxt"
 
 cur_path=$PWD
@@ -115,7 +115,7 @@ elif [[ $DISTRO == "ubuntu" ]]; then
     python_binary=python3
     pip_binary=pip3
 
-    system_ver=`cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2`
+    system_ver=$(grep -i "DISTRIB_RELEASE" -f /etc/lsb-release | cut -d "=" -f2)
     if [ "$system_ver" = "16.04" ]; then
         sudo -E apt-get install -y libpng12-dev
     else
@@ -139,7 +139,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 if ! command -v $python_binary &>/dev/null; then
-    printf "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. ${run_again}"
+    echo -ne "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. ${run_again}"
     exit 1
 fi
 
@@ -162,14 +162,14 @@ ir_dir="${irs_path}/${model_dir}/${target_precision}"
 
 if [ ! -e "$ir_dir" ]; then
     # Step 2. Configure Model Optimizer
-    printf "${dashes}"
+    echo -ne "${dashes}"
     printf "Install Model Optimizer dependencies\n\n"
     cd "${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer/install_prerequisites"
     . ./install_prerequisites.sh caffe
     cd "$cur_path"
 
     # Step 3. Convert a model with Model Optimizer
-    printf "${dashes}"
+    echo -ne "${dashes}"
     printf "Convert a model with Model Optimizer\n\n"
 
     mo_path="${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer/mo.py"
@@ -177,12 +177,12 @@ if [ ! -e "$ir_dir" ]; then
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
     print_and_run "$python_binary" "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
 else
-    printf "\n\nTarget folder ${ir_dir} already exists. Skipping IR generation  with Model Optimizer."
-    printf "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"
+    printf "\n\nTarget folder %s already exists. Skipping IR generation  with Model Optimizer." "${ir_dir}"
+    echo -ne "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"
 fi
 
 # Step 4. Build samples
-printf "${dashes}"
+echo -ne "${dashes}"
 printf "Build Inference Engine samples\n\n"
 
 OS_PATH=$(uname -m)
@@ -207,15 +207,14 @@ cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 make $NUM_THREADS classification_sample_async
 
 # Step 5. Run samples
-printf "${dashes}"
+echo -ne "${dashes}"
 printf "Run Inference Engine classification sample\n\n"
 
 cd "$binaries_dir"
 
 cp -f "$ROOT_DIR/${model_name}.labels" "${ir_dir}/"
 
-print_and_run ./classification_sample_async -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" ${sampleoptions}
+print_and_run ./classification_sample_async -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" "${sampleoptions[@]}"
 
-printf "${dashes}"
-
+echo -ne "${dashes}"
 printf "Demo completed successfully.\n\n"

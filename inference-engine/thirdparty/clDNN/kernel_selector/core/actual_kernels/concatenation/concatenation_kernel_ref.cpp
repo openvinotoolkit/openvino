@@ -100,9 +100,9 @@ KernelsData ConcatenationKernelRef::GetKernelsData(const Params& params, const o
             auto& kernel = kd[0].kernels[i];
 
             // to avoid cases when we execute with local work sizes 1x1x1
-            if (kernel.workGroups.local[0] == 1 && kernel.workGroups.global[1] != 1) {
-                kernel.workGroups.global[1] = Align(kernel.workGroups.global[1], 32);
-                kernel.workGroups.local[1] = 32;
+            if (kernel.params.workGroups.local[0] == 1 && kernel.params.workGroups.global[1] != 1) {
+                kernel.params.workGroups.global[1] = Align(kernel.params.workGroups.global[1], 32);
+                kernel.params.workGroups.local[1] = 32;
             }
         }
     }

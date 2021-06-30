@@ -27,23 +27,25 @@ class CNNLayer;
  */
 class MockICNNNetwork final : public InferenceEngine::ICNNNetwork {
  public:
-    MOCK_QUALIFIED_METHOD0(getFunction, const noexcept, std::shared_ptr<const ngraph::Function> ());
-    MOCK_QUALIFIED_METHOD0(getFunction, noexcept, std::shared_ptr<ngraph::Function>());
-    MOCK_QUALIFIED_METHOD1(getOutputsInfo, const noexcept, void(InferenceEngine::OutputsDataMap& out));
-    MOCK_QUALIFIED_METHOD1(getInputsInfo, const noexcept, void(InferenceEngine::InputsDataMap &inputs));
-    MOCK_QUALIFIED_METHOD1(getInput, const noexcept, InferenceEngine::InputInfo::Ptr(const std::string &inputName));
-    MOCK_QUALIFIED_METHOD0(layerCount, const noexcept, size_t());
-    MOCK_QUALIFIED_METHOD0(getName, const noexcept, const std::string&());
-    MOCK_QUALIFIED_METHOD3(addOutput, noexcept, InferenceEngine::StatusCode(const std::string &, size_t, InferenceEngine::ResponseDesc*));
-     MOCK_QUALIFIED_METHOD3(getLayerByName, const noexcept, InferenceEngine::StatusCode(const char* ,
-            std::shared_ptr<InferenceEngine::CNNLayer>&,
-            InferenceEngine::ResponseDesc*));
-    MOCK_QUALIFIED_METHOD2(setBatchSize, noexcept, InferenceEngine::StatusCode(const size_t size, InferenceEngine::ResponseDesc*));
-    MOCK_QUALIFIED_METHOD0(getBatchSize, const noexcept, size_t());
-    MOCK_QUALIFIED_METHOD1(getInputShapes, const noexcept, void(InferenceEngine::ICNNNetwork::InputShapes&));
-    MOCK_QUALIFIED_METHOD2(reshape, noexcept, InferenceEngine::StatusCode(const InferenceEngine::ICNNNetwork::InputShapes &, InferenceEngine::ResponseDesc *));
-    MOCK_QUALIFIED_METHOD3(serialize, const noexcept, InferenceEngine::StatusCode(
-            const std::string &,
-            const std::string &,
-            InferenceEngine::ResponseDesc*));
+    MOCK_METHOD(std::shared_ptr<const ngraph::Function>, getFunction, (), (const, noexcept));
+    MOCK_METHOD(std::shared_ptr<ngraph::Function>, getFunction, (), (noexcept));
+    MOCK_METHOD(void, getOutputsInfo, (InferenceEngine::OutputsDataMap& out), (const, noexcept));
+    MOCK_METHOD(void, getInputsInfo, (InferenceEngine::InputsDataMap &inputs), (const, noexcept));
+    MOCK_METHOD(InferenceEngine::InputInfo::Ptr, getInput, (const std::string &inputName), (const, noexcept));
+    MOCK_METHOD(size_t, layerCount, (), (const, noexcept));
+    MOCK_METHOD(const std::string&, getName, (), (const, noexcept));
+    MOCK_METHOD(InferenceEngine::StatusCode, addOutput,
+        (const std::string &, size_t, InferenceEngine::ResponseDesc*), (noexcept));
+    MOCK_METHOD(InferenceEngine::StatusCode, getLayerByName,
+        (const char* , std::shared_ptr<InferenceEngine::CNNLayer>&, InferenceEngine::ResponseDesc*),
+        (const, noexcept));
+    MOCK_METHOD(InferenceEngine::StatusCode, setBatchSize,
+        (const size_t size, InferenceEngine::ResponseDesc*), (noexcept));
+    MOCK_METHOD(size_t, getBatchSize, (), (const, noexcept));
+    MOCK_METHOD(void, getInputShapes, (InferenceEngine::ICNNNetwork::InputShapes&), (const, noexcept));
+    MOCK_METHOD(InferenceEngine::StatusCode, reshape,
+        (const InferenceEngine::ICNNNetwork::InputShapes &, InferenceEngine::ResponseDesc *),
+        (const, noexcept));
+    MOCK_METHOD(InferenceEngine::StatusCode, serialize,
+        (const std::string &, const std::string &, InferenceEngine::ResponseDesc*), (const, noexcept));
 };

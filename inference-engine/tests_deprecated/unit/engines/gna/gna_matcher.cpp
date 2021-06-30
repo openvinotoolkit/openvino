@@ -17,7 +17,7 @@
 #include "matchers/pool_matcher.hpp"
 #include "matchers/fill_with_data.hpp"
 #include "matchers/weights_matcher.hpp"
-#include <gmock/gmock-generated-actions.h>
+#include <gmock/gmock.h>
 #include <debug.h>
 
 #include <gmock/gmock-more-actions.h>
@@ -107,19 +107,18 @@ void GNAPropagateMatcher :: match() {
     try {
         // matching gna propagate forward call.
         GNAPlugin plugin(_env.config);
-        plugin.SetPolicy(_env.policy);
         size_t inputSize = 10;
         size_t outputSize = 10;
         InputsDataMap inputsInfo;
         OutputsDataMap  outputsInfo;
 
         auto loadNetworkFromIR = [&] () -> InferenceEngine::CNNNetwork {
-            Core net_reader;
+            Core core;
             auto weights_fake = make_shared_blob<uint8_t>(TensorDesc(Precision::U8,
                     SizeVector({std::numeric_limits<uint32_t>::max()/2}), Layout::C));
             weights_fake->allocate();
 
-            auto net_original = net_reader.ReadNetwork(_env.model, weights_fake);
+            auto net_original = core.ReadNetwork(_env.model, weights_fake);
             size_t weightsSize = 0;
             std::vector<std::string> dataBlobs = {
                     "weights",
@@ -158,7 +157,7 @@ void GNAPropagateMatcher :: match() {
                 fillWeights(weights);
             }
 
-            auto net = net_reader.ReadNetwork(_env.model, weights);
+            auto net = core.ReadNetwork(_env.model, weights);
             sortedLayers = details::CNNNetSortTopologically(net);
             sortedLayers.insert(sortedLayers.end(), tiBodies.begin(), tiBodies.end());
 
@@ -320,18 +319,18 @@ void GNAPropagateMatcher :: match() {
                 return Gna2StatusSuccess;
             }));
 
-            EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).Times(Between(1, 2)).WillRepeatedly(Invoke([](
+            EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).WillOnce(Invoke([](
                 uint32_t deviceIndex,
                 enum Gna2DeviceVersion * deviceVersion) {
                     *deviceVersion = Gna2DeviceVersionSoftwareEmulation;
                     return Gna2StatusSuccess;
                 }));
 
-            EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).Times(Between(1, 2)).WillRepeatedly(Return(Gna2StatusSuccess));
+            EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
 
             EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
 
-            EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).Times(Between(1, 2)).WillRepeatedly(Return(Gna2StatusSuccess));
+            EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
 
 
@@ -508,7 +507,7 @@ void GNAPluginCreationMatcher :: match() {
 void GNAPluginAOTMatcher :: match() {
     // matching gna_propagate forward call.
     MockICNNNetwork net;
-    
+
     size_t weightsSize = 656384;
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {weightsSize}, Layout::C });
     weights->allocate();
@@ -547,18 +546,18 @@ void GNAPluginAOTMatcher :: match() {
             return Gna2StatusSuccess;
         }));
 
-    EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).Times(Between(1, 2)).WillRepeatedly(Invoke([](
+    EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).WillOnce(Invoke([](
         uint32_t deviceIndex,
         enum Gna2DeviceVersion * deviceVersion) {
             *deviceVersion = Gna2DeviceVersionSoftwareEmulation;
             return Gna2StatusSuccess;
         }));
 
-    EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).Times(Between(1, 2)).WillRepeatedly(Return(Gna2StatusSuccess));
+    EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
 
-    EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).Times(Between(1, 2)).WillRepeatedly(Return(Gna2StatusSuccess));
+    EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2ModelCreate(_,_,_)).WillOnce(Invoke([](
         uint32_t deviceIndex,
@@ -650,18 +649,18 @@ void GNADumpXNNMatcher::match() {
         EXPECT_CALL(mockApi, Gna2MemoryAlloc(_, _, _)).
             WillOnce(DoAll(SetArgPointee<1>(10000), SetArgPointee<2>(&data.front()), Return(Gna2StatusSuccess)));
 
-        EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).Times(Between(1, 2)).WillRepeatedly(Invoke([](
+        EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).WillOnce(Invoke([](
             uint32_t deviceIndex,
             enum Gna2DeviceVersion * deviceVersion) {
                 *deviceVersion = Gna2DeviceVersionSoftwareEmulation;
                 return Gna2StatusSuccess;
             }));
 
-        EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).Times(Between(1, 2)).WillRepeatedly(Return(Gna2StatusSuccess));
+        EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
 
         EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
 
-        EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).Times(Between(1, 2)).WillRepeatedly(Return(Gna2StatusSuccess));
+        EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
         EXPECT_CALL(mockApi, Gna2ModelCreate(_,_,_)).Times(AtLeast(1)).WillRepeatedly(Invoke([](
             uint32_t deviceIndex,
@@ -673,7 +672,7 @@ void GNADumpXNNMatcher::match() {
 
         EXPECT_CALL(mockApi, Gna2MemoryFree(_)).WillOnce(Return(Gna2StatusSuccess));
 
-        EXPECT_CALL(mockApi, Gna2DeviceClose(_)).Times(Between(1, 2)).WillRepeatedly(Return(Gna2StatusSuccess));
+        EXPECT_CALL(mockApi, Gna2DeviceClose(_)).WillOnce(Return(Gna2StatusSuccess));
 
         EXPECT_CALL(mockApi, Gna2ModelExportConfigCreate(_,_)).WillOnce(DoAll(SetArgPointee<1>(0), Return(Gna2StatusSuccess)));
 
@@ -744,7 +743,7 @@ void GNAQueryStateMatcher :: match() {
         auto weights = make_shared_blob<uint8_t>({ Precision::U8, {weightsSize}, Layout::C });
         weights->allocate();
         fillWeights(weights);
-        
+
         InferenceEngine::Core core;
         InferenceEngine::CNNNetwork network;
         ASSERT_NO_THROW_IE_EXCEPTION(network = core.ReadNetwork(_env.model, weights));
@@ -777,22 +776,22 @@ void GNAQueryStateMatcher :: match() {
     EXPECT_CALL(mockApi, Gna2MemoryAlloc(_, _, _)).
         WillOnce(DoAll(SetArgPointee<1>(10000), SetArgPointee<2>(&data.front()), Return(Gna2StatusSuccess)));
 
-    EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).Times(Between(1, 2)).WillRepeatedly(Invoke([](
+    EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).WillOnce(Invoke([](
         uint32_t deviceIndex,
         enum Gna2DeviceVersion * deviceVersion) {
             *deviceVersion = Gna2DeviceVersionSoftwareEmulation;
             return Gna2StatusSuccess;
         }));
 
-    EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).Times(Between(1, 2)).WillRepeatedly(Return(Gna2StatusSuccess));
+    EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
 
-    EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).Times(Between(1, 2)).WillRepeatedly(Return(Gna2StatusSuccess));
+    EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2MemoryFree(_)).WillOnce(Return(Gna2StatusSuccess));
 
-    EXPECT_CALL(mockApi, Gna2DeviceClose(_)).Times(Between(1, 2)).WillRepeatedly(Return(Gna2StatusSuccess));
+    EXPECT_CALL(mockApi, Gna2DeviceClose(_)).WillOnce(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2ModelCreate(_,_,_)).Times(AtLeast(1)).WillRepeatedly(Invoke([](
         uint32_t deviceIndex,

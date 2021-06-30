@@ -5,7 +5,7 @@
 #include "deformable_convolution_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "convolution/convolution_kernel_selector.h"
@@ -19,13 +19,16 @@ struct deformable_conv_gpu : typed_primitive_gpu_impl<deformable_conv> {
     using parent = typed_primitive_gpu_impl<deformable_conv>;
     using parent::parent;
 
-protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<deformable_conv>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<deformable_conv_gpu>(*this);
+    }
 
-        args.weights = (memory_impl::cptr) &instance.weights_memory(split);
-        args.bias = memory_impl::cptr(instance.bias_term() ? &instance.bias_memory(split) : nullptr);
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<deformable_conv>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+
+        args.weights = instance.weights_memory(split);
+        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
         return args;
     }
 
@@ -77,6 +80,10 @@ public:
 struct deformable_interp_gpu : typed_primitive_gpu_impl<deformable_interp> {
     using parent = typed_primitive_gpu_impl<deformable_interp>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<deformable_interp_gpu>(*this);
+    }
 
 protected:
     int32_t get_split() const override { return 1; }

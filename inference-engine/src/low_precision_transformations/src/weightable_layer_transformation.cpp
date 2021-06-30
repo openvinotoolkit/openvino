@@ -62,6 +62,11 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
+    const auto inputPShape = layer->get_input_partial_shape(0);
+    if (inputPShape.rank().is_dynamic() || inputPShape[1].is_dynamic()) {
+        return false;
+    }
+
     if (isGroup(layer)) {
         const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
         if (dequantization.empty()) {
@@ -76,8 +81,8 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         const Shape multiplyConstShape = multiplyConst->get_output_shape(0);
         if (!multiplyConstShape.empty() && (shape_size(multiplyConstShape) != 1ul)) {
             const size_t groupsCount = NetworkHelper::getGroupsCount(layer);
-            const ngraph::Shape inputShape = layer->get_input_shape(0);
-            const size_t inputChannelsInGroup = inputShape[1] / groupsCount;
+            const ngraph::PartialShape inputPShape = layer->get_input_partial_shape(0);
+            const size_t inputChannelsInGroup = inputPShape[1].get_length() / groupsCount;
 
             const std::vector<float> scales = multiplyConst->cast_vector<float>();
             for (size_t group = 0; group < groupsCount; ++group) {
@@ -88,8 +93,9 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
                 }
             }
 
-            const ngraph::Shape outputShape = layer->get_output_shape(0);
-            if ((outputShape.size() != 4ul) && (outputShape.size() != 5ul)) {
+            const ngraph::PartialShape outputPShape = layer->get_output_partial_shape(0);
+            const auto rank = outputPShape.rank().get_length();
+            if ((rank != 4) && (rank != 5)) {
                 return false;
             }
         }
@@ -157,10 +163,15 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         }
 
         const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
-        if ( // Check if all dimensions of scale except the output channels are all ones
+        if (
+            // expected, it's ok: return true
+            (shape_size(constOutputShape) != 1ul) &&
+            // not expected, something wrong: return false
+            ((constOutputShape.size() <= outChannelsShapeIndex) ||
+            // Check if all dimensions of scale except the output channels are all ones
             (shape_size(constOutputShape) != constOutputShape[outChannelsShapeIndex]) ||
             ((constOutputShape[outChannelsShapeIndex] != 1ul) &&
-                (fqFromWeights->get_output_shape(0)[outChannelsShapeIndex] != constOutputShape[outChannelsShapeIndex]))) {
+                (fqFromWeights->get_output_shape(0)[outChannelsShapeIndex] != constOutputShape[outChannelsShapeIndex])))) {
             return false;
         }
     } else {

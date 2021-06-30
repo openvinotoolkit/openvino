@@ -4,64 +4,20 @@
 
 project(InferenceEngine)
 
-if(CMAKE_SOURCE_DIR STREQUAL "${InferenceEngine_SOURCE_DIR}")
-    message(FATAL_ERROR "Cmake source directory must point to <openvino_root>")
+add_subdirectory(thirdparty)
+add_subdirectory(src)
+add_subdirectory(ie_bridges/c)
+
+if(ENABLE_PYTHON)
+    add_subdirectory(ie_bridges/python)
 endif()
 
-include(cmake/features.cmake)
-
-# resolving dependencies for the project
-include(cmake/dependencies.cmake)
-
-function(ie_developer_export_targets)
-    openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${ARGN})
-endfunction()
-
-function(ie_developer_export)
-    set(all_dev_targets gflags ie_libraries)
-    foreach(component IN LISTS openvino_export_components)
-        export(TARGETS ${${component}} NAMESPACE IE::
-            APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
-        list(APPEND all_dev_targets ${${component}})
-    endforeach()
-
-    add_custom_target(ie_dev_targets ALL DEPENDS ${all_dev_targets})
-endfunction()
-
-add_subdirectory(thirdparty)
-
-add_subdirectory(src)
-
-add_subdirectory(ie_bridges/c)
+add_subdirectory(tools)
+add_subdirectory(samples)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
     add_subdirectory(tests)
-endif()
-
-add_subdirectory(tools)
-
-function(ie_build_samples)
-    # samples should be build with the same flags as from OpenVINO package,
-    # so unset all flags
-    foreach(var CMAKE_CXX_FLAGS CMAKE_C_FLAGS CMAKE_CXX_STANDARD
-                CMAKE_EXE_LINKER_FLAGS CMAKE_POLICY_DEFAULT_CMP0063
-                CMAKE_CXX_VISIBILITY_PRESET CMAKE_C_VISIBILITY_PRESET
-                CMAKE_VISIBILITY_INLINES_HIDDEN CMAKE_POSITION_INDEPENDENT_CODE
-                THREADS_PREFER_PTHREAD_FLAG X86_64 X86 ARM AARCH64 LINUX
-                MINGW64 CMAKE_BUILD_TYPE CMAKE_MACOSX_RPATH)
-        unset(${var})
-    endforeach()
-    include("${IEDevScripts_DIR}/compile_flags/sanitizer.cmake")
-    add_subdirectory(samples)
-endfunction()
-
-# gflags and format_reader targets are kept inside of samples directory and
-# they must be built even if samples build is disabled (required for tests and tools).
-ie_build_samples()
-
-if(ENABLE_PYTHON)
-    add_subdirectory(ie_bridges/python)
 endif()
 
 #
@@ -70,7 +26,7 @@ endif()
 
 # install C++ samples
 
-ie_cpack_add_component(cpp_samples DEPENDS core)
+ie_cpack_add_component(cpp_samples DEPENDS cpp_samples_deps core)
 
 if(UNIX)
     install(DIRECTORY samples/
@@ -89,6 +45,10 @@ elseif(WIN32)
             PATTERN speech_libs_and_demos EXCLUDE
             PATTERN .clang-format EXCLUDE)
 endif()
+
+install(TARGETS format_reader
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 
 # install C samples
 
@@ -130,39 +90,47 @@ endif()
 # Developer package
 #
 
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader gflags ie_samples_utils)
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ${NGRAPH_LIBRARIES})
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader ie_samples_utils)
 
 # for Template plugin
 if(NGRAPH_INTERPRETER_ENABLE)
     openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
 endif()
 
-ie_developer_export()
+function(ie_generate_dev_package_config)
+    # dummy check that OpenCV is here
+    find_package(OpenCV QUIET)
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
-    @ONLY)
+    set(all_dev_targets gflags ie_libraries)
+    foreach(component IN LISTS openvino_export_components)
+        export(TARGETS ${${component}} NAMESPACE IE::
+            APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+        list(APPEND all_dev_targets ${${component}})
+    endforeach()
+    add_custom_target(ie_dev_targets ALL DEPENDS ${all_dev_targets})
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
-    @ONLY)
+    configure_package_config_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
+                                  "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
+                                  INSTALL_DESTINATION share # not used
+                                  PATH_VARS "OpenVINO_MAIN_SOURCE_DIR;IE_MAIN_SOURCE_DIR;gflags_BINARY_DIR"
+                                  NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
-#
-# Coverage
-#
+    configure_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+                   "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
+                   @ONLY)
+endfunction()
 
-if(ENABLE_COVERAGE)
-    include(cmake/coverage.cmake)
-endif()
+ie_generate_dev_package_config()
 
 #
 # Add extra modules
 #
 
 function(register_extra_modules)
+    # post export
+    openvino_developer_export_targets(COMPONENT inference_engine TARGETS inference_engine)
+    openvino_developer_export_targets(COMPONENT ngraph TARGETS ${NGRAPH_LIBRARIES})
+
     set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/build-modules")
 
     function(generate_fake_dev_package)

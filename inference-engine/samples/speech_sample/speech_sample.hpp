@@ -14,17 +14,16 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for images argument
-static const char input_message[] = "Required. Paths to .ark files. Example of usage: <file1.ark,file2.ark> or <file.ark>.";
+static const char input_message[] = "Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
 
 /// @brief message for assigning cnn calculation to device
 static const char target_device_message[] = "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
-                                            "GNA_SW_FP32, "
+                                            "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
                                             "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
-                                            " as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown "
-                                            "below. "
+                                            " as a secondary (e.g. HETERO:GNA,CPU) are supported. "
                                             "The sample will look for a suitable plugin for device specified.";
 
 /// @brief message for execution target
@@ -49,10 +48,10 @@ static const char custom_cpu_library_message[] = "Required for CPU plugin custom
                                                  "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for score output argument
-static const char output_message[] = "Optional. Output file name to save ark scores.";
+static const char output_message[] = "Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>";
 
 /// @brief message for reference score file argument
-static const char reference_score_message[] = "Optional. Read reference score .ark file and compare scores.";
+static const char reference_score_message[] = "Optional. Read reference score file and compare scores. Example of usage: <reference.ark> or <reference.npz>";
 
 /// @brief message for read GNA model argument
 static const char read_gna_model_message[] = "Read GNA model from file using path/filename provided (required if -m is missing).";

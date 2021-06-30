@@ -12,8 +12,8 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
-using groupConvBackpropDataLayerTestParamsSet = LayerTestsDefinitions::groupConvBackpropDataLayerTestParamsSet;
-using groupConvBackpropDataSpecificParams = LayerTestsDefinitions::groupConvBackpropDataSpecificParams;
+using groupConvBackpropDataLayerTestParamsSet = LayerTestsDefinitions::groupConvBackpropLayerTestParamsSet;
+using groupConvBackpropDataSpecificParams = LayerTestsDefinitions::groupConvBackpropSpecificParams;
 
 typedef std::tuple<
         groupConvBackpropDataLayerTestParamsSet,
@@ -32,7 +32,7 @@ public:
         std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = obj.param;
 
         std::ostringstream result;
-        result << LayerTestsDefinitions::GroupConvBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<groupConvBackpropDataLayerTestParamsSet>(
+        result << LayerTestsDefinitions::GroupConvBackpropLayerTest::getTestCaseName(testing::TestParamInfo<groupConvBackpropDataLayerTestParamsSet>(
                 basicParamsSet, 0));
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -62,9 +62,9 @@ protected:
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         groupConvBackpropDataSpecificParams groupConvParams;
-        std::vector<size_t> inputShape;
+        std::vector<size_t> inputShape, outputShape;
         auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(groupConvParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
+        std::tie(groupConvParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, outputShape, targetDevice) = basicParamsSet;
 
         if (inPrc == Precision::UNSPECIFIED) {
             selectedType += std::string("_") + Precision(Precision::FP32).name();
@@ -74,17 +74,25 @@ protected:
 
         ngraph::op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
+        std::vector<ptrdiff_t> padBegin, padEnd, outputPadding;
         size_t convOutChannels, numGroups;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType, outputPadding) = groupConvParams;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(
-                ngraph::builder::makeGroupConvolutionBackpropData(paramOuts[0], ngPrc, kernel, stride, padBegin,
-                                                      padEnd, dilation, padType, convOutChannels, numGroups));
+        std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData> groupConv;
+        if (!outputShape.empty()) {
+            auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
+            groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(
+            ngraph::builder::makeGroupConvolutionBackpropData(paramOuts[0], outShape, ngPrc, kernel, stride, padBegin,
+                                                            padEnd, dilation, padType, convOutChannels, numGroups, false, outputPadding));
+        } else {
+            groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(
+            ngraph::builder::makeGroupConvolutionBackpropData(paramOuts[0], ngPrc, kernel, stride, padBegin,
+                                                padEnd, dilation, padType, convOutChannels, numGroups, false, outputPadding));
+        }
         function = makeNgraphFunction(ngPrc, params, groupConv, "groupConvolutionBackpropData");
     }
 };
@@ -128,6 +136,9 @@ std::vector<fusingSpecificParams> fusingParamsSet {
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
 const std::map<std::string, std::string> cpuBF16PluginConfig = { { PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES } };
 
+const std::vector<std::vector<size_t >> emptyOutputShape = {{}};
+const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
+
 /* ============= GroupConvolution params (planar layout) ============= */
 const SizeVector numOutChannels_Planar = {6};
 const SizeVector numGroups_Planar = {2, 3};
@@ -166,10 +177,11 @@ const auto groupConvParams_ExplicitPadding_Planar_2D = ::testing::Combine(
         ::testing::ValuesIn(dilations2d),
         ::testing::ValuesIn(numOutChannels_Planar),
         ::testing::ValuesIn(numGroups_Planar),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Planar_FP32, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Planar_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Planar_2D,
@@ -179,13 +191,14 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Planar_FP32, GroupDeconvolutionLaye
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Planar_BF16, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Planar_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Planar_2D,
@@ -195,6 +208,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Planar_BF16, GroupDeconvolutionLaye
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -210,10 +224,11 @@ const auto groupConvParams_ExplicitPadding_Planar_3D = ::testing::Combine(
         ::testing::ValuesIn(dilations3d),
         ::testing::ValuesIn(numOutChannels_Planar),
         ::testing::ValuesIn(numGroups_Planar),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Planar_FP32, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_Planar_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Planar_3D,
@@ -223,13 +238,14 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Planar_FP32, GroupDeconvolutionLaye
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Planar_BF16, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_Planar_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Planar_3D,
@@ -239,6 +255,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Planar_BF16, GroupDeconvolutionLaye
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -254,10 +271,11 @@ const auto groupConvParams_ExplicitPadding_Blocked_2D = ::testing::Combine(
         ::testing::ValuesIn(dilations2d),
         ::testing::ValuesIn(numOutChannels_Blocked),
         ::testing::ValuesIn(numGroups_Blocked),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Blocked_FP32, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Blocked_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Blocked_2D,
@@ -267,13 +285,14 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Blocked_FP32, GroupDeconvolutionLay
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Blocked_BF16, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Blocked_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Blocked_2D,
@@ -283,6 +302,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_Blocked_BF16, GroupDeconvolutionLay
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -298,10 +318,11 @@ const auto groupConvParams_ExplicitPadding_Blocked_3D = ::testing::Combine(
         ::testing::ValuesIn(dilations3d),
         ::testing::ValuesIn(numOutChannels_Blocked),
         ::testing::ValuesIn(numGroups_Blocked),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Blocked_FP32, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_Blocked_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Blocked_3D,
@@ -311,13 +332,14 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Blocked_FP32, GroupDeconvolutionLay
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Blocked_BF16, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_Blocked_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_Blocked_3D,
@@ -327,6 +349,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_3D_Blocked_BF16, GroupDeconvolutionLay
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -342,10 +365,11 @@ const auto groupConvParams_ExplicitPadding_DW_2D = ::testing::Combine(
         ::testing::ValuesIn(dilations2d),
         ::testing::ValuesIn(numOutChannels_DW),
         ::testing::ValuesIn(numGroups_DW),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_DW_FP32, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_DW_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_DW_2D,
@@ -355,13 +379,14 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_DW_FP32, GroupDeconvolutionLayerCPU
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 32, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D})),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_DW_BF16, GroupDeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_DW_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             groupConvParams_ExplicitPadding_DW_2D,
@@ -371,6 +396,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_DW_BF16, GroupDeconvolutionLayerCPU
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 32, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D})),
         ::testing::ValuesIn(fusingParamsSet),

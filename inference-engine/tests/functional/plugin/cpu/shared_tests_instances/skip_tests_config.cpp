@@ -33,10 +33,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
-        // TODO: Issue: 34805
-        R"(.*ActivationLayerTest.*Ceiling.*)",
-        // TODO: Issue: 32032
-        R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
@@ -69,21 +65,15 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 55656 AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // TODO: 54718 Accuracy mismatch
-        R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
-        R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(2\.2\).*primitive=jit_avx512_dw.*)",
+        // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
+        R"(.*smoke_SetBlobOfKindAUTO.*SetBlobOfKindTest.CompareWithRefs.*)",
         // reference doesn't cover I8, U8 cases. Issue: 55842
         R"(.*Gather7LayerTest.*netPRC=I8.*)",
+        // TODO: 57562 No dynamic output shape support
+        R"(.*NonZeroLayerTest.*)",
+        // need to implement Export / Import
+        R"(.*IEClassImportExportTestP.*)"
     };
-        // TODO: 54718 Accuracy mismatch
-#ifdef _WIN32
-        retVector.insert(retVector.end(), {
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(3\.3\.3\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(3\.3\.3\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-        });
-#endif
 #ifdef __APPLE__
         // TODO: Issue 55717
         //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");

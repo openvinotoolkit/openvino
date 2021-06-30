@@ -129,10 +129,11 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
 
         std::string data_type = fused_dep_codegen.GetInputTypeName(0, 1);
         std::string vec_data_type = fused_dep_codegen.GetInputTypeName(0, 2);
-        std::string sc = "sc" + std::to_string(op_id);
-        std::string sh = "sh" + std::to_string(op_id);
-        std::string e_add = "e_add" + std::to_string(op_id);
-        std::string e_mul = "e_mul" + std::to_string(op_id);
+        std::string sc = "sc" + toCodeString(op_id);
+        std::string sh = "sh" + toCodeString(op_id);
+        std::string e_add = "e_add" + toCodeString(op_id);
+        std::string e_mul = "e_mul" + toCodeString(op_id);
+
         switch (fused_dep.GetType()) {
             case KernelType::SCALE: {
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
@@ -159,6 +160,7 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
 
                 break;
             }
+
             case KernelType::QUANTIZE: {
                 std::string var_name_in = fused_dep_codegen.GetInputVarName(0);
                 std::string var_name_out = fused_dep_codegen.GetInputVarName(3);
@@ -197,17 +199,20 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
 
                 break;
             }
+
             case KernelType::ACTIVATION: {
                 auto p = fused_dep.GetOpParams<activation_fuse_params>();
                 base_activation_params activation = p->param;
                 if (activation.function != ActivationFunction::NONE) {
-                    auto suffix = "_FUSED_OP" + std::to_string(op_id);
+                    auto suffix = "_FUSED_OP" + toCodeString(op_id);
 
                     jit.Merge(MakeActivationJitConstants(activation, fused_dep.output_tensor.GetDType(), suffix));
                     eltwise_fused_ops += "\\\n\tres = ACTIVATION" + suffix + "((OUTPUT_TYPE)res, ACTIVATION_PARAMS" + suffix + ");";
                 }
+
                 break;
             }
+
             case KernelType::ELTWISE: {
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
                 std::string var_name = fused_dep_codegen.GetInputVarName(0);
@@ -225,10 +230,12 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
                                          get_shuffle(var_name + ".s0", "oc") + " : " + get_shuffle(var_name + ".s1", "oc") + ";";
                     eltwise_fused_ops += "\\\n\tres = res*" + e_mul + ";";
                 }
+
                 break;
             }
+
             default:
-                throw std::invalid_argument("Invalid fused op in binary_convolution kernel: " + params.layerID);
+                throw std::invalid_argument("Invalid fused op in binary_convolution_1x1 kernel: " + params.layerID);
         }
 
         op_id++;

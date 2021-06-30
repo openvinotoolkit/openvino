@@ -16,24 +16,12 @@
 #include <blob_factory.hpp>
 
 #include <istream>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <string>
 
 namespace InferenceEngine {
-namespace {
-void parsePluginName(std::istream& networkModel) {
-    ExportMagic magic = {};
-    auto currentPos = networkModel.tellg();
-    networkModel.read(magic.data(), magic.size());
-    auto exportedWithName = (exportMagic == magic);
-    if (exportedWithName) {
-        networkModel.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    } else {
-        networkModel.seekg(currentPos, networkModel.beg);
-    }
-}
-}  // namespace
 
 PreProcessInfo copyPreProcess(const PreProcessInfo& from) {
     PreProcessInfo to = from;
@@ -170,31 +158,35 @@ RemoteContext::Ptr IInferencePlugin::GetDefaultContext(const ParamMap&) {
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(const std::string&,
-                                                                            const std::map<std::string, std::string>&) {
-    IE_THROW(NotImplemented);
+std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(const std::string& modelFileName,
+                                                                            const std::map<std::string, std::string>& config) {
+    std::ifstream blobFile(modelFileName, std::ios::binary);
+
+    if (!blobFile.is_open()) {
+        IE_THROW(NetworkNotRead);
+    }
+
+    return ImportNetwork(blobFile, config);
 }
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(std::istream& networkModel,
                                                                             const std::map<std::string, std::string>& config) {
-    parsePluginName(networkModel);
-    return ImportNetworkImpl(networkModel, config);
+    IE_THROW(NotImplemented);
 }
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(std::istream& networkModel,
                                                                             const std::shared_ptr<RemoteContext>& context,
                                                                             const std::map<std::string, std::string>& config) {
-    parsePluginName(networkModel);
-    return ImportNetworkImpl(networkModel, context, config);
+   IE_THROW(NotImplemented);
 }
 
-void IInferencePlugin::SetCore(ICore* core) {
-    IE_ASSERT(core != nullptr);
+void IInferencePlugin::SetCore(std::weak_ptr<ICore> core) {
+    IE_ASSERT(!core.expired());
     _core = core;
 }
 
-ICore* IInferencePlugin::GetCore() const noexcept {
-    return _core;
+std::shared_ptr<ICore> IInferencePlugin::GetCore() const noexcept {
+    return _core.lock();
 }
 
 QueryNetworkResult IInferencePlugin::QueryNetwork(const CNNNetwork& network,
@@ -210,17 +202,6 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl(const CNNNetwork&,
                                                                                  const std::shared_ptr<RemoteContext>&,
                                                                                  const std::map<std::string, std::string>&) {
-    IE_THROW(NotImplemented);
-}
-
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetworkImpl(std::istream&,
-                                                                                const std::map<std::string, std::string>&) {
-    IE_THROW(NotImplemented);
-}
-
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetworkImpl(std::istream&,
-                                                                                const std::shared_ptr<RemoteContext>&,
-                                                                                const std::map<std::string, std::string>&) {
     IE_THROW(NotImplemented);
 }
 

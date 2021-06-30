@@ -5,7 +5,7 @@
 #include "max_unpooling_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "network_impl.h"
 #include "kernel_selector_helper.h"
 #include "max_unpooling/max_unpooling_kernel_selector.h"
@@ -19,20 +19,23 @@ struct max_unpooling_gpu : typed_primitive_gpu_impl<max_unpooling> {
     using parent = typed_primitive_gpu_impl<max_unpooling>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<max_unpooling_gpu>(*this);
+    }
+
 protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<max_unpooling>& instance,
-                                                        int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
-        args.inputs.push_back((memory_impl::cptr) &instance.dep_memory(1));
+    kernel_arguments_data get_arguments(typed_primitive_inst<max_unpooling>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+        args.inputs.push_back(instance.dep_memory_ptr(1));
         return args;
     }
 
 public:
-    event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events, max_unpooling_inst& instance) override {
+    event::ptr execute_impl(const std::vector<event::ptr>& events, max_unpooling_inst& instance) override {
         // clear output buffer
-        std::vector<event_impl::ptr> tmp_events(events);
-        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_id(), false);
-        instance.output_memory().fill(0, ev);
+        std::vector<event::ptr> tmp_events(events);
+        auto& stream = instance.get_network().get_stream();
+        auto ev = instance.output_memory().fill(stream);
         tmp_events.push_back(ev);
         return parent::execute_impl(tmp_events, instance);
     }

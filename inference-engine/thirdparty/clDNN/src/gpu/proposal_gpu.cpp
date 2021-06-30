@@ -3,12 +3,10 @@
 //
 
 #include "proposal_inst.h"
-#include "kernel.h"
+#include "cldnn/runtime/engine.hpp"
 #include "implementation_map.h"
 #include "network_impl.h"
-#include "engine_impl.h"
-#include "math_utils.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "register_gpu.hpp"
 
 #include <algorithm>
@@ -197,10 +195,14 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
 
     explicit proposal_gpu(const proposal_node& arg) : outer(arg) {}
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<proposal_gpu>(*this);
+    }
+
     template <typename dtype>
-    void read_image_info(proposal_inst& instance, im_info_t& im_info) {
-        auto& image_info = instance.dep_memory(proposal_inst::image_info_index);
-        mem_lock<dtype> image_info_ptr{image_info};
+    void read_image_info(stream& stream, proposal_inst& instance, im_info_t& im_info) {
+        auto image_info = instance.dep_memory_ptr(proposal_inst::image_info_index);
+        mem_lock<dtype> image_info_ptr{image_info, stream};
         const dtype* image_info_mem = image_info_ptr.data();
 
         bool swap_xy = instance.argument.swap_xy;
@@ -212,7 +214,7 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
         int min_bbox_x = 1;
         int min_bbox_y = 1;
 
-        auto image_info_size = image_info.get_layout().size;
+        auto image_info_size = image_info->get_layout().size;
         auto image_info_count = image_info_size.feature[0] == 1 ? image_info_size.batch[0] : image_info_size.feature[0];
 
         int scaled_min_bbox_size = instance.argument.min_bbox_size;
@@ -259,13 +261,13 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
     }
 
     template <typename dtype>
-    void execute(proposal_inst& instance, im_info_t im_info, dtype* proposal_prob_ptr = nullptr) {
+    void execute(stream& stream, proposal_inst& instance, im_info_t im_info, dtype* proposal_prob_ptr = nullptr) {
         const std::vector<proposal_inst::anchor>& anchors = instance.get_anchors();
 
         size_t anchors_num = anchors.size();
 
-        auto& cls_scores = instance.dep_memory(proposal_inst::cls_scores_index);
-        auto& bbox_pred = instance.dep_memory(proposal_inst::bbox_pred_index);
+        auto cls_scores = instance.dep_memory_ptr(proposal_inst::cls_scores_index);
+        auto bbox_pred = instance.dep_memory_ptr(proposal_inst::bbox_pred_index);
 
         bool swap_xy = instance.argument.swap_xy;
         bool initial_clip = instance.argument.initial_clip;
@@ -277,14 +279,14 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
         bool for_deformable = instance.argument.for_deformable;
 
         // feat map sizes
-        const auto& score_size = cls_scores.get_layout().size;
+        const auto& score_size = cls_scores->get_layout().size;
         int fm_h = score_size.spatial[1];
         int fm_w = score_size.spatial[0];
 
         int fm_sz = fm_w * fm_h;
 
-        mem_lock<dtype> cls_scores_ptr{cls_scores};
-        mem_lock<dtype> bbox_pred_ptr{bbox_pred};
+        mem_lock<dtype> cls_scores_ptr{cls_scores, stream};
+        mem_lock<dtype> bbox_pred_ptr{bbox_pred, stream};
         const dtype* cls_scores_mem = cls_scores_ptr.data();
         const dtype* bbox_pred_mem = bbox_pred_ptr.data();
 
@@ -347,9 +349,9 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
                                                  instance.argument.post_nms_topn,
                                                  coordinates_offset);
 
-            auto& output = instance.output_memory();
+            auto output = instance.output_memory_ptr();
 
-            mem_lock<dtype> output_ptr{output};
+            mem_lock<dtype> output_ptr{output, stream};
             dtype* top_data = output_ptr.data() + n * instance.argument.post_nms_topn * 5;
 
             dtype* top_data_prob = proposal_prob_ptr == nullptr ? nullptr : proposal_prob_ptr + n * instance.argument.post_nms_topn;
@@ -386,17 +388,19 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
         }
     }
 
-    event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events, proposal_inst& instance) override {
+    event::ptr execute_impl(const std::vector<event::ptr>& events, proposal_inst& instance) override {
         for (auto& a : events) {
             a->wait();
         }
 
-        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_id(), false);
+        auto& stream = instance.get_network().get_stream();
+
+        auto ev = instance.get_network().get_stream().create_user_event(false);
         im_info_t im_info;
         if (instance.dep_memory(proposal_inst::image_info_index).get_layout().data_type == data_types::f16) {
-            read_image_info<data_type_to_type<data_types::f16>::type>(instance, im_info);
+            read_image_info<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
         } else {
-            read_image_info<data_type_to_type<data_types::f32>::type>(instance, im_info);
+            read_image_info<data_type_to_type<data_types::f32>::type>(stream, instance, im_info);
         }
 
         if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type !=
@@ -404,25 +408,27 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
             throw std::runtime_error("clDNN: proposal primitive doesn't support mixed bbox and scores types");
 
         if (instance.dependencies().size() == 4) {
-            auto &proposal_probabilities = instance.dep_memory(proposal_inst::proposal_probabilities_out);
+            auto proposal_probabilities = instance.dep_memory_ptr(proposal_inst::proposal_probabilities_out);
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                mem_lock<data_type_to_type<data_types::f16>::type> proposal_prob_ptr{proposal_probabilities};
-                execute<data_type_to_type<data_types::f16>::type>(instance, im_info, proposal_prob_ptr.data());
+                mem_lock<data_type_to_type<data_types::f16>::type> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info, proposal_prob_ptr.data());
             } else {
-                mem_lock<data_type_to_type<data_types::f32>::type> proposal_prob_ptr{proposal_probabilities};
-                execute<data_type_to_type<data_types::f32>::type>(instance, im_info, proposal_prob_ptr.data());
+                mem_lock<data_type_to_type<data_types::f32>::type> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info, proposal_prob_ptr.data());
             }
         } else {
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                execute<data_type_to_type<data_types::f16>::type>(instance, im_info);
+                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
             } else {
-                execute<data_type_to_type<data_types::f32>::type>(instance, im_info);
+                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info);
             }
         }
 
-        dynamic_cast<cldnn::user_event*>(ev.get())->set();  // set as complete
+        ev->set();
         return ev;
     }
+
+    void init_kernels() override {}
 
     static primitive_impl* create(const proposal_node& arg) {
         const layout& l = arg.image_info().get_output_layout();

@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -17,20 +17,24 @@ struct reorder_gpu : typed_primitive_gpu_impl<reorder> {
     using parent = typed_primitive_gpu_impl<reorder>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<reorder_gpu>(*this);
+    }
+
 protected:
     bool optimized_out(reorder_inst& instance) const override {
         return parent::optimized_out(instance) || _outer.can_be_optimized();
     }
 
-    kernel::kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
         auto input = &instance.input_memory();
         auto input_layout = input->get_layout();
         if (_outer.has_mean()) {
             if (input_layout.format == cldnn::format::nv12) {
-                args.bias = (memory_impl::cptr) &instance.mean_nv12_memory();
+                args.bias = instance.mean_nv12_memory();
             } else {
-                args.bias = (memory_impl::cptr) &instance.mean_memory();
+                args.bias = instance.mean_memory();
             }
         }
         return args;
