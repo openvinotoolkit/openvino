@@ -37,6 +37,13 @@ set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer;%PYTHONPATH
 set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer;%PATH%"
 )
 
+
+:: Model Downloader
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;%PATH%"
+)
+
 :: Inference Engine
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\share"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\hddl"
