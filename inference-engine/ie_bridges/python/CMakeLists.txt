@@ -8,7 +8,7 @@ cmake_minimum_required (VERSION 3.13)
 # Set the project name
 project (ie_python_api)
 
-if(DEFINED IE_MAIN_SOURCE_DIR)
+if(DEFINED OpenVINO_SOURCE_DIR)
     set(InferenceEngine_LIBRARIES inference_engine)
 else()
     find_package(InferenceEngineDeveloperPackage REQUIRED)

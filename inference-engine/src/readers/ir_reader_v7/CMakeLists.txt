@@ -28,7 +28,6 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/"
-                                                  "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
                                                   "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader")
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api inference_engine_plugin_api

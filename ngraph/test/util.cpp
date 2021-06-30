@@ -91,6 +91,9 @@ TEST(DISABLED_util, dump)
 }
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include "windows.h"
 #define usleep(a) Sleep(a / 1000)
 #endif
@@ -128,7 +131,6 @@ TEST(util, trim)
     EXPECT_STREQ("test", trim(" \t test \t ").c_str());
 }
 
-#if defined(NGRAPH_INTERPRETER_ENABLE)
 TEST(util, all_close)
 {
     auto backend = runtime::Backend::create("INTERPRETER");
@@ -151,7 +153,6 @@ TEST(util, all_close)
     EXPECT_FALSE(ngraph::test::all_close<float>(c, a, .05f, 0));
     EXPECT_TRUE(ngraph::test::all_close<float>(c, a, .11f, 0));
 }
-#endif
 
 class CloneTest : public ::testing::Test
 {

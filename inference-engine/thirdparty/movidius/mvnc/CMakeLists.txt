@@ -15,11 +15,11 @@ add_library(${TARGET_NAME} STATIC ${MVNC_SOURCES})
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
-        "include"
-        ${WATCHDOG_INCLUDE}
+                "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                ${WATCHDOG_INCLUDE}
         PRIVATE
-        ${XLINK_INCLUDE}
-        ${XLINK_PLATFORM_INCLUDE})
+                ${XLINK_INCLUDE}
+                ${XLINK_PLATFORM_INCLUDE})
 
 target_compile_definitions(${TARGET_NAME}
         PRIVATE

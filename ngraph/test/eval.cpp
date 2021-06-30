@@ -183,7 +183,6 @@ TEST(eval, evaluate_dynamic_range_sum)
     ASSERT_EQ(cval, seq);
 }
 
-#ifdef NGRAPH_INTERPRETER_ENABLE
 TEST(eval, interpret_dynamic_range_sum)
 {
     auto p_start = make_shared<op::Parameter>(element::f32, PartialShape{});
@@ -212,7 +211,6 @@ TEST(eval, interpret_dynamic_range_sum)
     vector<float> seq{8.0f, 11.0f, 14.0f};
     ASSERT_EQ(result_val, seq);
 }
-#endif
 
 TEST(eval, evaluate_broadcast_v3_bidirectional)
 {

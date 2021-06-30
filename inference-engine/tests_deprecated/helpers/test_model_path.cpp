@@ -13,7 +13,7 @@
 # include <libgen.h>
 # include <dirent.h>
 #else
-# include <w_dirent.h>
+# include <samples/os/windows/w_dirent.h>
 #endif
 
 #include <utility>

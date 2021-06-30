@@ -362,8 +362,6 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_to_same_shape)
     test_case.run();
 }
 
-#if NGRAPH_INTERPRETER_ENABLE
-
 NGRAPH_TEST(${BACKEND_NAME}, reshape_shufflenet_5d)
 {
     Shape shape_a{1, 112, 56, 56};
@@ -396,5 +394,3 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_shufflenet_5d)
 
     EXPECT_TRUE(test::all_close_f(ref_results.at(0), bk_results.at(0), MIN_FLOAT_TOLERANCE_BITS));
 }
-
-#endif // NGRAPH_INTERPRETER_ENABLE
