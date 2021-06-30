@@ -274,11 +274,12 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                 return true;
             });
 
-    pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
-            [](const_node_ptr &node) -> bool {
-                std::string errorMessage;
-                return MKLDNNMVNNode::isSupportedOperation(node, errorMessage);
-            });
+    // TODO [mkutakov]: uncomment
+//    pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
+//            [](const_node_ptr &node) -> bool {
+//                std::string errorMessage;
+//                return MKLDNNMVNNode::isSupportedOperation(node, errorMessage);
+//            });
 
     pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
             [](const_node_ptr &node) -> bool {
@@ -373,10 +374,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
-        std::string errMsg;
-        return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
-    });
+    //TODO [mkutakov]: Uncomment!
+//    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
+//        std::string errMsg;
+//        return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
+//    });
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
         if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
             auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(mul_op->get_input_node_shared_ptr(0));
