@@ -67,7 +67,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 const std::map<ActivationTypes, std::vector<std::vector<float>>> intActivationTypes = {
         {Negative,              {}},
         {Ceiling,               {}},
-        {Sinh,                  {}},
+        {Cos,                   {}},
         {Sqrt,                  {}},
         {Tanh,                  {}},
 };
