@@ -69,7 +69,7 @@ void CommonReferenceTest::Infer() {
 
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     const auto& functionParams = function->get_parameters();
-    for (int i = 0; i < functionParams.size(); ++i) {
+    for (size_t i = 0; i < functionParams.size(); ++i) {
         const auto& param = functionParams[i];
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
