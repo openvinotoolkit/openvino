@@ -172,5 +172,4 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 # install
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)

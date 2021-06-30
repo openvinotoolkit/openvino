@@ -1380,6 +1380,15 @@ uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint3
 
     return (in - window - 1) / stride + 2;
 }
+
+uint32_t outputFromPoolingLegacy(const uint32_t in, const uint32_t stride) {
+    // floor[(in - 1)/stride] + 1, GNA 1.0/2.0 HW Spec
+    if (in == 0 || stride == 0) {
+        THROW_GNA_EXCEPTION << "Invalid (input, stride) = (" << in << "," << stride << ")";
+    }
+    return (in - 1) / stride + 1;
+}
+
 } // namespace
 
 #if GNA_LIB_VER == 2
@@ -1699,9 +1708,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                             const auto fltStride = fltStrideShape->Dimensions[0];
                             const auto outFromConv = outputFromConv(inVecCnt, nFltSize, fltStride);
                             //  FLAT input matrix, pooled outputs per filter
-                            // TODO: Issue 50386 check why (outFromConv - 1) an not (outFromConv - poolingWindow)
-                            outputTensor.Shape.Dimensions[1] =
-                                (outFromConv - 1) / poolStride->Dimensions[0] + 1;
+                            outputTensor.Shape.Dimensions[1] = outputFromPoolingLegacy(outFromConv, poolStride->Dimensions[0]);
                         } else { // kDnnConvolutional2dOp
                             // Override GNA operation output pointer with the one from pooling component
                             outputTensor.Data = comp.ptr_outputs;
