@@ -66,6 +66,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_SetBlobOfKindAUTO.*SetBlobOfKindTest.CompareWithRefs.*)",
         // reference doesn't cover I8, U8 cases. Issue: 55842
         R"(.*Gather7LayerTest.*netPRC=I8.*)",
+        // TODO: 57562 No dynamic output shape support
+        R"(.*NonZeroLayerTest.*)",
         // need to implement Export / Import
         R"(.*IEClassImportExportTestP.*)"
     };

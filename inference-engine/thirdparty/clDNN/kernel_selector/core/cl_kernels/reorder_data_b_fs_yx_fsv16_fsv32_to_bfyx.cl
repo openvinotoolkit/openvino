@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 #define CEIL_DIV(A, B) (((A) + (B) - 1) / (B))

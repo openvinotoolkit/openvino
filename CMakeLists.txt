@@ -59,8 +59,10 @@ function(build_ngraph)
 
     if(NOT (ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)) ))
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE ON)
+        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE ON)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE OFF)
+        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
     endif()
     ngraph_set(NGRAPH_INTERPRETER_ENABLE ON)
 
@@ -92,7 +94,6 @@ function(build_ngraph)
 
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
-    set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
 endfunction()
 
 function(openvino_developer_export_targets)
