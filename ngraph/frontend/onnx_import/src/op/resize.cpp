@@ -224,7 +224,13 @@ namespace ngraph
                     const auto& scales_shape = scales.get_partial_shape();
 
                     auto attrs = get_resize_attrs(node);
-                    if (attrs.mode == InterpolateMode::linear_onnx)
+
+                    if (attrs.mode == InterpolateMode::nearest)
+                    {
+                        attrs.nearest_mode = Nearest_mode::floor;
+                        attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
+                    }
+                    else if (attrs.mode == InterpolateMode::linear_onnx)
                     {
                         attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
                     }
