@@ -105,7 +105,7 @@ if(ENABLE_LTO AND protobuf_VERSION VERSION_GREATER_EQUAL "3.8")
     message(WARNING "Protobuf in version 3.8.0+ can throw runtime exceptions if LTO is enabled.")
 endif()
 
-if(CMAKE_CROSSCOMPILING AND PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
+if(CMAKE_CROSSCOMPILING AND NOT PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
     message(WARNING "system protobuf version does not match with the compiled one, please update system protobuf or submodule")
 endif()
 
