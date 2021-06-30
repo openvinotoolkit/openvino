@@ -96,7 +96,7 @@ namespace ngraph
     } // namespace frontend
 
     template <>
-    class NGRAPH_API VariantWrapper<std::shared_ptr<std::istream>>
+    class FRONTEND_API VariantWrapper<std::shared_ptr<std::istream>>
         : public VariantImpl<std::shared_ptr<std::istream>>
     {
     public:
@@ -110,7 +110,7 @@ namespace ngraph
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     template <>
-    class NGRAPH_API VariantWrapper<std::wstring> : public VariantImpl<std::wstring>
+    class FRONTEND_API VariantWrapper<std::wstring> : public VariantImpl<std::wstring>
     {
     public:
         static constexpr VariantTypeInfo type_info{"Variant::std::wstring", 0};
