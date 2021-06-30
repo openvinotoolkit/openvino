@@ -15,7 +15,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 
 | Options  | Values |
 |:---                              |:---
-| Validated Models                 | [fast-neural-style-mosaic-onnx](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/fast-neural-style-mosaic-onnx.md) (style transfer models)
+| Validated Models                 | [fast-neural-style-mosaic-onnx](@ref omz_models_model_fast_neural_style_mosaic_onnx)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |

@@ -14,7 +14,7 @@ Hello Classification C sample application demonstrates how to use the following 
 
 | Options  | Values |
 |:---                              |:---
-| Validated Models                 | AlexNet and GoogLeNet (image classification networks)
+| Validated Models                 | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
 | Supported devices                | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
