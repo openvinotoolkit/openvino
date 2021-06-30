@@ -52,7 +52,7 @@
 #include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
 namespace vpu {
-FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
+FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICore> core)
     : _stageBuilder(std::move(stageBuilder)),
     _core(core),
     parsers{{
