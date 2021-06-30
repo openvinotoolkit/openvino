@@ -61,7 +61,7 @@ namespace ngraph
                 }
             }
 
-            void convert_function(std::shared_ptr<Function> function)
+            void convert_decoded_function(std::shared_ptr<Function> function)
             {
                 for (const auto& node : function->get_ordered_ops())
                 {
@@ -73,7 +73,7 @@ namespace ngraph
                                     node))
                         {
                             subgraph_node->infer_inputs_from_parent();
-                            convert_function(subgraph_node->get_subgraph_body());
+                            convert_decoded_function(subgraph_node->get_subgraph_body());
                         }
                         const auto& onnx_node = raw_node->get_onnx_node();
                         OutputVector ng_nodes{onnx_node.get_ng_nodes()};
@@ -104,9 +104,7 @@ namespace ngraph
                 auto p_model_proto = common::make_unique<ONNX_NAMESPACE::ModelProto>(model_proto);
                 auto model = common::make_unique<Model>(std::move(p_model_proto));
                 Graph graph{std::move(model)};
-                auto function = graph.decode_model();
-                detail::convert_function(function);
-                return function;
+                return graph.convert();
             }
         } // namespace detail
     }     // namespace onnx_import

@@ -31,7 +31,8 @@ namespace ngraph
 
             Graph& operator=(const Graph&) = delete;
             Graph& operator=(Graph&&) = default;
-            virtual std::shared_ptr<Function> decode_model();
+            virtual std::shared_ptr<Function> convert();
+            std::shared_ptr<Function> decode();
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
@@ -60,16 +61,16 @@ namespace ngraph
                                      const OutputVector& ng_node_vector) const;
 
         protected:
-            void convert_to_framework_nodes();
-            std::shared_ptr<Function> create_ng_function();
+            virtual void decode_to_framework_nodes();
+            void convert_to_ngraph_nodes();
+            void remove_dangling_parameters();
+            std::shared_ptr<Function> create_function();
 
             ParameterVector m_parameters;
             std::unique_ptr<Model> m_model;
             std::unique_ptr<GraphCache> m_cache;
 
         private:
-            std::shared_ptr<Function> decode_subgraph(const Node& node);
-
             std::vector<Node> m_nodes;
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
@@ -91,6 +92,8 @@ namespace ngraph
             /// \return     Vector of edge nodes from parent scope.
             const std::vector<Output<ngraph::Node>> get_inputs_from_parent() const;
 
+            std::shared_ptr<Function> convert() override;
+
             Subgraph() = delete;
 
             Subgraph(const Subgraph&) = delete;
@@ -100,10 +103,12 @@ namespace ngraph
             Subgraph& operator=(Subgraph&&) = default;
 
             Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const override;
-            std::shared_ptr<Function> decode_model() override;
             void infer_inputs_from_parent();
 
         private:
+            void decode_to_framework_nodes() override;
+            void find_inputs_from_parent();
+
             const GraphCache* m_parent_graph_cache;
             std::vector<std::string> m_inputs_from_parent;
             std::unordered_map<std::shared_ptr<ngraph::op::Parameter>, std::string>
