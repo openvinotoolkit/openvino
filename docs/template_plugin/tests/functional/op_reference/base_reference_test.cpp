@@ -17,7 +17,7 @@ void CommonReferenceTest::Exec() {
     LoadNetwork();
     FillInputs();
     Infer();
-    Compare();
+    Validate();
 }
 
 void CommonReferenceTest::LoadNetwork() {
@@ -82,7 +82,7 @@ void CommonReferenceTest::Infer() {
     inferRequest.Infer();
 }
 
-void CommonReferenceTest::Compare() {
+void CommonReferenceTest::Validate() {
     ASSERT_EQ(executableNetwork.GetOutputsInfo().size(), refOutData.size());
     std::vector<InferenceEngine::Blob::Ptr> outputs;
     for (const auto& result : function->get_results()) {
@@ -92,10 +92,10 @@ void CommonReferenceTest::Compare() {
 
     ASSERT_EQ(refOutData.size(), outputs.size());
     for (size_t i = 0; i < refOutData.size(); i++) {
-        CompareBlobs(refOutData[i], outputs[i]);
+        ValidateBlobs(refOutData[i], outputs[i]);
     }
 }
-void CommonReferenceTest::CompareBlobs(const InferenceEngine::Blob::Ptr& refBlob, const InferenceEngine::Blob::Ptr& outBlob) {
+void CommonReferenceTest::ValidateBlobs(const InferenceEngine::Blob::Ptr& refBlob, const InferenceEngine::Blob::Ptr& outBlob) {
     ASSERT_TRUE(refBlob != nullptr);
     ASSERT_TRUE(outBlob != nullptr);
     ASSERT_EQ(refBlob->getTensorDesc().getPrecision(), outBlob->getTensorDesc().getPrecision());

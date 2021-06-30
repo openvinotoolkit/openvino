@@ -17,15 +17,9 @@ using namespace InferenceEngine;
 
 struct ConvertParams {
     template <class IT, class OT>
-    ConvertParams(const ngraph::PartialShape& shape, const ngraph::element::Type& iType, const ngraph::element::Type& oType, const std::vector<IT> iValues,
-                  const std::vector<OT> oValues, size_t iSize = 0, size_t oSize = 0) {
-        pshape = shape;
-        inType = iType;
-        outType = oType;
-
-        inputData = CreateBlob(iType, iValues, iSize);
-        refData = CreateBlob(oType, oValues, oSize);
-    }
+    ConvertParams(const ngraph::PartialShape& shape, const ngraph::element::Type& iType, const ngraph::element::Type& oType, const std::vector<IT>& iValues,
+                  const std::vector<OT>& oValues, size_t iSize = 0, size_t oSize = 0)
+        : pshape(shape), inType(iType), outType(oType), inputData(CreateBlob(iType, iValues, iSize)), refData(CreateBlob(oType, oValues, oSize)) {}
     ngraph::PartialShape pshape;
     ngraph::element::Type inType;
     ngraph::element::Type outType;

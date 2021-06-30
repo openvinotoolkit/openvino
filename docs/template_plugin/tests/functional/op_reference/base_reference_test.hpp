@@ -19,10 +19,10 @@ public:
 
     void Infer();
 
-    void Compare();
+    void Validate();
 
 private:
-    void CompareBlobs(const InferenceEngine::Blob::Ptr& refBlob, const InferenceEngine::Blob::Ptr& outBlob);
+    void ValidateBlobs(const InferenceEngine::Blob::Ptr& refBlob, const InferenceEngine::Blob::Ptr& outBlob);
 
 protected:
     const std::string targetDevice;
@@ -37,7 +37,7 @@ protected:
 };
 
 template <class T>
-InferenceEngine::Blob::Ptr CreateBlob(const ngraph::element::Type& element_type, std::vector<T> values, size_t size = 0) {
+InferenceEngine::Blob::Ptr CreateBlob(const ngraph::element::Type& element_type, const std::vector<T>& values, size_t size = 0) {
     size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
     auto blob = make_blob_with_precision(
         InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(element_type), {real_size}, InferenceEngine::Layout::C));
@@ -46,7 +46,7 @@ InferenceEngine::Blob::Ptr CreateBlob(const ngraph::element::Type& element_type,
     IE_ASSERT(minput);
     auto minputHolder = minput->wmap();
 
-    std::memcpy(minputHolder.as<void*>(), values.data(), sizeof(T) * values.size());
+    std::memcpy(minputHolder.as<void*>(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
 
     return blob;
 }
