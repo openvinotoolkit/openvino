@@ -7,7 +7,7 @@
 include(CMakeFindDependencyMacro)
 
 # TODO: remove after changing [private plugins]
-set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_MAIN_SOURCE_DIR@") # KMB
+set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
 set_and_check(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@") # HDDL
 
 # Variables to export in plugin's projects
@@ -33,7 +33,7 @@ set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
 #
 
 find_dependency(IEDevScripts
-                PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+                PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
