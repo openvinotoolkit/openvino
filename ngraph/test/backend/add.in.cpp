@@ -2,28 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-#include <cinttypes>
-#include <cmath>
-#include <cstdlib>
-#include <random>
-#include <string>
-
-// clang-format off
-#ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#define DEFAULT_FLOAT_TOLERANCE_BITS ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#endif
-
-#ifdef ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#endif
-// clang-format on
-
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
-#include "util/test_control.hpp"
+#include "util/unary_test.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -31,36 +10,27 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
+template <ngraph::element::Type_t et>
+test::unary_test<TestEngine, et> add_test(const ngraph::PartialShape& shapeA,
+                                          const ngraph::PartialShape& shapeB)
+{
+    auto A = make_shared<op::Parameter>(et, shapeA);
+    auto B = make_shared<op::Parameter>(et, shapeB);
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
+
+    return test::unary_test<TestEngine, et>(f);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, add)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
-
-    vector<float> a{1, 2, 3, 4};
-    vector<float> b{5, 6, 7, 8};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape, {6, 8, 10, 12});
-    test_case.run();
+    add_test<element::f32>(shape, shape).test({{1, 2, 3, 4}, {5, 6, 7, 8}}, {6, 8, 10, 12});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, add_overload)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
-
-    vector<float> a{1, 2, 3, 4};
-    vector<float> b{5, 6, 7, 8};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape, {6, 8, 10, 12});
-    test_case.run();
+    add_test<element::f32>(shape, shape).test({{1, 2, 3, 4}, {5, 6, 7, 8}}, {6, 8, 10, 12});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
@@ -75,61 +45,30 @@ NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
 
     auto f = make_shared<Function>(T4, ParameterVector{A, B});
 
-    vector<float> a{1, 2, 3, 4};
-    vector<float> b{5, 6, 7, 8};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape, {48, 64, 80, 96});
-    test_case.run();
+    test::unary_test<TestEngine, element::f32>(f).test({{1, 2, 3, 4}, {5, 6, 7, 8}},
+                                                       {48, 64, 80, 96});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, add_broadcast)
 {
     Shape shape_a{1, 2};
     Shape shape_b{3, 2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-    vector<float> a{1, 2};
-    vector<float> b{5, 6, 7, 8, 2, 3, 1, 5, 6, 7, 1, 3};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_b, {6, 8, 8, 10, 3, 5, 2, 7, 7, 9, 2, 5});
-    test_case.run();
+    add_test<element::f32>(shape_a, shape_b)
+        .test({{1, 2}, {5, 6, 7, 8, 2, 3, 1, 5, 6, 7, 1, 3}},
+              {6, 8, 8, 10, 3, 5, 2, 7, 7, 9, 2, 5});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, add_scalars)
 {
     Shape shape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
-
-    vector<float> a{2};
-    vector<float> b{8};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape, {10});
-    test_case.run();
+    add_test<element::f32>(shape, shape).test({{2}, {8}}, {10});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, add_vector_and_scalar)
 {
     Shape shape_a{2, 2};
     Shape shape_b{};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-    vector<float> a{2, 4, 7, 8};
-    vector<float> b{8};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_a, {10, 12, 15, 16});
-    test_case.run();
+    add_test<element::f32>(shape_a, shape_b).test({{2, 4, 7, 8}, {8}}, {10, 12, 15, 16});
 }

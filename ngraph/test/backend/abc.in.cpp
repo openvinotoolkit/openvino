@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
-#include "util/test_control.hpp"
+#include "util/unary_test.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -14,66 +10,42 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, abc)
+template <ngraph::element::Type_t et>
+test::unary_test<TestEngine, et> abc_test(const ngraph::PartialShape& shape)
 {
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(et, shape);
+    auto B = make_shared<op::Parameter>(et, shape);
+    auto C = make_shared<op::Parameter>(et, shape);
     auto arg = make_shared<op::v1::Multiply>(make_shared<op::v1::Add>(A, B), C);
     auto f = make_shared<Function>(arg, ParameterVector{A, B, C});
 
-    std::vector<float> a{1, 2, 3, 4};
-    std::vector<float> b{5, 6, 7, 8};
-    std::vector<float> c{9, 10, 11, 12};
+    return test::unary_test<TestEngine, et>(f);
+}
 
-    // (a + b) * c
-    auto test_case_1 = test::TestCase<TestEngine>(f);
-    test_case_1.add_multiple_inputs<float>({a, b, c});
-    test_case_1.add_expected_output<float>(shape, {54, 80, 110, 144});
-    test_case_1.run();
+NGRAPH_TEST(${BACKEND_NAME}, abc)
+{
+    constexpr auto et = element::Type_t::f32;
+    Shape shape{2, 2};
 
-    // (b + a) * c
-    auto test_case_2 = test::TestCase<TestEngine>(f);
-    test_case_2.add_multiple_inputs<float>({b, a, c});
-    test_case_2.add_expected_output<float>(shape, {54, 80, 110, 144});
-    test_case_2.run();
+    test::Data<et> a{1, 2, 3, 4};
+    test::Data<et> b{5, 6, 7, 8};
+    test::Data<et> c{9, 10, 11, 12};
 
-    // (a + c) * b
-    auto test_case_3 = test::TestCase<TestEngine>(f);
-    test_case_3.add_multiple_inputs<float>({a, c, b});
-    test_case_3.add_expected_output<float>(shape, {50, 72, 98, 128});
-    test_case_3.run();
+    abc_test<et>(shape).test({a, b, c}, {54, 80, 110, 144});
+    abc_test<et>(shape).test({b, a, c}, {54, 80, 110, 144});
+    abc_test<et>(shape).test({a, c, b}, {50, 72, 98, 128});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, abc_int64)
 {
+    constexpr auto et = element::Type_t::i64;
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i64, shape);
-    auto B = make_shared<op::Parameter>(element::i64, shape);
-    auto C = make_shared<op::Parameter>(element::i64, shape);
-    auto arg = make_shared<op::v1::Multiply>(make_shared<op::v1::Add>(A, B), C);
-    auto f = make_shared<Function>(arg, ParameterVector{A, B, C});
 
-    std::vector<int64_t> a{1, 2, 3, 4};
-    std::vector<int64_t> b{5, 6, 7, 8};
-    std::vector<int64_t> c{9, 10, 11, 12};
+    test::Data<et> a{1, 2, 3, 4};
+    test::Data<et> b{5, 6, 7, 8};
+    test::Data<et> c{9, 10, 11, 12};
 
-    // (a + b) * c
-    auto test_case_1 = test::TestCase<TestEngine>(f);
-    test_case_1.add_multiple_inputs<int64_t>({a, b, c});
-    test_case_1.add_expected_output<int64_t>(shape, {54, 80, 110, 144});
-    test_case_1.run();
-
-    // (b + a) * c
-    auto test_case_2 = test::TestCase<TestEngine>(f);
-    test_case_2.add_multiple_inputs<int64_t>({b, a, c});
-    test_case_2.add_expected_output<int64_t>(shape, {54, 80, 110, 144});
-    test_case_2.run();
-
-    // (a + c) * b
-    auto test_case_3 = test::TestCase<TestEngine>(f);
-    test_case_3.add_multiple_inputs<int64_t>({a, c, b});
-    test_case_3.add_expected_output<int64_t>(shape, {50, 72, 98, 128});
-    test_case_3.run();
+    abc_test<et>(shape).test({a, b, c}, {54, 80, 110, 144});
+    abc_test<et>(shape).test({b, a, c}, {54, 80, 110, 144});
+    abc_test<et>(shape).test({a, c, b}, {50, 72, 98, 128});
 }
