@@ -70,6 +70,11 @@ set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\lib;%OPENVI
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\cmake"
 )
 
+:: Compile tool
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\tools\compile_tool (
+set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\tools\compile_tool;%PATH%"
+)
+
 :: Add libs dirs to the PATH
 set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 

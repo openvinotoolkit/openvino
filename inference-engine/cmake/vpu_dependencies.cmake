@@ -83,6 +83,14 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
     install(FILES ${${var_name}}
             DESTINATION ${IE_CPACK_RUNTIME_PATH}
             COMPONENT myriad)
+
+    if(ENABLE_MYRIAD AND ENABLE_BEH_TESTS)
+        # for MyriadBehaviorTests
+        install(FILES ${${var_name}}
+                DESTINATION tests
+                COMPONENT tests
+                EXCLUDE_FROM_ALL)
+    endif()
 endforeach()
 
 add_custom_target(vpu_copy_firmware
