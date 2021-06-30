@@ -20,7 +20,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Validated Models           | Acoustic model based on Kaldi* neural networks (see [Model Preparation](#model-preparation) section) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin)                              |
 | Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                             |
-| Other language realization | [C++](../../../../samples/speech_sample)                                                              |
+| Other language realization | [C++](../../../../samples/speech_sample/README.md)                                                              |
 
 ## How It Works
 

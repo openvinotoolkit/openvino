@@ -16,7 +16,7 @@ The following Inference Engine Python API is used in the application:
 | Validated Models           | [alexnet](@ref omz_models_model_alexnet) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                  |
 | Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                   |
-| Other language realization | [C++](../../../../samples/hello_classification), [C](../../../c/samples/hello_classification)             |
+| Other language realization | [C++](../../../../samples/hello_classification/README.md), [C](../../../c/samples/hello_classification/README.md)             |
 
 ## How It Works
 
