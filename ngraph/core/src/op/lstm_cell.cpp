@@ -16,8 +16,8 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v4::LSTMCell::type_info;
-constexpr NodeTypeInfo op::v0::LSTMCell::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::LSTMCell, "LSTMCell", 0, op::util::RNNCellBase);
+NGRAPH_RTTI_DEFINITION(op::v4::LSTMCell, "LSTMCell", 4, op::util::RNNCellBase);
 
 op::v0::LSTMCell::LSTMCell()
     : m_input_forget(false)
