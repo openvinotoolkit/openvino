@@ -15,11 +15,11 @@ add_library(${TARGET_NAME} STATIC ${MVNC_SOURCES})
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
-        "include"
-        ${WATCHDOG_INCLUDE}
+                "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                ${WATCHDOG_INCLUDE}
         PRIVATE
-        ${XLINK_INCLUDE}
-        ${XLINK_PLATFORM_INCLUDE})
+                ${XLINK_INCLUDE}
+                ${XLINK_PLATFORM_INCLUDE})
 
 target_compile_definitions(${TARGET_NAME}
         PRIVATE
@@ -72,9 +72,8 @@ if(NOT WIN32)
 endif()
 
 # TODO: remove once all options are migrated
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
 
 if(ENABLE_TESTS AND ENABLE_MYRIAD_MVNC_TESTS)
     add_subdirectory(tests)
 endif()
-

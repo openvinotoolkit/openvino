@@ -20,7 +20,7 @@ namespace subgraph {
 class VariadicSplitFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
         const int64_t splitedAxis,
@@ -34,7 +34,7 @@ public:
         const std::vector<size_t>& splitLengths);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type inputPrecision,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,
@@ -42,18 +42,6 @@ public:
         const int64_t splitedAxis,
         const std::vector<size_t>& splitLengths);
 };
-inline std::ostream& operator<<(std::ostream& os,
-    const std::vector<size_t>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph
