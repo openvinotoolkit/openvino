@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #pragma once
 
@@ -25,13 +13,12 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct non_max_suppression_params : public base_params {
     non_max_suppression_params() : base_params(KernelType::NON_MAX_SUPPRESSION),
-    box_encoding(0), sort_result_descending(true), has_num_select_per_class(false),
+    box_encoding(BoxEncodingType::BOX_ENCODING_CORNER), sort_result_descending(true), has_num_select_per_class(false),
     has_iou_threshold(false), has_score_threshold(false), has_soft_nms_sigma(false),
     has_second_output(false), has_third_output(false) {}
 
-    uint32_t box_encoding;  // 0(corner), 1(center)
+    BoxEncodingType box_encoding;
     bool sort_result_descending;
-    // clDNN primitive supports only i32 as output data type
     bool has_num_select_per_class;
     bool has_iou_threshold;
     bool has_score_threshold;

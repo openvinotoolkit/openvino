@@ -1,19 +1,32 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "include/data_types.cl"
 #include "include/fetch_data.cl"
+
+/// Kernels
+/// 0: Only boxes exceeding SCORE_THRESHOLD are copied to intermediate-buffer0.
+///    Set copied box number to intermediate-buffer2
+/// 1: Sort the boxes in buffer0 by class.
+/// 2: Remove boxes what are over IOU_THRESHOLD.
+/// 3: Copy the boxes to output. If SORT_RESULT_DESCENDING is 1, all boxes will be sorted without class distinction.
+
+/// KERNEL_ARGs
+///
+/// boxes
+///  - shape: {num_batches, num_boxes, 4}
+/// scores
+///  - shape: {num_batches, num_classes, num_boxes}
+/// buffer0 (intermediate buffer)
+///  - size: batch_num * class_num * boxes_num * sizeof(SBOX_INFO)
+///  - desc: filtered and sorted SBOX_INFO list
+/// buffer1 (intermediate buffer)
+///  - size: batch_num * class_num * boxes_num * sizeof(BOX_INFO)
+///  - desc: selected SBOX_INFO list by iou calucation
+/// buffer2 (intermediate buffer)
+///  - size: batch_num * class_num * sizeof(int)
+///  - desc: sorted box num for batch*class
 
 /// optional input variables
 /// NUM_SELECT_PER_CLASS_VAL TO_UNIT_TYPE(num_select_per_class[0]),   default is 0 
@@ -21,7 +34,7 @@
 /// SCORE_THRESHOLD_VAL      TO_ACCUMULATOR_TYPE(score_threshold[0]), default is ACCUMULATOR_VAL_ZERO
 /// SOFT_NMS_SIGMA_VAL       TO_ACCUMULATOR_TYPE(soft_nms_sigma[0]),  default is ACCUMULATOR_VAL_ZERO
 /// OUTPUT_NUM               Number of outputs. [OUTPUT_NUM, 3, 1, 1]
-/// BUFFER_STRIDE            20 bytes * NUM_BOXES
+/// BUFFER_STRIDE            sizeof(SBOX_INFO) * NUM_BOXES
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
@@ -45,53 +58,57 @@ typedef struct {
 #define SBOX_INFO FUNC(SortedBoxInfo)
 #define BOX_INFO FUNC(BoxInfo)
 
-inline float FUNC(intersectionOverUnion)(const __global INPUT0_TYPE *boxes,
-    const short batchA, const ushort boxIdA,
-    const short batchB, const ushort boxIdB)
+inline COORD_TYPE_4 FUNC(getBoxCoords)(const __global INPUT0_TYPE *boxes, const short batch, const ushort boxId)
 {
-    const float4 pA = convert_float4(vload4(0, &boxes[INPUT0_GET_INDEX(batchA, boxIdA, 0, 0)]));
-    const float4 pB = convert_float4(vload4(0, &boxes[INPUT0_GET_INDEX(batchB, boxIdB, 0, 0)]));
+    COORD_TYPE_4 coords = TO_COORD_TYPE_4(vload4(0, &boxes[INPUT0_GET_INDEX(batch, boxId, 0, 0)]));
 
 #if BOX_ENCODING == 0
-    const float ax1 = min(pA[1], pA[3]);
-    const float ax2 = max(pA[1], pA[3]);
-    const float ay1 = min(pA[0], pA[2]);
-    const float ay2 = max(pA[0], pA[2]);
-    const float bx1 = min(pB[1], pB[3]);
-    const float bx2 = max(pB[1], pB[3]);
-    const float by1 = min(pB[0], pB[2]);
-    const float by2 = max(pB[0], pB[2]);
+    const COORD_TYPE ax1 = min(coords[1], coords[3]);
+    const COORD_TYPE ax2 = max(coords[1], coords[3]);
+    const COORD_TYPE ay1 = min(coords[0], coords[2]);
+    const COORD_TYPE ay2 = max(coords[0], coords[2]);
+    coords[1] = ax1;
+    coords[3] = ax2;
+    coords[0] = ay1;
+    coords[2] = ay2;
+#endif
 
+    return coords;
+}
+
+inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TYPE_4 boxB)
+{
+#if BOX_ENCODING == 0
     /// CORNER
-    const float areaA = (ax2 - ax1) * (ay2 - ay1);
-    const float areaB = (bx2 - bx1) * (by2 - by1);
+    const COORD_TYPE areaA = (boxA[3] - boxA[1]) * (boxA[2] - boxA[0]);
+    const COORD_TYPE areaB = (boxB[3] - boxB[1]) * (boxB[2] - boxB[0]);
 
-    const float intersection_ymin = max(ay1, by1);
-    const float intersection_xmin = max(ax1, bx1);
-    const float intersection_ymax = min(ay2, by2);
-    const float intersection_xmax = min(ax2, bx2);
+    const COORD_TYPE intersection_ymin = max(boxA[0], boxB[0]);
+    const COORD_TYPE intersection_xmin = max(boxA[1], boxB[1]);
+    const COORD_TYPE intersection_ymax = min(boxA[2], boxB[2]);
+    const COORD_TYPE intersection_xmax = min(boxA[3], boxB[3]);
 #else
     /// CENTER
-    const float areaA = pA[3] * pA[2];
-    const float areaB = pB[3] * pB[2];
-    const float halfWidthA = pA[2] / 2;
-    const float halfHeightA = pA[3] / 2;
-    const float halfWidthB = pB[2] / 2;
-    const float halfHeightB = pB[3] / 2;
+    const COORD_TYPE areaA = boxA[3] * boxA[2];
+    const COORD_TYPE areaB = boxB[3] * boxB[2];
+    const COORD_TYPE halfWidthA = boxA[2] / 2;
+    const COORD_TYPE halfHeightA = boxA[3] / 2;
+    const COORD_TYPE halfWidthB = boxB[2] / 2;
+    const COORD_TYPE halfHeightB = boxB[3] / 2;
 
-    const float intersection_ymin = max(pA[1] - halfHeightA, pB[1] - halfHeightB);
-    const float intersection_xmin = max(pA[0] - halfWidthA,  pB[0] - halfWidthB);
-    const float intersection_ymax = min(pA[1] + halfHeightA, pB[1] + halfHeightB);
-    const float intersection_xmax = min(pA[0] + halfWidthA,  pB[0] + halfWidthB);
+    const COORD_TYPE intersection_ymin = max(boxA[1] - halfHeightA, boxB[1] - halfHeightB);
+    const COORD_TYPE intersection_xmin = max(boxA[0] - halfWidthA,  boxB[0] - halfWidthB);
+    const COORD_TYPE intersection_ymax = min(boxA[1] + halfHeightA, boxB[1] + halfHeightB);
+    const COORD_TYPE intersection_xmax = min(boxA[0] + halfWidthA,  boxB[0] + halfWidthB);
 #endif
 
     if (areaA <= 0.0f || areaB <= 0.0f)
         return 0.0f;
 
-    const float intersection_area = max(intersection_xmax - intersection_xmin, 0.f) *
-                                    max(intersection_ymax - intersection_ymin, 0.f);
-    const float union_area = areaA + areaB - intersection_area;
-    return intersection_area / union_area;
+    const COORD_TYPE intersection_area = max(intersection_xmax - intersection_xmin, TO_COORD_TYPE(0.f)) *
+                                    max(intersection_ymax - intersection_ymin, TO_COORD_TYPE(0.f));
+    const COORD_TYPE union_area = areaA + areaB - intersection_area;
+    return convert_float(intersection_area / union_area);
 }
 
 inline float FUNC(scaleIOU)(float iou, float iou_threshold, float scale)
@@ -116,7 +133,7 @@ inline int FUNC(partition)(__global SBOX_INFO* arr, int l, int h)
     const ushort pivotBoxId = arr[h].boxId;
     int i = (l - 1);
     for (int j = l; j <= h - 1; j++) {
-        if ((arr[j].score < pivotScore) || (arr[j].score == pivotScore && arr[j].boxId > pivotBoxId)) {
+        if ((arr[j].score > pivotScore) || (arr[j].score == pivotScore && arr[j].boxId < pivotBoxId)) {
             i++;
             FUNC_CALL(swap_sbox_info)(&arr[i], &arr[j]);
         }
@@ -246,29 +263,12 @@ inline void FUNC(sortOutputBoxList)(__global BOX_INFO *outSortedBoxes, int boxNu
     }
 }
 
-// KERNEL_ARGs
-//
-// boxes
-//  - shape: {num_batches, num_boxes, 4}
-// scores
-//  - shape: {num_batches, num_classes, num_boxes}
-// buffer0 (intermediate buffer)
-//  - size: batch_num * class_num * boxes_num * sizeof(SBOX_INFO)
-//  - desc: filtered and sorted SBOX_INFO list
-// buffer1 (intermediate buffer)
-//  - size: batch_num * class_num * boxes_num * sizeof(BOX_INFO)
-//  - desc: selected SBOX_INFO list by iou calucation
-// buffer2 (intermediate buffer)
-//  - size: batch_num * class_num * boxes_num * sizeof(BOX_INFO)
-//  - desc: selected SBOX_INFO list by iou calucation
-// buffer3 (intermediate buffer)
-//  - size: batch_num * class_num * 4
-//  - desc: sorted box num for batch*class
-#ifdef IS_STAGE_0
+
+#ifdef NMS_STAGE_0
 KERNEL (non_max_suppression_ref_stage_0)(
     const __global INPUT1_TYPE *scores
     , __global uchar *buffer0
-    , __global int *buffer3
+    , __global int *buffer2
     #ifdef SCORE_THRESHOLD_TYPE
     , const __global SCORE_THRESHOLD_TYPE *score_threshold
     #endif
@@ -322,7 +322,7 @@ KERNEL (non_max_suppression_ref_stage_0)(
                 block_num[i] = acc_num;
                 acc_num += n;
             }
-            buffer3[batchId * NUM_CLASSES + classId] = acc_num;
+            buffer2[batchId * NUM_CLASSES + classId] = acc_num;
         }
     }
 
@@ -353,9 +353,9 @@ KERNEL (non_max_suppression_ref_stage_0)(
         }
     }
 }
-#endif /* IS_STAGE_0 */
+#endif /* NMS_STAGE_0 */
 
-#ifdef IS_STAGE_1
+#ifdef NMS_STAGE_1
 
 #if LOCAL_BATCH_NUM != 1
 #error "The batch number of LWS should be 1."
@@ -363,7 +363,7 @@ KERNEL (non_max_suppression_ref_stage_0)(
 
 KERNEL (non_max_suppression_ref_stage_1)(
     __global uchar *buffer0
-    , __global int *buffer3
+    , __global int *buffer2
     )
 {
     const int batchId = get_global_id(0);
@@ -372,11 +372,11 @@ KERNEL (non_max_suppression_ref_stage_1)(
     const int localClassId = get_local_id(1);
     __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 2];
 
-    const int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
+    const int sortedBoxNum = buffer2[batchId * NUM_CLASSES + classId];
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     if (workItemId == 0) {
         __range[localClassId][0] = 0;
-        __range[localClassId][1] = sortedBoxNum - 1;
+        __range[localClassId][1] = kSortedBoxNum - 1;
     } else {
         __range[localClassId][workItemId * 2] = 0;
         __range[localClassId][workItemId * 2 + 1] = 0;
@@ -385,8 +385,8 @@ KERNEL (non_max_suppression_ref_stage_1)(
 
     int range_step = 2;
     const int first_id = workItemId * 2;
-    for (int i = 0; i < PARTITION_STEP; ++i, range_step *= 2) {
-        if (workItemId <= i) {
+    for (int i = 0, maxWorkingNum = 1; i < PARTITION_STEP; ++i, maxWorkingNum *= 2, range_step *= 2) {
+        if (workItemId < maxWorkingNum) {
             const int begin_id = __range[localClassId][first_id];
             const int end_id = __range[localClassId][first_id + 1];
             const int second_id = first_id + range_step;
@@ -409,14 +409,14 @@ KERNEL (non_max_suppression_ref_stage_1)(
         FUNC_CALL(quickSortIterative)(sortedBoxList, begin_id, end_id);
     }
 }
-#endif /* IS_STAGE_1 */
+#endif /* NMS_STAGE_1 */
 
-#ifdef IS_STAGE_2
+#ifdef NMS_STAGE_2
 KERNEL (non_max_suppression_ref_stage_2)(
     const __global INPUT0_TYPE *boxes
     , __global uchar *buffer0
     , __global uchar *buffer1
-    , __global int *buffer3
+    , __global int *buffer2
     #ifdef NUM_SELECT_PER_CLASS_TYPE
     , const __global NUM_SELECT_PER_CLASS_TYPE *num_select_per_class
     #endif
@@ -440,20 +440,22 @@ KERNEL (non_max_suppression_ref_stage_2)(
     }
 
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
-    int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
+    const int kSortedBoxNum = buffer2[batchId * NUM_CLASSES + classId];
 
     __global BOX_INFO *selectedBoxList = (__global BOX_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     int selectedBoxNum = 0;
-    while (sortedBoxNum != 0 && selectedBoxNum < NUM_SELECT_PER_CLASS_VAL) {
-        SBOX_INFO next_candidate = sortedBoxList[sortedBoxNum - 1];
+    const int kNumSelectPerClass = NUM_SELECT_PER_CLASS_VAL;
+    int i = 0;
+    while (i < kSortedBoxNum && selectedBoxNum < kNumSelectPerClass) {
+        SBOX_INFO next_candidate = sortedBoxList[i];
         INPUT1_TYPE original_score = next_candidate.score;
-        --sortedBoxNum;
+        const COORD_TYPE_4 next_candidate_coord = FUNC_CALL(getBoxCoords)(boxes, batchId, next_candidate.boxId);
+        ++i;
 
         bool should_hard_suppress = false;
-        for (int j = selectedBoxNum - 1;
-                j >= next_candidate.suppress_begin_index;
-                --j) {
-            const float iou = FUNC_CALL(intersectionOverUnion)(boxes, batchId, next_candidate.boxId, batchId, selectedBoxList[j].boxId);
+        for (int j = selectedBoxNum - 1; j >= next_candidate.suppress_begin_index; --j) {
+            const COORD_TYPE_4 selected_box_coord = FUNC_CALL(getBoxCoords)(boxes, batchId, selectedBoxList[j].boxId);
+            const float iou = FUNC_CALL(intersectionOverUnion)(next_candidate_coord, selected_box_coord);
             next_candidate.score *= FUNC_CALL(scaleIOU)(iou, IOU_THRESHOLD_VAL, scale);
 
             if (iou >= IOU_THRESHOLD_VAL) {
@@ -482,9 +484,9 @@ KERNEL (non_max_suppression_ref_stage_2)(
             }
 
             if (convert_float(next_candidate.score) > SCORE_THRESHOLD_VAL) {
-                sortedBoxList[sortedBoxNum] = next_candidate;
-                ++sortedBoxNum;
-                FUNC_CALL(quickSortIterative)(sortedBoxList, 0, sortedBoxNum - 1);
+                --i;
+                sortedBoxList[i] = next_candidate;
+                FUNC_CALL(quickSortIterative)(sortedBoxList, i, kSortedBoxNum);
             }
         }
     }
@@ -494,10 +496,10 @@ KERNEL (non_max_suppression_ref_stage_2)(
         selectedBoxList[selectedBoxNum].batchId = -1;
     }
 }
-#endif /* IS_STAGE_2 */
+#endif /* NMS_STAGE_2 */
 
-#ifdef IS_STAGE_FINAL
-KERNEL (non_max_suppression_ref_stage_final)(
+#ifdef NMS_STAGE_3
+KERNEL (non_max_suppression_ref_stage_3)(
     __global OUTPUT_TYPE *output
     , __global uchar *buffer1
     , __global uchar *buffer2
@@ -565,4 +567,4 @@ KERNEL (non_max_suppression_ref_stage_final)(
     valid_outputs[0] = TO_THIRD_OUTPUT_TYPE(outputIdx);
 #endif
 }
-#endif  /* IS_STAGE_FINAL */
+#endif  /* NMS_STAGE_3 */

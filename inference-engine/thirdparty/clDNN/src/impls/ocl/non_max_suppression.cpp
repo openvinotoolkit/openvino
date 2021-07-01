@@ -90,7 +90,8 @@ public:
         }
 
         params.sort_result_descending = primitive->sort_result_descending;
-        params.box_encoding = primitive->center_point_box ? 1 : 0;
+        params.box_encoding = primitive->center_point_box ?
+            kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
 
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);

@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "non_max_suppression_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -22,11 +10,7 @@ namespace kernel_selector {
 
 Datatype NonMaxSuppressionKernelRef::GetAccumulatorType(const non_max_suppression_params& params) const {
     auto in_dt = params.inputs[0].GetDType();
-    //auto in1_dt = params.inputs[1].GetDType();
-    //auto in2_dt = params.inputs[2].GetDType();
     auto out_dt = params.output.GetDType();
-
-    //printf("%ud, %ud\n", BytesPerElement(in1_dt), BytesPerElement(in2_dt));
 
     auto smaller_fp_type = [](const Datatype& current, const Datatype& candidate) -> Datatype {
         if (candidate != Datatype::F32 || candidate != Datatype::F16)
@@ -61,8 +45,28 @@ ParamsKey NonMaxSuppressionKernelRef::GetSupportedKey() const {
 JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppression_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
+    const auto& input0 = params.inputs[0];
+    switch (input0.GetDType()) {
+    case Datatype::F32:
+        jit.AddConstant(MakeJitConstant("TO_COORD_TYPE_4", "convert_float4"));
+        jit.AddConstant(MakeJitConstant("COORD_TYPE_4", "float4"));
+        jit.AddConstant(MakeJitConstant("TO_COORD_TYPE", "convert_float"));
+        jit.AddConstant(MakeJitConstant("COORD_TYPE", "float"));
+        break;
+
+    case Datatype::F16:
+        jit.AddConstant(MakeJitConstant("TO_COORD_TYPE_4", "convert_half4"));
+        jit.AddConstant(MakeJitConstant("COORD_TYPE_4", "half4"));
+        jit.AddConstant(MakeJitConstant("TO_COORD_TYPE", "convert_half"));
+        jit.AddConstant(MakeJitConstant("COORD_TYPE", "half"));
+        break;
+
+    default:
+        throw std::invalid_argument("NMS input0 type should be one of F32 or F16.");
+    }
+
     jit.AddConstants({MakeJitConstant("SORT_RESULT_DESCENDING", params.sort_result_descending),
-                      MakeJitConstant("BOX_ENCODING", params.box_encoding)});
+                      MakeJitConstant("BOX_ENCODING", static_cast<int>(params.box_encoding))});
 
     jit.AddConstant(MakeJitConstant("OUTPUT_NUM", params.output.Batch().v));
 
@@ -184,23 +188,26 @@ bool NonMaxSuppressionKernelRef::Validate(const Params& p, const optional_params
  *  INPUT[1]: scores
  *  INTERNAL_BUFFER[0]: intermidiate_sorted_box
  *  INTERNAL_BUFFER[1]: intermidiate_selected_box
- *  INTERNAL_BUFFER[2]: intermidiate_out_sorted_box
- *  INTERNAL_BUFFER[3]: intermidiate_sorted_box_num
+ *  INTERNAL_BUFFER[2]: intermidiate_sorted_box_num
  *
  */
 void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_params& params,
                                                     clKernelData& kernel, size_t idx) const {
-    if (idx == 0) {
+    switch (idx) {
+    case 0:
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
-
         if (params.has_score_threshold)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
-    } else if (idx == 1) {
+        break;
+
+    case 1:
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
-    } else if (idx == 2) {
+        break;
+
+    case 2:
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 0 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
@@ -214,7 +221,9 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
         if (params.has_soft_nms_sigma)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSoftNmsSigma() });
-    } else if (idx == 3) {
+        break;
+
+    case 3:
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
@@ -223,6 +232,10 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSecondOutput() });
         if (params.has_third_output)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexThirdOutput() });
+        break;
+
+    default:
+        throw std::invalid_argument("NMS has 4 kernels. valid index is 0 ~ 3.");
     }
 }
 
@@ -236,13 +249,13 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
     const non_max_suppression_params& orgParams = static_cast<const non_max_suppression_params&>(params);
 
     // Assign internel buffer
-    constexpr size_t intermidiate_bytes = 12;   // struct size of SortedBoxInfo/BoxInfo in non_max_suppression_gpu_ref.cl
+    constexpr size_t intermediate_bytes = 12;   // struct size of SortedBoxInfo/BoxInfo in non_max_suppression_gpu_ref.cl
     auto batch_num = orgParams.inputs[1].Batch().v;
     auto class_num = orgParams.inputs[1].Feature().v;
     auto boxes_num = orgParams.inputs[0].Feature().v;
-    size_t buffer_stride = boxes_num * intermidiate_bytes;
+    size_t buffer_stride = boxes_num * intermediate_bytes;
     size_t buffer_size = batch_num * class_num * buffer_stride;
-    size_t sel_num_buffer_size = batch_num * class_num * 4;
+    size_t sel_num_buffer_size = batch_num * class_num * sizeof(int);
 
     kd.internalBufferSizes.push_back(buffer_size);
     kd.internalBufferSizes.push_back(buffer_size);
@@ -264,19 +277,14 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
             //         , num_score_per_item, boxes_num, num_score_block, num_bit_mask);
             cldnn_jit.AddConstants({ MakeJitConstant("NUM_BIT_MASK", num_bit_mask)
                                    , MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item)
-                                   , MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)
-                                   , MakeJitConstant("IS_STAGE_0", "true")});
+                                   , MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)});
         } else if (i == 1) {
-            cldnn_jit.AddConstants({ MakeJitConstant("IS_STAGE_1", "true")
-                                   , MakeJitConstant("LOCAL_BATCH_NUM", dispatchData.lws[0])
+            cldnn_jit.AddConstants({ MakeJitConstant("LOCAL_BATCH_NUM", dispatchData.lws[0])
                                    , MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1])
                                    , MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2])
                                    , MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
-        } else if (i == 2) {
-            cldnn_jit.AddConstant(MakeJitConstant("IS_STAGE_2", "true"));
-        } else {
-            cldnn_jit.AddConstant(MakeJitConstant("IS_STAGE_FINAL", "true"));
         }
+        cldnn_jit.AddConstant(MakeJitConstant("NMS_STAGE_" + std::to_string(i), "true"));
 
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[i];
