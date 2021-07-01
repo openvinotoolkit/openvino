@@ -154,19 +154,13 @@ TEST(TransformationTests, SplitConvolutionTestSmallSize) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{sub_graph.input_node});
 
+        reference_func = ngraph::clone_function(*func);
+
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::SplitConvolution>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-
-        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{sub_graph.input_node});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -218,20 +212,13 @@ TEST(TransformationTests, SplitConvolutionWithBiasTestSmallSize) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{sub_graph.input_node});
 
+        reference_func = ngraph::clone_function(*func);
+
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::SplitConvolutionWithBias>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        appendSubGraphAddNode(sub_graph);
-
-        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{sub_graph.input_node});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -284,6 +271,8 @@ TEST(TransformationTests, SplitConvolutionWithFqTestSmallSize) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{sub_graph.input_node});
 
+        reference_func = ngraph::clone_function(*func);
+
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::SplitConvolutionWithFq>();
@@ -291,14 +280,6 @@ TEST(TransformationTests, SplitConvolutionWithFqTestSmallSize) {
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    {
-        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        appendSubGraphFakeQuantizeNode(sub_graph);
-
-        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{sub_graph.input_node});
-    }
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
@@ -353,6 +334,8 @@ TEST(TransformationTests, SplitConvolutionWithFqAddTestSmallSize) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{sub_graph.input_node});
 
+        reference_func = ngraph::clone_function(*func);
+
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::SplitConvolutionWithFq>();
@@ -360,15 +343,6 @@ TEST(TransformationTests, SplitConvolutionWithFqAddTestSmallSize) {
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    {
-        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        appendSubGraphAddNode(sub_graph);
-        appendSubGraphFakeQuantizeNode(sub_graph);
-
-        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{sub_graph.input_node});
-    }
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
