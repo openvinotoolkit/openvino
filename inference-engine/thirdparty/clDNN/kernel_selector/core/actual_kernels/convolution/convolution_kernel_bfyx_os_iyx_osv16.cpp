@@ -93,6 +93,9 @@ static void shrink_blocks_to_output_size(size_t output_x, size_t output_y, size_
 
     block_x -= unused_x / simds_x;
     block_y -= unused_y / simds_y;
+
+    block_x = Align(block_x, 2);
+    block_y = Align(block_y, 2);
 }
 
 ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iyx_osv16::GetAutoTuneOptions(
