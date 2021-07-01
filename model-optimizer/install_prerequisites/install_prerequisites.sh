@@ -171,7 +171,7 @@ if [[ $V_ENV -eq 1 ]]; then
     venv_python_binary="$HOME/venv_mo${postfix}/bin/$python_binary"
     # latest pip is needed to install tensorflow
     "$venv_python_binary" -m pip install --upgrade pip
-    $venv_python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
+    "$venv_python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     find_ie_bindings "$venv_python_binary" false
     echo
     echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${HOME}/venv_mo${postfix}/bin/activate\""
