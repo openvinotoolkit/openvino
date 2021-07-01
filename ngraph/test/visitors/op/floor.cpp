@@ -4,6 +4,7 @@
 
 #include "unary_ops.hpp"
 
+using namespace ngraph;
 using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Floor, element::f32>,
                                UnaryOperatorType<ngraph::op::v0::Floor, element::f16>>;
 
