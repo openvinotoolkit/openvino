@@ -27,7 +27,8 @@ namespace ngraph
                 float* output_rois);
 
             void experimental_detectron_roi_feature_extractor_postprocessing(
-                const HostTensorVector& outputs,
+                void* prois_features,
+                void* prois,
                 const ngraph::element::Type output_type,
                 const std::vector<float>& output_roi_features,
                 const std::vector<float>& output_rois,

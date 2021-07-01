@@ -1137,7 +1137,8 @@ namespace
                                                                          output_rois.data());
 
         runtime::reference::experimental_detectron_roi_feature_extractor_postprocessing(
-            outputs,
+            outputs[0]->get_data_ptr(),
+            outputs[1]->get_data_ptr(),
             output_type,
             output_rois_features,
             output_rois,

@@ -403,18 +403,14 @@ namespace ngraph
             }
 
             void experimental_detectron_roi_feature_extractor_postprocessing(
-                const HostTensorVector& outputs,
+                void* prois_features,
+                void* prois,
                 const ngraph::element::Type output_type,
                 const std::vector<float>& output_rois_features,
                 const std::vector<float>& output_rois,
                 const Shape& output_rois_features_shape,
                 const Shape& output_rois_shape)
             {
-                outputs[0]->set_element_type(output_type);
-                outputs[0]->set_shape(output_rois_features_shape);
-                outputs[1]->set_element_type(output_type);
-                outputs[1]->set_shape(output_rois_shape);
-
                 size_t output_rois_features_size = shape_size(output_rois_features_shape);
                 size_t output_rois_size = shape_size(output_rois_shape);
 
@@ -422,12 +418,12 @@ namespace ngraph
                 {
                 case element::Type_t::bf16:
                 {
-                    bfloat16* output_rois_features_ptr = outputs[0]->get_data_ptr<bfloat16>();
+                    bfloat16* output_rois_features_ptr = reinterpret_cast<bfloat16*>(prois_features);
+                    bfloat16* output_rois_ptr = reinterpret_cast<bfloat16*>(prois);
                     for (size_t i = 0; i < output_rois_features_size; ++i)
                     {
                         output_rois_features_ptr[i] = bfloat16(output_rois_features[i]);
                     }
-                    bfloat16* output_rois_ptr = outputs[1]->get_data_ptr<bfloat16>();
                     for (size_t i = 0; i < output_rois_size; ++i)
                     {
                         output_rois_ptr[i] = bfloat16(output_rois[i]);
@@ -436,12 +432,12 @@ namespace ngraph
                 break;
                 case element::Type_t::f16:
                 {
-                    float16* output_rois_features_ptr = outputs[0]->get_data_ptr<float16>();
+                    float16* output_rois_features_ptr = reinterpret_cast<float16*>(prois_features);
+                    float16* output_rois_ptr = reinterpret_cast<float16*>(prois);
                     for (size_t i = 0; i < output_rois_features_size; ++i)
                     {
                         output_rois_features_ptr[i] = float16(output_rois_features[i]);
                     }
-                    float16* output_rois_ptr = outputs[1]->get_data_ptr<float16>();
                     for (size_t i = 0; i < output_rois_size; ++i)
                     {
                         output_rois_ptr[i] = float16(output_rois[i]);
@@ -450,8 +446,8 @@ namespace ngraph
                 break;
                 case element::Type_t::f32:
                 {
-                    float* output_rois_features_ptr = outputs[0]->get_data_ptr<float>();
-                    float* output_rois_ptr = outputs[1]->get_data_ptr<float>();
+                    float* output_rois_features_ptr = reinterpret_cast<float*>(prois_features);
+                    float* output_rois_ptr = reinterpret_cast<float*>(prois);
                     memcpy(output_rois_features_ptr,
                            output_rois_features.data(),
                            output_rois_features_size * sizeof(float));
