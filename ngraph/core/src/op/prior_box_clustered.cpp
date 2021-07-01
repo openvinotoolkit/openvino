@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBoxClustered::type_info;
+NGRAPH_RTTI_DEFINITION(op::PriorBoxClustered, "PriorBoxClustered", 0);
 
 op::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
                                          const Output<Node>& image_shape,

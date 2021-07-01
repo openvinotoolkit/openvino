@@ -15,8 +15,8 @@ namespace ngraph
             class NGRAPH_API CTCGreedyDecoder : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"CTCGreedyDecoder", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 CTCGreedyDecoder() = default;
                 /// \brief Constructs a CTCGreedyDecoder operation
                 ///

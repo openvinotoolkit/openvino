@@ -11,6 +11,7 @@ namespace MKLDNNPlugin {
 class SwishNode : public ngraph::op::Op {
 public:
     static constexpr ngraph::NodeTypeInfo type_info{"SwishCPU", 0};
+    static constexpr const ::ngraph::Node::type_info_t& get_type_info_static() { return type_info; }
     const ngraph::NodeTypeInfo &get_type_info() const override { return type_info; }
 
     explicit SwishNode(const ngraph::Output<Node> &input, float alpha = 1.0);

@@ -26,8 +26,8 @@ namespace ngraph
             class NGRAPH_API Constant : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Constant", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 Constant() = default;
 
                 /// \brief Initialize a constant from tensor

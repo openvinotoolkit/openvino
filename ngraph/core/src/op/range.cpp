@@ -322,7 +322,7 @@ bool op::v4::Range::has_evaluate() const
     return false;
 }
 
-constexpr NodeTypeInfo op::v0::Range::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Range, "Range", 0);
 
 op::v0::Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step)
     : Op({start, stop, step})

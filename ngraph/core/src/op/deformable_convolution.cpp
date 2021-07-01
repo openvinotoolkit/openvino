@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::DeformableConvolution::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::DeformableConvolution, "DeformableConvolution", 1);
 
 op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,

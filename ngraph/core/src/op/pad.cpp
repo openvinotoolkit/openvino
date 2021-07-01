@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::Pad::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Pad, "Pad", 1);
 
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,

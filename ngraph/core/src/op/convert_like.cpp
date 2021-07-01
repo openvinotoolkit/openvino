@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::ConvertLike::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ConvertLike, "ConvertLike", 1);
 
 op::v1::ConvertLike::ConvertLike(const Output<Node>& data, const Output<Node>& like)
     : Op({data, like})

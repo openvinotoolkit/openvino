@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::SpaceToDepth::type_info;
+NGRAPH_RTTI_DEFINITION(op::SpaceToDepth, "SpaceToDepth", 0);
 
 op::SpaceToDepth::SpaceToDepth(const Output<Node>& data,
                                const SpaceToDepthMode& mode,
