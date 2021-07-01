@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -64,8 +52,21 @@ extern void regclass_pyngraph_VariantWrapper(py::module m, std::string typestrin
     });
 
     variant_wrapper.def("get",
-                        (VT & (ngraph::VariantWrapper<VT>::*)()) & ngraph::VariantWrapper<VT>::get);
-    variant_wrapper.def("set", &ngraph::VariantWrapper<VT>::set);
+                        (VT & (ngraph::VariantWrapper<VT>::*)()) & ngraph::VariantWrapper<VT>::get,
+                        R"(
+                            Returns
+                            ----------
+                            get : Variant
+                                Value of Variant.
+                        )");
+    variant_wrapper.def("set",
+                        &ngraph::VariantWrapper<VT>::set,
+                        R"(
+                            Parameters
+                            ----------
+                            set : str or int
+                                Value to be set in Variant.
+                        )");
 
     variant_wrapper.def_property("value",
                                  (VT & (ngraph::VariantWrapper<VT>::*)()) &

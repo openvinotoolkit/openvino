@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import collections
 import logging as log
 from copy import deepcopy
@@ -573,6 +561,7 @@ class Graph(nx.MultiDiGraph):
             self.node = self.nodes
 
     unique_id_count = 0
+    op_names_statistic = collections.Counter()
 
     # SAFE API DESCRIPTION
     # all provided methods below are designed to be more safe and convenient
@@ -1057,12 +1046,8 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True):
     if cut and len(node.out_edges()) != 0:
         opoutput_node = Result(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port)})
     else:
-        tensor_names = None
-        if node.has_valid('op') and port in node.out_ports():
-            tensor_names = node.out_port(port).get_tensor_names()
         opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port)})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
-        opoutput_node.in_edge()['fw_tensor_debug_info'] = [(node_name, port, tensor_names)]
 
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))
     log.debug(str(graph.node[opoutput_node.id]))
@@ -1137,8 +1122,7 @@ def set_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, n
         out_port = edge['out']
         out_node = node1.out_node(out_port)
         if out_node.id == node2.id:
-            if attr_name in edge:
-                edge[attr_name] = new_value
+            edge[attr_name] = new_value
 
 # All functions below are deprecated and will be removed in next release
 # Please, use methods from Graph/Node classes instead

@@ -1,5 +1,4 @@
-# Copyright (C) 2019-2021 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,6 +16,8 @@ set(LINK_LIBRARIES
     openvino::conditional_compilation
     sharedTestClasses
     inference_engine_snippets
+    offline_transformations
+    inference_engine
 )
 
 set(DEPENDENCIES
@@ -44,6 +45,8 @@ addIeTargetTest(
         IE
 )
 
+set_ie_threading_interface_for(${TARGET_NAME})
+
 if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         NGRAPH_ONNX_IMPORT_ENABLE
@@ -54,6 +57,19 @@ endif()
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "precomp.hpp"
 )
+
+# CVS-55343
+
+file(GLOB_RECURSE legacy_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp" # CVS-55385
+    "${CMAKE_CURRENT_SOURCE_DIR}/lp_transformations/*.cpp" # CVS-55376
+    "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
+    "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
+    "${CMAKE_CURRENT_SOURCE_DIR}/local_test.cpp" # CVS-55386
+    )
+
+set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 include(CMakeParseArguments)
 
@@ -74,9 +90,11 @@ function(ie_headers_compilation_with_custom_flags)
     cmake_parse_arguments(IE_TEST "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(IE_TEST_PLUGIN_API)
-        set(IE_TEST_INCLUDE_DIRECTORY "${IE_MAIN_SOURCE_DIR}/src/plugin_api")
+        set(IE_TEST_INCLUDE_DIRECTORY 
+            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
-        set(IE_TEST_INCLUDE_DIRECTORY "${IE_MAIN_SOURCE_DIR}/include")
+        set(IE_TEST_INCLUDE_DIRECTORY
+            $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
 
     file(GLOB_RECURSE header_files RELATIVE "${IE_TEST_INCLUDE_DIRECTORY}"
@@ -87,7 +105,7 @@ function(ie_headers_compilation_with_custom_flags)
     endif()
 
     if(NOT IE_TEST_PLUGIN_API)
-        if(NOT CLDNN__OCL_ICD_INCDIRS)
+        if(NOT OPENCL_HEADERS_DIR)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                 "gpu/gpu_context_api_ocl.hpp"
                                                 "gpu/gpu_context_api_va.hpp"
@@ -140,8 +158,8 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         # OpenCL headers if any
-        if(CLDNN__OCL_ICD_INCDIRS)
-            target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__OCL_ICD_INCDIRS})
+        if(OPENCL_HEADERS_DIR)
+            target_include_directories(${target_name} SYSTEM PRIVATE ${OPENCL_HEADERS_DIR})
         endif()
     endif()
 
@@ -151,9 +169,9 @@ function(ie_headers_compilation_with_custom_flags)
     # To avoid further TBB find_package action in next call of this function. Some version of TBB
     # has an issue with cmake config which lead to fail in case of multiple call of find_package
     # from one cmake script file.
-    set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
-    set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
-    set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
+    set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
+    set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+    set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
 
     set_target_properties(${target_name} PROPERTIES
                           CXX_STANDARD ${IE_TEST_CXX_STANDARD}
@@ -161,7 +179,7 @@ function(ie_headers_compilation_with_custom_flags)
 
     if(IE_TEST_FLAGS)
         set_target_properties(${target_name} PROPERTIES
-                              COMPILE_FLAGS ${IE_TEST_FLAGS})
+                              COMPILE_OPTIONS "${IE_TEST_FLAGS}")
     endif()
 
     if(IE_TEST_DEFINITIONS)
@@ -185,16 +203,16 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
-                                                 FLAGS "-Werror-all -Werror -Wall")
+                                                 FLAGS -Werror-all -Werror -Wall)
     else()
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS "-Wpedantic")
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
                                              HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                              "gpu/gpu_context_api_ocl.hpp"
                                                              "gpu/gpu_context_api_dx.hpp"
-                                             FLAGS  "/we4996 /W4 /WX")
+                                             FLAGS /we4996 /W4 /WX)
 endif()
 
 # compilation with -Wweak-vtables
@@ -212,15 +230,15 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWarningsAreErrors
-                                                 FLAGS "-Werror-all -Werror -Wall"
+                                                 FLAGS -Werror-all -Werror -Wall
                                                  PLUGIN_API)
     else()
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS "-Wpedantic"
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS -Wpedantic
                                                  PLUGIN_API)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
-                                             FLAGS  "/we4996 /W4 /WX"
+                                             FLAGS /we4996 /W4 /WX
                                              PLUGIN_API)
 endif()
 

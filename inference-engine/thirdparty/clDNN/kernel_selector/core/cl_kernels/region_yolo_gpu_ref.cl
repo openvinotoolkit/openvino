@@ -1,18 +1,8 @@
-// Copyright (c) 2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 
 inline INPUT0_TYPE FUNC(logistic_activate)(INPUT0_TYPE x) {
     return 1. / (1. + exp(-x));
@@ -20,7 +10,7 @@ inline INPUT0_TYPE FUNC(logistic_activate)(INPUT0_TYPE x) {
 
 inline int FUNC(output_index)(int batch, int region_num, int x, int y, int xy, int feature_offset) {
 #if DO_SOFTMAX
-    return OUTPUT_GET_INDEX(batch, feature_offset * INPUT0_SIZE_X * INPUT0_SIZE_Y + xy, 1, 1);
+    return OUTPUT_GET_INDEX(batch, feature_offset * INPUT0_SIZE_X * INPUT0_SIZE_Y + xy, 0, 0);
 #else
     return OUTPUT_GET_INDEX(batch, feature_offset, y, x);
 #endif

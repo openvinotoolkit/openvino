@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,7 +14,13 @@ set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
-    set(CI_BUILD_NUMBER "${CI_BUILD_NUMBER}" PARENT_SCOPE)
+    foreach(var CI_BUILD_NUMBER IE_VERSION
+                IE_VERSION_MAJOR IE_VERSION_MINOR IE_VERSION_PATCH)
+        if(NOT DEFINED ${var})
+            message(FATAL_ERROR "${var} version component is not defined")
+        endif()
+        set(${var} "${${var}}" PARENT_SCOPE)
+    endforeach()
 endfunction()
 
 set_ci_build_number()
@@ -47,9 +53,6 @@ function(set_temp_directory temp_variable source_tree_dir)
     if (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
         message(STATUS "DL_SDK_TEMP environment is set : $ENV{DL_SDK_TEMP}")
         file(TO_CMAKE_PATH $ENV{DL_SDK_TEMP} temp)
-        if (ENABLE_ALTERNATIVE_TEMP)
-            set(ALTERNATIVE_PATH ${source_tree_dir}/temp)
-        endif()
     else ()
         set(temp ${source_tree_dir}/temp)
     endif()
@@ -184,6 +187,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
+set(CMAKE_WARN_DEPRECATED OFF)
+set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON)
+
 # LTO
 
 if(ENABLE_LTO)
@@ -220,6 +226,7 @@ include(api_validator/api_validator)
 include(vs_version/vs_version)
 include(plugins/plugins)
 include(add_ie_target)
+include(CMakePackageConfigHelpers)
 
 if(ENABLE_FUZZING)
     enable_fuzzing()

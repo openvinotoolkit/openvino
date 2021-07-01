@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
 
@@ -20,7 +8,6 @@ import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_44970, xfail_issue_49913
 
 
 @pytest.mark.parametrize(
@@ -112,14 +99,13 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_44970
 def test_softmax():
-    axis = 0
+    axis = 1
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
 
     result = run_op_node([input_tensor], ng.softmax, axis)
 
-    expected = [[0.00426978, 0.01160646, 0.03154963], [0.08576079, 0.23312202, 0.6336913]]
+    expected = [[0.09003056, 0.24472842, 0.6652409], [0.09003056, 0.24472842, 0.6652409]]
 
     assert np.allclose(result, expected)
 
@@ -188,7 +174,6 @@ def test_hsigmoid():
     assert node.get_output_element_type(0) == Type.f32
 
 
-@xfail_issue_49913
 def test_gelu_operator_with_parameters():
     runtime = get_runtime()
 
@@ -202,10 +187,9 @@ def test_gelu_operator_with_parameters():
 
     result = computation(data_value)
     expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-    assert np.allclose(result, expected)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
 
 
-@xfail_issue_49913
 def test_gelu_operator_with_array():
     runtime = get_runtime()
 
@@ -216,7 +200,7 @@ def test_gelu_operator_with_array():
 
     result = computation()
     expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-    assert np.allclose(result, expected)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
 
 
 def test_gelu_tanh_operator_with_parameters():

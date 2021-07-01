@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,7 +87,12 @@ bool isScalable(const Stage& stage) {
 }
 
 bool checkGrowingOutput(const Model& model) {
-    static const float SCALE_THRESHOLD = 0.125f;
+    const auto& env = CompileEnv::get();
+    if (!env.config.compileConfig().checkPreprocessingInsideModel) {
+        return false;
+    }
+
+    static const float SCALE_THRESHOLD = 0.1f;
 
     for (const auto& stage : model->getStages()) {
         if (stage->type() != StageType::Power &&
@@ -243,18 +248,17 @@ void PassImpl::run(const Model& model) {
                 if (firstStage && shift < 4 && isGrowingOutput && weights->desc().dim(Dim::C) > 1) {
                     normalVal = 5;
                 }
-
                 shift = correctShift(shift, firstStage, stage->origLayer()->type);
                 shift -= normalVal;
             }
 
             firstStage = false;
             scale = 1;
-            if (shift > scaleThreshold) {
+            if (shift >= scaleThreshold) {
                 scale = static_cast<float>(1ULL << static_cast<std::uint32_t>(shift));
             }
 
-            if (!env.config.irWithVpuScalesDir.empty()) {
+            if (!env.config.compileConfig().irWithVpuScalesDir.empty()) {
                 stage->origLayer()->params["vpu_scale"] = toString(scale);
             }
         }

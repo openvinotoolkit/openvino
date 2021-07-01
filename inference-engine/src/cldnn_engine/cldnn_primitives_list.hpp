@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,7 +88,7 @@ REGISTER_FACTORY(v0, Unsqueeze);
 // REGISTER_FACTORY(v0, Range);
 // REGISTER_FACTORY(v0, RNNCell);
 // REGISTER_FACTORY(v0, ShapeOf);
-// REGISTER_FACTORY(v0, TensorIterator);
+REGISTER_FACTORY(v0, TensorIterator);
 
 // ------------------------------ Supported v1 ops ------------------------------ //
 REGISTER_FACTORY(v1, Add);
@@ -193,10 +193,10 @@ REGISTER_FACTORY(v5, LogSoftmax);
 REGISTER_FACTORY(v5, LSTMSequence);
 //REGISTER_FACTORY(v5, NonMaxSuppression); Supported via v5 -> v5 internal conversion
 REGISTER_FACTORY(v5, Round);
+REGISTER_FACTORY(v5, GatherND);
 
 // ----------------------------- Unsupported v5 ops ----------------------------- //
 // REGISTER_FACTORY(v5, BatchNormInference);
-// REGISTER_FACTORY(v5, GatherND);
 // REGISTER_FACTORY(v5, GRUSequence);
 // REGISTER_FACTORY(v5, Loop);
 // REGISTER_FACTORY(v5, RNNSequence);
@@ -204,6 +204,9 @@ REGISTER_FACTORY(v5, Round);
 // ------------------------------ Supported v6 ops ------------------------------ //
 REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
 REGISTER_FACTORY(v6, MVN);
+
+// ------------------------------ Supported v7 ops ------------------------------ //
+REGISTER_FACTORY(v7, Gather);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

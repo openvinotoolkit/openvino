@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,10 +15,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "multi-device/multi_device_config.hpp"
 #include <string>
 #include <ie_core.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include <thread>
 #include <base/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"
@@ -39,7 +37,8 @@ TEST_P(InferRequestTests, SetEmptyConfig) {
     // Load CNNNetwork to target plugins
     InferenceEngine::ExecutableNetwork execNet;
     std::map<std::string, std::string> config {};
-    if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
         ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, config));
@@ -95,7 +94,7 @@ TEST_P(InferRequestTests, failToSetNullptrForInput) {
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr inputBlob = nullptr;
     ASSERT_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, inputBlob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, failToSetEmptyInputBlob) {
@@ -110,7 +109,7 @@ TEST_P(InferRequestTests, failToSetEmptyInputBlob) {
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr blob;
     ASSERT_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, failToSetEmptyOutputBlob) {
@@ -125,7 +124,7 @@ TEST_P(InferRequestTests, failToSetEmptyOutputBlob) {
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr blob;
     ASSERT_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, failToSetNotAllocatedInput) {
@@ -173,7 +172,7 @@ TEST_P(InferRequestTests, failToSetBlobWithIncorrectName) {
             FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     blob->allocate();
     ASSERT_THROW(req.SetBlob(incorrect_input_name, blob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, failToSetInputWithIncorrectSizes) {
@@ -191,7 +190,7 @@ TEST_P(InferRequestTests, failToSetInputWithIncorrectSizes) {
     blob->allocate();
     blob->getTensorDesc().getDims()[0]*=2;
     ASSERT_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, failToSetOutputWithIncorrectSizes) {
@@ -209,7 +208,7 @@ TEST_P(InferRequestTests, failToSetOutputWithIncorrectSizes) {
     blob->allocate();
     blob->getTensorDesc().getDims()[0]*=2;
     ASSERT_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canInferWithoutSetAndGetInOut) {
@@ -288,7 +287,7 @@ TEST_P(InferRequestTests, canProcessDeallocatedInputBlobAfterSetBlob) {
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
     blob->deallocate();
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetBlob) {
@@ -306,7 +305,7 @@ TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetBlob) {
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
     blob->deallocate();
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetBlobForAsync) {
@@ -324,8 +323,8 @@ TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetBlobForAsync) {
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
     blob->deallocate();
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
-    ASSERT_THROW(req.StartAsync(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
+    ASSERT_THROW({ req.StartAsync(); req.Wait(); }, InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetAndSetBlob) {
@@ -344,7 +343,7 @@ TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetAndSetBlob) {
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
     blob->deallocate();
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterSetBlob) {
@@ -362,7 +361,7 @@ TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterSetBlob) {
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
     blob->deallocate();
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, secondCallGetOutputDoNotReAllocateData) {
@@ -398,7 +397,7 @@ TEST_P(InferRequestTests, CorrectOneAsyncInferWithGetInOutWithInfWait) {
     req.Infer();
     req.StartAsync();
     InferenceEngine::StatusCode sts;
-    sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
 }
@@ -420,7 +419,7 @@ TEST_P(InferRequestTests, canStartAsyncInferWithGetInOutWithStatusOnlyWait) {
     req.Infer();
     req.StartAsync();
     InferenceEngine::StatusCode sts;
-    sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY);
+    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY);
     ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK ||
         sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
 }
@@ -441,7 +440,7 @@ TEST_P(InferRequestTests, FailedAsyncInferWithNegativeTimeForWait) {
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     req.Infer();
     req.StartAsync();
-    ASSERT_THROW(req.Wait(-2), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Wait(-2), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canRun3SyncRequestsConsistentlyFromThreads) {
@@ -455,20 +454,15 @@ TEST_P(InferRequestTests, canRun3SyncRequestsConsistentlyFromThreads) {
     auto req1 = execNet.CreateInferRequest();
     auto req2 = execNet.CreateInferRequest();
     auto req3 = execNet.CreateInferRequest();
-    InferenceEngine::ResponseDesc response1, response2, response3;
-    InferenceEngine::StatusCode sts1, sts2, sts3;
 
-    std::thread t1([&] { req1.Infer(); sts1 = req1.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY); });
-    std::thread t2([&] { req2.Infer(); sts2 = req2.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY); });
-    std::thread t3([&] { req3.Infer(); sts3 = req3.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY); });
 
-    t1.join();
-    t2.join();
-    t3.join();
+    auto f1 = std::async(std::launch::async, [&] { req1.Infer();});
+    auto f2 = std::async(std::launch::async, [&] { req2.Infer();});
+    auto f3 = std::async(std::launch::async, [&] { req3.Infer();});
 
-    ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), sts1) << response1.msg;
-    ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), sts2) << response2.msg;
-    ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), sts3) << response3.msg;
+    ASSERT_NO_THROW(f1.get());
+    ASSERT_NO_THROW(f2.get());
+    ASSERT_NO_THROW(f3.get());
 }
 
 TEST_P(InferRequestTests, canRun3AsyncRequestsConsistentlyWithWait) {
@@ -484,13 +478,13 @@ TEST_P(InferRequestTests, canRun3AsyncRequestsConsistentlyWithWait) {
     auto req3 = execNet.CreateInferRequest();
 
     req1.StartAsync();
-    ASSERT_NO_THROW(req1.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
+    ASSERT_NO_THROW(req1.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 
     req2.Infer();
-    ASSERT_NO_THROW(req2.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
+    ASSERT_NO_THROW(req2.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 
     req3.Infer();
-    ASSERT_NO_THROW(req3.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
+    ASSERT_NO_THROW(req3.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 }
 
 TEST_P(InferRequestTests, canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait) {
@@ -511,9 +505,9 @@ TEST_P(InferRequestTests, canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait
     req2.Infer();
     req3.Infer();
 
-    std::thread t1([&] { req1.StartAsync(); sts1 = req1.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY); });
-    std::thread t2([&] { req2.StartAsync(); sts2 = req2.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY); });
-    std::thread t3([&] { req3.StartAsync(); sts3 = req3.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY); });
+    std::thread t1([&] { req1.StartAsync(); sts1 = req1.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY); });
+    std::thread t2([&] { req2.StartAsync(); sts2 = req2.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY); });
+    std::thread t3([&] { req3.StartAsync(); sts3 = req3.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY); });
 
     t1.join();
     t2.join();
@@ -533,8 +527,8 @@ TEST_P(InferRequestTests, canWaitWithotStartAsync) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
-    ASSERT_NO_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
-    ASSERT_NO_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY));
+    ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
+    ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY));
     ASSERT_NO_THROW(req.Wait(1));
 }
 
@@ -560,10 +554,10 @@ TEST_P(InferRequestTests, returnDeviceBusyOnSetBlobAfterAsyncInfer) {
     InferenceEngine::ResponseDesc response;
 
     InferenceEngine::StatusCode sts;
-    sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY);
+    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY);
     ASSERT_EQ(InferenceEngine::StatusCode::INFER_NOT_STARTED, sts) << response.msg;
     req.StartAsync();
-    sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), sts) << response.msg;
     try {
         req.SetBlob(cnnNet.getInputsInfo().begin()->first, outputBlob);
@@ -571,7 +565,7 @@ TEST_P(InferRequestTests, returnDeviceBusyOnSetBlobAfterAsyncInfer) {
     catch (const std::exception &e) {
         std::cout << "Exception: " << e.what() << std::endl;
     }
-    sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY);
+    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY);
     ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK ||
     sts == InferenceEngine::StatusCode::RESULT_NOT_READY) << response.msg;
 }
@@ -589,7 +583,7 @@ TEST_P(InferRequestTests, returnDeviceBusyOnGetBlobAfterAsyncInfer) {
     InferenceEngine::ResponseDesc response;
     InferenceEngine::StatusCode sts;
     req.StartAsync();
-    sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), sts) << response.msg;
     try {
         req.SetBlob(cnnNet.getInputsInfo().begin()->first, outputBlob);
@@ -612,7 +606,7 @@ TEST_P(InferRequestTests, returnDeviceBusyOnGetPerformanceCountAfterAsyncInfer) 
     InferenceEngine::ResponseDesc response;
     InferenceEngine::StatusCode sts;
     req.StartAsync();
-    sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), sts) << response.msg;
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
@@ -650,7 +644,7 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
         callbackTimeStamp.set_value(std::chrono::system_clock::now());
         });
     req.StartAsync();
-    ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY));
+    ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY));
     // get timestamp taken AFTER return from the Wait(STATUS_ONLY)
     const auto afterWaitTimeStamp = std::chrono::system_clock::now();
     // IF the callback timestamp is larger than the afterWaitTimeStamp
@@ -658,6 +652,6 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     if (afterWaitTimeStamp < callbackTimeStampFuture.get()) {
         ASSERT_TRUE(sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
     }
-    ASSERT_NO_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
+    ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 }
 }  // namespace BehaviorTestsDefinitions

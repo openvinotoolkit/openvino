@@ -14,8 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNDeconvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNDeconvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNDeconvolutionNode() override = default;
+    MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
@@ -37,23 +36,33 @@ public:
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
+
 private:
     bool withGroups = false;
     bool isDW = false;
+    bool isInt8 = false;
     size_t groupNum = 1;
+    size_t outDepth;
+    size_t IC;
+    size_t OC;
+    std::vector<ptrdiff_t> kernel;
     std::vector<ptrdiff_t> stride;
-    std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> dilation;
+    std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
-    MKLDNNDims weightsDims;
+    InferenceEngine::SizeVector weightDims;
     std::vector<std::shared_ptr<mkldnn::convolution_forward::desc>> descs_fwd;
     std::vector<std::shared_ptr<mkldnn::convolution_backward_data::desc>> descs_bwd;
 
     mkldnn::primitive_attr attr;
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-    void setBiasAsPostOp(const InferenceEngine::Blob::Ptr& biases);
+    void setPostOps(mkldnn::primitive_attr &attr);
 
-    const mkldnn::memory& getWeights() const;
+    std::string errorPrefix;
+
+    bool canBeExecutedInInt8() const;
+    InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
 };
 
 }  // namespace MKLDNNPlugin

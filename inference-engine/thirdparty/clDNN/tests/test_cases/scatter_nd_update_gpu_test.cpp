@@ -1,40 +1,28 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
+#include "test_utils.h"
 
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/scatter_update.hpp>
-#include <api/scatter_nd_update.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/scatter_update.hpp>
+#include <cldnn/primitives/scatter_nd_update.hpp>
+#include <cldnn/runtime/memory.hpp>
+#include <cldnn/graph/topology.hpp>
+#include <cldnn/graph/network.hpp>
 
 #include <cstddef>
-#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
 
 
 TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 2, 2, 4, 3 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx,  { 1, 2, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 1, 2, 2, 4, 3, 2 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 2, 4, 3 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,  { 1, 2, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 2, 2, 4, 3, 2 } }); // updates
 
     set_values(input1, {
         // 0
@@ -100,9 +88,9 @@ TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 3)
     );
@@ -117,7 +105,7 @@ TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -125,11 +113,11 @@ TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 2, 2, 4, 3 } }); // data 2x2x3x4x2 (bfzyx)
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx,  { 3, 3, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 4, 1, 1, 2 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 2, 4, 3 } }); // data 2x2x3x4x2 (bfzyx)
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,  { 3, 3, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 4, 1, 1, 2 } }); // updates
 
     set_values(input1, {
         // 0
@@ -184,9 +172,9 @@ TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -201,7 +189,7 @@ TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -209,11 +197,11 @@ TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 4, 2 } }); // data 2x3x2x4 (bfyx)
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 3, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 4, 1, 1 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 4, 2 } }); // data 2x3x2x4 (bfyx)
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 4, 1, 1 } }); // updates
 
     set_values(input1, {
         FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),       FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),
@@ -248,9 +236,9 @@ TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -265,7 +253,7 @@ TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -273,11 +261,11 @@ TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 3, 1, 4 } }); // data 3x3x4 (bfy)
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 3, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 1, 4 } }); // data 3x3x4 (bfy)
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 3, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } }); // updates
 
     set_values(input1, {
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
@@ -319,9 +307,9 @@ TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -336,7 +324,7 @@ TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -344,11 +332,11 @@ TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 3, 4, 2 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 1, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 1, 2, 2, 3, 4, 2 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 3, 4, 2 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 2, 3, 4, 2 } }); // updates
 
     set_values(input1, {
         // 0, 0, 0
@@ -450,9 +438,9 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -467,7 +455,7 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -475,11 +463,11 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 2, 3, 4, 2 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 2, 3, 4, 2 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 3, 4, 2 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 3, 4, 2 } }); // updates
 
     set_values(input1, {
         // 0
@@ -547,9 +535,9 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -564,7 +552,7 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -572,11 +560,11 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 3, 4, 2 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 4, 2 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 4, 2 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 4, 2 } }); // updates
 
     set_values(input1, {
         // 0
@@ -626,9 +614,9 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -643,7 +631,7 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -651,11 +639,11 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 1, 2, 2, 3, 4, 2 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx,   { 2, 2, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 1, 3, 4, 2 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 2, 3, 4, 2 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,   { 2, 2, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 1, 3, 4, 2 } }); // updates
 
     set_values(input1, {
         //0,0
@@ -724,9 +712,9 @@ TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -741,7 +729,7 @@ TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -749,11 +737,11 @@ TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 1, 2, 3, 4, 2 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx,  { 2, 2, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx,  { 2, 2, 1, 3, 4 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 2, 3, 4, 2 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,  { 2, 2, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx,  { 2, 2, 1, 3, 4 } }); // updates
 
 
     set_values(input1, {
@@ -792,9 +780,9 @@ TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -809,7 +797,7 @@ TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -818,11 +806,11 @@ TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
 
 
 TEST(scatter_nd_update_gpu_fp16_test6, data4_indice2_update3) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 4, 2 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 4, 1, 2 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 4, 2 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 4, 1, 2 } }); // updates
 
 
     set_values(input1, {
@@ -858,9 +846,9 @@ TEST(scatter_nd_update_gpu_fp16_test6, data4_indice2_update3) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -875,7 +863,7 @@ TEST(scatter_nd_update_gpu_fp16_test6, data4_indice2_update3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -883,11 +871,11 @@ TEST(scatter_nd_update_gpu_fp16_test6, data4_indice2_update3) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test5, data3_indice2_update2) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 1, 4 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 4, 1, 1 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 1, 4 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 4, 1, 1 } }); // updates
 
 
     set_values(input1, {
@@ -923,9 +911,9 @@ TEST(scatter_nd_update_gpu_fp16_test5, data3_indice2_update2) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -940,7 +928,7 @@ TEST(scatter_nd_update_gpu_fp16_test5, data3_indice2_update2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -948,11 +936,11 @@ TEST(scatter_nd_update_gpu_fp16_test5, data3_indice2_update2) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test4, data2_indice2_update1) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 4, 1, 1 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 1, 1, 1 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 4, 1, 1 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 1, 1, 1 } }); // updates
 
 
     set_values(input1, {
@@ -978,9 +966,9 @@ TEST(scatter_nd_update_gpu_fp16_test4, data2_indice2_update1) {
         };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -995,7 +983,7 @@ TEST(scatter_nd_update_gpu_fp16_test4, data2_indice2_update1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -1003,11 +991,11 @@ TEST(scatter_nd_update_gpu_fp16_test4, data2_indice2_update1) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test3, data3_indice1_update3) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 3, 4, 1 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 4, 1 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 4, 1 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 4, 1 } }); // updates
 
 
     set_values(input1, {
@@ -1053,9 +1041,9 @@ TEST(scatter_nd_update_gpu_fp16_test3, data3_indice1_update3) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -1070,7 +1058,7 @@ TEST(scatter_nd_update_gpu_fp16_test3, data3_indice1_update3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -1079,11 +1067,11 @@ TEST(scatter_nd_update_gpu_fp16_test3, data3_indice1_update3) {
 
 
 TEST(scatter_nd_update_gpu_fp16_test2, data2_indice1_update2) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 4, 1, 1 } }); // data
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 4, 1, 1 } }); // updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 4, 1, 1 } }); // data
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 4, 1, 1 } }); // updates
 
 
     set_values(input1, {
@@ -1108,9 +1096,9 @@ TEST(scatter_nd_update_gpu_fp16_test2, data2_indice1_update2) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -1125,7 +1113,7 @@ TEST(scatter_nd_update_gpu_fp16_test2, data2_indice1_update2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -1133,11 +1121,11 @@ TEST(scatter_nd_update_gpu_fp16_test2, data2_indice1_update2) {
 }
 
 TEST(scatter_nd_update_gpu_fp16_test1, data1_indice1_update1) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 8, 1, 1, 1 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 8, 1, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } }); // Updates
 
 
     set_values(input1, {
@@ -1157,9 +1145,9 @@ TEST(scatter_nd_update_gpu_fp16_test1, data1_indice1_update1) {
     };
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -1174,7 +1162,7 @@ TEST(scatter_nd_update_gpu_fp16_test1, data1_indice1_update1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -1191,11 +1179,11 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2311) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 6, 6, 1, 6 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 6, 6, 1, 6 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // Updates
 
     set_values(input1, {
         FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f), FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
@@ -1252,9 +1240,9 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2311) {
 
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -1270,7 +1258,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2311) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f, 102.f, 103.f, 104.f, 105.f,
@@ -1329,11 +1317,11 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2211) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 6, 6, 1, 6 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 6, 1, 1 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 6, 6, 1, 6 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 6, 1, 1 } }); // Updates
 
 
     set_values(input1, {
@@ -1391,9 +1379,9 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2211) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -1409,7 +1397,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2211) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f, 102.f, 103.f, 104.f, 105.f,
@@ -1468,11 +1456,11 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 6, 6, 1, 6 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 6, 1, 6 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 6, 6, 1, 6 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 6, 1, 6 } }); // Updates
 
 
     set_values(input1, {
@@ -1541,9 +1529,9 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -1559,7 +1547,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         777.f, 999.f, 999.f, 999.f, 999.f, 999.f,
@@ -1619,11 +1607,11 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2411) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 2, 3 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 4, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 2, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 4, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // Updates
 
 
     set_values(input1, {
@@ -1662,9 +1650,9 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2411) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -1680,7 +1668,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2411) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f,
@@ -1722,11 +1710,11 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2311) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 2, 3 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 2, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Updates
 
 
     set_values(input1, {
@@ -1765,9 +1753,9 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2311) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -1783,7 +1771,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2311) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f,
@@ -1825,11 +1813,11 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2211) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 2, 3 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 1, 2 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 2, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 1, 2 } }); // Updates
 
 
     set_values(input1, {
@@ -1874,9 +1862,9 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2211) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -1892,7 +1880,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2211) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f,
@@ -1934,11 +1922,11 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 2, 3 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 2, 3 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 2, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 2, 3 } }); // Updates
 
 
     set_values(input1, {
@@ -1991,9 +1979,9 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -2009,7 +1997,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         666.f, 666.f,
@@ -2050,11 +2038,11 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i25111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 2, 3, 2, 3 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 5, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 1, 1, 1, 1 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 3, 2, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 5, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 1, 1, 1, 1 } }); // Updates
 
 
     set_values(input1, {
@@ -2125,9 +2113,9 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i25111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -2143,7 +2131,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i25111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f, 102.f,
@@ -2217,11 +2205,11 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i24111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 2, 3, 2, 3 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 4, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 3, 1, 1, 1 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 3, 2, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 4, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 3, 1, 1, 1 } }); // Updates
 
 
     set_values(input1, {
@@ -2293,9 +2281,9 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i24111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -2311,7 +2299,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i24111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f, 102.f,
@@ -2385,11 +2373,11 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i23111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 2, 3, 2, 3 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 3, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 2, 1, 1, 3 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 3, 2, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 3, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 1, 1, 3 } }); // Updates
 
 
     set_values(input1, {
@@ -2464,9 +2452,9 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i23111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -2482,7 +2470,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i23111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f, 102.f,
@@ -2556,11 +2544,11 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i22111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 2, 3, 2, 3 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 2, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 3, 1, 3, 2 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 3, 2, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 3, 1, 3, 2 } }); // Updates
 
 
     set_values(input1, {
@@ -2647,9 +2635,9 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i22111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -2665,7 +2653,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i22111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f, 102.f,
@@ -2739,11 +2727,11 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i21111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 2, 3, 2, 3 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 1, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 2, 3, 2, 3 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 3, 2, 3 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 1, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 3, 2, 3 } }); // Updates
 
 
     set_values(input1, {
@@ -2848,9 +2836,9 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i21111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -2866,7 +2854,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i21111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         555.f, 555.f, 555.f,
@@ -2940,12 +2928,12 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i261111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
     // memory order is bfxyzw
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 6, 1, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 1, 1, 1, 1, 1 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 6, 1, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 1, 1, 1, 1, 1 } }); // Updates
 
 
     set_values(input1, {
@@ -3008,9 +2996,9 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i261111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -3026,7 +3014,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i261111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f,
@@ -3092,12 +3080,12 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i251111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
     // memory order is bfxyzw
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 5, 1, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 1, 1, 1, 1 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 5, 1, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 1, 1, 1, 1 } }); // Updates
 
 
     set_values(input1, {
@@ -3161,9 +3149,9 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i251111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -3179,7 +3167,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i251111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f,
@@ -3245,12 +3233,12 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i241111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
     // memory order is bfxyzw
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 4, 1, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 1, 1, 1, 2 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 4, 1, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 1, 1, 1, 2 } }); // Updates
 
 
     set_values(input1, {
@@ -3317,9 +3305,9 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i241111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -3335,7 +3323,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i241111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f,
@@ -3402,12 +3390,12 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i231111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
     // memory order is bfxyzw
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 3, 1, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 1, 1, 2, 2 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 3, 1, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 1, 1, 2, 2 } }); // Updates
 
 
     set_values(input1, {
@@ -3480,9 +3468,9 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i231111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -3498,7 +3486,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i231111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f,
@@ -3564,12 +3552,12 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i221111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
     // memory order is bfxyzw
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 1, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 1, 2, 2, 2 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 1, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 1, 2, 2, 2 } }); // Updates
 
 
     set_values(input1, {
@@ -3654,9 +3642,9 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i221111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -3672,7 +3660,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i221111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         100.f, 101.f,
@@ -3737,12 +3725,12 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i211111) {
     //  Input values in fp16
     //
 
-    engine engine;
+    auto& engine = get_test_engine();
 
     // memory order is bfxyzw
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 1, 1, 1, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 1, 1, 1, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 2, 2, 2 } }); // Updates
 
 
     set_values(input1, {
@@ -3851,9 +3839,9 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i211111) {
         });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
     );
@@ -3869,7 +3857,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i211111) {
 
 
     auto output = outputs.at("scatter_nd_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         777.f, 777.f,

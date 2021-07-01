@@ -1,10 +1,8 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME vpuUnitTests)
-
-disable_deprecated_warnings()
 
 include(${XLINK_DIR}/XLink.cmake)
 
@@ -16,8 +14,6 @@ addIeTargetTest(
             "${IE_TESTS_ROOT}/ngraph_helpers/ngraph_functions/src"
         INCLUDES
             "${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin"
-            "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius"
-            "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include/watchdog"
             "${XLINK_INCLUDE}"
             "${XLINK_PLATFORM_INCLUDE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/base"

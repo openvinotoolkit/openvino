@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,17 +21,11 @@ if(ENABLE_LTO)
 endif()
 
 if (ENABLE_CLDNN)
-    set(CLDNN__OUTPUT_BIN_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-    set(CLDNN__OUTPUT_LIB_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
     if (ENABLE_TESTS AND ENABLE_CLDNN_TESTS)
         set(CLDNN__INCLUDE_TESTS ON CACHE BOOL "" FORCE)
-        set(CLDNN__INCLUDE_CORE_INTERNAL_TESTS ON CACHE BOOL "" FORCE)
     else()
         set(CLDNN__INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
-        set(CLDNN__INCLUDE_CORE_INTERNAL_TESTS OFF CACHE BOOL "" FORCE)
     endif()
-    set(CLDNN__INCLUDE_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(CLDNN__INCLUDE_TUTORIAL OFF CACHE BOOL "" FORCE)
     if (WIN32)
         set(CLDNN__ARCHITECTURE_TARGET "Windows64" CACHE STRING "" FORCE)
     elseif (ANDROID)
@@ -39,11 +33,9 @@ if (ENABLE_CLDNN)
     else()
         set(CLDNN__ARCHITECTURE_TARGET "Linux64" CACHE STRING "" FORCE)
     endif()
-
+    set(CLDNN_THREADING "${THREADING}" CACHE STRING "" FORCE)
+    set(GPU_DEBUG_CONFIG OFF CACHE BOOL "Enable debug config feature")
     add_subdirectory(clDNN)
-
-    # disable CLDNN docs build
-    set_target_properties(docs PROPERTIES EXCLUDE_FROM_ALL ON FOLDER docs)
 endif()
 
 function(ie_build_pugixml)
@@ -62,14 +54,7 @@ else()
     target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
 endif()
 
-add_subdirectory(ade EXCLUDE_FROM_ALL)
-add_subdirectory(fluid/modules/gapi)
-
-set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
-
 # developer package
-
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 
 if (NOT USE_SYSTEM_PUGIXML)
     set_target_properties(pugixml PROPERTIES FOLDER thirdparty)

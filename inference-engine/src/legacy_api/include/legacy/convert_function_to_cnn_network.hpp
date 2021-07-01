@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,11 +20,11 @@ namespace details {
 
 INFERENCE_ENGINE_API_CPP(std::shared_ptr<CNNNetworkImpl>)
 convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                             const ICNNNetwork &network, bool keep_constant_inputs = false);
+                             const CNNNetwork &network, bool keep_constant_inputs = false);
 
 INFERENCE_ENGINE_API_CPP(void)
 convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                             const ICNNNetwork &ngraphNetwork,
+                             const CNNNetwork &ngraphNetwork,
                              CNNNetworkImpl* cnnNetworkImpl,
                              bool keep_constant_inputs = false);
 
@@ -53,10 +53,11 @@ private:
 
 enum BlobType {
     weights,
-    biases };
+    biases
+};
 
 inline Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& constLayer) {
-    if (!constLayer) THROW_IE_EXCEPTION << "Cannot share weights! Constant operation is empty!";
+    if (!constLayer) IE_THROW() << "Cannot share weights! Constant operation is empty!";
     auto dataPrecision = convertPrecision(constLayer->get_element_type());
 
     size_t shapeSize = ngraph::shape_size(constLayer->get_shape());

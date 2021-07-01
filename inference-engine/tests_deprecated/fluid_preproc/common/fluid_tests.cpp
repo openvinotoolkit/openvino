@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,10 +98,30 @@ cv::String typeToString(int type)
     case CV_8UC2  : return "CV_8UC2";
     case CV_8UC3  : return "CV_8UC3";
     case CV_8UC4  : return "CV_8UC4";
+    case CV_16FC1 : return "CV_16FC1";
+    case CV_16FC2 : return "CV_16FC2";
+    case CV_16FC3 : return "CV_16FC3";
+    case CV_16FC4 : return "CV_16FC4";
     case CV_32FC1 : return "CV_32FC1";
     case CV_32FC2 : return "CV_32FC2";
     case CV_32FC3 : return "CV_32FC3";
     case CV_32FC4 : return "CV_32FC4";
+    case CV_8SC1  : return "CV_8SC1";
+    case CV_8SC2  : return "CV_8SC2";
+    case CV_8SC3  : return "CV_8SC3";
+    case CV_8SC4  : return "CV_8SC4";
+    case CV_16SC1 : return "CV_16SC1";
+    case CV_16SC2 : return "CV_16SC2";
+    case CV_16SC3 : return "CV_16SC3";
+    case CV_16SC4 : return "CV_16SC4";
+    case CV_16UC1 : return "CV_16UC1";
+    case CV_16UC2 : return "CV_16UC2";
+    case CV_16UC3 : return "CV_16UC3";
+    case CV_16UC4 : return "CV_16UC4";
+    case CV_32SC1 : return "CV_32SC1";
+    case CV_32SC2 : return "CV_32SC2";
+    case CV_32SC3 : return "CV_32SC3";
+    case CV_32SC4 : return "CV_32SC4";
     }
     CV_Assert(!"ERROR: unsupported type!");
     return nullptr;
@@ -117,7 +137,7 @@ cv::String colorFormatToString(InferenceEngine::ColorFormat f) {
         case ColorFormat::RGBX: return "RGBX";
         case ColorFormat::BGRX: return "BGRX";
         case ColorFormat::NV12: return "NV12";
-        default: THROW_IE_EXCEPTION << "Unrecognized color format";
+        default: IE_THROW() << "Unrecognized color format";
     }
 }
 
@@ -142,6 +162,7 @@ std::vector<test::Mat> to_test(std::vector<cv::Mat>& mats)
 }
 
 test::Rect to_test(cv::Rect& rect) { return {rect.x, rect.y, rect.width, rect.height}; }
+test::Scalar to_test(cv::Scalar const& sc) { return {sc[0], sc[1], sc[2], sc[3]}; }
 
 cv::ColorConversionCodes toCvtColorCode(InferenceEngine::ColorFormat in,
                                      InferenceEngine::ColorFormat out) {
@@ -179,7 +200,7 @@ int numChannels(InferenceEngine::ColorFormat fmt) {
         case ColorFormat::BGR: return 3;
         case ColorFormat::RGBX: return 4;
         case ColorFormat::BGRX: return 4;
-        default: THROW_IE_EXCEPTION << "Unrecognized color format";
+        default: IE_THROW() << "Unrecognized color format";
     }
 }
 
@@ -193,7 +214,7 @@ InferenceEngine::Blob::Ptr img2Blob(cv::Mat &img, InferenceEngine::Layout layout
     const size_t height = img.size().height;
     const size_t width = img.size().width;
 
-    CV_Assert(cv::DataType<data_t>::depth == img.depth());
+    CV_Assert(cv::DataType<data_t>::depth == img.depth() || (PRC == Precision::FP16 && img.depth() == CV_16F));
 
     SizeVector dims = {1, channels, height, width};
     Blob::Ptr resultBlob = make_shared_blob<data_t>(TensorDesc(PRC, dims, layout));;
@@ -223,7 +244,7 @@ InferenceEngine::Blob::Ptr img2Blob(cv::Mat &img, InferenceEngine::Layout layout
         }
         break;
         default:
-            THROW_IE_EXCEPTION << "Inconsistent input layout for image processing: " << layout;
+            IE_THROW() << "Inconsistent input layout for image processing: " << layout;
     }
     return resultBlob;
 }
@@ -237,7 +258,8 @@ void Blob2Img(const InferenceEngine::Blob::Ptr& blobP, cv::Mat& img, InferenceEn
     const size_t height = img.size().height;
     const size_t width = img.size().width;
 
-    CV_Assert(cv::DataType<data_t>::depth == img.depth());
+    //IE and OpenCV use different data types for FP16 representation, so need to check for it explicitly
+    CV_Assert(cv::DataType<data_t>::depth == img.depth() || ((img.depth() == CV_16F) && (PRC == Precision::FP16)));
 
     data_t* blobData = blobP->buffer().as<data_t*>();
 
@@ -263,7 +285,7 @@ void Blob2Img(const InferenceEngine::Blob::Ptr& blobP, cv::Mat& img, InferenceEn
         }
         break;
         default:
-            THROW_IE_EXCEPTION << "Inconsistent input layout for image processing: " << layout;
+            IE_THROW() << "Inconsistent input layout for image processing: " << layout;
     }
 }
 } // anonymous namespace
@@ -438,11 +460,20 @@ TEST_P(SplitTestGAPI, AccuracyTest)
     cv::Size sz = std::get<2>(params);
     double tolerance = std::get<3>(params);
 
-    int srcType = CV_MAKE_TYPE(depth, planes);
+    auto make_src_type = [planes](int d){
+            return CV_MAKE_TYPE(d, planes);
+    };
+    int srcType = make_src_type(depth);
     int dstType = CV_MAKE_TYPE(depth, 1);
 
     cv::Mat in_mat(sz, srcType);
-    cv::randn(in_mat, cv::Scalar::all(127), cv::Scalar::all(40.f));
+    bool const is_fp16 = (depth == CV_16F);
+    cv::Mat rnd_mat =  is_fp16 ? cv::Mat(sz, make_src_type(CV_32F)) : in_mat;
+    cv::randn(rnd_mat, cv::Scalar::all(127), cv::Scalar::all(40.f));
+
+    if (is_fp16) {
+        rnd_mat.convertTo(in_mat, depth);
+    }
 
     std::vector<cv::Mat> out_mats_gapi(planes, cv::Mat::zeros(sz, dstType));
     std::vector<cv::Mat> out_mats_ocv (planes, cv::Mat::zeros(sz, dstType));
@@ -520,12 +551,21 @@ TEST_P(MergeTestGAPI, AccuracyTest)
     cv::Size sz = std::get<2>(params);
     double tolerance = std::get<3>(params);
 
-    int srcType = CV_MAKE_TYPE(depth, 1);
+    auto make_src_type = [](int d){
+            return CV_MAKE_TYPE(d, 1);
+    };
+    int srcType = make_src_type(depth);
     int dstType = CV_MAKE_TYPE(depth, planes);
 
     std::vector<cv::Mat> in_mats(planes, cv::Mat(sz, srcType));
     for (int p = 0; p < planes; p++) {
-        cv::randn(in_mats[p], cv::Scalar::all(127), cv::Scalar::all(40.f));
+        bool const is_fp16 = (depth == CV_16F);
+        cv::Mat rnd_mat =  is_fp16 ? cv::Mat(sz, make_src_type(CV_32F)) : in_mats[p];
+        cv::randn(rnd_mat, cv::Scalar::all(127), cv::Scalar::all(40.f));
+
+        if (is_fp16) {
+            rnd_mat.convertTo(in_mats[p], depth);
+        }
     }
 
     cv::Mat out_mat_ocv  = cv::Mat::zeros(sz, dstType);
@@ -659,6 +699,61 @@ TEST_P(ConvertDepthTestGAPI, AccuracyTest)
         EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
     }
 }
+
+TEST_P(DivCTestGAPI, AccuracyTest)
+{
+    const auto params       = GetParam();
+    const int in_depth      = std::get<0>(params);
+    const int in_channels   = std::get<1>(params);
+    const cv::Size sz       = std::get<2>(params);
+    const cv::Scalar C      = std::get<3>(params);
+    double tolerance        = std::get<4>(params);
+
+    const int in_type = CV_MAKETYPE(in_depth,in_channels);
+
+    initMatrixRandU(in_type, sz, in_type);
+
+    // G-API code
+    DivCComputation cc(to_test(in_mat1), to_test(out_mat_gapi), to_test(C));
+    cc.warmUp();
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_mat_ocv = in_mat1 / C;
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
+    }
+}
+
+TEST_P(SubCTestGAPI, AccuracyTest)
+{
+    const auto params       = GetParam();
+    const int in_depth      = std::get<0>(params);
+    const int in_channels   = std::get<1>(params);
+    const cv::Size sz       = std::get<2>(params);
+    const cv::Scalar C      = std::get<3>(params);
+    const double tolerance  = std::get<4>(params);
+
+    const int in_type = CV_MAKETYPE(in_depth,in_channels);
+
+    initMatrixRandU(in_type, sz, in_type);
+
+    // G-API code
+    SubCComputation cc(to_test(in_mat1), to_test(out_mat_gapi), to_test(C));
+    cc.warmUp();
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_mat_ocv = in_mat1 - C;
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
+    }
+}
+
 //----------------------------------------------------------------------
 
 TEST_P(ResizeTestIE, AccuracyTest)
@@ -754,7 +849,8 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
     cv::Scalar mean = cv::Scalar::all(127);
     cv::Scalar stddev = cv::Scalar::all(40.f);
 
-    cv::randn(in_mat1, mean, stddev);
+    if (depth != CV_16F)
+        cv::randn(in_mat1, mean, stddev);
 
     cv::Mat out_mat(size, out_type);
     cv::Mat out_mat_ocv(size, out_type);
@@ -771,7 +867,7 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
     size_t out_channels = out_mat.channels();
     CV_Assert(3 == out_channels || 4 == out_channels);
 
-    CV_Assert(CV_8U == depth || CV_32F == depth);
+    CV_Assert(CV_8U == depth || CV_32F == depth || depth == CV_16S || depth == CV_16F);
 
     ASSERT_TRUE(in_mat1.isContinuous() && out_mat.isContinuous());
 
@@ -780,8 +876,21 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
     InferenceEngine::SizeVector  in_sv = { 1, in_channels,  in_height,  in_width };
     InferenceEngine::SizeVector out_sv = { 1, out_channels, out_height, out_width };
 
+    auto depth_to_precision = [](int depth) -> Precision::ePrecision {
+        switch (depth)
+        {
+            case CV_8U:  return Precision::U8;
+            case CV_16S: return Precision::I16;
+            case CV_16F: return Precision::FP16;
+            case CV_32F: return Precision::FP32;
+            default:
+                throw std::logic_error("Unsupported configuration");
+        }
+        return Precision::UNSPECIFIED;
+    };
+
     // HWC blob: channels are interleaved
-    Precision precision = CV_8U == depth ? Precision::U8 : Precision::FP32;
+    Precision precision = depth_to_precision(depth);
 
     Blob::Ptr in_blob, out_blob;
     switch (precision)
@@ -795,6 +904,18 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
         in_blob = img2Blob<Precision::FP32>(in_mat1, in_layout);
         out_blob = img2Blob<Precision::FP32>(out_mat, out_layout);
         break;
+
+    case Precision::I16:
+        in_blob = img2Blob<Precision::I16>(in_mat1, in_layout);
+        out_blob = img2Blob<Precision::I16>(out_mat, out_layout);
+        break;
+
+    case Precision::FP16:
+        in_blob =  img2Blob<Precision::FP16>(in_mat1, in_layout);
+        out_blob = img2Blob<Precision::FP16>(out_mat, out_layout);
+
+        break;
+
 
     default:
         FAIL() << "Unsupported configuration";
@@ -813,6 +934,8 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
     {
     case Precision::U8:   Blob2Img<Precision::U8>  (out_blob, out_mat, out_layout); break;
     case Precision::FP32: Blob2Img<Precision::FP32>(out_blob, out_mat, out_layout); break;
+    case Precision::I16:  Blob2Img<Precision::I16> (out_blob, out_mat, out_layout); break;
+    case Precision::FP16: Blob2Img<Precision::FP16> (out_blob, out_mat, out_layout); break;
     default: FAIL() << "Unsupported configuration";
     }
 
@@ -1221,5 +1344,31 @@ TEST_P(PreprocTest, Performance)
             out_layout_str.c_str(), out_size.width, out_size.height,
             colorFormatToString(in_fmt).c_str(), colorFormatToString(out_fmt).c_str());
 #endif // PERF_TEST
+}
+
+TEST_P(MeanValueGAPI, AccuracyTest)
+{
+    const auto params = GetParam();
+    cv::Size sz       = std::get<0>(params);
+    double tolerance  = std::get<1>(params);
+
+    initMatrixRandU(CV_32FC1, sz, CV_32FC1);
+
+    const cv::Scalar mean = { 0.485, 0.456, 0.406 };
+    const cv::Scalar std  = { 0.229, 0.224, 0.225 };
+
+    // G-API code
+    MeanValueSubtractComputation cc(to_test(in_mat1), to_test(out_mat_gapi), to_test(mean), to_test(std));
+    cc.warmUp();
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_mat_ocv = (in_mat1 - mean) / std;
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
+    }
 
 }
+

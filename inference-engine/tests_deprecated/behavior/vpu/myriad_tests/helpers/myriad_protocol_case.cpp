@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "myriad_protocol_case.hpp"
 #include "mvnc_ext.h"
+#include "vpu/myriad_config.hpp"
 
 void MyriadProtocolTests::SetUp() {
     protocol = GetParam();

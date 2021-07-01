@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,6 +104,18 @@ TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::Shape &ref_shape, con
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
                                                              const ngraph::Output<ngraph::Node>& apply_to);
 
+TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max_seq_len);
+
+TRANSFORMATIONS_API std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const OutputVector& inputs);
+
+template <typename T, typename... Args>
+std::shared_ptr<Node> make_try_fold(Args&&... args) {
+    auto unary_output_node = std::make_shared<T>(std::forward<Args>(args)...);
+    return try_fold_unary_output(unary_output_node);
+}
+
 template <class T>
 Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & input1) {
     auto eltwise = std::make_shared<T>(input0, input1);
@@ -116,6 +128,9 @@ Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & inpu
     }
     return output[0];
 }
+
+TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);
+
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,6 +74,7 @@ class ConcatTransformationTestValues {
 public:
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool multiChannels;
+    std::int64_t axis;
     ConcatTransformationActualValues actual;
     ConcatTransformationResultValues result;
 };
@@ -84,7 +85,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationTes
 
 typedef std::tuple <
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     ConcatTransformationTestValues
 > ConcatTransformationParams;
 
@@ -92,7 +93,7 @@ class ConcatTransformation : public LayerTransformation, public testing::WithPar
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
+        const ngraph::PartialShape shape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
         // dequantization output precision depends on input precision
@@ -114,7 +115,8 @@ public:
             testValues.actual.convert2,
             testValues.actual.dequantization2,
             ngraph::element::undefined,
-            {});
+            {},
+            testValues.axis);
 
         SimpleLowPrecisionTransformer transform;
         if (testValues.multiChannels) {
@@ -146,18 +148,20 @@ public:
             testValues.result.convert2,
             testValues.result.dequantization2,
             testValues.result.precisionAfterOperation,
-            testValues.result.dequantizationAfter);
+            testValues.result.dequantizationAfter,
+            testValues.axis);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
         const ngraph::element::Type precision = std::get<0>(obj.param);
-        const ngraph::Shape shape = std::get<1>(obj.param);
+        const ngraph::PartialShape shape = std::get<1>(obj.param);
         const ConcatTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
         result <<
             LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params) << "_" <<
             (testValues.multiChannels ? "multiChannels_" : "notMultiChannels_") <<
+            "axis_" << testValues.axis << "_" <<
             testValues.actual << "_" <<
             testValues.result << "_";
         return result.str();
@@ -175,11 +179,19 @@ const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f16
 };
 
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> shapes = {
+    { 1, 3, 9, 9 },
+    { 4, 3, 9, 9 },
+    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
+};
+
 const std::vector<ConcatTransformationTestValues> testValues = {
     // U8: concat
     {
         LayerTransformation::createParamsU8I8(),
         false,
+        1,
         {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -201,6 +213,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         false,
+        1,
         {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
             { ngraph::element::u8 },
@@ -232,6 +245,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         true,
+        1,
         {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
             { ngraph::element::u8 },
@@ -263,6 +277,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         false,
+        1,
         {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -290,6 +305,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         true,
+        1,
         {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -317,6 +333,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         false,
+        1,
         {
             { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -340,6 +357,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         false,
+        1,
         {
             { 256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -363,6 +381,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         true,
+        1,
         {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -386,6 +405,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         true,
+        1,
         {
             { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -409,6 +429,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         true,
+        1,
         {
             {
                 256ul,
@@ -450,6 +471,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         true,
+        1,
         {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -477,6 +499,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsI8I8(),
         false,
+        1,
         {
             { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
             {},
@@ -500,6 +523,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         false,
+        1,
         {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -523,6 +547,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         true,
+        1,
         {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -546,6 +571,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         false,
+        1,
         {
             { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
             {},
@@ -569,6 +595,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         false,
+        1,
         {
             { 256ul, {}, {-1.28f}, {1.27f}, {0.f}, {2.3007815f} },
             {},
@@ -588,10 +615,61 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { ngraph::element::f32, { 128 }, { 0.0302619f } }
         }
     },
+    // U8: concat multi channels with subtract, negative axis
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        -3,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+            {},
+            {},
+            { 256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+            {},
+            {},
+            ngraph::element::u8,
+            {
+                ngraph::element::f32,
+                {{ 0.f, 0.f, 0.f, -255.f, -255.f, -255.f }},
+                {{ 0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f }}
+            }
+        }
+    },
+    // U8: concat multi channels with subtract, not supported axis
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        0,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
+            {},
+            {}
+        },
+    },
     // not update precisions
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         false,
+        1,
         {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
@@ -610,15 +688,58 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::f32,
             { {element::f32}, {}, { 0.01f } },
         }
+    },
+    // unexpected quantization levels, concat
+    {
+        LayerTransformation::createParamsU8I8(),
+        false,
+        1,
+        {
+            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            ngraph::element::f32,
+            {},
+        }
+    },
+    // unexpected quantization levels, concat multi channels
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            ngraph::element::f32,
+            {},
+        }
     }
 };
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 3, 9, 9 },
-    { 4, 3, 9, 9 }
-};
-
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConcatTransformation,
     ::testing::Combine(
@@ -626,4 +747,45 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
     ConcatTransformation::getTestCaseName);
-}  // namespace
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
+    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+    PartialShape::dynamic()
+};
+
+const std::vector<ConcatTransformationTestValues> testValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
+            {},
+            {}
+        },
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ConcatTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(shapesWithDynamicChannels),
+        ::testing::ValuesIn(testValues)),
+    ConcatTransformation::getTestCaseName);
+} // namespace testValues2
+} // namespace

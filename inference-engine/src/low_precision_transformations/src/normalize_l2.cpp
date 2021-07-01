@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,10 +65,11 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
 
     const ngraph::Shape outputShape = scalesConst->get_output_shape(0);
     const size_t size = ngraph::shape_size(outputShape);
-    const size_t channels = operation->get_output_shape(0)[1];
-
-    if (size != channels && size != 1) {
-        return false;
+    if (size != 1ul) {
+        const auto channelsInterval = operation->get_output_partial_shape(0)[1];
+        if (channelsInterval.is_dynamic() || static_cast<size_t>(channelsInterval.get_length()) != size) {
+            return false;
+        }
     }
 
     if (!NetworkHelper::isScalarLike(scalesConst)) {
@@ -120,10 +121,10 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     }
 
     auto newNormalize = std::make_shared<op::TypeRelaxed<opset1::NormalizeL2>>(
-        std::vector<ngraph::element::Type>{ element::f32, element::f32 },
+        std::vector<ngraph::element::Type>{ element::f32, axes->output(0).get_element_type() },
         std::vector<ngraph::element::Type>{deqPrecision},
         ngraph::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(axes->clone_with_new_inputs({}), element::f32).get(),
+        axes,
         normalize->get_eps(),
         normalize->get_eps_mode());
     NetworkHelper::copyInfo(normalize, newNormalize);

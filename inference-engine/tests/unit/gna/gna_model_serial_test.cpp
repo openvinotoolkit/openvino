@@ -1,6 +1,7 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -21,5 +22,5 @@ TEST(GNAModelSerialTest, TestErrorOnTellg) {
     IstreamMock mock;
     EXPECT_CALL(mock, seekoff(_, _, _)).WillRepeatedly(Return(-1));
     std::istream is(&mock);
-    ASSERT_THROW(GNAModelSerial::ReadHeader(is), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(GNAModelSerial::ReadHeader(is), InferenceEngine::Exception);
 }

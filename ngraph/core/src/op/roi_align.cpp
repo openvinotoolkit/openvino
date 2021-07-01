@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/roi_align.hpp"
 #include "itt.hpp"
@@ -193,7 +181,8 @@ namespace ngraph
     constexpr DiscreteTypeInfo AttributeAdapter<op::v3::ROIAlign::PoolingMode>::type_info;
 
     template <>
-    EnumNames<op::v3::ROIAlign::PoolingMode>& EnumNames<op::v3::ROIAlign::PoolingMode>::get()
+    NGRAPH_API EnumNames<op::v3::ROIAlign::PoolingMode>&
+        EnumNames<op::v3::ROIAlign::PoolingMode>::get()
     {
         static auto enum_names =
             EnumNames<op::v3::ROIAlign::PoolingMode>("op::v3::ROIAlign::PoolingMode",
@@ -297,7 +286,7 @@ namespace roi_alinop
 
         return rc;
     }
-} // namespace
+} // namespace roi_alinop
 
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
@@ -305,4 +294,17 @@ bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v3_ROIAlign_evaluate);
     return roi_alinop::evaluate_roi_align(
         inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
+}
+
+bool op::v3::ROIAlign::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_ROIAlign_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

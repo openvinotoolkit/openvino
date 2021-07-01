@@ -1,22 +1,20 @@
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-
-#include "include/fetch.cl"
+#include "include/fetch_weights.cl"
 #include "include/reshape_dims.cl"
 #include "include/data_types.cl"
 
+#define DECLARE_SAMPLER const sampler_t imageSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST
+
+#if FP16_UNIT_USED
+    #define IMAGE_READ(image, coord) read_imageh((image), imageSampler, (coord))
+    #define IMAGE_WRITE(image, coord, val) write_imageh((image), (coord), (val))
+#else
+    #define IMAGE_READ(image, coord) read_imagef((image), imageSampler, (coord))
+    #define IMAGE_WRITE(image, coord, val) write_imagef((image), (coord), (val))
+#endif
 
 ///////////////////////// Input Index /////////////////////////
 inline uint FUNC(get_input_index)(uint g, uint o, uint i, uint z, uint y, uint x)

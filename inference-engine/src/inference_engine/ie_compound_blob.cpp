@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +21,12 @@ namespace {
 TensorDesc verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
     // Y and UV must be valid pointers
     if (y == nullptr || uv == nullptr) {
-        THROW_IE_EXCEPTION << "Y and UV planes must be valid Blob objects";
+        IE_THROW() << "Y and UV planes must be valid Blob objects";
     }
 
     // both Y and UV must be MemoryBlob objects
     if (!y->is<MemoryBlob>() || !uv->is<MemoryBlob>()) {
-        THROW_IE_EXCEPTION << "Y and UV planes must be MemoryBlob objects";
+        IE_THROW() << "Y and UV planes must be MemoryBlob objects";
     }
 
     // NOTE: having Blob::Ptr (shared_ptr) and checking Blob::is() status above ensures that the
@@ -35,7 +35,7 @@ TensorDesc verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
     auto uvMemoryBlob = uv->as<MemoryBlob>();
     // check Blob element size
     if (yMemoryBlob->element_size() != uvMemoryBlob->element_size()) {
-        THROW_IE_EXCEPTION << "Y and UV planes have different element sizes: " << yMemoryBlob->element_size()
+        IE_THROW() << "Y and UV planes have different element sizes: " << yMemoryBlob->element_size()
                            << " != " << uvMemoryBlob->element_size();
     }
 
@@ -45,50 +45,50 @@ TensorDesc verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
 
     // check precision
     if (yDesc.getPrecision() != Precision::U8) {
-        THROW_IE_EXCEPTION << "Y plane precision must be U8, actual: " << yDesc.getPrecision();
+        IE_THROW() << "Y plane precision must be U8, actual: " << yDesc.getPrecision();
     }
     if (uvDesc.getPrecision() != Precision::U8) {
-        THROW_IE_EXCEPTION << "UV plane precision must be U8, actual: " << uvDesc.getPrecision();
+        IE_THROW() << "UV plane precision must be U8, actual: " << uvDesc.getPrecision();
     }
 
     // check layout
     if (yDesc.getLayout() != Layout::NHWC) {
-        THROW_IE_EXCEPTION << "Y plane layout must be NHWC, actual: " << yDesc.getLayout();
+        IE_THROW() << "Y plane layout must be NHWC, actual: " << yDesc.getLayout();
     }
     if (uvDesc.getLayout() != Layout::NHWC) {
-        THROW_IE_EXCEPTION << "UV plane layout must be NHWC, actual: " << uvDesc.getLayout();
+        IE_THROW() << "UV plane layout must be NHWC, actual: " << uvDesc.getLayout();
     }
 
     // check dimensions
     const auto& yDims = yDesc.getDims();
     const auto& uvDims = uvDesc.getDims();
     if (yDims.size() != 4 || uvDims.size() != 4) {
-        THROW_IE_EXCEPTION << "Y and UV planes dimension sizes must be 4, actual: " << yDims.size() << "(Y plane) and "
+        IE_THROW() << "Y and UV planes dimension sizes must be 4, actual: " << yDims.size() << "(Y plane) and "
                            << uvDims.size() << "(UV plane)";
     }
 
     // check batch size
     if (yDims[0] != uvDims[0]) {
-        THROW_IE_EXCEPTION << "Y and UV planes must have the same batch size";
+        IE_THROW() << "Y and UV planes must have the same batch size";
     }
 
     // check number of channels
     if (yDims[1] != 1) {
-        THROW_IE_EXCEPTION << "Y plane must have 1 channel, actual: " << yDims[1];
+        IE_THROW() << "Y plane must have 1 channel, actual: " << yDims[1];
     }
     if (uvDims[1] != 2) {
-        THROW_IE_EXCEPTION << "UV plane must have 2 channels, actual: " << uvDims[1];
+        IE_THROW() << "UV plane must have 2 channels, actual: " << uvDims[1];
     }
 
     // check height
     if (yDims[2] != 2 * uvDims[2]) {
-        THROW_IE_EXCEPTION << "The height of the Y plane must be equal to (2 * the height of the UV plane), actual: "
+        IE_THROW() << "The height of the Y plane must be equal to (2 * the height of the UV plane), actual: "
                            << yDims[2] << "(Y plane) and " << uvDims[2] << "(UV plane)";
     }
 
     // check width
     if (yDims[3] != 2 * uvDims[3]) {
-        THROW_IE_EXCEPTION << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
+        IE_THROW() << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
                            << yDims[3] << "(Y plane) and " << uvDims[3] << "(UV plane)";
     }
 
@@ -98,12 +98,12 @@ TensorDesc verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
 TensorDesc verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr& v) {
     // Y and UV must be valid pointers
     if (y == nullptr || u == nullptr || v == nullptr) {
-        THROW_IE_EXCEPTION << "Y, U and V planes must be valid Blob objects";
+        IE_THROW() << "Y, U and V planes must be valid Blob objects";
     }
 
     // both Y and UV must be MemoryBlob objects
     if (!y->is<MemoryBlob>() || !u->is<MemoryBlob>() || !v->is<MemoryBlob>()) {
-        THROW_IE_EXCEPTION << "Y, U and V planes must be MemoryBlob objects";
+        IE_THROW() << "Y, U and V planes must be MemoryBlob objects";
     }
 
     // NOTE: having Blob::Ptr (shared_ptr) and checking Blob::is() status above ensures that the
@@ -113,7 +113,7 @@ TensorDesc verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blo
     auto vMemoryBlob = v->as<MemoryBlob>();
     // check Blob element size
     if (yMemoryBlob->element_size() != uMemoryBlob->element_size() || yMemoryBlob->element_size() != vMemoryBlob->element_size()) {
-        THROW_IE_EXCEPTION << "Y and UV planes have different element sizes: " << yMemoryBlob->element_size()
+        IE_THROW() << "Y and UV planes have different element sizes: " << yMemoryBlob->element_size()
                            << " != " << uMemoryBlob->element_size()
                            << " != " << vMemoryBlob->element_size();
     }
@@ -125,24 +125,24 @@ TensorDesc verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blo
 
     // check precision
     if (yDesc.getPrecision() != Precision::U8) {
-        THROW_IE_EXCEPTION << "Y plane precision must be U8, actual: " << yDesc.getPrecision();
+        IE_THROW() << "Y plane precision must be U8, actual: " << yDesc.getPrecision();
     }
     if (uDesc.getPrecision() != Precision::U8) {
-        THROW_IE_EXCEPTION << "U plane precision must be U8, actual: " << uDesc.getPrecision();
+        IE_THROW() << "U plane precision must be U8, actual: " << uDesc.getPrecision();
     }
     if (vDesc.getPrecision() != Precision::U8) {
-        THROW_IE_EXCEPTION << "V plane precision must be U8, actual: " << vDesc.getPrecision();
+        IE_THROW() << "V plane precision must be U8, actual: " << vDesc.getPrecision();
     }
 
     // check layout
     if (yDesc.getLayout() != Layout::NHWC) {
-        THROW_IE_EXCEPTION << "Y plane layout must be NHWC, actual: " << yDesc.getLayout();
+        IE_THROW() << "Y plane layout must be NHWC, actual: " << yDesc.getLayout();
     }
     if (uDesc.getLayout() != Layout::NHWC) {
-        THROW_IE_EXCEPTION << "U plane layout must be NHWC, actual: " << uDesc.getLayout();
+        IE_THROW() << "U plane layout must be NHWC, actual: " << uDesc.getLayout();
     }
     if (uDesc.getLayout() != Layout::NHWC) {
-        THROW_IE_EXCEPTION << "V plane layout must be NHWC, actual: " << vDesc.getLayout();
+        IE_THROW() << "V plane layout must be NHWC, actual: " << vDesc.getLayout();
     }
 
     // check dimensions
@@ -151,45 +151,45 @@ TensorDesc verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blo
     const auto& vDims = vDesc.getDims();
 
     if (yDims.size() != 4 || uDims.size() != 4 || vDims.size() != 4) {
-        THROW_IE_EXCEPTION << "Y,U and V planes dimension sizes must be 4, actual: " << yDims.size() << "(Y plane) and "
+        IE_THROW() << "Y,U and V planes dimension sizes must be 4, actual: " << yDims.size() << "(Y plane) and "
                            << uDims.size() << "(U plane) "
                            << vDims.size() << "(V plane)";
     }
 
     // check batch size
     if (yDims[0] != uDims[0] || yDims[0] != vDims[0]) {
-        THROW_IE_EXCEPTION << "Y, U and U planes must have the same batch size";
+        IE_THROW() << "Y, U and U planes must have the same batch size";
     }
 
     // check number of channels
     if (yDims[1] != 1) {
-        THROW_IE_EXCEPTION << "Y plane must have 1 channel, actual: " << yDims[1];
+        IE_THROW() << "Y plane must have 1 channel, actual: " << yDims[1];
     }
     if (uDims[1] != 1) {
-        THROW_IE_EXCEPTION << "U plane must have 1 channel, actual: " << uDims[1];
+        IE_THROW() << "U plane must have 1 channel, actual: " << uDims[1];
     }
     if (vDims[1] != 1) {
-        THROW_IE_EXCEPTION << "V plane must have 1 channel, actual: " << vDims[1];
+        IE_THROW() << "V plane must have 1 channel, actual: " << vDims[1];
     }
 
     // check height
     if (yDims[2] != 2 * uDims[2]) {
-        THROW_IE_EXCEPTION << "The height of the Y plane must be equal to (2 * the height of the U plane), actual: "
+        IE_THROW() << "The height of the Y plane must be equal to (2 * the height of the U plane), actual: "
                            << yDims[2] << "(Y plane) and " << uDims[2] << "(U plane)";
     }
 
     if (yDims[2] != 2 * vDims[2]) {
-        THROW_IE_EXCEPTION << "The height of the Y plane must be equal to (2 * the height of the UV plane), actual: "
+        IE_THROW() << "The height of the Y plane must be equal to (2 * the height of the UV plane), actual: "
                            << yDims[2] << "(Y plane) and " << vDims[2] << "(V plane)";
     }
 
     // check width
     if (yDims[3] != 2 * uDims[3]) {
-        THROW_IE_EXCEPTION << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
+        IE_THROW() << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
                            << yDims[3] << "(Y plane) and " << uDims[3] << "(U plane)";
     }
     if (yDims[3] != 2 * vDims[3]) {
-        THROW_IE_EXCEPTION << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
+        IE_THROW() << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
                            << yDims[3] << "(Y plane) and " << vDims[3] << "(V plane)";
     }
 
@@ -215,14 +215,14 @@ TensorDesc getBlobTensorDesc(const Blob::Ptr& blob) {
 TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
     // verify invariants
     if (blobs.empty()) {
-        THROW_IE_EXCEPTION << "BatchedBlob cannot be created from empty vector of Blob, Please, make sure vector contains at least one Blob";
+        IE_THROW() << "BatchedBlob cannot be created from empty vector of Blob, Please, make sure vector contains at least one Blob";
     }
 
     // Cannot create a compound blob from nullptr Blob objects
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob == nullptr;
         })) {
-        THROW_IE_EXCEPTION << "Cannot create a compound blob from nullptr Blob objects";
+        IE_THROW() << "Cannot create a compound blob from nullptr Blob objects";
     }
 
     const auto subBlobDesc = getBlobTensorDesc(blobs[0]);
@@ -231,7 +231,7 @@ TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
                     [&subBlobDesc](const Blob::Ptr& blob) {
                         return getBlobTensorDesc(blob) != subBlobDesc;
                     })) {
-        THROW_IE_EXCEPTION << "All blobs tensors should be equal";
+        IE_THROW() << "All blobs tensors should be equal";
     }
 
     auto subBlobLayout = subBlobDesc.getLayout();
@@ -247,7 +247,7 @@ TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
     case CN:
         blobLayout = subBlobLayout;
         if (blobDims[0] != 1) {
-            THROW_IE_EXCEPTION << "All blobs should be batch 1";
+            IE_THROW() << "All blobs should be batch 1";
         }
         blobDims[0] = blobs.size();
         break;
@@ -264,7 +264,7 @@ TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
         blobDims.insert(blobDims.begin(), blobs.size());
         break;
     default:
-        THROW_IE_EXCEPTION << "Unsupported sub-blobs layout - to be one of: [NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW]";
+        IE_THROW() << "Unsupported sub-blobs layout - to be one of: [NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW]";
     }
 
     return TensorDesc{subBlobDesc.getPrecision(), blobDims, blobLayout};
@@ -279,7 +279,7 @@ CompoundBlob::CompoundBlob(const std::vector<Blob::Ptr>& blobs): CompoundBlob(Te
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob == nullptr;
         })) {
-        THROW_IE_EXCEPTION << "Cannot create a compound blob from nullptr Blob objects";
+        IE_THROW() << "Cannot create a compound blob from nullptr Blob objects";
     }
 
     // Check that none of the blobs provided is compound. If at least one of them is compound, throw
@@ -287,7 +287,7 @@ CompoundBlob::CompoundBlob(const std::vector<Blob::Ptr>& blobs): CompoundBlob(Te
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob->is<CompoundBlob>();
         })) {
-        THROW_IE_EXCEPTION << "Cannot create a compound blob from other compound blobs";
+        IE_THROW() << "Cannot create a compound blob from other compound blobs";
     }
 
     this->_blobs = blobs;
@@ -298,7 +298,7 @@ CompoundBlob::CompoundBlob(std::vector<Blob::Ptr>&& blobs): CompoundBlob(TensorD
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob == nullptr;
         })) {
-        THROW_IE_EXCEPTION << "Cannot create a compound blob from nullptr Blob objects";
+        IE_THROW() << "Cannot create a compound blob from nullptr Blob objects";
     }
 
     // Check that none of the blobs provided is compound. If at least one of them is compound, throw
@@ -306,7 +306,7 @@ CompoundBlob::CompoundBlob(std::vector<Blob::Ptr>&& blobs): CompoundBlob(TensorD
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob->is<CompoundBlob>();
         })) {
-        THROW_IE_EXCEPTION << "Cannot create a compound blob from other compound blobs";
+        IE_THROW() << "Cannot create a compound blob from other compound blobs";
     }
 
     this->_blobs = std::move(blobs);

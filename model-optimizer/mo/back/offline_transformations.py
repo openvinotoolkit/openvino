@@ -1,28 +1,51 @@
-#!/usr/bin/env python3
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
-"""
- Copyright (C) 2021 Intel Corporation
+import argparse
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+from mo.utils.error import Error
+from mo.utils.cli_parser import parse_transform
 
-      http://www.apache.org/licenses/LICENSE-2.0
 
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+def get_available_transformations():
+    try:
+        from openvino.offline_transformations import ApplyLowLatencyTransformation  # pylint: disable=import-error,no-name-in-module
+        return {
+            'LowLatency2': ApplyLowLatencyTransformation,
+        }
+    except Exception as e:
+        return {}
+
+
+def apply_offline_transformations(input_model: str, framework: str, transforms: list):
+    # This variable is only needed by GenerateMappingFile transformation
+    # to produce correct mapping
+    extract_names = framework in ['tf', 'mxnet', 'kaldi']
+
+    from openvino.inference_engine import read_network  # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import ApplyMOCTransformations, GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+
+    net = read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
+
+    available_transformations = get_available_transformations()
+
+    for name, args in transforms:
+        if name not in available_transformations.keys():
+            raise Error("Transformation {} is not available.".format(name))
+
+        available_transformations[name](net, **args)
+
+    ApplyMOCTransformations(net, False)
+    net.serialize(input_model + ".xml", input_model + ".bin")
+    path_to_mapping = input_model + ".mapping"
+    GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)
 
 
 if __name__ == "__main__":
-    try:
-        from openvino.inference_engine import IECore # pylint: disable=import-error
-        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI # pylint: disable=import-error
-    except Exception as e:
-        print("[ WARNING ] {}".format(e))
-        exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input_model")
+    parser.add_argument("--framework")
+    parser.add_argument("--transform")
+    args = parser.parse_args()
 
-    CheckAPI()
+    apply_offline_transformations(args.input_model, args.framework, parse_transform(args.transform))

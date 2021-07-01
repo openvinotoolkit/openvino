@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
         const DequantizationOperations::Convert& convertOnData,
         const DequantizationOperations& dequantizationOnData,
@@ -44,7 +44,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
         const DequantizationOperations::Convert& convertOnData,
         const DequantizationOperations& dequantizationOnData,
@@ -57,7 +57,8 @@ public:
         const Transpose& transpose,
         const Reshape& reshape2,
         const DequantizationOperations& dequantizationAfter,
-        const std::string operation = "Convolution");
+        const std::string operation = "Convolution",
+        bool multiplyAfter = false);
 };
 
 }  // namespace subgraph

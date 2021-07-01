@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <functional>
 #include <string>
 #include <memory>
+#include <atomic>
 #include <mutex>
 #include <map>
 
@@ -62,7 +63,7 @@ class MKLDNNWeightsSharing {
 
         std::mutex guard;
         std::weak_ptr<MKLDNNMemory> sharedMemory;
-        bool valid;
+        std::atomic<bool> valid;
     };
 
 public:

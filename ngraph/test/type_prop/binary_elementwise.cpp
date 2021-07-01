@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -85,30 +73,6 @@ TEST(type_prop, add_bad_arguments)
     test_binary("Add",
                 [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
                     return make_shared<op::v1::Add>(x, y);
-                });
-}
-
-TEST(type_prop, divide_bad_arguments)
-{
-    test_binary("Divide",
-                [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-                    return make_shared<op::v1::Divide>(x, y);
-                });
-}
-
-TEST(type_prop, multiply_bad_arguments)
-{
-    test_binary("Multiply",
-                [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-                    return make_shared<op::v1::Multiply>(x, y);
-                });
-}
-
-TEST(type_prop, subtract_bad_arguments)
-{
-    test_binary("Subtract",
-                [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-                    return make_shared<op::v1::Subtract>(x, y);
                 });
 }
 
@@ -215,9 +179,13 @@ void test_binary_eltwise_numpy(const element::Type& et, const op::AutoBroadcastS
     auto param2 = make_shared<op::Parameter>(et, Shape{3, 1});
     auto param3 = make_shared<op::Parameter>(et, Shape{2, 3, 6});
     auto param4 = make_shared<op::Parameter>(et, Shape{6});
+    auto param5 = make_shared<op::Parameter>(et, Shape{});
+
     EXPECT_EQ(make_shared<T>(param1, param2, autob)->get_shape(), (Shape{1, 3, 6}));
     EXPECT_EQ(make_shared<T>(param1, param3, autob)->get_shape(), (Shape{2, 3, 6}));
     EXPECT_EQ(make_shared<T>(param4, param3, autob)->get_shape(), (Shape{2, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param5, param3, autob)->get_shape(), (Shape{2, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param3, param5, autob)->get_shape(), (Shape{2, 3, 6}));
 
     auto pp1 = make_shared<op::Parameter>(et, PartialShape{1, Dimension::dynamic(), 6});
     auto pp2 = make_shared<op::Parameter>(et, PartialShape{3, 1});
@@ -227,19 +195,14 @@ void test_binary_eltwise_numpy(const element::Type& et, const op::AutoBroadcastS
 TEST(type_prop, eltwise_auto_bcast)
 {
     test_binary_eltwise_numpy<op::v1::Add>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Divide>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Equal>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Greater>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::GreaterEqual>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Less>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::LessEqual>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Maximum>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Minimum>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Multiply>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::NotEqual>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::LogicalOr>(element::boolean, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Power>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Subtract>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Xor>(element::boolean, op::AutoBroadcastType::NUMPY);
 }
 
@@ -300,19 +263,14 @@ namespace
 TEST(type_prop, binary_arithmetic_bad_argument_shape_with_none_autobroadcast_attribute)
 {
     test_binary_eltwise_bad_argument_shape<op::v1::Add>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Divide>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::Equal>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::Greater>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::GreaterEqual>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::Less>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::LessEqual>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::Maximum>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Minimum>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Multiply>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::NotEqual>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::LogicalOr>(element::boolean);
-    test_binary_eltwise_bad_argument_shape<op::v1::Power>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Subtract>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::Xor>(element::boolean);
 }
 

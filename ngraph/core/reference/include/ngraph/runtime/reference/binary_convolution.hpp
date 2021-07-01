@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -137,37 +125,7 @@ namespace ngraph
                         }
                     }
                 }
-            }
-
-            void validate_convolution_parameters(const Shape& in_shape,
-                                                 const Shape& f_shape,
-                                                 const Strides& strides,
-                                                 const Strides& dilations,
-                                                 const CoordinateDiff& pads_begin,
-                                                 const CoordinateDiff& pads_end)
-            {
-                // this implementation supports 1D, 2D and 3D convolutions
-                NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
-                             "Unsupported input rank: ",
-                             in_shape);
-
-                NGRAPH_CHECK(in_shape.size() == f_shape.size(),
-                             "Incompatible input ranks: ",
-                             in_shape.size(),
-                             " and ",
-                             f_shape.size());
-
-                const auto spatial_dims = in_shape.size() - 2;
-                NGRAPH_CHECK(strides.size() == spatial_dims,
-                             "Strides not definied for all and only spatial dimensions");
-
-                NGRAPH_CHECK(dilations.size() == spatial_dims,
-                             "Dilations not defined for all and only spatial dimensions");
-
-                NGRAPH_CHECK((pads_begin.size() == pads_end.size()) &&
-                                 (pads_begin.size() == spatial_dims),
-                             "Pads not defined for all and only spatial dimensions");
-            }
+            } // namespace details
 
             template <typename T_IN, typename T_F>
             void binary_convolution(const T_IN* in,
@@ -183,7 +141,7 @@ namespace ngraph
                                     const float pad_value)
             {
                 validate_convolution_parameters(
-                    in_shape, f_shape, strides, dilations, pads_begin, pads_end);
+                    in_shape, f_shape, out_shape, strides, dilations, pads_begin, pads_end);
 
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later

@@ -1,24 +1,12 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "layout_optimizer.h"
 #include "topology_impl.h"
 #include "network_impl.h"
 #include "primitive_inst.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 #include "data_inst.h"
 #include "reorder_inst.h"
@@ -248,8 +236,28 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
          fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
-    if (prev.is_type<permute>())
+    if (prev.is_type<permute>()) {
+        auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
+            // Target transform: Rotate feature dim to back to be taken as inner-most axis
+            // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
+            // ex) 0(b), 3(f), 1(y), 2(x)
+            if ((int32_t) order[1] != order.size() - 1) return false;
+            if ((int32_t) order[0] != 0) return false;
+            for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
+                if ((int32_t)order[i] !=  (i - 1)) return false;
+            }
+            return true;
+        };
+
+        auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
+        if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
+         fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
+         && permute_order[1] == 2
+         && (!is_rotating_except_batch(permute_order))) {
+            return false;
+        }
         return true;
+    }
 
     return false;
 }
@@ -784,8 +792,9 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         auto input_tensor = node.get_dependency(0).get_output_layout().size;
         int input_features = input_tensor.feature[0];
         int output_features = expected_tensor.feature[0];
-        float r = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
-        if (r > 0.5f)
+        float f_cost = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
+        float stride_cost = 1/static_cast<float>(prim->stride.spatial[0]);
+        if (f_cost * stride_cost > 0.1f)
             expected_format = cldnn::format::b_fs_yx_fsv16;
         else
             expected_format = cldnn::format::bfyx;

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include "ngraph/op/scatter_nd_update.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/scatter_nd_update.hpp"
+#include "cldnn/primitives/scatter_nd_update.hpp"
 
 namespace CLDNNPlugin {
 

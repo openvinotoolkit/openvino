@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,6 @@
 namespace  GNAPluginNS {
 
 namespace memory {
-
-    std::string GNAVariableState::GetName() const {
-        return name;
-    }
 
     void GNAVariableState::Reset() {
         state->Reset();
@@ -43,7 +39,7 @@ namespace memory {
         return state_precision;
     }
 
-    void GNAVariableState::SetState(InferenceEngine::Blob::Ptr newState) {
+    void GNAVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
         IE_ASSERT(newState != nullptr);
 
         auto data_ptr = newState->cbuffer().as<void*>();

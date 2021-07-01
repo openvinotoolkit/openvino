@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header for advanced hardware related properties for IE plugins
+ * @brief A header for advanced hardware related properties for Inference Engine plugins
  *        To use in SetConfig, LoadNetwork, ImportNetwork methods of plugins
  *
  * @file ie_plugin_config.hpp
@@ -13,6 +13,9 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <map>
+
+#include "ie_precision.hpp"
 
 namespace InferenceEngine {
 
@@ -149,6 +152,36 @@ DECLARE_METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS, unsigned int);
 DECLARE_METRIC_KEY(DEVICE_ARCHITECTURE, std::string);
 
 /**
+ * @brief Enum to define possible device types
+ */
+enum class DeviceType {
+    integrated = 0,
+    discrete = 1,
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics::DeviceType& deviceType) {
+    switch (deviceType) {
+        case InferenceEngine::Metrics::DeviceType::discrete: os << "discrete"; break;
+        case InferenceEngine::Metrics::DeviceType::integrated: os << "integrated"; break;
+        default: os << "unknown"; break;
+    }
+
+    return os;
+}
+/** @endcond */
+
+/**
+ * @brief Metric to get a type of device. See DeviceType enum definition for possible return values
+ */
+DECLARE_METRIC_KEY(DEVICE_TYPE, DeviceType);
+
+/**
+ * @brief Metric which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device
+ */
+DECLARE_METRIC_KEY(DEVICE_GOPS, std::map<InferenceEngine::Precision, float>);
+
+/**
  * @brief Metric which defines support of import/export functionality by plugin
  */
 DECLARE_METRIC_KEY(IMPORT_EXPORT_SUPPORT, bool);
@@ -205,15 +238,21 @@ DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
  * @brief The name for setting CPU affinity per thread option.
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
- * PluginConfigParams::YES (pinning threads to cores, best for static benchmarks),
- * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
- * this is TBB-specific knob, and the only pinning option (beyond 'NO', below) on the Windows*
  * PluginConfigParams::NO (no pinning for CPU inference threads)
- * All settings are ignored, if the OpenVINO compiled with OpenMP threading and any affinity-related OpenMP's
+ * PluginConfigParams::YES, which is default on the conventional CPUs (pinning threads to cores, best for static benchmarks),
+ *
+ * the following options are implemented only for the TBB as a threading option
+ * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
+ *      on the Windows and MacOS* this option behaves as YES
+ * PluginConfigParams::HYBRID_AWARE (let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for latency tasks)
+ *      on the hybrid CPUs this option is default
+ *
+ * Also, the settings are ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */
 DECLARE_CONFIG_KEY(CPU_BIND_THREAD);
 DECLARE_CONFIG_VALUE(NUMA);
+DECLARE_CONFIG_VALUE(HYBRID_AWARE);
 
 /**
  * @brief Optimize CPU execution to maximize throughput.
@@ -228,18 +267,6 @@ DECLARE_CONFIG_VALUE(NUMA);
 DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
 DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_AUTO);
 DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS);
-
-/**
- * @brief Optimize GPU plugin execution to maximize throughput.
- *
- * It is passed to Core::SetConfig(), this option should be used with values:
- * - KEY_GPU_THROUGHPUT_AUTO creates bare minimum of streams that might improve performance in some cases,
- *   this option allows to enable throttle hint for opencl queue thus reduce CPU load without significant performance
- * drop
- * - a positive integer value creates the requested number of streams
- */
-DECLARE_CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-DECLARE_CONFIG_KEY(GPU_THROUGHPUT_STREAMS);
 
 /**
  * @brief The name for setting performance counters option.
@@ -264,18 +291,10 @@ DECLARE_CONFIG_KEY(PERF_COUNT);
  */
 DECLARE_CONFIG_KEY(DYN_BATCH_LIMIT);
 
-DECLARE_CONFIG_KEY(DYN_BATCH_ENABLED);
-
-DECLARE_CONFIG_KEY(DUMP_QUANTIZED_GRAPH_AS_DOT);
-DECLARE_CONFIG_KEY(DUMP_QUANTIZED_GRAPH_AS_IR);
-
 /**
- * @brief The key controls threading inside Inference Engine.
- *
- * It is passed to Core::SetConfig(), this option should be used with values:
- * PluginConfigParams::YES or PluginConfigParams::NO
+ * @brief The key checks whether dynamic batch is enabled.
  */
-DECLARE_CONFIG_KEY(SINGLE_THREAD);
+DECLARE_CONFIG_KEY(DYN_BATCH_ENABLED);
 
 /**
  * @brief This key directs the plugin to load a configuration file.
@@ -283,38 +302,6 @@ DECLARE_CONFIG_KEY(SINGLE_THREAD);
  * The value should be a file name with the plugin specific configuration
  */
 DECLARE_CONFIG_KEY(CONFIG_FILE);
-
-/**
- * @brief This key enables dumping of the kernels used by the plugin for custom layers.
- *
- * This option should be used with values: PluginConfigParams::YES or PluginConfigParams::NO (default)
- */
-DECLARE_CONFIG_KEY(DUMP_KERNELS);
-
-/**
- * @brief This key controls performance tuning done or used by the plugin.
- *
- * This option should be used with values:
- * PluginConfigParams::TUNING_DISABLED (default)
- * PluginConfigParams::TUNING_USE_EXISTING - use existing data from tuning file
- * PluginConfigParams::TUNING_CREATE - create tuning data for parameters not present in tuning file
- * PluginConfigParams::TUNING_UPDATE - perform non-tuning updates like removal of invalid/deprecated data
- * PluginConfigParams::TUNING_RETUNE - create tuning data for all parameters, even if already present
- *
- * For values TUNING_CREATE and TUNING_RETUNE the file will be created if it does not exist.
- */
-DECLARE_CONFIG_KEY(TUNING_MODE);
-
-DECLARE_CONFIG_VALUE(TUNING_CREATE);
-DECLARE_CONFIG_VALUE(TUNING_USE_EXISTING);
-DECLARE_CONFIG_VALUE(TUNING_DISABLED);
-DECLARE_CONFIG_VALUE(TUNING_UPDATE);
-DECLARE_CONFIG_VALUE(TUNING_RETUNE);
-
-/**
- * @brief This key defines the tuning data filename to be created/used
- */
-DECLARE_CONFIG_KEY(TUNING_FILE);
 
 /**
  * @brief the key for setting desirable log level.
@@ -352,12 +339,14 @@ DECLARE_CONFIG_KEY(DEVICE_ID);
 DECLARE_CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS);
 
 /**
+ * @deprecated Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo::serialize method
  * @brief This key enables dumping of the internal primitive graph.
  *
  * Should be passed into LoadNetwork method to enable dumping of internal graph of primitives and
  * corresponding configuration information. Value is a name of output dot file without extension.
  * Files `<dot_file_name>_init.dot` and `<dot_file_name>_perf.dot` will be produced.
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo::serialize method")
 DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 
 
@@ -393,4 +382,25 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
 }  // namespace PluginConfigParams
+
+/**
+ * @def AUTO_CONFIG_KEY(name)
+ * @brief A macro which provides an AUTO-mangled name for configuration key with name `name`
+ */
+#define AUTO_CONFIG_KEY(name) InferenceEngine::_CONFIG_KEY(AUTO_##name)
+
+#define DECLARE_AUTO_CONFIG_KEY(name) DECLARE_CONFIG_KEY(AUTO_##name)
+
+/**
+ * @brief Limit device list config option, with comma-separated devices listed
+ */
+DECLARE_AUTO_CONFIG_KEY(DEVICE_LIST);
+
 }  // namespace InferenceEngine
+
+#include "hetero/hetero_plugin_config.hpp"
+#include "multi-device/multi_device_config.hpp"
+
+// remove in 2022.1 major release
+#include "cldnn/cldnn_config.hpp"
+#include "gna/gna_config.hpp"

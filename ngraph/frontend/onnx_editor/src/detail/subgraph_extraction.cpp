@@ -1,27 +1,21 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <functional>
 #include <onnx/onnx_pb.h>
 #include <stack>
 
 #include "ngraph/check.hpp"
-#include "onnx_editor/detail/subgraph_extraction.hpp"
+#include "subgraph_extraction.hpp"
 
 using namespace ngraph::onnx_editor;
+
+enum class PortType
+{
+    InputPort,
+    OutputPort
+};
 
 namespace
 {
@@ -34,6 +28,23 @@ namespace
             "; nodes count in the model: ",
             std::to_string(graph.node_size()),
             ")");
+    }
+
+    void validate_port_index(const ONNX_NAMESPACE::GraphProto& graph,
+                             const int node_idx,
+                             const int port_idx,
+                             const PortType& port_type)
+    {
+        const int ports_number = (port_type == PortType::InputPort)
+                                     ? graph.node(node_idx).input().size()
+                                     : graph.node(node_idx).output().size();
+        NGRAPH_CHECK(port_idx >= 0 && port_idx < ports_number,
+                     "The specified node with index: ",
+                     std::to_string(node_idx),
+                     " has not ",
+                     (port_type == PortType::InputPort) ? "input" : "output",
+                     " port with index: ",
+                     std::to_string(port_idx));
     }
 
     template <typename T>
@@ -94,7 +105,7 @@ namespace
 
     /// \brief Looks up a descriptor for a given tensor name. This descriptor contains inferred
     ///        shape information which is required to create new inputs and outputs in the graph.
-    const ONNX_NAMESPACE::ValueInfoProto&
+    const ONNX_NAMESPACE::ValueInfoProto
         find_tensor_descriptor(const ONNX_NAMESPACE::GraphProto& graph,
                                const std::string& tensor_name)
     {
@@ -102,13 +113,42 @@ namespace
                                      std::end(graph.value_info()),
                                      name_equals<ONNX_NAMESPACE::ValueInfoProto>(tensor_name));
 
-        NGRAPH_CHECK(it != std::end(graph.value_info()),
-                     "Could not find a tensor descriptor for tensor '",
-                     tensor_name,
-                     "'. It's not possible to add a new input to the graph without the type and "
-                     "shape information of the intermediate tensor.");
+        if (it != std::end(graph.value_info()))
+        {
+            return *it;
+        }
+        else
+        {
+            // If tensor descriptor couldn't be found value info has to be specified
+            // as fully dynamic:
+            // - Fully dynamic shape
+            // - Unknown data type
+            auto dynamic_value_info = ONNX_NAMESPACE::ValueInfoProto();
+            dynamic_value_info.set_name(tensor_name);
+            auto type = dynamic_value_info.mutable_type();
+            auto tensor_type = type->mutable_tensor_type();
+            tensor_type->set_elem_type(
+                ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UNDEFINED);
+            return dynamic_value_info;
+        }
+    }
 
-        return *it;
+    std::string get_input_tensor_name(const ONNX_NAMESPACE::GraphProto& graph,
+                                      const InputEdge& edge)
+    {
+        validate_node_index(graph, edge.m_node_idx);
+        validate_port_index(graph, edge.m_node_idx, edge.m_port_idx, PortType::InputPort);
+
+        return graph.node(edge.m_node_idx).input(edge.m_port_idx);
+    }
+
+    std::string get_output_tensor_name(const ONNX_NAMESPACE::GraphProto& graph,
+                                       const OutputEdge& edge)
+    {
+        validate_node_index(graph, edge.m_node_idx);
+        validate_port_index(graph, edge.m_node_idx, edge.m_port_idx, PortType::OutputPort);
+
+        return graph.node(edge.m_node_idx).output(edge.m_port_idx);
     }
 
     /// \brief Inserts a new input to the graph and removes an initializer that produced a tensor
@@ -116,15 +156,16 @@ namespace
     void replace_initializer_with_new_input(ONNX_NAMESPACE::GraphProto& graph,
                                             const InputEdge& edge)
     {
+        const auto tensor_name = get_input_tensor_name(graph, edge);
         const auto it = std::find_if(std::begin(graph.initializer()),
                                      std::end(graph.initializer()),
-                                     name_equals<ONNX_NAMESPACE::TensorProto>(edge.m_tensor_name));
+                                     name_equals<ONNX_NAMESPACE::TensorProto>(tensor_name));
 
         NGRAPH_CHECK(it != std::end(graph.initializer()),
                      "Could not find an initializer in the graph: '",
-                     edge.m_tensor_name);
+                     tensor_name);
 
-        if (!already_exists(graph.input(), edge.m_tensor_name))
+        if (!already_exists(graph.input(), tensor_name))
         {
             const auto& initializer = *it;
             auto& new_input = *(graph.add_input());
@@ -139,7 +180,7 @@ namespace
                 new_dim.set_dim_value(initializer_dim);
             }
 
-            *(new_input.mutable_name()) = edge.m_tensor_name;
+            *(new_input.mutable_name()) = tensor_name;
         }
 
         graph.mutable_initializer()->erase(it);
@@ -147,93 +188,64 @@ namespace
 
     /// \brief Inserts a new input to the graph and connects it to the node designated by an input
     ///        edge passed to this function.
+    /// \note  input_consumers is number of nodes which consume a new input
     /// \return A new input edge (along with "true") if a new input was added to the graph,
     ///         false + the original edge otherwise.
-    std::pair<bool, InputEdge> append_new_graph_input(ONNX_NAMESPACE::GraphProto& graph,
-                                                      const InputEdge& edge)
+    std::pair<bool, std::string> append_new_graph_input(ONNX_NAMESPACE::GraphProto& graph,
+                                                        const InputEdge& edge,
+                                                        int input_consumers)
     {
-        if (already_exists(graph.input(), edge.m_tensor_name) &&
-            !is_graph_initializer(graph, edge.m_tensor_name))
+        const auto tensor_name = get_input_tensor_name(graph, edge);
+        if (already_exists(graph.input(), tensor_name) && !is_graph_initializer(graph, tensor_name))
         {
             // no need to append a new input if an edge points to an existing one in the model
-            return {false, edge};
+            return {false, tensor_name};
         }
 
         auto& target_node = *(graph.mutable_node(edge.m_node_idx));
-        auto& node_inputs = *(target_node.mutable_input());
-        auto target_input =
-            std::find(std::begin(node_inputs), std::end(node_inputs), edge.m_tensor_name);
-
-        NGRAPH_CHECK(target_input != std::end(node_inputs),
+        NGRAPH_CHECK(edge.m_port_idx < target_node.input().size(),
                      "Input '",
-                     edge.m_tensor_name,
+                     edge.m_port_idx,
                      "' not found in the inputs of node ",
                      edge.m_node_idx,
                      ". Cannot append a new graph input to this node.");
 
-        const std::string new_input_name = target_node.output(0) + ":" + edge.m_tensor_name;
-
         // if an edge is connected to an initializer, the initializer is removed and substituted
         // with an input
-        if (is_graph_initializer(graph, edge.m_tensor_name))
+        if (is_graph_initializer(graph, tensor_name))
         {
             replace_initializer_with_new_input(graph, edge);
-            return {false, edge};
+            return {false, tensor_name};
         }
         else
         {
+            std::string new_input_name;
+            if (!edge.m_new_input_name.empty())
+            {
+                new_input_name = edge.m_new_input_name;
+                NGRAPH_CHECK(!already_exists(graph.input(), new_input_name),
+                             "New custom input name: ",
+                             new_input_name,
+                             " already exist in the graph");
+            }
+            else if (input_consumers > 1)
+            {
+                new_input_name =
+                    target_node.output(0) + "/placeholder_port_" + std::to_string(edge.m_port_idx);
+            }
+            else
+            {
+                new_input_name = tensor_name;
+            }
             auto& new_input = *(graph.add_input());
             // copy the intermediate tensor properties to the newly created input
-            new_input.MergeFrom(find_tensor_descriptor(graph, edge.m_tensor_name));
+            new_input.MergeFrom(find_tensor_descriptor(graph, tensor_name));
             *(new_input.mutable_name()) = new_input_name;
             // attach the new graph input to the target node's input
+            auto target_input = target_node.mutable_input(edge.m_port_idx);
             *target_input = new_input_name;
-            return {true, InputEdge{edge.m_node_idx, new_input_name}};
+            return {true, new_input_name};
         }
-    }
-
-    /// \brief Replaces a node or initializer (consumed by multiple nodes) with a new input
-    /// \return Returns an index of a removed node or -1 if an initializer was removed
-    int replace_source_with_new_input(ONNX_NAMESPACE::GraphProto& graph, const InputEdge& edge)
-    {
-        if (already_exists(graph.input(), edge.m_tensor_name) &&
-            !is_graph_initializer(graph, edge.m_tensor_name))
-        {
-            // happens when a user specifies multiple input edges pointing to the same tensor name
-            return -1;
-        }
-
-        if (is_graph_initializer(graph, edge.m_tensor_name))
-        {
-            replace_initializer_with_new_input(graph, edge);
-        }
-        else
-        {
-            auto& new_input = *(graph.add_input());
-            // copy the intermediate tensor properties to the newly created input
-            new_input.MergeFrom(find_tensor_descriptor(graph, edge.m_tensor_name));
-
-            const auto source_node_idx =
-                find_source_node_idx(graph, edge.m_node_idx, edge.m_tensor_name);
-            auto& source_node = *(graph.mutable_node(source_node_idx));
-            auto& node_outputs = *source_node.mutable_output();
-            auto target_output =
-                std::find(std::begin(node_outputs), std::end(node_outputs), edge.m_tensor_name);
-
-            NGRAPH_CHECK(target_output != std::end(node_outputs),
-                         "Output '",
-                         edge.m_tensor_name,
-                         "' not found in the outputs of node ",
-                         source_node_idx,
-                         ". Cannot remove the output from this node.");
-
-            // stop produsing tensor "edge.m_tensor_name" by the source node of the processed edge
-            *target_output = "";
-
-            return source_node_idx;
-        }
-
-        return -1;
     }
 
     /// \brief Adds new outputs to the ONNX graph for an edge specified by a user
@@ -241,27 +253,15 @@ namespace
     /// original model.
     void append_new_graph_output(ONNX_NAMESPACE::GraphProto& graph, const OutputEdge& edge)
     {
-        if (already_exists(graph.output(), edge.m_tensor_name))
+        const auto tensor_name = get_output_tensor_name(graph, edge);
+        if (already_exists(graph.output(), tensor_name))
         {
             return;
         }
-
-        auto& target_node = *(graph.mutable_node(edge.m_node_idx));
-        const auto& node_outputs = target_node.output();
-        const auto target_output =
-            std::find(std::begin(node_outputs), std::end(node_outputs), edge.m_tensor_name);
-
-        NGRAPH_CHECK(target_output != std::end(node_outputs),
-                     "Output '",
-                     edge.m_tensor_name,
-                     "' not found in the outputs of node ",
-                     edge.m_node_idx,
-                     ". Cannot append a new graph output to this node.");
-
         auto& new_output = *(graph.add_output());
         // copy the intermediate tensor's properties to the newly created
-        new_output.MergeFrom(find_tensor_descriptor(graph, edge.m_tensor_name));
-        *(new_output.mutable_name()) = edge.m_tensor_name;
+        new_output.MergeFrom(find_tensor_descriptor(graph, tensor_name));
+        *(new_output.mutable_name()) = tensor_name;
     }
 
     /// \brief Removes all items from a container except the ones whose names are in items_to_keep
@@ -313,6 +313,7 @@ namespace
 
 SubgraphExtractor::SubgraphExtractor(ONNX_NAMESPACE::GraphProto& graph)
     : m_onnx_graph(graph)
+    , m_node_inputs(graph.node_size())
 {
     // gathers information about the graph - input edges of every node and number of "consumers"
     // of all tensors in the graph
@@ -320,7 +321,7 @@ SubgraphExtractor::SubgraphExtractor(ONNX_NAMESPACE::GraphProto& graph)
     {
         for (const auto& node_input : graph.node(i).input())
         {
-            m_node_inputs.insert({i, node_input});
+            m_node_inputs[i].push_back(node_input);
             m_tensor_consumers[node_input] += 1;
         }
     }
@@ -330,35 +331,17 @@ void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs)
 {
     for (const auto& input_edge : new_inputs)
     {
-        validate_node_index(m_onnx_graph, input_edge.m_node_idx);
+        const auto tensor_name = get_input_tensor_name(m_onnx_graph, input_edge);
 
-        // if a tensor has multiple consumers, its producer(source) should be replaced with a new
-        // input - this way all consumers of this tensor will now be connected to a new graph input
-        if (m_tensor_consumers[input_edge.m_tensor_name] > 1)
+        // in case an edge is connected to a single node, a new graph input should be added
+        // and connected to that node; the new edge is an edge between the node and new input
+        const auto new_input =
+            append_new_graph_input(m_onnx_graph, input_edge, m_tensor_consumers[tensor_name]);
+        if (new_input.first)
         {
-            // remove a node or initializer from a model and insert a new input instead
-            int idx = replace_source_with_new_input(m_onnx_graph, input_edge);
-            if (idx != -1)
-            {
-                // if a node was replaced with an input, remove input edges from a helper multimap
-                // for this node because it won't end up in the target subgraph
-                // m_node_inputs stores information about existing edges in the graph,
-                // when a node is removed/replaced, information about its edges should also
-                // be removed (this way this node will be discarded from the original graph)
-                m_node_inputs.erase(idx);
-            }
-        }
-        else
-        {
-            // in case an edge is connected to a single node, a new graph input should be added
-            // and connected to that node; the new edge is an edge between the node and new input
-            const auto& new_edge = append_new_graph_input(m_onnx_graph, input_edge);
-            if (new_edge.first)
-            {
-                // the original edge should be replaced with a new one in the helper multimap
-                // this information will later be used during the subgraph extraction stage
-                replace_input_edge(input_edge, new_edge.second);
-            }
+            // the original edge should be replaced with a new one in the helper multimap
+            // this information will later be used during the subgraph extraction stage
+            replace_input_edge(input_edge, new_input.second);
         }
     }
 }
@@ -373,23 +356,11 @@ void SubgraphExtractor::add_new_outputs(const std::vector<OutputEdge>& new_outpu
     }
 }
 
-void SubgraphExtractor::replace_input_edge(const InputEdge& old_edge, const InputEdge& new_edge)
+void SubgraphExtractor::replace_input_edge(const InputEdge& old_edge,
+                                           const std::string& new_input_name)
 {
-    // old_edge = {5, "x"}; new_edge = {5, "y"}
-    // for a given node index "N", find all of its inputs in the helper multimap (pair of iterators)
-    // using those iterators find the name of an input tensor that needs to be replaced
-    const auto node_inputs = m_node_inputs.equal_range(old_edge.m_node_idx);
-    auto old_input_name = node_inputs.first;
-
-    // find an iterator pointing to an input name that should
-    while (old_input_name->second != old_edge.m_tensor_name && old_input_name != node_inputs.second)
-    {
-        ++old_input_name;
-    }
-
-    // finally remove the old edge from the helper map and insert a new edge
-    m_node_inputs.erase(old_input_name);
-    m_node_inputs.insert({new_edge.m_node_idx, new_edge.m_tensor_name});
+    // set a new name of an input indicated by the old_edge
+    m_node_inputs.at(old_edge.m_node_idx).at(old_edge.m_port_idx) = new_input_name;
 }
 
 void SubgraphExtractor::extract_subgraph(std::vector<OutputEdge> subgraph_outputs)
@@ -422,7 +393,8 @@ SubgraphExtractor::SubgraphComponents SubgraphExtractor::discover_output_contrib
     };
 
     SubgraphComponents output_contributors;
-    output_contributors.outputs.insert(output_edge.m_tensor_name);
+    const auto tensor_name = get_output_tensor_name(m_onnx_graph, output_edge);
+    output_contributors.outputs.insert(tensor_name);
 
     // reverse DFS graph traversal
     std::stack<int> nodes_to_visit;
@@ -446,28 +418,28 @@ SubgraphExtractor::SubgraphComponents SubgraphExtractor::discover_output_contrib
         // and/or keep looking for more contributors further up in the graph
 
         // when an input or initializer is reached, the visitor stops the lookup
-        const auto n_inputs = m_node_inputs.equal_range(n);
-        for (auto input_name = n_inputs.first; input_name != n_inputs.second; ++input_name)
+        const auto n_inputs = m_node_inputs[n];
+        for (auto& input_name : n_inputs)
         {
-            if (is_graph_input(m_onnx_graph, input_name->second))
+            if (is_graph_input(m_onnx_graph, input_name))
             {
-                output_contributors.inputs.insert(input_name->second);
+                output_contributors.inputs.insert(input_name);
                 // when an initializer has a matching graph input
-                if (is_graph_initializer(m_onnx_graph, input_name->second))
+                if (is_graph_initializer(m_onnx_graph, input_name))
                 {
-                    output_contributors.initializers.insert(input_name->second);
+                    output_contributors.initializers.insert(input_name);
                 }
             }
-            else if (is_graph_initializer(m_onnx_graph, input_name->second))
+            else if (is_graph_initializer(m_onnx_graph, input_name))
             {
                 // when an initializer doesn't have a corresponding input
-                output_contributors.initializers.insert(input_name->second);
+                output_contributors.initializers.insert(input_name);
             }
             else
             {
                 // if an edge points to another node (source node) it should be visited
                 // in one of the future iterations
-                nodes_to_visit.push(find_source_node_idx(m_onnx_graph, n, input_name->second));
+                nodes_to_visit.push(find_source_node_idx(m_onnx_graph, n, input_name));
             }
         }
     }
@@ -489,9 +461,12 @@ std::vector<OutputEdge> SubgraphExtractor::all_output_edges() const
 
     for (const auto& graph_output : m_onnx_graph.output())
     {
-        all_outputs.emplace_back(
-            find_source_node_idx(m_onnx_graph, m_onnx_graph.node_size(), graph_output.name()),
-            graph_output.name());
+        const auto node_index =
+            find_source_node_idx(m_onnx_graph, m_onnx_graph.node_size(), graph_output.name());
+        const auto& node_outputs = m_onnx_graph.node(node_index).output();
+        const auto output_port_it =
+            std::find(std::begin(node_outputs), std::end(node_outputs), graph_output.name());
+        all_outputs.emplace_back(node_index, output_port_it - std::begin(node_outputs));
     }
 
     return all_outputs;

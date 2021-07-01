@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,10 +46,13 @@ const auto convParams = ::testing::Combine(
         ::testing::ValuesIn(outputChannels)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_FqConvFqAffineTest, FqConvFqAffineTest,
+const std::vector<bool> permute = {false, true};
+
+INSTANTIATE_TEST_SUITE_P(smoke_FqConvFqAffineTest, FqConvFqAffineTest,
                         ::testing::Combine(
                                 fqParams,
                                 convParams,
+                                ::testing::ValuesIn(permute),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),

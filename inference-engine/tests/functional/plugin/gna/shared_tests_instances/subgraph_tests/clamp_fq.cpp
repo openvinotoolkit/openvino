@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ const auto fqParams = ::testing::Combine(
 );
 
 
-INSTANTIATE_TEST_CASE_P(smoke_Clamp_FQ_subgraph, ClampFakeQuantizeSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Clamp_FQ_subgraph, ClampFakeQuantizeSubgraphTest,
                         ::testing::Combine(
                                 fqParams,
                                 ::testing::ValuesIn(netPrecisions),

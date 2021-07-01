@@ -1,30 +1,20 @@
-// Copyright (c) 2016-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #pragma once
 
-#include "api/cldnn.hpp"
-#include "api/tensor.hpp"
-#include "api/eltwise.hpp"
-#include "api/scale.hpp"
-#include "api/quantize.hpp"
-#include "api/activation.hpp"
+#include "cldnn/runtime/utils.hpp"
+#include "cldnn/runtime/tensor.hpp"
+#include "cldnn/runtime/error_handler.hpp"
+#include "cldnn/primitives/eltwise.hpp"
+#include "cldnn/primitives/scale.hpp"
+#include "cldnn/primitives/quantize.hpp"
+#include "cldnn/primitives/activation.hpp"
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
-#include "error_handler.h"
 
 #include <cstdint>
 #include <string>
@@ -169,6 +159,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
     params.layerID = arg.id();
 
     convert_fused_activation_func_params(arg, params.activations);
+    std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_op_id_map;
     size_t op_id = 0;
     for (auto& fused_prim : arg.get_fused_primitives()) {
         kernel_selector::fused_operation_desc desc;
@@ -181,6 +172,13 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
         desc.dep_size = fused_prim.deps.size();
         desc.op_id = op_id++;
         desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
+        prim_op_id_map[fused_prim.node->id()] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
+        for (auto& dep : fused_prim.fused_deps) {
+            auto iter = prim_op_id_map.find(dep);
+            if (iter != prim_op_id_map.end()) {
+                desc.fused_op_ids.push_back(iter->second);
+            }
+        }
 
         for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
             desc.tensors.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout()));

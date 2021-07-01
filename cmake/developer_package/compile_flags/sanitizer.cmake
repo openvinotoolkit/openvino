@@ -12,6 +12,9 @@ if (ENABLE_SANITIZER)
     endif()
 
     set(SANITIZER_LINKER_FLAGS "-fsanitize=address")
+    # prevent unloading libraries at runtime, so sanitizer can resolve their symbols
+    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=gold")
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" AND NOT WIN32)
@@ -30,6 +33,8 @@ endif()
 if (ENABLE_THREAD_SANITIZER)
     set(SANITIZER_COMPILER_FLAGS "-g -fsanitize=thread -fno-omit-frame-pointer")
     set(SANITIZER_LINKER_FLAGS "-fsanitize=thread")
+    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" AND NOT WIN32)
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
             set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")

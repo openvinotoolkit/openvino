@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ const std::vector<Precision> precisions = {
     Precision::BOOL
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Check, ConstantResultSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Check, ConstantResultSubgraphTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(types),
                             ::testing::ValuesIn(shapes),

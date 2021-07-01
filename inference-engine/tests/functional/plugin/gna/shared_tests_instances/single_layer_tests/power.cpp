@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,9 @@ namespace {
             {{5, 128}},
             {{6, 256}},
             {{7, 512}},
-            {{8, 1024}}
+            {{8, 1024}},
+            {{5}},
+            {{8}}
     };
 
     std::vector<std::vector<float >> Power = {
@@ -34,7 +36,7 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_power, PowerLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_power, PowerLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inShapes),
                                     ::testing::ValuesIn(netPrecisions),

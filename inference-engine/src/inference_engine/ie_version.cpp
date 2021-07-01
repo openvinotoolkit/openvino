@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ const Version* GetInferenceEngineVersion() noexcept {
     // even if called from global constructor
     static Version inferenceEngineVersion = {{2, 1},  // inference engine API version
                                              CI_BUILD_NUMBER,
-                                             "API"};
+                                             "IE"};
     return &inferenceEngineVersion;
 }
 }  // namespace InferenceEngine

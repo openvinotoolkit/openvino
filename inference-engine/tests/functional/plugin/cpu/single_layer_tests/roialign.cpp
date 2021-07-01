@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +95,7 @@ protected:
         roialign->get_rt_info() = getCPUInfo();
         selectedType = std::string("unknown_") + inPrc.name();
 
-        threshold = 0.001f;
+        threshold = 1e-2;
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roialign)};
         function = std::make_shared<ngraph::Function>(results, params, "ROIAlign");
     }
@@ -163,7 +163,7 @@ const auto roiAlignParams = ::testing::Combine(
         ::testing::ValuesIn(inputShapeVector)         // feature map shape
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ROIAlignLayoutTest, ROIAlignLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ROIAlignLayoutTest, ROIAlignLayerCPUTest,
         ::testing::Combine(
                 ::testing::Combine(
                         roiAlignParams,

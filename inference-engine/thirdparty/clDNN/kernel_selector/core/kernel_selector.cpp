@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "kernel_base.h"
 #include "kernel_selector_common.h"
@@ -25,6 +13,7 @@
 #include <vector>
 #include <tuple>
 #include <set>
+#include <iostream>
 
 // #define ENABLE_ENV
 // #define ENABLE_ENV_PRINT
@@ -117,7 +106,7 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
     // TODO: find a better place to located this assignment
     if (kernelsData.size()) {
         kernelsData[0].kernelName = kernelName;
-        kernelsData[0].kernels[0].layerID = params.layerID;
+        kernelsData[0].kernels[0].params.layerID = params.layerID;
     }
 
     return kernelsData;
@@ -135,7 +124,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
     std::tuple<std::string, int> cachedKernelConfig;
     if (options.tuningParams.mode == TuningMode::TUNING_DISABLED && !int8_kernel) {  // Try to load kernel/config from offline cache
 #if ENABLE_OFFLINE_TUNING_CACHE
-        cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache, params);
+        cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache.get(), params);
 #else
         return GetNaiveBestKernel(params, options, kType);
 #endif
@@ -157,7 +146,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                 if (kds.size() && kds[0].kernels.size()) {
                     kernelsData = kds;
                     kernelsData[0].kernelName = cachedkernelName;
-                    kernelsData[0].kernels[0].layerID = params.layerID;
+                    kernelsData[0].kernels[0].params.layerID = params.layerID;
                 }
                 break;
             }
@@ -230,7 +219,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
 
     if (kernelsData.size()) {
         kernelsData[0].kernelName = kernelName;
-        kernelsData[0].kernels[0].layerID = params.layerID;
+        kernelsData[0].kernels[0].params.layerID = params.layerID;
         autoTuner.StoreKernel(options.tuningParams.cacheFilePath,
                                 params,
                                 kernelName,

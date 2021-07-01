@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 include(FetchContent)
 
@@ -76,24 +64,45 @@ if(PROTOC_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
 else()
     if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.0")
-        FetchContent_Declare(
-            ext_protobuf
-            GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
-            GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
-        )
-
-        FetchContent_GetProperties(ext_protobuf)
-        if(NOT ext_protobuf_POPULATED)
-            FetchContent_Populate(ext_protobuf)
-            set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
-            set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
-            add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
+        if (NOT BUILD_STANDALONE_STATIC)
+            FetchContent_Declare(
+                ext_protobuf
+                GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
+                GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
+                GIT_SHALLOW TRUE
+            )
+            FetchContent_GetProperties(ext_protobuf)
+            if(NOT ext_protobuf_POPULATED)
+                FetchContent_Populate(ext_protobuf)
+                set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+                set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+                add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
+            endif()
+        endif()
+        if (USE_STATIC_PROTOBUF)
+            FetchContent_Declare(
+                    ext_protobuf_static
+                    GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
+                    GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
+                    GIT_SHALLOW TRUE
+            )
+            FetchContent_GetProperties(ext_protobuf_static)
+            if((NOT ext_protobuf_static_POPULATED) AND BUILD_STANDALONE_STATIC)
+                FetchContent_Populate(ext_protobuf_static)
+                set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+                set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+                add_subdirectory(${ext_protobuf_static_SOURCE_DIR}/cmake ${ext_protobuf_static_BINARY_DIR} EXCLUDE_FROM_ALL)
+            endif()
         endif()
     else()
         message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
     endif()
 
-    set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
+    if (BUILD_STANDALONE_STATIC)
+        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_static_SOURCE_DIR}/src)
+    else()
+        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
+    endif()
     if(NGRAPH_USE_PROTOBUF_LITE)
         set(Protobuf_LIBRARIES libprotobuf-lite)
     else()
@@ -104,14 +113,19 @@ else()
         set(_proto_libs ${Protobuf_LIBRARIES})
         if(TARGET libprotoc)
             list(APPEND _proto_libs libprotoc)
+            target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
         endif()
-        set_target_properties(${_proto_libs} PROPERTIES
-                                COMPILE_FLAGS "-Wno-unused-variable -Wno-inconsistent-missing-override")
         set_target_properties(${_proto_libs} PROPERTIES
             CXX_VISIBILITY_PRESET default
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF)
+        foreach(target libprotobuf libprotobuf-lite)
+            target_compile_options(${target}
+                PRIVATE -Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override
+                PUBLIC -Wno-undef)
+        endforeach()
     endif()
+
     if(NGRAPH_USE_PROTOBUF_LITE)
         # if only libprotobuf-lite is used, both libprotobuf and libprotobuf-lite are built
         # libprotoc target needs symbols from libprotobuf, even in libprotobuf-lite configuration
@@ -125,10 +139,11 @@ endif()
 # Now make sure we restore the original flags
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")
 
-install(TARGETS ${Protobuf_LIBRARIES}
-    RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-    ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-    LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
-if (NGRAPH_EXPORT_TARGETS_ENABLE)
+if (NOT BUILD_STANDALONE_STATIC)
+    message("NGRAPH_INSTALL_LIB = ${NGRAPH_INSTALL_LIB}")
+    install(TARGETS ${Protobuf_LIBRARIES}
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
     export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
 endif()

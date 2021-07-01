@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -27,14 +15,14 @@ namespace ngraph
             class NGRAPH_API Reverse : public Op
             {
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 enum class Mode
                 {
                     INDEX,
                     MASK
                 };
 
-                static constexpr NodeTypeInfo type_info{"Reverse", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 Reverse() = default;
                 /// \brief Constructs a reverse operation.
                 ///
@@ -59,9 +47,9 @@ namespace ngraph
                 /// \return The second input data interpretation mode.
                 Mode get_mode() const { return m_mode; }
                 void set_mode(const Mode mode) { m_mode = mode; }
-                virtual size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             protected:
                 Mode mode_from_string(const std::string& mode) const;
@@ -78,8 +66,8 @@ namespace ngraph
                 bool evaluate_reverse(const HostTensorVector& outputs,
                                       const HostTensorVector& inputs) const;
             };
-        }
-    }
+        } // namespace v1
+    }     // namespace op
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const op::v1::Reverse::Mode& type);
@@ -97,4 +85,4 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v1::Reverse::Mode>", 1};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

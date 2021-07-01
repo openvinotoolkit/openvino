@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/strided_slice.hpp"
 #include "itt.hpp"
@@ -84,7 +72,7 @@ namespace
         return op::Constant::create(
             element::i64, Shape{strides_length}, vector<int64_t>(strides_length, 1));
     }
-}
+} // namespace
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
@@ -279,15 +267,15 @@ namespace strided_slice
                                                ellipsis_mask);
         return evaluate(in, slice_plan, out);
     }
-}
+} // namespace strided_slice
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate);
     // FIXME: 4th input is optional, but it is required by the following code
-    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 4));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return strided_slice::evaluate_strided_slice(input_values[0],
                                                  input_values[1],
                                                  input_values[2],
@@ -298,6 +286,12 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                                  convert_mask_to_axis_set(get_shrink_axis_mask()),
                                                  convert_mask_to_axis_set(get_ellipsis_mask()),
                                                  output_values[0]);
+}
+
+bool op::v1::StridedSlice::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_StridedSlice_has_evaluate);
+    return get_input_size() == 4;
 }
 
 bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const

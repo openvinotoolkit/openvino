@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,9 @@
 #endif
 
 #include <file_utils.h>
-#include <details/ie_exception.hpp>
 #include <stdlib.h>
 #include <sys/stat.h>
-
+#include "ie_common.h"
 #ifndef _WIN32
 # include <limits.h>
 # include <unistd.h>
@@ -100,6 +99,12 @@ long long FileUtils::fileSize(const char* charfilepath) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = FileUtils::multiByteCharToWString(charfilepath);
     const wchar_t* fileName = widefilename.c_str();
+#elif defined(__ANDROID__) || defined(ANDROID)
+    std::string fileName = charfilepath;
+    std::string::size_type pos = fileName.find('!');
+    if (pos != std::string::npos) {
+        fileName = fileName.substr(0, pos);
+    }
 #else
     const char* fileName = charfilepath;
 #endif
@@ -112,7 +117,7 @@ std::string FileUtils::absoluteFilePath(const std::string& filePath) {
     absolutePath.resize(MAX_ABS_PATH);
     auto absPath = get_absolute_path(&absolutePath[0], filePath);
     if (!absPath) {
-        THROW_IE_EXCEPTION << "Can't get absolute file path for [" << filePath << "], err = " << strerror(errno);
+        IE_THROW() << "Can't get absolute file path for [" << filePath << "], err = " << strerror(errno);
     }
     absolutePath.resize(strlen(absPath));
     return absolutePath;
@@ -140,7 +145,7 @@ void FileUtils::createDirectoryRecursive(const std::string& dirPath) {
     int err = makedir(dirPath.c_str());
     if (err != 0 && errno != EEXIST) {
         // TODO: in case of exception it may be needed to remove all created sub-directories
-        THROW_IE_EXCEPTION << "Couldn't create directory ["
+        IE_THROW() << "Couldn't create directory ["
                            << dirPath << "], err=" << strerror(errno) << ")";
     }
 }
@@ -167,7 +172,7 @@ static std::string getIELibraryPathA() {
     HMODULE hm = NULL;
     if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
         reinterpret_cast<LPSTR>(getIELibraryPath), &hm)) {
-        THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
+        IE_THROW() << "GetModuleHandle returned " << GetLastError();
     }
     GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::string(ie_library_path));
@@ -201,7 +206,7 @@ std::wstring getIELibraryPathW() {
     HMODULE hm = NULL;
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
         reinterpret_cast<LPCWSTR>(getIELibraryPath), &hm)) {
-        THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
+        IE_THROW() << "GetModuleHandle returned " << GetLastError();
     }
     GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path) / sizeof(ie_library_path[0]));
     return getPathName(std::wstring(ie_library_path));

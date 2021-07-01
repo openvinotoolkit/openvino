@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import os
@@ -27,6 +14,20 @@ from conftest import model_path, image_path
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
 path_to_img = image_path()
+
+
+def create_function_with_memory(input_shape, data_type):
+    import ngraph as ng
+    from ngraph.impl import Function, Type
+
+    input_data = ng.parameter(input_shape, name="input_data", dtype=data_type)
+    rv = ng.read_value(input_data, "var_id_667")
+    add = ng.add(rv, input_data, name="MemoryAdd")
+    node = ng.assign(add, "var_id_667")
+    res = ng.result(add, "res")
+    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
+    caps = Function.to_capsule(func)
+    return caps
 
 
 def read_image():
@@ -389,6 +390,9 @@ def test_async_infer_callback_wait_in_callback(device):
 
 def test_get_perf_counts(device):
     ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to ngraph")
     net = ie_core.read_network(test_net_xml, test_net_bin)
     ie_core.set_config({"PERF_COUNT": "YES"}, device)
     exec_net = ie_core.load_network(net, device)
@@ -408,6 +412,8 @@ def test_get_perf_counts(device):
                             "Dynamic batch fully supported only on CPU")
 def test_set_batch_size(device):
     ie_core = ie.IECore()
+    if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to dynamic batch isn't supported")
     ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
     net = ie_core.read_network(test_net_xml, test_net_bin)
     net.batch_size = 10
@@ -451,6 +457,9 @@ def test_set_negative_batch_size(device):
 
 def test_blob_setter(device):
     ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin")
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net_1 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
@@ -528,3 +537,58 @@ def test_resize_algorithm_work(device):
     res_2 = np.sort(request.output_blobs['fc_out'].buffer)
 
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
+
+
+@pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
+@pytest.mark.parametrize("data_type", ["FP32", "FP16", "I32"])
+@pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                    "Memory layers fully supported only on CPU")
+def test_query_state_write_buffer(device, input_shape, data_type, mode):
+    ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin")
+
+    layout = ["C", "HW", "CHW", "NCHW"]
+    np_data_type = {"FP32": np.float32, "FP16": np.float16, "I32": np.int32}
+
+    from openvino.inference_engine import TensorDesc, Blob
+
+    net = ie.IENetwork(create_function_with_memory(input_shape, np_data_type[data_type]))
+    ie_core = ie.IECore()
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    mem_states = request.query_state()
+    mem_state = mem_states[0]
+
+    assert mem_state.name == 'var_id_667'
+    # todo: Uncomment after fix 45611,
+    #  CPU plugin returns outputs and memory state in FP32 in case of FP16 original precision
+    #assert mem_state.state.tensor_desc.precision == data_type
+
+    for i in range(1, 10):
+        if mode == "set_init_memory_state":
+            # create initial value
+            const_init = 5
+            init_array = np.full(input_shape, const_init, dtype=np_data_type[mem_state.state.tensor_desc.precision])
+            tensor_desc = TensorDesc(mem_state.state.tensor_desc.precision, input_shape, layout[len(input_shape) - 1])
+            blob = Blob(tensor_desc, init_array)
+            mem_state.state = blob
+
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=np_data_type[data_type])})
+            expected_res = np.full(input_shape, 1 + const_init, dtype=np_data_type[data_type])
+        elif mode == "reset_memory_state":
+            # reset initial state of ReadValue to zero
+            mem_state.reset()
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=np_data_type[data_type])})
+
+            # always ones
+            expected_res = np.full(input_shape, 1, dtype=np_data_type[data_type])
+        else:
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=np_data_type[data_type])})
+            expected_res = np.full(input_shape, i, dtype=np_data_type[data_type])
+
+        assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
+            "Expected values: {} \n Actual values: {} \n".format(expected_res, res)

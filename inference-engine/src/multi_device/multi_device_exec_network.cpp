@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 
 
 #include "ie_metric_helpers.hpp"
-#include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <ie_plugin_config.hpp>
 #include "multi_device_exec_network.hpp"
 #include "multi_device_async_infer_request.hpp"
@@ -48,7 +46,7 @@ struct IdleGuard {
     MultiDeviceExecutableNetwork::NotBusyWorkerRequests*  _notBusyWorkerRequests = nullptr;
 };
 
-MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::ExecutableNetwork>&                 networksPerDevice,
+MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::SoExecutableNetworkInternal>&       networksPerDevice,
                                                            const std::vector<DeviceInformation>&                                networkDevices,
                                                            const std::unordered_map<std::string, InferenceEngine::Parameter>&   config,
                                                            const bool                                                           needPerfCounters) :
@@ -67,9 +65,9 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                 [&device](const DeviceInformation& d){ return d.deviceName == device;});
         unsigned int optimalNum = 0;
         try {
-            optimalNum = network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-        } catch (const InferenceEngine::details::InferenceEngineException &iie) {
-            THROW_IE_EXCEPTION
+            optimalNum = network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+        } catch (const InferenceEngine::Exception &iie) {
+            IE_THROW()
                     << "Every device used with the Multi-Device should "
                     << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
                     << "Failed to query the metric for the " << device << " with error:" << iie.what();
@@ -83,13 +81,13 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
         idleWorkerRequests.set_capacity(numRequests);
         for (auto&& workerRequest : workerRequests) {
-            workerRequest._inferRequest = network.CreateInferRequest();
+            workerRequest._inferRequest = { network, network->CreateInferRequest() };
             auto* workerRequestPtr = &workerRequest;
             IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
-            workerRequest._inferRequest.SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
-                [workerRequestPtr, this, device, idleWorkerRequestsPtr] (InferRequest , StatusCode status) mutable {
+            workerRequest._inferRequest->SetCallback(
+                [workerRequestPtr, this, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
                     IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
-                    workerRequestPtr->_status = status;
+                    workerRequestPtr->_exceptionPtr = exceptionPtr;
                     {
                         auto capturedTask = std::move(workerRequestPtr->_task);
                         capturedTask();
@@ -167,19 +165,18 @@ RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
         devices_names += device.deviceName + " ";
         const auto& n  = _networksPerDevice.at(device.deviceName);
         try {
-            return n.GetContext();
-        } catch (const NotImplemented& ex) {
-        }
+            return n->GetContext();
+        } catch (const NotImplemented&) {}
     }
-    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "None of the devices in the MULTI has an associated remote context."
+    IE_THROW(NotImplemented) << "None of the devices in the MULTI has an associated remote context."
                        << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
-InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
     auto num = _numRequestsCreated++;
     size_t sum = 0;
-    InferenceEngine::InferRequest request_to_share_blobs_with;
+    InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
     // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
     for (const auto& device : _devicePrioritiesInitial) {
@@ -193,23 +190,19 @@ InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateI
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 
-IInferRequest::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
-    IInferRequest::Ptr asyncRequest;
+IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
     auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncTreadSafeImpl = std::make_shared<MultiDeviceAsyncInferRequest>(std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl),
-                                                                             _needPerfCounters,
-                                                                             std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()),
-                                                                             _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase(asyncTreadSafeImpl));
-    asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
-    return asyncRequest;
+    return std::make_shared<MultiDeviceAsyncInferRequest>(std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl),
+                                                          _needPerfCounters,
+                                                          std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()),
+                                                          _callbackExecutor);
 }
 
 void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
     auto priorities = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities == config.end() || config.size() > 1) {
-        THROW_IE_EXCEPTION << "The only config supported for the Network's SetConfig is MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES";
+        IE_THROW() << "The only config supported for the Network's SetConfig is MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES";
     } else {
         auto multiPlugin = std::dynamic_pointer_cast<MultiDeviceInferencePlugin>(this->_plugin);
         assert(multiPlugin != nullptr);
@@ -218,7 +211,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
         if (std::any_of(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& kvp) {
                 return kvp.numRequestsPerDevices != -1;
             })) {
-            THROW_IE_EXCEPTION << "You can only change device priorities but not number of requests"
+            IE_THROW() << "You can only change device priorities but not number of requests"
                      <<" with the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES!";
         }
 
@@ -226,7 +219,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
             std::lock_guard<std::mutex> lock{_mutex};
             for (auto && device : metaDevices) {
                 if (_networksPerDevice.find(device.deviceName) == _networksPerDevice.end()) {
-                    THROW_IE_EXCEPTION << NOT_FOUND_str << "You can only change device priorities but not add new devices with"
+                    IE_THROW(NotFound) << "You can only change device priorities but not add new devices with"
                         << " the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES. "
                         << device.deviceName <<
                             " device was not in the original device list!";
@@ -245,7 +238,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
     if (it != _config.end()) {
         return it->second;
     } else {
-        THROW_IE_EXCEPTION << NOT_FOUND_str << name <<" not found in the ExecutableNetwork config";
+        IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
     }
 }
 
@@ -254,9 +247,9 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         unsigned int res = 0u;
         for (auto n : _networksPerDevice) {
             try {
-                res += n.second.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-            } catch (const InferenceEngine::details::InferenceEngineException &iie) {
-                  THROW_IE_EXCEPTION
+                res += n.second->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+            } catch (const InferenceEngine::Exception &iie) {
+                  IE_THROW()
                         << "Every device used with the Multi-Device should "
                         << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
                         << "Failed to query the metric for the " << n.first << " with error:" << iie.what();
@@ -266,7 +259,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
     } else if (name == METRIC_KEY(NETWORK_NAME)) {
         auto it = _networksPerDevice.begin();
         IE_ASSERT(it != _networksPerDevice.end());
-        IE_SET_METRIC_RETURN(NETWORK_NAME, it->second.GetMetric(
+        IE_SET_METRIC_RETURN(NETWORK_NAME, it->second->GetMetric(
             METRIC_KEY(NETWORK_NAME)).as<std::string>());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, {
@@ -279,7 +272,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         std::vector<std::string> configKeys = { MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES };
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else {
-        THROW_IE_EXCEPTION << "Unsupported Network metric: " << name;
+        IE_THROW() << "Unsupported Network metric: " << name;
     }
 }
 

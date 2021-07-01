@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -28,8 +17,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::SpaceToDepth::type_info;
 
@@ -130,7 +117,7 @@ bool ngraph::op::v0::SpaceToDepth::evaluate_space_to_depth(const HostTensorVecto
     const size_t spatial_dim_index = 2;
     const size_t spatial_dims = data_shape.size() - spatial_dim_index;
 
-    for (int i = spatial_dim_index; i < data_shape.size(); ++i)
+    for (size_t i = spatial_dim_index; i < data_shape.size(); ++i)
     {
         NODE_VALIDATION_CHECK(this,
                               m_blocksize > 0 && data_shape.at(i) % m_blocksize == 0,
@@ -146,7 +133,7 @@ bool ngraph::op::v0::SpaceToDepth::evaluate_space_to_depth(const HostTensorVecto
     // rearrange them so as appropriate chunks of data where close to their
     // destination place. Finally squeeze data from respective dimensions.
     Shape dispersed_shape{n_dim, c_dim};
-    for (int i = 0; i < spatial_dims; ++i)
+    for (size_t i = 0; i < spatial_dims; ++i)
     {
         dispersed_shape.push_back(data_shape.at(i + spatial_dim_index) / m_blocksize);
         dispersed_shape.push_back(m_blocksize);
@@ -212,7 +199,7 @@ bool ngraph::op::v0::SpaceToDepth::evaluate_space_to_depth(const HostTensorVecto
                                  elem_size);
 
     Shape squeezed_shape{n_dim};
-    for (int i = 0; i < spatial_dims; ++i)
+    for (size_t i = 0; i < spatial_dims; ++i)
     {
         squeezed_shape.push_back(data_shape.at(spatial_dim_index + i) / m_blocksize);
     }
@@ -236,10 +223,16 @@ bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
     return evaluate_space_to_depth(outputs, inputs);
 }
 
+bool ngraph::op::v0::SpaceToDepth::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_has_evaluate);
+    return !get_input_partial_shape(0).is_dynamic();
+}
+
 namespace ngraph
 {
     template <>
-    EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>&
+    NGRAPH_API EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>&
         EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>::get()
     {
         static auto enum_names = EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>(

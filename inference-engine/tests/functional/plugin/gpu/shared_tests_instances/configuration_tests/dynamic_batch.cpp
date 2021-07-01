@@ -1,5 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <configuration_tests/dynamic_batch.hpp>
 #include "common_test_utils/test_constants.hpp"
 
@@ -18,7 +20,7 @@ std::map<std::string, std::string> additional_config = {
 } // namespace
 
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBatchTest_async, DynamicBatchTest,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchTest_async, DynamicBatchTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(InferenceEngine::Precision::FP32),
@@ -27,7 +29,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicBatchTest_async, DynamicBatchTest,
         ::testing::Values(additional_config)),
     DynamicBatchTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBatchTest_sync, DynamicBatchTest,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchTest_sync, DynamicBatchTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(InferenceEngine::Precision::FP32),

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -137,6 +125,26 @@ namespace ngraph
                                        const std::shared_ptr<ngraph::Node> input,
                                        const std::set<element::Type> allowed_types = {});
 
+            /// \brief Temporary replacement for C++14 std::make_unique.
+            /// \note details: https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique
+            ///
+            /// \param args List of arguments with which an instance of T will be constructed.
+            ///
+            /// \return     std::unique_ptr of an instance of type T
+            template <typename T, typename... Args>
+            std::unique_ptr<T> make_unique(Args&&... args)
+            {
+                return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+            }
+
+            /// \brief Function that handles following ONNX operators: Add, Div, Mul, Sub
+            ///        from opset 6.
+            ///
+            /// \param node ONNX node
+            ///
+            /// \return     OutputVector with binary op
+            template <typename T>
+            OutputVector handle_opset6_binary_op(const Node& node);
         } // namespace  common
     }     // namespace onnx_import
 } // namespace ngraph

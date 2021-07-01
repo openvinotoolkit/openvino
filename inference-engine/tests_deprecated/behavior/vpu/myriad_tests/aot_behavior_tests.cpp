@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,27 +67,15 @@ class AOTBehaviorTests : public BehaviorPluginTest {
     }
 
     void canImportBlob() {
-        ASSERT_EQ(StatusCode::OK, importBlob()) << response.msg;
+        ASSERT_NO_THROW(importBlob()) << response.msg;
     }
 
     void canNotImportBlob() {
-        ASSERT_NE(StatusCode::OK, importBlob()) << response.msg;
+        ASSERT_THROW(importBlob(), InferenceEngine::Exception) << response.msg;
     }
 
-    StatusCode importBlob() {
-        InferenceEngine::Core core;
-        ExecutableNetwork ret;
-
-        try
-        {
-            ret = core.ImportNetwork("local_tmp.fw", GetParam().device);
-        }
-        catch (InferenceEngine::details::InferenceEngineException & ex)
-        {
-            return ex.getStatus();
-        }
-
-        return StatusCode::OK;
+    void importBlob() {
+        InferenceEngine::Core{}.ImportNetwork("local_tmp.fw", GetParam().device);
     }
 
     void setHeaderVersion(int major, int minor) {
@@ -214,6 +202,6 @@ const BehTestParams vpuValues[] = {
     BEH_MYRIAD,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, AOTBehaviorTests, ValuesIn(vpuValues), getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, AOTBehaviorTests, ValuesIn(vpuValues), getTestCaseName);
 
 #endif

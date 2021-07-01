@@ -1,18 +1,8 @@
-// Copyright (c) 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-#include "include/fetch.cl"
-#include "include/common.cl"
+
+#include "include/fetch_data.cl"
 #include "include/data_types.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
@@ -37,7 +27,7 @@ KERNEL (permute_tile_8x8_4x4)(
 #elif INPUT0_DIMS == 5
     //|dim2:bf|dim1:yz|dim0:x
     const uint z = get_global_id(1) / INPUT0_SIZE_Y;
-    const uint y = get_global_id(1) % INPUT0_SIZE_Y;   
+    const uint y = get_global_id(1) % INPUT0_SIZE_Y;
 #elif INPUT0_DIMS == 6
     //|dim2:bf|dim1:wyz|dim0:x
     const uint y = get_global_id(1) % INPUT0_SIZE_Y;
@@ -129,7 +119,7 @@ KERNEL (permute_tile_8x8_4x4)(
     }
 #endif
 #if defined(X_REMAINDER_ITEM) && defined(F_REMAINDER_ITEM)
-     else if (f == F_REMAINDER_ITEM && x == X_REMAINDER_ITEM) { 
+     else if (f == F_REMAINDER_ITEM && x == X_REMAINDER_ITEM) {
         // point by point
         for (int lh = 0; lh < F_REMAINDER_SIZE; ++lh) {
             // read

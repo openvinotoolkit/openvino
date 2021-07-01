@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/scatter_elements_update.hpp"
 #include "itt.hpp"
@@ -265,7 +253,7 @@ namespace scatter_element_update
         }
         return rc;
     }
-}
+} // namespace scatter_element_update
 
 bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(
     const HostTensorVector& outputs, const HostTensorVector& inputs) const
@@ -299,4 +287,34 @@ bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
     return evaluate_scatter_element_update(outputs, inputs);
+}
+
+bool op::v3::ScatterElementsUpdate::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_has_evaluate);
+
+    switch (get_output_element_type(0))
+    {
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: break;
+    default: return false;
+    }
+    switch (get_input_element_type(1))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64: break;
+    default: return false;
+    }
+    return true;
 }

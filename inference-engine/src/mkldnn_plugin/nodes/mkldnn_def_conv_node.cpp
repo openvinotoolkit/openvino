@@ -7,13 +7,11 @@
 #include "mkldnn_input_node.h"
 
 #include "mkldnn_eltwise_node.h"
-#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <math.h>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <legacy/ie_layers_internal.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
 
@@ -741,63 +739,67 @@ private:
     }
 };
 
-MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const InferenceEngine::CNNLayerPtr& layer,
+bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto defConvNode = ngraph::as_type_ptr<const ngraph::op::v1::DeformableConvolution>(op);
+        if (!defConvNode) {
+            errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1.";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
                                                                  const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+        : MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+    auto defConvNode = ngraph::as_type_ptr<const ngraph::op::v1::DeformableConvolution>(op);
+
+    group = defConvNode->get_group();
+    deformable_group = defConvNode->get_deformable_group();
+
+    auto& strides = defConvNode->get_strides();
+    for (int i = 0; i < strides.size(); i++) {
+        stride.push_back(strides[i]);
+    }
+
+    auto& dilations = defConvNode->get_dilations();
+    for (int i = 1; i <= dilations.size(); i++) {
+        dilation.push_back(dilations[dilations.size() - i] - 1);
+    }
+
+    paddingL = defConvNode->get_pads_begin();
+}
 
 void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
-    auto * defConvLayer = dynamic_cast<DeformableConvolutionLayer*>(getCnnLayer().get());
-    if (defConvLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert deformable convolution layer.";
-
     std::string errorPrefix = "DeformableConvolution layer with name '" + getName() + "' ";
 
     if (getParentEdges().size() != 3)
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of input edges";
+        IE_THROW() << errorPrefix << "has incorrect number of input edges";
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of output edges";
+        IE_THROW() << errorPrefix << "has incorrect number of output edges";
 
     if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
-    }
-
-    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+        IE_THROW() << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
     }
 
     if (getParentEdgeAt(1)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
     }
 
     if (getParentEdgeAt(2)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getDims().ndims();
     }
 
     if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
     }
-
-    bool isMerged = (!getMergeWith().empty());
-    bool isGrouped = defConvLayer->_group != 1;
-    if (isMerged && isGrouped)
-        THROW_IE_EXCEPTION << errorPrefix << "cannot be initialized: group splitted mode are used together with direct group specification.";
-
-    group = defConvLayer->_group;
-    if (isMerged) {
-        group = getMergeWith().size() + 1;
-    }
-
-    invertVectorCopyUtoI(defConvLayer->_stride, stride);
-    deformable_group = defConvLayer->_deformable_group;
-    for (int i = 1; i <= defConvLayer->_dilation.size(); i++) {
-        dilation.push_back(static_cast<int>(defConvLayer->_dilation[defConvLayer->_dilation.size() - i] - 1));
-    }
-
-    auto allPads = getPaddings(*defConvLayer);
-    invertVectorCopyUtoI(allPads.begin, paddingL);
 }
 
 void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
@@ -856,7 +858,7 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNDeformableConvolutionNode::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        THROW_IE_EXCEPTION << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto srcDims = config.inConfs[0].desc.getDims();
@@ -1062,7 +1064,7 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        THROW_IE_EXCEPTION << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto src_block_desc = config.inConfs[0].desc.getBlockingDesc();

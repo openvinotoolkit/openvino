@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -28,10 +16,13 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 void pre_replace_deconv::run(program_impl& p) {
     bool update_processing_order = false;
+
+    auto& stream = p.get_stream();
+
     auto itr = p.nodes_map.begin();
     while (itr != p.nodes_map.end()) {
         auto node_itr = itr++;
@@ -254,16 +245,16 @@ void pre_replace_deconv::run(program_impl& p) {
                 auto target_weights_layout = layout{ weights_layout.data_type, weights_layout.format, target_weights_size };
 
                 {
-                     memory_impl::ptr data_to_allocate = p.get_engine().allocate_memory(target_weights_layout, 0);
+                     memory::ptr data_to_allocate = p.get_engine().allocate_memory(target_weights_layout);
 
                      std::vector<float> weights_vec_float;
 
                      if (weights_data_type == data_types::f16) {
-                         mem_lock<half_t> src{ cur_weights_node_ptr->as<data>().get_attached_memory() };
+                         mem_lock<half_t> src{ cur_weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                          for (uint32_t i = 0; i < weights_layout.size.count(); i++)
                              weights_vec_float.push_back(static_cast<float>(src.data()[i]));
                      } else {
-                         mem_lock<float> src{ cur_weights_node_ptr->as<data>().get_attached_memory() };
+                         mem_lock<float> src{ cur_weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                          for (uint32_t i = 0; i < weights_layout.size.count(); i++)
                              weights_vec_float.push_back(src.data()[i]);
                      }
@@ -278,17 +269,16 @@ void pre_replace_deconv::run(program_impl& p) {
                          subpixel_weights);
 
                      if (weights_data_type == data_types::f16) {
-                         mem_lock<half_t> dst{ data_to_allocate };
+                         mem_lock<half_t> dst{ data_to_allocate, stream};
                          program_helpers::set_weights_values<half_t>(dst.data(), subpixel_weights);
                      } else if (weights_data_type == data_types::f32) {
-                         mem_lock<float> dst{ data_to_allocate };
+                         mem_lock<float> dst{ data_to_allocate, stream };
                          program_helpers::set_weights_values<float>(dst.data(), subpixel_weights);
                      } else {
                          throw std::logic_error("Not supported data type.");
                      }
 
-                     memory api_memory = memory(data_to_allocate.detach());
-                     auto data_node_weights_replace = std::make_shared<data>(weights_vec[0] + "_conv_rpl", api_memory);
+                     auto data_node_weights_replace = std::make_shared<data>(weights_vec[0] + "_conv_rpl", data_to_allocate);
                      p.get_or_create(data_node_weights_replace);
                      auto data_node_weights_replace_node_ptr = p.nodes_map.find(weights_vec[0] + "_conv_rpl")->second;
                      auto& data_node = data_node_weights_replace_node_ptr->as<data>();
@@ -297,10 +287,10 @@ void pre_replace_deconv::run(program_impl& p) {
                 float bias = 0;
 
                 if (bias_data_type == data_types::f16) {
-                    mem_lock<half_t> src{ bias_id_node_ptr->as<data>().get_attached_memory() };
+                    mem_lock<half_t> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                     bias = static_cast<float>(src.data()[0]);
                 } else {
-                    mem_lock<float> src{ bias_id_node_ptr->as<data>().get_attached_memory() };
+                    mem_lock<float> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                     bias = src.data()[0];
                 }
 

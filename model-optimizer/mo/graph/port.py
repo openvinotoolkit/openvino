@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 from copy import deepcopy
 
@@ -100,10 +88,8 @@ class Port:
         if self.node.graph.stage == 'front':
             return None
         else:
-            if self.type == 'in':
-                return self.node.in_node(self.idx, control_flow=self.control_flow).shape
-            else:
-                return self.node.out_node(self.idx, control_flow=self.control_flow).shape
+            node_caller = self.node.in_node if self.type == 'in' else self.node.out_node
+            return node_caller(self.idx, control_flow=self.control_flow).shape
 
     def _set_shape(self, shape):
         if self.node.graph.stage == 'front':
@@ -114,7 +100,8 @@ class Port:
                 self.node.in_node(self.idx, control_flow=self.control_flow).shape = int64_array(shape)
             else:
                 data_node = self.node.out_node(self.idx, control_flow=self.control_flow)
-                assert data_node.value is None or np.array_equal(data_node.shape, int64_array(shape))
+                assert data_node.value is None or \
+                       np.array_equal(data_node.soft_get('force_shape', data_node.shape), int64_array(shape))
                 self.node.out_node(self.idx, control_flow=self.control_flow).shape = int64_array(shape)
 
     def _get_value(self):
@@ -135,24 +122,21 @@ class Port:
         if self.node.graph.stage == 'front':
             raise Error("set_value is not applicable for graph front phase")
         else:
-            if self.type == 'in':
-                data_node = self.node.in_node(self.idx, control_flow=self.control_flow)
-                const_node = data_node.in_node(control_flow=self.control_flow)
+            data_node_caller = self.node.in_node if self.type == 'in' else self.node.out_node
+            data_node = data_node_caller(self.idx, control_flow=self.control_flow)
+            const_node = data_node.in_node(control_flow=self.control_flow) if self.type == 'in' else self.node
 
-                # Set value to data node
-                data_node.value = value
-                data_node.shape = int64_array(value.shape)
+            force_shape = data_node.soft_get('force_shape', const_node.soft_get('force_shape', None))
+            shape = int64_array(value.shape if force_shape is None else force_shape)
 
-                # Set value to constant producer
-                if const_node.soft_get('type') == 'Const':
-                    const_node.value = value
-                    const_node.shape = int64_array(value.shape)
-            else:
-                self.node.out_node(self.idx, control_flow=self.control_flow).value = value
-                self.node.out_node(self.idx, control_flow=self.control_flow).shape = int64_array(value.shape)
-                if self.node.soft_get('type') == 'Const':
-                    self.node.value = value
-                    self.node.shape = int64_array(value.shape)
+            # Set value to data node
+            data_node.value = value
+            data_node.shape = shape
+
+            # Set value to constant producer
+            if const_node.soft_get('type') == 'Const':
+                const_node.value = value
+                const_node.shape = shape
 
     def _get_attr(self, item: str):
         if self.node.graph.stage == 'front':
@@ -279,25 +263,37 @@ class Port:
         return consumer_ports
 
     def get_tensor_names(self, port_renumber: bool = False):
-        def get_tensor_names_list(attrs):
-            tensor_names_list = []
+        """
+        Gets sorted tensor names list.
+        :param port_renumber: defines whether data node index should be calculated considering port renumbering.
+        """
+        tensor_debug_info = self.get_tensor_debug_info(port_renumber)
+        tensor_names_list = []
+        for attr in tensor_debug_info:
+            if attr is not None and len(attr) >= 2:
+                tensor_name = attr[1]
+                if tensor_name is not None and len(tensor_name) > 0:
+                    tensor_names_list.append(tensor_name.replace(',', '\\,'))
+        return sorted(tensor_names_list)
+
+    def get_tensor_debug_info(self, port_renumber: bool = False):
+        """
+        Gets tensor debug info attribute.
+        :param port_renumber: defines whether data node index should be calculated considering port renumbering.
+        """
+        def get_tensor_debug_info_from_attrs(attrs):
             if 'fw_tensor_debug_info' in attrs:
-                if attrs['fw_tensor_debug_info'] is None:
-                    return tensor_names_list
-                for attr in attrs['fw_tensor_debug_info']:
-                    if attr is not None and len(attr) >= 3:
-                        tensor_name = attr[2]
-                        if tensor_name is not None and len(tensor_name) > 0:
-                            tensor_names_list.append(tensor_name.replace(',', '\\,'))
-            return tensor_names_list
+                if attrs['fw_tensor_debug_info'] is not None:
+                    return attrs['fw_tensor_debug_info']
+            return []
 
-        assert self.type != 'in', "Can't get tensor names for input port at {} node".format(self.node.name)
+        assert self.type != 'in', "Can't get tensor debug info for input port at {} node".format(self.node.name)
 
-        fw_names = []
+        fw_debug_info = []
         if self.node.graph.stage == 'front':
             if self.idx in self.node.out_edges():
                 out_edge = self.node.out_edge(self.idx)
-                fw_names += get_tensor_names_list(out_edge)
+                fw_debug_info += get_tensor_debug_info_from_attrs(out_edge)
         else:
             # before port renumbering we use sequential numbering
             node_idx = self.idx
@@ -309,8 +305,9 @@ class Port:
 
             if node_idx in self.node.out_nodes():
                 out_node = self.node.out_node(node_idx)
-                fw_names += get_tensor_names_list(out_node.attrs())
-        return fw_names
+                fw_debug_info += get_tensor_debug_info_from_attrs(out_node.attrs())
+        return fw_debug_info
+
 
     def disconnect(self):
         if self.type == 'out':

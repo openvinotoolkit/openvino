@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,8 @@ std::shared_ptr<Node> makeDequantization(
             if (dequantizationOperations.subtract.values.size() == 1ul) {
                 shape = std::vector<size_t>({});
             } else {
-                shape = std::vector<size_t>(parent.get_shape().size(), 1ul);
+                const auto rank = parent.get_partial_shape().rank();
+                shape = std::vector<size_t>(rank.is_dynamic() ? 4ul : rank.get_length(), 1ul);
                 shape[shape.size() >= 2 ? 1ul : 0] = dequantizationOperations.subtract.values.size();
             }
         }
@@ -73,11 +74,18 @@ std::shared_ptr<Node> makeDequantization(
 
         if (((dequantizationOperations.subtract.outPrecision == element::undefined) ||
             (dequantizationOperations.subtract.outPrecision == parent.get_element_type())) &&
-            ((dequantizationOperations.subtract.constantPrecision == element::undefined) ||
-            (dequantizationOperations.subtract.constantPrecision == parent.get_element_type()))) {
-            subtract = dequantizationOperations.subtract.addDequantizationAttribute ?
-                std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(parent, subtractConst) :
-                std::make_shared<ngraph::opset1::Subtract>(parent, subtractConst);
+            (((dequantizationOperations.subtract.constantPrecision == element::undefined) ||
+            (dequantizationOperations.subtract.constantPrecision == parent.get_element_type())) ||
+            dequantizationOperations.subtract.addConvert)) {
+            if (dequantizationOperations.subtract.constantIndex == 1ul) {
+                subtract = dequantizationOperations.subtract.addDequantizationAttribute ?
+                    std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(parent, subtractConst) :
+                    std::make_shared<ngraph::opset1::Subtract>(parent, subtractConst);
+            } else {
+                subtract = dequantizationOperations.subtract.addDequantizationAttribute ?
+                    std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(subtractConst, parent) :
+                    std::make_shared<ngraph::opset1::Subtract>(subtractConst, parent);
+            }
         } else {
             // TODO: use templates
             if (dequantizationOperations.subtract.addDequantizationAttribute) {
@@ -148,7 +156,8 @@ std::shared_ptr<Node> makeMultiply(const Output<Node>& parent, const Dequantizat
         if (values.size() == 1ul) {
             shape = std::vector<size_t>({});
         } else {
-            shape = std::vector<size_t>(parent.get_shape().size(), 1ul);
+            const auto rank = parent.get_partial_shape().rank();
+            shape = std::vector<size_t>(rank.is_dynamic() ? 4ul : rank.get_length(), 1ul);
             shape[shape.size() >= 2 ? 1ul : 0] = values.size();
         }
     }

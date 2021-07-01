@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -30,8 +18,6 @@
 #include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/util.hpp"
 
-// can't be removed currently due to arm-plugin dependency
-#include "ngraph/runtime/reference/convolution_backprop_data.hpp"
 namespace ngraph
 {
     namespace runtime
@@ -54,15 +40,18 @@ namespace ngraph
                     std::vector<int> dilation;
                     std::vector<int> pads_begin;
                     std::vector<int> pads_end;
+                    std::vector<int> output_padding;
 
                     ConvolutionParams(const Strides& strides_,
                                       const Strides& dilation_,
                                       const CoordinateDiff& pads_begin_,
-                                      const CoordinateDiff& pads_end_)
+                                      const CoordinateDiff& pads_end_,
+                                      const CoordinateDiff& output_padding_ = {0, 0, 0})
                         : strides{strides_.begin(), strides_.end()}
                         , dilation{dilation_.begin(), dilation_.end()}
                         , pads_begin{pads_begin_.begin(), pads_begin_.end()}
-                        , pads_end{pads_end_.begin(), pads_end_.end()} {};
+                        , pads_end{pads_end_.begin(), pads_end_.end()}
+                        , output_padding{output_padding_.begin(), output_padding_.end()} {};
                 };
 
                 template <typename Int>
@@ -98,15 +87,18 @@ namespace ngraph
                     const size_t filter_channel_size = shape_size(filter_channel_shape);
 
                     for (int i_z = -p.pads_begin[0];
-                         i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z);
+                         i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z +
+                                 p.output_padding[0]);
                          i_z += p.strides[0])
                     {
                         for (int i_y = -p.pads_begin[1];
-                             i_y <= (p.pads_end[1] + input_size_y - dilated_filter_size_y);
+                             i_y <= (p.pads_end[1] + input_size_y - dilated_filter_size_y +
+                                     p.output_padding[1]);
                              i_y += p.strides[1])
                         {
                             for (int i_x = -p.pads_begin[2];
-                                 i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x);
+                                 i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x +
+                                         p.output_padding[2]);
                                  i_x += p.strides[2])
                             {
                                 auto input_channel = batch;
@@ -166,12 +158,89 @@ namespace ngraph
                             std::prev(p.pads_begin.end(), spatial_rank), missing_dims, 0);
                         p.pads_end.insert(
                             std::prev(p.pads_end.end(), spatial_rank), missing_dims, 0);
+                        p.output_padding.insert(
+                            std::prev(p.output_padding.end(), spatial_rank), missing_dims, 0);
                         in_shape.insert(std::next(in_shape.end(), -spatial_rank), missing_dims, 1);
                         filter_shape.insert(
                             std::prev(filter_shape.end(), spatial_rank), missing_dims, 1);
                     }
                 }
-            }
+
+                void infer_forward_conv_output_shape(const Shape& in_spatial_shape,
+                                                     const Shape& f_spatial_shape,
+                                                     Shape& out_spatial_shape,
+                                                     const Strides& strides,
+                                                     const Strides& dilations,
+                                                     const CoordinateDiff& pads_begin,
+                                                     const CoordinateDiff& pads_end)
+                {
+                    for (size_t idx = 0; idx < in_spatial_shape.size(); idx++)
+                    {
+                        size_t in_padded_dim =
+                            in_spatial_shape[idx] + pads_begin[idx] + pads_end[idx];
+                        size_t filter_dilated_dim = dilations[idx] * (f_spatial_shape[idx] - 1) + 1;
+                        size_t out_spatial_dim =
+                            (in_padded_dim - filter_dilated_dim) / strides[idx] + 1;
+                        out_spatial_shape.push_back(out_spatial_dim);
+                    }
+                }
+
+                void validate_convolution_parameters(const Shape& in_shape,
+                                                     const Shape& f_shape,
+                                                     const Shape& out_shape,
+                                                     const Strides& strides,
+                                                     const Strides& dilations,
+                                                     const CoordinateDiff& pads_begin,
+                                                     const CoordinateDiff& pads_end)
+                {
+                    // this implementation supports 1D, 2D and 3D convolutions
+                    NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
+                                 "Unsupported input rank: ",
+                                 in_shape);
+
+                    NGRAPH_CHECK(in_shape.size() == f_shape.size(),
+                                 "Incompatible input ranks: ",
+                                 in_shape.size(),
+                                 " and ",
+                                 f_shape.size());
+
+                    NGRAPH_CHECK(in_shape[in_channel_axis] == f_shape[filter_in_ch_axis],
+                                 "Incompatible input channels in data batch and filters shapes: ",
+                                 in_shape[in_channel_axis],
+                                 " and ",
+                                 f_shape[filter_in_ch_axis]);
+
+                    NGRAPH_CHECK(in_shape.size() == out_shape.size(),
+                                 "Incompatible input and output ranks: ",
+                                 in_shape.size(),
+                                 " and ",
+                                 out_shape.size());
+
+                    const auto spatial_dims = in_shape.size() - 2;
+                    NGRAPH_CHECK(strides.size() == spatial_dims,
+                                 "Strides not definied for all and only spatial dimensions");
+
+                    NGRAPH_CHECK(dilations.size() == spatial_dims,
+                                 "Dilations not defined for all and only spatial dimensions");
+
+                    NGRAPH_CHECK((pads_begin.size() == pads_end.size()) &&
+                                     (pads_begin.size() == spatial_dims),
+                                 "Pads not defined for all and only spatial dimensions");
+
+                    Shape out_spatial_shape{std::next(out_shape.begin(), 2), std::end(out_shape)};
+                    Shape infered_out_spatial_shape{};
+                    infer_forward_conv_output_shape(
+                        Shape{std::next(in_shape.begin(), 2), std::end(in_shape)},
+                        Shape{std::next(f_shape.begin(), 2), std::end(f_shape)},
+                        infered_out_spatial_shape,
+                        strides,
+                        dilations,
+                        pads_begin,
+                        pads_end);
+                    NGRAPH_CHECK(out_spatial_shape == infered_out_spatial_shape,
+                                 "Incorrect output shape provided");
+                }
+            } // namespace
 
             template <typename T>
             void convolution(const T* in,
@@ -181,23 +250,17 @@ namespace ngraph
                              const Shape& f_shape,
                              const Shape& out_shape,
                              const Strides& strides,
-                             const Strides& dilation,
+                             const Strides& dilations,
                              const CoordinateDiff& pads_begin,
                              const CoordinateDiff& pads_end)
 
             {
-                // this implementation supports 1D, 2D and 3D convolutions
-                NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
-                             "Unsupported input rank: ",
-                             in_shape);
-
-                NGRAPH_CHECK(f_shape.size() >= 3 && f_shape.size() <= 5,
-                             "Unsupported kernel rank: ",
-                             f_shape);
+                validate_convolution_parameters(
+                    in_shape, f_shape, out_shape, strides, dilations, pads_begin, pads_end);
 
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later
-                ConvolutionParams params{strides, dilation, pads_begin, pads_end};
+                ConvolutionParams params{strides, dilations, pads_begin, pads_end};
 
                 // here we are extending spatial dimensions to 3D, because we are going to use 3D
                 // convolution implementation to convolve also in 1D & 2D case
@@ -267,3 +330,6 @@ namespace ngraph
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
+
+// can't be removed currently due to arm-plugin dependency
+#include "ngraph/runtime/reference/convolution_backprop_data.hpp"

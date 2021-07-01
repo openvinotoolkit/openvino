@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    ngraph::element::f16
+    // ngraph::element::f16 // TODO: enable f16 test inference (change ngraph function + fp32 to fp16 replacements)
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -70,7 +70,7 @@ const std::vector<ngraph::Shape> dequantizationOnWeightElementwiseConstantShapes
     { ngraph::Shape({1, 16}) }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, PullReshapeThroughDequantizationTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, PullReshapeThroughDequantizationTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

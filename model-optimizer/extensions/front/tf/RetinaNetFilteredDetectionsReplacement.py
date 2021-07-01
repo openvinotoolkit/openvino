@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
@@ -21,7 +8,7 @@ from extensions.ops.DetectionOutput import DetectionOutput
 from extensions.ops.elementwise import Mul, Sub, Pow
 from extensions.ops.gather import Gather
 from extensions.ops.split import VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
@@ -67,9 +54,9 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         sp_shape = Shape(graph, {'name': name + '/shape'}).create_node()
         priors_scale_node.out_port(0).connect(sp_shape.in_port(0))
 
-        begin = Const(graph, {'value': np.array([-2])}).create_node()
-        end = Const(graph, {'value': np.array([-1])}).create_node()
-        stride = Const(graph, {'value': np.array([1])}).create_node()
+        begin = Const(graph, {'value': int64_array([-2])}).create_node()
+        end = Const(graph, {'value': int64_array([-1])}).create_node()
+        stride = Const(graph, {'value': int64_array([1])}).create_node()
         shape_part_for_tiling = StridedSlice(graph, {'name': name + '/get_-2_dim', 'begin_mask': np.array([1]),
                                                      'end_mask': np.array([1]), 'new_axis_mask': np.array([0]),
                                                      'shrink_axis_mask': np.array([0]),
@@ -85,7 +72,7 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
                                                          'axis': int64_array(0)},
                                                         shape_part_for_tiling)
 
-        variance = Const(graph, {'name': name + '/variance', 'value': np.array(variance)}).create_node()
+        variance = Const(graph, {'name': name + '/variance', 'value': float32_array(variance)}).create_node()
         tile = Broadcast(graph, {'name': name + '/variance_tile'}).create_node()
         variance.out_port(0).connect(tile.in_port(0))
         shape_concat.out_port(0).connect(tile.in_port(1))
@@ -126,9 +113,9 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         shape = Shape(graph, {'name': 'input_image_shape'}).create_node()
         shape.in_port(0).connect(placeholder.out_port(0))
 
-        begin = Const(graph, {'value': np.array([1])}).create_node()
-        end = Const(graph, {'value': np.array([3])}).create_node()
-        stride = Const(graph, {'value': np.array([1])}).create_node()
+        begin = Const(graph, {'value': int64_array([1])}).create_node()
+        end = Const(graph, {'value': int64_array([3])}).create_node()
+        stride = Const(graph, {'value': int64_array([1])}).create_node()
         spatial = StridedSlice(graph, {'name': name + '/get_h_w', 'begin_mask': np.array([1]),
                                        'end_mask': np.array([1]), 'new_axis_mask': np.array([0]),
                                        'shrink_axis_mask': np.array([0]), 'ellipsis_mask': np.array([0])}).create_node()
@@ -138,7 +125,7 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         spatial.in_port(2).connect(end.out_port(0))
         spatial.in_port(3).connect(stride.out_port(0))
 
-        power = Const(graph, {'value': np.array([-1.])}).create_node()
+        power = Const(graph, {'value': float32_array([-1.])}).create_node()
         spatial_scale = Pow(graph, {}).create_node()
 
         spatial_scale.in_port(0).connect(spatial.out_port(0))

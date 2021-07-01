@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ const std::vector<Precision> netPrecisions = {
     Precision::BF16
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_NormalizeL2Serialization, NormalizeL2LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2Serialization, NormalizeL2LayerTest,
         testing::Combine(
             testing::ValuesIn(axes),
             testing::ValuesIn(eps),

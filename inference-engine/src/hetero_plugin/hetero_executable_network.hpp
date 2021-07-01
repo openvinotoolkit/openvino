@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,33 +47,31 @@ public:
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
 
-    ~HeteroExecutableNetwork() override = default;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                      InferenceEngine::OutputsDataMap networkOutputs) override;
-
-    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
-    void ExportImpl(std::ostream& modelFile) override;
+    void Export(std::ostream& modelFile) override;
 
 private:
     void InitCNNImpl(const InferenceEngine::CNNNetwork&    network);
     void InitNgraph(const InferenceEngine::CNNNetwork&     network);
 
     struct NetworkDesc {
-        std::string                                 _device;
-        InferenceEngine::CNNNetwork                 _clonedNetwork;
-        InferenceEngine::ExecutableNetwork          _network;
+        std::string                                   _device;
+        InferenceEngine::CNNNetwork                   _clonedNetwork;
+        InferenceEngine::SoExecutableNetworkInternal  _network;
     };
-    std::vector<NetworkDesc> networks;
 
-    Engine*                             _heteroPlugin;
-    std::string                         _name;
-    std::map<std::string, std::string>  _config;
+    std::vector<NetworkDesc>                     _networks;
+    Engine*                                      _heteroPlugin;
+    std::string                                  _name;
+    std::map<std::string, std::string>           _config;
     std::unordered_map<std::string, std::string> _blobNameMap;
 };
 

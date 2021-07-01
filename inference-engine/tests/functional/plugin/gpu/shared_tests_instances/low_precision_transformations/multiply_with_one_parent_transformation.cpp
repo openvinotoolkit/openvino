@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<MultiplyWithOneParentTransformationValues> values = {
@@ -21,7 +21,7 @@ const std::vector<MultiplyWithOneParentTransformationValues> values = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, MultiplyWithOneParentTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyWithOneParentTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),

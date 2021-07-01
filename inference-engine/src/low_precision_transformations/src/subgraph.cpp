@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,26 +22,35 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-bool isQuantizationPerChannel(const std::shared_ptr<ngraph::Node>& node) {
-    if (node->outputs().size() > 1ul) {
-        return false;
-    }
-
-    //WA to support StridedSlice in ConcatTransformation
-    if (ngraph::is_type<opset1::StridedSlice>(node)) {
+bool operationIsSupportedInConcat(const std::shared_ptr<ngraph::Node>& node) {
+    // list of operations, which change channels, but supported in ConcatTransformation
+    if (ngraph::is_type<opset1::StridedSlice>(node) ||
+        ngraph::is_type<opset1::Split>(node) ||
+        ngraph::is_type<opset1::VariadicSplit>(node)) {
         return true;
     }
 
+    // operations, which change channels, usually don't support in ConcatTransformation
     const auto inputs = node->input_values();
     for (const auto& input : inputs) {
         if (ngraph::is_type<opset1::Constant>(input.get_node())) {
             continue;
         }
 
-        const Shape& in = input.get_shape();
-        const Shape& out = node->output(0).get_shape();
-        for (size_t i = 0; i < 2; ++i) {
-            if ((i >= in.size()) || (i >= out.size())) {
+        const PartialShape& in = input.get_partial_shape();
+        const PartialShape& out = node->get_output_partial_shape(0);
+        if (in.rank().is_dynamic() || out.rank().is_dynamic()) {
+            return false;
+        }
+
+        const auto inRank = in.rank().get_length();
+        const auto outRank = out.rank().get_length();
+        if (inRank < 2 || outRank < 2) {
+            return false;
+        }
+
+        for (int i = 0; i < 2; ++i) {
+            if ((i >= inRank) || (i >= outRank)) {
                 // all previous dimensions are equal
                 return true;
             }
@@ -82,7 +91,7 @@ bool Subgraph::fillSubgraphForQuantization(
                 if (fakeQuantizeChild != nullptr) {
                     //
                 } else {
-                    if (layerTransformationsManager->isPrecisionPreserved(child) && isQuantizationPerChannel(child)) {
+                    if (layerTransformationsManager->isPrecisionPreserved(child) && operationIsSupportedInConcat(child)) {
                         if (!fillSubgraphForIntermediate(child, handledLayers)) {
                             return false;
                         }
@@ -104,7 +113,7 @@ bool Subgraph::atLeastOneIsIntermediate(const std::shared_ptr<ngraph::Node>& nod
                 return true;
             }
 
-            if (!layerTransformationsManager->isPrecisionPreserved(child) || !isQuantizationPerChannel(child)) {
+            if (!layerTransformationsManager->isPrecisionPreserved(child) || !operationIsSupportedInConcat(child)) {
                 // child branch is out of subgraph
                 continue;
             }
@@ -144,10 +153,6 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 return false;
             }
         } else {
-            // WA: issue #46906
-            if (parent->get_output_size() != 1ul) {
-                return false;
-            }
             const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(parent, 0, true);
             const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeParent = dequantization.empty() ?
                 ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(parent) :
@@ -161,7 +166,7 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 if (constant != nullptr) {
                     //
                 } else {
-                    if (layerTransformationsManager->isPrecisionPreserved(parent) && isQuantizationPerChannel(parent)) {
+                    if (layerTransformationsManager->isPrecisionPreserved(parent) && operationIsSupportedInConcat(parent)) {
                         if (!fillSubgraphForIntermediate(parent, handledLayers)) {
                             return false;
                         }
@@ -197,7 +202,7 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeChild = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(child);
                 if (fakeQuantizeChild != nullptr) {
                     //
-                } else if (layerTransformationsManager->isPrecisionPreserved(child) && isQuantizationPerChannel(child)) {
+                } else if (layerTransformationsManager->isPrecisionPreserved(child) && operationIsSupportedInConcat(child)) {
                     if (!fillSubgraphForIntermediate(child, handledLayers)) {
                         return false;
                     }
@@ -221,6 +226,13 @@ bool Subgraph::empty() const {
 }
 
 bool Subgraph::fillSubgraphForConcat(const std::shared_ptr<ngraph::opset1::Concat>& concat, std::unordered_set<std::string>& handledLayers) {
+    const auto axis = concat->get_axis();
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, concat->get_output_partial_shape(0).rank());
+    // supported only per-channel concat
+    if (normalizedAxis != 1ul) {
+        return false;
+    }
+
     concatLayers.push_back(concat);
     handledLayers.insert(concat->get_friendly_name());
     layers.emplace(concat->get_friendly_name(), concat);

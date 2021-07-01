@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,9 @@ TEST_P(TensorNamesTest, CheckTensorNames) {
 
 TEST_P(TensorNamesTest, CheckTensorNamesAfterClone) {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork clonedNet(static_cast<InferenceEngine::ICNNNetwork::Ptr>(cnnNetwork));
+    IE_SUPPRESS_DEPRECATED_END
     ConfigureNetwork();
 
     auto inputs = clonedNet.getInputsInfo();

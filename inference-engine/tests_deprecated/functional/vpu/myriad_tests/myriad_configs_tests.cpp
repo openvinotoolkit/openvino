@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithUnavailabl
 
     InferenceEngine::InferRequest request;
     ASSERT_THROW(request = executable.CreateInferRequest(),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 //------------------------------------------------------------------------------
@@ -64,7 +64,7 @@ TEST_P(myriadIncorrectModelsConfigsTests_nightly, LoadNetworkWithIncorrectConfig
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
     InferenceEngine::ExecutableNetwork executable;
     ASSERT_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 //------------------------------------------------------------------------------
@@ -100,14 +100,14 @@ static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {
     {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-MICRON_1GB"}},
 };
 
-INSTANTIATE_TEST_CASE_P(MyriadConfigs, myriadCorrectModelsConfigsTests_nightly,
+INSTANTIATE_TEST_SUITE_P(MyriadConfigs, myriadCorrectModelsConfigsTests_nightly,
                         ::testing::ValuesIn(myriadCorrectPlatformConfigValues));
 
-INSTANTIATE_TEST_CASE_P(MyriadConfigs, myriadIncorrectModelsConfigsTests_nightly,
+INSTANTIATE_TEST_SUITE_P(MyriadConfigs, myriadIncorrectModelsConfigsTests_nightly,
                         ::testing::ValuesIn(myriadIncorrectPlatformConfigValues));
 
-INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, myriadCorrectModelsConfigsTests_nightly,
+INSTANTIATE_TEST_SUITE_P(MyriadPackageConfigs, myriadCorrectModelsConfigsTests_nightly,
     ::testing::ValuesIn(myriadCorrectPackageTypeConfigValues));
 
-INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, myriadIncorrectModelsConfigsTests_nightly,
+INSTANTIATE_TEST_SUITE_P(MyriadPackageConfigs, myriadIncorrectModelsConfigsTests_nightly,
     ::testing::ValuesIn(myriadIncorrectPackageTypeConfigValues));

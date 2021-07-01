@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,9 +110,12 @@ public:
     }
 
     void Validate() override {
+        // w/a: copy of original function is required to provide correct op coverage report (overflow of convert counter issue)
+        auto copyOriginalFunction = function;
         //force the reference implementation to use graph with extra Convert operation
         function = reference_function;
         LayerTestsUtils::LayerTestsCommon::Validate();
+        function = copyOriginalFunction;
     }
 
 public:

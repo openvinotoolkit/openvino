@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -83,7 +71,9 @@ namespace ngraph
                 const PadType& get_auto_pad() const { return m_auto_pad; }
                 void set_auto_pad(const PadType& auto_pad) { m_auto_pad = auto_pad; }
                 /// \return The default value for Convolution.
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 virtual std::shared_ptr<Node> get_default_value() const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
             protected:
                 Strides m_strides;
@@ -97,8 +87,8 @@ namespace ngraph
             class NGRAPH_API GroupConvolutionBackpropData : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"GroupConvolutionBackpropData", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a batched-convolution data batch-backprop operation.
                 GroupConvolutionBackpropData();
                 // clang-format off

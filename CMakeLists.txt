@@ -20,17 +20,20 @@ include(cmake/features.cmake)
 # These options are shared with 3rdparty plugins by means of developer package
 include(cmake/dependencies.cmake)
 
+if(ENABLE_COVERAGE)
+    include(cmake/coverage.cmake)
+endif()
+
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
 message (STATUS "OpenVINO_MAIN_SOURCE_DIR .............. " ${OpenVINO_MAIN_SOURCE_DIR})
-message (STATUS "IE_MAIN_SOURCE_DIR .................... " ${IE_MAIN_SOURCE_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 
 # remove file with exported developer targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
     unset(${component} CACHE)
@@ -47,13 +50,6 @@ function(build_ngraph)
         endif()
     endfunction()
 
-    if (ENABLE_SANITIZER)
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER ON)
-    else ()
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER OFF)
-    endif ()
-    ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
-
     if(ENABLE_TESTS AND NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)
     else()
@@ -62,27 +58,16 @@ function(build_ngraph)
 
     if(NOT (ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)) ))
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE ON)
+        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE ON)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE OFF)
-    endif()
-    ngraph_set(NGRAPH_INTERPRETER_ENABLE ON)
-
-    if(TREAT_WARNING_AS_ERROR)
-        ngraph_set(NGRAPH_WARNINGS_AS_ERRORS ON)
-    else()
-        ngraph_set(NGRAPH_WARNINGS_AS_ERRORS OFF)
+        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
     endif()
 
-    if(ENABLE_SANITIZER)
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER_ENABLE ON)
+    if(ENABLE_PYTHON)
+        ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE ON)
     else()
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER_ENABLE OFF)
-    endif()
-
-    if(ENABLE_THREAD_SANITIZER)
-        ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE OFF)
+        ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
     endif()
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
@@ -102,13 +87,11 @@ function(build_ngraph)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
 
-    ie_cpack_add_component(ngraph)
+    ie_cpack_add_component(ngraph REQUIRED)
+    ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
-    set(SDL_cmake_included ON)
-    set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
-    set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
 endfunction()
 
 function(openvino_developer_export_targets)
@@ -147,70 +130,18 @@ add_subdirectory(thirdparty)
 add_subdirectory(openvino)
 build_ngraph()
 add_subdirectory(inference-engine)
+
+# for Template plugin
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
+include(cmake/extra_modules.cmake)
+
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
+add_subdirectory(tools)
+add_subdirectory(scripts)
 
 #
-# Shellcheck
+# CPack
 #
-
-ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
-                      SKIP "${OpenVINO_MAIN_SOURCE_DIR}/bin"
-                           "${OpenVINO_MAIN_SOURCE_DIR}/build"
-                           "${OpenVINO_MAIN_SOURCE_DIR}/thirdparty"
-                           "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest"
-                           "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
-                           "${IE_MAIN_SOURCE_DIR}/thirdparty"
-                           "${IE_MAIN_SOURCE_DIR}/temp"
-                           # TODO fix and enable back:
-                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies"
-                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/demo"
-                           "${OpenVINO_MAIN_SOURCE_DIR}/ngraph"
-                           "${IE_MAIN_SOURCE_DIR}/scripts")
-
-#
-# cpack
-#
-
-# install setupvars
-
-ie_cpack_add_component(setupvars REQUIRED)
-
-if(UNIX)
-    install(PROGRAMS scripts/setupvars/setupvars.sh
-            DESTINATION bin
-            COMPONENT setupvars)
-elseif(WIN32)
-    install(PROGRAMS scripts/setupvars/setupvars.bat
-            DESTINATION bin
-            COMPONENT setupvars)
-endif()
-
-# install install_dependencies
-
-if(UNIX)
-    ie_cpack_add_component(install_dependencies REQUIRED)
-    install(DIRECTORY scripts/install_dependencies/
-            DESTINATION install_dependencies
-            COMPONENT install_dependencies)
-endif()
-
-# install files for demo
-
-ie_cpack_add_component(demo_scripts REQUIRED DEPENDS core)
-
-if(UNIX)
-    install(DIRECTORY scripts/demo/
-            DESTINATION deployment_tools/demo
-            COMPONENT demo_scripts
-            USE_SOURCE_PERMISSIONS
-            PATTERN *.bat EXCLUDE)
-elseif(WIN32)
-    install(DIRECTORY scripts/demo/
-            DESTINATION deployment_tools/demo
-            COMPONENT demo_scripts
-            USE_SOURCE_PERMISSIONS
-            PATTERN *.sh EXCLUDE)
-endif()
 
 ie_cpack(${IE_CPACK_COMPONENTS_ALL})

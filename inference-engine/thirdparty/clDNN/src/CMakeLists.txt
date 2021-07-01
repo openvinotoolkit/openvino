@@ -1,16 +1,6 @@
-# Copyright (c) 2016 Intel Corporation
-
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-
-#      http://www.apache.org/licenses/LICENSE-2.0
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
 
 # =================================== Name / Output settings from parent ===============================
 
@@ -28,14 +18,6 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-intel_config_flag_apply_settings(
-    CompilerOptions
-    CMAKE_CXX_FLAGS
-    ALL_PATTERN ""
-    SET
-      RttiEnabled
-  )
-
 # ================================== Compiler preprocessor definitions =================================
 
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
@@ -48,14 +30,9 @@ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
 # ========================================= Source/Header files ========================================
 
 set(__CLDNN_Label__api                 "api")
-file(GLOB __CLDNN_Headers__api
+file(GLOB_RECURSE __CLDNN_Headers__api
     "${CLDNN__API_DIR}/*.h"
     "${CLDNN__API_DIR}/*.hpp"
-  )
-
-set(__CLDNN_Label__api_extension       "api_extension")
-file(GLOB __CLDNN_Headers__api_extension
-    "${CLDNN__API_EXTENSION_DIR}/*.hpp"
   )
 
 set(__CLDNN_Label__main                "")
@@ -118,7 +95,6 @@ set(__CLDNN_AllSources
     ${__CLDNN_Headers__api}
     ${__CLDNN_Sources__graph_opt}
     ${__CLDNN_Headers__include}
-    ${__CLDNN_Headers__api_extension}
     ${__CLDNN_Sources__main}
     ${__CLDNN_Sources__gpu}
     ${__CLDNN_Sources__cache}
@@ -131,7 +107,6 @@ set_property(SOURCE ${__CLDNN_Sources__cg_cache} PROPERTY GENERATED TRUE)
 # =============================================== Filters ==============================================
 
 source_group("${__CLDNN_Label__api}"                  FILES ${__CLDNN_Headers__api})
-source_group("${__CLDNN_Label__api_extension}"        FILES ${__CLDNN_Headers__api_extension})
 source_group("${__CLDNN_Label__include}"              FILES ${__CLDNN_Headers__include})
 source_group("${__CLDNN_Label__graph_opt}"            FILES ${__CLDNN_Sources__graph_opt})
 source_group("${__CLDNN_Label__main}"                 FILES ${__CLDNN_Sources__main})
@@ -145,6 +120,7 @@ source_group("${__CLDNN_Label__cg_cache}"             FILES ${__CLDNN_Sources__c
 include_directories(
     "${CLDNN__MAIN_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CLDNN__RUNTIME_DIR}"
     "${__CLDNN_Directory__include}"
     "${__CLDNN_Directory__ks_core}"
     "${__CLDNN_Directory__ks_core}/common"
@@ -161,15 +137,32 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
+target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC
+    OpenCL
+  )
+
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
-    clDNN_OpenCL
     cldnn_kernel_selector
     openvino::itt
+    cldnn_runtime
   )
+
+if(COMMAND add_cpplint_target)
+  add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")
+endif()
+
+if(COMMAND set_ie_threading_interface_for)
+  set_ie_threading_interface_for("${CLDNN_BUILD__PROJ}")
+endif()
 
 if(WIN32)
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
-target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
+
+# ======================================================================================================
+
+ie_sse42_optimization_flags(sse4_2_flags)
+set_source_files_properties(gpu/detection_output_cpu.cpp half.cpp
+  PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -55,6 +43,7 @@ namespace ngraph
                 bool get_is_foldable() const { return m_is_foldable; }
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const override;
+                bool has_evaluate() const override;
                 bool evaluate_lower(const HostTensorVector& output_values) const override;
                 bool evaluate_upper(const HostTensorVector& output_values) const override;
                 bool constant_fold(OutputVector& output_values,
@@ -64,7 +53,7 @@ namespace ngraph
                 bool m_is_foldable = true;
                 element::Type m_output_type;
             };
-        }
+        } // namespace v3
 
         namespace v0
         {
@@ -93,6 +82,7 @@ namespace ngraph
                 bool get_is_foldable() const { return m_is_foldable; }
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const override;
+                bool has_evaluate() const override;
                 bool evaluate_lower(const HostTensorVector& output_values) const override;
                 bool evaluate_upper(const HostTensorVector& output_values) const override;
                 bool constant_fold(OutputVector& output_values,
@@ -101,7 +91,7 @@ namespace ngraph
             private:
                 bool m_is_foldable = true;
             };
-        }
+        } // namespace v0
         using v0::ShapeOf;
-    }
-}
+    } // namespace op
+} // namespace ngraph

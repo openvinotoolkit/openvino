@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ std::vector<size_t> outputChannels = {
     8
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_SplitConvTest, SplitConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_SplitConvTest, SplitConvTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

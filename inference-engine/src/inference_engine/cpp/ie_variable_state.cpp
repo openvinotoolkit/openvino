@@ -1,45 +1,42 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
-#include "ie_imemory_state.hpp"
+#include "details/ie_so_loader.h"
 #include "cpp/ie_memory_state.hpp"
+#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
+#include "exception2status.hpp"
+
+#define VARIABLE_CALL_STATEMENT(...)                                                               \
+    if (_impl == nullptr) IE_THROW(NotAllocated) << "VariableState was not initialized.";          \
+    try {                                                                                          \
+        __VA_ARGS__;                                                                               \
+    } catch(...) {details::Rethrow();}
 
 namespace InferenceEngine {
 
+VariableState::VariableState(const details::SharedObjectLoader& so,
+                             const IVariableStateInternal::Ptr& impl)
+    : _so(so), _impl(impl) {
+    if (_impl == nullptr) IE_THROW() << "VariableState was not initialized.";
+}
+
 IE_SUPPRESS_DEPRECATED_START
 
-VariableState::VariableState(IVariableState::Ptr pState, details::SharedObjectLoader::Ptr plg) : actual(pState), plugin(plg) {
-    if (actual == nullptr) {
-        THROW_IE_EXCEPTION << "VariableState wrapper was not initialized.";
-    }
-}
-
-Blob::CPtr VariableState::GetLastState() const {
-    return GetState();
-}
-
-IE_SUPPRESS_DEPRECATED_END
-
 void VariableState::Reset() {
-    CALL_STATUS_FNC_NO_ARGS(Reset);
+    VARIABLE_CALL_STATEMENT(_impl->Reset());
 }
 
 std::string VariableState::GetName() const {
-    char name[256];
-    CALL_STATUS_FNC(GetName, name, sizeof(name));
-    return name;
+    VARIABLE_CALL_STATEMENT(return _impl->GetName());
 }
 
 Blob::CPtr VariableState::GetState() const {
-    Blob::CPtr stateBlob;
-    CALL_STATUS_FNC(GetState, stateBlob);
-    return stateBlob;
+    VARIABLE_CALL_STATEMENT(return _impl->GetState());
 }
 
 void VariableState::SetState(Blob::Ptr state) {
-    CALL_STATUS_FNC(SetState, state);
+    VARIABLE_CALL_STATEMENT(_impl->SetState(state));
 }
 
 }  // namespace InferenceEngine

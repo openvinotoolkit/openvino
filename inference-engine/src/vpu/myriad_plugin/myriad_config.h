@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ VPU_DECLARE_ENUM(MovidiusDdrType,
     MICRON_1GB  = 4,
 )
 
-class MyriadConfig final : public ParsedConfig {
+class MyriadConfig : public virtual ParsedConfig {
 public:
     const std::string& pluginLogFilePath() const {
         return _pluginLogFilePath;

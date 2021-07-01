@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ namespace frontend {
 /**
  * @brief description of quantisation precision
  * @tparam Ip - input precision
+ * @tparam Op - output precision
  * @tparam Wp - weights precision
  * @tparam Bp - biases precision
  * @tparam Np - network precision - can be auto generated in future
@@ -79,6 +80,12 @@ struct QuantI16 : public QuantDescTmpl<PRECISION_TYPE(I16, I32, I16, I32, MIXED)
 };
 struct QuantI8  : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(I8), gna_compound_bias_t, P_TYPE(MIXED)> {
     QuantI8() {
+        _Np = InferenceEngine::Precision::MIXED;
+    }
+};
+// Low precision path quantizer (I8 inputs, weights, biases)
+struct QuantI8_I8 : public QuantDescTmpl<PRECISION_TYPE(I8, I32, I8, I8, MIXED)> {
+    QuantI8_I8() {
         _Np = InferenceEngine::Precision::MIXED;
     }
 };
@@ -150,6 +157,17 @@ class Quant<QuantI8> {
     template<class ...Args>
     void operator()(Args && ... args) const {
         QuantizationCallback<int8_t, gna_compound_bias_t> {
+            std::forward<Args>(args)...
+        }.runQuantize();
+    }
+};
+
+template<>
+class Quant<QuantI8_I8> {
+public:
+    template<class ...Args>
+    void operator()(Args && ... args) const {
+        QuantizationCallback<int8_t, int8_t> {
             std::forward<Args>(args)...
         }.runQuantize();
     }
@@ -269,8 +287,9 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         make_custom_blob<typename QuantDesc::WeightsPrecision>(InferenceEngine::C, InferenceEngine::SizeVector({wl->_weights->size()}));
     intWeights->allocate();
     if (intWeights->buffer() == nullptr) {
-        THROW_GNA_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NOT_ALLOCATED
-                            << "cannot copy weights for layer :"<< wl->name << " of size" << intWeights->byteSize();
+        IE_THROW(NotAllocated)
+                << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
+                << "cannot copy weights for layer :"<< wl->name << " of size" << intWeights->byteSize();
     }
 
     int oIdx = wl->outData[0]->getDims().size() - 1;
@@ -296,8 +315,9 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         }));
         bias->allocate();
         if (bias->buffer() == nullptr) {
-            THROW_GNA_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NOT_ALLOCATED
-                                << "cannot copy bias for layer :"<< wl->name <<"of size" << bias->byteSize();
+            IE_THROW(NotAllocated)
+                << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
+                << "cannot copy bias for layer :"<< wl->name <<"of size" << bias->byteSize();
         }
 
         memset(bias->buffer(), 0, bias->byteSize());
@@ -313,15 +333,10 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         input_scale_factor = quantDataForInputLayer->_dst_quant.GetScale();
         if (std::isnan(input_scale_factor) ||
             std::isinf(input_scale_factor)) {
-            THROW_IE_EXCEPTION << "Unsupported input scale factor value " << input_scale_factor;
+            IE_THROW() << "Unsupported input scale factor value " << input_scale_factor;
         }
     }
-    if (wl->outData[0]->getDims().size() < 2) {
-        THROW_IE_EXCEPTION << "Unsupported output dims size for " << wl->name <<", should be > 1, but " << wl->outData[0]->getDims().size();
-    }
-    if (wl->insData[0].lock().get()->getDims().size() < 2) {
-        THROW_IE_EXCEPTION << "Unsupported input dims size for " << wl->name << ", should be > 1, but " << wl->insData[0].lock().get()->getDims().size();
-    }
+
     uint32_t num_rows = isDiagonal ? 1 : wl->outData[0]->getDims()[oIdx];
     uint32_t num_columns = isDiagonal ? wl->_weights->size() : wl->insData[0].lock().get()->getDims()[iIdx];
 
@@ -386,17 +401,17 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
     auto intWeights = make_custom_blob<typename QuantDesc::WeightsPrecision>(InferenceEngine::C, InferenceEngine::SizeVector({conv->_weights->size()}));
     intWeights->allocate();
     if (intWeights->buffer() == nullptr) {
-        THROW_GNA_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NOT_ALLOCATED
-                            << "cannot copy weights for layer :"<< conv->name << " of size" << intWeights->byteSize();
+        IE_THROW(NotAllocated)
+            << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
+            << "cannot copy weights for layer :"<< conv->name << " of size" << intWeights->byteSize();
     }
 
-    auto getBiasSizeForLayer = [](InferenceEngine::WeightableLayer *wl) {
+    auto getBiasSizeForLayer = [](InferenceEngine::WeightableLayer *wl) -> size_t {
         if (wl->_biases) {
             return wl->_biases->size();
         }
-        // calculating biases len using outdata dims
-        auto & dims = wl->outData.front()->getDims();
-        return dims[1];
+        // calculating biases len using outdata dims: biases number should be equal to output channels number
+        return InferenceEngine::GetDataDimSize(wl->outData.front(), InferenceEngine::DataDimName::C);
     };
 
     using BiasesPrecision = typename QuantDesc::BiasesPrecision;
@@ -410,8 +425,9 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
                                                                                                       }));
         bias->allocate();
         if (bias->buffer() == nullptr) {
-            THROW_GNA_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NOT_ALLOCATED
-                                << "cannot copy bias for layer :"<< conv->name <<"of size" << bias->byteSize();
+            IE_THROW(NotAllocated)
+                << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
+                << "cannot copy bias for layer :"<< conv->name <<"of size" << bias->byteSize();
         }
         memset(bias->buffer(), 0, bias->byteSize());
 
@@ -426,14 +442,14 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
         input_scale_factor = quantDataForInputLayer->_dst_quant.GetScale();
         if (std::isnan(input_scale_factor) ||
             std::isinf(input_scale_factor)) {
-            THROW_IE_EXCEPTION << "Unsupported input scale factor value " << input_scale_factor;
+            IE_THROW() << "Unsupported input scale factor value " << input_scale_factor;
         }
     }
     if (conv->outData[0]->getDims().size() < 2) {
-        THROW_IE_EXCEPTION << "Unsupported output dims size for " << conv->name <<", should be > 1, but " << conv->outData[0]->getDims().size();
+        IE_THROW() << "Unsupported output dims size for " << conv->name <<", should be > 1, but " << conv->outData[0]->getDims().size();
     }
     if (conv->insData[0].lock().get()->getDims().size() < 2) {
-        THROW_IE_EXCEPTION << "Unsupported input dims size for " << conv->name << ", should be > 1, but " << conv->insData[0].lock().get()->getDims().size();
+        IE_THROW() << "Unsupported input dims size for " << conv->name << ", should be > 1, but " << conv->insData[0].lock().get()->getDims().size();
     }
     auto inputData = conv->insData[0].lock();
 
@@ -647,8 +663,8 @@ template<class Desc>
 class DataQuantizer<Desc, InferenceEngine::ConvolutionLayer *> : public DataQuantizerBase {
  public:
     explicit DataQuantizer(float scaleFactor) : DataQuantizerBase(scaleFactor) {}
-    bool operator()(InferenceEngine::WeightableLayer *wl) const {
-        quantizeWeightsBiasesConv<typename Desc::OptionalType>(Desc::optional(), wl, Quant<typename Desc::OptionalType>());
+    bool operator()(InferenceEngine::ConvolutionLayer *cl) const {
+        quantizeWeightsBiasesConv<typename Desc::OptionalType>(Desc::optional(), cl, Quant<typename Desc::OptionalType>());
         return true;
     }
 };
@@ -657,8 +673,8 @@ template<class Desc>
 class DataQuantizer<Desc, InferenceEngine::ScaleShiftLayer *> : public DataQuantizerBase {
  public:
     explicit DataQuantizer(float scaleFactor) : DataQuantizerBase(scaleFactor) {}
-    bool operator()(InferenceEngine::ScaleShiftLayer *wl) const {
-        quantizeWeightsBiases<typename Desc::OptionalType>(Desc::optional(), wl, Quant<typename Desc::OptionalType>(), true);
+    bool operator()(InferenceEngine::ScaleShiftLayer *ssl) const {
+        quantizeWeightsBiases<typename Desc::OptionalType>(Desc::optional(), ssl, Quant<typename Desc::OptionalType>(), true);
         return true;
     }
 };
@@ -677,6 +693,7 @@ class LayersQuantizer : public frontend::DataQuantizerBase {
 
 using QuantI16 = frontend::QuantPair<frontend::QuantI16, frontend::QuantI16>;
 using QuantI8 = frontend::QuantPair<frontend::QuantI8, frontend::QuantI16>;
+using QuantI8_I8 = frontend::QuantPair<frontend::QuantI8_I8, frontend::QuantI8_I8>;
 
 
 using FakeQuantI16 = frontend::QuantPair<frontend::FakeQuantI16, frontend::FakeQuantI16>;

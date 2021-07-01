@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,8 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
+    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
+    InferenceEngine::Precision::I32};
 
 /* ============= 2D Binary Convolution ============= */
 const std::vector<std::vector<size_t>> kernels = {{3, 3}, {3, 5}};
@@ -43,7 +44,7 @@ const auto binConv2DParams_ValidPadding = ::testing::Combine(
     ::testing::Values(ngraph::op::PadType::VALID),
     ::testing::ValuesIn(padValues));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_BinaryConvolution2D_ExplicitPadding, BinaryConvolutionLayerTest,
     ::testing::Combine(
         binConv2DParams_ExplicitPadding,
@@ -56,7 +57,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_BinaryConvolution2D_AutoPadValid, BinaryConvolutionLayerTest,
     ::testing::Combine(
         binConv2DParams_ValidPadding,

@@ -1,11 +1,11 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # [cmake:plugin]
 set(TARGET_NAME "templatePlugin")
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 # adds a shared library with plugin
@@ -13,7 +13,11 @@ ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "TEMPLATE"
               SOURCES ${SOURCES} ${HEADERS}
               SKIP_INSTALL # ATTENTION: uncomment to install component
-              VERSION_DEFINES_FOR template_plugin.cpp)
+              VERSION_DEFINES_FOR template_plugin.cpp
+              ADD_CLANG_FORMAT)
+
+# Enable support of CC for the plugin
+ie_mark_target_as_cc(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -47,6 +51,5 @@ endif()
 
 # install(TARGETS ${TARGET_NAME}
 #         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
-#         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH}
 #         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
 #         COMPONENT ${component_name})

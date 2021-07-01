@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,13 +69,16 @@ void ImportNetworkTestBase::Run() {
 
     for (const auto& next_input : importedExecNetwork.GetInputsInfo()) {
         ASSERT_NO_THROW(compiledExecNetwork.GetInputsInfo()[next_input.first]);
+        Compare(next_input.second->getTensorDesc(), compiledExecNetwork.GetInputsInfo()[next_input.first]->getTensorDesc());
     }
     for (const auto& next_output : importedExecNetwork.GetOutputsInfo()) {
         ASSERT_NO_THROW(compiledExecNetwork.GetOutputsInfo()[next_output.first]);
     }
     auto importedOutputs = GetOutputs();
     ASSERT_EQ(actualOutputs.size(), importedOutputs.size());
+
     for (size_t i = 0; i < actualOutputs.size(); i++) {
+        Compare(actualOutputs[i]->getTensorDesc(), importedOutputs[i]->getTensorDesc());
         Compare(actualOutputs[i], importedOutputs[i]);
     }
 }

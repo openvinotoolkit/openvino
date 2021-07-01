@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
         if (description.values.size() == 1ul) {
             shape = std::vector<size_t>({});
         } else {
-            shape = std::vector<size_t>(data->get_output_shape(0).size(), 1ul);
+            shape = std::vector<size_t>(data->get_output_partial_shape(0).rank().get_length(), 1ul);
             shape[shape.size() >= 2 ? 1ul : 0] = description.values.size();
         }
     }

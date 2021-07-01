@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 include(FetchContent)
 
@@ -35,6 +23,9 @@ FetchContent_Declare(
     ext_onnx
     GIT_REPOSITORY ${ONNX_GIT_REPO_URL}
     GIT_TAG ${ONNX_GIT_BRANCH}
+    GIT_SHALLOW TRUE
+    # apply patch to fix problems with symbols visibility for MSVC
+    PATCH_COMMAND git reset --hard HEAD && git apply --ignore-space-change --ignore-whitespace --verbose ${ONNX_PATCH_FILE}
 )
 
 macro(onnx_set_target_properties)
@@ -44,8 +35,8 @@ macro(onnx_set_target_properties)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(onnx PRIVATE /WX-)
     elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-        target_compile_options(onnx PRIVATE -Wno-unused-variable -Wno-unused-parameter)
-        target_compile_options(onnx_proto PRIVATE -Wno-unused-variable)
+        target_compile_options(onnx PRIVATE -Wno-all)
+        target_compile_options(onnx_proto PRIVATE -Wno-all -Wno-unused-variable)
 
         # it fixes random problems with double registration of descriptors to protobuf database
         set_target_properties(onnx_proto PROPERTIES
@@ -61,9 +52,7 @@ macro(onnx_set_target_properties)
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
-    if (NGRAPH_EXPORT_TARGETS_ENABLE)
-        export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
-    endif()
+    export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
 endmacro()
 
 FetchContent_GetProperties(ext_onnx)
@@ -76,10 +65,6 @@ if(NOT ext_onnx_POPULATED)
     if(CMAKE_CROSSCOMPILING)
         set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
     endif()
-
-    # apply patch to fix problems with symbols visibility for MSVC
-    execute_process(COMMAND git apply --verbose ${ONNX_PATCH_FILE}
-      WORKING_DIRECTORY ${ext_onnx_SOURCE_DIR})
 
     add_subdirectory(${ext_onnx_SOURCE_DIR} ${ext_onnx_BINARY_DIR} EXCLUDE_FROM_ALL)
     onnx_set_target_properties()

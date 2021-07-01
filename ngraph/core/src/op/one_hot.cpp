@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/one_hot.hpp"
 #include "itt.hpp"
@@ -177,12 +165,25 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
     NGRAPH_CHECK(ind_Pshape.is_static() && out_Pshape.is_static(),
                  "Only static input/output shapes are supported");
     const auto out_shape = out_Pshape.get_shape();
-    const auto axis = get_axis();
+    const size_t axis = get_axis();
     NGRAPH_CHECK(axis >= 0 && axis < out_shape.size(), "Invalid axis value.");
     const auto depth = get_constant_from_source(input_value(1))->cast_vector<int64_t>()[0];
     const auto ind_shape = ind_Pshape.get_shape();
     NGRAPH_CHECK(shape_size(ind_shape) * depth == shape_size(out_shape),
                  "Incompatible I/O shapes or wrong depth value.");
-    NGRAPH_CHECK(out_shape[axis] == depth, "Incompatible axis and depth values.");
+    NGRAPH_CHECK(static_cast<int64_t>(out_shape[axis]) == depth,
+                 "Incompatible axis and depth values.");
     return one_hot::evaluate_onehot(output_values, input_values, axis);
+}
+
+bool op::v1::OneHot::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_OneHot_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64: return true;
+    default: break;
+    }
+    return false;
 }

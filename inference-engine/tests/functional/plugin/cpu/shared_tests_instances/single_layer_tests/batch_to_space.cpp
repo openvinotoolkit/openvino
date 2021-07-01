@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ batchToSpaceParamsTuple bts_only_test_cases[] = {
                                 CommonTestUtils::DEVICE_CPU),
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN, BatchToSpaceLayerTest, ::testing::ValuesIn(bts_only_test_cases),
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN, BatchToSpaceLayerTest, ::testing::ValuesIn(bts_only_test_cases),
                         BatchToSpaceLayerTest::getTestCaseName);
 
 

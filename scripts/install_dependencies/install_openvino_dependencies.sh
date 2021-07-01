@@ -1,25 +1,14 @@
 #!/bin/bash
 
-# Copyright (c) 2018 - 2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 set -e
 
 #===================================================================================================
 # Option parsing
 
-all_comp=(opencv_req opencv_opt python dev myriad dlstreamer installer pot cl_compiler)
+all_comp=(opencv_req opencv_opt python dev myriad dlstreamer installer cl_compiler)
 os=${os:-auto}
 
 # public options
@@ -70,7 +59,7 @@ if [ -n "$selftest" ] ; then
             echo "||"
             echo "|| Test $image / '$opt'"
             echo "||"
-            SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+            SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
             docker run -it --rm \
                 --volume ${SCRIPT_DIR}:/scripts:ro,Z  \
                 --volume yum-cache:/var/cache/yum \
@@ -111,10 +100,9 @@ if [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
-    pkgs_dev=(cmake g++ gcc libc6-dev make curl)
+    pkgs_dev=(cmake g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
-    pkgs_pot=()
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
         gstreamer1.0-plugins-bad
@@ -154,10 +142,9 @@ elif [ "$os" == "ubuntu20.04" ] ; then
 
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
-    pkgs_dev=(cmake g++ gcc libc6-dev make curl)
+    pkgs_dev=(cmake g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
-    pkgs_pot=(libblas-dev liblapack-dev gfortran)
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
         gstreamer1.0-plugins-bad
@@ -195,6 +182,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         libopenexr24
         libtag-extras1
         python3-gi
+        python3-gi-cairo
         python3-gst-1.0
         vainfo
     )
@@ -203,10 +191,9 @@ elif [ "$os" == "rhel8" ] ; then
 
     pkgs_opencv_req=(gtk3)
     pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl sudo)
     pkgs_myriad=()
     pkgs_installer=()
-    pkgs_pot=()
     pkgs_opencv_opt=(
         gstreamer1
         gstreamer1-plugins-bad-free
@@ -222,10 +209,9 @@ elif [ "$os" == "centos7" ] ; then
 
     pkgs_opencv_req=(gtk2)
     pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl sudo)
     pkgs_myriad=(libusbx)
     pkgs_installer=()
-    pkgs_pot=()
     pkgs_cl_compiler=()
     pkgs_opencv_opt=(
         gstreamer1

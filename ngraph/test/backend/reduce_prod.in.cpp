@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -90,95 +78,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_product_matrix_rows)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
     EXPECT_TRUE(test::all_close_f((vector<float>{2, 12, 30}), read_vector<float>(result)));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reduce_product_matrix_rows_zero)
-{
-    Shape shape_a{3, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceProd>(A, axes, false), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    copy_data(result, vector<float>({3, 3, 3}));
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1, 1, 1}), read_vector<float>(result)));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reduce_product_matrix_cols_zero)
-{
-    // Now the reduction (g(x:float32[2,2],y:float32[]) = reduce(x,y,f,axes={})).
-    Shape shape_a{0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_rt{2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceProd>(A, axes, false), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    copy_data(result, vector<float>({3, 3}));
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1, 1}), read_vector<float>(result)));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reduce_product_vector_zero)
-{
-    Shape shape_a{0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceProd>(A, axes, false), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    copy_data(result, vector<float>({3}));
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1}), read_vector<float>(result)));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reduce_product_matrix_to_scalar_zero_by_zero)
-{
-    Shape shape_a{0, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceProd>(A, axes, false), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    copy_data(result, vector<float>({3}));
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1}), read_vector<float>(result)));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_product_3d_to_matrix_most_sig)
@@ -293,31 +192,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_product_3d_to_scalar)
                                                 5.0f * 8.0f * 11.0f * 2.0f * 3.0f * 12.0f * 7.0f *
                                                 6.0f * 13.0f * 4.0f * 9.0f * 10.0f * 1.0f},
                                   read_vector<float>(result)));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reduce_product_3d_eliminate_zero_dim)
-{
-    Shape shape_a{3, 0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_rt{3, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceProd>(A, axes, false), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-
-    // Overwrite the initial result vector to make sure we're not just coincidentally getting the
-    // right value.
-    copy_data(result, vector<float>{2112, 2112, 2112, 2112, 2112, 2112});
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1, 1, 1, 1, 1, 1}), read_vector<float>(result)));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_product_2d_to_scalar_int32)
@@ -445,95 +319,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_product_keep_matrix_rows)
     EXPECT_TRUE(test::all_close_f((vector<float>{2, 12, 30}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reduce_product_keep_matrix_rows_zero)
-{
-    Shape shape_a{3, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceProd>(A, axes, true), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    copy_data(result, vector<float>({3, 3, 3}));
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1, 1, 1}), read_vector<float>(result)));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reduce_product_keep_matrix_cols_zero)
-{
-    // Now the reduction (g(x:float32[2,2],y:float32[]) = reduce(x,y,f,axes={})).
-    Shape shape_a{0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_rt{1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceProd>(A, axes, true), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    copy_data(result, vector<float>({3, 3}));
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1, 1}), read_vector<float>(result)));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reduce_product_keep_vector_zero)
-{
-    Shape shape_a{0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_rt{1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceProd>(A, axes, true), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    copy_data(result, vector<float>({3}));
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1}), read_vector<float>(result)));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reduce_product_keep_matrix_to_scalar_zero_by_zero)
-{
-    Shape shape_a{0, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_rt{1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceProd>(A, axes, true), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    copy_data(result, vector<float>({3}));
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1}), read_vector<float>(result)));
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, reduce_product_keep_3d_to_matrix_most_sig)
 {
     Shape shape_a{3, 3, 3};
@@ -646,31 +431,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_product_keep_3d_to_scalar)
                                                 5.0f * 8.0f * 11.0f * 2.0f * 3.0f * 12.0f * 7.0f *
                                                 6.0f * 13.0f * 4.0f * 9.0f * 10.0f * 1.0f},
                                   read_vector<float>(result)));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reduce_product_keep_3d_eliminate_zero_dim)
-{
-    Shape shape_a{3, 0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_rt{3, 1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceProd>(A, axes, true), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-
-    // Overwrite the initial result vector to make sure we're not just coincidentally getting the
-    // right value.
-    copy_data(result, vector<float>{2112, 2112, 2112, 2112, 2112, 2112});
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1, 1, 1, 1, 1, 1}), read_vector<float>(result)));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_product_keep_2d_to_scalar_int32)

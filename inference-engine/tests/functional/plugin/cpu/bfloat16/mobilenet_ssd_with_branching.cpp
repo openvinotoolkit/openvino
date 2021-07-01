@@ -1,6 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "bfloat16_helpers.hpp"
 
 #include <memory>
@@ -158,10 +159,12 @@ protected:
 };
 
 TEST_P(MobileNet_ssd_with_branching, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, MobileNet_ssd_with_branching,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, MobileNet_ssd_with_branching,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -170,7 +173,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, MobileNet_ssd_with_branch
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         MobileNet_ssd_with_branching::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, MobileNet_ssd_with_branching,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, MobileNet_ssd_with_branching,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

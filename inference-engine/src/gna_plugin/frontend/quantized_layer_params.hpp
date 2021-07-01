@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,10 @@ public:
     bool IsScaleSet() const {
         return scale_set;
     }
-    void SetLevels(int32_t l) {
+    void SetLevels(size_t l) {
         levels = l;
     }
-    int32_t GetLevels() const {
+    size_t GetLevels() const {
         return levels;
     }
     bool IsStatsSet() const {
@@ -70,7 +70,7 @@ public:
 private:
     float scale = 1.0f;
     bool scale_set = false;
-    int32_t levels = 0;
+    size_t levels = 0;
     std::vector<float> input_min_values;
     std::vector<float> input_max_values;
     std::vector<float> output_min_values;
@@ -84,8 +84,8 @@ struct QuantizedLayerParams {
     // deprecate this
     Quantization _weights_quant;
     Quantization _bias_quant;
-    float _o_shift = 0.0f;
-    float _b_shift = 0.0f;
+
+    bool lowPrecision = false;
 };
 
 }  // namespace GNAPluginNS

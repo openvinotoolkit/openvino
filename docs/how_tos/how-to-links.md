@@ -44,7 +44,6 @@ To learn about what is *custom operation* and how to work with them in the Deep 
 [![](https://img.youtube.com/vi/Kl1ptVb7aI8/0.jpg)](https://www.youtube.com/watch?v=Kl1ptVb7aI8)
 <iframe width="560" height="315" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-
 ## Computer Vision with Intel
 
 [![](https://img.youtube.com/vi/FZZD4FCvO9c/0.jpg)](https://www.youtube.com/watch?v=FZZD4FCvO9c)

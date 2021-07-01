@@ -1,23 +1,14 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/reduce_sum.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/broadcast.hpp"
+#include "ngraph/op/util/evaluate_helpers.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/shape_util.hpp"
@@ -25,7 +16,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::ReduceSum::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ReduceSum, "ReduceSum", 1, util::ArithmeticReductionKeepDims);
 
 op::v1::ReduceSum::ReduceSum(const Output<Node>& arg,
                              const Output<Node>& reduction_axes,
@@ -57,7 +48,7 @@ namespace reduce_sum
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::sum(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
         return true;
     }
 
@@ -79,11 +70,33 @@ namespace reduce_sum
         }
         return rc;
     }
-}
+} // namespace reduce_sum
 
 bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceSum_evaluate);
-    return reduce_sum::evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+
+    const auto reduction_axes = get_normalized_axes_from_tensor(
+        inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
+
+    return reduce_sum::evaluate_sum(inputs[0], outputs[0], reduction_axes, get_keep_dims());
+}
+
+bool op::v1::ReduceSum::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_ReduceSum_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

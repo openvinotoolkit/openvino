@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ bool isBlobKindSupported(const std::shared_ptr<Core>& core,
     case FuncTestUtils::BlobKind::BatchOfSimple:
         return isBatchedBlobSupported(core, targetDevice);
     default:
-        THROW_IE_EXCEPTION << "Test does not support the blob kind";
+        IE_THROW() << "Test does not support the blob kind";
     }
 }
 
@@ -82,7 +82,7 @@ void SetBlobOfKindTest::ExpectSetBlobThrow() {
         const auto &info = input.second;
         auto blob = GenerateInput(*info);
         EXPECT_THROW(inferRequest.SetBlob(info->name(), blob),
-                     InferenceEngine::details::InferenceEngineException);
+                     InferenceEngine::Exception);
     }
 }
 

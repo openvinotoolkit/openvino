@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cinttypes>
@@ -53,48 +41,6 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, elu)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{3, 2});
-    auto elu = make_shared<op::Elu>(A, 0.5f);
-    auto function = make_shared<Function>(NodeVector{elu}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input(vector<float>{-2.f, 3.f, -2.f, 1.f, -1.f, 0.f});
-    test_case.add_expected_output(
-        vector<float>{-0.432332358f, 3.f, -0.432332358f, 1.f, -0.316060279f, 0.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, elu_negative_alpha)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{3, 2});
-    auto elu = make_shared<op::Elu>(A, -1.f);
-    auto function = make_shared<Function>(NodeVector{elu}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input(vector<float>{-2.f, 3.f, -2.f, 1.f, -1.f, 0.f});
-    test_case.add_expected_output(
-        vector<float>{0.864664717f, 3.f, 0.864664717f, 1.f, 0.632120559f, 0.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, prelu)
-{
-    Shape shape{3, 2};
-    Shape rshape{3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
-    auto prelu = make_shared<op::PRelu>(A, B);
-    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
-    std::vector<float> a{-2, 3, -2, 1, -1, 0};
-    std::vector<float> b{0, 0.5, 1};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(vector<float>{0, 3, -1, 1, -1, 0});
-    test_case.run();
-}
 
 NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
 {
@@ -132,39 +78,6 @@ NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, prelu_shared_slope)
-{
-    Shape shape{3, 2};
-    Shape rshape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
-    auto prelu = make_shared<op::PRelu>(A, B);
-    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
-    std::vector<float> a{-2, 3, -2, 1, -1, 0};
-    std::vector<float> b{0.5};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(vector<float>{-1, 3, -1, 1, -0.5, 0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope)
-{
-    Shape shape{3, 2};
-    Shape rshape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
-    auto prelu = make_shared<op::PRelu>(A, B);
-    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
-    std::vector<float> a{-2, 3, -2, 1, -1, 0};
-    std::vector<float> b{-0.5};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(vector<float>{1, 3, 1, 1, 0.5, 0});
-    test_case.run();
-}
 
 NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_block_first)
 {
@@ -205,43 +118,6 @@ NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_depth_first)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_block_first)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
-    auto depth_to_space =
-        make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
-    auto function = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({
-        0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
-        4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
-    });
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 4, 4}, {0.f,  1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f,
-                            11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f,
-                            22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_depth_first)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
-    auto depth_to_space =
-        make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
-    auto function = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({
-        0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
-        4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
-    });
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 4, 4}, {0.f,  16.f, 2.f,  18.f, 1.f,  17.f, 3.f,  19.f, 8.f,  24.f, 10.f,
-                            26.f, 9.f,  25.f, 11.f, 27.f, 4.f,  20.f, 6.f,  22.f, 5.f,  21.f,
-                            7.f,  23.f, 12.f, 28.f, 14.f, 30.f, 13.f, 29.f, 15.f, 31.f});
-    test_case.run();
-}
 // TODO: Issue: 37521
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
 {
@@ -251,7 +127,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -278,7 +154,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_empty_axes_input)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -306,7 +182,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_h_4d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -332,7 +208,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_1axis_5d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -358,7 +234,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_123axes_5d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -384,7 +260,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x2_shape)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -408,7 +284,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x4_shape)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -439,7 +315,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d_max_bias)
     float eps{5000};
     auto eps_mode = op::EpsMode::MAX;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -456,616 +332,6 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d_max_bias)
                      0.26870057f, 0.28284273f, 0.29698485f, 0.31112698f, 0.32526913f, 0.33941126f});
 
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
-}
-
-namespace
-{
-    template <typename T, test::TestCaseType tct = test::TestCaseType::STATIC>
-    void clamp_test(const element::Type& type,
-                    const PartialShape& dynamic_shape,
-                    const Shape& static_shape,
-                    const std::vector<T>& input,
-                    double min,
-                    double max,
-                    const std::vector<T>& output)
-    {
-        auto data = make_shared<op::Parameter>(type, dynamic_shape);
-        auto clamp = make_shared<op::Clamp>(data, min, max);
-        auto function = make_shared<Function>(clamp, ParameterVector{data});
-
-        auto test_case = test::TestCase<TestEngine, tct>(function);
-        test_case.template add_input<T>(static_shape, input);
-        test_case.template add_expected_output<T>(static_shape, output);
-        return test_case.run();
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_double)
-{
-    auto type = element::f64;
-    typedef double ctype;
-
-    auto sshape = Shape{5, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    auto max = numeric_limits<ctype>::max();
-    auto pinf = numeric_limits<double>::infinity();
-    auto ninf = -numeric_limits<double>::infinity();
-
-    vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
-
-    // static shape
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                      0.2,
-                      0.6,
-                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      10.0,
-                      20.0,
-                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      10.0,
-                      pinf,
-                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      ninf,
-                      20.0,
-                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-        0.2,
-        0.6,
-        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_float)
-{
-    auto type = element::f32;
-    typedef float ctype;
-
-    auto sshape = Shape{5, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    auto max = numeric_limits<ctype>::max();
-    auto pinf = numeric_limits<float>::infinity();
-    auto ninf = -numeric_limits<float>::infinity();
-
-    vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
-
-    // static shape
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                      0.2,
-                      0.6,
-                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      10.0,
-                      20.0,
-                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      10.0,
-                      pinf,
-                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      ninf,
-                      20.0,
-                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-        0.2,
-        0.6,
-        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int8)
-{
-    auto type = element::i8;
-    typedef int8_t ctype;
-
-    auto sshape = Shape{4, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    auto max = numeric_limits<ctype>::max();
-    auto pinf = numeric_limits<double>::infinity();
-    auto ninf = -numeric_limits<double>::infinity();
-
-    vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
-
-    // static shape
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int16)
-{
-    auto type = element::i16;
-    typedef int16_t ctype;
-
-    auto sshape = Shape{4, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    auto max = numeric_limits<ctype>::max();
-    auto pinf = numeric_limits<double>::infinity();
-    auto ninf = -numeric_limits<double>::infinity();
-
-    vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
-
-    // static shape
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int32)
-{
-    auto type = element::i32;
-    typedef int32_t ctype;
-
-    auto sshape = Shape{4, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    auto max = numeric_limits<ctype>::max();
-    auto pinf = numeric_limits<double>::infinity();
-    auto ninf = -numeric_limits<double>::infinity();
-
-    vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
-
-    // static shape
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int64)
-{
-    auto type = element::i64;
-    typedef int64_t ctype;
-
-    auto sshape = Shape{4, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    auto max = numeric_limits<ctype>::max();
-    auto pinf = numeric_limits<double>::infinity();
-    auto ninf = -numeric_limits<double>::infinity();
-
-    vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
-
-    // static shape
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint8)
-{
-    auto type = element::u8;
-    typedef uint8_t ctype;
-
-    auto sshape = Shape{4, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    // TODO: Fix CPU DEX / MLIR correctness bug: using signed comparison for unsigned ints
-    // auto max = numeric_limits<ctype>::max();
-    // auto pinf = numeric_limits<double>::infinity();
-    ctype max = (static_cast<ctype>(1) << (numeric_limits<ctype>::digits - 1)) - 1;
-    auto pinf = static_cast<double>(max);
-    auto ninf = -numeric_limits<double>::infinity();
-
-    vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
-
-    // static shape
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint16)
-{
-    auto type = element::u16;
-    typedef uint16_t ctype;
-
-    auto sshape = Shape{4, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    // TODO: Fix CPU DEX / MLIR correctness bug: using signed comparison for unsigned ints
-    // auto max = numeric_limits<ctype>::max();
-    // auto pinf = numeric_limits<double>::infinity();
-    ctype max = (static_cast<ctype>(1) << (numeric_limits<ctype>::digits - 1)) - 1;
-    auto pinf = static_cast<double>(max);
-    auto ninf = -numeric_limits<double>::infinity();
-
-    vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
-
-    // static shape
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint32)
-{
-    auto type = element::u32;
-    typedef uint32_t ctype;
-
-    auto sshape = Shape{4, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    // TODO: Fix CPU DEX / MLIR correctness bug: using signed comparison for unsigned ints
-    // auto max = numeric_limits<ctype>::max();
-    // auto pinf = numeric_limits<double>::infinity();
-    ctype max = (static_cast<ctype>(1) << (numeric_limits<ctype>::digits - 1)) - 1;
-    auto pinf = static_cast<double>(max);
-    auto ninf = -numeric_limits<double>::infinity();
-
-    vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
-
-    // static shape
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint64)
-{
-    auto type = element::u64;
-    typedef uint64_t ctype;
-
-    auto sshape = Shape{4, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    // TODO: Fix CPU DEX / MLIR correctness bug: using signed comparison for unsigned ints
-    // auto max = numeric_limits<ctype>::max();
-    // auto pinf = numeric_limits<double>::infinity();
-    ctype max = (static_cast<ctype>(1) << (32 - 1)) - 1;
-    auto pinf = static_cast<double>(max);
-    auto ninf = -numeric_limits<double>::infinity();
-
-    vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
-
-    // static shape
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_float16)
-{
-    auto type = element::f16;
-    typedef float16 ctype;
-
-    auto sshape = Shape{5, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    auto max = numeric_limits<ctype>::max();
-    auto pinf = numeric_limits<float>::infinity();
-    auto ninf = -numeric_limits<float>::infinity();
-
-    vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
-
-    // static shape
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                      0.2,
-                      0.6,
-                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      10.0,
-                      20.0,
-                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      10.0,
-                      pinf,
-                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      ninf,
-                      20.0,
-                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-        0.2,
-        0.6,
-        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_bfloat16)
-{
-    auto type = element::bf16;
-    typedef bfloat16 ctype;
-
-    auto sshape = Shape{5, 2};
-    auto dshape = PartialShape::dynamic();
-
-    auto min = numeric_limits<ctype>::min();
-    auto max = numeric_limits<ctype>::max();
-    auto pinf = numeric_limits<float>::infinity();
-    auto ninf = -numeric_limits<float>::infinity();
-
-    vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
-
-    // static shape
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                      0.2,
-                      0.6,
-                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      10.0,
-                      20.0,
-                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      10.0,
-                      pinf,
-                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
-
-    clamp_test<ctype>(type,
-                      sshape,
-                      sshape,
-                      input,
-                      ninf,
-                      20.0,
-                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-        0.2,
-        0.6,
-        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
-
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization)
@@ -1265,120 +531,6 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_grn_2d_with_bias)
                                           0.9908301f,
                                           0.99227786f});
     test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, unsqueeze)
-{
-    auto data_node = make_shared<op::Parameter>(element::f32, Shape{4, 2});
-    auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
-    auto squeeze = make_shared<op::v0::Unsqueeze>(data_node, axes_node);
-
-    auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    auto data = vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
-    test_case.add_input(data);
-    test_case.add_expected_output<float>(Shape{4, 1, 1, 2}, data);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_simple)
-{
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 15, 2, 2});
-    auto tested_op = make_shared<op::ShuffleChannels>(data, 1, 5);
-    auto function = make_shared<Function>(tested_op, ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    std::vector<int32_t> input_data(60);
-    std::iota(std::begin(input_data), std::end(input_data), 0);
-    test_case.add_input(input_data);
-
-    test_case.add_expected_output<int32_t>(
-        Shape{1, 15, 2, 2},
-        {0, 1, 2,  3,  12, 13, 14, 15, 24, 25, 26, 27, 36, 37, 38, 39, 48, 49, 50, 51,
-         4, 5, 6,  7,  16, 17, 18, 19, 28, 29, 30, 31, 40, 41, 42, 43, 52, 53, 54, 55,
-         8, 9, 10, 11, 20, 21, 22, 23, 32, 33, 34, 35, 44, 45, 46, 47, 56, 57, 58, 59});
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_negative_axis)
-{
-    // in this test the output is the same as in shuffle_channels_simple but
-    // the axis value is negative and the C(channels) value is in a different dimension(0) of the
-    // shape
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{15, 2, 1, 2});
-    auto tested_op = make_shared<op::ShuffleChannels>(data, -4, 5);
-    auto function = make_shared<Function>(tested_op, ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    std::vector<int32_t> input_data(60);
-    std::iota(std::begin(input_data), std::end(input_data), 0);
-    test_case.add_input(input_data);
-
-    test_case.add_expected_output<int32_t>(
-        Shape{15, 2, 1, 2},
-        {0, 1, 2,  3,  12, 13, 14, 15, 24, 25, 26, 27, 36, 37, 38, 39, 48, 49, 50, 51,
-         4, 5, 6,  7,  16, 17, 18, 19, 28, 29, 30, 31, 40, 41, 42, 43, 52, 53, 54, 55,
-         8, 9, 10, 11, 20, 21, 22, 23, 32, 33, 34, 35, 44, 45, 46, 47, 56, 57, 58, 59});
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_float)
-{
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{6, 1, 1, 1});
-    auto tested_op = make_shared<op::ShuffleChannels>(data, 0, 2);
-    auto function = make_shared<Function>(tested_op, ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    test_case.add_input<float>({0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
-
-    test_case.add_expected_output<float>(Shape{6, 1, 1, 1}, {0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f});
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, squeeze)
-{
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
-    const auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
-    const auto squeeze = make_shared<op::Squeeze>(data_node, axes_node);
-
-    const auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    const auto data = vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
-    test_case.add_input(data);
-    test_case.add_expected_output<float>(Shape{4, 1, 2}, data);
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, squeeze_default_axes)
-{
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
-    const auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
-    const auto squeeze = make_shared<op::Squeeze>(data_node, axes_node);
-
-    const auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    const auto data = vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
-    test_case.add_input(data);
-    test_case.add_expected_output<float>(Shape{4, 2}, data);
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, squeeze_dynamic)
-{
-    const auto data_param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
-    const auto axes_param = make_shared<op::Parameter>(element::i64, Shape{2});
-    EXPECT_THROW(make_shared<op::Squeeze>(data_param, axes_param), CheckFailure);
 }
 
 // TODO: Issue: 37534

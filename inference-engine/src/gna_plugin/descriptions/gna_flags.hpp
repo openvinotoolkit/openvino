@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,5 +18,6 @@ struct GNAFlags {
     bool sw_fp32 = false;
     bool fake_quantized = false;
     bool performance_counting = false;
+    bool input_low_precision = false;
 };
 }  // namespace GNAPluginNS

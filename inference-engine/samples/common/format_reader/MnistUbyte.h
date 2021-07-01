@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,10 @@
  */
 #pragma once
 
+#include <format_reader.h>
+
 #include <memory>
 #include <string>
-#include <format_reader.h>
 
 #include "register.h"
 
@@ -31,9 +32,8 @@ public:
      * @param filename - path to input data
      * @return MnistUbyte reader object
      */
-    explicit MnistUbyte(const std::string &filename);
-    virtual ~MnistUbyte() {
-    }
+    explicit MnistUbyte(const std::string& filename);
+    virtual ~MnistUbyte() {}
 
     /**
      * \brief Get size

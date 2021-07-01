@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <regex>
@@ -40,7 +28,7 @@ namespace ngraph
                     };
                 }
             }
-        }
+        } // namespace op
 
         PatternMap as_pattern_map(const PatternValueMap& pattern_value_map)
         {
@@ -72,7 +60,8 @@ namespace ngraph
         {
             return [=](Output<Node> output) -> bool {
                 const auto& shape = output.get_partial_shape();
-                return shape.rank().is_static() && shape.rank().get_length() > pos &&
+                return shape.rank().is_static() &&
+                       shape.rank().get_length() > static_cast<int64_t>(pos) &&
                        shape[pos].is_static();
             };
         }
@@ -82,7 +71,8 @@ namespace ngraph
             return [=](Output<Node> output) -> bool {
                 const auto& shape = output.get_partial_shape();
                 return shape.rank().is_static() &&
-                       shape.rank().get_length() > *std::max_element(dims.begin(), dims.end()) &&
+                       shape.rank().get_length() >
+                           static_cast<int64_t>(*std::max_element(dims.begin(), dims.end())) &&
                        std::all_of(dims.begin(), dims.end(), [&shape](size_t pos) {
                            return shape[pos].is_static();
                        });
@@ -102,6 +92,13 @@ namespace ngraph
             };
         }
 
+        std::function<bool(Output<Node>)> rank_equals(const Dimension& expected_rank)
+        {
+            return [=](Output<Node> output) -> bool {
+                return output.get_partial_shape().rank() == expected_rank;
+            };
+        }
+
         std::function<bool(Output<Node>)> type_matches(const element::Type& type)
         {
             return [=](Output<Node> output) -> bool { return output.get_element_type() == type; };
@@ -117,5 +114,5 @@ namespace ngraph
                                    [=](element::Type type) { return type == output_type; });
             };
         }
-    }
-}
+    } // namespace pattern
+} // namespace ngraph

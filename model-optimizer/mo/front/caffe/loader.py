@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import importlib
 import logging as log
@@ -143,10 +130,16 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
                 map = mmap.mmap(infile.fileno(), 0, access=mmap.ACCESS_READ)
                 model.MergeFromString(map)
     except Exception as e:
+        third_point = ''
+        if api_implementation._implementation_type == 'python':
+            third_point = '      3. Python protobuf implementation was used. Some models can\'t be converted ' + \
+                          ' in this configuration. Please, use Python version with existing cpp implementation of ' + \
+                          'protobuf library or build it by yourself\n' + refer_to_faq_msg(103)
         log.error('Exception message: {}\n\n'.format(e) +
                   '    Possible reasons:\n' +
                   '      1. {} does not exist\n'.format(model_path) +
-                  '      2. {} does not have a valid structure\n'.format(model_path), extra={'framework_error': True})
+                  '      2. {} does not have a valid structure\n'.format(model_path) + third_point,
+                  extra={'framework_error': True})
         raise FrameworkError('Model Optimizer is not able to parse {}'.format(model_path)) from e
 
     return proto, model
@@ -182,7 +175,7 @@ def caffe_pb_to_nx(graph, proto, model):
     # Blobs in prototxt model can be reused by inplace layer.
     # This requires loading of pb layers in order and tracking the latest
     # layer that writes a particular blob.
-    blob_producers = {}  # maps layer blob name to the layer name and port
+    blob_producers = {}  # maps layer blob name to node id in graph, port and layer name
     proto_layers = get_layers(proto)
     model_layers = None
     if model:
@@ -252,7 +245,7 @@ def caffe_pb_to_nx(graph, proto, model):
         # Input is defined at the top level of proto instead of distinct Input layer
         graph.add_node(input_name, pb=None, model_pb=None, type='GlobalInput', name=input_name, shape=input_dim,
                        kind='op')
-        blob_producers[input_name] = (input_name, 0)
+        blob_producers[input_name] = (input_name, 0, input_name)
 
     used_blobs = set()
     for i, layer in enumerate(proto_layers):
@@ -293,19 +286,21 @@ def caffe_pb_to_nx(graph, proto, model):
                 input_dims.append(np.array(list(dims), dtype=np.int64))
                 input_names.append(layer.name)
 
-        layer.name = graph.unique_id(layer.name)
-        graph.add_node(layer.name, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
+        node_id = graph.unique_id(layer.name)
+        graph.add_node(node_id, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
+        if hasattr(graph, 'op_names_statistic') and hasattr(layer, 'type'):
+            graph.op_names_statistic[layer.type] += 1
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):
-            add_edge_caffe(graph, bottom, layer.name, blob_producers, dst_port)
+            add_edge_caffe(graph, bottom, node_id, blob_producers, dst_port)
             used_blobs.add(bottom)
 
         # update blob producers dictionary by output ports
         for src_port, top in enumerate(layer.top):
             if top in blob_producers:
-                log.debug("Detected reuse of blob {} by layer {}".format(top, layer.name))
-            blob_producers[top] = (layer.name, src_port)
+                log.debug("Detected reuse of blob {} by layer {}".format(top, node_id))
+            blob_producers[top] = (node_id, src_port, layer.name)
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code
@@ -332,8 +327,8 @@ def add_edge_caffe(graph: Graph, bottom: str, dst_layer: str, blob_producers: di
         'out': src_port,
         'in': dst_port,
         'name': bottom,
-        # debug anchor for a framework name, out port and tensor name
-        'fw_tensor_debug_info': [(src_layer, src_port, bottom)],
+        # debug anchor for a framework name and tensor name
+        'fw_tensor_debug_info': [(blob_producers[bottom][2], bottom)],
         'in_attrs': ['in', 'name'],
         'out_attrs': ['out', 'name'],
         'data_attrs': ['fw_tensor_debug_info']

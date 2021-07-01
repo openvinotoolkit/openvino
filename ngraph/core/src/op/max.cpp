@@ -1,22 +1,12 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/max.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/max.hpp"
 #include "ngraph/shape_util.hpp"
@@ -34,7 +24,7 @@ namespace maxop
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::max(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
         return true;
     }
 
@@ -56,9 +46,9 @@ namespace maxop
         }
         return rc;
     }
-}
+} // namespace maxop
 
-constexpr NodeTypeInfo op::v1::ReduceMax::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ReduceMax, "ReduceMax", 1, util::ArithmeticReductionKeepDims);
 
 op::v1::ReduceMax::ReduceMax(const Output<Node>& arg,
                              const Output<Node>& reduction_axes,
@@ -79,5 +69,27 @@ bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceMax_evaluate);
-    return maxop::evaluate_max(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+
+    const auto reduction_axes = get_normalized_axes_from_tensor(
+        inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
+
+    return maxop::evaluate_max(inputs[0], outputs[0], reduction_axes, get_keep_dims());
+}
+
+bool op::v1::ReduceMax::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_ReduceMax_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

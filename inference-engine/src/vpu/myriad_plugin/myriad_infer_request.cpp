@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <description_buffer.hpp>
 #include <ie_layouts.h>
 #include <precision_utils.h>
+#include <blob_factory.hpp>
 
 #include <vpu/utils/error.hpp>
 #include <vpu/utils/perf_report.hpp>
@@ -33,7 +34,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
                                        const MyriadConfig& myriadConfig,
                                        const Logger::Ptr &log,
                                        const MyriadExecutorPtr &executor) :
-        InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
+        IInferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
         _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
         _graphDesc(graphDesc) {
@@ -122,9 +123,9 @@ void MyriadInferRequest::InferAsync() {
         const auto byteSize = blob->byteSize();
         const auto requiredSize = vpu::checked_cast<size_t>(offset) + byteSize;
         IE_ASSERT(requiredSize <= inputBuffer.size())  << "MyriadInferRequest::InferAsync()\n"
-                                                       << "Input offset is too big."
+                                                       << "Input offset is too big. "
                                                        << "Required size: " << requiredSize
-                                                       << "Input buffer size: " << inputBuffer.size();
+                                                       << ", Input buffer size: " << inputBuffer.size();
 
         const auto foundBlob = getNetInputInfo(name);
         const auto vpuLayout = foundBlob->second->getTensorDesc().getLayout();

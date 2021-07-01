@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/util/broadcast_base.hpp"
 #include "itt.hpp"
@@ -69,7 +57,7 @@ PartialShape op::util::BroadcastBase::get_result_shape_pdpd(
                           target_shape.size(),
                           " than arg shape ",
                           arg_rank_length);
-    for (auto i = start_axis; i < target_shape.size(); i++)
+    for (size_t i = start_axis; i < target_shape.size(); i++)
     {
         if (arg0_shape[i - start_axis].is_dynamic())
         {
@@ -140,7 +128,7 @@ void op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg
     if (arg_shape.rank().get_length() == 0 && axes_mapping_val.size() > 0)
     {
         NODE_VALIDATION_CHECK(this,
-                              target_shape[axes_mapping_val[0]] == 1,
+                              target_shape[axes_mapping_val[0]].compatible(1),
                               "Broadcast target[axes_mapping[0]]. Expected 1. Got ",
                               target_shape[axes_mapping_val[0]]);
     }
@@ -148,7 +136,7 @@ void op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg
     for (size_t i = 0; i < axes_mapping_val.size(); i++)
     {
         NODE_VALIDATION_CHECK(this,
-                              axes_mapping_val[i] < target_rank_length,
+                              static_cast<int64_t>(axes_mapping_val[i]) < target_rank_length,
                               "Broadcast axes_mapping[",
                               i,
                               "]: ",
@@ -159,7 +147,8 @@ void op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg
         if (arg_shape.rank().get_length() > 0)
         {
             NODE_VALIDATION_CHECK(this,
-                                  target_shape[axes_mapping_val[i]].same_scheme(arg_shape[i]),
+                                  target_shape[axes_mapping_val[i]].compatible(arg_shape[i]) ||
+                                      arg_shape[i].compatible(1),
                                   "Broadcast target[axes_mapping[",
                                   i,
                                   "]]",
@@ -376,9 +365,9 @@ std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes() const
     return std::make_pair(axes_known, broadcast_axes);
 }
 
-bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
-                                       const HostTensorPtr& out,
-                                       const AxisSet& broadcast_axes) const
+bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
+                                                 const HostTensorPtr& out,
+                                                 const AxisSet& broadcast_axes) const
 {
     NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes);
     auto arg0_shape = arg0->get_shape();
@@ -486,7 +475,7 @@ namespace
         }
         return target_shape;
     }
-}
+} // namespace
 
 bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
                                                  const HostTensorPtr& out,
@@ -502,7 +491,7 @@ bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
     out->set_shape(output_shape);
     out->set_element_type(arg0->get_element_type());
 
-    return evaluate(arg0, out, pair_broadcast_axes.second);
+    return evaluate_broadcast(arg0, out, pair_broadcast_axes.second);
 }
 
 Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const
@@ -524,9 +513,8 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     Shape target_shape = get_target_shape(inputs[1]);
 

@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -32,7 +21,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::SpaceToBatch::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::SpaceToBatch, "SpaceToBatch", 1);
 
 ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,
@@ -60,13 +49,13 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           pads_begin_type.is_integral_number(),
-                          "crops_begin must be an integral number but got (",
+                          "pads_begin must be an integral number but got (",
                           pads_begin_type,
                           ").");
 
     NODE_VALIDATION_CHECK(this,
                           pads_end_type.is_integral_number(),
-                          "crops_end must be an integral number but got (",
+                          "pads_end must be an integral number but got (",
                           pads_end_type,
                           ").");
 
@@ -274,6 +263,13 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch);
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_evaluate);
     return evaluate_space_to_batch(outputs, inputs);
+}
+
+bool ngraph::op::v1::SpaceToBatch::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_has_evaluate);
+    return !get_input_partial_shape(0).is_dynamic() &&
+           (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5);
 }

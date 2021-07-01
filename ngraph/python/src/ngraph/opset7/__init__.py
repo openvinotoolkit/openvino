@@ -1,19 +1,5 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
-
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from ngraph.opset1.ops import absolute
 from ngraph.opset1.ops import absolute as abs
@@ -51,7 +37,9 @@ from ngraph.opset1.ops import deformable_convolution
 from ngraph.opset1.ops import deformable_psroi_pooling
 from ngraph.opset1.ops import depth_to_space
 from ngraph.opset1.ops import detection_output
+from ngraph.opset7.ops import dft
 from ngraph.opset1.ops import divide
+from ngraph.opset7.ops import einsum
 from ngraph.opset1.ops import elu
 from ngraph.opset3.ops import embedding_bag_offsets_sum
 from ngraph.opset3.ops import embedding_bag_packed_sum
@@ -63,7 +51,7 @@ from ngraph.opset1.ops import exp
 from ngraph.opset1.ops import fake_quantize
 from ngraph.opset1.ops import floor
 from ngraph.opset1.ops import floor_mod
-from ngraph.opset1.ops import gather
+from ngraph.opset7.ops import gather
 from ngraph.opset6.ops import gather_elements
 from ngraph.opset5.ops import gather_nd
 from ngraph.opset1.ops import gather_tree
@@ -78,6 +66,7 @@ from ngraph.opset5.ops import gru_sequence
 from ngraph.opset1.ops import hard_sigmoid
 from ngraph.opset5.ops import hsigmoid
 from ngraph.opset4.ops import hswish
+from ngraph.opset7.ops import idft
 from ngraph.opset1.ops import interpolate
 from ngraph.opset1.ops import less
 from ngraph.opset1.ops import less_equal
@@ -134,6 +123,7 @@ from ngraph.opset3.ops import rnn_cell
 from ngraph.opset5.ops import rnn_sequence
 from ngraph.opset3.ops import roi_align
 from ngraph.opset2.ops import roi_pooling
+from ngraph.opset7.ops import roll
 from ngraph.opset5.ops import round
 from ngraph.opset3.ops import scatter_elements_update
 from ngraph.opset3.ops import scatter_update

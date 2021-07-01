@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,6 +10,10 @@ if(CMAKE_COMPILER_IS_GNUCC)
     if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
         ie_add_compiler_flags(-Wno-error=terminate)
     endif()
+endif()
+
+if(GPU_DEBUG_CONFIG)
+  add_definitions(-DGPU_DEBUG_CONFIG=1)
 endif()
 
 file(GLOB_RECURSE MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
@@ -28,15 +32,10 @@ target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml
                                              inference_engine_lp_transformations
                                              ${NGRAPH_LIBRARIES})
 
-add_cpplint_target(clDNN_lib_cpplint FOR_TARGETS clDNN_lib)
-add_cpplint_target(cldnn_kernel_selector_cpplint FOR_TARGETS cldnn_kernel_selector)
-
-set(CLDNN_TOP_FOLDER "${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN")
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-        ${CLDNN__OCL_ICD_INCDIRS}
-        ${CLDNN_TOP_FOLDER})
+        ${clDNN_SOURCE_DIR}/api)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -42,6 +30,8 @@
 #include "ngraph/node_output.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
+#include "ngraph/op/util/variable.hpp"
+#include "ngraph/op/util/variable_value.hpp"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
@@ -67,6 +57,10 @@ namespace ngraph
     using HostTensor = runtime::HostTensor;
     using HostTensorPtr = std::shared_ptr<HostTensor>;
     using HostTensorVector = std::vector<HostTensorPtr>;
+
+    /// EvaluationContext stores and manages a context (additional parameters, values and
+    /// environment) for evaluating ngraph::function.
+    using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
     namespace op
     {
@@ -205,10 +199,26 @@ namespace ngraph
         virtual bool visit_attributes(AttributeVisitor&) { return false; }
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
+
+        /// \brief Allows to get information about availability of evaluate method for the current
+        /// operation
+        // \returns true if evaluate is available
+        virtual bool has_evaluate() const;
         /// \brief Evaluates the op on input_values putting results in output_values
+        /// \param output_values Tensors for the outputs to compute. One for each result
+        /// \param input_values Tensors for the inputs. One for each inputs.
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const;
+        /// \brief Evaluates the op on input_values putting results in output_values
+        /// \param output_values Tensors for the outputs to compute. One for each result
+        /// \param input_values Tensors for the inputs. One for each inputs.
+        /// \param evaluation_context Storage of additional settings and attributes that can be used
+        /// when evaluating the op.
+        /// \returns true if successful
+        virtual bool evaluate(const HostTensorVector& output_values,
+                              const HostTensorVector& input_values,
+                              const EvaluationContext& evaluationContext) const;
         virtual bool evaluate_lower(const HostTensorVector& output_values) const;
         virtual bool evaluate_upper(const HostTensorVector& output_values) const;
 
@@ -424,6 +434,8 @@ namespace ngraph
 
         /// \return Version of this node
         virtual size_t get_version() const { return get_type_info().version; }
+
+        NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
         virtual std::shared_ptr<Node> get_default_value() const { return nullptr; }
         /// Use instance ids for comparison instead of memory addresses to improve determinism
         bool operator<(const Node& other) const { return m_instance_id < other.m_instance_id; }
@@ -682,7 +694,7 @@ namespace ngraph
         {
         }
     };
-}
+} // namespace ngraph
 #define NODE_VALIDATION_CHECK(node, ...)                                                           \
     NGRAPH_CHECK_HELPER(::ngraph::NodeValidationFailure, (node), __VA_ARGS__)
 

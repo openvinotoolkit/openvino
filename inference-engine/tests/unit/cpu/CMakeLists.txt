@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,7 +9,6 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin
-            ${IE_MAIN_SOURCE_DIR}/src/transformations/include
         OBJECT_FILES
             $<TARGET_OBJECTS:MKLDNNPlugin_obj>
         LINK_LIBRARIES

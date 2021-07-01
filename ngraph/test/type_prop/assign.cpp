@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -75,4 +63,27 @@ TEST(type_prop, assign_read_value_new_shape)
     ASSERT_EQ(assign->get_output_partial_shape(0), (PartialShape{3, {4, 5}, 8}));
     ASSERT_EQ(variable->get_info().data_type, element::f16);
     ASSERT_EQ(variable->get_info().data_shape, (PartialShape{3, {4, 5}, 8}));
+}
+
+TEST(type_prop, variable_comparison)
+{
+    auto variable1 =
+        std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "ID"});
+
+    auto variable2 =
+        std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "ID"});
+
+    auto variable3 =
+        std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "ID1"});
+
+    auto variable4 =
+        std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::f32, "ID"});
+
+    auto variable5 =
+        std::make_shared<Variable>(VariableInfo{Shape{1}, element::dynamic, "ID"});
+
+    ASSERT_TRUE(variable1->get_info() == variable2->get_info());
+    ASSERT_FALSE(variable1->get_info() == variable3->get_info());
+    ASSERT_FALSE(variable1->get_info() == variable4->get_info());
+    ASSERT_FALSE(variable1->get_info() == variable5->get_info());
 }

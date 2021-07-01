@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -23,7 +11,7 @@
 #include "lstm/lstm_gemm_kernel_selector.h"
 #include "lstm/lstm_gemm_kernel_base.h"
 #include "network_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -32,16 +20,19 @@ struct lstm_gemm_gpu : typed_primitive_gpu_impl<lstm_gemm> {
     using parent = typed_primitive_gpu_impl<lstm_gemm>;
     using parent::parent;
 
-protected:
-    kernel::kernel_arguments_data get_arguments(typed_primitive_inst<lstm_gemm>& instance,
-                                                        int32_t) const override {
-        kernel::kernel_arguments_data args = parent::get_arguments(instance, 0);
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<lstm_gemm_gpu>(*this);
+    }
 
-        args.output = (memory_impl::cptr) &instance.output_memory();
-        args.weights = (memory_impl::cptr) &instance.weights_memory();
-        args.recurrent = (memory_impl::cptr) &instance.recurrent_memory();
-        args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory() : nullptr);
-        args.hidden = (memory_impl::cptr) (instance.hidden_term() ? &instance.hidden_memory() : nullptr);
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_gemm>& instance, int32_t) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, 0);
+
+        args.output = instance.output_memory_ptr();
+        args.weights = instance.weights_memory();
+        args.recurrent = instance.recurrent_memory();
+        args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
+        args.hidden = instance.hidden_term() ? instance.hidden_memory() : nullptr;
 
         return args;
     }

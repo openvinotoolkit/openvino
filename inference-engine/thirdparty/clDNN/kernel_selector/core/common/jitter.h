@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -26,6 +14,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <locale>
 
 namespace kernel_selector {
 
@@ -91,7 +80,10 @@ std::string getMeanOpString(MeanOp op);
 // TODO improve to_code_string specializations
 template <typename T>
 std::string toCodeString(T val) {
-    return std::to_string(val);
+    std::stringstream ss;
+    ss.imbue(std::locale("C"));
+    ss << val;
+    return ss.str();
 }
 
 inline std::string toCodeString(const std::string& val) { return val; }
@@ -99,6 +91,8 @@ inline std::string toCodeString(const char* val) { return val; }
 inline std::string toCodeString(bool val) { return val ? "1" : "0"; }
 std::string toCodeString(float val);
 std::string toCodeString(double val);
+std::string toCodeString(uint8_t val);
+std::string toCodeString(int8_t val);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JitConstant
@@ -352,7 +346,7 @@ public:
     JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, const DataTensor prim_output) const;
     JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf,
                                     const std::string in_var, const Datatype in_type,
-                                    std::string& out_var, Datatype& out_type) const;
+                                    std::string& out_var) const;
 
     bool CanPreloadData(const FusedOpsConfiguration& conf) const;
 
@@ -365,7 +359,7 @@ public:
     std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
     std::string GetInputPtrName(size_t input_id) const;
     std::string GetInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "") const;
-    std::string GetOutputVarName(std::string input_var_name) const;
+    std::string GetOutputVarName(std::string input_var_name, size_t op_id) const;
     std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
     std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;
     std::string CastToType(std::string var, Datatype dt, size_t vec_size = 1) const;

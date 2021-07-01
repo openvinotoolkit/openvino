@@ -1,24 +1,29 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <cldnn/graph/network.hpp>
+#include <cldnn/runtime/profiling.hpp>
+
+#include "cldnn_graph.h"
+#include "simple_math.h"
+#include <cldnn/cldnn_config.hpp>
+#include "cldnn_infer_request.h"
+
+#include <description_buffer.hpp>
+#include <threading/ie_executor_manager.hpp>
+#include <exec_graph_info.hpp>
+
+#include <ie_ngraph_utils.hpp>
+#include <ngraph/variant.hpp>
 
 #include <list>
 #include <set>
 #include <unordered_set>
 #include <sstream>
-#include <api/cldnn.hpp>
-#include <api/network.hpp>
-#include <api/profiling.hpp>
-#include <api/custom_gpu_primitive.hpp>
 #include <chrono>
 #include <cmath>
 #include <algorithm>
-#include "cldnn_graph.h"
-#include "simple_math.h"
-#include <description_buffer.hpp>
-#include <cldnn/cldnn_config.hpp>
-#include "cldnn_infer_request.h"
-#include <threading/ie_executor_manager.hpp>
 #include <fstream>
 #include <utility>
 #include <sys/types.h>
@@ -72,12 +77,10 @@ void CLDNNGraph::Build() {
         for (int b = m_bv_sz - 1; b >= 0; b--) {
             auto network = BuildNetwork(m_program->GetCompiledProgram(b));
             m_networks.insert(m_networks.begin(), network);
-            GetEngine()->release_pending_memory(network->get_id());
         }
     } else {
         auto network = BuildNetwork(m_program->GetCompiledProgram());
         m_networks.emplace_back(network);
-        GetEngine()->release_pending_memory(network->get_id());
     }
 
     UpdateImplementationsMap();
@@ -336,7 +339,7 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
             return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
                 get_inputs(prim_info), output_size);
 
-            if (is_output) {    // create additinal result node
+            if (is_output) {    // create additional result node
                 nodes.push_back(return_node);
                 node2layer[prim_info.original_id] = return_node;
                 return_node->set_output_type(0,
@@ -500,7 +503,7 @@ void CLDNNGraph::UpdatePerfStatistics() {
         }
     };
 
-    std::map<cldnn::primitive_id, cldnn::event> executedPrimitives = GetNetwork()->get_executed_primitives();
+    std::map<cldnn::primitive_id, cldnn::event::ptr> executedPrimitives = GetNetwork()->get_executed_primitives();
     auto allPrimitives = GetNetwork()->get_all_primitives();
 
     // Get profiling info for all layers
@@ -522,7 +525,7 @@ void CLDNNGraph::UpdatePerfStatistics() {
         auto event = execIter->second;
         executedPrimitives.erase(execIter);
 
-        cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event.get_profiling_info()};
+        cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event->get_profiling_info()};
 
         collectTimings(cldnnInfo, perfCount);
         perfCount.num++;
@@ -535,7 +538,7 @@ void CLDNNGraph::UpdatePerfStatistics() {
             pcIter = perfMap.find(executedID.first);
             auto& perfCount = pcIter->second.second;
 
-            cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second.get_profiling_info()};
+            cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second->get_profiling_info()};
 
             collectTimings(cldnnInfo, perfCount);
             perfCount.num++;
@@ -676,7 +679,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
             executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
 
-            cldnn::instrumentation::profiling_info cldnnInfo{primId, event.get_profiling_info()};
+            cldnn::instrumentation::profiling_info cldnnInfo{primId, event->get_profiling_info()};
 
             // Collect timings
             long long cpuTime = 0;
@@ -743,7 +746,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
 
 std::shared_ptr<cldnn::network> CLDNNGraph::GetNetwork(size_t idx) const {
     if (idx >= GetNetworksCount())
-        THROW_IE_EXCEPTION << "Unable to find network with id=" << idx << ". Stored networks count: " << GetNetworksCount();
+        IE_THROW() << "Unable to find network with id=" << idx << ". Stored networks count: " << GetNetworksCount();
 
     return m_networks[idx];
 }
@@ -755,18 +758,18 @@ std::string CLDNNGraph::MapOutputName(std::string outName) const {
 
     // Find correct output ID. Start with name stored in IR.
     if (primitiveIDs.find(outName) == primitiveIDs.end()) {
-        THROW_IE_EXCEPTION << "output with name " << outName << " was not found in primitiveIDs";
+        IE_THROW() << "output with name " << outName << " was not found in primitiveIDs";
     }
     std::string outputID = primitiveIDs.at(outName);
     while (std::find(networkOutputsIDs.begin(), networkOutputsIDs.end(), outputID) == networkOutputsIDs.end()) {
         // If current ID isn't found in cldnn network outputs, get previous primitive id and try again.
         auto prim = allPrimitiveIds.find(outputID);
         if (prim == allPrimitiveIds.end()) {
-            THROW_IE_EXCEPTION << "Unknown primitive id " << outputID;
+            IE_THROW() << "Unknown primitive id " << outputID;
         }
 
         if (prevPrimitiveIDs.at(outputID).size() != 1 || prim->second != "_optimized_") {
-            THROW_IE_EXCEPTION << "Unable to find parent for output primitive " << outputID;
+            IE_THROW() << "Unable to find parent for output primitive " << outputID;
         }
         outputID = prevPrimitiveIDs.at(outputID)[0];
     }

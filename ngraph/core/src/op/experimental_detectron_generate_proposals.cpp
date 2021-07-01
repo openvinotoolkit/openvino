@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/experimental_detectron_generate_proposals.hpp"
 #include "itt.hpp"
@@ -82,7 +70,7 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
                               im_info_shape);
 
         NODE_VALIDATION_CHECK(this,
-                              im_info_shape[0] == 3,
+                              im_info_shape[0].is_dynamic() || im_info_shape[0] == 3,
                               "The 'input_im_info' shape is expected to be a [3]. Got: ",
                               im_info_shape);
     }
@@ -95,7 +83,7 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
                               anchors_shape);
 
         NODE_VALIDATION_CHECK(this,
-                              anchors_shape[1] == 4,
+                              anchors_shape[1].is_dynamic() || anchors_shape[1] == 4,
                               "The second dimension of 'input_anchors' should be 4. Got: ",
                               anchors_shape[1]);
     }
@@ -117,14 +105,16 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
     if (deltas_shape.rank().is_static() && scores_shape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(this,
-                              deltas_shape[1] == scores_shape[1],
+                              deltas_shape[1].is_dynamic() || scores_shape[1].is_dynamic() ||
+                                  deltas_shape[1] == scores_shape[1],
                               "Heights for inputs 'input_deltas' and 'input_scores' should be "
                               "equal. Got: ",
                               deltas_shape[1],
                               scores_shape[1]);
 
         NODE_VALIDATION_CHECK(this,
-                              deltas_shape[2] == scores_shape[2],
+                              deltas_shape[2].is_dynamic() || scores_shape[2].is_dynamic() ||
+                                  deltas_shape[2] == scores_shape[2],
                               "Width for inputs 'input_deltas' and 'input_scores' should be "
                               "equal. Got: ",
                               deltas_shape[2],

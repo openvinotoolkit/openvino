@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include "vpu/utils/error.hpp"
 
 #include "ngraph/opsets/opset3.hpp"
-#include "ngraph/evaluator.hpp"
 #include <ngraph/validation_util.hpp>
 
 namespace ngraph { namespace vpu { namespace op {

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ const auto fqParams = ::testing::Combine(
         ::testing::Values(inputParams)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
                         ::testing::Combine(
                                 fqParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -64,7 +64,7 @@ const auto fqParamsPerChannelAxis1 = ::testing::Combine(
         ::testing::Values(inputParams)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizePerChannelAxis0, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis0, FakeQuantizeLayerTest,
                         ::testing::Combine(
                                 fqParamsPerChannelAxis0,
                                 ::testing::ValuesIn(netPrecisions),
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizePerChannelAxis0, FakeQuantizeLayerTest
                                 ::testing::Values(config)),
                         FakeQuantizeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizePerChannelAxis1, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis1, FakeQuantizeLayerTest,
                         ::testing::Combine(
                                 fqParamsPerChannelAxis1,
                                 ::testing::ValuesIn(netPrecisions),
@@ -89,4 +89,27 @@ INSTANTIATE_TEST_CASE_P(smoke_FakeQuantizePerChannelAxis1, FakeQuantizeLayerTest
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(config)),
                         FakeQuantizeLayerTest::getTestCaseName);
+
+const std::vector<std::vector<size_t>> inputShapesPerChannel2D = {{1, 10}};
+const std::vector<std::vector<size_t>> constShapesPerChannel2D = { {10}, {1, 10}, {1} };
+const auto fqParamsPerChannel2D = ::testing::Combine(
+    ::testing::ValuesIn(levels),
+    ::testing::ValuesIn(constShapesPerChannel2D),
+    ::testing::Values(fqArgs),
+    ::testing::Values(inputParams)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannel2D, FakeQuantizeLayerTest,
+    ::testing::Combine(
+        fqParamsPerChannel2D,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inputShapesPerChannel2D),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(config)),
+    FakeQuantizeLayerTest::getTestCaseName);
+
 }  // namespace

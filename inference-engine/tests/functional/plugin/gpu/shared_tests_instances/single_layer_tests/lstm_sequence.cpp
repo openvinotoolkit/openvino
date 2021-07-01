@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,10 @@ namespace {
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
                                                      ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
                                                      ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
+                                                     ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST,
+                                                     ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM,
                                                      ngraph::helpers::SequenceTestsMode::PURE_SEQ};
-// output values increase rapidly without clip, so use only seq_lenghts = 2
+// output values increase rapidly without clip, so use only seq_lengths = 2
 std::vector<size_t> seq_lengths_zero_clip{2};
 std::vector<size_t> seq_lengths_clip_non_zero{20};
 std::vector<size_t> batch{10};
@@ -34,7 +36,7 @@ std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::Rec
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                          InferenceEngine::Precision::FP16};
 
-INSTANTIATE_TEST_CASE_P(LSTMSequenceCommonZeroClip, LSTMSequenceTest,
+INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClip, LSTMSequenceTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(mode),
                                 ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -48,7 +50,7 @@ INSTANTIATE_TEST_CASE_P(LSTMSequenceCommonZeroClip, LSTMSequenceTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         LSTMSequenceTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(LSTMSequenceCommonClip, LSTMSequenceTest,
+INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonClip, LSTMSequenceTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(mode),
                                 ::testing::ValuesIn(seq_lengths_clip_non_zero),
@@ -62,7 +64,7 @@ INSTANTIATE_TEST_CASE_P(LSTMSequenceCommonClip, LSTMSequenceTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         LSTMSequenceTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(mode),
                                 ::testing::ValuesIn(seq_lengths_clip_non_zero),

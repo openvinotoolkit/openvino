@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,26 +17,27 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
     auto constant = as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
-    // issue #48857: constant is mistakenly recognized as a scalar. Uncomment after fix
-    //if (NetworkHelper::isScalarLike(constant)) {
-    //    return NetworkHelper::toScalar(constant);
-    //}
+    auto constantShape = constant->get_shape();
+    if (shape_size(constantShape) == 1ul) {
+        return NetworkHelper::toScalar(constant);
+    }
 
-    const auto stridedSliceShape = strSlice->get_input_shape(0);
-    const auto constantShape = constant->get_shape();
-    if (stridedSliceShape.size() != constantShape.size()) {
+    const auto stridedSlicePShape = strSlice->get_input_partial_shape(0);
+    const size_t rank = stridedSlicePShape.rank().get_length();
+    if (rank != constantShape.size()) {
         ngraph::Shape newConstantShape;
         if (ngraph::shape_size(constantShape) == 1) {
-            newConstantShape = ngraph::Shape(stridedSliceShape.size(), 1);
+            newConstantShape = ngraph::Shape(rank, 1);
         } else {
             newConstantShape = constantShape;
 
             // case when constShape without batch
             if ((constantShape.size() > 1) &&
-                (constantShape.size() < stridedSliceShape.size())) {
-                newConstantShape.insert(newConstantShape.begin(), stridedSliceShape[0]);
+                (constantShape.size() < rank)) {
+                newConstantShape.insert(newConstantShape.begin(), 1);
             }
         }
+        constantShape = newConstantShape;
 
         const auto newConstant = fold<ngraph::opset1::Broadcast>(
             constant,
@@ -45,13 +46,24 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     }
 
     const auto stridedSlice = as_type_ptr<ngraph::opset1::StridedSlice>(strSlice);
+
+    auto beginMask = stridedSlice->get_begin_mask();
+    auto endMask = stridedSlice->get_end_mask();
+    for (size_t i = 0; i < constantShape.size(); ++i) {
+        // don't slice constant if current dimension is 1
+        if (constantShape[i] == 1ul) {
+            beginMask[i] = 1ul;
+            endMask[i] = 1ul;
+        }
+    }
+
     const auto result = fold<ngraph::opset1::StridedSlice>(
         constant,
         stridedSlice->get_input_node_shared_ptr(1),
         stridedSlice->get_input_node_shared_ptr(2),
         stridedSlice->get_input_node_shared_ptr(3),
-        stridedSlice->get_begin_mask(),
-        stridedSlice->get_end_mask(),
+        beginMask,
+        endMask,
         stridedSlice->get_new_axis_mask(),
         stridedSlice->get_shrink_axis_mask(),
         stridedSlice->get_ellipsis_mask());
@@ -98,7 +110,7 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
 }
 
 bool StridedSliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!is_type<ngraph::opset1::StridedSlice>(operation)) {
+    if (!is_type<ngraph::opset1::StridedSlice>(operation) || NetworkHelper::isDQByDynamicDimension(operation)) {
         return false;
     }
 

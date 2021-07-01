@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ const auto layerSpeficParams = ::testing::Combine(
     ::testing::ValuesIn(variances)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerTest,
                         ::testing::Combine(
                             layerSpeficParams,
                             ::testing::ValuesIn(netPrecisions),

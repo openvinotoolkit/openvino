@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
@@ -130,3 +117,39 @@ def test_resize_algorithm_set(device):
     request = exec_net.requests[0]
     pp = request.preprocess_info["data"]
     assert pp.resize_algorithm == ResizeAlgorithm.RESIZE_BILINEAR
+
+
+def test_set_mean_variant_to_read_only_preprocess(device):
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml)
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    preprocess_info = request.preprocess_info["data"]
+    assert isinstance(preprocess_info, PreProcessInfo)
+    with pytest.raises(TypeError) as e:
+        preprocess_info.mean_variant = MeanVariant.MEAN_IMAGE
+    assert "Cannot set mean image when called from constant" in str(e.value)
+
+
+def test_set_resize_algorithm_to_read_only_preprocess(device):
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml)
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    preprocess_info = request.preprocess_info["data"]
+    assert isinstance(preprocess_info, PreProcessInfo)
+    with pytest.raises(TypeError) as e:
+        preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR
+    assert "Cannot set resize algorithm when called from constant" in str(e.value)
+
+
+def test_set_color_format_to_read_only_preprocess(device):
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml)
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    preprocess_info = request.preprocess_info["data"]
+    assert isinstance(preprocess_info, PreProcessInfo)
+    with pytest.raises(TypeError) as e:
+        preprocess_info.color_format = ColorFormat.BGR
+    assert "Cannot set color format when called from constant" in str(e.value)
