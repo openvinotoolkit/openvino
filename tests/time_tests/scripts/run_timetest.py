@@ -58,7 +58,7 @@ def run_cmd(args: list, log=None, verbose=True):
     return proc.returncode, ''.join(output)
 
 
-def parse_stats(stats: dict, res: dict):
+def parse_stats(stats: list, res: dict):
     """Parse raw statistics from nested list to flatten dict"""
     for element in stats:
         if isinstance(element, (int, float)):
@@ -104,7 +104,7 @@ def run_timetest(args: dict, log=None):
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
-            return retcode, {}
+            return retcode, msg, {}, {}
 
         # Read raw statistics
         with open(tmp_stats_path, "r") as file:
@@ -129,7 +129,7 @@ def run_timetest(args: dict, log=None):
     aggregated_stats = aggregate_stats(filtered_stats)
     log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
 
-    return 0, aggregated_stats, stats
+    return 0, "", aggregated_stats, stats
 
 
 def check_positive_int(val):
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, aggr_stats, _ = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
+    exit_code, _, aggr_stats, _ = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
 
     if args.stats_path:
         # Save aggregated results to a file
