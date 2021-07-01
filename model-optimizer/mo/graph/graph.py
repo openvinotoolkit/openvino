@@ -1032,7 +1032,7 @@ def dict_includes(big: dict, sub_dict: dict, skip_attr_names=[]):
     )
 
 
-def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port=None):
+def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port=False):
     """
     Creates and connects Result node to node_name port. Cuts existing port if requested.
     :param graph: graph to operate with
