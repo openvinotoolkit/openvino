@@ -89,18 +89,18 @@ static std::string GetReorderedOutputOrder(const permute_params& params, const s
     } else {
         // dim is expanded
         if (dim_change.first == 4 && dim_change.second == 5) {
-            reordered_order += (permute_out_idx.back() + "/" + std::to_string(params.output.Y().v)
-                                 + ", " + permute_out_idx.back() + "%" + std::to_string(params.output.Y().v)
+            reordered_order += (permute_out_idx.back() + "/" + toCodeString(params.output.Y().v)
+                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.output.Y().v)
                                  + ", " + permute_out_idx[2]);
         } else if (dim_change.first == 4 && dim_change.second == 6) {
-            reordered_order += (permute_out_idx.back() + "/ (" + std::to_string(params.output.Y().v)
-                                 + " * " + std::to_string(params.output.Z().v) + ")"
-                                 + ", " + permute_out_idx.back() + "/" + std::to_string(params.output.Y().v)
-                                 + ", " + permute_out_idx.back() + "%" + std::to_string(params.output.Y().v)
+            reordered_order += (permute_out_idx.back() + "/ (" + toCodeString(params.output.Y().v)
+                                 + " * " + toCodeString(params.output.Z().v) + ")"
+                                 + ", " + permute_out_idx.back() + "/" + toCodeString(params.output.Y().v)
+                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.output.Y().v)
                                  + ", " + permute_out_idx[2]);
         } else if (dim_change.first == 5 && dim_change.second == 6) {
-            reordered_order += (permute_out_idx.back() + "/" + std::to_string(params.output.Z().v)
-                                 + ", " + permute_out_idx.back() + "%" + std::to_string(params.output.Z().v)
+            reordered_order += (permute_out_idx.back() + "/" + toCodeString(params.output.Z().v)
+                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.output.Z().v)
                                  + ", " + permute_out_idx[3]
                                  + ", " + permute_out_idx[2]);
         }
