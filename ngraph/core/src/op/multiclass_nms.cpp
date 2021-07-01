@@ -16,7 +16,7 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v8::MulticlassNms, "MulticlassNms", 8);
+NGRAPH_RTTI_DEFINITION(op::v8::MulticlassNms, "MulticlassNms", 8, op::util::NmsBase);
 
 op::v8::MulticlassNms::MulticlassNms(const Output<Node>& boxes,
                                      const Output<Node>& scores,
@@ -64,6 +64,7 @@ std::shared_ptr<Node>
 
 void op::v8::MulticlassNms::validate()
 {
+    NGRAPH_OP_SCOPE(v8_MulticlassNms_validate);
     NmsBase::validate();
 
     NODE_VALIDATION_CHECK(this,
