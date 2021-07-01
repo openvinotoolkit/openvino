@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-
 #include "include/data_types.cl"
-
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 #include "include/mmad.cl"
 
 #define AS_TYPE(type, val) CAT(as_, type)(val)
