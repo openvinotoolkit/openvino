@@ -45,7 +45,7 @@ TEST(TransformationTests, SplitConvolutionTest) {
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-     {
+    {
         auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 64, 4096, 4096});
 
@@ -274,9 +274,9 @@ TEST(TransformationTests, SplitConvolutionWithBiasTestSmallSize) {
     ASSERT_TRUE(result.valid);
 }
 
-// Variant #1 convolution -> FakeQuantize
+// Variant Convolution -> FakeQuantize
 
-TEST(TransformationTests, SplitConvolutionWithFqVariant1Test) {
+TEST(TransformationTests, SplitConvolutionWithFqTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
@@ -357,7 +357,7 @@ TEST(TransformationTests, SplitConvolutionWithFqVariant1Test) {
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, SplitConvolutionWithFqVariant1TestSmallSize) {
+TEST(TransformationTests, SplitConvolutionWithFqTestSmallSize) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
@@ -426,9 +426,9 @@ TEST(TransformationTests, SplitConvolutionWithFqVariant1TestSmallSize) {
     ASSERT_TRUE(result.valid);
 }
 
-// Variant #2 convolution -> Add -> FakeQuantize
+// Variant Convolution -> Add -> FakeQuantize
 
-TEST(TransformationTests, SplitConvolutionWithFqVariant2Test) {
+TEST(TransformationTests, SplitConvolutionWithFqAddTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
@@ -517,7 +517,7 @@ TEST(TransformationTests, SplitConvolutionWithFqVariant2Test) {
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, SplitConvolutionWithFqVariant2TestSmallSize) {
+TEST(TransformationTests, SplitConvolutionWithFqAddTestSmallSize) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
