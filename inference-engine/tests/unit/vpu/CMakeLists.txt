@@ -28,7 +28,6 @@ addIeTargetTest(
             ngraph_backend
             interpreter_backend
             inference_engine_lp_transformations # for ngraphFunctions
-            ngraph::frontend_manager
         ADD_CPPLINT
         LABELS
             VPU

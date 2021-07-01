@@ -17,7 +17,6 @@ addIeTargetTest(
             mkldnn
             inference_engine_transformations
             inference_engine_lp_transformations
-            ngraph::frontend_manager
         ADD_CPPLINT
         LABELS
             CPU
