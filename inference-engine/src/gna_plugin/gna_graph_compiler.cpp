@@ -351,37 +351,33 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     }
 
     // have to pad input to let last kernel meets it's corresponding input
-    uint32_t num_inputs = in_width * in_channels;
+    const auto num_inputs = in_width * in_channels;
     uint32_t num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
 
     //  convert to 2D and set GNA input feature map size
-    uint32_t effectiveStride = convolution._stride_x * convolution._stride_y;
+    auto convStride = convolution._stride_x * convolution._stride_y;
     if (convolution._stride_y != 1) {
-        effectiveStride = convolution._stride_x;
+        convStride = convolution._stride_x;
     } else if (in_width == 1 && convolution._stride_x != 1) {
-        effectiveStride = convolution._stride_y;
+        convStride = convolution._stride_y;
     }
-    uint32_t num_feature_map_columns = in_channels * effectiveStride;
-
-    uint32_t num_feature_map_rows = (in_channels * in_width) / num_feature_map_columns;
+    const auto effectiveStride = in_channels * convStride;
 
     uint32_t num_filters = convolution._out_depth;
     uint32_t num_filter_coefficients = single_conv_kernel_size + num_conv_kernel_padding;
     uint32_t num_columns_in = num_inputs + num_input_padding;
 
-    uint32_t num_columns_out = (((num_inputs - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
-    uint32_t num_columns_out_unpadded = (((num_inputs - single_conv_kernel_size) / num_feature_map_columns) + 1) * convolution._out_depth;
+    uint32_t num_columns_out = (((num_inputs - num_filter_coefficients) / effectiveStride) + 1) * convolution._out_depth;
+    uint32_t num_columns_out_unpadded = (((num_inputs - single_conv_kernel_size) / effectiveStride) + 1) * convolution._out_depth;
 
-    uint32_t original_num_feature_map_rows = num_feature_map_rows;
     uint32_t original_input_padding = num_input_padding;
     uint32_t additional_padding = 0;
 
     // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
     while (num_columns_out < out_batch * out_channels * out_width) {
         num_input_padding = original_input_padding + additional_padding;
-        num_feature_map_rows = original_num_feature_map_rows + (num_input_padding) / num_feature_map_columns;
         num_columns_in = num_inputs + num_input_padding;
-        num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
+        num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / effectiveStride) + 1) * convolution._out_depth;
         dnn->new_num_conv_columns = num_columns_out;
         additional_padding += 8;
     }
@@ -427,8 +423,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         num_bytes_per_bias,
         num_filters,
         num_filter_coefficients,
-        num_feature_map_rows,
-        num_feature_map_columns,
+        effectiveStride,
         weight_scale_factor,
         output_scale_factor,
         ptr_inputs,
@@ -457,8 +452,8 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         if (inputs->getLayout() != Layout::NHWC && LayerInfo(connectedInputLayer).isInput()) {
             //  Kaldi features are opposite orientation
             dnn->do_rotate_input = true;
-            dnn->num_rotate_rows = num_feature_map_columns;
-            dnn->num_rotate_columns = original_num_feature_map_rows;
+            dnn->num_rotate_rows = effectiveStride;
+            dnn->num_rotate_columns = num_inputs / effectiveStride;
         } else {
             dnn->do_rotate_input = false;
         }
@@ -559,20 +554,10 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto outputs = convolution.outData.front();
 
     // have to pad input to let last kernel meets it's corresponding input
-    uint32_t num_inputs = in_width * in_height * in_channels;
+    const auto num_inputs = in_width * in_height * in_channels;
     uint32_t num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
 
-    //  convert to 2D and set GNA input feature map size
-    uint32_t num_feature_map_columns = in_channels * convolution._stride_x * convolution._stride_y;
-    if (in_height == 1 && convolution._stride_y != 1) {
-        num_feature_map_columns = in_channels * convolution._stride_x;
-    } else if (in_width == 1 && convolution._stride_x != 1) {
-        num_feature_map_columns = in_channels * convolution._stride_y;
-    }
-    uint32_t num_feature_map_rows = (in_channels * in_height * in_width) / num_feature_map_columns;
-
     const uint32_t filter_n = convolution._out_depth;
-    uint32_t original_num_feature_map_rows = num_feature_map_rows;
 
     // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
     if (num_input_padding == 0) {
@@ -638,15 +623,17 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     auto connectedInputLayer = connectInput(layer, ptr_inputs, num_data_bytes_in).input;
 
     // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know how kaldi will handle that
-    if (!dnn->do_rotate_input) {
-        if (inputs->getLayout() != Layout::NHWC && LayerInfo(connectedInputLayer).isInput()) {
-            //  Kaldi features are opposite orientation
-            dnn->do_rotate_input = true;
-            dnn->num_rotate_rows = num_feature_map_columns;
-            dnn->num_rotate_columns = original_num_feature_map_rows;
-        } else {
-            dnn->do_rotate_input = false;
+    if (!dnn->do_rotate_input && inputs->getLayout() != Layout::NHWC && LayerInfo(connectedInputLayer).isInput()) {
+        //  Kaldi features are opposite orientation
+        dnn->do_rotate_input = true;
+        dnn->num_rotate_rows = in_channels;
+        if (in_height != 1) {
+            dnn->num_rotate_rows *= convolution._stride_y;
         }
+        if (in_width != 1) {
+            dnn->num_rotate_rows *= convolution._stride_x;
+        }
+        dnn->num_rotate_columns = num_inputs / dnn->num_rotate_rows;
     }
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
@@ -654,7 +641,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto kernelHW = convolution._kernel_y * convolution._kernel_x;
 
     std::vector<uint8_t> transposedWeights;
-    const auto singleKernelSize = in_channels* kernelHW* convolution.precision.size();
+    const auto singleKernelSize = in_channels* kernelHW * convolution.precision.size();
     const auto kernelPad = Gna2RoundUp(singleKernelSize, 16) - singleKernelSize;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
         uint8_t* ptr_filt_current
@@ -1752,31 +1739,36 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
     auto outputs = *layer->outData.begin();
     auto inputs = layer->insData.begin()->lock();
 
-    // const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
-    //     GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
-    uint32_t num_columns_in = GetDataDimSize(inputs, 1);
-    uint32_t num_columns_out = GetDataDimSize(outputs, 1);
-    const auto num_filters = GNALimitations::convMinFiltersNum;
-    const auto convolutionStride = num_filters;
-    uint32_t num_filter_coefficients = num_filters + 16 + 4;
-    num_columns_in += num_filter_coefficients;
-    num_columns_out = GNAConvolutionLayer::outputFromConv(num_columns_in, num_filter_coefficients, convolutionStride);
-    num_columns_out *= num_filters;
+    const auto noOfInputsDivisor = gnaFlags->input_low_precision ?
+        GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
+    const uint32_t orginalInputSize = GetDataDimSize(inputs, 1);
+    const uint32_t orginalOutputSize = GetDataDimSize(outputs, 1);
+    if (orginalInputSize != orginalOutputSize) {
+        THROW_GNA_LAYER_EXCEPTION(filterLayer) << "Number in inputs (" << orginalInputSize <<
+            ") should be equal to number of outputs (" << orginalOutputSize << ")!";
+    }
+    const auto numberOfFilters = filterLayer->_out_depth;
+    const auto convolutionStride = numberOfFilters;
+    const auto filterWidth = filterLayer->_kernel_x;
+    const auto minOutputsPerFilter = ALIGN(orginalOutputSize, numberOfFilters) / numberOfFilters;
+    const auto minInputsNeeded = (minOutputsPerFilter - 1) * convolutionStride + filterWidth;
+    const auto numInputsFullyPadedAndAligned = ALIGN(minInputsNeeded, noOfInputsDivisor);
+
+    auto numOutputs = GNAConvolutionLayer::outputFromConv(numInputsFullyPadedAndAligned, filterWidth, convolutionStride);
+    numOutputs *= numberOfFilters;
     const auto& biasPrecision = filterLayer->_biases ? filterLayer->_biases->getTensorDesc().getPrecision() : outputs->getPrecision();
     auto& currentComponent = dnnComponents.addComponent(layer->name, "affine");
 
-    uint32_t num_feature_map_rows = num_columns_in / convolutionStride;
-    layer->params["num_rows_for_pwl"] = std::to_string(num_columns_out);
+    layer->params["num_rows_for_pwl"] = std::to_string(numOutputs);
     dnn->InitConvolutional1DComponent(currentComponent,
-        num_columns_in,
-        num_columns_out,
+        numInputsFullyPadedAndAligned,
+        numOutputs,
         inputs->getPrecision().size(),
         outputs->getPrecision().size(),
         filterLayer->_weights->getTensorDesc().getPrecision().size(),
         biasPrecision.size(),
-        num_filters,
-        num_filter_coefficients,
-        num_feature_map_rows,
+        numberOfFilters,
+        filterWidth,
         convolutionStride,
         quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
         quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
@@ -1789,7 +1781,7 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
         InferenceEngine::details::product(
             begin(outputs->getDims()), end(outputs->getDims())) * 4;
 
-    size_t num_data_bytes_in = num_columns_in * inputs->getPrecision().size();
+    size_t num_data_bytes_in = numInputsFullyPadedAndAligned * inputs->getPrecision().size();
 
     connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
@@ -1805,7 +1797,7 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
             filterLayer->_biases->byteSize(),
             64);
     } else {
-        gnamem->readonly().push_value(ptr_biases, 0.0f, num_filters, 64);
+        gnamem->readonly().push_value(ptr_biases, 0.0f, numberOfFilters, 64);
     }
 }
 

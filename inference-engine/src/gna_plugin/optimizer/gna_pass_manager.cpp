@@ -41,6 +41,7 @@
 #include "gna_data_types.hpp"
 #include "gna_tensor_tools.hpp"
 #include "gna_itt.hpp"
+#include "backend/gna_limitations.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -1287,25 +1288,35 @@ void InsertSplitAligningFilterPass::run() {
 
                     // encodes offset to beginning of split layer input
                     filterLayer->params["offset"] = std::to_string(aligned64_offset / bytesPerSplitElement);
-
                     auto dims = splitOutput->getTensorDesc().getDims();
                     if (dims.size() > 3) {
                         THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
                     }
 
-                    auto offset = (currentOffset - aligned64_offset) / bytesPerSplitElement;
-                    auto convolution_filter_size = offset + 4;
-                    convolution_filter_size += 4; // TODO generalize padding
+                    const auto offsetOfUnalignment = (currentOffset - aligned64_offset) / bytesPerSplitElement;
+                    // TODO consider to use a different number of filters do decrese the number of trailing zeros (additionalPaddingOfFilter)
+                    const auto numberOfFilters = GNALimitations::convMinFiltersNum;
+                    const auto filterSize = ALIGN(offsetOfUnalignment + numberOfFilters, GNALimitations::convFilterSizeDivider);
 
-                    std::vector<float> filterWeights(convolution_filter_size * 4, 0.f);
-                    filterWeights[offset] = 1;
-                    filterWeights[offset + convolution_filter_size + 1] = 1;
-                    filterWeights[offset + 2 * convolution_filter_size + 2] = 1;
-                    filterWeights[offset + 3 * convolution_filter_size + 3] = 1;
+                    // filterWeights: numberOfFilters X (offsetOfUnalignment + additionalPaddingOfFilter + numberOfFilters)
+                    // offsetOfUnalignment - the leading zeros in the filter
+                    //       |
+                    //       |             additionalPaddingOfFilter = filterSize - offsetOfUnalignment - numberOfFilters
+                    //   ____|___         ___|___
+                    //  |        |       |       |
+                    //  0 0 ... 0 1 0 0 0 0 ... 0
+                    //  0 0 ... 0 0 1 0 0 0 ... 0
+                    //  0 0 ... 0 0 0 1 0 0 ... 0
+                    //  0 0 ... 0 0 0 0 1 0 ... 0
+                    std::vector<float> filterWeights(filterSize * 4, 0.f);
+                    for (auto f = 0u; f < numberOfFilters; f++) {
+                        filterWeights[f * filterSize + f + offsetOfUnalignment] = 1;
+                    }
 
-                    filterLayer->_stride_x = 4;
+                    filterLayer->_out_depth = numberOfFilters;
+                    filterLayer->_stride_x = numberOfFilters;
                     filterLayer->_stride_y = 1;
-                    filterLayer->_kernel_x = convolution_filter_size;
+                    filterLayer->_kernel_x = filterSize;
                     filterLayer->_kernel_y = 1;
                     filterLayer->_padding_x = 0;
                     filterLayer->_padding_y = 0;
@@ -1317,7 +1328,7 @@ void InsertSplitAligningFilterPass::run() {
                     filterLayer->_weights->allocate();
                     CopyVectorToBlob(filterLayer->_weights, filterWeights);
 
-                    std::vector<float> biasWeights(4, 0.f);
+                    std::vector<float> biasWeights(numberOfFilters, 0.f);
 
                     filterLayer->_biases = make_shared_blob<float>(TensorDesc(
                         inputData->getTensorDesc().getPrecision(),

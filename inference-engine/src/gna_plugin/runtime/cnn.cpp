@@ -22,7 +22,7 @@ void CNNFilter32(intel_dnn_component_t *component) {
     auto input = reinterpret_cast<float *>(component->ptr_inputs);
     auto output = reinterpret_cast<float *>(component->ptr_outputs);
 
-    const auto convolutionStride = component->op.conv1D.num_feature_map_columns;
+    const auto convolutionStride = component->op.conv1D.convStride;
     const auto filterSize = component->op.conv1D.num_filter_coefficients;
     const auto numberOfInputs = component->num_columns_in;
     const auto numberOfOutputsPerFilter = outputFromConv(numberOfInputs, filterSize, convolutionStride);
