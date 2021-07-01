@@ -74,7 +74,7 @@ class CommonLayerTest:
         ie_engine = IEInfer(model=path_to_xml,
                             weights=path_to_bin,
                             device=ie_device)
-        infer_res = ie_engine.infer(input_data=inputs_dict, timeout=infer_timeout)
+        infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
             warnings.warn('Framework is skipped')
