@@ -9,18 +9,12 @@
 #include <cstring>
 #include <utility>
 #include "ngraph/op/experimental_detectron_generate_proposals.hpp"
+#include "ngraph/runtime/reference/proposal.hpp"
 #include "ngraph/shape.hpp"
 
 namespace
 {
-    struct ProposalBox
-    {
-        float x0;
-        float y0;
-        float x1;
-        float y1;
-        float score;
-    };
+    using ProposalBox = ngraph::runtime::reference::details::ProposalBox<float>;
 
     void refine_anchors(const float* deltas,
                         const float* scores,
