@@ -25,34 +25,34 @@ struct SubGraph
 
 SubGraph createSubGraphSolid(const ngraph::Shape& input_shape, const ngraph::Shape& kernel_shape)
 {
-    SubGraph subGraph;
+    SubGraph sub_graph;
 
-    subGraph.input_node = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+    sub_graph.input_node = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                       input_shape);
     auto kernel = ngraph::opset1::Constant::create(ngraph::element::f32,
                                                    kernel_shape, {1});
 
-    auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(subGraph.input_node,
+    auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(sub_graph.input_node,
                                                                                kernel,
                                                                                ngraph::Strides{1, 1},
                                                                                ngraph::CoordinateDiff{0, 0},
                                                                                ngraph::CoordinateDiff{0, 0},
                                                                                ngraph::Strides{1, 1});
-    subGraph.output_nodes.push_back(convolution_operation);
+    sub_graph.output_nodes.push_back(convolution_operation);
 
-    return subGraph;
+    return sub_graph;
 }
 
 SubGraph createSubGraphSplitted()
 {
-    SubGraph subGraph;
+    SubGraph sub_graph;
 
-    subGraph.input_node = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+    sub_graph.input_node = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
                                                                       ngraph::Shape{1, 64, 4096, 4096});
 
     auto split_node_c1 = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{3});
     auto split_node_c2 = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({5}), {960, 960, 960, 960, 256});
-    auto split_node = std::make_shared<ngraph::opset7::VariadicSplit>(subGraph.input_node,
+    auto split_node = std::make_shared<ngraph::opset7::VariadicSplit>(sub_graph.input_node,
                                                                       split_node_c1,
                                                                       split_node_c2);
     
@@ -66,10 +66,10 @@ SubGraph createSubGraphSplitted()
                                                                                    ngraph::CoordinateDiff{0, 0},
                                                                                    ngraph::CoordinateDiff{0, 0},
                                                                                    ngraph::Strides{1, 1});
-        subGraph.output_nodes.push_back(convolution_operation);
+        sub_graph.output_nodes.push_back(convolution_operation);
     }
 
-    return subGraph;
+    return sub_graph;
 }
 
 /*
@@ -78,26 +78,26 @@ SubGraph createSubGraphSplitted()
     return: new created node
  */
 template <typename CreateNodeFunctionT>
-void appendSubGraph(SubGraph& subGraph, CreateNodeFunctionT create_node_func)
+void appendSubGraph(SubGraph& sub_graph, CreateNodeFunctionT create_node_func)
 {
     ngraph::OutputVector new_graph_output;
-    for (auto& node: subGraph.output_nodes)
+    for (auto& node: sub_graph.output_nodes)
         new_graph_output.push_back(create_node_func(node));
     
-    subGraph.output_nodes.swap(new_graph_output);
+    sub_graph.output_nodes.swap(new_graph_output);
 }
 
-void appendSubGraphAddNode(SubGraph& subGraph)
+void appendSubGraphAddNode(SubGraph& sub_graph)
 {
     auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
     {
         auto bias = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
         return std::make_shared<ngraph::opset7::Add>(input_node, bias);
     };
-    appendSubGraph(subGraph, append_func);
+    appendSubGraph(sub_graph, append_func);
 }
 
-void appendSubGraphFakeQuantizeNode(SubGraph& subGraph)
+void appendSubGraphFakeQuantizeNode(SubGraph& sub_graph)
 {
     auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
     {
@@ -109,7 +109,14 @@ void appendSubGraphFakeQuantizeNode(SubGraph& subGraph)
                                                                 input_high, output_low,
                                                                 output_high, 11);
     };
-    appendSubGraph(subGraph, append_func);
+    appendSubGraph(sub_graph, append_func);
+}
+
+void concatenateSubGraphOutput(SubGraph& sub_graph)
+{
+    ngraph::OutputVector new_graph_output;
+    new_graph_output.push_back(std::make_shared<ngraph::opset7::Concat>(sub_graph.output_nodes, 3));
+    sub_graph.output_nodes.swap(new_graph_output);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -118,10 +125,10 @@ TEST(TransformationTests, SplitConvolutionTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 64, 4096, 4096}, ngraph::Shape{1, 64, 1, 1});
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 64, 4096, 4096}, ngraph::Shape{1, 64, 1, 1});
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{subGraph.input_node});
+                                                  ngraph::ParameterVector{sub_graph.input_node});
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -131,11 +138,11 @@ TEST(TransformationTests, SplitConvolutionTest) {
     }
 
     {
-        SubGraph subGraph = createSubGraphSplitted();
-        auto concat = std::make_shared<ngraph::opset7::Concat>(subGraph.output_nodes, 3);
-        auto result = std::make_shared<ngraph::opset7::Result>(concat);
+        SubGraph sub_graph = createSubGraphSplitted();
+        concatenateSubGraphOutput(sub_graph);
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{subGraph.input_node});
+                                                            ngraph::ParameterVector{sub_graph.input_node});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -147,10 +154,10 @@ TEST(TransformationTests, SplitConvolutionTestSmallSize) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{subGraph.input_node});
+                                                  ngraph::ParameterVector{sub_graph.input_node});
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -160,10 +167,10 @@ TEST(TransformationTests, SplitConvolutionTestSmallSize) {
     }
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{subGraph.input_node});
+                                                            ngraph::ParameterVector{sub_graph.input_node});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -175,12 +182,12 @@ TEST(TransformationTests, SplitConvolutionWithBiasTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 64, 4096, 4096}, ngraph::Shape{1, 64, 1, 1});
-        appendSubGraphAddNode(subGraph);
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 64, 4096, 4096}, ngraph::Shape{1, 64, 1, 1});
+        appendSubGraphAddNode(sub_graph);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{subGraph.input_node});
+                                                  ngraph::ParameterVector{sub_graph.input_node});
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -190,12 +197,12 @@ TEST(TransformationTests, SplitConvolutionWithBiasTest) {
     }
 
     {
-        SubGraph subGraph = createSubGraphSplitted();
-        appendSubGraphAddNode(subGraph);
-        auto concat = std::make_shared<ngraph::opset7::Concat>(subGraph.output_nodes, 3);
-        auto result = std::make_shared<ngraph::opset7::Result>(concat);
+        SubGraph sub_graph = createSubGraphSplitted();
+        appendSubGraphAddNode(sub_graph);
+        concatenateSubGraphOutput(sub_graph);
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{subGraph.input_node});
+                                                            ngraph::ParameterVector{sub_graph.input_node});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -207,12 +214,12 @@ TEST(TransformationTests, SplitConvolutionWithBiasTestSmallSize) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        appendSubGraphAddNode(subGraph);
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
+        appendSubGraphAddNode(sub_graph);
         
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{subGraph.input_node});
+                                                  ngraph::ParameterVector{sub_graph.input_node});
         
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -222,12 +229,12 @@ TEST(TransformationTests, SplitConvolutionWithBiasTestSmallSize) {
     }
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        appendSubGraphAddNode(subGraph);
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
+        appendSubGraphAddNode(sub_graph);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{subGraph.input_node});
+                                                  ngraph::ParameterVector{sub_graph.input_node});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -241,12 +248,12 @@ TEST(TransformationTests, SplitConvolutionWithFqTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 64, 4096, 4096}, ngraph::Shape{1, 64, 1, 1});
-        appendSubGraphFakeQuantizeNode(subGraph);
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 64, 4096, 4096}, ngraph::Shape{1, 64, 1, 1});
+        appendSubGraphFakeQuantizeNode(sub_graph);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{subGraph.input_node});
+                                                  ngraph::ParameterVector{sub_graph.input_node});
        
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -256,13 +263,12 @@ TEST(TransformationTests, SplitConvolutionWithFqTest) {
     }
 
     {
-        SubGraph subGraph = createSubGraphSplitted();
-        appendSubGraphFakeQuantizeNode(subGraph);
-        auto concat = std::make_shared<ngraph::opset7::Concat>(subGraph.output_nodes, 3);
-        
-        auto result = std::make_shared<ngraph::opset7::Result>(concat);
+        SubGraph sub_graph = createSubGraphSplitted();
+        appendSubGraphFakeQuantizeNode(sub_graph);
+        concatenateSubGraphOutput(sub_graph);
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{subGraph.input_node});
+                                                            ngraph::ParameterVector{sub_graph.input_node});
     }
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
@@ -273,12 +279,12 @@ TEST(TransformationTests, SplitConvolutionWithFqTestSmallSize) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        appendSubGraphFakeQuantizeNode(subGraph);
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
+        appendSubGraphFakeQuantizeNode(sub_graph);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{subGraph.input_node});
+                                                  ngraph::ParameterVector{sub_graph.input_node});
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -288,12 +294,12 @@ TEST(TransformationTests, SplitConvolutionWithFqTestSmallSize) {
     }
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        appendSubGraphFakeQuantizeNode(subGraph);
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
+        appendSubGraphFakeQuantizeNode(sub_graph);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{subGraph.input_node});
+                                                            ngraph::ParameterVector{sub_graph.input_node});
     }
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
@@ -306,13 +312,13 @@ TEST(TransformationTests, SplitConvolutionWithFqAddTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 64, 4096, 4096}, ngraph::Shape{1, 64, 1, 1});
-        appendSubGraphAddNode(subGraph);
-        appendSubGraphFakeQuantizeNode(subGraph);
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 64, 4096, 4096}, ngraph::Shape{1, 64, 1, 1});
+        appendSubGraphAddNode(sub_graph);
+        appendSubGraphFakeQuantizeNode(sub_graph);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{subGraph.input_node});
+                                                  ngraph::ParameterVector{sub_graph.input_node});
 
 
         ngraph::pass::Manager m;
@@ -323,14 +329,13 @@ TEST(TransformationTests, SplitConvolutionWithFqAddTest) {
     }
 
     {
-        SubGraph subGraph = createSubGraphSplitted();
-        appendSubGraphAddNode(subGraph);
-        appendSubGraphFakeQuantizeNode(subGraph);
-        auto concat = std::make_shared<ngraph::opset7::Concat>(subGraph.output_nodes, 3);
-        
-        auto result = std::make_shared<ngraph::opset7::Result>(concat);
+        SubGraph sub_graph = createSubGraphSplitted();
+        appendSubGraphAddNode(sub_graph);
+        appendSubGraphFakeQuantizeNode(sub_graph);
+        concatenateSubGraphOutput(sub_graph);
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{subGraph.input_node});
+                                                            ngraph::ParameterVector{sub_graph.input_node});
     }
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
@@ -341,13 +346,13 @@ TEST(TransformationTests, SplitConvolutionWithFqAddTestSmallSize) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        appendSubGraphAddNode(subGraph);
-        appendSubGraphFakeQuantizeNode(subGraph);
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
+        appendSubGraphAddNode(sub_graph);
+        appendSubGraphFakeQuantizeNode(sub_graph);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{subGraph.input_node});
+                                                  ngraph::ParameterVector{sub_graph.input_node});
         
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -357,13 +362,13 @@ TEST(TransformationTests, SplitConvolutionWithFqAddTestSmallSize) {
     }
 
     {
-        SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        appendSubGraphAddNode(subGraph);
-        appendSubGraphFakeQuantizeNode(subGraph);
+        SubGraph sub_graph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
+        appendSubGraphAddNode(sub_graph);
+        appendSubGraphFakeQuantizeNode(sub_graph);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(sub_graph.output_nodes.front());
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{subGraph.input_node});
+                                                  ngraph::ParameterVector{sub_graph.input_node});
     }
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
