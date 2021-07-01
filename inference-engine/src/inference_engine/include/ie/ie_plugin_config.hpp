@@ -230,6 +230,13 @@ namespace PluginConfigParams {
 #define DECLARE_CONFIG_VALUE(name) static constexpr auto name = #name
 
 /**
+ * @brief High-level OpenVINO Performance Modes/Presets
+ */
+DECLARE_CONFIG_KEY(OV_PERFORMANCE_MODE);
+DECLARE_CONFIG_VALUE(LATENCY);
+DECLARE_CONFIG_VALUE(THROUGHPUT);
+
+/**
  * @brief generic boolean values
  */
 DECLARE_CONFIG_VALUE(YES);

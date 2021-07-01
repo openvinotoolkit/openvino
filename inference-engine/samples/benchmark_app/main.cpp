@@ -208,6 +208,14 @@ int main(int argc, char* argv[]) {
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
         next_step();
+        std::string ov_perf_mode;
+        if (FLAGS_mode == "throughput" || FLAGS_mode == "THROUGHPUT" || FLAGS_mode == "tput")
+            ov_perf_mode = CONFIG_VALUE(THROUGHPUT);
+        else if (FLAGS_mode == "latency" || FLAGS_mode == "LATENCY")
+            ov_perf_mode = CONFIG_VALUE(LATENCY);
+        else if (!FLAGS_mode.empty())
+            throw std::logic_error("Performance mode " +  ov_perf_mode + " is not recognized!");
+
 
         bool perf_counts = false;
         // Update config per device according to command line parameters
@@ -218,6 +226,10 @@ int main(int argc, char* argv[]) {
             if (!config.count(device))
                 config[device] = {};
             std::map<std::string, std::string>& device_config = config.at(device);
+
+            // high-level performance modes
+            if (!ov_perf_mode.empty())
+                device_config[CONFIG_KEY(OV_PERFORMANCE_MODE)] = ov_perf_mode;
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -241,6 +253,7 @@ int main(int argc, char* argv[]) {
             }
             perf_counts = (device_config.at(CONFIG_KEY(PERF_COUNT)) == CONFIG_VALUE(YES)) ? true : perf_counts;
 
+            // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
                 const std::string key = device + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
@@ -255,7 +268,7 @@ int main(int argc, char* argv[]) {
                                                " or via configuration file.");
                     }
                     device_config[key] = device_nstreams.at(device);
-                } else if (!device_config.count(key) && (FLAGS_api == "async")) {
+                } else if (ov_perf_mode.empty() && !device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
@@ -457,6 +470,18 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
+            if (!ov_perf_mode.empty()) {
+                std::cout << "OV_PERFORMANCE_MODE: " << ov_perf_mode << std::endl;
+                // output of the actual settings that the mode produces (debugging)
+                for (auto& device : devices) {
+                    std::vector<std::string> supported_config_keys = ie.GetMetric(device,
+                                                                                  METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                    std::cout << "Device: " << device << std::endl;
+                    for (auto cfg :  supported_config_keys) {
+                        std::cout << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>() << " }" << std::endl;
+                    }
+                }
+            }
         } else {
             next_step();
             slog::info << "Skipping the step for compiled network" << slog::endl;

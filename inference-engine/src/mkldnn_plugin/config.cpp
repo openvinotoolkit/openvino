@@ -48,11 +48,10 @@ Config::Config() {
 
 
 void Config::readProperties(const std::map<std::string, std::string> &prop) {
-    auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
-    for (auto& kvp : prop) {
-        auto& key = kvp.first;
-        auto& val = kvp.second;
-
+    const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
+    for (const auto& kvp : prop) {
+        const auto& key = kvp.first;
+        const auto& val = kvp.second;
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.SetConfig(key, val);
@@ -114,7 +113,13 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
-        } else {
+        } else if (key == PluginConfigParams::KEY_OV_PERFORMANCE_MODE) {
+            if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT)
+                ovPerfMode = val;
+            else
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_OV_PERFORMANCE_MODE
+                                   << ". Expected only " << PluginConfigParams::LATENCY << "/" << PluginConfigParams::THROUGHPUT;
+        }  else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
         _config.clear();
@@ -163,6 +168,8 @@ void Config::updateProperties() {
             _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
         else
             _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
+        if (!ovPerfMode.empty())
+            _config.insert({ PluginConfigParams::KEY_OV_PERFORMANCE_MODE, ovPerfMode });
     }
 }
 
