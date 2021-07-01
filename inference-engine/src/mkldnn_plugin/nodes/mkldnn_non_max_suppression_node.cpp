@@ -211,6 +211,9 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     int selectedIndicesStride = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getDesc().getBlockingDesc().getStrides()[0];
     int *selectedIndicesPtr = selected_indices;
     float *selectedScoresPtr = selected_scores;
+    if (!selectedScoresPtr) {
+        IE_THROW() << errorPrefix << ". selectedScoresPtr is nullptr";
+    }
 
     size_t idx = 0lu;
     for (; idx < validOutputs; idx++) {
@@ -229,8 +232,12 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     if (outDims.size() > NMS_SELECTEDSCORES) {
         std::fill(selectedScoresPtr, selectedScoresPtr + (selectedBoxesNum - idx) * selectedIndicesStride, -1.f);
     }
-    if (outDims.size() > NMS_VALIDOUTPUTS)
+    if (outDims.size() > NMS_VALIDOUTPUTS) {
+        if (!valid_outputs) {
+            IE_THROW() << errorPrefix << ". valid_outputs is nullptr";
+        }
         *valid_outputs = static_cast<int>(validOutputs);
+    }
 }
 
 bool MKLDNNNonMaxSuppressionNode::created() const {

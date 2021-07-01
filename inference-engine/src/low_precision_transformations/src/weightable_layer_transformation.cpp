@@ -296,6 +296,9 @@ void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const st
         outChannelsShapeIndex);
 
     std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
+    if (fqOnWeights == nullptr) {
+        THROW_TRANSFORMATION_EXCEPTION << "Cannot get FakeQuantize on weights";
+    }
     if (as_type_ptr<ngraph::opset1::Constant>(fqOnWeights) == nullptr) {
         THROW_IE_LPT_EXCEPTION(*fqOnWeights) << "FakeQuantize on weights was not folded to constant";
     }

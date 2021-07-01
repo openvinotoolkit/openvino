@@ -154,7 +154,7 @@ public:
     /**
      * @brief      Destroys the object, stops AsyncInferRequestThreadSafeDefault::_pipeline and waits for a finish.
      */
-    ~AsyncInferRequestThreadSafeDefault() {
+    virtual ~AsyncInferRequestThreadSafeDefault() {
         StopAndWait();
     }
 

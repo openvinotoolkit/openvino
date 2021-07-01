@@ -327,7 +327,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
 MKLDNNNode::MKLDNNNode(const std::string& type, const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), engine(eng), name(name), typeStr(type),
-          type(TypeFromName(type)), profiling(name) {
+          type(TypeFromName(type)), profiling(name), fusingPort(0) {
     // TODO [NM]: What about filling inDims and outDims?
 }
 

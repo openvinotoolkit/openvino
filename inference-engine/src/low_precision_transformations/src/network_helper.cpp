@@ -122,7 +122,7 @@ std::shared_ptr<opset1::Constant> NetworkHelper::foldDequantizationConstant(
 
         const auto result = as_type_ptr<opset1::Constant>(outputs[outIdx].get_node_shared_ptr());
         if (result == nullptr) {
-            THROW_IE_LPT_EXCEPTION(*result) << "result of constant folding is not constant";
+            THROW_TRANSFORMATION_EXCEPTION << "result of constant folding is not constant";
         }
 
         return result;
@@ -406,7 +406,11 @@ std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter
                 return multiply;
             }
 
-            auto newInput = multiply->input_value(1 - constant1->output(0).get_target_inputs().begin()->get_index());
+            auto targetInputs = constant1->output(0).get_target_inputs();
+            if (targetInputs.empty()) {
+                THROW_IE_LPT_EXCEPTION(*multiply) << "targetInputs is empty";
+            }
+            auto newInput = multiply->input_value(1 - targetInputs.begin()->get_index());
             auto newConst = fold<opset1::Multiply>(constant1, constant2);
             auto inputPrecision0 = nextMultiply->get_origin_input_type(0);
             auto inputPrecision1 = nextMultiply->get_origin_input_type(1);
@@ -752,7 +756,11 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
     }
 
     const std::shared_ptr<Node> prev = parent;
-    parent = parent->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+    targetInputs = parent->output(0).get_target_inputs();
+    if (targetInputs.empty()) {
+        return nullptr;
+    }
+    parent = targetInputs.begin()->get_node()->shared_from_this();
 
     const size_t index = NetworkHelper::getChildInputIndex(prev, parent);
     const FakeQuantizeDequantization dequantization = getDequantization(parent, index);
@@ -1214,7 +1222,11 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
 
 FakeQuantizeDequantization NetworkHelper::getDequantizationBelow(const std::shared_ptr<Node>& node) {
     const Output<Node> dataNode = node->output(0);
-    std::shared_ptr<Node> lastNode = dataNode.get_target_inputs().begin()->get_node()->shared_from_this();
+    auto targetInputs = dataNode.get_target_inputs();
+    if (targetInputs.empty()) {
+        THROW_IE_LPT_EXCEPTION(*node) << "targetInputs is empty";
+    }
+    std::shared_ptr<Node> lastNode = targetInputs.begin()->get_node()->shared_from_this();
 
     const std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(lastNode);
     if (convert != nullptr) {
@@ -1441,7 +1453,11 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
         } else if (dequantization.subtract) {
             op->set_overridden_output_type(dequantization.subtract->get_input_element_type(1));
         }
-        std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
+        auto newOperationNode = std::dynamic_pointer_cast<ngraph::Node>(newOperation);
+        if (newOperationNode == nullptr) {
+            THROW_IE_LPT_EXCEPTION(*newOperation) << "Cannot cast to ngraph node";
+        }
+        newOperationNode->validate_and_infer_types();
     }
 
     const element::Type deqPrecision = dequantization.multiply->get_input_node_shared_ptr(1)->get_output_element_type(0);

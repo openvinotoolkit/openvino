@@ -81,7 +81,7 @@ ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_co
         auto reshape_before = std::dynamic_pointer_cast<ngraph::opset6::Reshape>(pattern_map.at(reshape_before_pattern).get_node_shared_ptr());
         auto transpose = std::dynamic_pointer_cast<ngraph::opset6::Transpose>(pattern_map.at(transpose_pattern).get_node_shared_ptr());
         auto reshape_after = std::dynamic_pointer_cast<ngraph::opset6::Reshape>(pattern_map.at(reshape_after_pattern).get_node_shared_ptr());
-        if (!reshape_after || !transpose || !reshape_after)
+        if (!reshape_before || !transpose || !reshape_after)
             return false;
 
         if (reshape_constants_check) {

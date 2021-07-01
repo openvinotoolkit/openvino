@@ -108,7 +108,10 @@ ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeTh
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
-        auto transpose = opsMap.find(matcherTranspose)->second.get_node()->shared_from_this();
+        auto transposeFound = opsMap.find(matcherTranspose);
+        if (transposeFound == opsMap.end())
+            return false;
+        auto transpose = transposeFound->second.get_node()->shared_from_this();
 
         while (transpose != nullptr) {
             const auto parent = transpose->get_input_node_shared_ptr(0);

@@ -200,7 +200,7 @@ private:
     Xbyak::Opmask mask_post_op_reserved = Xbyak::Opmask(1);
     Xbyak::Reg64 eltwise_reserved = rax;
 
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    const size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Label l_table;
 

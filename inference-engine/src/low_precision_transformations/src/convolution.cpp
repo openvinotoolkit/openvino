@@ -284,8 +284,12 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
     }
 
+    auto targetInputs = convolution->output(0).get_target_inputs();
+    if (targetInputs.empty()) {
+        return false;
+    }
     std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
-        convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
+            targetInputs.begin()->get_node()->shared_from_this());
     ngraph::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolution);
 

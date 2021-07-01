@@ -78,8 +78,8 @@ private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
-    bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common)) && (jpp.dtype_size == 4);
-    uint32_t vlen = cpu_isa_traits<isa>::vlen;
+    const bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common)) && (jpp.dtype_size == 4);
+    const uint32_t vlen = cpu_isa_traits<isa>::vlen;
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
     reg64_t reg_oh_count = r10;
