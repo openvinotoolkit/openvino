@@ -15,6 +15,9 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32
 };
 
+const std::vector<std::vector<size_t >> emptyOutputShape = {{}};
+const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
+
 const std::vector<size_t> numOutChannels = {16, 32};
 const std::vector<size_t> numGroups = {2, 8, 16};
 
@@ -35,7 +38,8 @@ const auto groupConvBackpropData2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(dilations2D),
         ::testing::ValuesIn(numOutChannels),
         ::testing::ValuesIn(numGroups),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 const auto groupConvBackpropData2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels2D),
@@ -45,10 +49,11 @@ const auto groupConvBackpropData2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(dilations2D),
         ::testing::ValuesIn(numOutChannels),
         ::testing::ValuesIn(numGroups),
-        ::testing::Values(ngraph::op::PadType::VALID)
+        ::testing::Values(ngraph::op::PadType::VALID),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -57,10 +62,11 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConv
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
+                                ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                        GroupConvBackpropDataLayerTest::getTestCaseName);
+                        GroupConvBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -69,8 +75,9 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBac
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
+                                ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                        GroupConvBackpropDataLayerTest::getTestCaseName);
+                        GroupConvBackpropLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolution ============= */
 const std::vector<std::vector<size_t >> inputShapes3D = {{1, 16, 5, 5, 5},
@@ -89,7 +96,8 @@ const auto groupConvBackpropData3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(dilations3D),
         ::testing::ValuesIn(numOutChannels),
         ::testing::ValuesIn(numGroups),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 const auto groupConvBackpropData3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels3D),
@@ -99,10 +107,11 @@ const auto groupConvBackpropData3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(dilations3D),
         ::testing::ValuesIn(numOutChannels),
         ::testing::ValuesIn(numGroups),
-        ::testing::Values(ngraph::op::PadType::VALID)
+        ::testing::Values(ngraph::op::PadType::VALID),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -111,10 +120,11 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupConv
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
+                                ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                        GroupConvBackpropDataLayerTest::getTestCaseName);
+                        GroupConvBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -123,7 +133,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBac
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
+                                ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                        GroupConvBackpropDataLayerTest::getTestCaseName);
-
+                        GroupConvBackpropLayerTest::getTestCaseName);
 }  // namespace

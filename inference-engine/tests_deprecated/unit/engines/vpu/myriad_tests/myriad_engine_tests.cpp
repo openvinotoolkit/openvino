@@ -104,32 +104,32 @@ static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {
 IE_SUPPRESS_DEPRECATED_END
 
 /// Platform
-INSTANTIATE_TEST_CASE_P(MyriadPlatformConfigs, MyriadEngineSetCorrectConfigTest,
+INSTANTIATE_TEST_SUITE_P(MyriadPlatformConfigs, MyriadEngineSetCorrectConfigTest,
                         ::testing::ValuesIn(myriadCorrectPlatformConfigValues));
 
-INSTANTIATE_TEST_CASE_P(MyriadPlatformConfigs, MyriadEngineSetIncorrectConfigTest,
+INSTANTIATE_TEST_SUITE_P(MyriadPlatformConfigs, MyriadEngineSetIncorrectConfigTest,
                         ::testing::ValuesIn(myriadIncorrectPlatformConfigValues));
 
 /// Protocol
-INSTANTIATE_TEST_CASE_P(MyriadProtocolConfigs, MyriadEngineSetCorrectConfigTest,
+INSTANTIATE_TEST_SUITE_P(MyriadProtocolConfigs, MyriadEngineSetCorrectConfigTest,
                         ::testing::ValuesIn(myriadCorrectProtocolConfigValues));
 
-INSTANTIATE_TEST_CASE_P(MyriadProtocolConfigs, MyriadEngineSetIncorrectConfigTest,
+INSTANTIATE_TEST_SUITE_P(MyriadProtocolConfigs, MyriadEngineSetIncorrectConfigTest,
                         ::testing::ValuesIn(myriadIncorrectProtocolConfigValues));
 
 /// Config combinations
-INSTANTIATE_TEST_CASE_P(MyriadConfigOptionsCombination, MyriadEngineSetCorrectConfigTest,
+INSTANTIATE_TEST_SUITE_P(MyriadConfigOptionsCombination, MyriadEngineSetCorrectConfigTest,
                         ::testing::ValuesIn(myriadCorrectConfigCombinationValues));
 
 /// Power Config
-INSTANTIATE_TEST_CASE_P(MyriadPowerConfigs, MyriadEngineSetCorrectConfigTest,
+INSTANTIATE_TEST_SUITE_P(MyriadPowerConfigs, MyriadEngineSetCorrectConfigTest,
                         ::testing::ValuesIn(myriadCorrectPowerConfigValues));
 
-INSTANTIATE_TEST_CASE_P(MyriadPowerConfigs, MyriadEngineSetIncorrectConfigTest,
+INSTANTIATE_TEST_SUITE_P(MyriadPowerConfigs, MyriadEngineSetIncorrectConfigTest,
                         ::testing::ValuesIn(myriadIncorrectPowerConfigValues));
 /// Package Config
-INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, MyriadEngineSetCorrectConfigTest,
+INSTANTIATE_TEST_SUITE_P(MyriadPackageConfigs, MyriadEngineSetCorrectConfigTest,
                         ::testing::ValuesIn(myriadCorrectPackageTypeConfigValues));
 
-INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, MyriadEngineSetIncorrectConfigTest,
+INSTANTIATE_TEST_SUITE_P(MyriadPackageConfigs, MyriadEngineSetIncorrectConfigTest,
                         ::testing::ValuesIn(myriadIncorrectPackageTypeConfigValues));

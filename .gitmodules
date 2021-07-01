@@ -1,18 +1,6 @@
-[submodule "inference-engine/thirdparty/ade"]
-	path = inference-engine/thirdparty/ade
-	url = https://github.com/opencv/ade.git
-	ignore = dirty
 [submodule "inference-engine/thirdparty/mkl-dnn"]
 	path = inference-engine/thirdparty/mkl-dnn
 	url = https://github.com/openvinotoolkit/oneDNN.git
-	ignore = dirty
-[submodule "inference-engine/tests/ie_test_utils/common_test_utils/gtest"]
-	path = inference-engine/tests/ie_test_utils/common_test_utils/gtest
-	url = https://github.com/openvinotoolkit/googletest.git
-	ignore = dirty
-[submodule "inference-engine/samples/thirdparty/gflags"]
-	path = inference-engine/samples/thirdparty/gflags
-	url = https://github.com/gflags/gflags.git
 	ignore = dirty
 [submodule "thirdparty/xbyak"]
 	path = thirdparty/xbyak
@@ -22,3 +10,24 @@
 	path = thirdparty/zlib/zlib
 	url = https://github.com/madler/zlib.git
 	ignore = dirty
+[submodule "thirdparty/ade"]
+	path = thirdparty/ade
+	url = https://github.com/opencv/ade.git
+	ignore = dirty
+[submodule "thirdparty/gflags"]
+	path = thirdparty/gflags
+	url = https://github.com/gflags/gflags.git
+	ignore = dirty
+[submodule "thirdparty/gtest"]
+	path = thirdparty/gtest
+	url = https://github.com/openvinotoolkit/googletest.git
+	ignore = dirty
+[submodule "thirdparty/ocl/icd_loader"]
+	path = thirdparty/ocl/icd_loader
+	url = https://github.com/KhronosGroup/OpenCL-ICD-Loader.git
+[submodule "thirdparty/ocl/cl_headers"]
+	path = thirdparty/ocl/cl_headers
+	url = https://github.com/KhronosGroup/OpenCL-Headers.git
+[submodule "thirdparty/ocl/clhpp_headers"]
+	path = thirdparty/ocl/clhpp_headers
+	url = https://github.com/KhronosGroup/OpenCL-CLHPP.git

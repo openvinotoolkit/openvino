@@ -100,14 +100,14 @@ const std::vector<std::map<std::string, std::string>> configs = {
     { {"GNA_DEVICE_MODE", "GNA_SW_EXACT"} }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_layers_restrictions, LayersRestrictionsFullyConnectedBatchSizeMoreThan8,
+INSTANTIATE_TEST_SUITE_P(smoke_layers_restrictions, LayersRestrictionsFullyConnectedBatchSizeMoreThan8,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(configs),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         LayersRestrictionsFullyConnectedBatchSizeMoreThan8::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_layers_restrictions, LayersRestrictionsFullyConnectedBatchSizeLessThanOrEqual8,
+INSTANTIATE_TEST_SUITE_P(smoke_layers_restrictions, LayersRestrictionsFullyConnectedBatchSizeLessThanOrEqual8,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(configs),

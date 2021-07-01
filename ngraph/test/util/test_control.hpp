@@ -16,7 +16,7 @@ namespace ngraph
 
     std::string combine_test_backend_and_case(const std::string& backend_name,
                                               const std::string& test_casename);
-}
+} // namespace ngraph
 
 #define NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)                     \
     backend_name##_##test_case_name##_##test_name##_Test
@@ -83,14 +83,14 @@ namespace ngraph
                        test_fixture,                                                               \
                        ::testing::internal::GetTypeId<test_fixture>())
 
-// NGRAPH_TEST_P combined with NGRAPH_INSTANTIATE_TEST_CASE_P facilate the generation
-// of value parameterized tests (similar to the original TEST_P and INSTANTIATE_TEST_CASE_P
+// NGRAPH_TEST_P combined with NGRAPH_INSTANTIATE_TEST_SUITE_P facilate the generation
+// of value parameterized tests (similar to the original TEST_P and INSTANTIATE_TEST_SUITE_P
 // with the addition of a new 0th parameter for the backend name, which allows nGraph's
 // manifest controlled unit testing).
 //
 // Start by defining a class derived from ::testing::TestWithParam<T>, which you'll pass
 // for the test_case_name parameter.
-// Then use NGRAPH_INSTANTIATE_TEST_CASE_P to define each generation of test cases (see below).
+// Then use NGRAPH_INSTANTIATE_TEST_SUITE_P to define each generation of test cases (see below).
 #define NGRAPH_TEST_P(backend_name, test_case_name, test_name)                                     \
     class NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)                   \
         : public test_case_name                                                                    \
@@ -126,59 +126,59 @@ namespace ngraph
         NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::AddToRegistry();   \
     void NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::TestBody()
 
-// Use NGRAPH_INSTANTIATE_TEST_CASE_P to create a generated set of test case variations.
+// Use NGRAPH_INSTANTIATE_TEST_SUITE_P to create a generated set of test case variations.
 // The prefix parameter is a label that you optionally provide (no quotes) for a unique
 // test name (helpful for labelling a set of inputs and for filtering).
 // The prefix parameter can be skipped by simply using a bare comma (see example below).
 //
-// Unlike INSTANTIATE_TEST_CASE_P we don't currently support passing a custom param
+// Unlike INSTANTIATE_TEST_SUITE_P we don't currently support passing a custom param
 // name generator. Supporting this with a single macro name requires the use of
-// ... and __VA_ARGS__ which in turn generates a warning using INSTANTIATE_TEST_CASE_P
+// ... and __VA_ARGS__ which in turn generates a warning using INSTANTIATE_TEST_SUITE_P
 // without a trailing , parameter.
 //
 // Examples:
-// NGRAPH_INSTANTIATE_TEST_CASE_P(BACKENDNAME,                  // backend_name
+// NGRAPH_INSTANTIATE_TEST_SUITE_P(BACKENDNAME,                  // backend_name
 //                                ,                             // empty/skipped prefix
-//                                TestWithParamSubClass,        // test_case_name
+//                                TestWithParamSubClass,        // test_suite_name
 //                                ::testing::Range(0, 3) )      // test generator
 // would generate:
 // BACKENDNAME/TestWithParamSubClass.test_name/0
 // BACKENDNAME/TestWithParamSubClass.test_name/1
 // BACKENDNAME/TestWithParamSubClass.test_name/2
 //
-// NGRAPH_INSTANTIATE_TEST_CASE_P(BACKENDNAME,                  // backend_name
+// NGRAPH_INSTANTIATE_TEST_SUITE_P(BACKENDNAME,                  // backend_name
 //                                NumericRangeTests,            // prefix
-//                                TestWithParamSubClass,        // test_case_name
+//                                TestWithParamSubClass,        // test_suite_name
 //                                ::testing::Range(0, 3) )      // test generator
 // would generate:
 // BACKENDNAME/NumericRangeTests/BACKENDNAME/TestWithParamSubClass.test_name/0
 // BACKENDNAME/NumericRangeTests/BACKENDNAME/TestWithParamSubClass.test_name/1
 // BACKENDNAME/NumericRangeTests/BACKENDNAME/TestWithParamSubClass.test_name/2
 //
-// With the use of NGRAPH_TEST_P and NGRAPH_INSTANTIATE_TEST_CASE_P
+// With the use of NGRAPH_TEST_P and NGRAPH_INSTANTIATE_TEST_SUITE_P
 // the filter to run all the tests for a given backend should be:
 // --gtest_filter=BACKENDNAME*.*
 // (rather than the BACKENDNAME.* that worked before the use of NGRAPH_TEST_P)
-#define NGRAPH_INSTANTIATE_TEST_CASE_P(backend_name, prefix, test_case_name, generator)            \
-    static ::testing::internal::ParamGenerator<test_case_name::ParamType>                          \
-        gtest_##prefix##backend_name##test_case_name##_EvalGenerator_()                            \
+#define NGRAPH_INSTANTIATE_TEST_SUITE_P(backend_name, prefix, test_suite_name, generator)          \
+    static ::testing::internal::ParamGenerator<test_suite_name::ParamType>                         \
+        gtest_##prefix##backend_name##test_suite_name##_EvalGenerator_()                           \
     {                                                                                              \
         return generator;                                                                          \
     }                                                                                              \
-    static ::std::string gtest_##prefix##backend_name##test_case_name##_EvalGenerateName_(         \
-        const ::testing::TestParamInfo<test_case_name::ParamType>& info)                           \
+    static ::std::string gtest_##prefix##backend_name##test_suite_name##_EvalGenerateName_(        \
+        const ::testing::TestParamInfo<test_suite_name::ParamType>& info)                          \
     {                                                                                              \
-        return ::testing::internal::GetParamNameGen<test_case_name::ParamType>()(info);            \
+        return ::testing::internal::DefaultParamName<test_suite_name::ParamType>(info);            \
     }                                                                                              \
-    static int gtest_##prefix##backend_name##test_case_name##_dummy_ GTEST_ATTRIBUTE_UNUSED_ =     \
+    static int gtest_##prefix##backend_name##test_suite_name##_dummy_ GTEST_ATTRIBUTE_UNUSED_ =    \
         ::testing::UnitTest::GetInstance()                                                         \
             ->parameterized_test_registry()                                                        \
-            .GetTestCasePatternHolder<test_case_name>(                                             \
-                #backend_name "/" #test_case_name,                                                 \
+            .GetTestCasePatternHolder<test_suite_name>(                                            \
+                #backend_name "/" #test_suite_name,                                                \
                 ::testing::internal::CodeLocation(__FILE__, __LINE__))                             \
-            ->AddTestCaseInstantiation(                                                            \
+            ->AddTestSuiteInstantiation(                                                           \
                 #prefix[0] != '\0' ? #backend_name "/" #prefix : "",                               \
-                &gtest_##prefix##backend_name##test_case_name##_EvalGenerator_,                    \
-                &gtest_##prefix##backend_name##test_case_name##_EvalGenerateName_,                 \
+                &gtest_##prefix##backend_name##test_suite_name##_EvalGenerator_,                   \
+                &gtest_##prefix##backend_name##test_suite_name##_EvalGenerateName_,                \
                 __FILE__,                                                                          \
                 __LINE__)

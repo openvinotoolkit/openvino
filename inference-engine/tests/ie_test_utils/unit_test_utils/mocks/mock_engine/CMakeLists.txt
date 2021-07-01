@@ -38,3 +38,6 @@ endif()
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
+install(TARGETS ${TARGET_NAME}
+        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)

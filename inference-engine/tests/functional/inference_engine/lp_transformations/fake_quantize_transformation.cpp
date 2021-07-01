@@ -27,8 +27,8 @@ using namespace ngraph::pass;
 class FakeQuantizeTransformationTestValues {
 public:
     low_precision::LayerTransformation::Params params;
-    builder::subgraph::FakeQuantizeOnData actual;
-    builder::subgraph::FakeQuantizeOnData expected;
+    builder::subgraph::FakeQuantizeOnDataWithConstant actual;
+    builder::subgraph::FakeQuantizeOnDataWithConstant expected;
     ngraph::element::Type expectedFakeQuantizeOnDataPrecision;
     std::map<ngraph::element::Type, ngraph::builder::subgraph::DequantizationOperations> expectedValues;
 };
@@ -46,14 +46,12 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 }
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeTransformationTestValues& testValue) {
-    return out << "_" <<
-        testValue.actual.constantShape << "_" << testValue.actual.outputLowValues << "_" << testValue.actual.outputHighValues << "_" <<
-        testValue.expected.constantShape << "_" << testValue.expected.outputLowValues << "_" << testValue.expected.outputHighValues;;
+    return out << "_" << testValue.actual << "_" << testValue.expected;
 }
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     bool,
     FakeQuantizeTransformationTestValues> FakeQuantizeTransformationParams;
 
@@ -61,7 +59,7 @@ class FakeQuantizeTransformation : public LayerTransformation, public testing::W
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
+        const ngraph::PartialShape shape = std::get<1>(GetParam());
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizeTransformationTestValues fakeQuantizeOnData = std::get<3>(GetParam());
 
@@ -88,13 +86,13 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
         ngraph::element::Type precision;
-        ngraph::Shape shape;
+        ngraph::PartialShape shape;
         bool updatePrecision;
         FakeQuantizeTransformationTestValues fakeQuantizeOnData;
         std::tie(precision, shape, updatePrecision, fakeQuantizeOnData) = obj.param;
 
         std::ostringstream result;
-        result << LayerTransformation::getTestCaseNameByParams(precision, shape, fakeQuantizeOnData.params) <<
+        result << precision << "_" << shape << "_" << toString(fakeQuantizeOnData.params) <<
             (updatePrecision ? "" : "_notUpdatePrecision_") <<
             fakeQuantizeOnData;
         return result.str();
@@ -107,6 +105,7 @@ TEST_P(FakeQuantizeTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+namespace testValues1 {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
     //ngraph::element::i32,
@@ -114,6 +113,12 @@ const std::vector<ngraph::element::Type> precisions = {
 };
 
 const std::vector<bool> updatePrecisions = { true, false };
+
+const std::vector<ngraph::PartialShape> shapes = {
+    { 1, 3, 72, 48 },
+    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+    // TODO: 3D tensor
+};
 
 const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformationTestValues = {
     // U8
@@ -214,15 +219,27 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
             { ngraph::element::f32, {{ngraph::element::f32}, { }, { 1e-32f }} },
             { ngraph::element::f16, {{ngraph::element::f16}, { }, { 1e-32f }} }
         }
-    }
+    },
+
+    // U8 per-channel
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            256ul,
+            {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+            { 0.f, 0.f, 0.f }, { 2.55f, 2.55f, 2.55f },
+            { 0.f, 0.f, 0.f }, { 2.55f, 25.5f, 255.f }
+        },
+        { 256ul, {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
+        ngraph::element::u8,
+        {
+            { ngraph::element::f32, { {ngraph::element::f32}, {}, { {0.01f, 0.1f, 1.f} }} },
+            { ngraph::element::f16, { {ngraph::element::f16}, {}, { {0.01f, 0.1f, 1.f} }} }
+        }
+    },
 };
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 },
-    // TODO: 3D tensor
-};
-
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FakeQuantizeTransformation,
     ::testing::Combine(
@@ -231,3 +248,52 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(updatePrecisions),
         ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
     FakeQuantizeTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> shapesWithDynamicChannel = {
+    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+    PartialShape::dynamic(),
+};
+
+const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
+        ngraph::element::u8,
+        {
+            { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.01f }} },
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            256ul,
+            {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+            { 0.f, 0.f, 0.f }, { 2.55f, 2.55f, 2.55f },
+            { 0.f, 0.f, 0.f }, { 2.55f, 25.5f, 255.f }
+        },
+        {
+            256ul,
+            {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+            { 0.f, 0.f, 0.f }, { 2.55f, 2.55f, 2.55f },
+            { 0.f, 0.f, 0.f }, { 2.55f, 25.5f, 255.f }
+        },
+        ngraph::element::f32,
+        {
+            { ngraph::element::f32, {} },
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    FakeQuantizeTransformation,
+    ::testing::Combine(
+        ::testing::Values(ngraph::element::f32),
+        ::testing::ValuesIn(shapesWithDynamicChannel),
+        ::testing::Values(true),
+        ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
+    FakeQuantizeTransformation::getTestCaseName);
+} // namespace testValues2

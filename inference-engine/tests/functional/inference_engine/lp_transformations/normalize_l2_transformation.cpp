@@ -19,7 +19,9 @@
 #include "lpt_ngraph_functions/normalize_l2_function.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
+namespace {
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
@@ -44,7 +46,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     ngraph::op::EpsMode,
     std::vector<size_t>,
     NormalizeL2TransformationTestValues> NormalizeL2TransformationParams;
@@ -53,7 +55,7 @@ class NormalizeL2Transformation : public LayerTransformation, public testing::Wi
 public:
     void SetUp() override {
         ngraph::element::Type precision;
-        ngraph::Shape shape;
+        ngraph::PartialShape shape;
         ngraph::op::EpsMode epsMode;
         std::vector<size_t> axes;
         NormalizeL2TransformationTestValues params;
@@ -85,7 +87,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
         ngraph::element::Type precision;
-        ngraph::Shape shape;
+        ngraph::PartialShape shape;
         ngraph::Shape axes;
         ngraph::op::EpsMode epsMode;
         NormalizeL2TransformationTestValues params;
@@ -112,10 +114,6 @@ const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f16
 };
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 3, 16, 16 }
-};
-
 std::vector<ngraph::op::EpsMode> epsMode = {
     ngraph::op::EpsMode::ADD,
     ngraph::op::EpsMode::MAX
@@ -126,89 +124,81 @@ std::vector<std::vector<size_t>> axes = {
     { 1, 2, 3 }
 };
 
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> shapes = {
+    { 1, 3, 16, 16 },
+    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}
+};
+
 const std::vector<NormalizeL2TransformationTestValues> normalizeL2TransformationTestValues = {
-//    // U8 per tensor quantization
-//    {
-//        LayerTransformation::createParamsU8I8(),
-//        {
-//            ngraph::element::u8,
-//            {{ngraph::element::f32}, {2.f}, {-12.3f}}
-//        },
-//        {
-//            ngraph::element::u8,
-//            {{ngraph::element::f32}, {2.f}, {-12.3f}},
-//            ngraph::element::f32,
-//            {}
-//        }
-//    },
-//    // U8 per tensor quantization without subtract
-//    {
-//        LayerTransformation::createParamsU8I8(),
-//        {
-//            ngraph::element::u8,
-//            {{ngraph::element::f32}, {}, {-12.3f}}
-//        },
-//        {
-//            ngraph::element::u8,
-//            {},
-//            ngraph::element::f32,
-//            {{}, {}, {-1.f}}
-//        }
-//    },
-//    // U8 per channel quantization with the same values
-//    {
-//        LayerTransformation::createParamsU8I8(),
-//        {
-//            ngraph::element::u8,
-//            {{ngraph::element::f32}, {}, {{12.3f, 12.3f, 12.3f}}}
-//        },
-//        {
-//            ngraph::element::u8,
-//            {},
-//            ngraph::element::f32,
-//            {{}, {}, {{1.f, 1.f, 1.f}}}
-//        }
-//    },
-//    // U8 per channel quantization with different values
-//    {
-//        LayerTransformation::createParamsU8I8(),
-//        {
-//            ngraph::element::u8,
-//            {{ngraph::element::f32}, {}, {{12.3f, -12.3f, 12.3f}}}
-//        },
-//        {
-//            ngraph::element::u8,
-//            {{ngraph::element::f32}, {}, {{12.3f, -12.3f, 12.3f}}},
-//            ngraph::element::f32,
-//            {}
-//        }
-//    },
-//    // U8 not update precisions
-//    {
-//        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-//        {
-//            ngraph::element::f32,
-//            {{}, {}, {12.3f}}
-//        },
-//        {
-//            ngraph::element::f32,
-//            {},
-//            ngraph::element::f32,
-//            {{}, {}, {1.f}}
-//        }
-//    },
-    // U8 without dequantization
+    // U8 per tensor quantization
     {
         LayerTransformation::createParamsU8I8(),
         {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {2.f}, {-12.3f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {2.f}, {-12.3f}},
             ngraph::element::f32,
             {}
+        }
+    },
+    // U8 per tensor quantization without subtract
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {-12.3f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::f32,
+            {{}, {}, {-1.f}}
+        }
+    },
+    // U8 per channel quantization with the same values
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{12.3f, 12.3f, 12.3f}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::f32,
+            {{}, {}, {{1.f, 1.f, 1.f}}}
+        }
+    },
+    // U8 per channel quantization with different values
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{12.3f, -12.3f, 12.3f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{12.3f, -12.3f, 12.3f}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+    // U8 not update precisions
+    {
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::f32,
+            {{}, {}, {12.3f}}
         },
         {
             ngraph::element::f32,
             {},
             ngraph::element::f32,
-            {}
+            {{}, {}, {1.f}}
         }
     },
     // I8 per tensor quantization
@@ -269,7 +259,7 @@ const std::vector<NormalizeL2TransformationTestValues> normalizeL2Transformation
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     NormalizeL2Transformation,
     ::testing::Combine(
@@ -279,3 +269,84 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(axes),
         ::testing::ValuesIn(normalizeL2TransformationTestValues)),
     NormalizeL2Transformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
+    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
+};
+
+const std::vector<NormalizeL2TransformationTestValues> normalizeL2TransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {-12.3f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::f32,
+            {{}, {}, {-1.f}}
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{12.3f, 12.3f, 12.3f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{12.3f, 12.3f, 12.3f}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    NormalizeL2Transformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(shapesWithDynamicChannels),
+        ::testing::ValuesIn(epsMode),
+        ::testing::ValuesIn(axes),
+        ::testing::ValuesIn(normalizeL2TransformationTestValues)),
+    NormalizeL2Transformation::getTestCaseName);
+} // namespace testValues2
+
+namespace testValues3 {
+const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
+    PartialShape::dynamic()
+};
+
+const std::vector<NormalizeL2TransformationTestValues> normalizeL2TransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {-12.3f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {-12.3f}},
+            ngraph::element::f32,
+            {}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    NormalizeL2Transformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(shapesWithDynamicChannels),
+        ::testing::ValuesIn(epsMode),
+        ::testing::ValuesIn(axes),
+        ::testing::ValuesIn(normalizeL2TransformationTestValues)),
+    NormalizeL2Transformation::getTestCaseName);
+} // namespace testValues3
+} // namespace

@@ -74,7 +74,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationTes
 
 typedef std::tuple <
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     ConcatTransformationTestValues
 > ConcatTransformationParams;
 
@@ -82,7 +82,7 @@ class ConcatWithIntermediateWithConstantTransformation : public LayerTransformat
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
+        const ngraph::PartialShape shape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediateWithConstant(
@@ -116,13 +116,14 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
-        const ngraph::Shape shape = std::get<1>(obj.param);
+        const ngraph::element::Type precision = std::get<0>(obj.param);
+        const ngraph::PartialShape shape = std::get<1>(obj.param);
         ConcatTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
         result <<
             toString(testValues.params) << "_" <<
-            shape << "_" <<
+            precision << "_" << shape << "_" <<
             (testValues.multiChannels ? "multiChannels_" : "notMultiChannels_") <<
             testValues.actual << "_" <<
             testValues.result << "_";
@@ -139,6 +140,12 @@ TEST_P(ConcatWithIntermediateWithConstantTransformation, CompareFunctions) {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
     // ngraph::element::f16
+};
+
+const std::vector<ngraph::PartialShape> shapes = {
+    { 1, 3, 9, 9 },
+    { 4, 3, 9, 9 },
+    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
 };
 
 const std::vector<ConcatTransformationTestValues> testValues = {
@@ -304,12 +311,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     },
 };
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 3, 9, 9 },
-    { 4, 3, 9, 9 }
-};
-
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConcatWithIntermediateWithConstantTransformation,
     ::testing::Combine(

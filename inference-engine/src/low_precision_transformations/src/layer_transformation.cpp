@@ -74,17 +74,35 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
+    if (NetworkHelper::isDQByDynamicDimension(layer)) {
+        return false;
+    }
+
     for (const auto& output : layer->outputs()) {
-        const size_t size = output.get_shape().size();
-        if ((size < 2ul) || (size > 5ul)) {
+        const auto rank = output.get_partial_shape().rank();
+        if (rank.is_dynamic()) {
+            return false;
+        }
+        auto size = rank.get_length();
+        if ((size < 2) || (size > 5)) {
             return false;
         }
     }
 
     const auto dequantization = NetworkHelper::getDequantization(layer);
     if (!dequantization.empty()) {
-        auto perChannelQuantization = [](const Shape dataShape, Shape constShape) {
-            if ((dataShape.size() - constShape.size()) == 1ul) {
+        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape) {
+            if (ngraph::shape_size(constShape) == 1ul) {
+                return true;
+            }
+
+            const auto rank = dataPShape.rank();
+            if (rank.is_dynamic()) {
+                return false;
+            }
+
+            const auto dataShapeSize = static_cast<size_t>(rank.get_length());
+            if ((dataShapeSize - constShape.size()) == 1ul) {
                 constShape.insert(constShape.begin(), 1ul);
             }
 
@@ -101,14 +119,14 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         };
 
         if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
-            dequantization.subtract->output(0).get_shape(),
-            dequantization.subtract->input(1).get_shape()))) {
+            dequantization.subtract->get_output_partial_shape(0),
+            dequantization.subtract->get_input_shape(1)))) {
             return false;
         }
 
         if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
-            dequantization.multiply->output(0).get_shape(),
-            dequantization.multiply->input(1).get_shape()))) {
+            dequantization.multiply->get_output_partial_shape(0),
+            dequantization.multiply->get_input_shape(1)))) {
             return false;
         }
     }
@@ -121,9 +139,19 @@ bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationC
         return false;
     }
 
+    if (NetworkHelper::isDQByDynamicDimension(layer)) {
+        return false;
+    }
+
     for (const auto& output : layer->outputs()) {
-        const size_t size = output.get_shape().size();
-        if ((size < 2ul) || (size > 5ul)) {
+        const auto outPShape = output.get_partial_shape();
+        const auto rank = outPShape.rank();
+        if (rank.is_dynamic()) {
+            return false;
+        }
+
+        const auto size = rank.get_length();
+        if ((size < 2) || (size > 5)) {
             return false;
         }
     }
