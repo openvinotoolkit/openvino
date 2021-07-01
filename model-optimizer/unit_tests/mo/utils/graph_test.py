@@ -6,7 +6,7 @@ import unittest
 from mo.graph.graph import Graph, Node
 from mo.utils.error import Error
 from mo.utils.graph import bfs_search, is_connected_component, sub_graph_between_nodes, backward_bfs_for_operation
-from unit_tests.utils.graph import regular_op, result, build_graph, build_graph_with_edge_attrs
+from unit_tests.utils.graph import regular_op, result, build_graph_with_edge_attrs
 
 
 class TestGraphUtils(unittest.TestCase):
@@ -360,5 +360,3 @@ class TestGraphUtils(unittest.TestCase):
         found_nodes = backward_bfs_for_operation(Node(graph, 'result'), ['HSigmoid'], ['ShapeOf'])
         self.assertEqual(len(found_nodes), 1)
         self.assertEqual(found_nodes[0].id, 'hsigmoid_2')
-
-
