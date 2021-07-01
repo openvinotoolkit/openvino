@@ -66,6 +66,7 @@ namespace
         auto test_case = test::TestCase<TestEngine>(f);
         test_case.add_input(params.m_data.get_vector());
         test_case.add_expected_output(params.m_expected_output.get_vector());
+        test_case.run_with_tolerance_as_fp(1e-4f);
     }
 
     class BatchToSpaceTestFloat : public testing::TestWithParam<BatchToSpaceParams<float>>
@@ -78,49 +79,101 @@ NGRAPH_TEST_P(${BACKEND_NAME}, BatchToSpaceTestFloat, BatchToSpaceTestFloatCases
     BatchToSpaceTestExecute(GetParam());
 }
 
+const test::NDArray<float, 4> input_with_shape_4x1x1x3(
+    {{{{1.0f, 2.0f, 3.0f}}},
+    {{{4.0f, 5.0f, 6.0f}}},
+    {{{7.0f, 8.0f, 9.0f}}},
+    {{{10.0f, 11.0f, 12.0f}}}});
+
+const test::NDArray<float, 4> input_with_shape_4x1x2x3(
+    {{{{1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}}},
+    {{{7.0f, 8.0f, 9.0f}, {10.0f, 11.0f, 12.0f}}},
+    {{{13.0f, 14.0f, 15.0f}, {16.0f, 17.0f, 18.0f}}},
+    {{{19.0f, 20.0f, 21.0f}, {22.0f, 23.0f, 24.0f}}}});
+
+const test::NDArray<int64_t, 1> zero_crops_4d({0, 0, 0, 0});
+
 NGRAPH_INSTANTIATE_TEST_SUITE_P(
     ${BACKEND_NAME},
     batch_to_space_4d_without_crops,
     BatchToSpaceTestFloat,
     testing::Values(
-        BatchToSpaceParams<float>{test::NDArray<float, 4>({{{{1.0f}}}, {{{2.0f}}},
-                                                           {{{3.0f}}}, {{{4.0f}}}}),
+        BatchToSpaceParams<float>{input_with_shape_4x1x1x3,
+                                  test::NDArray<int64_t, 1>({1, 1, 1, 2}),
+                                  zero_crops_4d,
+                                  zero_crops_4d,
+                                  test::NDArray<float, 4>(
+                                      {{{{1.0f, 7.0f, 2.0f, 8.0f, 3.0f, 9.0f}}},
+                                      {{{4.0f, 10.0f, 5.0f, 11.0f, 6.0f, 12.0f}}}})},
+        BatchToSpaceParams<float>{input_with_shape_4x1x1x3,
+                                  test::NDArray<int64_t, 1>({1, 1, 2, 1}),
+                                  zero_crops_4d,
+                                  zero_crops_4d,
+                                  test::NDArray<float, 4>(
+                                      {{{{1.0f, 2.0f, 3.0f}, {7.0f, 8.0f, 9.0f}}},
+                                      {{{4.0f, 5.0f, 6.0f}, {10.0f, 11.0f, 12.0f}}}})},
+        BatchToSpaceParams<float>{input_with_shape_4x1x1x3,
                                   test::NDArray<int64_t, 1>({1, 1, 2, 2}),
-                                  test::NDArray<int64_t, 1>({0, 0, 0, 0}),
-                                  test::NDArray<int64_t, 1>({0, 0, 0, 0}),
-                                  test::NDArray<float, 4>({{{{1.0f, 2.0f}, {3.0f, 4.0f}}}})},
-        BatchToSpaceParams<float>{test::NDArray<float, 4>({{{{1.0f, 2.0f}, {3.0f, 4.0f}}},
-                                                           {{{5.0f, 6.0f}, {7.0f, 8.0f}}},
-                                                           {{{9.0f, 10.0f}, {11.0f, 12.0f}}},
-                                                           {{{13.0f, 14.0f}, {15.0f, 16.0f}}}}),
+                                  zero_crops_4d,
+                                  zero_crops_4d,
+                                  test::NDArray<float, 4>(
+                                      {{{{1.0f, 4.0f, 2.0f, 5.0f, 3.0f, 6.0f},
+                                      {7.0f, 10.0f, 8.0f, 11.0f, 9.0f, 12.0f}}}})},
+        BatchToSpaceParams<float>{input_with_shape_4x1x2x3,
+                                  test::NDArray<int64_t, 1>({1, 1, 1, 2}),
+                                  zero_crops_4d,
+                                  zero_crops_4d,
+                                  test::NDArray<float, 4>(
+                                      {{{{1.0f, 13.0f, 2.0f, 14.0f, 3.0f, 15.0f},
+                                         {4.0f, 16.0f, 5.0f, 17.0f, 6.0f, 18.0f}}},
+                                       {{{7.0f, 19.0f, 8.0f, 20.0f, 9.0f, 21.0f},
+                                         {10.0f, 22.0f, 11.0f, 23.0f, 12.0f, 24.0f}}}})},
+        BatchToSpaceParams<float>{input_with_shape_4x1x2x3,
+                                  test::NDArray<int64_t, 1>({1, 1, 2, 1}),
+                                  zero_crops_4d,
+                                  zero_crops_4d,
+                                  test::NDArray<float, 4>(
+                                      {{{{1.0f, 2.0f, 3.0f}, {13.0f, 14.0f, 15.0f},
+                                         {4.0f, 5.0f, 6.0f}, {16.0f, 17.0f, 18.0f}}},
+                                       {{{7.0f, 8.0f, 9.0f}, {19.0f, 20.0f, 21.0f},
+                                         {10.0f, 11.0f, 12.0f}, {22.0f, 23.0f, 24.0f}}}})},
+        BatchToSpaceParams<float>{input_with_shape_4x1x2x3,
                                   test::NDArray<int64_t, 1>({1, 1, 2, 2}),
-                                  test::NDArray<int64_t, 1>({0, 0, 0, 0}),
-                                  test::NDArray<int64_t, 1>({0, 0, 0, 0}),
-                                  test::NDArray<float, 4>({{{{1.0f, 2.0f, 3.0f, 4.0f}},
-                                                            {{5.0f, 6.0f, 7.0f, 8.0f}},
-                                                            {{9.0f, 10.0f, 11.0f, 12.0f}},
-                                                            {{13.0f, 14.0f, 15.0f, 16.0f}}}})}));
+                                  zero_crops_4d,
+                                  zero_crops_4d,
+                                  test::NDArray<float, 4>(
+                                      {{{{1.0f, 7.0f, 2.0f, 8.0f, 3.0f, 9.0f},
+                                         {13.0f, 19.0f, 14.0f, 20.0f, 15.0f, 21.0f},
+                                         {4.0f, 10.0f, 5.0f, 11.0f, 6.0f, 12.0f},
+                                         {16.0f, 22.0f, 17.0f, 23.0f, 18.0f, 24.0f}}}})}));
 
 NGRAPH_INSTANTIATE_TEST_SUITE_P(
     ${BACKEND_NAME},
     batch_to_space_4d_crops,
     BatchToSpaceTestFloat,
     testing::Values(
-        BatchToSpaceParams<float>{test::NDArray<float, 4>({{{{0.0f, 1.0f, 3.0f}}}, {{{0.0f, 9.0f, 11.0f}}},
-                                                           {{{0.0f, 2.0f, 4.0f}}}, {{{0.0f, 10.0f, 12.0f}}},
-                                                           {{{0.0f, 5.0f, 7.0f}}}, {{{0.0f, 13.0f, 15.0f}}},
-                                                           {{{0.0f, 6.0f, 8.0f}}}, {{{0.0f, 14.0f, 16.0f}}}}),
+        BatchToSpaceParams<float>{input_with_shape_4x1x2x3,
                                   test::NDArray<int64_t, 1>({1, 1, 2, 2}),
                                   test::NDArray<int64_t, 1>({0, 0, 0, 0}),
                                   test::NDArray<int64_t, 1>({0, 0, 0, 2}),
-                                  test::NDArray<float, 4>({{{{1.0f, 2.0f, 3.0f, 4.0f}, {5.0f, 6.0f, 7.0f, 8.0f}}},
-                                                           {{{9.0f, 10.0f, 11.0f, 12.0f}, {13.0f, 14.0f, 15.0f, 16.0f}}}})},
-        BatchToSpaceParams<float>{test::NDArray<float, 4>({{{{0.0f}, {1.0f}, {3.0f}}}, {{{0.0f}, {9.0f}, {11.0f}}},
-                                                           {{{0.0f}, {2.0f}, {4.0f}}}, {{{0.0f}, {10.0f}, {12.0f}}},
-                                                           {{{0.0f}, {5.0f}, {7.0f}}}, {{{0.0f}, {13.0f}, {15.0f}}},
-                                                           {{{0.0f}, {6.0f}, {8.0f}}}, {{{0.0f}, {14.0f}, {16.0f}}}}),
+                                  test::NDArray<float, 4>(
+                                      {{{{1.0f, 7.0f, 2.0f, 8.0f},
+                                         {13.0f, 19.0f, 14.0f, 20.0f},
+                                         {4.0f, 10.0f, 5.0f, 11.0f},
+                                         {16.0f, 22.0f, 17.0f, 23.0f}}}})},
+        BatchToSpaceParams<float>{input_with_shape_4x1x2x3,
                                   test::NDArray<int64_t, 1>({1, 1, 2, 2}),
-                                  test::NDArray<int64_t, 1>({0, 0, 2, 0}),
+                                  test::NDArray<int64_t, 1>({0, 0, 0, 2}),
                                   test::NDArray<int64_t, 1>({0, 0, 0, 0}),
-                                  test::NDArray<float, 4>({{{{1.0f, 2.0f}, {3.0f, 4.0f}, {5.0f, 6.0f}, {7.0f, 8.0f}}},
-                                                           {{{9.0f, 10.0f}, {11.0f, 12.0f}, {13.0f, 14.0f}, {15.0f, 16.0f}}}})}));
+                                  test::NDArray<float, 4>(
+                                      {{{{2.0f, 8.0f, 3.0f, 9.0f},
+                                         {14.0f, 20.0f, 15.0f, 21.0f},
+                                         {5.0f, 11.0f, 6.0f, 12.0f},
+                                         {17.0f, 23.0f, 18.0f, 24.0f}}}})},
+        BatchToSpaceParams<float>{input_with_shape_4x1x2x3,
+                                  test::NDArray<int64_t, 1>({1, 1, 2, 2}),
+                                  test::NDArray<int64_t, 1>({0, 0, 1, 0}),
+                                  test::NDArray<int64_t, 1>({0, 0, 1, 0}),
+                                  test::NDArray<float, 4>(
+                                      {{{{13.0f, 19.0f, 14.0f, 20.0f, 15.0f, 21.0f},
+                                         {4.0f, 10.0f, 5.0f, 11.0f, 6.0f, 12.0f}}}})}));
