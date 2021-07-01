@@ -641,16 +641,16 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     Transformation(clonedNetwork, enableLPT);
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
-    const auto& mode = config.find(PluginConfigParams::KEY_OV_PERFORMANCE_MODE);
-     // the mode may have just arrived to the LoadNetwork (higher pri), or was set with the plugins' SetConfig
-    if (mode != config.end() || !engConfig.ovPerfMode.empty()) {
-        const auto mode_name = (mode != config.end()) ? mode->second : engConfig.ovPerfMode;
+    //const auto& mode = config.find(PluginConfigParams::KEY_OV_PERFORMANCE_MODE);
+    // the mode may have just arrived to the LoadNetwork (higher pri), or was set with the plugins' SetConfig
+    // if (mode != config.end() || !engConfig.ovPerfMode.empty()) {
+        //const auto mode_name = (mode != config.end()) ? mode->second : engConfig.ovPerfMode;
         //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
-        const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
-        if (streams == config.end() && !streamsSet) { // for EXPERIMENT: overriding the user streams settings
-            if (mode_name == CONFIG_VALUE(LATENCY)) {
-                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
-            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+        //const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
+        // if (streams == config.end() && !streamsSet) { // for EXPERIMENT: overriding the user streams settings
+            //if (mode_name == CONFIG_VALUE(LATENCY)) {
+            //    config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+            // } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
                 Engine::NetworkPerfStats NetworkToleranceForLowCache = NetworkMemBandwidthTolerance(clonedNetwork);
                 const auto num_cores = getNumberOfCPUCores();
                 const auto num_streams_default_not_ht = num_cores / 2;
@@ -693,9 +693,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  "
                           << (NetworkToleranceForLowCache.maxMemTolerance <= NetworkPerfStats::memThresholdAssumeLimited ? "YES" : "NO")
                           << ", NUM_STREAMS " << num_streams << std::endl;
-            }
-        }
-    }
+            //}
+        //}
+    //}
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
