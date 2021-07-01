@@ -25,13 +25,12 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct non_max_suppression_params : public base_params {
     non_max_suppression_params() : base_params(KernelType::NON_MAX_SUPPRESSION),
-    box_encoding(0), sort_result_descending(true), has_num_select_per_class(false),
+    box_encoding(BoxEncodingType::BOX_ENCODING_CORNER), sort_result_descending(true), has_num_select_per_class(false),
     has_iou_threshold(false), has_score_threshold(false), has_soft_nms_sigma(false),
     has_second_output(false), has_third_output(false) {}
 
-    uint32_t box_encoding;  // 0(corner), 1(center)
+    BoxEncodingType box_encoding;
     bool sort_result_descending;
-    // clDNN primitive supports only i32 as output data type
     bool has_num_select_per_class;
     bool has_iou_threshold;
     bool has_score_threshold;
