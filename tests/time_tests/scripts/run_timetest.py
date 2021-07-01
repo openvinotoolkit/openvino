@@ -104,7 +104,7 @@ def run_timetest(args: dict, log=None):
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
-            return retcode, {}
+            return retcode, {}, {}
 
         # Read raw statistics
         with open(tmp_stats_path, "r") as file:
