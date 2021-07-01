@@ -12,6 +12,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/validation_util.hpp"
 #include "op/gather.hpp"
 #include "utils/common.hpp"
 
@@ -171,13 +172,12 @@ namespace ngraph
                     auto ends = inputs.at(2);
 
                     // Slice is calculated over all axes as default
-                    Output<ngraph::Node> axes;
+                    std::shared_ptr<default_opset::Constant> axes_const;
                     if (inputs.size() >= 4 && !is_null(inputs.at(3))) // axes input provided
                     {
-                        axes = inputs.at(3);
-                        CHECK_VALID_NODE(node,
-                                         ngraph::op::is_constant(axes.get_node()),
-                                         "Axes input must be constant");
+                        axes_const = ngraph::get_constant_from_source(inputs.at(3));
+                        CHECK_VALID_NODE(
+                            node, axes_const != nullptr, "Axes input must be constant");
                     }
                     else
                     {
@@ -186,14 +186,11 @@ namespace ngraph
                             data_rank.is_static(),
                             "Data rank must be static when axes input is not provided");
                         const size_t data_rank_value = data_rank.get_length();
-                        axes = default_opset::Constant::create(
+                        axes_const = default_opset::Constant::create(
                             element::i64,
                             {data_rank_value},
                             common::get_monotonic_range<int64_t>(data_rank_value));
                     }
-
-                    const auto axes_const =
-                        as_type_ptr<default_opset::Constant>(axes.get_node_shared_ptr());
                     auto raw_axes_vec = axes_const->cast_vector<int64_t>();
                     std::vector<uint64_t> axes_vec =
                         get_normalized_axes_vector(node, data_rank, raw_axes_vec);

@@ -4334,6 +4334,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_multiple_slices_last_layer)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_slice_const_axes_source)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/slice_const_axes_source.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(std::vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {2.f, 3.f, 6.f, 7.f});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_softmax_crossentropy_loss_mean)
 {
     auto function = onnx_import::import_onnx_model(
