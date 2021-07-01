@@ -102,6 +102,7 @@ protected:
     Xbyak::Reg64 regAux3 = r15;
     Xbyak::Reg64 regBeforeAxisCounter = r15;
     Xbyak::Reg64 regBetweenBatchAndAxisSize = rbx;
+//    Xbyak::Reg64 regSpecIndicesSize = rbp;
 
     Xbyak::Reg64 regParams = mkldnn::impl::cpu::x64::abi_param1;
 
@@ -133,6 +134,7 @@ protected:
     Vmm vmmDictTypeSize = Vmm(4);
     Vmm vmmSrcShifts = Vmm(5);
     Vmm vmmMinusOne = Vmm(6);
+    Vmm vmmZeros = Vmm(6);
     Vmm vmmVecLen = Vmm(7);
     Vmm vmmAux3 = Vmm(8);
     Vmm vmmAux4 = Vmm(9);
@@ -144,6 +146,7 @@ protected:
     Vmm vmmAux8 = Vmm(13);
     Vmm vmmOnes = Vmm(13);
     Vmm vmmAux9 = Vmm(14);
+    Vmm vmmAxisDim = Vmm(14);
     Vmm vmmDst = Vmm(15);
 
     Vmm vmmAux11 = Vmm(17);
@@ -152,11 +155,13 @@ protected:
     void fillIndicies(Xbyak::Xmm& dst, Xbyak::Xmm& mask);
     void fillIndicies(Xbyak::Ymm& dst, Xbyak::Ymm& mask);
     void fillIndicies(Xbyak::Zmm& dst, Xbyak::Opmask& mask);
-    void fillIndiciesLong(Xbyak::Ymm& dst, Xbyak::Ymm& mask);
+    void fillIndiciesLongIdx(Xbyak::Ymm& dst, Xbyak::Ymm& mask);
+    void fillIndiciesShortIdx(Xbyak::Ymm& dst, Xbyak::Ymm& mask);
     void fillIndiciesBlk(Xbyak::Ymm& dst, Xbyak::Ymm& mask);
     void vpGatherDD(const Xbyak::Ymm& dst);
     void vpGatherDD(const Xbyak::Zmm& dst);
-    void vpGatherDDlong(Xbyak::Ymm& dst);
+    void gatherLongIdx();
+    void gatherShortIdx();
     void vpGatherDDBlk(const Xbyak::Ymm& dst);
     void gatherAndGroup(const Xbyak::Ymm& dst, const Xbyak::Ymm& shufMask);
     void gatherAndGroup(const Xbyak::Zmm& dst, const Xbyak::Zmm& shufMask);

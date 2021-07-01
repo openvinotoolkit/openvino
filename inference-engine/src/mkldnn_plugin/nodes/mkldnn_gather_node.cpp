@@ -150,7 +150,7 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
     const SizeVector idxDims = getParentEdgeAt(GATHER_INDEXES)->getDims().ToSizeVector();
 //    const SizeVector dstDims = getChildEdgeAt(0)->getDims().ToSizeVector();
 
-    size_t axisDim = srcDims[axis];
+    int axisDim = srcDims[axis];
 //    batchSize = std::accumulate(srcDims.begin(), srcDims.begin() + batchDims, 1, std::multiplies<size_t>());
 //    outerSize = std::accumulate(srcDims.begin() + batchDims, srcDims.begin() + axis, 1, std::multiplies<size_t>());
 //    srcBatchStride = std::accumulate(srcDims.begin() + batchDims, srcDims.end(), 1, std::multiplies<size_t>());
@@ -158,10 +158,10 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
 //    dstBatchStride = std::accumulate(dstDims.begin() + batchDims, dstDims.end(), 1, std::multiplies<size_t>());
 
     const int32_t* srcIndices = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDEXES)->getMemoryPtr()->GetPtr());
-    for (int i = 0; i < getParentEdgeAt(GATHER_INDEXES)->getDims().size(); i++) {
-        if (srcIndices[i] < 0 || srcIndices[i] >= 100)
-            std::cout << "INVALID INDEX: " << srcIndices[i] << std::endl;
-    }
+//for (int i = 0; i < getParentEdgeAt(GATHER_INDEXES)->getDims().size(); i++) {
+//    if (srcIndices[i] < 0 || srcIndices[i] >= 100)
+//        std::cout << "INVALID INDEX: " << srcIndices[i] << std::endl;
+//}
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
@@ -217,8 +217,8 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
 //            int specIndicesSizeMinOne = specIndicesSize - 1;
 
 //printf("[%d] start: %lu; end: %lu\n", ithr, start, end);
-    std::string seqStr = std::string("[") + std::to_string(ithr) + "] start: " + std::to_string(start) + "; end: " + std::to_string(end);
-    std::string bIdx = "\nbatchchIndices {", btw = "}\nbetweenBatchAndAxisIdx {", spIdx = "}\nspecIndices {";
+//    std::string seqStr = std::string("[") + std::to_string(ithr) + "] start: " + std::to_string(start) + "; end: " + std::to_string(end);
+//    std::string bIdx = "\nbatchchIndices {", btw = "}\nbetweenBatchAndAxisIdx {", spIdx = "}\nspecIndices {";
             std::vector<int> batchIndices(vecLen);
             std::vector<int> betweenBatchAndAxisIdx(vecLen);
             std::vector<int> specIndices(vecLen);
@@ -228,13 +228,13 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
                 betweenBatchAndAxisIdx[i] = ((start + i) / specIndicesSize) % betweenBatchAndAxis;
                 specIndices[i] = (start + i) % specIndicesSize;
 
-bIdx += std::to_string(batchIndices[i]) + ";";
-btw += std::to_string(betweenBatchAndAxisIdx[i]) + ";";
-spIdx += std::to_string(specIndices[i]) + ";";
+//bIdx += std::to_string(batchIndices[i]) + ";";
+//btw += std::to_string(betweenBatchAndAxisIdx[i]) + ";";
+//spIdx += std::to_string(specIndices[i]) + ";";
             }
-seqStr += bIdx + btw + spIdx + "}\n";
+//seqStr += bIdx + btw + spIdx + "}\n";
             int beforeAxisCounter = betweenBatchAndAxisIdx[0];//start / betweenBatchAndAxis;
-printf("%sbeforeAxisCounter: %d\n", seqStr.c_str(), beforeAxisCounter);
+//printf("%sbeforeAxisCounter: %d\n", seqStr.c_str(), beforeAxisCounter);
 
             uint32_t vlen = jitKernel->getVecLen();
             int idxTypeSize = sizeof(int32_t);
@@ -248,7 +248,7 @@ printf("%sbeforeAxisCounter: %d\n", seqStr.c_str(), beforeAxisCounter);
             arg.dataTypeSize = &dts;
             arg.idxTypeSize = &idxTypeSize;
             arg.idxIter = idxIter;
-//            arg.axisDim = &axisDimInBytes;
+            arg.axisDim = &axisDim;
 //            arg.axDimSum = &axDimSumInBytes;
 //            arg.idxStartB = idxStartInBytes;
             arg.specIndices = specIndices.data();
@@ -273,11 +273,11 @@ printf("%sbeforeAxisCounter: %d\n", seqStr.c_str(), beforeAxisCounter);
 //                    arg.tmp = tmp;
 //                    arg.retVal = &retVal;
             (*jitKernel)(&arg);
-    std::string tmpStr = "dst: ";
-for (int s = 0; s < vecLen; s++) {
-    tmpStr += std::to_string((reinterpret_cast<int*>(dstData + afterAxisSizeInBytes * start))[s]) + ";";
-}
-printf("[%d] %s\n", ithr, tmpStr.c_str());
+//    std::string tmpStr = "dst: ";
+//for (int s = 0; s < vecLen; s++) {
+//    tmpStr += std::to_string((reinterpret_cast<int*>(dstData + afterAxisSizeInBytes * start))[s]) + ";";
+//}
+//printf("[%d] %s\n", ithr, tmpStr.c_str());
 //printf("retVal: %d\n", retVal);
 //printf("retVal\n");
         };
