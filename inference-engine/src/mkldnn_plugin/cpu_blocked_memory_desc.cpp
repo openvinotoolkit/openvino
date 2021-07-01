@@ -62,8 +62,6 @@ BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::
 }
 
 bool BlockedMemoryDesc::isDefined() const {
-    // TODO [DS]: Introduce isDefined status into base class to speedup the method
-
     bool defined = true;
     defined = defined && std::none_of(blockedDims.cbegin(), blockedDims.cend(), [](size_t val) { return val == Shape::UNDEFINED_DIM; });
     defined = defined && std::none_of(strides.cbegin(), strides.cend(), [](size_t val) { return val == Shape::UNDEFINED_DIM; });
@@ -215,7 +213,7 @@ bool BlockedMemoryDesc::isTailCFormat() const {
     if (shape.getRank() != order.size()) {
         return false;
     }
-    if (!std::is_sorted(order.begin(), order.end()--)) {
+    if (!std::is_sorted(order.begin(), --order.end())) {
         return false;
     }
     if (order.back() != 1) {

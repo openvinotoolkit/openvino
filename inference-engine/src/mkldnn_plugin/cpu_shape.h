@@ -66,10 +66,9 @@ public:
         return minDims.size();
     }
 
-    // TODO [DS]: shouldn't we rename it to avoid confusion with rank?
-    size_t getSize() const {
+    size_t getElementsCount() const {
         if (type != ShapeType::Static) {
-            IE_THROW() << "Cannot get size for non static shape";
+            IE_THROW() << "Cannot get elements count for non static shape";
         }
 
         size_t size = 1;
