@@ -16,8 +16,8 @@ namespace ngraph
             class NGRAPH_API Cos : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Cos", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a cosine operation.
                 Cos() = default;
                 /// \brief Constructs a cosine operation.

@@ -29,6 +29,7 @@ if(EXISTS "${OpenVINO_MAIN_SOURCE_DIR}/thirdparty/gflags")
     add_gflags()
 endif()
 
+add_subdirectory(common)
 add_subdirectory(unittests)
 add_subdirectory(memleaks_tests)
 add_subdirectory(memcheck_tests)
