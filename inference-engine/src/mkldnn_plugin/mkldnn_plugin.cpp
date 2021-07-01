@@ -680,13 +680,13 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                     num_streams = std::max(default_num_streams, num_streams_default_not_ht);
                     std::cout << "case 2" <<std::endl;
                 } else {
-                    if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimitedMuch) {
+//                    if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimitedMuch) {
                         num_streams = std::min(default_num_streams, num_streams_default_not_ht);
                         std::cout << "case 3" << std::endl;
-                    } else {
-                        num_streams = default_num_streams/2;
-                        std::cout << "case 3.1" << std::endl;
-                    }
+//                    } else {
+//                        num_streams = default_num_streams/2;
+//                        std::cout << "case 3.1" << std::endl;
+//                    }
                 }
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
 
