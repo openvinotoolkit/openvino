@@ -74,7 +74,7 @@ std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
     std::replace(kernelID.begin(), kernelID.end(), '.', '_');
     std::replace(kernelID.begin(), kernelID.end(), '/', '_');
 
-    kernelID += "_" + std::to_string(UniqeID());
+    kernelID += "_" + toCodeString(UniqeID());
 
     return kernelID;
 }
@@ -182,9 +182,9 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         int number_of_inputs,
                                         uint32_t number_of_inputs_for_fused_prims) const {
     KernelBase::CheckDispatchData(kernelMapName, dispatchData);
-    kernel.workGroups.global = dispatchData.gws;
-    kernel.workGroups.local = dispatchData.lws;
-    kernel.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
-    kernel.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims);
+    kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
+    kernel.params.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims);
 }
 }  // namespace kernel_selector

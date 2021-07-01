@@ -62,8 +62,8 @@ protected:
                                  const bool usePermuteMerging,
                                  Blob::Ptr& outputBlob) {
         PrepareGraphCompilation();
-        _compilationConfig.detectBatch = false;
-        _compilationConfig.enablePermuteMerging = usePermuteMerging;
+        _configuration.compileConfig().detectBatch = false;
+        _configuration.compileConfig().enablePermuteMerging = usePermuteMerging;
 
         IE_ASSERT(permutationVectors.size() >= 2);
 
@@ -147,13 +147,13 @@ TEST_P(myriadGTMergePermuteNDTests_nightly, Permute) {
     std::cout << "Myriad time = non-optimized: " << executionMicroseconds << " us., optimized: " << executionMicrosecondsOptimized << " us.\n";
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy_3D, myriadGTMergePermuteNDTests_nightly,
+INSTANTIATE_TEST_SUITE_P(accuracy_3D, myriadGTMergePermuteNDTests_nightly,
         ::testing::Combine(
             ::testing::ValuesIn(s_inTensors_3D)
           , ::testing::ValuesIn(s_permuteParams_3D)
 ));
 
-INSTANTIATE_TEST_CASE_P(accuracy_5D, myriadGTMergePermuteNDTests_nightly,
+INSTANTIATE_TEST_SUITE_P(accuracy_5D, myriadGTMergePermuteNDTests_nightly,
         ::testing::Combine(
             ::testing::ValuesIn(s_inTensors_5D)
           , ::testing::ValuesIn(s_permuteParams_5D)

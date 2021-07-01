@@ -39,8 +39,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     target_include_directories(${TARGET_NAME}
         SYSTEM PUBLIC
             $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-            "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include")
+            $<TARGET_PROPERTY:mvnc,INTERFACE_INCLUDE_DIRECTORIES>)
 
     if(STATIC_IE)
         target_link_libraries(${TARGET_NAME} PUBLIC vpu_common_lib_test_static)
@@ -48,18 +47,22 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
         target_link_libraries(${TARGET_NAME} PUBLIC pugixml vpu_common_lib)
     endif()
 
-    target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
-                                         PRIVATE openvino::itt)
+    target_link_libraries(${TARGET_NAME}
+        PUBLIC
+            ${NGRAPH_LIBRARIES}
+            inference_engine_plugin_api
+        PRIVATE
+            openvino::itt
+            mvnc # TODO: remove once all options are migrated
+    )
 
     if(WIN32)
         target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
-
         set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
     endif()
 
     if(NOT STATIC_IE)
         add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} CUSTOM_FILTERS "+runtime/explicit")
-
         openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
     endif()
 

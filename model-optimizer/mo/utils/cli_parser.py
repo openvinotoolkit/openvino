@@ -19,7 +19,6 @@ from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 
-
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
         super().__init__(nargs=nargs, **kw)
@@ -94,6 +93,20 @@ def readable_file(path: str):
     """
     if not os.path.isfile(path):
         raise Error('The "{}" is not existing file'.format(path))
+    elif not os.access(path, os.R_OK):
+        raise Error('The "{}" is not readable'.format(path))
+    else:
+        return path
+
+
+def readable_file_or_dir(path: str):
+    """
+    Check that specified path is a readable file or directory.
+    :param path: path to check
+    :return: path if the file/directory is readable
+    """
+    if not os.path.isfile(path) and not os.path.isdir(path):
+        raise Error('The "{}" is not existing file or directory'.format(path))
     elif not os.access(path, os.R_OK):
         raise Error('The "{}" is not readable'.format(path))
     else:
@@ -175,7 +188,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    ' (binary or text .pb file after freezing).\n' +
                                    ' Caffe*: a model proto file with model weights',
                               action=CanonicalizePathCheckExistenceAction,
-                              type=readable_file)
+                              type=readable_file_or_dir)
     common_group.add_argument('--model_name', '-n',
                               help='Model_name parameter passed to the final create_ir transform. ' +
                                    'This parameter is used to name ' +
@@ -622,12 +635,10 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    onnx_group = parser.add_argument_group('ONNX*-specific parameters')
-
     return parser
 
 
-def get_all_cli_parser():
+def get_all_cli_parser(frontEndManager=None):
     """
     Specifies cli arguments for Model Optimizer
 
@@ -637,10 +648,13 @@ def get_all_cli_parser():
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
+    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] +
+                          (frontEndManager.get_available_front_ends() if frontEndManager else [])))
+
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
                         type=str,
-                        choices=['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
+                        choices=frameworks)
 
     get_common_cli_parser(parser=parser)
 
@@ -1217,17 +1231,12 @@ def parse_transform(transform: str) -> list:
     return transforms
 
 
-def check_available_transforms(transforms: list, ie_is_available: bool):
+def check_available_transforms(transforms: list):
     """
     This function check that transformations specified by user are available.
     :param transforms: list of user specified transformations
-    :param ie_is_available: True if IE Python API is available and False if it is not
-    :return: raises an Error if IE or transformation is not available
+    :return: raises an Error if transformation is not available
     """
-    if not ie_is_available and len(transforms) != 0:
-        raise Error('Can not apply {} transformations due to missing Inference Engine Python API'.format(
-            ','.join([name for name, _ in transforms])))
-
     from mo.back.offline_transformations import get_available_transformations
     available_transforms = get_available_transformations()
 

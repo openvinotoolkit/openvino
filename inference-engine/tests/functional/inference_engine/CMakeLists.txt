@@ -90,9 +90,11 @@ function(ie_headers_compilation_with_custom_flags)
     cmake_parse_arguments(IE_TEST "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(IE_TEST_PLUGIN_API)
-        set(IE_TEST_INCLUDE_DIRECTORY "${IE_MAIN_SOURCE_DIR}/src/plugin_api")
+        set(IE_TEST_INCLUDE_DIRECTORY 
+            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
-        set(IE_TEST_INCLUDE_DIRECTORY "${IE_MAIN_SOURCE_DIR}/include")
+        set(IE_TEST_INCLUDE_DIRECTORY
+            $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
 
     file(GLOB_RECURSE header_files RELATIVE "${IE_TEST_INCLUDE_DIRECTORY}"
@@ -103,7 +105,7 @@ function(ie_headers_compilation_with_custom_flags)
     endif()
 
     if(NOT IE_TEST_PLUGIN_API)
-        if(NOT CLDNN__OCL_ICD_INCDIRS)
+        if(NOT OPENCL_HEADERS_DIR)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                 "gpu/gpu_context_api_ocl.hpp"
                                                 "gpu/gpu_context_api_va.hpp"
@@ -156,8 +158,8 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         # OpenCL headers if any
-        if(CLDNN__OCL_ICD_INCDIRS)
-            target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__OCL_ICD_INCDIRS})
+        if(OPENCL_HEADERS_DIR)
+            target_include_directories(${target_name} SYSTEM PRIVATE ${OPENCL_HEADERS_DIR})
         endif()
     endif()
 
@@ -177,7 +179,7 @@ function(ie_headers_compilation_with_custom_flags)
 
     if(IE_TEST_FLAGS)
         set_target_properties(${target_name} PROPERTIES
-                              COMPILE_FLAGS ${IE_TEST_FLAGS})
+                              COMPILE_OPTIONS "${IE_TEST_FLAGS}")
     endif()
 
     if(IE_TEST_DEFINITIONS)
@@ -201,16 +203,16 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
-                                                 FLAGS "-Werror-all -Werror -Wall")
+                                                 FLAGS -Werror-all -Werror -Wall)
     else()
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS "-Wpedantic")
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
                                              HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                              "gpu/gpu_context_api_ocl.hpp"
                                                              "gpu/gpu_context_api_dx.hpp"
-                                             FLAGS  "/we4996 /W4 /WX")
+                                             FLAGS /we4996 /W4 /WX)
 endif()
 
 # compilation with -Wweak-vtables
@@ -228,15 +230,15 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWarningsAreErrors
-                                                 FLAGS "-Werror-all -Werror -Wall"
+                                                 FLAGS -Werror-all -Werror -Wall
                                                  PLUGIN_API)
     else()
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS "-Wpedantic"
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS -Wpedantic
                                                  PLUGIN_API)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
-                                             FLAGS  "/we4996 /W4 /WX"
+                                             FLAGS /we4996 /W4 /WX
                                              PLUGIN_API)
 endif()
 

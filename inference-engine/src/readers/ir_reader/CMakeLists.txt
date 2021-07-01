@@ -26,8 +26,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
                                                   IR_READER_V10)
 
-target_include_directories(${TARGET_NAME} PRIVATE "${IE_MAIN_SOURCE_DIR}/src/inference_engine" # for CNNNetworkNgraphImpl
-                                                  "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES}
                                              inference_engine_reader_api
@@ -48,5 +47,4 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 # install
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)

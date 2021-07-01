@@ -41,7 +41,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::Shape,
+    ngraph::PartialShape,
     ConvolutionQDqTransformationTestValues> ConvolutionQDqTransformationParams;
 
 class ConvolutionQDqTransformation : public LayerTransformation, public testing::WithParamInterface<ConvolutionQDqTransformationParams> {
@@ -103,9 +103,12 @@ TEST_P(ConvolutionQDqTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> shapes = {
-    ngraph::Shape({ 1, 3, 72, 48 }),
-    ngraph::Shape({ 4, 3, 72, 48 })
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> suitablePartialShapes = {
+    ngraph::PartialShape({ 1, 3, 72, 48 }),
+    ngraph::PartialShape({ 4, 3, 72, 48 }),
+    ngraph::PartialShape({ Dimension::dynamic(), 3, 72, 48 }),
+    ngraph::PartialShape({ 1, 3, Dimension::dynamic(), Dimension::dynamic() }),
 };
 
 const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
@@ -495,10 +498,64 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConvolutionQDqTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(shapes),
+        ::testing::ValuesIn(suitablePartialShapes),
         ::testing::ValuesIn(testValues)),
     ConvolutionQDqTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> unsuitablePartialShapes = {
+    ngraph::PartialShape({ Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }),
+    PartialShape::dynamic(),
+};
+
+const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::i8, true },
+                { {0.03f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            {},
+            ngraph::element::f32,
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            {},
+            { std::vector<float>{ -3.75 }, ngraph::element::f32},
+            {},
+            ngraph::element::f32,
+            {}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ConvolutionQDqTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(unsuitablePartialShapes),
+        ::testing::ValuesIn(testValues)),
+    ConvolutionQDqTransformation::getTestCaseName);
+} // namespace testValues2

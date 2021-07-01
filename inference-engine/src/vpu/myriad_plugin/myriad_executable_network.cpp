@@ -14,6 +14,7 @@
 #include <vpu/utils/runtime_graph.hpp>
 #include <legacy/net_pass.h>
 #include <vpu/compile_env.hpp>
+#include <vpu/configuration/options/log_level.hpp>
 
 using namespace InferenceEngine;
 
@@ -25,23 +26,24 @@ namespace MyriadPlugin {
 ExecutableNetwork::ExecutableNetwork(
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
-        const MyriadConfig& config,
-        const ie::ICore* core) :
+        const MyriadConfiguration& config,
+        const std::shared_ptr<ie::ICore> core) :
             _config(config),
             _core(core) {
     VPU_PROFILE(ExecutableNetwork);
 
+    const auto& logLevel = _config.get<LogLevelOption>();
+
     _log = std::make_shared<Logger>(
         "MyriadPlugin",
-        _config.logLevel(),
+        logLevel,
         defaultOutput(_config.pluginLogFilePath()));
 
-    _executor = std::make_shared<MyriadExecutor>(_config.forceReset(), std::move(mvnc), _config.logLevel(), _log);
+    _executor = std::make_shared<MyriadExecutor>(_config.forceReset(), std::move(mvnc), logLevel, _log);
     _device = _executor->openDevice(devicePool, _config);
 
-    const auto& compileConfig = config.compileConfig();
     const auto& revision = _device->revision();
-    _actualNumExecutors = compileConfig.numExecutors != -1 ? compileConfig.numExecutors : DefaultAllocation::numStreams(revision, compileConfig);
+    _actualNumExecutors = config.compileConfig().numExecutors != -1 ? config.compileConfig().numExecutors : DefaultAllocation::numStreams(revision, config);
 
     _supportedMetrics = {
         METRIC_KEY(NETWORK_NAME),
@@ -56,22 +58,22 @@ ExecutableNetwork::ExecutableNetwork(
         const ie::CNNNetwork& network,
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
-        const MyriadConfig& config,
-        const ie::ICore* core) :
+        const MyriadConfiguration& config,
+        const std::shared_ptr<ie::ICore> core) :
             ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
 
     const auto compilerLog = std::make_shared<Logger>(
         "GraphCompiler",
-        _config.logLevel(),
+        _config.get<LogLevelOption>(),
         defaultOutput(_config.compilerLogFilePath()));
 
     if (_device == nullptr)
         IE_THROW() << "No device was detected";
     auto compiledGraph = compileNetwork(
         network,
-        static_cast<Platform>(_device->_platform),
-        _config.compileConfig(),
+        _device->_platform,
+        _config,
         compilerLog,
         _core);
 
@@ -100,9 +102,7 @@ ExecutableNetwork::ExecutableNetwork(
     }
 }
 
-void ExecutableNetwork::Import(std::istream& strm,
-                               std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config) {
+void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const MyriadConfiguration& configuration) {
     auto currentPos = strm.tellg();
     strm.seekg(0, strm.end);
     auto blobSize = strm.tellg() - currentPos;
@@ -147,11 +147,8 @@ void ExecutableNetwork::Import(std::istream& strm,
     }
 }
 
-ExecutableNetwork::ExecutableNetwork(std::istream& strm,
-                               std::shared_ptr<IMvnc> mvnc,
-                               std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config,
-                               const ie::ICore* core) :
+ExecutableNetwork::ExecutableNetwork(std::istream& strm, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool,
+    const MyriadConfiguration& config, const std::shared_ptr<ie::ICore> core) :
     ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
     Import(strm, devicePool, config);
@@ -161,8 +158,8 @@ ExecutableNetwork::ExecutableNetwork(
         const std::string& blobFilename,
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
-        const MyriadConfig& config,
-        const ie::ICore* core) :
+        const MyriadConfiguration& config,
+        const std::shared_ptr<ie::ICore> core) :
     ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
     std::ifstream blobFile{blobFilename, std::ios::binary};

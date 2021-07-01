@@ -49,7 +49,7 @@ void add_required_reorders::run(program_impl& p) {
         auto& usr = *usr_itr++;
         if (usr->get_dependencies().size() == 0)
             continue;  // only nodes with dependencies
-        if (usr->is_type<internal_primitive>() || usr->is_type<data>())
+        if (usr->is_type<data>())
             continue;
         if (usr->type()->does_an_implementation_exist(p.get_engine(), *usr))
             continue;

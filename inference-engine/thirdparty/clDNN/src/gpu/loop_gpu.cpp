@@ -6,11 +6,9 @@
 #include "loop_inst.h"
 #include "network_impl.h"
 #include "implementation_map.h"
-#include "math_utils.h"
 #include "register_gpu.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
-#include "memory_impl.h"
 #include <vector>
 #include <algorithm>
 
@@ -18,32 +16,38 @@ namespace cldnn {
 namespace gpu {
 struct loop_gpu : typed_primitive_impl<loop> {
     const loop_node& node;
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<loop_gpu>(*this);
+    }
 
+    void init_kernels() override {}
+
+    loop_gpu(const loop_gpu& other) : typed_primitive_impl<loop>(other), node(other.node) {}
     explicit loop_gpu(const loop_node& node) : node(node) {}
 
     // read scala value from data primitive
-    static int64_t read_scalar_value(memory_impl& mem) {
+    static int64_t read_scalar_value(memory::ptr mem, stream& stream) {
         int64_t trip_count = 0;
-        const layout& prim_layout = mem.get_layout();
+        const layout& prim_layout = mem->get_layout();
 
         switch (prim_layout.data_type) {
         case data_types::u8: {
-            mem_lock<uint8_t> lock_prim_output{mem};
+            mem_lock<uint8_t> lock_prim_output{mem, stream};
             trip_count = *lock_prim_output.data();
             break;
         }
         case data_types::i8: {
-            mem_lock<int8_t> lock_prim_output{mem};
+            mem_lock<int8_t> lock_prim_output{mem, stream};
             trip_count = *lock_prim_output.data();
             break;
         }
         case data_types::i32: {
-            mem_lock<int32_t> lock_prim_output{mem};
+            mem_lock<int32_t> lock_prim_output{mem, stream};
             trip_count = *lock_prim_output.data();
             break;
         }
         case data_types::i64: {
-            mem_lock<int64_t> lock_prim_output{mem};
+            mem_lock<int64_t> lock_prim_output{mem, stream};
             trip_count = *lock_prim_output.data();
             break;
         }
@@ -53,33 +57,33 @@ struct loop_gpu : typed_primitive_impl<loop> {
         return trip_count;
     }
 
-    static void write_scalar_value(memory_impl& mem, int64_t input) {
-        const layout& prim_layout = mem.get_layout();
+    static void write_scalar_value(memory::ptr mem, stream& stream, int64_t input) {
+        const layout& prim_layout = mem->get_layout();
 
         switch (prim_layout.data_type) {
         case data_types::u8: {
             assert(input >= std::numeric_limits<uint8_t>::min() &&
                    input <= std::numeric_limits<uint8_t>::max());
-            mem_lock<uint8_t> lock_prim_output{mem};
+            mem_lock<uint8_t> lock_prim_output{mem, stream};
             *lock_prim_output.data() = static_cast<uint8_t>(input);
             break;
         }
         case data_types::i8: {
             assert(input >= std::numeric_limits<int8_t>::min() &&
                    input <= std::numeric_limits<int8_t>::max());
-            mem_lock<int8_t> lock_prim_output{mem};
+            mem_lock<int8_t> lock_prim_output{mem, stream};
             *lock_prim_output.data() = static_cast<int8_t>(input);
             break;
         }
         case data_types::i32: {
             assert(input >= std::numeric_limits<int32_t>::min() &&
                    input <= std::numeric_limits<int32_t>::max());
-            mem_lock<int32_t> lock_prim_output{mem};
+            mem_lock<int32_t> lock_prim_output{mem, stream};
             *lock_prim_output.data() = static_cast<int32_t>(input);
             break;
         }
         case data_types::i64: {
-            mem_lock<int64_t> lock_prim_output{mem};
+            mem_lock<int64_t> lock_prim_output{mem, stream};
             *lock_prim_output.data() = input;
             break;
         }
@@ -88,12 +92,13 @@ struct loop_gpu : typed_primitive_impl<loop> {
         }
     }
 
-    event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events, loop_inst& instance) override {
+    event::ptr execute_impl(const std::vector<event::ptr>& events, loop_inst& instance) override {
         auto& outer_network = instance.get_network();
-        const uint32_t& net_id = instance.get_network().get_id();
-        auto ev = outer_network.get_engine().create_user_event(net_id, false);
+        auto& stream = outer_network.get_stream();
 
         auto body_network = instance.get_body_network();
+
+        auto ev = stream.create_user_event(false);
 
         if (!instance.preproc_memories_done) {
             instance.preprocess_output_memory();
@@ -104,8 +109,8 @@ struct loop_gpu : typed_primitive_impl<loop> {
 
         // read trip_count from outer network
         const primitive_id& trip_count_id = node.get_trip_count_id();
-        memory_impl& trip_count_mem = outer_network.get_primitive(trip_count_id)->output_memory();
-        int64_t trip_count = read_scalar_value(trip_count_mem);
+        memory::ptr trip_count_mem = outer_network.get_primitive(trip_count_id)->output_memory_ptr();
+        int64_t trip_count = read_scalar_value(trip_count_mem, stream);
         if (trip_count < 0) {
             const int64_t max_iteration = node.get_max_iteration();
             trip_count = max_iteration;
@@ -113,26 +118,26 @@ struct loop_gpu : typed_primitive_impl<loop> {
 
         // read initial execution condition from outer network
         const primitive_id& initial_execution_id = node.get_initial_execution_id();
-        memory_impl& initial_execution_mem = outer_network.get_primitive(initial_execution_id)->output_memory();
-        int64_t execution_condition = read_scalar_value(initial_execution_mem);
+        memory::ptr initial_execution_mem = outer_network.get_primitive(initial_execution_id)->output_memory_ptr();
+        int64_t execution_condition = read_scalar_value(initial_execution_mem, stream);
 
         // shortcut of current_iteration memory in body network (slice of input)
-        memory_impl* current_iteration_mem = nullptr;
+        memory::ptr current_iteration_mem = nullptr;
         if (node.is_current_iteration_used()) {
             const primitive_id& current_iteration_id = node.get_current_iteration_id();
-            current_iteration_mem = &body_network->get_primitive(current_iteration_id)->output_memory();
+            current_iteration_mem = body_network->get_primitive(current_iteration_id)->output_memory_ptr();
         }
 
         // shortcut of execution_condition memory in body network
-        memory_impl* execution_condition_mem = nullptr;
+        memory::ptr execution_condition_mem = nullptr;
         if (node.is_execution_condition_used()) {
             const primitive_id& condition_id = node.get_condition_id();
-            execution_condition_mem = &body_network->get_primitive(condition_id)->output_memory();
+            execution_condition_mem = body_network->get_primitive(condition_id)->output_memory_ptr();
         }
 
         int64_t current_iteration = 0;
         if (node.is_current_iteration_used()) {
-            write_scalar_value(*current_iteration_mem, current_iteration);
+            write_scalar_value(current_iteration_mem, stream, current_iteration);
         }
 
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
@@ -141,23 +146,23 @@ struct loop_gpu : typed_primitive_impl<loop> {
         // Set sliced input data
         for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
             const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
-            memory_impl::ptr mem = concatenated_input.get_sliced_mem(0);
+            memory::ptr mem = concatenated_input.get_sliced_mem(0);
             if (mem) {
-                body_network->set_input_data(concatenated_input.sliced_data_prim->id(), *mem);
+                body_network->set_input_data(concatenated_input.sliced_data_prim->id(), mem);
             } else {
                 CLDNN_ERROR_MESSAGE(node.id(), "sliced input memory of loop is not allocated properly");
             }
         }
 
-        std::vector<event_impl::ptr> loop_carried_dep(events.begin(), events.end());
+        std::vector<event::ptr> loop_carried_dep(events.begin(), events.end());
 
         while (current_iteration < trip_count && execution_condition) {
             // Copy & Set sliced input memory
             for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
                 const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
-                memory_impl::ptr mem = concatenated_input.get_sliced_mem(current_iteration);
+                memory::ptr mem = concatenated_input.get_sliced_mem(current_iteration);
                 if (mem) {
-                    concatenated_input.sliced_data_prim->set_output_memory(*mem);
+                    concatenated_input.sliced_data_prim->set_output_memory(mem);
                 } else {
                     CLDNN_ERROR_MESSAGE(node.id(), "sliced input memory of loop is not allocated properly");
                 }
@@ -178,7 +183,7 @@ struct loop_gpu : typed_primitive_impl<loop> {
 
             loop_carried_dep.clear();
             for (const auto& backedge : node.get_back_edges()) {
-                event_impl::ptr body_event = body_network->get_primitive_event(backedge.from);
+                event::ptr body_event = body_network->get_primitive_event(backedge.from);
                 loop_carried_dep.emplace_back(body_event);
             }
 
@@ -186,10 +191,10 @@ struct loop_gpu : typed_primitive_impl<loop> {
             //as they are presented in the ngraph opset document for loop operation.
             //However they are not being used yet and only TensorIterator which has fixed sequence length is being validated.
             if (node.is_current_iteration_used()) {
-                write_scalar_value(*current_iteration_mem, current_iteration);
+                write_scalar_value(current_iteration_mem, stream, current_iteration);
             }
             if (node.is_execution_condition_used()) {
-                execution_condition = read_scalar_value(*execution_condition_mem);
+                execution_condition = read_scalar_value(execution_condition_mem, stream);
             }
             // update index & execution condition for the next iteration
             ++current_iteration;
@@ -204,10 +209,10 @@ struct loop_gpu : typed_primitive_impl<loop> {
         }
 
         const primitive_id& num_iteration_id = node.get_num_iteration_id();
-        memory_impl& num_actual_iterations_mem = outer_network.get_primitive(num_iteration_id)->output_memory();
-        write_scalar_value(num_actual_iterations_mem, current_iteration);
+        memory::ptr num_actual_iterations_mem = outer_network.get_primitive(num_iteration_id)->output_memory_ptr();
+        write_scalar_value(num_actual_iterations_mem, stream, current_iteration);
 
-        dynamic_cast<cldnn::user_event*>(ev.get())->set();
+        ev->set();
         return ev;
     }
 

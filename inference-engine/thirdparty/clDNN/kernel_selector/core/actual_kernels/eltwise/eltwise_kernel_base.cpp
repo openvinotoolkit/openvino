@@ -139,7 +139,7 @@ bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params
 JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& params, bool useVload8, size_t blockSize) const {
     JitConstants jit = {};
     for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
-        const std::string op_num_str = std::to_string(op_num);
+        const std::string op_num_str = toCodeString(op_num);
         const auto& ew = params.operations[op_num];
 
         std::string op, cast_type;
@@ -168,7 +168,7 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 if (input.mode == EltwiseInputMode::INPUT_BUFFER && input.index < coefficients.size()) {
                     const float c = coefficients[input.index];
                     if (c != 1.0f)
-                        coeff_strings[input_idx] = cast_type + "(" + std::to_string(c) + ")*";
+                        coeff_strings[input_idx] = cast_type + "(" + toCodeString(c) + ")*";
                 }
             }
 
@@ -285,12 +285,12 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
     JitConstants jit = {};
     std::string vload_decls;
     for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
-        const std::string op_num_str = std::to_string(op_num);
+        const std::string op_num_str = toCodeString(op_num);
         const auto &ew = params.operations[op_num];
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
             const auto &input = ew.inputs[input_idx];
-            const std::string name = "INPUT_" + op_num_str + "_" + std::to_string(input_idx);
-            std::string idx_order = "INPUT" + std::to_string(input.index) + "_IDX_ORDER";
+            const std::string name = "INPUT_" + op_num_str + "_" + toCodeString(input_idx);
+            std::string idx_order = "INPUT" + toCodeString(input.index) + "_IDX_ORDER";
 
             switch (input.mode) {
                 case EltwiseInputMode::SCALAR:
@@ -298,11 +298,11 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                     break;
                 case EltwiseInputMode::INPUT_BUFFER:
                     if (useVload8)
-                        jit.AddConstant(MakeJitConstant(name, "in" + std::to_string(input.index)));
+                        jit.AddConstant(MakeJitConstant(name, "in" + toCodeString(input.index)));
                     else
                         jit.AddConstant(MakeJitConstant(name,
-                                                        "input" + std::to_string(input.index) +
-                                                        "[GET_INDEX(INPUT, " + std::to_string(input.index) +
+                                                        "input" + toCodeString(input.index) +
+                                                        "[GET_INDEX(INPUT, " + toCodeString(input.index) +
                                                         "," + idx_order + ")]"));
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
@@ -311,10 +311,10 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                 case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(
                             name,
-                            "input" + std::to_string(input.index) + "[(size_t)tmp" + std::to_string(input.tmpIndex) + "]"));
+                            "input" + toCodeString(input.index) + "[(size_t)tmp" + toCodeString(input.tmpIndex) + "]"));
                     break;
                 case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
-                    jit.AddConstant(MakeJitConstant(name, "tmp" + std::to_string(input.tmpIndex)));
+                    jit.AddConstant(MakeJitConstant(name, "tmp" + toCodeString(input.tmpIndex)));
                     break;
                 default:
                     break;
@@ -324,11 +324,11 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
 
     if (useVload8) {
         for (size_t i = 0; i < params.inputs.size(); i++) {
-            vload_decls += "\\\n\tconst " + toCLType(params.inputs[i].GetDType()) + "8 in" + std::to_string(i);
+            vload_decls += "\\\n\tconst " + toCLType(params.inputs[i].GetDType()) + "8 in" + toCodeString(i);
             if (params.inputs[i].PhysicalSize() == 1)  // Scalar case
-                vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) + "8)(input" + std::to_string(i) + "[0]";
+                vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) + "8)(input" + toCodeString(i) + "[0]";
             else  // Buffer case
-                vload_decls += " = vload8(global_id, input" + std::to_string(i);
+                vload_decls += " = vload8(global_id, input" + toCodeString(i);
             vload_decls += ");";
         }
         jit.AddConstant(MakeJitConstant("VLOAD_DECLS", vload_decls));
@@ -350,7 +350,7 @@ JitConstants EltwiseKernelBase::MakeInputDeclsJitConstants(const eltwise_params&
                 break;
             }
         }
-        inputs_decls += const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + std::to_string(i) + ", ";
+        inputs_decls += const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + toCodeString(i) + ", ";
     }
     jit.AddConstant(MakeJitConstant("INPUTS_DECLS", inputs_decls));
     return jit;
@@ -379,8 +379,8 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
         }
 
         if (!params.stride.empty()) {
-            bfyx_idx_order[2] = "(" + bfyx_idx_order[2] + "*" + std::to_string(stride.y) + ")";
-            bfyx_idx_order[3] = "(" + bfyx_idx_order[3] + "*" + std::to_string(stride.x) + ")";
+            bfyx_idx_order[2] = "(" + bfyx_idx_order[2] + "*" + toCodeString(stride.y) + ")";
+            bfyx_idx_order[3] = "(" + bfyx_idx_order[3] + "*" + toCodeString(stride.x) + ")";
         }
 
         return bfyx_idx_order;
@@ -429,12 +429,12 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
         }
 
         if (!params.stride.empty()) {
-            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_X", params.stride[i].x));
-            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_Y", params.stride[i].y));
-            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_Z", params.stride[i].z));
+            jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i) + "_STRIDE_X", params.stride[i].x));
+            jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i) + "_STRIDE_Y", params.stride[i].y));
+            jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i) + "_STRIDE_Z", params.stride[i].z));
         }
 
-        std::string idx_order = "INPUT" + std::to_string(i) + "_IDX_ORDER";
+        std::string idx_order = "INPUT" + toCodeString(i) + "_IDX_ORDER";
         if (useVload8) {
             jit.AddConstant(MakeJitConstant(idx_order, "d1"));
         } else {
@@ -498,17 +498,17 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
     std::string do_eltwise;
     auto& operations = params.operations;
     for (size_t op_num = 0; op_num < operations.size(); op_num++) {
-        do_eltwise += "\\\n\tOPERATION" + std::to_string(op_num) + ";";
+        do_eltwise += "\\\n\tOPERATION" + toCodeString(op_num) + ";";
     }
 
     auto& updateInputs = params.updateInputIds;
     for (size_t update_input_idx = 0; update_input_idx < updateInputs.size(); update_input_idx++)
-        do_eltwise += "\\\n\tinput" + std::to_string(updateInputs[update_input_idx].inputId) + "[GET_INDEX(INPUT, " +
-                      std::to_string(updateInputs[update_input_idx].inputId) + ", " +
-                      "INPUT"+std::to_string(updateInputs[update_input_idx].inputId) + "_IDX_ORDER)] = tmp" +
-                      std::to_string(updateInputs[update_input_idx].tmpId) + ";";
+        do_eltwise += "\\\n\tinput" + toCodeString(updateInputs[update_input_idx].inputId) + "[GET_INDEX(INPUT, " +
+                      toCodeString(updateInputs[update_input_idx].inputId) + ", " +
+                      "INPUT"+toCodeString(updateInputs[update_input_idx].inputId) + "_IDX_ORDER)] = tmp" +
+                      toCodeString(updateInputs[update_input_idx].tmpId) + ";";
 
-    do_eltwise += "\\\n\tres = tmp" + std::to_string(operations.size() - 1) + ";";
+    do_eltwise += "\\\n\tres = tmp" + toCodeString(operations.size() - 1) + ";";
 
     jit.AddConstant(MakeJitConstant("DO_ELTWISE", do_eltwise));
 
@@ -621,11 +621,11 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = dispatchData.gws;
-    kernel.workGroups.local = dispatchData.lws;
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
 
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,
                                    GetFusedPrimitiveInputsCount(params));

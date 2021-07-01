@@ -43,6 +43,7 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/split_squeeze_concat_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
+#include "transformations/common_optimizations/strides_optimization.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -70,6 +71,7 @@
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 #include "transformations/op_conversions/mvn6_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
+#include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -157,6 +159,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
     decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
+    decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
@@ -182,6 +185,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
+
+    // StridesOptimization should be at the very end
+    // because we cannot insert any MaxPools since they may prevent
+    // other optimizations
+    manager.register_pass<ngraph::pass::StridesOptimization>();
 
     manager.run_passes(f);
 

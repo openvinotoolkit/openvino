@@ -44,7 +44,7 @@ endif()
 function(python_disable_deprecated_warnings)
     disable_deprecated_warnings()
     set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx" "${CMAKE_CURRENT_BINARY_DIR}/constants.cxx")
-    set_source_files_properties(${pyx_file} PROPERTIES COMPILE_FLAGS ${ie_c_cxx_deprecated})
+    set_source_files_properties(${pyx_file} PROPERTIES COMPILE_OPTIONS ${ie_c_cxx_deprecated})
 endfunction()
 
 python_disable_deprecated_warnings()
@@ -77,4 +77,5 @@ install(PROGRAMS __init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
         COMPONENT ${PYTHON_VERSION})
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
+                        EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")

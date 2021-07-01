@@ -5,7 +5,7 @@
 #pragma once
 
 #include <ie_layouts.h>
-#include <api/layout.hpp>
+#include <cldnn/runtime/layout.hpp>
 
 #include "ngraph/type/element_type.hpp"
 

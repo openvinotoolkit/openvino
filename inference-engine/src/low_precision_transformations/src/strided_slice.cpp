@@ -17,24 +17,24 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
     auto constant = as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
-    // issue #48857: constant is mistakenly recognized as a scalar. Uncomment after fix
-    //if (NetworkHelper::isScalarLike(constant)) {
-    //    return NetworkHelper::toScalar(constant);
-    //}
-
-    const auto stridedSliceShape = strSlice->get_input_shape(0);
     auto constantShape = constant->get_shape();
-    if (stridedSliceShape.size() != constantShape.size()) {
+    if (shape_size(constantShape) == 1ul) {
+        return NetworkHelper::toScalar(constant);
+    }
+
+    const auto stridedSlicePShape = strSlice->get_input_partial_shape(0);
+    const size_t rank = stridedSlicePShape.rank().get_length();
+    if (rank != constantShape.size()) {
         ngraph::Shape newConstantShape;
         if (ngraph::shape_size(constantShape) == 1) {
-            newConstantShape = ngraph::Shape(stridedSliceShape.size(), 1);
+            newConstantShape = ngraph::Shape(rank, 1);
         } else {
             newConstantShape = constantShape;
 
             // case when constShape without batch
             if ((constantShape.size() > 1) &&
-                (constantShape.size() < stridedSliceShape.size())) {
-                newConstantShape.insert(newConstantShape.begin(), stridedSliceShape[0]);
+                (constantShape.size() < rank)) {
+                newConstantShape.insert(newConstantShape.begin(), 1);
             }
         }
         constantShape = newConstantShape;
@@ -110,7 +110,7 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
 }
 
 bool StridedSliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!is_type<ngraph::opset1::StridedSlice>(operation)) {
+    if (!is_type<ngraph::opset1::StridedSlice>(operation) || NetworkHelper::isDQByDynamicDimension(operation)) {
         return false;
     }
 

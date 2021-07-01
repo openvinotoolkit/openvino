@@ -14,6 +14,12 @@ namespace ngraph
         PartialShape data_shape;
         element::Type data_type;
         std::string variable_id;
+
+        inline bool operator==(const VariableInfo& other) const
+        {
+            return data_shape == other.data_shape && data_type == other.data_type &&
+                   variable_id == other.variable_id;
+        }
     };
 
     class NGRAPH_API Variable
