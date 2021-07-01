@@ -35,6 +35,14 @@ public:
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertParams>& obj) {
+        auto param = obj.param;
+        std::ostringstream result;
+        result << "shape=" << param.pshape << "_";
+        result << "iType=" << param.inType << "_";
+        result << "oType=" << param.outType;
+        return result.str();
+    }
 
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
@@ -50,7 +58,7 @@ TEST_P(ReferenceConvertLayerTest, CompareWithHardcodedRefs) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Convert_With_Hardcided_Refs, ReferenceConvertLayerTest,
+    smoke_Convert_With_Hardcoded_Refs, ReferenceConvertLayerTest,
     ::testing::Values(
         // destination boolean
         ConvertParams(ngraph::PartialShape {2, 3}, ngraph::element::u8, ngraph::element::boolean,
@@ -429,4 +437,5 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ngraph::PartialShape {4}, ngraph::element::bf16, ngraph::element::u64, std::vector<ngraph::bfloat16> {1, 2, 0, 3},
                       std::vector<uint64_t> {1, 2, 0, 3}),
         ConvertParams(ngraph::PartialShape {4}, ngraph::element::f32, ngraph::element::u64, std::vector<float> {1, 2, 2, 3},
-                      std::vector<uint64_t> {1, 2, 2, 3})));
+                      std::vector<uint64_t> {1, 2, 2, 3})),
+    ReferenceConvertLayerTest::getTestCaseName);

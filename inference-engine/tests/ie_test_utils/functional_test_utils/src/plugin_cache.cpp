@@ -61,11 +61,13 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
                 std::exit(EXIT_FAILURE);
             }
 
+#ifndef NDEBUG
             std::cout << "Available devices for " << deviceToCheck << ":" << std::endl;
 
             for (const auto &device : availableDevices) {
                 std::cout << "    " << device << std::endl;
             }
+#endif
         }
     }
     return ie_core;
