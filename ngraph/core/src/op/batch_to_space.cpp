@@ -39,7 +39,7 @@ void op::v1::BatchToSpace::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v1_BatchToSpace_validate_and_infer_types);
 
     const auto& data_et = get_input_element_type(0);
-    const PartialShape& data_pshape = get_input_partial_shape(0);
+    const auto& data_pshape = get_input_partial_shape(0);
 
     const auto& block_shape_et = get_input_element_type(1);
     const auto& crops_begin_et = get_input_element_type(2);
@@ -85,7 +85,7 @@ void op::v1::BatchToSpace::validate_and_infer_types()
                           "block_shape and crops inputs must have rank 1. Got: ",
                           inputs_rank_one);
 
-    Rank data_rank = data_pshape.rank();
+    const Rank data_rank = data_pshape.rank();
     if (data_rank.is_static())
     {
         NODE_VALIDATION_CHECK(this,
