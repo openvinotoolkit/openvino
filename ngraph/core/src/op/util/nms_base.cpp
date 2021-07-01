@@ -41,6 +41,8 @@ namespace
 
 void op::util::NmsBase::validate()
 {
+    NGRAPH_OP_SCOPE(util_NmsBase_validate);
+
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 

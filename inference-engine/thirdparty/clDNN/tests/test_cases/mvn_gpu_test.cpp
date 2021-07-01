@@ -695,20 +695,20 @@ struct mvn_test_case_generator : std::vector<mvn_basic_test_params> {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke,
                         mvn_random_test,
                         testing::ValuesIn(mvn_test_case_generator()
                                               .smoke_tests(format::b_fs_yx_fsv16, data_types::i8)
-                                              .smoke_tests(format::b_fs_yx_fsv16, data_types::u8)), );
+                                              .smoke_tests(format::b_fs_yx_fsv16, data_types::u8)));
 
-INSTANTIATE_TEST_CASE_P(zyx,
+INSTANTIATE_TEST_SUITE_P(zyx,
                         mvn_random_test,
                         testing::ValuesIn(mvn_test_case_generator()
                                               .zyx_tests(format::b_fs_zyx_fsv16, data_types::i8)
-                                              .zyx_tests(format::b_fs_zyx_fsv16, data_types::u8)), );
+                                              .zyx_tests(format::b_fs_zyx_fsv16, data_types::u8)));
 
-INSTANTIATE_TEST_CASE_P(extended,
+INSTANTIATE_TEST_SUITE_P(extended,
                         mvn_random_test,
                         testing::ValuesIn(mvn_test_case_generator()
                                               .extended_tests(format::b_fs_yx_fsv16, data_types::i8)
-                                              .extended_tests(format::b_fs_yx_fsv16, data_types::u8)), );
+                                              .extended_tests(format::b_fs_yx_fsv16, data_types::u8)));

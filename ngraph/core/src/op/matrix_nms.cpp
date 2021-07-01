@@ -16,7 +16,7 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v8::MatrixNms, "MatrixNms", 8);
+NGRAPH_RTTI_DEFINITION(op::v8::MatrixNms, "MatrixNms", 8, op::util::NmsBase);
 
 op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes,
                              const Output<Node>& scores,
@@ -66,6 +66,7 @@ std::shared_ptr<Node> op::v8::MatrixNms::clone_with_new_inputs(const OutputVecto
 
 void op::v8::MatrixNms::validate()
 {
+    NGRAPH_OP_SCOPE(v8_MatrixNms_validate);
     NmsBase::validate();
 
     NODE_VALIDATION_CHECK(this,

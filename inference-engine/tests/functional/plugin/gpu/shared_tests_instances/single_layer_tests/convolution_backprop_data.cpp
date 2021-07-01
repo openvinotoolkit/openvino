@@ -56,7 +56,7 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, ConvolutionBackpropLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions2D),
@@ -69,7 +69,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, Convolu
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, ConvolutionBackpropLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions2D),
@@ -106,7 +106,7 @@ const auto conv2DParams_AutoPadValid_output_padding = ::testing::Combine(
         ::testing::ValuesIn(outputPadding2D)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -119,7 +119,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputPa
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -166,7 +166,7 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, ConvolutionBackpropLayerTest,
                         ::testing::Combine(
                                 conv3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions3D),
@@ -179,7 +179,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, Convolu
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, ConvolutionBackpropLayerTest,
                         ::testing::Combine(
                                 conv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions3D),
@@ -216,7 +216,7 @@ const auto conv3DParams_AutoPadValid_output_padding = ::testing::Combine(
         ::testing::ValuesIn(outputPadding3D)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
                         ::testing::Combine(
                                 conv3DParams_AutoPadValid_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -229,7 +229,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputPa
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvolutionBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
                         ::testing::Combine(
                                 conv3DParams_ExplicitPadding_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
