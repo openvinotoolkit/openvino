@@ -50,7 +50,6 @@ set(SRC
     ngraph_api.cpp
     node_input_output.cpp
     op.cpp
-    op_eval/atan.cpp
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
@@ -98,6 +97,7 @@ set(SRC
     type_prop/adaptive_max_pool.cpp
     type_prop/asin.cpp
     type_prop/assign.cpp
+    type_prop/atan.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
