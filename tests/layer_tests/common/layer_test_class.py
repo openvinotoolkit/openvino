@@ -24,7 +24,7 @@ class CommonLayerTest:
     def get_framework_results(self, inputs_dict, model_path):
         pass
 
-    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir,
+    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, infer_timeout=60,
               enabled_transforms='', disabled_transforms='', **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
@@ -74,7 +74,7 @@ class CommonLayerTest:
         ie_engine = IEInfer(model=path_to_xml,
                             weights=path_to_bin,
                             device=ie_device)
-        infer_res = ie_engine.infer(input_data=inputs_dict)
+        infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
             warnings.warn('Framework is skipped')
