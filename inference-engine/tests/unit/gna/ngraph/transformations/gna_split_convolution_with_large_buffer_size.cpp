@@ -97,6 +97,21 @@ void appendSubGraphAddNode(SubGraph& subGraph)
     appendSubGraph(subGraph, append_func);
 }
 
+void appendSubGraphFakeQuantizeNode(SubGraph& subGraph)
+{
+    auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
+    {
+        auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+        auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+        auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+        auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+        return std::make_shared<ngraph::opset7::FakeQuantize>(input_node, input_low,
+                                                                input_high, output_low,
+                                                                output_high, 11);
+    };
+    appendSubGraph(subGraph, append_func);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 TEST(TransformationTests, SplitConvolutionTest) {
@@ -227,17 +242,7 @@ TEST(TransformationTests, SplitConvolutionWithFqTest) {
 
     {
         SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 64, 4096, 4096}, ngraph::Shape{1, 64, 1, 1});
-        auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
-        {
-            auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-            auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-            auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-            auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-            return std::make_shared<ngraph::opset7::FakeQuantize>(input_node, input_low,
-                                                                  input_high, output_low,
-                                                                  output_high, 11);
-        };
-        appendSubGraph(subGraph, append_func);
+        appendSubGraphFakeQuantizeNode(subGraph);
 
         auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -252,17 +257,7 @@ TEST(TransformationTests, SplitConvolutionWithFqTest) {
 
     {
         SubGraph subGraph = createSubGraphSplitted();
-        auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
-        {
-            auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-            auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-            auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-            auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-            return std::make_shared<ngraph::opset7::FakeQuantize>(input_node, input_low,
-                                                                  input_high, output_low,
-                                                                  output_high, 11);
-        };
-        appendSubGraph(subGraph, append_func);
+        appendSubGraphFakeQuantizeNode(subGraph);
         auto concat = std::make_shared<ngraph::opset7::Concat>(subGraph.output_nodes, 3);
         
         auto result = std::make_shared<ngraph::opset7::Result>(concat);
@@ -279,17 +274,7 @@ TEST(TransformationTests, SplitConvolutionWithFqTestSmallSize) {
 
     {
         SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
-        {
-            auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-            auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-            auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-            auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-            return std::make_shared<ngraph::opset7::FakeQuantize>(input_node, input_low,
-                                                                  input_high, output_low,
-                                                                  output_high, 11);
-        };
-        appendSubGraph(subGraph, append_func);
+        appendSubGraphFakeQuantizeNode(subGraph);
 
         auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -304,17 +289,7 @@ TEST(TransformationTests, SplitConvolutionWithFqTestSmallSize) {
 
     {
         SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
-        auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
-        {
-            auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-            auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-            auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-            auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-            return std::make_shared<ngraph::opset7::FakeQuantize>(input_node, input_low,
-                                                                  input_high, output_low,
-                                                                  output_high, 11);
-        };
-        appendSubGraph(subGraph, append_func);
+        appendSubGraphFakeQuantizeNode(subGraph);
 
         auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -333,17 +308,7 @@ TEST(TransformationTests, SplitConvolutionWithFqAddTest) {
     {
         SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 64, 4096, 4096}, ngraph::Shape{1, 64, 1, 1});
         appendSubGraphAddNode(subGraph);
-        auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
-        {
-            auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-            auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-            auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-            auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-            return std::make_shared<ngraph::opset7::FakeQuantize>(input_node, input_low,
-                                                                  input_high, output_low,
-                                                                  output_high, 11);
-        };
-        appendSubGraph(subGraph, append_func);
+        appendSubGraphFakeQuantizeNode(subGraph);
 
         auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -360,17 +325,7 @@ TEST(TransformationTests, SplitConvolutionWithFqAddTest) {
     {
         SubGraph subGraph = createSubGraphSplitted();
         appendSubGraphAddNode(subGraph);
-        auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
-        {
-            auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-            auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-            auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-            auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-            return std::make_shared<ngraph::opset7::FakeQuantize>(input_node, input_low,
-                                                                  input_high, output_low,
-                                                                  output_high, 11);
-        };
-        appendSubGraph(subGraph, append_func);
+        appendSubGraphFakeQuantizeNode(subGraph);
         auto concat = std::make_shared<ngraph::opset7::Concat>(subGraph.output_nodes, 3);
         
         auto result = std::make_shared<ngraph::opset7::Result>(concat);
@@ -388,17 +343,7 @@ TEST(TransformationTests, SplitConvolutionWithFqAddTestSmallSize) {
     {
         SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
         appendSubGraphAddNode(subGraph);
-        auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
-        {
-            auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-            auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-            auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-            auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-            return std::make_shared<ngraph::opset7::FakeQuantize>(input_node, input_low,
-                                                                  input_high, output_low,
-                                                                  output_high, 11);
-        };
-        appendSubGraph(subGraph, append_func);
+        appendSubGraphFakeQuantizeNode(subGraph);
 
         auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -414,17 +359,7 @@ TEST(TransformationTests, SplitConvolutionWithFqAddTestSmallSize) {
     {
         SubGraph subGraph = createSubGraphSolid(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1});
         appendSubGraphAddNode(subGraph);
-        auto append_func = [] (const ngraph::Output<ngraph::Node>& input_node)
-        {
-            auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-            auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-            auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-            auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-            return std::make_shared<ngraph::opset7::FakeQuantize>(input_node, input_low,
-                                                                  input_high, output_low,
-                                                                  output_high, 11);
-        };
-        appendSubGraph(subGraph, append_func);
+        appendSubGraphFakeQuantizeNode(subGraph);
 
         auto result = std::make_shared<ngraph::opset7::Result>(subGraph.output_nodes.front());
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
