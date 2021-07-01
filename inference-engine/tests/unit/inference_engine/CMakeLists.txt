@@ -18,7 +18,7 @@ addIeTargetTest(
         LINK_LIBRARIES
             unitTestUtils
             inference_engine_lp_transformations
-            frontend_manager
+            ngraph::frontend_manager
             ${OpenCV_LIBRARIES}
         ADD_CPPLINT
         DEPENDENCIES

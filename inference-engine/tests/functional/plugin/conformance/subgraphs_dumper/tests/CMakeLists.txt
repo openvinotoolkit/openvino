@@ -7,7 +7,7 @@ set(TARGET_NAME subgraphsDumperTests)
 list(APPEND DEPENDENCIES
         unitTestUtils
         ngraph
-        frontend_manager
+        ngraph::frontend_manager
         )
 
 addIeTargetTest(

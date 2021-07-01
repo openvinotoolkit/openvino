@@ -10,7 +10,7 @@ addIeTargetTest(
         LINK_LIBRARIES
             unitTestUtils
             GNAPlugin_test_static
-            frontend_manager
+            ngraph::frontend_manager
         ADD_CPPLINT
         LABELS
             GNA
