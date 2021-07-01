@@ -3056,7 +3056,7 @@ void MKLDNNInterpolateNode::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr
         arg.src_ptr[3] = static_cast<int*>(&sequenceOW[0]);
         arg.weight_ptr[0] = xFactor;
         arg.weight_ptr[1] = yFactor;
-        arg.work_amount = static_cast<size_t>(OW * OH);
+        arg.work_amount = static_cast<size_t>(OW) * static_cast<size_t>(OH);
         arg.oc_off = static_cast<size_t>(c * sizeof(float));
         (*interpolateKernel)(&arg);
     });

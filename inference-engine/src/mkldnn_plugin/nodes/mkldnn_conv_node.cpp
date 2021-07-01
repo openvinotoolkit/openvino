@@ -44,7 +44,7 @@ bool MKLDNNConvolutionNode::isSupportedOperation(const std::shared_ptr<ngraph::N
 MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache), withBiases(false), withSum(false), withDWConv(false),
           isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::undef),
-          groupNum(1lu), eltwisePrecision(Precision::FP32) {
+          groupNum(1lu), eltwisePrecision(Precision::FP32), outputDataType(dnnl::memory::data_type::f32) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

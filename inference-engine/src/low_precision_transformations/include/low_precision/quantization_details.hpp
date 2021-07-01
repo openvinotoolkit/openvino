@@ -71,6 +71,7 @@ public:
     const size_t outputChannelsCount;
 
 private:
+    QuantizationDetails &operator=(const QuantizationDetails &quantizationDetails) = delete;
     static void validate(std::shared_ptr<Node> constantLayer);
     static std::vector<float> getBlobValue(std::shared_ptr<Node> constantLayer);
 };
