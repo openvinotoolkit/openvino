@@ -18,7 +18,7 @@ No attributes available.
 
 **Outputs**:
 
-* **1**: A tensor of type T.
+* **1**: A tensor of type *T*.
 
 **Types**
 
@@ -87,4 +87,3 @@ val[i]=start+i*step
     </output>
 </layer>
 ```
-
