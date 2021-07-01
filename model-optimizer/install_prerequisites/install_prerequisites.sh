@@ -35,7 +35,7 @@ for ((i=1;i <= $#;i++)) {
         esac
 }
 
-VENV_DIR="$HOME/venv_mo"
+VENV_DIR="$HOME/venv_openvino"
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
 if [[ -f /etc/centos-release ]]; then
@@ -167,15 +167,15 @@ find_ie_bindings() {
 }
 
 if [[ $V_ENV -eq 1 ]]; then
-    "$python_binary" -m venv "$VENV_DIR${postfix}"
-    source "$VENV_DIR${postfix}/bin/activate"
-    venv_python_binary="$VENV_DIR${postfix}/bin/$python_binary"
+    "$python_binary" -m venv "$VENV_DIR"
+    source "$VENV_DIR/bin/activate"
+    venv_python_binary="$VENV_DIR/bin/$python_binary"
     # latest pip is needed to install tensorflow
     "$venv_python_binary" -m pip install --upgrade pip
     "$venv_python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     find_ie_bindings "$venv_python_binary" false
     echo
-    echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source $VENV_DIR${postfix}/bin/activate\""
+    echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source $VENV_DIR/bin/activate\""
 else
     # latest pip is needed to install tensorflow
     "$python_binary" -m pip install --upgrade pip
