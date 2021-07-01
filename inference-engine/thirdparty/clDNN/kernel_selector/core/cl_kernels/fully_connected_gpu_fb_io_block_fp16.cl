@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Just-in-time macro definitions:
@@ -239,7 +240,7 @@ KERNEL (fully_connected_gpu_xb_xb_block_fp16)(
         uint output_offset = output_base;
         __attribute__((opencl_unroll_hint(UNITS_PER_SG_READ)))
         for (uint acc_pos = 0; acc_pos < UNITS_PER_SG_READ; ++acc_pos)
-        {         
+        {
 #if BIAS_TERM
             CHUNK_UNITS_TYPE output_val = AS_UNITS(acc[acc_pos]) + SG_UNIT_SELECT(bias_val, acc_pos);
 #else

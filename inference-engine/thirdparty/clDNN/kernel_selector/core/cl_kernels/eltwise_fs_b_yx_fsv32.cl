@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 KERNEL(eltwise_fs_b_yx_fsv32)(
     INPUTS_DECLS
@@ -15,12 +16,9 @@ KERNEL(eltwise_fs_b_yx_fsv32)(
     MAKE_VECTOR_TYPE(UNIT_TYPE, 8) res;
 
     DO_ELTWISE
-    
+
     res = ACTIVATION(res, ACTIVATION_PARAMS);
 
     vstore8(res, global_id, output);
 
 }
-
-
-
