@@ -6,6 +6,7 @@ setlocal enabledelayedexpansion
 
 set TARGET=CPU
 set BUILD_FOLDER=%USERPROFILE%\Documents\Intel\OpenVINO
+set VENV_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\venv_openvino
 
 :: command line arguments parsing
 :input_arguments_loop
@@ -90,20 +91,20 @@ if not "%python_ver%"=="okay" (
 )
 
 :: install yaml python modules required for downloader.py
-if exist "%BUILD_FOLDER%\venv" (
+if exist "%VENV_DIR%" (
     echo.
     echo ###############^|^| Using the existing python virtual environment ^|^|###############
     echo.
-    call "%BUILD_FOLDER%\venv\Scripts\activate.bat"
 ) else (
     echo.
     echo ###############^|^| Creating the python virtual environment ^|^|###############
     echo.
-    python -m venv "%BUILD_FOLDER%\venv"
-    call "%BUILD_FOLDER%\venv\Scripts\activate.bat"
-    python -m pip install -U pip
-    python -m pip install -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requirements.in"
+    python -m venv "%VENV_DIR%"
 )
+
+call "%VENV_DIR%\Scripts\activate.bat"
+python -m pip install -U pip
+python -m pip install -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requirements.in"
 
 if ERRORLEVEL 1 GOTO errorHandling
 
