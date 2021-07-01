@@ -3,8 +3,8 @@
 //
 
 #include "frontend_manager/utils.hpp"
-#include "plugin_loader.hpp"
 #include "frontend_manager/frontend_exceptions.hpp"
+#include "plugin_loader.hpp"
 
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -23,7 +23,6 @@
 #endif
 #include <Windows.h>
 #endif
-
 
 namespace
 {

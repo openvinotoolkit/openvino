@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "frontend_manager_defs.hpp"
 #include <string>
+#include "frontend_manager_defs.hpp"
 
 namespace ngraph
 {
