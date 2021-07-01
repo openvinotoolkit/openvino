@@ -187,9 +187,9 @@ namespace ngraph
                 {
                     const auto& name = (*param_it)->get_friendly_name();
                     auto out_it = std::find_if(
-                            m_outputs.begin(), m_outputs.end(), [&name](const ValueInfo& info) {
+                        m_outputs.begin(), m_outputs.end(), [&name](const ValueInfo& info) {
                             return info.get_name() == name;
-                            });
+                        });
                     if (out_it == m_outputs.end())
                     {
                         m_cache->remove_node(name);
