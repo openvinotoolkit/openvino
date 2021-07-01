@@ -1081,7 +1081,8 @@ namespace
         {
             InfoForEDROIFeature result;
 
-            auto out_shape = Shape{0, 0, attrs.output_size, attrs.output_size};
+            size_t output_size = static_cast<size_t>(attrs.output_size);
+            auto out_shape = Shape{0, 0, output_size, output_size};
             auto out_rois_shape = Shape{0, 4};
 
             auto rois_shape = input_shapes[0];
@@ -1114,7 +1115,8 @@ namespace
             input_shapes.push_back(current_shape);
         }
 
-        const auto info = get_info_for_ed_roi_feature(input_shapes, attrs);
+        const auto info =
+            experimental_roi_feature::get_info_for_ed_roi_feature(input_shapes, attrs);
         const auto& output_rois_features_shape = info.output_rois_features_shape;
         const auto& output_rois_shape = info.output_rois_shape;
 
