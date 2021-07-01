@@ -12,9 +12,7 @@
 a_{i} = atan(a_{i})
 \f]
 
-**Attributes**:
-
-    No attributes available.
+**Attributes**: *Atan* operation has no attributes.
 
 **Inputs**
 
