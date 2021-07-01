@@ -235,7 +235,7 @@ def load_priors(file_descr, graph):
     if graph.graph['cmd_params'].counts is not None:
         graph.graph['priors'] = read_binary_vector(file_descr)
     else:
-        log.error("Model contains Prior values, if you want to use it add option --counts=\"\" to command line",
+        log.error("Model contains Prior values, if you want to embed them into the generated IR add option --counts=\"\" to command line",
                   extra={'is_warning': True})
 
 

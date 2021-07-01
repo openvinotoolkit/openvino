@@ -23,10 +23,10 @@ from mo.utils.error import Error
 class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
     """
     Add Select before saving state with Memory to avoid garbage saving.
-    We need to know delay on each node where Select
-    is adding. For that we traverse the whole graph and set frame time for each node using the following rules:
-        * Splice increases frame time by length of its context. If Crop is following Splice - it takes one concrete moment
-          of time, so frame time increases by its value
+    We need to know delay on each node where Select is adding. For that we traverse the whole graph and set frame time
+    for each node using the following rules:
+        * Splice increases frame time by length of its context. If Crop is following Splice - it takes one concrete
+          moment of time, so frame time increases by its value
           Example:
                       node ---> Splice(-5, -4, ... 0) ---> node
           frame time:  0   --->        5              --->  5
@@ -36,6 +36,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
         * Node with one input have the same frame time as its input
     """
     enabled = True
+    graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_after(self):
         from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern
@@ -61,7 +62,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
                 inp_name = inputs[0].name
             else:
                 raise Error("There are 2 inputs for Kaldi model but we can't find out which one is ivector. " +
-                            "Use name \'ivector\' for according input")
+                            "Use name \'ivector\' for the corresponding input")
         else:
             raise Error("There are {} inputs for Kaldi model but we expect only 1 or 2".format(len(inputs)))
 
@@ -79,15 +80,15 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             # calculate frame_time (delay) that was not calculated
             if node.frame_time < 0:
                 # Splice increases frame delay
-                if node.kind == 'op' and node.op == "Splice":
+                if node.op == "Splice":
                     node.frame_time = node.in_port(0).get_source().node.frame_time + len(node.context) - 1
                 # crop often used to get concrete time frame, set frame_time correctly for this case
-                elif node.kind == 'op' and node.op == 'Crop':
+                elif node.op == 'Crop':
                     if node.in_port(0).get_connection().get_source().node.op == 'Splice':
                         splice_node = node.in_port(0).get_source().node
                         assert len(node.offset) == 1
                         assert len(node.dim) == 1
-                        new_delay = splice_node.context[node.offset[0]//node.dim[0]] - splice_node.context[0]
+                        new_delay = splice_node.context[node.offset[0] // node.dim[0]] - splice_node.context[0]
                         node.frame_time = splice_node.in_port(0).get_source().node.frame_time + new_delay
                     else:
                         node.frame_time = node.in_port(0).get_source().node.frame_time
@@ -182,24 +183,17 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
         select_node.out_port(0).data.set_shape(in_node_shape)
 
     def find_and_replace_pattern(self, graph: Graph):
-        should_continue = False
-        for n in graph:
-            if Node(graph, n).kind == 'op' and Node(graph, n).op == 'Assign' and \
-                    Node(graph, n).name != 'iteration_number_out':
-                should_continue = True
-                break
-
-        if not should_continue:
+        if np.all([node.soft_get('name', node.id) == 'iteration_number_out'
+                   for node in graph.get_op_nodes(op='Assign')]):
             return
 
         self.calculate_frame_time(graph)
 
         for node in graph.get_op_nodes(op='Assign'):
-            if node.name == 'iteration_number_out':
+            if node.soft_get('name', node.id) == 'iteration_number_out':
                 continue
             self.insert_select(graph, node)
 
-        for n in graph:
-            node = Node(graph, n)
+        for node in graph.get_op_nodes():
             if 'frame_time' in node:
                 del node['frame_time']
