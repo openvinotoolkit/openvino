@@ -113,15 +113,17 @@ else()
         set(_proto_libs ${Protobuf_LIBRARIES})
         if(TARGET libprotoc)
             list(APPEND _proto_libs libprotoc)
-            set_target_properties(libprotoc PROPERTIES
-                COMPILE_FLAGS "-Wno-all -Wno-unused-variable")
+            target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
         endif()
         set_target_properties(${_proto_libs} PROPERTIES
             CXX_VISIBILITY_PRESET default
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF)
-        set_target_properties(libprotobuf libprotobuf-lite PROPERTIES
-            COMPILE_FLAGS "-Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override")
+        foreach(target libprotobuf libprotobuf-lite)
+            target_compile_options(${target}
+                PRIVATE -Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override
+                PUBLIC -Wno-undef)
+        endforeach()
     endif()
 
     if(NGRAPH_USE_PROTOBUF_LITE)
