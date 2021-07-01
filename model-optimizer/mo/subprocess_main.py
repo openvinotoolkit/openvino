@@ -1,11 +1,19 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import logging as log
 import os
-import sys
 import subprocess
+import sys
 
 from mo.utils.versions_checker import check_python_version  # pylint: disable=no-name-in-module
+
+
+def log_ie_not_found():
+    log.error("Could not find the Inference Engine or nGraph Python API.\n"
+              "Consider building the Inference Engine and nGraph Python APIs"
+              " from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\""
+              .format("bat" if sys.platform == "windows" else "sh"))
 
 
 def setup_env():
@@ -14,7 +22,16 @@ def setup_env():
         sys.exit(ret_code)
 
     from mo.utils.find_ie_version import find_ie_version
-    find_ie_version(silent=True)
+
+    ie_found = True
+    try:
+        ie_found = find_ie_version(silent=True)
+    except Exception:
+        ie_found = False
+
+    if not ie_found:
+        log_ie_not_found()
+        sys.exit(1)
 
     mo_root_path = os.path.join(os.path.dirname(__file__), os.pardir)
 
@@ -23,6 +40,7 @@ def setup_env():
         os.environ[python_path_key] = mo_root_path
     else:
         os.environ[python_path_key] = os.pathsep.join([os.environ[python_path_key], mo_root_path])
+    return True
 
 
 def subprocess_main(framework=None):
