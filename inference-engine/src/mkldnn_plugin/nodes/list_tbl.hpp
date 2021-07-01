@@ -6,3 +6,5 @@
 # warning "MKLDNN_EXTENSION_NODE is not defined"
 # define MKLDNN_EXTENSION_NODE(__prim, __type)
 #endif
+
+MKLDNN_EXTENSION_NODE(MatrixNmsImpl, MatrixNmsIEInternal);
