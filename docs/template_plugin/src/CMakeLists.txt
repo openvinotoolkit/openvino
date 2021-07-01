@@ -15,6 +15,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SKIP_INSTALL # ATTENTION: uncomment to install component
               VERSION_DEFINES_FOR template_plugin.cpp
               ADD_CLANG_FORMAT)
+
 # Enable support of CC for the plugin
 ie_mark_target_as_cc(${TARGET_NAME})
 
@@ -50,6 +51,5 @@ endif()
 
 # install(TARGETS ${TARGET_NAME}
 #         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
-#         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH}
 #         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
 #         COMPONENT ${component_name})

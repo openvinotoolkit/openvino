@@ -110,6 +110,7 @@ set(SRC
     type_prop/convert.cpp
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
+    type_prop/cos.cpp
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
@@ -163,7 +164,7 @@ set(SRC
     type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
     type_prop/non_zero.cpp
-    type_prop/normalize.cpp
+    type_prop/normalize_l2.cpp
     type_prop/one_hot.cpp
     type_prop/pad.cpp
     type_prop/parameter.cpp
@@ -232,8 +233,10 @@ set(SRC
     visitors/op/constant.cpp
     visitors/op/convert.cpp
     visitors/op/convolution_backprop.cpp
+    visitors/op/cos.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
+    visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
@@ -252,10 +255,12 @@ set(SRC
     visitors/op/lstm_sequence.cpp
     visitors/op/matmul.cpp
     visitors/op/max_pool.cpp
+    visitors/op/mish.cpp
     visitors/op/mod.cpp
     visitors/op/mvn.cpp
     visitors/op/negative.cpp
     visitors/op/non_max_suppression.cpp
+    visitors/op/non_zero.cpp
     visitors/op/normalize_l2.cpp
     visitors/op/one_hot.cpp
     visitors/op/pad.cpp
@@ -325,7 +330,7 @@ if (ENABLE_CLDNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     endif()
 endif()
 
-if (NGRAPH_INTERPRETER_ENABLE AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
+if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     list(APPEND SRC
         builder.cpp
         backend_api.cpp)
@@ -382,7 +387,9 @@ set(MULTI_TEST_SRC
     backend/dft.in.cpp
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
+    backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
+    backend/experimental_detectron_generate_proposals.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
@@ -415,6 +422,7 @@ set(MULTI_TEST_SRC
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
+    backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -628,10 +636,12 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_editor)
 endif()
 
-if (NGRAPH_INTERPRETER_ENABLE)
-    target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
-    target_link_libraries(unit-test PRIVATE interpreter_backend)
-endif()
+target_link_libraries(unit-test PRIVATE interpreter_backend)
+
+install(TARGETS unit-test
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})

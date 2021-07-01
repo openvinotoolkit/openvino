@@ -398,24 +398,24 @@ namespace ngraph
 
         void InputModelPDPD::override_all_outputs(const std::vector<Place::Ptr>& outputs)
         {
-            return _impl->overrideAllOutputs(outputs);
+            _impl->overrideAllOutputs(outputs);
         }
 
         void InputModelPDPD::override_all_inputs(const std::vector<Place::Ptr>& inputs)
         {
-            return _impl->overrideAllInputs(inputs);
+            _impl->overrideAllInputs(inputs);
         }
 
         void InputModelPDPD::extract_subgraph(const std::vector<Place::Ptr>& inputs,
                                               const std::vector<Place::Ptr>& outputs)
         {
-            return _impl->extractSubgraph(inputs, outputs);
+            _impl->extractSubgraph(inputs, outputs);
         }
 
         void InputModelPDPD::set_partial_shape(Place::Ptr place,
                                                const ngraph::PartialShape& p_shape)
         {
-            return _impl->setPartialShape(place, p_shape);
+            _impl->setPartialShape(place, p_shape);
         }
 
         ngraph::PartialShape InputModelPDPD::get_partial_shape(Place::Ptr place) const
@@ -425,12 +425,12 @@ namespace ngraph
 
         void InputModelPDPD::set_element_type(Place::Ptr place, const ngraph::element::Type& type)
         {
-            return _impl->setElementType(place, type);
+            _impl->setElementType(place, type);
         }
 
         void InputModelPDPD::set_tensor_value(Place::Ptr place, const void* value)
         {
-            return _impl->setTensorValue(place, value);
+            _impl->setTensorValue(place, value);
         }
 
     } // namespace frontend

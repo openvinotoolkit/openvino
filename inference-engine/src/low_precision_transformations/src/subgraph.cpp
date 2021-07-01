@@ -37,10 +37,20 @@ bool operationIsSupportedInConcat(const std::shared_ptr<ngraph::Node>& node) {
             continue;
         }
 
-        const Shape& in = input.get_shape();
-        const Shape& out = node->output(0).get_shape();
-        for (size_t i = 0; i < 2; ++i) {
-            if ((i >= in.size()) || (i >= out.size())) {
+        const PartialShape& in = input.get_partial_shape();
+        const PartialShape& out = node->get_output_partial_shape(0);
+        if (in.rank().is_dynamic() || out.rank().is_dynamic()) {
+            return false;
+        }
+
+        const auto inRank = in.rank().get_length();
+        const auto outRank = out.rank().get_length();
+        if (inRank < 2 || outRank < 2) {
+            return false;
+        }
+
+        for (int i = 0; i < 2; ++i) {
+            if ((i >= inRank) || (i >= outRank)) {
                 // all previous dimensions are equal
                 return true;
             }
