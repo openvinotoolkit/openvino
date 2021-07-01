@@ -37,10 +37,16 @@ if not "%python_ver%"=="okay" (
 
 :: install Python modules
 
+set USE_VENV="false"
+set VENV_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\venv_openvino
 
 IF /I "%1%" EQU "" (
     set postfix=
 ) ELSE (
+    IF /I "%1%" EQU "venv" (
+        set postfix=
+        set USE_VENV="true"
+    ) ELSE (
     IF /I "%1%" EQU "caffe" (
         set postfix=_caffe
     ) ELSE (
@@ -61,6 +67,7 @@ IF /I "%1%" EQU "" (
     ) ELSE (
            echo Unsupported framework
            goto error
+       )
       )
      )
     )
@@ -69,7 +76,17 @@ IF /I "%1%" EQU "" (
  )
 )
 
-pip3 install --user -r "%ROOT_DIR%..\requirements%postfix%.txt"
+IF /I "%2%" EQU "venv" (
+    set USE_VENV="true"
+)
+
+IF %USE_VENV% == "true" (
+    python -m venv "%VENV_DIR%"
+    call "%VENV_DIR%\Scripts\activate.bat"
+)
+
+python -m pip install -U pip
+python -m pip install -r "%ROOT_DIR%..\requirements%postfix%.txt"
 
 :: Chek MO version
 set python_command='python "%ROOT_DIR%..\mo\utils\extract_release_version.py"'
@@ -87,7 +104,7 @@ IF %errorlevel% EQU 0 goto ie_search_end
 
 :: Check if OV already installed via pip
 set errorlevel=
-pip3 show openvino
+python -m pip show openvino
 IF %errorlevel% EQU 0 (
     IF %mo_is_custom% == "true" (
         echo [ WARNING ] OpenVINO ^(TM^) Toolkit version installed in pip is incompatible with the Model Optimizer
@@ -112,7 +129,7 @@ IF %mo_is_custom% == "true" (
 )
 
 set errorlevel=
-pip3 install openvino==%mo_release_version%
+python -m pip install openvino==%mo_release_version%
 IF %errorlevel% NEQ 0 (
     echo [ WARNING ] Could not find the OpenVINO ^(TM^) toolkit version %mo_release_version% in pip
     echo [ WARNING ] The highest OpenVINO ^(TM^) toolkit version will be installed ^(may be incompatible with current Model Optimizer version^)
@@ -125,13 +142,13 @@ python "%ROOT_DIR%..\mo\utils\find_ie_version.py"
 IF %errorlevel% EQU 0 goto ie_search_end
 
 echo [ WARNING ] The installed OpenVINO ^(TM^) toolkit version %mo_release_version% does not work as expected. Uninstalling...
-pip3 uninstall -y openvino
+python -m pip uninstall -y openvino
 echo [ WARNING ] Consider building the Inference Engine Python API from sources
 goto ie_search_end
 
 :install_last_ov
 set errorlevel=
-pip3 install openvino
+python -m pip install openvino
 IF %errorlevel% NEQ 0 (
     echo [ WARNING ] Could not find OpenVINO ^(TM^) toolkit version available in pip for installation
     echo [ WARNING ] Consider building the Inference Engine Python API from sources
@@ -143,7 +160,7 @@ python "%ROOT_DIR%..\mo\utils\find_ie_version.py"
 IF %errorlevel% EQU 0 goto ie_search_end
 
 echo [ WARNING ] The installed highest OpenVINO ^(TM^) toolkit version doesn't work as expected. Uninstalling...
-pip3 uninstall -y openvino
+python -m pip uninstall -y openvino
 echo [ WARNING ] Consider building the Inference Engine Python API from sources
 goto ie_search_end
 
