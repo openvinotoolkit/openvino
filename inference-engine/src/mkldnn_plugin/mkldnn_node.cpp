@@ -130,6 +130,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "StridedSlice", StridedSlice },
         { "Tile", Tile },
         { "ROIAlign", ROIAlign },
+        { "AdaptiveMaxPool", AdaptivePooling},
         { "ROIPooling", ROIPooling },
         { "PSROIPooling", PSROIPooling },
         { "DeformablePSROIPooling", PSROIPooling },
