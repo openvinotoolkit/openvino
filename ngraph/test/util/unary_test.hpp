@@ -130,10 +130,14 @@ namespace ngraph
             {
             }
 
-            template <ngraph::element::Type_t et_i = et_input,
+            template <typename it_i,
+                      typename it_o,
+                      ngraph::element::Type_t et_i = et_input,
                       ngraph::element::Type_t et_o = et_output>
-            void test(const std::initializer_list<Data<et_i>>& inputs,
-                      const std::initializer_list<Data<et_o>>& expeted,
+            void test(it_i first_input,
+                      it_i last_input,
+                      it_o first_expeted,
+                      it_o last_expeted,
                       Tolerance tol = {})
             {
                 if (m_function->is_dynamic())
@@ -141,15 +145,29 @@ namespace ngraph
                     auto test_case =
                         ngraph::test::TestCase<TestEngine, ngraph::test::TestCaseType::DYNAMIC>(
                             m_function);
-                    do_test<et_i, et_o>(test_case, inputs, expeted, tol);
+                    do_test<it_i, it_o, et_i, et_o>(
+                        test_case, first_input, last_input, first_expeted, last_expeted, tol);
                 }
                 else
                 {
                     auto test_case =
                         ngraph::test::TestCase<TestEngine, ngraph::test::TestCaseType::STATIC>(
                             m_function);
-                    do_test<et_i, et_o>(test_case, inputs, expeted, tol);
+                    do_test<it_i, it_o, et_i, et_o>(
+                        test_case, first_input, last_input, first_expeted, last_expeted, tol);
                 }
+            }
+
+            template <ngraph::element::Type_t et_i = et_input,
+                      ngraph::element::Type_t et_o = et_output>
+            void test(const std::initializer_list<Data<et_i>>& inputs,
+                      const std::initializer_list<Data<et_o>>& expeted,
+                      Tolerance tol = {})
+            {
+                using it_i = typename std::initializer_list<Data<et_i>>::iterator;
+                using it_o = typename std::initializer_list<Data<et_o>>::iterator;
+                test<it_i, it_o, et_i, et_o>(
+                    inputs.begin(), inputs.end(), expeted.begin(), expeted.end(), tol);
             }
 
             // SISO: single inputs, single output
@@ -179,16 +197,7 @@ namespace ngraph
                       To (*elewise_predictor)(Ti),
                       Tolerance tol = {})
             {
-                auto first = inputs.begin();
-                Data<et_o> expeted;
-                expeted.shape = first->shape;
-                expeted.no_shape = first->no_shape;
-                expeted.value.resize(first->value.size());
-
-                for (size_t i = 0; i < first->value.size(); i++)
-                    expeted.value[i] = elewise_predictor(first->value[i]);
-
-                test<et_i, et_o>(inputs, expeted, tol);
+                test<et_i, et_o>(inputs, std::function<To(Ti)>(elewise_predictor), tol);
             }
 
             // this overload supports passing a lambda as predictor
@@ -231,30 +240,34 @@ namespace ngraph
         private:
             std::shared_ptr<ngraph::Function> m_function;
 
-            template <ngraph::element::Type_t et_i = et_input,
-                      ngraph::element::Type_t et_o = et_output,
+            template <typename it_i,
+                      typename it_o,
+                      ngraph::element::Type_t et_i,
+                      ngraph::element::Type_t et_o,
                       typename TC,
                       typename Ti = ngraph::fundamental_type_for<et_i>,
                       typename To = ngraph::fundamental_type_for<et_o>>
             void do_test(TC& test_case,
-                         const std::initializer_list<Data<et_i>>& input,
-                         const std::initializer_list<Data<et_o>>& expeted,
+                         it_i first_input,
+                         it_i last_input,
+                         it_o first_expeted,
+                         it_o last_expeted,
                          Tolerance tol)
             {
-                for (const auto& item : input)
+                for (it_i it = first_input; it != last_input; ++it)
                 {
-                    if (item.no_shape)
-                        test_case.template add_input<Ti>(item.value);
+                    if (it->no_shape)
+                        test_case.template add_input<Ti>(it->value);
                     else
-                        test_case.template add_input<Ti>(item.shape, item.value);
+                        test_case.template add_input<Ti>(it->shape, it->value);
                 }
 
-                for (const auto& item : expeted)
+                for (it_o it = first_expeted; it != last_expeted; ++it)
                 {
-                    if (item.no_shape)
-                        test_case.template add_expected_output<To>(item.value);
+                    if (it->no_shape)
+                        test_case.template add_expected_output<To>(it->value);
                     else
-                        test_case.template add_expected_output<To>(item.shape, item.value);
+                        test_case.template add_expected_output<To>(it->shape, it->value);
                 }
 
                 if (tol.bit.in_use)
