@@ -18,7 +18,7 @@ private:
 
 public:
     explicit Impl(const char* pluginName) {
-        shared_object = dlopen(pluginName, RTLD_LAZY);
+        shared_object = dlopen(pluginName, RTLD_NOW);
 
         if (shared_object == nullptr)
             IE_THROW() << "Cannot load library '" << pluginName << "': " << dlerror();
