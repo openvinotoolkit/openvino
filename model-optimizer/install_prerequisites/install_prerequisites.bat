@@ -6,6 +6,8 @@
 :: Check if Python is installed
 setlocal
 
+set ROOT_DIR=%~dp0
+
 python --version 2>NUL
 if errorlevel 1 (
    echo Error^: Python is not installed. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
@@ -67,10 +69,10 @@ IF /I "%1%" EQU "" (
  )
 )
 
-pip3 install --user -r ..\requirements%postfix%.txt
+pip3 install --user -r "%ROOT_DIR%..\requirements%postfix%.txt"
 
 :: Chek MO version
-set python_command='python "%~dp0..\mo\utils\extract_release_version.py"'
+set python_command='python "%ROOT_DIR%..\mo\utils\extract_release_version.py"'
 FOR /F "delims=" %%i IN (%python_command%) DO set mo_release_version=%%i
 IF "%mo_release_version%" == "None.None" (
     set mo_is_custom="true"
@@ -80,7 +82,7 @@ IF "%mo_release_version%" == "None.None" (
 
 :: Check if existing IE Python bindings satisfy requirements
 set errorlevel=
-python "%~dp0..\mo\utils\find_ie_version.py"
+python "%ROOT_DIR%..\mo\utils\find_ie_version.py"
 IF %errorlevel% EQU 0 goto ie_search_end
 
 :: Check if OV already installed via pip
@@ -119,7 +121,7 @@ IF %errorlevel% NEQ 0 (
 )
 
 set errorlevel=
-python "%~dp0..\mo\utils\find_ie_version.py"
+python "%ROOT_DIR%..\mo\utils\find_ie_version.py"
 IF %errorlevel% EQU 0 goto ie_search_end
 
 echo [ WARNING ] The installed OpenVINO ^(TM^) toolkit version %mo_release_version% does not work as expected. Uninstalling...
@@ -137,7 +139,7 @@ IF %errorlevel% NEQ 0 (
 )
 
 set errorlevel=
-python "%~dp0..\mo\utils\find_ie_version.py"
+python "%ROOT_DIR%..\mo\utils\find_ie_version.py"
 IF %errorlevel% EQU 0 goto ie_search_end
 
 echo [ WARNING ] The installed highest OpenVINO ^(TM^) toolkit version doesn't work as expected. Uninstalling...
