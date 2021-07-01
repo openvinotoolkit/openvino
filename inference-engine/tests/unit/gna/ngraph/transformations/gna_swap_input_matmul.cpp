@@ -28,22 +28,13 @@ TEST(TransformationTests, SwapInputMatMulTestValidConstShape) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params});
 
+        reference_func = ngraph::clone_function(*func);
+
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::SwapInputMatMul>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
-
-        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1, 8}, {1});
-        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
-
-        auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{input_params});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -163,22 +154,13 @@ TEST(TransformationTests, SwapInputMatMulTestRank1) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params});
 
+        reference_func = ngraph::clone_function(*func);
+
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::SwapInputMatMul>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, data_shape);
-
-        auto constant = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{8}, {1});
-        auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(constant, input_params);
-
-        auto result = std::make_shared<ngraph::opset7::Result>(matmul_operation);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{input_params});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
