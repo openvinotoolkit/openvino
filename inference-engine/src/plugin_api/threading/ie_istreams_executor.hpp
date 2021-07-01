@@ -79,6 +79,7 @@ public:
         * @return configured values
         */
         static Config MakeDefaultMultiThreaded(const Config& initial, const bool fp_intesive = true);
+        static int GetDefaultNumStreams(); // no network specifics considered (only CPU's caps);
 
         std::string        _name;  //!< Used by `ITT` to name executor threads
         int                _streams                 = 1;  //!< Number of streams.

@@ -13,6 +13,7 @@
 #include <memory>
 #include <functional>
 #include <vector>
+#include <cfloat>
 
 namespace MKLDNNPlugin {
 
@@ -40,6 +41,24 @@ private:
     Config engConfig;
     NumaNodesWeights weightsSharing;
     MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
+    bool streamsSet = false;
+
+    struct NetworkPerfStats {
+        float maxMemTolerance = -1;
+        float ratio_compute_convs = 0;
+        float ratio_mem_limited_convs = 0;
+        float ratio_compute_deconvs = 0;
+
+        static constexpr float memThresholdNotLimited = 1.0f;
+        static constexpr float memThresholdAssumeLimited = 0.5f;
+        static constexpr float memThresholdAssumeLimitedAVX512 = memThresholdAssumeLimited/2;
+        static constexpr float memThresholdAssumeLimitedMuch = memThresholdAssumeLimited/4;
+        static constexpr float memThresholdUnknown = FLT_MAX;
+
+        static constexpr float memLimitedRatioThresholdAVX512 = 0.10;
+        static constexpr float ALL = 1.0f;
+    };
+    static NetworkPerfStats NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network);
 };
 
 }  // namespace MKLDNNPlugin
