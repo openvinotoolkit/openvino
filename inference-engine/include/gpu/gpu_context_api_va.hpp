@@ -90,11 +90,6 @@ public:
 * The resulting compound contains two remote blobs for Y and UV planes of the surface.
 */
 static inline Blob::Ptr make_shared_blob_nv12(size_t height, size_t width, RemoteContext::Ptr ctx, VASurfaceID nv12_surf) {
-    auto casted = std::dynamic_pointer_cast<VAContext>(ctx);
-    if (nullptr == casted) {
-        IE_THROW() << "Invalid remote context passed";
-    }
-
     // despite of layout, blob dimensions always follow in N,C,H,W order
     TensorDesc ydesc(Precision::U8, { 1, 1, height, width }, Layout::NHWC);
     ParamMap blobParams = {
@@ -102,11 +97,11 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height, size_t width, Remot
         { GPU_PARAM_KEY(DEV_OBJECT_HANDLE), nv12_surf },
         { GPU_PARAM_KEY(VA_PLANE), uint32_t(0) }
     };
-    Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(ydesc, blobParams));
+    Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(ydesc, blobParams));
 
     TensorDesc uvdesc(Precision::U8, { 1, 2, height / 2, width / 2 }, Layout::NHWC);
     blobParams[GPU_PARAM_KEY(VA_PLANE)] = uint32_t(1);
-    Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(uvdesc, blobParams));
+    Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(uvdesc, blobParams));
 
     return InferenceEngine::make_shared_blob<NV12Blob>(y_blob, uv_blob);
 }
