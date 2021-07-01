@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include <cfenv>
 #include <cmath>
 #include <numeric>
-#include <stdexcept>
 #include <vector>
 
 #include "ngraph/axis_vector.hpp"
@@ -23,19 +21,17 @@ namespace ngraph
             {
                 inline size_t window_start(size_t idx, size_t arg_shape, size_t out_shape)
                 {
-                    return floor(static_cast<double>(idx * arg_shape) / out_shape);
+                    // start = floor(idx * arg_shape / out_shape);
+                    return idx * arg_shape / out_shape;
                 }
                 inline size_t window_end(size_t idx, size_t arg_shape, size_t out_shape)
                 {
                     return ceil(static_cast<double>((idx + 1) * arg_shape) / out_shape);
                 }
                 template <typename T>
-                T avg(const T sum, size_t n)
+                T avg_div(const T sum, size_t n)
                 {
-                    if (n == 0)
-                    {
-                        NGRAPH_CHECK(n != 0, "AdaptiveAvgPool elements == 0, must be non-zero");
-                    }
+                    NGRAPH_CHECK(n != 0, "AdaptiveAvgPool elements == 0, must be non-zero");
 
                     if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value)
                     {
@@ -54,8 +50,8 @@ namespace ngraph
                     {
                         size_t h_start = window_start(i, h_in, h_out);
                         size_t h_end = window_end(i, h_in, h_out);
-                        out[i] =
-                            avg(std::accumulate(arg + h_start, arg + h_end, T{0}), h_end - h_start);
+                        out[i] = avg_div(std::accumulate(arg + h_start, arg + h_end, T{0}),
+                                         h_end - h_start);
                     }
                 }
                 template <typename T>
@@ -72,9 +68,12 @@ namespace ngraph
                             size_t w_end = window_end(j, w_in, w_out);
                             T result = 0;
                             for (size_t n = h_start; n < h_end; n++)
+                            {
                                 result = std::accumulate(
                                     arg + n * w_in + w_start, arg + n * w_in + w_end, result);
-                            out[i * w_out + j] = avg(result, (w_end - w_start) * (h_end - h_start));
+                            }
+                            out[i * w_out + j] =
+                                avg_div(result, (w_end - w_start) * (h_end - h_start));
                         }
                     }
                 }
@@ -102,15 +101,17 @@ namespace ngraph
                                 size_t w_end = window_end(k, w_in, w_out);
                                 T result = 0;
                                 for (size_t n = d_start; n < d_end; n++)
+                                {
                                     for (size_t m = h_start; m < h_end; m++)
                                     {
                                         auto pos = arg + n * h_in * w_in + m * w_in;
                                         result =
                                             std::accumulate(pos + w_start, pos + w_end, result);
                                     }
-                                out[i * h_out * w_out + j * w_out + k] =
-                                    avg(result,
-                                        (d_end - d_start) * (w_end - w_start) * (h_end - h_start));
+                                }
+                                out[i * h_out * w_out + j * w_out + k] = avg_div(
+                                    result,
+                                    (d_end - d_start) * (w_end - w_start) * (h_end - h_start));
                             }
                         }
                     }
@@ -122,13 +123,20 @@ namespace ngraph
                                    const Shape& arg_shape,
                                    const Shape& out_shape)
             {
+                NGRAPH_CHECK(arg_shape.size() == out_shape.size() && 2 < arg_shape.size() &&
+                                 arg_shape.size() < 6,
+                             "AdaptiveAvgPool supports only 3D, 4D and 5D input shape");
                 size_t channel_size = 1;
                 for (size_t i = 2; i < arg_shape.size(); i++)
+                {
                     channel_size *= arg_shape[i];
+                }
                 size_t batch_size = arg_shape[1] * channel_size;
                 size_t out_channel_size = 1;
                 for (size_t i = 2; i < out_shape.size(); i++)
+                {
                     out_channel_size *= out_shape[i];
+                }
                 size_t out_batch_size = arg_shape[1] * out_channel_size;
                 for (size_t b = 0; b < arg_shape[0]; b++)
                 {

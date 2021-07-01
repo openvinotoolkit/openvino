@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include <cfenv>
 #include <cmath>
 #include <numeric>
-#include <stdexcept>
 #include <vector>
 
 #include "ngraph/axis_vector.hpp"
@@ -92,6 +90,7 @@ namespace ngraph
                                          "AdaptiveMaxPool elements == 0, must be non-zero");
                             auto result = arg + d_start * h_in * w_in + h_start * w_in + w_start;
                             for (size_t n = d_start; n < d_end; n++)
+                            {
                                 for (size_t m = h_start; m < h_end; m++)
                                 {
                                     auto from = arg + n * h_in * w_in + m * w_in + w_start;
@@ -99,6 +98,7 @@ namespace ngraph
                                     auto it = std::max_element(from, to);
                                     result = *it > *result ? it : result;
                                 }
+                            }
                             out[i * h_out * w_out + j * w_out + k] = *result;
                             indices[i * h_out * w_out + j * w_out + k] = result - arg;
                         }
@@ -112,13 +112,20 @@ namespace ngraph
                                    const Shape& arg_shape,
                                    const Shape& out_shape)
             {
+                NGRAPH_CHECK(arg_shape.size() == out_shape.size() && 2 < arg_shape.size() &&
+                                 arg_shape.size() < 6,
+                             "AdaptiveAvgPool supports only 3D, 4D and 5D input shape");
                 size_t channel_size = 1;
                 for (size_t i = 2; i < arg_shape.size(); i++)
+                {
                     channel_size *= arg_shape[i];
+                }
                 size_t batch_size = arg_shape[1] * channel_size;
                 size_t out_channel_size = 1;
                 for (size_t i = 2; i < out_shape.size(); i++)
+                {
                     out_channel_size *= out_shape[i];
+                }
                 size_t out_batch_size = arg_shape[1] * out_channel_size;
                 for (size_t b = 0; b < arg_shape[0]; b++)
                 {
