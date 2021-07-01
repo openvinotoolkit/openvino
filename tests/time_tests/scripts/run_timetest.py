@@ -58,7 +58,7 @@ def run_cmd(args: list, log=None, verbose=True):
     return proc.returncode, ''.join(output)
 
 
-def parse_stats(stats: dict, res: dict):
+def parse_stats(stats: list, res: dict):
     """Parse raw statistics from nested list to flatten dict"""
     for element in stats:
         if isinstance(element, (int, float)):
