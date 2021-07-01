@@ -204,8 +204,7 @@ int main(int argc, char* argv[]) {
         else if (FLAGS_mode == "latency" || FLAGS_mode == "LATENCY")
             ov_perf_mode = CONFIG_VALUE(LATENCY);
         else if (!FLAGS_mode.empty())
-            throw std::logic_error("Performance mode " +  ov_perf_mode + " is not recognized!");
-
+            throw std::logic_error("Performance mode " + ov_perf_mode + " is not recognized!");
 
         bool perf_counts = false;
         // Update config per device according to command line parameters
@@ -426,10 +425,9 @@ int main(int argc, char* argv[]) {
                 std::cout << "OV_PERFORMANCE_MODE: " << ov_perf_mode << std::endl;
                 // output of the actual settings that the mode produces (debugging)
                 for (auto& device : devices) {
-                    std::vector<std::string> supported_config_keys = ie.GetMetric(device,
-                                                                                  METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                    std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                     std::cout << "Device: " << device << std::endl;
-                    for (auto cfg :  supported_config_keys) {
+                    for (auto cfg : supported_config_keys) {
                         std::cout << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>() << " }" << std::endl;
                     }
                 }

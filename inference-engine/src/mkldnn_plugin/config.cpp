@@ -27,13 +27,13 @@ Config::Config() {
     #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         #if defined(__APPLE__) || defined(_WIN32)
         // 'CORES' is not implemented for Win/MacOS; so the 'NUMA' is default
-    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
-#endif
+        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+        #endif
 
         if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {
             streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::HYBRID_AWARE;
         }
-#endif
+    #endif
 
     if (!with_cpu_x86_bfloat16())
         enforceBF16 = false;
