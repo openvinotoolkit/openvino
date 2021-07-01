@@ -24,8 +24,8 @@ namespace ngraph
             class NGRAPH_API SpaceToDepth : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"SpaceToDepth", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 enum class SpaceToDepthMode
                 {
                     // The output depth is gathered from [block_size, ..., block_size, C]

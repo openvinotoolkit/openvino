@@ -245,7 +245,7 @@ namespace
     }
 } // namespace
 
-constexpr NodeTypeInfo op::v1::Broadcast::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Broadcast, "Broadcast", 1, op::util::BroadcastBase);
 
 op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
