@@ -25,9 +25,8 @@ if(ENABLE_TESTS)
         add_subdirectory(tests/functional)
     endif()
 endif()
-# [cmake:main]
 
 # install
 
-# ATTENTION: uncomment to install component
-# ie_cpack(template)
+ie_cpack(template)
+# [cmake:main]

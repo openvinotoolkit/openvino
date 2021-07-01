@@ -58,7 +58,7 @@ def metadata_from_manifest(manifest: Path):
         'commit_date': repo_trigger['commit_time'],
         'repo_url': repo_trigger['url'],
         'branch': repo_trigger['branch'],
-        'target_branch': repo_trigger['target_branch'],
+        'target_branch': repo_trigger['target_branch'] if repo_trigger["target_branch"] else repo_trigger["branch"],
         'version': manifest['components'][PRODUCT_NAME]['version']
     }
 
