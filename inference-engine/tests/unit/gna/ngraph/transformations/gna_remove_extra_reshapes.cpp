@@ -31,25 +31,13 @@ TEST(TransformationTests, RemoveExtraReshapesTestReshapeNotEqualInputOutput) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params});
 
+        reference_func = ngraph::clone_function(*func);
+
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::RemoveExtraReshapes>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, data_shape);
-        auto new_shape = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 3, 64 * 64});
-        auto reshape_operation = std::make_shared<ngraph::opset7::Reshape>(input_params, new_shape, true);
-        auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(reshape_operation,
-                                                                            ngraph::Strides{1},
-                                                                            ngraph::Shape{0},
-                                                                            ngraph::Shape{0},
-                                                                            ngraph::Shape{3});
-        auto result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{input_params});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
