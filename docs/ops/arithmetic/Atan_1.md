@@ -24,7 +24,7 @@ a_{i} = atan(a_{i})
 
 **Types**
 
-* *T*: any numeric type.
+* *T*: any supported numeric type.
 
 **Examples**
 
