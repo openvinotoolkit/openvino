@@ -47,7 +47,7 @@ void MatrixNmsLayerTest::GenerateInputs() {
         if (it == 1) {
             blob = make_blob_with_precision(info->getTensorDesc());
             blob->allocate();
-            CommonTestUtils::fill_data_random_float<Precision::FP32>(blob, 1, 0, 1000);
+            CommonTestUtils::fill_data_random_float<Precision::FP32>(blob, 1, 0, 100000);
         } else {
             blob = GenerateInput(*info);
         }
@@ -86,12 +86,12 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                     case ngraph::element::Type_t::f32:
                         LayerTestsUtils::LayerTestsCommon::Compare(
                                 reinterpret_cast<const float *>(expectedBuffer),
-                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                                reinterpret_cast<const float *>(actualBuffer), size, 1e-5f);
                         break;
                     case ngraph::element::Type_t::f64:
                         LayerTestsUtils::LayerTestsCommon::Compare(
                                 reinterpret_cast<const double *>(expectedBuffer),
-                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                                reinterpret_cast<const float *>(actualBuffer), size, 1e-5f);
                         break;
                     default:
                         break;

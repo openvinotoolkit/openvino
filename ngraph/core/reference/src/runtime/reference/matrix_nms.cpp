@@ -177,7 +177,6 @@ namespace ngraph
                                   [&scores_data](int32_t a, int32_t b) {
                                       return scores_data[a] > scores_data[b];
                                   });
-
                 std::vector<T> iou_matrix((original_size * (original_size - 1)) >> 1);
                 std::vector<T> iou_max(original_size);
 
@@ -325,8 +324,13 @@ namespace ngraph
                     std::partial_sort(perm.begin(),
                                       perm.begin() + num_det,
                                       perm.end(),
-                                      [&all_scores](int lhs, int rhs) {
-                                          return all_scores[lhs] > all_scores[rhs];
+                                      [&all_scores, &all_classes, &all_indices](int lhs, int rhs) {
+                                          return (all_scores[lhs] > all_scores[rhs]) ||
+                                                 (all_scores[lhs] == all_scores[rhs] &&
+                                                  all_classes[lhs] < all_classes[rhs]) ||
+                                                 (all_scores[lhs] == all_scores[rhs] &&
+                                                  all_classes[lhs] == all_classes[rhs] &&
+                                                  all_indices[lhs] < all_indices[rhs]);
                                       });
 
                     for (size_t i = 0; i < num_det; i++)
@@ -349,7 +353,7 @@ namespace ngraph
 
                 if (sort_result_across_batch)
                 { /* sort across batch */
-                    if (sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
+                    if (sort_result_type == op::v8::MatrixNms::SortResultType::SCORE)
                     {
                         std::sort(
                             filtered_boxes.begin(),
@@ -363,7 +367,7 @@ namespace ngraph
                                         l.class_index == r.class_index && l.index < r.index);
                             });
                     }
-                    else if (sort_result_type == op::v8::MulticlassNms::SortResultType::CLASSID)
+                    else if (sort_result_type == op::v8::MatrixNms::SortResultType::CLASSID)
                     {
                         std::sort(filtered_boxes.begin(),
                                   filtered_boxes.end(),

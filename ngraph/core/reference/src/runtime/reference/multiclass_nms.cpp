@@ -40,7 +40,9 @@ namespace ngraph
                     float y2 = 0.0f;
                 };
 
-                static float intersectionOverUnion(const Rectangle& boxI, const Rectangle& boxJ, const bool normalized)
+                static float intersectionOverUnion(const Rectangle& boxI,
+                                                   const Rectangle& boxJ,
+                                                   const bool normalized)
                 {
                     const float norm = static_cast<float>(normalized == false);
 
@@ -316,16 +318,15 @@ namespace ngraph
 
                     // sort inside batch element before go through keep_top_k
                     std::sort(selected_boxes.begin(),
-                                selected_boxes.end(),
-                                [](const BoxInfo& l, const BoxInfo& r) {
-                                    return (
-                                        (l.batch_index == r.batch_index) &&
-                                        ((l.score > r.score) ||
-                                        ((std::fabs(l.score - r.score) < 1e-6) &&
-                                        l.class_index < r.class_index) ||
-                                        ((std::fabs(l.score - r.score) < 1e-6) &&
-                                        l.class_index == r.class_index && l.index < r.index)));
-                                });
+                              selected_boxes.end(),
+                              [](const BoxInfo& l, const BoxInfo& r) {
+                                  return ((l.batch_index == r.batch_index) &&
+                                          ((l.score > r.score) ||
+                                           ((std::fabs(l.score - r.score) < 1e-6) &&
+                                            l.class_index < r.class_index) ||
+                                           ((std::fabs(l.score - r.score) < 1e-6) &&
+                                            l.class_index == r.class_index && l.index < r.index)));
+                              });
 
                     // threshold keep_top_k for each batch element
                     if (keep_top_k > -1 && keep_top_k < num_dets)
@@ -339,17 +340,17 @@ namespace ngraph
                     {
                         if (sort_result_type == op::v8::MulticlassNms::SortResultType::CLASSID)
                         {
-                            std::sort(selected_boxes.begin(),
-                                        selected_boxes.end(),
-                                        [](const BoxInfo& l, const BoxInfo& r) {
-                                            return (
-                                                (l.batch_index == r.batch_index) &&
-                                                ((l.class_index < r.class_index) ||
-                                                ((l.class_index == r.class_index) &&
-                                                l.score > r.score) ||
-                                                ((std::fabs(l.score - r.score) <= 1e-6) &&
-                                                l.class_index == r.class_index && l.index < r.index)));
-                                        });
+                            std::sort(
+                                selected_boxes.begin(),
+                                selected_boxes.end(),
+                                [](const BoxInfo& l, const BoxInfo& r) {
+                                    return (
+                                        (l.batch_index == r.batch_index) &&
+                                        ((l.class_index < r.class_index) ||
+                                         ((l.class_index == r.class_index) && l.score > r.score) ||
+                                         ((std::fabs(l.score - r.score) <= 1e-6) &&
+                                          l.class_index == r.class_index && l.index < r.index)));
+                                });
                         }
                         // in case of "SCORE", pass through, as,
                         // it has already gurranteed.
