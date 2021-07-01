@@ -449,6 +449,8 @@ void EltwiseValidator::parseParams(CNNLayer* layer) {
         casted->_operation = EltwiseLayer::Pow;
     } else if (op == "mean") {
         casted->_operation = EltwiseLayer::Mean;
+    } else if (op == "abs") {
+        casted->_operation = EltwiseLayer::Abs;
     } else {
         IE_THROW() << "Unsupported element wise operation: " << op;
     }
