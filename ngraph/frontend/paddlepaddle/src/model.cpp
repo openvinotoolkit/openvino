@@ -269,6 +269,7 @@ namespace ngraph
             }
 
             std::ifstream pb_stream(model_file, std::ios::binary);
+            FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file doesn't exist");
             FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream),
                                     "Model can't be parsed");
 
