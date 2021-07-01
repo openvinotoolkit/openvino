@@ -28,7 +28,7 @@ namespace
                         const float min_box_H,
                         const float min_box_W,
                         const float max_delta_log_wh,
-                        float coordinates_offset)
+                        const float coordinates_offset)
     {
         int64_t bottom_area = bottom_H * bottom_W;
 
@@ -121,7 +121,7 @@ namespace
                  const int64_t base_index,
                  const float nms_thresh,
                  const int64_t max_num_out,
-                 float coordinates_offset)
+                 const float coordinates_offset)
     {
         const int64_t num_proposals = num_boxes;
         int64_t count = 0;
