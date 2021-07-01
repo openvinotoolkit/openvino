@@ -44,14 +44,8 @@ if(NOT ENABLE_DOCKER)
 
     # install
 
-    set(install_targets template_extension)
-    if(ENABLE_TEMPLATE_PLUGIN)
-        list(APPEND install_targets templatePlugin templateFuncTests)
-    endif()
-
-    install(TARGETS ${install_targets}
-            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    install(TARGETS templatePlugin template_extension
+            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
 set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check")

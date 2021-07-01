@@ -67,7 +67,7 @@ if(ENABLE_SSE42)
     list(APPEND LIBRARY_SRC ${SSE_SRC})
 
     ie_sse42_optimization_flags(sse4_2_flags)
-    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_OPTIONS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
 
     if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.16")
@@ -261,7 +261,7 @@ endif()
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
-install(DIRECTORY "${IE_MAIN_SOURCE_DIR}/include" DESTINATION ${IE_CPACK_IE_DIR}
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}" DESTINATION ${IE_CPACK_IE_DIR}
         COMPONENT core_dev)
 
 install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
@@ -274,10 +274,13 @@ install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
         COMPONENT core)
 
 # for InferenceEngineUnitTest
-install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-        DESTINATION tests/lib
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+if(WIN32)
+    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+else()
+    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+            DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+endif()
 
 # Install cmake scripts
 

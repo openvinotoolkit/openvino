@@ -180,13 +180,13 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(std:
    IE_THROW(NotImplemented);
 }
 
-void IInferencePlugin::SetCore(ICore* core) {
-    IE_ASSERT(core != nullptr);
+void IInferencePlugin::SetCore(std::weak_ptr<ICore> core) {
+    IE_ASSERT(!core.expired());
     _core = core;
 }
 
-ICore* IInferencePlugin::GetCore() const noexcept {
-    return _core;
+std::shared_ptr<ICore> IInferencePlugin::GetCore() const noexcept {
+    return _core.lock();
 }
 
 QueryNetworkResult IInferencePlugin::QueryNetwork(const CNNNetwork& network,

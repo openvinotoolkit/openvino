@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 #include "include/unit_type.cl"
 
 // Kernel works only for sub_group size of 16 with 32 features slice size and process 2 features per WI
@@ -37,7 +38,7 @@ KERNEL(eltwise_mixed_byxf_and_fs_b_yx_fsv32)(
     in1 = UNIT_BLOCK_READ2(input0,input_0_offset);
     in2 = UNIT_BLOCK_READ2(input1,input_1_offset);
 
-    { 
+    {
         const UNIT_TYPE tmp_input_0 = in1.s0;
         const UNIT_TYPE tmp_input_1 = in2.s0;
         OPERATION0;
@@ -54,6 +55,3 @@ KERNEL(eltwise_mixed_byxf_and_fs_b_yx_fsv32)(
 
     UNIT_BLOCK_WRITE2(output,output_offset,out);
 }
-
-
-
