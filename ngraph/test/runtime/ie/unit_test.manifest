@@ -371,6 +371,10 @@ all_dynamic
 
 # Reduce ops disabled/accuracy: 56520
 # disabled reference implementation
+reduce_max_to_scalar_int8
+reduce_max_keep_to_scalar_int8
+reduce_mean_to_scalar_int8
+reduce_mean_keep_to_scalar_int8
 reduce_sum_keep_2d_to_scalar_int8
 reduce_sum_2d_to_scalar_int8
 reduce_product_to_scalar_int8
@@ -378,6 +382,8 @@ reduce_product_keep_to_scalar_int8
 reduce_min_to_scalar_int8
 reduce_min_keep_to_scalar_int8
 # accuracy
+reduce_mean_matrix_rows_int32
+reduce_mean_keep_matrix_rows_int32
 reduce_sum_keep_stable_acc
 reduce_sum_keep_3d_to_scalar_int32
 reduce_sum_keep_large_1d_to_scalar
@@ -443,14 +449,6 @@ onnx_dyn_shapes_model_tile_static
 gather_4d_indices_axis_0_uint8
 tensor_constant_with_op
 constant_equality_bool
-
-# zero dimension / result mismatch
-reduce_mean_to_scalar_int8
-reduce_mean_matrix_rows_int32
-reduce_mean_keep_to_scalar_int8
-reduce_mean_keep_matrix_rows_int32
-reduce_max_to_scalar_int8
-reduce_max_keep_to_scalar_int8
 
 # Incorrect precision f64!
 sum_trivial_in_double
@@ -1090,6 +1088,7 @@ IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
+mish_f16
 
 # function with NMS-5 to get the nGraph function with NMSIE3 (internal
 # operation, similar with NMS-5, but with all static output shapes), before
@@ -1168,6 +1167,7 @@ IE_CPU.dft1d_eval_float16
 IE_CPU.dft2d_eval_float16
 IE_CPU.dft3d_eval_float16
 IE_CPU.onnx_constant_sparse_tensor_float16_3x4
+IE_CPU.onnx_float16_tensor_as_int32
 
 
 # nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
