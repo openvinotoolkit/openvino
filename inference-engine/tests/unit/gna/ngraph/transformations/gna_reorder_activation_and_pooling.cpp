@@ -52,7 +52,7 @@ private:
 using ActivationFactoryPtr = std::shared_ptr<IActivationNodeFactory>;
 
 template <typename ActivationT, typename ... Args>
-ActivationFactoryPtr createActivation(Args&& ... args) {
+ActivationFactoryPtr createActivationFactory(Args&& ... args) {
     return std::make_shared<ActivationNodeFactory<ActivationT>>(std::forward<Args>(args) ...);
 }
 
@@ -182,14 +182,14 @@ TEST_P(ConvolutionActivationPoolTestFixture, CompareFunctions) {
 }
 
 const std::vector<ActivationFactoryPtr> activationFactories = {
-    createActivation<ngraph::opset7::Relu>(),
-    createActivation<ngraph::opset7::Sigmoid>(),
-    createActivation<ngraph::opset7::Tanh>(),
-    createActivation<ngraph::opset7::Abs>(),
-    createActivation<ngraph::opset7::Log>(),
-    createActivation<ngraph::opset7::Exp>(),
-    createActivation<ngraph::opset7::Sign>(),
-    createActivation<ngraph::opset7::Clamp>(0.1, 0.2)
+    createActivationFactory<ngraph::opset7::Relu>(),
+    createActivationFactory<ngraph::opset7::Sigmoid>(),
+    createActivationFactory<ngraph::opset7::Tanh>(),
+    createActivationFactory<ngraph::opset7::Abs>(),
+    createActivationFactory<ngraph::opset7::Log>(),
+    createActivationFactory<ngraph::opset7::Exp>(),
+    createActivationFactory<ngraph::opset7::Sign>(),
+    createActivationFactory<ngraph::opset7::Clamp>(0.1, 0.2)
 };
 
 INSTANTIATE_TEST_SUITE_P(ConvolutionActivationPoolTestSuite, ConvolutionActivationPoolTestFixture,
