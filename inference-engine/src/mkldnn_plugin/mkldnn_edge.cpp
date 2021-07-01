@@ -275,7 +275,10 @@ const MemoryDesc& MKLDNNEdge::getInputDesc() const {
         IE_THROW() << "Edge cannot be found for node" << parentPtr->getName() << ".";
 
     auto& outConfs = parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
-    if (outConfs.size())
+    if (outConfs.empty())
+        IE_THROW() << "Node " << parentPtr->getName() << " has empty output config list.";
+
+    if (inputIdx >= outConfs.size())
         inputIdx = 0;
 
     return *(outConfs[inputIdx].desc);
@@ -292,6 +295,9 @@ const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
         IE_THROW() << "Edge cannot be found for node" << childPtr->getName() << ".";
     }
     auto& inConfs = childPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs;
+    if (inConfs.empty())
+        IE_THROW() << "Node " << childPtr->getName() << " has empty input config list.";
+
     if (outputIdx >= inConfs.size())
         outputIdx = 0;
 

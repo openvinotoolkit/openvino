@@ -131,30 +131,30 @@ MKLDNNMemoryDesc MemoryDescUtils::convertToMKLDNNMemoryDesc(const BlockedMemoryD
  *   Limitation of conversion first N elements of order should be permutation of [0,1,2 ... N]
  */
 MKLDNNMemoryDesc MemoryDescUtils::convertToMKLDNNMemoryDesc(const InferenceEngine::TensorDesc& tDesc) {
-    dnnl_memory_desc_t mkldnnDesc;
+    mkldnn::memory::desc mkldnnDesc({}, mkldnn::memory::data_type::undef, mkldnn::memory::format_tag::undef);
     auto dims = tDesc.getDims();
 
     // TODO: implicit conversion of dims is no good...
     if (tDesc.getLayout() == Layout::SCALAR) {
-        mkldnnDesc.format_kind = dnnl_blocked;
-        mkldnnDesc.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
-        mkldnnDesc.ndims = 1;
-        mkldnnDesc.dims[0] = 1;
-        mkldnnDesc.padded_dims[0] = 1;
-        mkldnnDesc.format_desc.blocking.strides[0] = 1;
-        mkldnnDesc.padded_offsets[0] = 0;
-        mkldnnDesc.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
+        mkldnnDesc.data.format_kind = dnnl_blocked;
+        mkldnnDesc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
+        mkldnnDesc.data.ndims = 1;
+        mkldnnDesc.data.dims[0] = 1;
+        mkldnnDesc.data.padded_dims[0] = 1;
+        mkldnnDesc.data.format_desc.blocking.strides[0] = 1;
+        mkldnnDesc.data.padded_offsets[0] = 0;
+        mkldnnDesc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
         return MKLDNNMemoryDesc(mkldnnDesc);
     }
 
     if (tDesc.getLayout() == Layout::ANY) {
-        mkldnnDesc.format_kind = dnnl_format_kind_any;
-        mkldnnDesc.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
-        mkldnnDesc.ndims = dims.size();
-        std::copy(dims.begin(), dims.end(), mkldnnDesc.dims);
-        std::copy(dims.begin(), dims.end(), mkldnnDesc.padded_dims);
-        mkldnnDesc.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
-        std::fill(mkldnnDesc.padded_offsets, mkldnnDesc.padded_offsets + dims.size(), 0);
+        mkldnnDesc.data.format_kind = dnnl_format_kind_any;
+        mkldnnDesc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
+        mkldnnDesc.data.ndims = dims.size();
+        std::copy(dims.begin(), dims.end(), mkldnnDesc.data.dims);
+        std::copy(dims.begin(), dims.end(), mkldnnDesc.data.padded_dims);
+        mkldnnDesc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
+        std::fill(mkldnnDesc.data.padded_offsets, mkldnnDesc.data.padded_offsets + dims.size(), 0);
         return MKLDNNMemoryDesc(mkldnnDesc);
     }
 
@@ -201,20 +201,20 @@ MKLDNNMemoryDesc MemoryDescUtils::convertToMKLDNNMemoryDesc(const InferenceEngin
         IE_THROW() << "Unsupported case for conversion";
 
     // Fill general memory desc fields
-    mkldnnDesc.format_kind = dnnl_blocked;
-    mkldnnDesc.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
-    mkldnnDesc.ndims = dims.size();
-    mkldnnDesc.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
-    std::copy(dims.begin(), dims.end(), mkldnnDesc.dims);
-    std::copy(ie_offsetsToData.begin(), ie_offsetsToData.begin() + outer_ndims, mkldnnDesc.padded_offsets);
-    std::fill(mkldnnDesc.padded_dims, mkldnnDesc.padded_dims + outer_ndims, 1);
+    mkldnnDesc.data.format_kind = dnnl_blocked;
+    mkldnnDesc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
+    mkldnnDesc.data.ndims = dims.size();
+    mkldnnDesc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
+    std::copy(dims.begin(), dims.end(), mkldnnDesc.data.dims);
+    std::copy(ie_offsetsToData.begin(), ie_offsetsToData.begin() + outer_ndims, mkldnnDesc.data.padded_offsets);
+    std::fill(mkldnnDesc.data.padded_dims, mkldnnDesc.data.padded_dims + outer_ndims, 1);
     for (size_t i = 0; i < ie_order.size(); i++) {
         auto idx = ie_order[i];
-        mkldnnDesc.padded_dims[idx] *= ie_blkdDims[i];
+        mkldnnDesc.data.padded_dims[idx] *= ie_blkdDims[i];
     }
 
     // Fill blocking desc
-    auto &dnn_blk_desc = mkldnnDesc.format_desc.blocking;
+    auto &dnn_blk_desc = mkldnnDesc.data.format_desc.blocking;
     dnn_blk_desc.inner_nblks = inner_ndims;
     std::copy(ie_blkdDims.end() - inner_ndims, ie_blkdDims.end(), dnn_blk_desc.inner_blks);
     std::copy(ie_order.end() - inner_ndims, ie_order.end(), dnn_blk_desc.inner_idxs);
