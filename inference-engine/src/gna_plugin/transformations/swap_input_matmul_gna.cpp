@@ -58,17 +58,6 @@ SwapInputMatMul::SwapInputMatMul() {
 
         ngraph::NodeVector new_ops;
 
-        // Skip FakeQuantize layers
-        std::shared_ptr<ngraph::Node> input_a_skip_fq = input_a.get_node_shared_ptr();
-        if (std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(input_a_skip_fq)) {
-            input_a_skip_fq = input_a_skip_fq->input_value(0).get_node_shared_ptr();
-        }
-
-        std::shared_ptr<ngraph::Node> input_b_skip_fq = input_b.get_node_shared_ptr();
-        if (std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(input_b_skip_fq)) {
-            input_b_skip_fq = input_b_skip_fq->input_value(0).get_node_shared_ptr();
-        }
-
         if (shape_input_a[0] < 8 || ((shape_input_a[0] % 8 != 0 || shape_input_a[1] % 8 != 0))) {
             return false;
         }
