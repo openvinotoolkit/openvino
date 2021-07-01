@@ -10,12 +10,12 @@
 
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
+#include <ie_icore.hpp>
 #include <ie_plugin_config.hpp>
 #include <vector>
 #include <tuple>
 #include <unordered_set>
 #include <ie_system_conf.h>
-#include <nodes/list.hpp>
 #include <ie_ngraph_utils.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
@@ -103,10 +103,15 @@ using namespace InferenceEngine;
 
 Engine::Engine() {
     _pluginName = "CPU";
-    extensionManager->AddExtension(std::make_shared<Extensions::Cpu::MKLDNNExtensions>());
 }
 
 Engine::~Engine() {
+    if (auto core = GetCore()) {
+        for (auto extenstion : extensionManager->Extensions()) {
+            try { core->DelExtension(extenstion); }
+            catch (const InferenceEngine::GeneralError&) {}
+        }
+    }
     ExecutorManager::getInstance()->clear("CPU");
     ExecutorManager::getInstance()->clear("CPUStreamsExecutor");
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
@@ -500,10 +505,6 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     }
 }
 
-void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
-    extensionManager->AddExtension(extension);
-}
-
 QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     QueryNetworkResult res;
 
@@ -586,6 +587,16 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     }
 
     return res;
+}
+
+void Engine::SetCore(std::weak_ptr<InferenceEngine::ICore> core) {
+    InferenceEngine::IInferencePlugin::SetCore(core);
+    if (auto pcore = core.lock()) {
+        for (auto extenstion : extensionManager->Extensions()) {
+            try { pcore->AddExtension(extenstion); }
+            catch (const InferenceEngine::GeneralError&) {}
+        }
+    }
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin"};
