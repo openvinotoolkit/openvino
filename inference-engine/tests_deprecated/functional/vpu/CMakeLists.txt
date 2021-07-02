@@ -64,7 +64,6 @@ addIeTargetTest(
         ${CMAKE_CURRENT_BINARY_DIR}
     LINK_LIBRARIES
         IESharedTests
-        ngraph::frontend_manager
         vpu_custom_kernels
     LINK_LIBRARIES_WHOLE_ARCHIVE
         myriadTestData

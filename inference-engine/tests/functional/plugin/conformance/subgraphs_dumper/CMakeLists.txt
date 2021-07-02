@@ -19,7 +19,6 @@ addIeTargetTest(
         DEPENDENCIES
             ${DEPENDENCIES}
             inference_engine_ir_reader
-            ngraph::frontend_manager
         LINK_LIBRARIES
             PRIVATE
                 ${DEPENDENCIES}
