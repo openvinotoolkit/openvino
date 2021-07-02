@@ -30,9 +30,9 @@ op::util::NmsBase::NmsBase(const Output<Node>& boxes,
                            int& nms_top_k,
                            int& keep_top_k)
     : Op({boxes, scores})
-    , m_output_type{output_type}
-    , m_nms_top_k{nms_top_k}
-    , m_keep_top_k{keep_top_k}
+    , m_output_type(output_type)
+    , m_nms_top_k(nms_top_k)
+    , m_keep_top_k(keep_top_k)
 {
 }
 
