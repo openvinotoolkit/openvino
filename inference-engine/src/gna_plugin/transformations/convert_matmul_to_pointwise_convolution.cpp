@@ -8,6 +8,7 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include "layers/gna_permute.hpp"
 #include "backend/gna_limitations.hpp"
@@ -27,6 +28,7 @@ static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std
     }
 
     if (input1_shape.size() != 2 || input2_shape.size() != 2 || output_shape.size() < 2) {
+        std::cout << "VerifyAndGetConvParams FALSE: invalid input/output shape size" << std::endl; // DEBUG
         return std::make_tuple(false, 0, 0, 0);
     }
 
@@ -38,9 +40,11 @@ static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std
         out_channels % GNALimitations::convFiltersNumDivider != 0 ||
         out_channels > GNALimitations::convMaxFiltersNum ||
         in_channels > GNALimitations::convFilterMaxSize) {
+        std::cout << "VerifyAndGetConvParams FALSE: invalid GNA limits" << std::endl; // DEBUG
         return std::make_tuple(false, 0, 0, 0);
     }
 
+    std::cout << "VerifyAndGetConvParams TRUE" << std::endl; // DEBUG
     return std::make_tuple(true, width, in_channels, out_channels);
 }
 
@@ -62,24 +66,29 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
                                                                             ngraph::Shape{1, 1, width, in_channels});
     auto reshape_before =  std::make_shared<ngraph::opset7::Reshape>(input_node, reshape_const_before, false);
     reshape_before->set_friendly_name(base_name + "/reshape_in");
+    ngraph::copy_runtime_info(input_node, reshape_before);
 
     auto transpose_before = std::make_shared<ngraph::opset7::Transpose>(reshape_before,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
         GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW)));
     transpose_before->set_friendly_name(base_name + "/transpose_in");
+    ngraph::copy_runtime_info(matmul_node, transpose_before);
 
     auto weights_reshape_const = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
         ngraph::Shape{4}, ngraph::Shape{out_channels, in_channels, 1, 1});
     auto weights_reshaped =  std::make_shared<ngraph::opset7::Reshape>(weights_node, weights_reshape_const, false);
+    ngraph::copy_runtime_info(weights_node, weights_reshaped);
 
     std::shared_ptr<ngraph::Node> conv_node = std::make_shared<ngraph::opset7::Convolution>(transpose_before, weights_reshaped,
             ngraph::Strides{1, 1}, ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0},
             ngraph::Strides{1, 1}, ngraph::op::PadType::VALID);
     conv_node->set_friendly_name(base_name + "/conv");
+    ngraph::copy_runtime_info(transpose_before, conv_node);
 
     std::shared_ptr<ngraph::Node> root_node = matmul_node;
     if (bias != nullptr) {
          conv_node = std::make_shared<ngraph::opset7::Add>(conv_node, bias);
+         ngraph::copy_runtime_info(transpose_before, conv_node);
          root_node = add;
     }
 
@@ -93,6 +102,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
         GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)));
     transpose_after->set_friendly_name(base_name + "/transpose_out");
+    ngraph::copy_runtime_info(conv_node, transpose_after);
 
     auto output_shape = matmul_node->get_output_shape(0);
     output_shape[output_shape.size() - 1] = out_channels;
@@ -102,6 +112,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
                                                                             output_shape);
     auto reshape_after =  std::make_shared<ngraph::opset7::Reshape>(transpose_after, reshape_const_after, false);
     reshape_after->set_friendly_name(base_name);
+    ngraph::copy_runtime_info(transpose_after, reshape_after);
 
     ngraph::replace_node(root_node, reshape_after);
     return true;
@@ -119,6 +130,7 @@ ConvertMatmulToPointWiseConvolution::ConvertMatmulToPointWiseConvolution() {
     auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({ngraph::pattern::any_input(), second_input});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        std::cout << "found match" << std::endl; // DEBUG
         const auto& pattern_map = m.get_pattern_value_map();
         return Convert(pattern_map.at(matmul).get_node_shared_ptr(), nullptr, nullptr, nullptr);
     };
