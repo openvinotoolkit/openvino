@@ -95,6 +95,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
     if (fq != nullptr) {
         conv_node = fq->clone_with_new_inputs({conv_node, fq->input_value(1), fq->input_value(2),
             fq->input_value(3), fq->input_value(4)});
+        ngraph::copy_runtime_info(fq, conv_node);
         root_node = fq;
     }
 
@@ -130,7 +131,6 @@ ConvertMatmulToPointWiseConvolution::ConvertMatmulToPointWiseConvolution() {
     auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({ngraph::pattern::any_input(), second_input});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        std::cout << "found match" << std::endl; // DEBUG
         const auto& pattern_map = m.get_pattern_value_map();
         return Convert(pattern_map.at(matmul).get_node_shared_ptr(), nullptr, nullptr, nullptr);
     };
@@ -182,6 +182,7 @@ ConvertMatmulWithFqToPointWiseConvolution::ConvertMatmulWithFqToPointWiseConvolu
         ngraph::pattern::wrap_type<ngraph::opset7::Constant>()});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        std::cout << "FOUND MATCH" << std::endl; // FIXME: DEBUG
         const auto& pattern_map = m.get_pattern_value_map();
         auto add_it = pattern_map.find(add);
         auto add_node = (add_it == std::end(pattern_map) ? nullptr : add_it->second.get_node_shared_ptr());
