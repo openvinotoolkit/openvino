@@ -144,12 +144,12 @@ namespace ngraph
                     {
                         auto arg_pos = arg + b * batch_size + c * channel_size;
                         auto out_pos = out + b * out_batch_size + c * out_channel_size;
-                        if (arg_shape.size() == 3 && out_shape.size() == 3)
+                        if (arg_shape.size() == 3)
                         {
                             adaptive_pool::adaptive_avg_pool_1d<T>(
                                 arg_pos, out_pos, arg_shape[2], out_shape[2]);
                         }
-                        else if (arg_shape.size() == 4 && out_shape.size() == 4)
+                        else if (arg_shape.size() == 4)
                         {
                             adaptive_pool::adaptive_avg_pool_2d<T>(arg_pos,
                                                                    out_pos,
@@ -158,7 +158,7 @@ namespace ngraph
                                                                    arg_shape[3],
                                                                    out_shape[3]);
                         }
-                        else if (arg_shape.size() == 5 && out_shape.size() == 5)
+                        else if (arg_shape.size() == 5)
                         {
                             adaptive_pool::adaptive_avg_pool_3d<T>(arg_pos,
                                                                    out_pos,
