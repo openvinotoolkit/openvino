@@ -96,12 +96,12 @@ Where
   * **Default value**: `1`
   * **Required**: *no*
 
-* *bilinear_interpolation_padding*
+* *bilinear_interpolation_pad*
 
-  * **Description**: *bilinear_interpolation_padding* is the number of pixels outside of the feature map boundary to apply bilinear interpolation.
-  * **Range of values**: non-negative integer value
-  * **Type**: `int`
-  * **Default value**: `0`
+  * **Description**: if *bilinear_interpolation_pad* is `true` and the sampling location is within one pixel outside of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map. If *bilinear_interpolation_pad* is `false` and the sampling location is within one pixel outside of the feature map boundary, then the sampling location shifts to the inner boundary of the feature map.
+  * **Range of values**: `False` or `True`
+  * **Type**: `boolean`
+  * **Default value**: `False`
   * **Required**: *no*
   
 **Inputs**:
@@ -112,7 +112,7 @@ Where
 
 *   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). **Required.**
 
-*   **4**: ModulationScalars tensor of type *T2* and rank 4, the values are within [0, 1]. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). If the input is not provided, the values are assumed to be equal to 1. **Optional.**
+*   **4**: Mask tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). If the input is not provided, the values are assumed to be equal to 1. **Optional.**
 
 
 **Outputs**:
@@ -122,7 +122,6 @@ Where
 **Types**:
 
 * *T*: Any numeric type.
-* *T2*: Any supported floating point.
  
 **Example**
 
