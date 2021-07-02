@@ -241,4 +241,33 @@ TEST(TransformationTests, ConvertMatmulWithBiasToPointWiseConvolutionTest) {
     ASSERT_TRUE(result.valid);
 }
 
+TEST(TransformationTests, ConvertMatmulWithBiasToPointWiseConvolutionFqTest) {
+    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
+    {
+        Graph graph = createTransformedGraph(true /* addFakeQuantizeNode */);
+        appendGraphAddNode(graph);
+
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>();
+        m.run_passes(func);
+        ASSERT_NO_THROW(check_rt_info(func));
+    }
+
+    {
+        Graph graph = createReferenceGraph(true /* addFakeQuantizeNode */, true /* insertAddNode */);
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    ASSERT_TRUE(result.valid);
+}
+
 } // namespace testing
