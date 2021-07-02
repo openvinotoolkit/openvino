@@ -20,6 +20,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a conversion operation.
                 DeformableConvolution() = default;
                 /// \brief Constructs a conversion operation.
