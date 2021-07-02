@@ -19,7 +19,7 @@ a - value representing angle in radians.
 
 **Inputs**
 
-* **1**: An tensor of type *T* and arbitrary rank. **Required.**
+* **1**: An tensor of type *T* and arbitrary rank. **Required**.
 
 **Outputs**
 

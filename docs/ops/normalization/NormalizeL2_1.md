@@ -26,9 +26,9 @@
 
 **Inputs**
 
-* **1**: `data` - input tensor to be normalized. Type of elements is any floating point type. Required.
+* **1**: `data` - input tensor to be normalized. Type of elements is any floating point type. **Required**.
 
-* **2**: `axes` - scalar or 1D tensor with axis indices for the `data` input along which L2 reduction is calculated. Required.
+* **2**: `axes` - scalar or 1D tensor with axis indices for the `data` input along which L2 reduction is calculated. **Required**.
 
 **Outputs**
 

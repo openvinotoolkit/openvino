@@ -45,15 +45,15 @@ else:
 
 **Inputs**:
 
-*   **1**: `X` - multidimensional input tensor of floating type to be quantized. Required.
+*   **1**: `X` - multidimensional input tensor of floating type to be quantized. **Required**.
 
-*   **2**: `input_low` - minimum limit for input value. The shape must be broadcastable to the shape of *X*. Required.
+*   **2**: `input_low` - minimum limit for input value. The shape must be broadcastable to the shape of *X*. **Required**.
 
-*   **3**: `input_high` - maximum limit for input value. Can be the same as `input_low` for binarization. The shape must be broadcastable to the shape of *X*. Required.
+*   **3**: `input_high` - maximum limit for input value. Can be the same as `input_low` for binarization. The shape must be broadcastable to the shape of *X*. **Required**.
 
-*   **4**: `output_low` - minimum quantized value. The shape must be broadcastable to the shape of *X*. Required.
+*   **4**: `output_low` - minimum quantized value. The shape must be broadcastable to the shape of *X*. **Required**.
 
-*   **5**: `output_high` - maximum quantized value. The shape must be broadcastable to the of *X*. Required.
+*   **5**: `output_high` - maximum quantized value. The shape must be broadcastable to the of *X*. **Required**.
 
 **Outputs**:
 

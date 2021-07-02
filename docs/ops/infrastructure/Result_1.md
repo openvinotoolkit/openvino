@@ -12,7 +12,7 @@
 
 **Inputs**
 
-* **1**: A tensor of type *T*. **Required.**
+* **1**: A tensor of type *T*. **Required**.
 
 **Types**
 

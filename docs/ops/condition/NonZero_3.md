@@ -21,7 +21,7 @@
   * **Range of values**: `i64` or `i32`
   * **Type**: string
   * **Default value**: "i64"
-  * **Required**: *No*
+  * **Required**: *no*
 
 **Inputs**:
 

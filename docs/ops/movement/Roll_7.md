@@ -10,7 +10,7 @@
 
 Example 1. *Roll* output with `shift` = 1, `axes` = 0:
 
-``` 
+```
 data    = [[ 1,  2,  3],
         [ 4,  5,  6],
         [ 7,  8,  9],
@@ -23,7 +23,7 @@ output  = [[10, 11, 12],
 
 Example 2. *Roll* output with `shift` = [-1, 2], `axes` = [0, 1]:
 
-``` 
+```
 data    = [[ 1,  2,  3],
         [ 4,  5,  6],
         [ 7,  8,  9],
@@ -36,7 +36,7 @@ output  = [[ 5,  6,  4],
 
 Example 3. *Roll* output with `shift` = [1, 2, 1], `axes` = [0, 1, 0]:
 
-``` 
+```
 data    = [[ 1,  2,  3],
         [ 4,  5,  6],
         [ 7,  8,  9],
@@ -53,11 +53,11 @@ No attributes available.
 
 **Inputs**:
 
-*   **1**: `data` a tensor of type *T*. **Required.**
+*   **1**: `data` a tensor of type *T*. **Required**.
 
-*   **2**: a `shift` scalar or 1D tensor of type *T_IND_1*. Specifies the number of places by which the elements of the `data` tensor are shifted. If `shift` is a scalar, each dimension specified in the `axes` tensor are rolled by the same `shift` value. If `shift` is a 1D tensor, `axes` must be a 1D tensor of the same size, and each dimension from `axes` tensor are rolled by the corresponding value from the `shift` tensor. If the value of `shift` is positive, elements are shifted positively (towards larger indices). Otherwise, elements are shifted negatively (towards smaller indices). **Required.**
+*   **2**: a `shift` scalar or 1D tensor of type *T_IND_1*. Specifies the number of places by which the elements of the `data` tensor are shifted. If `shift` is a scalar, each dimension specified in the `axes` tensor are rolled by the same `shift` value. If `shift` is a 1D tensor, `axes` must be a 1D tensor of the same size, and each dimension from `axes` tensor are rolled by the corresponding value from the `shift` tensor. If the value of `shift` is positive, elements are shifted positively (towards larger indices). Otherwise, elements are shifted negatively (towards smaller indices). **Required**.
 
-*   **3**: `axes` a scalar or 1D tensor of type *T_IND_2*. Specifies axes along which elements are shifted. If the same axis is referenced more than once, the total shift for that axis will be the sum of all the shifts that belong to that axis. If `axes` has negative value, axis index will be calculated using the formula: `N_dims + axis`, where `N_dims` - total number of dimensions in the `data` tensor, `axis` - negative axis index from the `axes` tensor. **Required.**
+*   **3**: `axes` a scalar or 1D tensor of type *T_IND_2*. Specifies axes along which elements are shifted. If the same axis is referenced more than once, the total shift for that axis will be the sum of all the shifts that belong to that axis. If `axes` has negative value, axis index will be calculated using the formula: `N_dims + axis`, where `N_dims` - total number of dimensions in the `data` tensor, `axis` - negative axis index from the `axes` tensor. **Required**.
 
 
 **Outputs**:

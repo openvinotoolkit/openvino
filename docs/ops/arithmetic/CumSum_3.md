@@ -32,9 +32,9 @@
 
 **Inputs**
 
-* **1**: An tensor of type *T*. **Required.**
+* **1**: An tensor of type *T*. **Required**.
 
-* **2**: Scalar axis of type *T_AXIS*. Negative value means counting dimensions from the back. Default value is 0. **Optional.**
+* **2**: Scalar axis of type *T_AXIS*. Negative value means counting dimensions from the back. Default value is 0. **Optional**.
 
 **Outputs**
 

@@ -8,12 +8,12 @@
 
 **Detailed description**
 
-*Proposal* has three inputs: a 4D tensor of shape `[num_batches, 2*K, H, W]` with probabilities whether particular 
-bounding box corresponds to background or foreground, a 4D tensor of shape `[num_batches, 4*K, H, W]` with deltas for each 
-of the bound box, and a tensor with input image size in the `[image_height, image_width, scale_height_and_width]` or 
-`[image_height, image_width, scale_height, scale_width]` format. `K` is number of anchors and `H, W` are height and 
-width of the feature map. Operation produces two tensors: 
-the first mandatory tensor of shape `[batch_size * post_nms_topn, 5]` with proposed boxes and 
+*Proposal* has three inputs: a 4D tensor of shape `[num_batches, 2*K, H, W]` with probabilities whether particular
+bounding box corresponds to background or foreground, a 4D tensor of shape `[num_batches, 4*K, H, W]` with deltas for each
+of the bound box, and a tensor with input image size in the `[image_height, image_width, scale_height_and_width]` or
+`[image_height, image_width, scale_height, scale_width]` format. `K` is number of anchors and `H, W` are height and
+width of the feature map. Operation produces two tensors:
+the first mandatory tensor of shape `[batch_size * post_nms_topn, 5]` with proposed boxes and
 the second optional tensor of shape `[batch_size * post_nms_topn]` with probabilities (sometimes referred as scores).
 
 *Proposal* layer does the following with the input tensor:
@@ -146,11 +146,11 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 
 **Inputs**:
 
-*   **1**: 4D tensor of type *T* and shape `[batch_size, 2*K, H, W]` with class prediction scores. Required.
+*   **1**: 4D tensor of type *T* and shape `[batch_size, 2*K, H, W]` with class prediction scores. **Required**.
 
-*   **2**: 4D tensor of type *T* and shape `[batch_size, 4*K, H, W]` with deltas for each bounding box. Required.
+*   **2**: 4D tensor of type *T* and shape `[batch_size, 4*K, H, W]` with deltas for each bounding box. **Required**.
 
-*   **3**: 1D tensor of type *T* with 3 or 4 elements:  `[image_height, image_width, scale_height_and_width]` or `[image_height, image_width, scale_height, scale_width]`. Required.
+*   **3**: 1D tensor of type *T* with 3 or 4 elements:  `[image_height, image_width, scale_height_and_width]` or `[image_height, image_width, scale_height, scale_width]`. **Required**.
 
 **Outputs**
 

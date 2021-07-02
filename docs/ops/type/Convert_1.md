@@ -26,11 +26,11 @@ where `a` corresponds to the input tensor.
   * **Range of values**: one of the supported types *T*
   * **Type**: `string`
   * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required**.
 
 **Outputs**
 

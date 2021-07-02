@@ -55,7 +55,7 @@
 </layer>
 ```
 
-*Example 2: squeeze 1D tensor with 1 element to a 0D tensor (constant)* 
+*Example 2: squeeze 1D tensor with 1 element to a 0D tensor (constant)*
 ```xml
 <layer ... type="Squeeze">
     <input>

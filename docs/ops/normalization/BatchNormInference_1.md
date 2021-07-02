@@ -65,11 +65,11 @@ For a particular activation, consider a mini-batch \f$\mathcal{B}\f$ of m values
 
 **Inputs**
 
-* **1**: `data` - A tensor of type *T* and at least rank 2. The second dimension represents the channel axis and must have a span of at least 1. **Required.**
-* **2**: `gamma` - Scaling factor for normalized value. A 1D tensor of type *T* with the same span as `data` channel axis. **Required.**
-* **3**: `beta` - Bias added to the scaled normalized value. A 1D tensor of type *T* with the same span as `data` channel axis. **Required.**
-* **4**: `mean` - Value for mean normalization. A 1D tensor of type *T* with the same span as `data` channel axis. **Required.**
-* **5**: `variance` - Value for variance normalization. A 1D tensor of type *T* with the same span as `data` channel axis. **Required.**
+* **1**: `data` - A tensor of type *T* and at least rank 2. The second dimension represents the channel axis and must have a span of at least 1. **Required**.
+* **2**: `gamma` - Scaling factor for normalized value. A 1D tensor of type *T* with the same span as `data` channel axis. **Required**.
+* **3**: `beta` - Bias added to the scaled normalized value. A 1D tensor of type *T* with the same span as `data` channel axis. **Required**.
+* **4**: `mean` - Value for mean normalization. A 1D tensor of type *T* with the same span as `data` channel axis. **Required**.
+* **5**: `variance` - Value for variance normalization. A 1D tensor of type *T* with the same span as `data` channel axis. **Required**.
 
 **Outputs**
 

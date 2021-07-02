@@ -9,10 +9,10 @@
 **Detailed description**:
 
 *Assign* operation sets an input value to the `variable_id` variable. This value will be returned by *ReadValue* operation on next infer if variable was not reset.
-The operation checks that the type and shape of the input are the same as 
+The operation checks that the type and shape of the input are the same as
 declared in `variable_id` and returns an error otherwise.
 
-**Attributes**: 
+**Attributes**:
 
 * *variable_id*
 
@@ -20,7 +20,7 @@ declared in `variable_id` and returns an error otherwise.
   * **Range of values**: any non-empty string
   * **Type**: string
   * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 **Inputs**
 

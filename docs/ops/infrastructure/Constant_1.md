@@ -30,7 +30,7 @@
   * **Range of values**: u1, u8, u16, u32, u64, i8, i16, i32, i64, f16, f32, boolean, bf16
   * **Type**: `string`
   * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 * *shape*
 
@@ -38,7 +38,7 @@
   * **Range of values**: list of non-negative integers, empty list is allowed, which means 0D or scalar tensor
   * **Type**: `int[]`
   * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 
 **Outputs**

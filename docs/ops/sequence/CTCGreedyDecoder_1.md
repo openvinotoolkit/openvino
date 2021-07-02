@@ -28,9 +28,9 @@ Sequences in the batch can have different length. The lengths of sequences are c
 
 **Inputs**
 
-* **1**: `data` - input tensor with batch of sequences of type *T_F* and shape `[T, N, C]`, where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. **Required.**
+* **1**: `data` - input tensor with batch of sequences of type *T_F* and shape `[T, N, C]`, where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. **Required**.
 
-* **2**: `sequence_mask` - input tensor with sequence masks for each sequence in the batch of type *T_F* populated with values `0` and `1` and shape `[T, N]`. **Required.**
+* **2**: `sequence_mask` - input tensor with sequence masks for each sequence in the batch of type *T_F* populated with values `0` and `1` and shape `[T, N]`. **Required**.
 
 **Output**
 

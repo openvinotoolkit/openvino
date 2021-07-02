@@ -20,8 +20,8 @@ where `a` and `b` correspond to `data` and `like` input tensors, respectively.
 
 **Inputs**
 
-* **1**: `data` - A tensor of type *T1* and arbitrary shape. **Required.**
-* **2**: `like` - A tensor of type *T2* and arbitrary shape. **Required.**
+* **1**: `data` - A tensor of type *T1* and arbitrary shape. **Required**.
+* **2**: `like` - A tensor of type *T2* and arbitrary shape. **Required**.
 
 **Outputs**
 

@@ -10,14 +10,14 @@
 
 Modification of DeformableConvolution using modulating scalars is also supported. Please refer to [Deformable ConvNets v2: More Deformable, Better Results](https://arxiv.org/pdf/1811.11168.pdf).
 
-Output is calculated using the following formula: 
+Output is calculated using the following formula:
 
   \f[
 
   y(p) = \sum_{k = 1}^{K}w_{k}x(p + p_{k} + {\Delta}p_{k}) * {\Delta}m_{k}
-  
+
   \f]
-Where 
+Where
 * K is a number of sampling locations, e.g. for kernel 3x3 and dilation = 1, K = 9
 
 * \f$x(p)\f$ and \f$y(p)\f$ denote the features at location p from the input feature maps x and output feature maps y
@@ -103,16 +103,16 @@ Where
   * **Type**: `boolean`
   * **Default value**: `False`
   * **Required**: *no*
-  
+
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). **Required.**
+*   **1**: Input tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). **Required**.
 
-*   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X \* 2, spatial axes Y and X). **Required.**
+*   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X \* 2, spatial axes Y and X). **Required**.
 
-*   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). **Required.**
+*   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). **Required**.
 
-*   **4**: Mask tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). If the input is not provided, the values are assumed to be equal to 1. **Optional.**
+*   **4**: Mask tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X, spatial axes Y and X). If the input is not provided, the values are assumed to be equal to 1. **Optional**.
 
 
 **Outputs**:
@@ -122,7 +122,7 @@ Where
 **Types**:
 
 * *T*: Any numeric type.
- 
+
 **Example**
 
 2D DeformableConvolution (deformable_group=1)

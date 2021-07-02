@@ -4,12 +4,12 @@
 
 **Category**: Convolution
 
-**Short description**: Computes 1D, 2D or 3D GroupConvolution of input and kernel tensors. 
+**Short description**: Computes 1D, 2D or 3D GroupConvolution of input and kernel tensors.
 
 **Detailed description**: Splits input into multiple groups, convolves them with group filters as in regular convolution and concatenates the results. More thorough explanation can be found in [ImageNet Classification with Deep Convolutional
 Neural Networks](https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf)
 
-**Attributes**: The operation has the same attributes as a regular _Convolution_. Number of groups is derived from the kernel shape. 
+**Attributes**: The operation has the same attributes as a regular _Convolution_. Number of groups is derived from the kernel shape.
 
 * *strides*
 
@@ -26,7 +26,7 @@ Neural Networks](https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76
   * **Type**: `int[]`
   * **Default value**: None
   * **Required**: *yes*
-  * **Note**: the attribute is ignored when *auto_pad* attribute is specified. 
+  * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
 * *pads_end*
 
@@ -35,7 +35,7 @@ Neural Networks](https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76
   * **Type**: `int[]`
   * **Default value**: None
   * **Required**: *yes*
-  * **Note**: the attribute is ignored when *auto_pad* attribute is specified. 
+  * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
 * *dilations*
 
@@ -59,9 +59,9 @@ Neural Networks](https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, GROUPS * C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). Required.
+*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, GROUPS * C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). **Required**.
 *   **2**: Convolution kernel tensor of type *T* and rank 4, 5 or 6. Layout is `[GROUPS, C_OUT, C_IN, Z, Y, X]` (number of groups, number of output channels, number of input channels, spatial axes Z, Y, X),
-  *   **Note** Number of groups is derived from the shape of the kernel and not specified by any attribute. 
+  *   **Note** Number of groups is derived from the shape of the kernel and not specified by any attribute.
   *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
       * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
       * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X
@@ -75,7 +75,7 @@ Neural Networks](https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76
 
 * *T*: any numeric type.
 
-**Example**:  
+**Example**:
 1D GroupConvolution
 ```xml
 <layer type="GroupConvolution" ...>

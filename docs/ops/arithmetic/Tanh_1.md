@@ -19,7 +19,7 @@ tanh ( x ) = \frac{2}{1+e^{-2x}} - 1 = 2sigmoid(2x) - 1
 
 **Inputs**:
 
-* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required**.
 
 **Outputs**:
 

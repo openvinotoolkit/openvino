@@ -6,7 +6,7 @@
 
 **Short description**: *Reverse* operations reverse specified axis in an input tensor.
 
-**Detailed description**: *Reverse* produces a tensor with the same shape as the first input tensor and with elements reversed along dimensions specified in the second input tensor. The axes can be represented either by dimension indices or as a mask. The interpretation of the second input is determined by *mode* attribute. 
+**Detailed description**: *Reverse* produces a tensor with the same shape as the first input tensor and with elements reversed along dimensions specified in the second input tensor. The axes can be represented either by dimension indices or as a mask. The interpretation of the second input is determined by *mode* attribute.
 
 If `index` mode is used, the second tensor should contain indices of axes that should be reversed. The length of the second tensor should be in a range from 0 to rank of the 1st input tensor.
 
@@ -26,7 +26,7 @@ If no axis specified, that means either the second input is empty if `index` mod
 
 **Inputs**:
 
-*   **1**: `data` the tensor of type *T1* with input data to reverse. **Required.**
+*   **1**: `data` the tensor of type *T1* with input data to reverse. **Required**.
 
 *   **2**: `axis` 1D tensor of type *T2* populated with indices of reversed axes if *mode* attribute is set to `index`, otherwise 1D tensor of type *T3* and with a length equal to the rank of `data` input that specifies a mask for reversed axes.
 
