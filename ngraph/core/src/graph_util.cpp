@@ -167,11 +167,9 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
     //         Change I's connected upstream output to O_rep
     for (size_t i = 0; i < target->get_output_size(); i++)
     {
-        for (auto& input : target->output(i).get_target_inputs())
-        {
-            input.replace_source_output(replacement->output(output_order[i]));
-        }
+        target->output(i).replace(replacement->output(output_order[i]));
     }
+
     replacement->add_node_control_dependents(target);
     replacement->add_node_control_dependencies(target);
     target->clear_control_dependents();
@@ -907,12 +905,17 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
         if (has_result_output && !is_type<ngraph::op::Parameter>(replacement.get_node()))
         {
             replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
-            // Update output tensor name
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
-            NGRAPH_SUPPRESS_DEPRECATED_END
         }
+
+        auto output_names = replacement.get_tensor_ptr()->get_names();
         output.replace(replacement);
+
+        // Union tensor names and set them to the replacement tensor
+        for (const auto & name : output.get_tensor_ptr()->get_names()) {
+            output_names.insert(name);
+        }
+        replacement.get_tensor_ptr()->set_names(output_names);
+
         copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
                           replacement.get_node_shared_ptr());
         return true;
