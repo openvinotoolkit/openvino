@@ -27,8 +27,8 @@ ie_faster_build(${TARGET_NAME}
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Transformations library")
 
-target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
-                                     PRIVATE ${NGRAPH_REF_LIBRARIES} openvino::itt ngraph::builder pugixml)
+target_link_libraries(${TARGET_NAME} PUBLIC ngraph
+                                     PRIVATE ngraph_reference openvino::itt ngraph::builder pugixml::static)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -45,7 +45,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
 
 # install
 

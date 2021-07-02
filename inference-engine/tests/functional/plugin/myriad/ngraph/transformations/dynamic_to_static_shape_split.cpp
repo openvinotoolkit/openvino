@@ -115,6 +115,6 @@ std::shared_ptr<const ngraph::Function> reference(
 TEST_P(DynamicToStaticShapeSplit, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeSplit, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeSplit, combinations);
 
 }  // namespace

@@ -19,6 +19,7 @@
 #include "lpt_ngraph_functions/subtract_multiply_to_multiply_add_function.hpp"
 
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
@@ -40,21 +41,25 @@ public:
         Multiply multiply;
         Add add;
     };
-    ngraph::Shape shape;
     low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
 };
 
+typedef std::tuple<
+    ngraph::PartialShape,
+    SubtractMultiplyToMultiplyAddTransformationTestValues> SubtractMultiplyToMultiplyAddTransformationParams;
+
 class SubtractMultiplyToMultiplyAddTransformation :
     public LayerTransformation,
-    public testing::WithParamInterface<SubtractMultiplyToMultiplyAddTransformationTestValues> {
+    public testing::WithParamInterface<SubtractMultiplyToMultiplyAddTransformationParams> {
 public:
     void SetUp() override {
-        SubtractMultiplyToMultiplyAddTransformationTestValues testValues = GetParam();
+        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        SubtractMultiplyToMultiplyAddTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = SubtractMultiplyToMultiplyAddFunction::getOriginal(
-            testValues.shape,
+            inputShape,
             testValues.actual.precisionBefore,
             testValues.actual.dequantization,
             testValues.actual.precisionAfter);
@@ -65,7 +70,7 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction = SubtractMultiplyToMultiplyAddFunction::getReference(
-            testValues.shape,
+            inputShape,
             testValues.expected.precisionBefore,
             testValues.expected.dequantization,
             testValues.expected.precisionAfter,
@@ -73,11 +78,13 @@ public:
             testValues.expected.add);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationTestValues> obj) {
-        SubtractMultiplyToMultiplyAddTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationParams> obj) {
+        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        SubtractMultiplyToMultiplyAddTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
         result <<
+            inputShape << "_" <<
             testValues.actual.precisionBefore << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.actual.precisionAfter << "_" <<
@@ -100,10 +107,15 @@ TEST_P(SubtractMultiplyToMultiplyAddTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> inputShapes = {
+    {1, 3, 299, 299},
+    {Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}
+};
+
 const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testValues = {
     // Multiply {} -> Multiply + Subtract {1x3x1x1}
     {
-        {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -120,7 +132,6 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
     // Multiply {} -> Multiply + Subtract {1x3x1x1}
     {
-        {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -137,7 +148,6 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
     // FP32 Subtract + Multiply {} -> Multiply + Subtract {1x3x1x1}
     {
-        {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -154,7 +164,6 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
     // FP32 Subtract + Multiply {} -> Multiply + Subtract {1x3x1x1}
     {
-        {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -171,7 +180,6 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
     // U8 Multiply {} -> Multiply + Subtract {1x3x1x1}
     {
-        {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -188,7 +196,6 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
     // U8 Subtract + Multiply {} -> Multiply + Subtract {1x3x1x1}
     {
-        {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -205,7 +212,6 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
     // empty
     {
-        {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -222,7 +228,6 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
     // empty
     {
-        {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -237,9 +242,25 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
             {}
         },
     },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    SubtractMultiplyToMultiplyAddTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(testValues)),
+    SubtractMultiplyToMultiplyAddTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> inputShapes = {
+    {2, 5, 2, 2}
+};
+
+const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testValues = {
     // FP32 Multiply {5x1x1} -> Multiply + Subtract {1x5x1x1}
     {
-        {2, 5, 4, 4},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -256,7 +277,6 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
     // FP32 Multiply {5x1x2}
     {
-        {2, 5, 2, 2},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -273,10 +293,62 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     SubtractMultiplyToMultiplyAddTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(testValues)),
     SubtractMultiplyToMultiplyAddTransformation::getTestCaseName);
+} // namespace testValues2
 
+namespace testValues3 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
+    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+    PartialShape::dynamic()
+};
+
+const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testValues = {
+    // Multiply {} -> Multiply + Subtract {1x3x1x1}
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {{}, {}, {0.1f}},
+            ngraph::element::f32,
+        },
+        {
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32,
+            {{0.1f}, {ngraph::element::f32}},
+            {}
+        },
+    },
+    // Multiply {} -> Multiply + Subtract {1x3x1x1}
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {{}, {}, {{0.1f, 0.2f, 0.3f}}},
+            ngraph::element::f32,
+        },
+        {
+            ngraph::element::f32,
+            {{}, {}, {{0.1f, 0.2f, 0.3f}}},
+            ngraph::element::f32,
+            {},
+            {}
+        },
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    SubtractMultiplyToMultiplyAddTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicChannels),
+        ::testing::ValuesIn(testValues)),
+    SubtractMultiplyToMultiplyAddTransformation::getTestCaseName);
+} // namespace testValues3
 } // namespace

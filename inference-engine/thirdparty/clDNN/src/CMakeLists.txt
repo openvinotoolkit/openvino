@@ -18,14 +18,6 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-intel_config_flag_apply_settings(
-    CompilerOptions
-    CMAKE_CXX_FLAGS
-    ALL_PATTERN ""
-    SET
-      RttiEnabled
-  )
-
 # ================================== Compiler preprocessor definitions =================================
 
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
@@ -145,8 +137,11 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
+target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC
+    OpenCL
+  )
+
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
-    clDNN_OpenCL
     cldnn_kernel_selector
     openvino::itt
     cldnn_runtime
@@ -165,6 +160,9 @@ if(WIN32)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
-target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
 
 # ======================================================================================================
+
+ie_sse42_optimization_flags(sse4_2_flags)
+set_source_files_properties(gpu/detection_output_cpu.cpp half.cpp
+  PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
