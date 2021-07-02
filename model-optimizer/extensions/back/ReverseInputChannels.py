@@ -94,7 +94,23 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
         'Shape': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
         'ShapeOf': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
+        'Pad': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_pad(node, rc),
     }
+
+    @staticmethod
+    def pass_rc_through_pad(node: Node, reverse_channels: Node):
+        print("----------------------------------------------")
+        print(node.name)
+        # detaching reverse_channels node from the graph
+        reverse_channels.out_port(0).get_connection().set_source(
+            reverse_channels.in_port(0).get_connection().get_source())
+        reverse_channels.in_port(0).disconnect()
+
+        node.out_port(0).get_connection().set_source(reverse_channels.out_port(0))
+        node.out_port(0).disconnect()
+        node.out_port(0).connect(reverse_channels.in_port(0))
+
+        return True
 
     @staticmethod
     def pass_rc_through_conv(node, reverse_channels):
@@ -407,6 +423,8 @@ class ApplyReverseChannels(BackReplacementPattern):
         """
         Following transformations should run in strict order, that is why we disabled them all and run here 
         """
+        print("---------------------------")
+        print("ApplyReverseChannels")
         if graph.graph['cmd_params'].reverse_input_channels:
             InsertReverseChannels().find_and_replace_pattern(graph)
         ReverseChannelsPropagationDown().find_and_replace_pattern(graph)
