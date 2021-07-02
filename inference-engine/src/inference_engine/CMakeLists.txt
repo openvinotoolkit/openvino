@@ -161,7 +161,7 @@ if (TBBBIND_2_4_FOUND)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
-                                             ${NGRAPH_LIBRARIES} ${FRONTEND_LIBRARIES} inference_engine_transformations)
+                                             ${NGRAPH_LIBRARIES} ngraph::frontend_manager inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
@@ -202,7 +202,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_transformations pugixml)
+                                               ngraph::frontend_manager inference_engine_transformations pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
