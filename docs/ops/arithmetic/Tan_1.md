@@ -2,7 +2,7 @@
 
 **Versioned name**: *Tan-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Tan* performs element-wise tangent operation with given tensor.
 
@@ -12,11 +12,11 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise tan operation. A tensor of type T.
+* **1**: The result of element-wise tan operation. A tensor of type *T*.
 
 **Types**
 
@@ -48,4 +48,3 @@ a_{i} = tan(a_{i})
     </output>
 </layer>
 ```
-

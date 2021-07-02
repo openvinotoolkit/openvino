@@ -13,7 +13,7 @@ After broadcasting *Maximum* does the following with the input tensors *a* and *
 
 \f[
 o_{i} = max(a_{i}, b_{i})
-\f] 
+\f]
 
 **Attributes**:
 
@@ -29,12 +29,12 @@ o_{i} = max(a_{i}, b_{i})
 
 **Inputs**
 
-* **1**: A tensor of type T and arbitrary shape. Required.
-* **2**: A tensor of type T and arbitrary shape. Required.
+* **1**: A tensor of type *T* and arbitrary shape. Required.
+* **2**: A tensor of type *T* and arbitrary shape. Required.
 
 **Outputs**
 
-* **1**: The result of element-wise maximum operation. A tensor of type T with shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise maximum operation. A tensor of type *T* with shape equal to broadcasted shape of two inputs.
 
 **Types**
 
