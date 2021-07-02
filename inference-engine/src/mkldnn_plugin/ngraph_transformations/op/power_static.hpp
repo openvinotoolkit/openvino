@@ -11,6 +11,7 @@ namespace MKLDNNPlugin {
 class PowerStaticNode : public ngraph::op::Op {
 public:
     static constexpr ngraph::NodeTypeInfo type_info{"PowerStatic", 0};
+    static constexpr const ::ngraph::Node::type_info_t& get_type_info_static() { return type_info; }
     const ngraph::NodeTypeInfo& get_type_info() const override { return type_info; }
 
     PowerStaticNode(const ngraph::Output<ngraph::Node> &data, const float &power, const float &scale, const float &shift,
