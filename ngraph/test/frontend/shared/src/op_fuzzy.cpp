@@ -11,18 +11,15 @@
 #include "../include/op_fuzzy.hpp"
 #include "../include/utils.hpp"
 
-
 using namespace ngraph;
 using namespace InferenceEngine;
-
-
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 using TestEngine = test::IE_CPU_Engine;
 
-
-std::string FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<FuzzyOpTestParam>& obj)
+std::string
+    FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<FuzzyOpTestParam>& obj)
 {
     std::string fe, path, fileName;
     std::tie(fe, path, fileName) = obj.param;
@@ -53,9 +50,9 @@ void FrontEndFuzzyOpTest::doLoadFromFile()
 }
 
 template <typename T>
-inline void add_input_output(cnpy::NpyArray& npy_array,
-                             test::TestCase<TestEngine>& test_case,
-                             bool is_input = true)
+inline void addInputOutput(cnpy::NpyArray& npy_array,
+                           test::TestCase<TestEngine>& test_case,
+                           bool is_input = true)
 {
     T* npy_begin = npy_array.data<T>();
     std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
@@ -72,41 +69,42 @@ static bool ends_with(std::string const& value, std::string const& ending)
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-static std::string get_model_folder(std::string& modelfile)
+static std::string getModelFolder(std::string& modelFile)
 {
-    if (!ends_with(modelfile, ".pdmodel"))
-        return modelfile;
-    size_t found = modelfile.find_last_of("/\\");
-    return modelfile.substr(0, found);
+    if (!ends_with(modelFile, ".pdmodel"))
+        return modelFile;
+    size_t found = modelFile.find_last_of("/\\");
+    return modelFile.substr(0, found);
 };
 
-void FrontEndFuzzyOpTest::runConvertedModel(std::shared_ptr<ngraph::Function> function, std::string& model_file)
+void FrontEndFuzzyOpTest::runConvertedModel(std::shared_ptr<ngraph::Function> function,
+                                            std::string& modelFile)
 {
-    auto model_folder = get_model_folder(model_file);
+    auto modelFolder = getModelFolder(modelFile);
 
     // run test
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto testCase = test::TestCase<TestEngine>(function);
 
     const auto parameters = function->get_parameters();
     for (size_t i = 0; i < parameters.size(); i++)
     {
         // read input npy file
-        std::string data_file =
-                model_folder + "/input" + std::to_string((parameters.size() - 1) - i) + ".npy";
-        cnpy::NpyArray input = cnpy::npy_load(data_file);
+        std::string dataFile =
+            modelFolder + "/input" + std::to_string((parameters.size() - 1) - i) + ".npy";
+        cnpy::NpyArray input = cnpy::npy_load(dataFile);
         auto input_dtype = parameters[i]->get_element_type();
 
         if (input_dtype == element::f32)
         {
-            add_input_output<float>(input, test_case, true);
+            addInputOutput<float>(input, testCase, true);
         }
         else if (input_dtype == element::i32)
         {
-            add_input_output<int32_t>(input, test_case, true);
+            addInputOutput<int32_t>(input, testCase, true);
         }
         else if (input_dtype == element::i64)
         {
-            add_input_output<int64_t>(input, test_case, true);
+            addInputOutput<int64_t>(input, testCase, true);
         }
         else
         {
@@ -115,39 +113,39 @@ void FrontEndFuzzyOpTest::runConvertedModel(std::shared_ptr<ngraph::Function> fu
     }
 
     const auto results = function->get_results();
-    bool use_float_test = false;
+    bool useFloatTest = false;
     for (size_t i = 0; i < results.size(); i++)
     {
         // read expected output npy file
-        std::string data_file = model_folder + "/output" + std::to_string(i) + ".npy";
-        cnpy::NpyArray output = cnpy::npy_load(data_file);
-        auto output_dtype = results[i]->get_element_type();
-        if (output_dtype == element::f32)
+        std::string dataFile = modelFolder + "/output" + std::to_string(i) + ".npy";
+        cnpy::NpyArray output = cnpy::npy_load(dataFile);
+        auto outputDtype = results[i]->get_element_type();
+        if (outputDtype == element::f32)
         {
-            add_input_output<float>(output, test_case, false);
-            use_float_test = true;
+            addInputOutput<float>(output, testCase, false);
+            useFloatTest = true;
         }
-        else if (output_dtype == element::i32)
+        else if (outputDtype == element::i32)
         {
-            add_input_output<int32_t>(output, test_case, false);
+            addInputOutput<int32_t>(output, testCase, false);
         }
-        else if (output_dtype == element::i64)
+        else if (outputDtype == element::i64)
         {
-            add_input_output<int64_t>(output, test_case, false);
+            addInputOutput<int64_t>(output, testCase, false);
         }
         else
         {
-            throw std::runtime_error("not supported dtype out " + output_dtype.get_type_name());
+            throw std::runtime_error("not supported dtype out " + outputDtype.get_type_name());
         }
     }
 
-    if (use_float_test)
+    if (useFloatTest)
     {
-        test_case.run_with_tolerance_as_fp();
+        testCase.run_with_tolerance_as_fp();
     }
     else
     {
-        test_case.run();
+        testCase.run();
     }
 }
 
@@ -164,4 +162,3 @@ TEST_P(FrontEndFuzzyOpTest, testOpFuzzy)
     // run
     runConvertedModel(function, m_modelFile);
 }
-
