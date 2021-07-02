@@ -61,6 +61,10 @@ if [ -e "$INSTALLDIR/deployment_tools/inference_engine/external/tbb" ]; then
     export TBB_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/tbb/cmake
 fi
 
+if [ -e "$INSTALLDIR/deployment_tools/tools/compile_tool" ]; then
+    export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/tools/compile_tool${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+fi
+
 if [ -e "$INSTALLDIR/deployment_tools/ngraph" ]; then
     export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/ngraph/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     export ngraph_DIR=$INSTALLDIR/deployment_tools/ngraph/cmake
@@ -84,6 +88,12 @@ fi
 export PATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PATH:+:$PATH}"
 export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
 
+
+
+if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader" ]; then
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader:$PYTHONPATH"
+    export PATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader:$PATH"
+fi
 
 if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_checker" ]; then
     export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_checker:$PYTHONPATH"

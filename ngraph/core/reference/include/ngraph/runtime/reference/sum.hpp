@@ -18,28 +18,58 @@ namespace ngraph
     {
         namespace reference
         {
-            // Windows doesn't seem to like it if we directly use std::isfinite on integer types,
-            // so we will roll our own thing here.
-            template <typename T>
-            typename std::enable_if<std::is_floating_point<T>::value, bool>::type is_finite(T x)
+            namespace details
             {
-                return std::isfinite(x);
-            }
+                // Windows doesn't seem to like it if we directly use std::isfinite on integer
+                // types, so we will roll our own thing here.
+                template <
+                    typename T,
+                    typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+                bool is_finite(T x)
+                {
+                    return std::isfinite(x);
+                }
 
-            template <typename T>
-            typename std::enable_if<std::is_same<T, bfloat16>::value ||
-                                        std::is_same<T, float16>::value,
-                                    bool>::type
-                is_finite(T x)
-            {
-                return std::isfinite(static_cast<float>(x));
-            }
+                template <typename T,
+                          typename std::enable_if<std::is_same<T, bfloat16>::value ||
+                                                      std::is_same<T, float16>::value,
+                                                  bool>::type = true>
+                bool is_finite(T x)
+                {
+                    return std::isfinite(static_cast<float>(x));
+                }
 
-            template <typename T>
-            typename std::enable_if<std::is_integral<T>::value, bool>::type is_finite(T /* x */)
-            {
-                return true;
-            }
+                template <typename T,
+                          typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+                bool is_finite(T /* x */)
+                {
+                    return true;
+                }
+
+                ///
+                /// \brief      Performs one element summation based on Kahan algorithm to
+                /// significantly reduce
+                ///             the numerical error.
+                ///
+                /// \param[in]  elem            Element to add into the accumulator.
+                /// \param      compensation    Variable that accumulates the error.
+                /// \param      sum             Result of compensated summation.
+                ///
+                template <typename T>
+                void kahan_summation(const T& elem, T& compensation, T& sum)
+                {
+                    if (is_finite(elem) && is_finite(sum))
+                    {
+                        T temp = sum + (elem - compensation);
+                        compensation = (temp - sum) - (elem - compensation);
+                        sum = temp;
+                    }
+                    else
+                    {
+                        sum = sum + elem;
+                    }
+                }
+            } // namespace details
 
             template <typename T>
             void sum(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes)
@@ -64,20 +94,7 @@ namespace ngraph
                     const size_t out_idx = std::inner_product(
                         output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
 
-                    T x = arg[in_idx];
-                    T& z = out[out_idx];
-
-                    if (is_finite(x) && is_finite(z))
-                    {
-                        T& c = cs[out_idx];
-                        T t = z + (x - c);
-                        c = (t - z) - (x - c);
-                        z = t;
-                    }
-                    else
-                    {
-                        z = z + x;
-                    }
+                    details::kahan_summation(arg[in_idx], cs[out_idx], out[out_idx]);
                 }
             }
         } // namespace reference

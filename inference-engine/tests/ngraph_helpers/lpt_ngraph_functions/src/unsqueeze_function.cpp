@@ -13,13 +13,11 @@ namespace builder {
 namespace subgraph {
 
  std::shared_ptr<ngraph::Function> UnsqueezeFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const std::vector<float>& axes,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const auto dequantizationOp = makeDequantization(input, dequantization);
 
@@ -55,15 +53,13 @@ std::shared_ptr<ngraph::Function> UnsqueezeFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> UnsqueezeFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const std::vector<float>& axes,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto unsqueeze = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Unsqueeze>>(

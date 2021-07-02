@@ -59,13 +59,15 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {RoundHalfAwayFromZero, {}},
         {Erf,                   {}},
         {GeluErf,               {}},
-        {GeluTanh,              {}}
+        {GeluTanh,              {}},
+        {Swish,                 {{0.4f}}}
 };
 
 // List of operations that should be tested also with integer precision
 const std::map<ActivationTypes, std::vector<std::vector<float>>> intActivationTypes = {
         {Negative,              {}},
         {Ceiling,               {}},
+        {Cos,                   {}},
         {Sqrt,                  {}},
         {Tanh,                  {}},
 };

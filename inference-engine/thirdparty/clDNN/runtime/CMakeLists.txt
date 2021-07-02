@@ -8,16 +8,6 @@ set(CLDNN_BUILD__PROJ             "cldnn_runtime")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
 set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
 
-# ========================================== Compiler options ==========================================
-
-intel_config_flag_apply_settings(
-    CompilerOptions
-    CMAKE_CXX_FLAGS
-    ALL_PATTERN ""
-    SET
-      RttiEnabled
-  )
-
 # ========================================= Source/Header files ========================================
 
 set(__CLDNN_Directory__main           "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -60,12 +50,16 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
+if(COMMAND add_cpplint_target)
+  add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")
+endif()
+
 if(COMMAND set_ie_threading_interface_for)
   set_ie_threading_interface_for("${CLDNN_BUILD__PROJ}")
 endif()
 
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
-    clDNN_OpenCL
+    OpenCL
     openvino::itt
   )
 
@@ -74,6 +68,5 @@ if(WIN32)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
-target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
 
 # ======================================================================================================
