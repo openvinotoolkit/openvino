@@ -231,23 +231,6 @@ Graph createReferenceGraph(bool addFakeQuantizeNode, bool insertAddNode)
     return graph;
 }
 
-template <typename CreateNodeFunctionT>
-void appendGraph(Graph& graph, CreateNodeFunctionT create_node_func)
-{
-    auto node = create_node_func(graph.output);
-    graph.output = node;
-}
-
-void appendGraphAddNode(Graph& graph)
-{
-    auto append_func = [](const ngraph::Output<ngraph::Node>& parent_node)
-    {
-        auto bias = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        return std::make_shared<ngraph::opset7::Add>(parent_node, bias);
-    };
-    appendGraph(graph, append_func);
-}
-
 } // namespace
 
 // -------------------------------------------------------------------------------------------------------
