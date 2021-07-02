@@ -50,7 +50,7 @@ The following list provides the Kaldi\*-specific parameters.
 
 ```sh
 Kaldi-specific parameters:
-  --counts COUNTS       A file name with full path to the counts file
+  --counts COUNTS       A file name with full path to the counts file or empty string to utilize count values from the model file
   --remove_output_softmax
                         Removes the Softmax that is the output layer
   --remove_memory       Remove the Memory layer and add new inputs and outputs instead
@@ -77,6 +77,8 @@ python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts -
 	where \f$C\f$ - the counts array, \f$C_{i} - i^{th}\f$ element of the counts array,
 	\f$|C|\f$ - number of elements in the counts array;
   * The normalized counts are subtracted from biases of the last or next to last layer (if last layer is SoftMax).
+
+  > **NOTE:** Model Optimizer will show warning if model contains counts values inside model and `--counts` option is not used.
 
 * If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the
 `--remove_output_softmax` flag.
