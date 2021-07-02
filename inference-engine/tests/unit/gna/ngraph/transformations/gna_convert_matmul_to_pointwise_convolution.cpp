@@ -43,7 +43,7 @@ namespace {
 struct Graph
 {
     std::shared_ptr<ngraph::opset7::Parameter> input_params;
-    ngraph::OutputVector output_nodes;
+    std::shared_ptr<ngraph::op::Op> output;
 };
 
 Graph createTransformedGraph(bool addFakeQuantizeNode)
@@ -69,14 +69,12 @@ Graph createTransformedGraph(bool addFakeQuantizeNode)
         parent_node = fq_node;
     }
 
-    auto matmul_operation = std::make_shared<ngraph::opset7::MatMul>(graph.input_params, parent_node);
+    graph.output = std::make_shared<ngraph::opset7::MatMul>(graph.input_params, parent_node);
     
-    graph.output_nodes.push_back(matmul_operation);
-
     return graph;
 }
 
-Graph createReferenceGraph(bool addFakeQuantizeNode)
+Graph createReferenceGraph(bool addFakeQuantizeNode, bool insertAddNode)
 {
     Graph graph;
 
@@ -119,19 +117,42 @@ Graph createReferenceGraph(bool addFakeQuantizeNode)
                                                                     ngraph::Strides{1, 1},
                                                                     ngraph::op::PadType::VALID);
     
+    parent_node = conv_node;
+    if (insertAddNode)
+    {
+        auto bias = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto add_node = std::make_shared<ngraph::opset7::Add>(parent_node, bias);
+        parent_node = add_node;
+    }
+
     auto const_transpose_after = ngraph::opset7::Constant::create(ngraph::element::i64,
                                                                     ngraph::Shape{4},
                                                                     ngraph::Shape{0, 2, 3, 1});
-    auto transpose_after = std::make_shared<ngraph::opset7::Transpose>(conv_node, const_transpose_after);
+    auto transpose_after = std::make_shared<ngraph::opset7::Transpose>(parent_node, const_transpose_after);
 
     auto const_reshape_after = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
                                                                             ngraph::Shape{2},
                                                                             ngraph::Shape{16, 8});
-    auto reshape_after =  std::make_shared<ngraph::opset7::Reshape>(transpose_after, const_reshape_after, false);
-
-    graph.output_nodes.push_back(reshape_after);
+    graph.output = std::make_shared<ngraph::opset7::Reshape>(transpose_after, const_reshape_after, false);
 
     return graph;
+}
+
+template <typename CreateNodeFunctionT>
+void appendGraph(Graph& graph, CreateNodeFunctionT create_node_func)
+{
+    auto node = create_node_func(graph.output);
+    graph.output = node;
+}
+
+void appendGraphAddNode(Graph& graph)
+{
+    auto append_func = [](const ngraph::Output<ngraph::Node>& parent_node)
+    {
+        auto bias = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        return std::make_shared<ngraph::opset7::Add>(parent_node, bias);
+    };
+    appendGraph(graph, append_func);
 }
 
 } // namespace
@@ -140,7 +161,7 @@ TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
     {
         Graph graph = createTransformedGraph(false /* addFakeQuantizeNode */);
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{graph.input_params});
 
@@ -152,8 +173,8 @@ TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionTest) {
     }
 
     {
-        Graph graph = createReferenceGraph(false /* addFakeQuantizeNode */);
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output_nodes.front());
+        Graph graph = createReferenceGraph(false /* addFakeQuantizeNode */, false /* insertAddNode */);
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{graph.input_params});
     }
@@ -168,7 +189,7 @@ TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionFqTest) {
     const ngraph::Shape data_shape{16, 8};
     {
         Graph graph = createTransformedGraph(true /* addFakeQuantizeNode */);
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output_nodes.front());
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{graph.input_params});
 
@@ -180,8 +201,8 @@ TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionFqTest) {
     }
 
     {
-        Graph graph = createReferenceGraph(true /* addFakeQuantizeNode */);
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output_nodes.front());
+        Graph graph = createReferenceGraph(true /* addFakeQuantizeNode */, false /* insertAddNode */);
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{graph.input_params});
     }
@@ -191,5 +212,33 @@ TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionFqTest) {
     ASSERT_TRUE(result.valid);
 }
 
+TEST(TransformationTests, ConvertMatmulWithBiasToPointWiseConvolutionTest) {
+    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
+    {
+        Graph graph = createTransformedGraph(false /* addFakeQuantizeNode */);
+        appendGraphAddNode(graph);
+
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>();
+        m.run_passes(func);
+        ASSERT_NO_THROW(check_rt_info(func));
+    }
+
+    {
+        Graph graph = createReferenceGraph(false /* addFakeQuantizeNode */, true /* insertAddNode */);
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    ASSERT_TRUE(result.valid);
+}
 
 } // namespace testing
