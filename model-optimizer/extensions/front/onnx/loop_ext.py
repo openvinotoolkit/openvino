@@ -59,7 +59,7 @@ class LoopExtractor(FrontExtractorOp):
                     if inp == '':
                         # input is omitted; most likely it corresponds to an optional input for an operator
                         continue
-                    else :
+                    else:
                         cur_graph = body_graph
                         counter = 0
                         is_finished = False
@@ -79,12 +79,13 @@ class LoopExtractor(FrontExtractorOp):
                                         Parameter.update_node_stat(parameter_node, {})
                                     else:
                                         parameter_node = transit_parameter
-                                    external_edges[counter].append((parent_graph.graph['tensor_mapping'][inp], parameter_node))
+                                    external_edges[counter].append((parent_graph.graph['tensor_mapping'][inp],
+                                                                    parameter_node, inp))
                                     src_id, src_port = param_id, 0
                                     additional_params[counter][parent_graph.graph['tensor_mapping'][inp]] = parameter_node
                                 else:
                                     src_id, src_port = additional_params[counter][parent_graph.graph['tensor_mapping'][inp]].id, 0
-                                is_finished = False
+                                is_finished = True
                             else:
                                 # create new Parameter in hope that we will find node later
                                 param_id = str(inp)
@@ -103,7 +104,7 @@ class LoopExtractor(FrontExtractorOp):
                                 # for it because the node does not have .pb attribute
                                 Parameter.update_node_stat(parent_parameter_node, {})
 
-                                external_edges[counter].append((parent_parameter_node, parameter_node))
+                                external_edges[counter].append((parent_parameter_node, parameter_node, parent_param_id))
                                 src_id, src_port = param_id, 0
                                 additional_params[counter][parent_param_id] = parameter_node
                                 transit_parameter = parent_parameter_node
@@ -205,17 +206,18 @@ class LoopExtractor(FrontExtractorOp):
         # some of the inputs/outputs may not be connected but the normalization transformation will take care of it
         # connection Loop body nodes with external input edges
         next_loop_input_port_idx = sorted(loop_node.in_edges().keys())[-1] + 1
-        for (src_node, src_port), body_node, tensor_name in external_edges:
-            main_graph.add_edge(src_node, loop_node.id, **{'out': src_port,
-                                                           'in': next_loop_input_port_idx,
-                                                           'name': src_node,
-                                                           'fw_tensor_debug_info': [(src_node, tensor_name)],
-                                                           'in_attrs': ['in', 'name'],
-                                                           'out_attrs': ['out', 'name'],
-                                                           'data_attrs': ['fw_tensor_debug_info']}
-                                )
-            Loop.connect_body_input(loop_node, next_loop_input_port_idx, body_node)
-            next_loop_input_port_idx += 1
+        for external_edges_subg in external_edges:
+            for (src_node, src_port), body_node, tensor_name in external_edges_subg:
+                main_graph.add_edge(src_node, loop_node.id, **{'out': src_port,
+                                                               'in': next_loop_input_port_idx,
+                                                               'name': src_node,
+                                                               'fw_tensor_debug_info': [(src_node, tensor_name)],
+                                                               'in_attrs': ['in', 'name'],
+                                                               'out_attrs': ['out', 'name'],
+                                                               'data_attrs': ['fw_tensor_debug_info']}
+                                    )
+                Loop.connect_body_input(loop_node, next_loop_input_port_idx, body_node)
+                next_loop_input_port_idx += 1
 
         # mark current iteration input Parameter node
         Loop.mark_current_iteration_parameter_node(loop_node, body_parameters[0])
