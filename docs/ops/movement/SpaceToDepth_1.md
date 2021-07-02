@@ -49,7 +49,7 @@ If `mode = depth_first`:
 
 **Inputs**
 
-*   **1**: `data` - input tensor of type *T* with rank >= 3. **Required**.
+*   **1**: `data` - input tensor of type *T* with rank >= 3. **Required.**
 
 **Outputs**
 
