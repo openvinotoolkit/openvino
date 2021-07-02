@@ -16,7 +16,8 @@ function(add_common_utils ADD_TARGET_NAME)
             LINK_LIBRARIES
                 PUBLIC
                     ngraph
-                    gtest gtest_main
+                    gtest
+                    gtest_main
                     inference_engine_transformations
     )
 

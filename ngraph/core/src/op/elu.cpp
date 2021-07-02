@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Elu::type_info;
+NGRAPH_RTTI_DEFINITION(op::Elu, "Elu", 0);
 
 op::Elu::Elu(const Output<Node>& data, const double alpha)
     : Op({data})
