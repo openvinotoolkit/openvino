@@ -6,6 +6,7 @@
 echo -ne "\e[0;33mWARNING: If you get an error when running the demo in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
+VENV_DIR="$HOME/venv_openvino"
 
 . "$ROOT_DIR/utils.sh"
 
@@ -111,16 +112,16 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-if [ -e "$HOME/venv" ]; then
+if [ -e "$VENV_DIR" ]; then
     echo -ne "\n###############|| Using the existing python virtual environment ||###############\n\n"
-    . "$HOME/venv/bin/activate"
 else
     echo -ne "\n###############|| Creating the python virtual environment ||###############\n\n"
-    "$python_binary" -m venv "$HOME/venv"
-    . "$HOME/venv/bin/activate"
-    python -m pip install -U pip
-    python -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
+    "$python_binary" -m venv "$VENV_DIR"
 fi
+
+. "$VENV_DIR/bin/activate"
+python -m pip install -U pip
+python -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 
 # Step 1. Download the Caffe model and the prototxt of the model
 echo -ne "\n###############|| Downloading the Caffe model and the prototxt ||###############\n\n"
