@@ -236,7 +236,7 @@ bool MKLDNNMemory::isConsistant(const mkldnn::memory::dims& dims, mkldnn::memory
 }
 
 bool MKLDNNMemory::isConsistant(const Shape& shape, mkldnn::memory::format_tag format) {
-    memory::desc attempt(shape, memory::data_type::f32, format, true);
+    memory::desc attempt(shape.getStaticMklDims(), memory::data_type::f32, format, true);
     return static_cast<bool>(attempt);
 }
 

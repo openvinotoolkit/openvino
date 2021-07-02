@@ -17,12 +17,14 @@ namespace MKLDNNPlugin {
 
 struct jit_quantize_params {
     int c;
+    bool is_planar;
 
     InferenceEngine::Precision src_prc;
     InferenceEngine::Precision wei_prc;
     InferenceEngine::Precision dst_prc;
 
-    InferenceEngine::Layout src_layout;
+    std::vector<size_t> s_str;
+    std::vector<size_t> d_str;
 
     Algorithm op_type;
 };
@@ -109,7 +111,7 @@ public:
 
 private:
     void init() override;
-    std::vector<mkldnn::memory::format_tag> getDataFormats() const;
+    std::vector<GeneralLayout> getDataFormats() const;
     void executeReference();
     void executeBinarization();
     void executeQuantization();

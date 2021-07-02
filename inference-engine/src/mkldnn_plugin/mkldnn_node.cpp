@@ -643,7 +643,8 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                 PortConfig portConfig;
                 portConfig.inPlace = -1;
                 portConfig.constant = false;
-                portConfig.desc = MemoryDescUtils::getUndefinedMemoryDesc(*getSrcMemDesc(itpd, i));
+                //portConfig.desc = MemoryDescUtils::getUndefinedMemoryDesc(*getSrcMemDesc(itpd, i));
+                portConfig.desc = getSrcMemDesc(itpd, i);
                 config.inConfs.push_back(portConfig);
             }
 
@@ -651,7 +652,8 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                 PortConfig portConfig;
                 portConfig.inPlace = canBeInPlace() ? 0 : -1;
                 portConfig.constant = false;
-                portConfig.desc = MemoryDescUtils::getUndefinedMemoryDesc(*getDstMemDesc(itpd, i));
+                //portConfig.desc = MemoryDescUtils::getUndefinedMemoryDesc(*getDstMemDesc(itpd, i));
+                portConfig.desc = getDstMemDesc(itpd, i);
                 config.outConfs.push_back(portConfig);
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -708,12 +710,12 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
     if (!selectedPD) {
         return;
     }
-    std::vector<MemoryDescPtr> inDescs;
+    std::vector<const MemoryDesc*> inDescs;
     for (const auto& inConf : config.inConfs)
-        inDescs.push_back(inConf.desc->clone());
-    std::vector<MemoryDescPtr> outDescs;
+        inDescs.push_back(inConf.desc.get());
+    std::vector<const MemoryDesc*> outDescs;
     for (const auto& outConf : config.outConfs)
-        outDescs.push_back(outConf.desc->clone());
+        outDescs.push_back(outConf.desc.get());
     createDescriptor(inDescs, outDescs);
 
     std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
@@ -948,23 +950,6 @@ const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
     return implPriorities;
 }
 
-// TODO [DS]: Replaced by MemoryDesc::isDefined();
-//bool MKLDNNNode::isUninitTensorDesc(const MemoryDesc& desc) const {
-////    if (desc.getLayout() == InferenceEngine::Layout::ANY)
-////        return true;
-//
-//    if (desc.getBlockingDesc().getOffsetPadding() == std::numeric_limits<size_t>::max())
-//        return true;
-//
-//    for (size_t i = 0; i < desc.getBlockingDesc().getOrder().size(); i++) {
-//        if (desc.getBlockingDesc().getOffsetPaddingToData()[i] == std::numeric_limits<size_t>::max() ||
-//                desc.getBlockingDesc().getStrides()[i] == std::numeric_limits<size_t>::max())
-//            return true;
-//    }
-//
-//    return false;
-//}
-
 std::unique_ptr<MemoryDesc> MKLDNNNode::getDefinedInputDesc(const NodeConfig &config, size_t idx) const {
     int num = getParentEdgeAt(idx)->getInputNum();
     auto *selectedPD = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor();
@@ -1052,17 +1037,18 @@ void MKLDNNNode::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
-    if (!isConfigDefined(config)) {
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].desc = getDefinedInputDesc(config, i);
-        }
-
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].desc = getDefinedOutputDesc(config, i);
-        }
-
-        initDescriptor(config);
-    } else if (getType() != RNNSeq && getType() != RNNCell) {
+//    if (!isConfigDefined(config)) {
+//        for (size_t i = 0; i < config.inConfs.size(); i++) {
+//            config.inConfs[i].desc = getDefinedInputDesc(config, i);
+//        }
+//
+//        for (size_t i = 0; i < config.outConfs.size(); i++) {
+//            config.outConfs[i].desc = getDefinedOutputDesc(config, i);
+//        }
+//
+//        initDescriptor(config);
+//    } else
+    if (getType() != RNNSeq && getType() != RNNCell) {
         initDescriptor(config);
     }
 }

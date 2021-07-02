@@ -478,8 +478,8 @@ public:
 
     virtual void getSupportedDescriptors() = 0;
     // TODO [DS]: Should be moved into Node derivative class
-    virtual void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                                  const std::vector<MemoryDescPtr>& outputDesc) {}
+    virtual void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
+                                  const std::vector<const MemoryDesc*>& outputDesc) {}
     virtual void initDescriptor(const NodeConfig& config);
     virtual bool created() const = 0;
     virtual bool created(const MKLDNNExtensionManager::Ptr& extMgr) {

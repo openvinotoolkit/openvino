@@ -20,8 +20,8 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
-    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                          const std::vector<MemoryDescPtr>& outputDesc) override;
+    void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
+                          const std::vector<const MemoryDesc*>& outputDesc) override;
     void initDescriptor(const NodeConfig& config) override;
     void createPrimitive() override;
     void selectOptimalPrimitiveDescriptor() override;
@@ -38,7 +38,7 @@ public:
     const mkldnn::memory& getBias() const;
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
-        return static_cast<size_t>(isWinograd() ? 1 : getOriginalInputsNumber());
+        return getOriginalInputsNumber();
     }
 
     bool canBeExecutedInInt8() const;

@@ -55,6 +55,12 @@ public:
 
         return minDims;
     }
+
+    mkldnn::memory::dims getStaticMklDims() const {
+        auto& staticDims = getStaticDims();
+        return mkldnn::memory::dims(staticDims.begin(), staticDims.end());
+    }
+
     const std::vector<size_t>& getDims() const {
         return dims;
     }
@@ -94,15 +100,6 @@ public:
         return MKLDNNDims(getStaticDims());
     }
 
-    // TODO [DS]: Shouldn't we disable explicit conversion to mkldnn::dims given requirement on static type
-    operator mkldnn::memory::dims() const {
-        if (type != ShapeType::Static) {
-            IE_THROW() << "Cannot get dims for non static shape";
-        }
-
-        return mkldnn::memory::dims(minDims.begin(), minDims.end());
-    }
-
     bool operator == (const Shape& rhs) const {
         // TODO [DS]: Shouldn't we check dims as well?
         return minDims == rhs.minDims && maxDims == rhs.maxDims;
@@ -134,15 +131,24 @@ private:
     std::vector<size_t> dims;
 };
 
+inline bool dimsEqualStrong(size_t lhs, size_t rhs) {
+    return rhs == lhs && lhs != Shape::UNDEFINED_DIM && rhs != Shape::UNDEFINED_DIM;
+}
+
+inline bool dimsEqualWeak(size_t lhs, size_t rhs) {
+    return (lhs == Shape::UNDEFINED_DIM || rhs == Shape::UNDEFINED_DIM || lhs == lhs);
+}
+
 inline bool isEqualOrUndefined(const std::vector<size_t> lhs, const std::vector<size_t>& rhs) {
     if (lhs.size() != rhs.size())
         return false;
 
     for (size_t i = 0; i < lhs.size(); i++) {
-        if (lhs[i] != rhs[i] && lhs[i] != Shape::UNDEFINED_DIM && rhs[i] != Shape::UNDEFINED_DIM)
+        if (!dimsEqualWeak(lhs[i], rhs[i]))
             return false;
     }
 
     return true;
 }
+
 }  // namespace MKLDNNPlugin
