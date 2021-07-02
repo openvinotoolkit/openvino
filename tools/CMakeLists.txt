@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.13)
 
 project(python_tools)
 
-if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
+if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
 endif()
 
@@ -23,7 +23,7 @@ if(ENABLE_PYTHON)
     # creates a copy inside bin directory for developers to have ability running python benchmark_app
     add_custom_target(${TARGET_NAME} ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINO_MAIN_SOURCE_DIR}/tools/benchmark ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools/benchmark
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINO_SOURCE_DIR}/tools/benchmark ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools/benchmark
     )
 
     ie_cpack_add_component(python_tools_${PYTHON_VERSION})
