@@ -16,7 +16,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 
 # Create module library
 
-add_library(${TARGET_NAME} MODULE ${LIBRARY_SRC})
+add_library(${TARGET_NAME} MODULE EXCLUDE_FROM_ALL ${LIBRARY_SRC})
 
 ie_faster_build(${TARGET_NAME}
     UNITY
@@ -28,11 +28,10 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/"
-                                                  "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
                                                   "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader")
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api inference_engine_plugin_api
-                                             inference_engine_legacy inference_engine pugixml openvino::itt)
+                                             inference_engine_legacy inference_engine pugixml::static openvino::itt)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -48,10 +47,13 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # for ieFuncTests
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 
 # for InferenceEngineUnitTest
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+if(WIN32)
+    install(TARGETS ${TARGET_NAME}
+            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+else()
+    install(TARGETS ${TARGET_NAME}
+            LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+endif()

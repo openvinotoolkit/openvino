@@ -22,7 +22,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-constexpr NodeTypeInfo op::GRN::type_info;
+NGRAPH_RTTI_DEFINITION(op::GRN, "GRN", 0, op::util::FusedOp);
 
 op::GRN::GRN()
     : FusedOp()
