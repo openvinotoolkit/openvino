@@ -104,33 +104,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
     CorrectConfigTests::getTestCaseName);
 
 const std::vector<std::map<std::string, std::string>>& getCorrectMultiConfigs() {
-    static const std::vector<std::map<std::string, std::string>> correctMultiConfigs = {
-        {
+    static const std::vector<std::map<std::string, std::string>> correctMultiConfigs = {{
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {KEY_LOG_LEVEL, LOG_DEBUG},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::NO},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, YES},
-        },
-
-        // Deprecated
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_CONFIG_KEY(LOG_LEVEL), LOG_DEBUG},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)},
-        },
-    };
+        }};
     return correctMultiConfigs;
 }
 
