@@ -26,7 +26,7 @@ If `special_zero` is set to `true` index of `0` cannot be larger than the rank o
 
 **Inputs**:
 
-*   **1**: `data` a tensor of type T and arbitrary shape. **Required**.
+*   **1**: `data` a tensor of type *T* and arbitrary shape. **Required**.
 
 *   **2**: `shape` 1D tensor of type *T_SHAPE* describing output shape. **Required**.
 

@@ -20,8 +20,8 @@
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required.**
-* **2**: A tensor of type T. **Required.**
+* **1**: A tensor of type *T*. **Required.**
+* **2**: A tensor of type *T*. **Required.**
 
 **Outputs**
 
@@ -40,7 +40,7 @@ After broadcasting *NotEqual* does the following with the input tensors *a* and 
 o_{i} = a_{i} != b_{i}
 \f]
 
-**Examples** 
+**Examples**
 
 *Example 1*
 

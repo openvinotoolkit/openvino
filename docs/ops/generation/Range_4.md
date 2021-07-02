@@ -18,9 +18,9 @@
 
 **Inputs**:
 
-* **1**: "start" - A scalar of type T1. **Required.**
-* **2**: "stop" - A scalar of type T2. **Required.**
-* **3**: "step" - A scalar of type T3. If `step` is equal to zero after casting to `output_type`, behavior is undefined. **Required.**
+* **1**: "start" - A scalar of type *T1*. **Required.**
+* **2**: "stop" - A scalar of type *T2*. **Required.**
+* **3**: "step" - A scalar of type *T3*. If `step` is equal to zero after casting to `output_type`, behavior is undefined. **Required.**
 
 **Outputs**:
 
@@ -124,4 +124,3 @@ This is aligned with PyTorch's operation `torch.arange`, to align with tensorflo
     </output>
 </layer>
 ```
-

@@ -4,7 +4,7 @@
 
 **Category**: Arithmetic binary operation
 
-**Short description**: *Mod* performs an element-wise modulo operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute. 
+**Short description**: *Mod* performs an element-wise modulo operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
 **Detailed description**
 As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *Mod* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
@@ -30,12 +30,12 @@ o_{i} = a_{i} % b_{i}
 
 **Inputs**
 
-* **1**: A tensor of type T and arbitrary shape. Required.
-* **2**: A tensor of type T and arbitrary shape. Required.
+* **1**: A tensor of type *T* and arbitrary shape. Required.
+* **2**: A tensor of type *T* and arbitrary shape. Required.
 
 **Outputs**
 
-* **1**: The result of element-wise modulo operation. A tensor of type T with shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise modulo operation. A tensor of type *T* with shape equal to broadcasted shape of two inputs.
 
 **Types**
 

@@ -2,7 +2,7 @@
 
 **Versioned name**: *Sinh-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Sinh* performs element-wise hyperbolic sine (sinh) operation with given tensor.
 
@@ -12,7 +12,7 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type *T*. **Required.**
 
 **Outputs**
 

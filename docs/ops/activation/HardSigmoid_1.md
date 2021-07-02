@@ -18,15 +18,15 @@ For each element from the input tensor calculates corresponding
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type *T*. **Required.**
 
-* **2**: `alpha` 0D tensor (scalar) of type T. **Required.**
+* **2**: `alpha` 0D tensor (scalar) of type *T*. **Required.**
 
-* **3**: `beta` 0D tensor (scalar) of type T. **Required.**
+* **3**: `beta` 0D tensor (scalar) of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of the hard sigmoid operation. A tensor of type T.
+* **1**: The result of the hard sigmoid operation. A tensor of type *T*.
 
 **Types**
 

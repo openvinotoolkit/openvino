@@ -30,7 +30,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
   * **Type**: `boolean`
   * **Default value**: true
   * **Required**: *No*
-    
+
 * *classes_index_type*
 
   * **Description**: the type of output tensor with classes indices
@@ -38,7 +38,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
   * **Type**: string
   * **Default value**: "i32"
   * **Required**: *No*
-  
+
 * *sequence_length_type*
 
   * **Description**: the type of output tensor with sequence length

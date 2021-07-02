@@ -41,12 +41,12 @@ The result of division by zero is undefined.
 
 **Inputs**
 
-* **1**: A tensor of type T and arbitrary shape and rank. **Required.**
-* **2**: A tensor of type T and arbitrary shape and rank. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape and rank. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape and rank. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise division operation. A tensor of type T with shape equal to broadcasted shape of the two inputs.
+* **1**: The result of element-wise division operation. A tensor of type *T* with shape equal to broadcasted shape of the two inputs.
 
 **Types**
 

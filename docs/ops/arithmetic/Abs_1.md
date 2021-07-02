@@ -2,7 +2,7 @@
 
 **Versioned name**: *Abs-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Abs* performs element-wise the absolute value with given tensor.
 
@@ -12,11 +12,11 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise abs operation. A tensor of type T.
+* **1**: The result of element-wise abs operation. A tensor of type *T*.
 
 **Types**
 
@@ -48,4 +48,3 @@ a_{i} = abs(a_{i})
     </output>
 </layer>
 ```
-

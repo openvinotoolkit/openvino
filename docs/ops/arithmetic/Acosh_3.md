@@ -2,7 +2,7 @@
 
 **Versioned name**: *Acosh-3*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Acosh* performs element-wise hyperbolic inverse cosine (arccosh) operation with given tensor.
 
@@ -12,11 +12,11 @@
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required.**
+* **1**: A tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise acosh operation. A tensor of type T.
+* **1**: The result of element-wise acosh operation. A tensor of type *T*.
 
 **Types**
 

@@ -21,13 +21,13 @@ for batch in range(BATCH_SIZE):
         parent = parent_idx[max_sequence_in_beam - 1, batch, beam]
 
         final_idx[max_sequence_in_beam - 1, batch, beam] = step_idx[max_sequence_in_beam - 1, batch, beam]
-       
+
         for level in reversed(range(max_sequence_in_beam - 1)):
             final_idx[level, batch, beam] = step_idx[level, batch, parent]
 
             parent = parent_idx[level, batch, parent]
 
-        # For a given beam, past the time step containing the first decoded end_token 
+        # For a given beam, past the time step containing the first decoded end_token
         # all values are filled in with end_token.
         finished = False
         for time in range(max_sequence_in_beam):
@@ -43,18 +43,18 @@ Element data types for all input tensors should match each other.
 
 **Inputs**
 
-* **1**:  `step_ids` -- a tensor of shape `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]` of type `T` with indices from per each step. Required.
+* **1**:  `step_ids` -- a tensor of shape `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]` of type *T* with indices from per each step. Required.
 
-* **2**:  `parent_idx` -- a tensor of shape `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]` of type `T` with parent beam indices. Required.
+* **2**:  `parent_idx` -- a tensor of shape `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]` of type *T* with parent beam indices. Required.
 
-* **3**:  `max_seq_len` -- a tensor of shape `[BATCH_SIZE]` of type `T` with maximum lengths for each sequence in the batch. Required.
+* **3**:  `max_seq_len` -- a tensor of shape `[BATCH_SIZE]` of type *T* with maximum lengths for each sequence in the batch. Required.
 
-* **4**:  `end_token` -- a scalar tensor of type `T` with value of the end marker in a sequence. Required.
+* **4**:  `end_token` -- a scalar tensor of type *T* with value of the end marker in a sequence. Required.
 
 
 **Outputs**
 
-* **1**: `final_idx` -- a tensor of shape `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]` of type `T`.
+* **1**: `final_idx` -- a tensor of shape `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]` of type *T*.
 
 **Types**
 
