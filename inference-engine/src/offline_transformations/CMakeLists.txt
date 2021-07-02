@@ -17,7 +17,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create static library
 
-add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations ngraph::reference
                                      PRIVATE openvino::itt pugixml::static)
