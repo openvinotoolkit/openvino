@@ -68,7 +68,6 @@ if (ENABLE_MYRIAD)
     include_directories(
             engines/vpu/myriad_tests/helpers
             ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE})
 
