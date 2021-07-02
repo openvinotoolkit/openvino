@@ -361,10 +361,6 @@ const std::shared_ptr<IAllocator>& CompoundBlob::getAllocator() const noexcept {
     return _allocator;
 };
 
-void* CompoundBlob::getHandle() const noexcept {
-    return nullptr;
-}
-
 NV12Blob::NV12Blob(const Blob::Ptr& y, const Blob::Ptr& uv)
     : CompoundBlob(verifyNV12BlobInput(y, uv)) {
     this->_blobs = {y, uv};
