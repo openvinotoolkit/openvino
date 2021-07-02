@@ -6,10 +6,43 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
+
+namespace adaptive_avg_pool
+{
+    template <element::Type_t ET>
+    bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
+    {
+        runtime::reference::adaptive_avg_pool(
+            arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg0->get_shape(), out->get_shape());
+        return true;
+    }
+
+    bool evaluate_adaptive_avg_pool(const HostTensorPtr& arg0, const HostTensorPtr& out)
+    {
+        bool rc = true;
+        switch (arg0->get_element_type())
+        {
+            NGRAPH_TYPE_CASE(evaluate_add, i8, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_add, i16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_add, i32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_add, i64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_add, u8, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_add, u16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_add, u32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_add, u64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_add, bf16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_add, f16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_add, f32, arg0, out);
+        default: rc = false; break;
+        }
+        return rc;
+    }
+} // namespace adaptive_avg_pool
 
 NGRAPH_RTTI_DEFINITION(op::v8::AdaptiveAvgPool, "AdaptiveAvgPool", 8);
 
@@ -70,4 +103,32 @@ shared_ptr<Node> op::v8::AdaptiveAvgPool::clone_with_new_inputs(const OutputVect
     NGRAPH_OP_SCOPE(v8_AdaptiveAvgPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v8::AdaptiveAvgPool>(new_args.at(0), new_args.at(1));
+}
+
+bool op::v8::AdaptiveAvgPool::evaluate(const HostTensorVector& outputs,
+                                       const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v8_AdaptiveAvgPool_evaluate);
+    return adaptive_avg_pool::evaluate_adaptive_avg_pool(inputs[0], outputs[0]);
+}
+
+bool op::v8::AdaptiveAvgPool::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v8_AdaptiveAvgPool_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }
