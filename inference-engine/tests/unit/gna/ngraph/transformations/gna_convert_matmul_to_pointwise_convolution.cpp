@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <tuple>
+#include <memory>
 
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 
@@ -46,33 +47,125 @@ struct Graph
     std::shared_ptr<ngraph::op::Op> output;
 };
 
-Graph createTransformedGraph(bool addFakeQuantizeNode)
+// ------------------------------------------------------------------------------------------------------------
+
+// TODO: use std::make_unique when C++14 will be avaialble
+template <typename T, typename... Args>
+std::unique_ptr<T> make_unique(Args&&... args)
 {
-    Graph graph;
-
-    graph.input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64,
-                                                                    ngraph::Shape{16, 8});
-
-    auto constant_node = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{8, 8}, {1});
-
-    std::shared_ptr<ngraph::op::Op> parent_node = constant_node;
-
-    if (addFakeQuantizeNode)
-    {
-        auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-        auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-        auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-        auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-        auto fq_node = std::make_shared<ngraph::opset7::FakeQuantize>(constant_node, input_low,
-                                                                        input_high, output_low,
-                                                                        output_high, 11);
-        parent_node = fq_node;
-    }
-
-    graph.output = std::make_shared<ngraph::opset7::MatMul>(graph.input_params, parent_node);
-    
-    return graph;
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
+
+class CreateGraphDecorator
+{
+public:
+    CreateGraphDecorator(std::unique_ptr<CreateGraphDecorator> prev_builder = nullptr) : prev_builder_(std::move(prev_builder)) {}
+    virtual ~CreateGraphDecorator() = default;
+    virtual Graph build()
+    {
+        Graph graph;
+        if (prev_builder_)
+            graph = prev_builder_->build();
+        updateGraph(graph);
+        return graph;
+    }
+protected:
+    virtual void updateGraph(Graph&) = 0;
+private:
+    std::unique_ptr<CreateGraphDecorator> prev_builder_;
+};
+
+using CreateGraphDecoratorPtr = std::unique_ptr<CreateGraphDecorator>;
+
+class CreateBaseDecorator : public CreateGraphDecorator
+{
+public:
+    // always the first decorator => no prev_builder
+    CreateBaseDecorator() : CreateGraphDecorator(nullptr) {}
+protected:
+    Graph build() override;
+    void updateGraph(Graph&) override {}
+};
+
+Graph CreateBaseDecorator::build() {
+    Graph graph;
+    graph.input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64,
+                                                                     ngraph::Shape{16, 8});
+    graph.output = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{8, 8}, {1});
+    return graph; 
+}
+
+class CreateFakeQuantize : public CreateGraphDecorator
+{
+public:
+    CreateFakeQuantize(CreateGraphDecoratorPtr prev_builder = nullptr) : CreateGraphDecorator(std::move(prev_builder)) {}
+protected:
+    void updateGraph(Graph&) override;
+};
+
+void CreateFakeQuantize::updateGraph(Graph& graph)
+{
+    auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+    auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+    auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+    auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+    auto fq_node = std::make_shared<ngraph::opset7::FakeQuantize>(graph.output, input_low,
+                                                                  input_high, output_low,
+                                                                  output_high, 11);
+    graph.output = fq_node;
+}
+
+class CreateMatMul : public CreateGraphDecorator
+{
+public:
+    CreateMatMul(CreateGraphDecoratorPtr prev_builder = nullptr) : CreateGraphDecorator(std::move(prev_builder)) {}
+protected:
+    void updateGraph(Graph&) override;
+};
+
+void CreateMatMul::updateGraph(Graph& graph)
+{
+    auto matmul_node = std::make_shared<ngraph::opset7::MatMul>(graph.input_params, graph.output);
+    graph.output = matmul_node;
+}
+
+class CreateAdd : public CreateGraphDecorator
+{
+public:
+    CreateAdd(CreateGraphDecoratorPtr prev_builder = nullptr) : CreateGraphDecorator(std::move(prev_builder)) {}
+protected:
+    void updateGraph(Graph&) override;
+};
+
+void CreateAdd::updateGraph(Graph& graph)
+{
+    auto bias = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+    auto add_node = std::make_shared<ngraph::opset7::Add>(graph.output, bias);
+    graph.output = add_node;
+}
+
+template<typename Arg, typename... Args>
+auto createBuildDecorator() -> typename std::enable_if<(sizeof...(Args) == 0), CreateGraphDecoratorPtr>::type
+{
+    CreateGraphDecoratorPtr build_decorator = make_unique<CreateBaseDecorator>();
+    return make_unique<Arg>(std::move(build_decorator));
+}
+
+template<typename Arg, typename... Args>
+auto createBuildDecorator() -> typename std::enable_if<(sizeof...(Args) > 0), CreateGraphDecoratorPtr>::type
+{
+    CreateGraphDecoratorPtr build_decorator = createBuildDecorator<Args...>();
+    return make_unique<Arg>(std::move(build_decorator));
+}
+
+template<typename Arg, typename... Args>
+Graph createTransformedGraph()
+{
+    CreateGraphDecoratorPtr build_decorator = createBuildDecorator<Arg, Args...>();
+    return build_decorator->build();
+}
+
+// ------------------------------------------------------------------------------------------------------------
 
 Graph createReferenceGraph(bool addFakeQuantizeNode, bool insertAddNode)
 {
@@ -157,10 +250,13 @@ void appendGraphAddNode(Graph& graph)
 
 } // namespace
 
+// -------------------------------------------------------------------------------------------------------
+
 TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
     {
-        Graph graph = createTransformedGraph(false /* addFakeQuantizeNode */);
+        Graph graph = createTransformedGraph<CreateMatMul>();
+
         auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{graph.input_params});
@@ -188,7 +284,8 @@ TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionFqTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
     const ngraph::Shape data_shape{16, 8};
     {
-        Graph graph = createTransformedGraph(true /* addFakeQuantizeNode */);
+        Graph graph = createTransformedGraph<CreateMatMul, CreateFakeQuantize>();
+
         auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{graph.input_params});
@@ -215,8 +312,7 @@ TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionFqTest) {
 TEST(TransformationTests, ConvertMatmulWithBiasToPointWiseConvolutionTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
     {
-        Graph graph = createTransformedGraph(false /* addFakeQuantizeNode */);
-        appendGraphAddNode(graph);
+        Graph graph = createTransformedGraph<CreateAdd, CreateMatMul>();
 
         auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -244,8 +340,7 @@ TEST(TransformationTests, ConvertMatmulWithBiasToPointWiseConvolutionTest) {
 TEST(TransformationTests, ConvertMatmulWithBiasToPointWiseConvolutionFqTest) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
     {
-        Graph graph = createTransformedGraph(true /* addFakeQuantizeNode */);
-        appendGraphAddNode(graph);
+        Graph graph = createTransformedGraph<CreateAdd, CreateMatMul, CreateFakeQuantize>();
 
         auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -268,6 +363,37 @@ TEST(TransformationTests, ConvertMatmulWithBiasToPointWiseConvolutionFqTest) {
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
+}
+
+
+// TODO
+TEST(TransformationTests, ConvertMatmulWithFqToPointWiseConvolutionTest) {
+    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
+    {
+        Graph graph = createTransformedGraph<CreateAdd, CreateMatMul>();
+
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>();
+        m.run_passes(func);
+        ASSERT_NO_THROW(check_rt_info(func));
+    }
+#if 0
+    {
+        Graph graph = createReferenceGraph(false /* addFakeQuantizeNode */, true /* insertAddNode */);
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    ASSERT_TRUE(result.valid);
+#endif
 }
 
 } // namespace testing
