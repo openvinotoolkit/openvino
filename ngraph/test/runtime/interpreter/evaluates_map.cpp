@@ -7,6 +7,9 @@
 #include "backend.hpp"
 #include "ngraph/ops.hpp"
 
+#include <iomanip>
+#include <iostream>
+#include <limits>
 #include <ngraph/runtime/reference/abs.hpp>
 #include <ngraph/runtime/reference/avg_pool.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
@@ -1105,6 +1108,16 @@ namespace
                   const HostTensorVector& inputs)
     {
         const auto attrs = op->get_attrs();
+        std::cout << "ExperimentalDetectronROIFeatureExtractor attributes:\n";
+        std::cout << "    output_size:    " << attrs.output_size << "\n";
+        std::cout << "    sampling_ratio: " << attrs.sampling_ratio << "\n";
+        std::cout << "    aligned:        " << (attrs.aligned ? "true" : "false") << "\n";
+        std::cout << "    pyramid_scales: ";
+        for (auto x : attrs.pyramid_scales)
+        {
+            std::cout << x << ", ";
+        }
+        std::cout << "\n\n";
 
         std::vector<std::vector<float>> input_data;
         std::vector<Shape> input_shapes;
@@ -1113,6 +1126,21 @@ namespace
             const auto current_shape = input->get_shape();
             input_data.push_back(get_floats(input, current_shape));
             input_shapes.push_back(current_shape);
+        }
+        std::cout << "Input data:\n";
+        for (size_t i = 0; i < input_data.size(); ++i)
+        {
+            std::cout << "    input number " << i << "has data: ";
+            for (auto x : input_data[i])
+            {
+                std::cout << x << ", ";
+            }
+            std::cout << "\n\n";
+        }
+        std::cout << "Input shapes:\n";
+        for (size_t i = 0; i < input_shapes.size(); ++i)
+        {
+            std::cout << "    input number " << i << "has shape: " << input_shapes[i] <<"\n\n";
         }
 
         const auto info =
