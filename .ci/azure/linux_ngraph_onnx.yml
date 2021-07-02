@@ -1,5 +1,5 @@
 jobs:
-- job: OpenVINO ONNX CI
+- job: OpenVINO-ONNX-CI
   strategy:
     matrix:
       Release:
