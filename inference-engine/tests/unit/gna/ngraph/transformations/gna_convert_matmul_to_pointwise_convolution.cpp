@@ -49,7 +49,7 @@ struct Graph
 
 // ------------------------------------------------------------------------------------------------------------
 
-// TODO: use std::make_unique when C++14 will be avaialble
+// TODO: use std::make_unique when C++14 will be available
 template <typename T, typename... Args>
 std::unique_ptr<T> make_unique(Args&&... args)
 {
