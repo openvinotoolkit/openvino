@@ -203,7 +203,12 @@ namespace ngraph
             // this overload supports passing a lambda as predictor
             template <ngraph::element::Type_t et_i = et_input,
                       ngraph::element::Type_t et_o = et_output,
-                      typename Predictor>
+                      typename Ti = ngraph::fundamental_type_for<et_i>,
+                      typename To = ngraph::fundamental_type_for<et_o>,
+                      typename Predictor,
+                      typename std::enable_if<
+                          std::is_convertible<Predictor&&, std::function<To(Ti)>>::value,
+                          bool>::type = true>
             void test(const std::initializer_list<Data<et_i>>& inputs,
                       Predictor elewise_predictor,
                       Tolerance tol = {})
@@ -226,12 +231,17 @@ namespace ngraph
                       typename To = ngraph::fundamental_type_for<et_o>>
             void test(const Data<et_i>& input, To (*elewise_predictor)(Ti), Tolerance tol = {})
             {
-                test<et_i, et_o>({input}, elewise_predictor, tol);
+                test<et_i, et_o>({input}, std::function<To(Ti)>(elewise_predictor), tol);
             }
 
             template <ngraph::element::Type_t et_i = et_input,
                       ngraph::element::Type_t et_o = et_output,
-                      typename Predictor>
+                      typename Ti = ngraph::fundamental_type_for<et_i>,
+                      typename To = ngraph::fundamental_type_for<et_o>,
+                      typename Predictor,
+                      typename std::enable_if<
+                          std::is_convertible<Predictor&&, std::function<To(Ti)>>::value,
+                          bool>::type = true>
             void test(const Data<et_i>& input, Predictor elewise_predictor, Tolerance tol = {})
             {
                 test<et_i, et_o>({input}, elewise_predictor, tol);
