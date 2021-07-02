@@ -16,6 +16,25 @@ add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
 
 #
+# Pugixml
+#
+
+if(ENABLE_SYSTEM_PUGIXML)
+    find_package(PugiXML REQUIRED)
+    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+    add_library(pugixml::static ALIAS pugixml)
+else()
+    function(ie_build_pugixml)
+        set(BUILD_SHARED_LIBS OFF)
+        add_subdirectory(pugixml EXCLUDE_FROM_ALL)
+        set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml::static)
+    endfunction()
+
+    ie_build_pugixml()
+endif()
+
+#
 # Fluid, G-API, OpenCV HAL
 #
 
@@ -88,6 +107,9 @@ function(add_gtest_libraries)
     endif()
     set_target_properties(gtest gtest_main gmock gmock_main
                           PROPERTIES FOLDER thirdparty)
+    
+    openvino_developer_export_targets(COMPONENT inference_engine_tests
+                                      TARGETS gmock gmock_main gtest gtest_main)
 endfunction()
 
 if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)

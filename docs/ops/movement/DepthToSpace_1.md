@@ -48,11 +48,11 @@ If `mode = depth_first`:
 
 **Inputs**
 
-*   **1**: `data` - input tensor of type T with rank >= 3. **Required**.
+*   **1**: `data` - input tensor of type *T* with rank >= 3. **Required**.
 
 **Outputs**
 
-*   **1**: permuted tensor of type T and shape `[N, C / block_size ^ K, D1 * block_size, D2 * block_size, ..., DK * block_size]`.
+*   **1**: permuted tensor of type *T* and shape `[N, C / block_size ^ K, D1 * block_size, D2 * block_size, ..., DK * block_size]`.
 
 **Types**
 

@@ -44,6 +44,8 @@ namespace ngraph
                               const BroadcastModeSpec& broadcast_mode = BroadcastType::NUMPY);
 
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 void validate_and_infer_types() override;
                 /// \return true and the AxisSet if broadcast axes can be fully determined.
                 virtual std::pair<bool, AxisSet> get_broadcast_axes() const;
