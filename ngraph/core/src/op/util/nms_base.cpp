@@ -18,9 +18,9 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(op::util::NmsBase, "NmsBase", 0);
 
 op::util::NmsBase::NmsBase(ngraph::element::Type& output_type, int& nms_top_k, int& keep_top_k)
-    : m_output_type{output_type}
-    , m_nms_top_k{nms_top_k}
-    , m_keep_top_k{keep_top_k}
+    : m_output_type(output_type)
+    , m_nms_top_k(nms_top_k)
+    , m_keep_top_k(keep_top_k)
 {
 }
 
