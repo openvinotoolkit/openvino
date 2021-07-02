@@ -8,7 +8,7 @@ file (GLOB SRC *.cpp)
 add_library(${TARGET_NAME} STATIC ${SRC})
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_SOURCE_DIR}/include")
 
-if(EXISTS "${OpenVINO_MAIN_SOURCE_DIR}/thirdparty/gflags")
+if(EXISTS "${OpenVINO_SOURCE_DIR}/thirdparty/gflags")
     function(add_gflags)
         set(GFLAGS_IS_SUBPROJECT TRUE)
         set(HAVE_SYS_STAT_H 1)
@@ -16,7 +16,7 @@ if(EXISTS "${OpenVINO_MAIN_SOURCE_DIR}/thirdparty/gflags")
         set(INTTYPES_FORMAT C99)
         set(BUILD_TESTING OFF)
         set(BUILD_SHARED_LIBS OFF)
-        add_subdirectory(${OpenVINO_MAIN_SOURCE_DIR}/thirdparty/gflags
+        add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/gflags
                          ${CMAKE_CURRENT_BINARY_DIR}/gflags_build
                          EXCLUDE_FROM_ALL)
         set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)

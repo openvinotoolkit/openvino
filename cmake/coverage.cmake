@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(OV_COVERAGE_BASE_DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}")
+set(OV_COVERAGE_BASE_DIRECTORY "${OpenVINO_SOURCE_DIR}")
 
 ie_coverage_clean(REPOSITORY "openvino"
                   DIRECTORY "${OV_COVERAGE_GCDA_DATA_DIRECTORY}")

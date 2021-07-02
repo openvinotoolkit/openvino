@@ -143,7 +143,7 @@ if(BUILD_SHARED_LIBS)
         COMPONENT ngraph_dev)
 endif()
 
-configure_package_config_file(${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
+configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
     INSTALL_DESTINATION cmake)
 

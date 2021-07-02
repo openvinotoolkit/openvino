@@ -28,12 +28,12 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLU
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES}
+target_link_libraries(${TARGET_NAME} PRIVATE ngraph
                                              inference_engine_reader_api
                                              inference_engine_plugin_api
                                              inference_engine
                                              inference_engine_transformations
-                                             pugixml
+                                             pugixml::static
                                              openvino::itt)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})

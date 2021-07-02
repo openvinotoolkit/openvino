@@ -22,11 +22,6 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h
 
 addVersionDefines(mkldnn_plugin.cpp CI_BUILD_NUMBER)
 
-include_directories(
-        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-        ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn
-        ${CMAKE_CURRENT_SOURCE_DIR})
-
 # create plugin
 
 ie_add_plugin(NAME ${TARGET_NAME}
@@ -51,6 +46,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE mkldnn
                                              inference_engine_lp_transformations)
 
 target_include_directories(${TARGET_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
         $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
 # Cross compiled function

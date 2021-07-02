@@ -11,11 +11,11 @@ if (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 if (NOT TARGET IE::inference_engine)
     find_package(IEDevScripts REQUIRED
-                 PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                  NO_CMAKE_FIND_ROOT_PATH
                  NO_DEFAULT_PATH)
 endif()

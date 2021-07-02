@@ -8,11 +8,11 @@ set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type")
 
 project(time_tests)
 
-set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 # Search OpenVINO Inference Engine via InferenceEngine_DIR
 find_package(IEDevScripts REQUIRED
-             PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+             PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
