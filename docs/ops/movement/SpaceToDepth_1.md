@@ -13,7 +13,7 @@
 
 The operation is equivalent to the following transformation of the input tensor `data` with `K` spatial dimensions of shape `[N, C, D1, D2, ..., DK]` to *Y* output tensor. If `mode = blocks_first`:
 
-    x' = reshape(data, [N, C, D1/block_size, block_size, D2/block_size, block_size, ... , DK/block_size, block_size])
+    x' = reshape(data, [N, C, D1 / block_size, block_size, D2 / block_size, block_size, ... , DK / block_size, block_size])
 
     x'' = transpose(x',  [0,  3, 5, ..., K + (K + 1), 1,  2, 4, ..., K + K])
 
@@ -21,7 +21,7 @@ The operation is equivalent to the following transformation of the input tensor 
 
 If `mode = depth_first`:
 
-    x' = reshape(data, [N, C, D1/block_size, block_size, D2/block_size, block_size, ..., DK/block_size, block_size])
+    x' = reshape(data, [N, C, D1 / block_size, block_size, D2 / block_size, block_size, ..., DK / block_size, block_size])
 
     x'' = transpose(x', [0,  1, 3, 5, ..., K + (K + 1),  2, 4, ..., K + K])
 
