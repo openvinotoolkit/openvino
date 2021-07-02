@@ -381,6 +381,39 @@ TEST(type_prop, batch_to_space_incompatible_block_shape_input_values_with_data_s
     }
 }
 
+TEST(type_prop, batch_to_space_invalid_crops_out_of_bounds)
+{
+    Shape data_sshape{32, 4, 1, 3};
+    element::Type data_et = element::f32;
+
+    Shape inputs_sshape{4};
+    element::Type inputs_et = element::i64;
+
+    auto data = make_shared<op::Parameter>(data_et, data_sshape);
+    auto block_shape =
+        make_shared<op::Constant>(inputs_et, inputs_sshape, vector<int64_t>{1, 2, 2, 1});
+    auto crops_begin =
+        make_shared<op::Constant>(inputs_et, inputs_sshape, vector<int64_t>{0, 3, 1, 2});
+    auto crops_end =
+        make_shared<op::Constant>(inputs_et, inputs_sshape, vector<int64_t>{0, 3, 0, 2});
+
+    try
+    {
+        auto batch_to_space =
+            make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+        FAIL() << "Invalid out of bound crops values not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+            "crops_begin[i] + crops_end[i] must be less or equal to block_shape[i] * input_shape[i]");
+    }
+    catch (...)
+    {
+        FAIL() << "Crops values check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, batch_to_space_output_shape_2D)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{10, 26});

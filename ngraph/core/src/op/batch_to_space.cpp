@@ -143,6 +143,17 @@ void op::v1::BatchToSpace::validate_and_infer_types()
                               " product of block_shape values: ",
                               block_prod);
 
+        for (size_t idx = 0; idx < data_sshape.size(); idx++)
+        {
+            const bool is_valid_crops_and_shape =
+                crops_begin_val[idx] + crops_end_val[idx] <=
+                block_val[idx] * static_cast<int64_t>(data_sshape[idx]);
+            NODE_VALIDATION_CHECK(this,
+                                  is_valid_crops_and_shape,
+                                  "crops_begin[i] + crops_end[i] must be less or equal to "
+                                  "block_shape[i] * input_shape[i]");
+        }
+
         Shape output_sshape = {static_cast<size_t>(data_sshape[0] / block_prod)};
         for (size_t idx = 1; idx < data_sshape.size(); ++idx)
         {
