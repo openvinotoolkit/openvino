@@ -197,15 +197,45 @@ namespace
             return false;
         }
         auto data_shape = data->get_shape();
-
-        if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5))
+        auto data_rank = data_shape.size();
+        if (!(data_rank == 4 || data_rank == 5))
         {
             return false;
         }
+
         size_t block_values_size = shape_size(inputs[1]->get_shape());
+        size_t crops_begin_size = shape_size(inputs[2]->get_shape());
+        size_t crops_end_size = shape_size(inputs[3]->get_shape());
+        NGRAPH_CHECK(block_values_size == data_rank && crops_begin_size == data_rank &&
+                     crops_end_size == data_rank);
+
         const auto* block_values = inputs[1]->get_data_ptr<int64_t>();
         const auto* crops_begin_values = inputs[2]->get_data_ptr<int64_t>();
         const auto* crops_end_values = inputs[3]->get_data_ptr<int64_t>();
+
+        const bool block_vals_valid = std::all_of(
+            block_values, block_values + block_values_size, [](int64_t elem) { return elem >= 1; });
+        NGRAPH_CHECK(block_vals_valid);
+
+        const bool crops_begin_vals_valid = std::all_of(crops_begin_values,
+                                                        crops_begin_values + crops_begin_size,
+                                                        [](int64_t elem) { return elem >= 0; });
+        const bool crops_end_vals_valid = std::all_of(crops_end_values,
+                                                      crops_end_values + crops_end_size,
+                                                      [](int64_t elem) { return elem >= 0; });
+        NGRAPH_CHECK(crops_begin_vals_valid && crops_end_vals_valid);
+
+        const std::size_t block_prod = std::accumulate(
+            block_values, block_values + block_values_size, 1UL, std::multiplies<std::size_t>());
+        NGRAPH_CHECK(data_shape[0] % block_prod == 0);
+
+        for (size_t i = 0; i < data_rank; i++)
+        {
+            const bool is_valid_crops_and_shape =
+                crops_begin_values[i] + crops_end_values[i] <=
+                block_values[i] * static_cast<int64_t>(data_shape[i]);
+            NGRAPH_CHECK(is_valid_crops_and_shape);
+        }
 
         Shape dispersed_shape(1);
         dispersed_shape.insert(dispersed_shape.end(), data_shape.begin(), data_shape.end());
