@@ -115,6 +115,7 @@ set(SRC
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
     type_prop/deformable_convolution.cpp
+    type_prop/deformable_convolution_opset8.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
@@ -234,6 +235,7 @@ set(SRC
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
     visitors/op/cum_sum.cpp
+    visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
