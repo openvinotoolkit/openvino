@@ -665,5 +665,6 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
     add_dependencies(unit-test pdpd_test_models)
     add_dependencies(unit-test paddlepaddle_ngraph_frontend)
+    target_link_libraries(unit-test PRIVATE cnpy)
 endif()
 
