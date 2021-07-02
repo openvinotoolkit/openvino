@@ -43,5 +43,5 @@ if(CMAKE_CROSSCOMPILING)
     set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
 endif()
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/onnx ${CMAKE_BINARY_DIR}/_deps/onnx EXCLUDE_FROM_ALL)
+add_subdirectory(onnx EXCLUDE_FROM_ALL)
 onnx_set_target_properties()

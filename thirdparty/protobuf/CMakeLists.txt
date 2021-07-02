@@ -44,14 +44,14 @@ set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
 
 if (NOT BUILD_STANDALONE_STATIC)
-    add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/protobuf/cmake ${CMAKE_BINARY_DIR}/_deps/protobuf EXCLUDE_FROM_ALL)
-    get_directory_property(protobuf_VERSION DIRECTORY ${CMAKE_SOURCE_DIR}/thirdparty/protobuf/cmake DEFINITION protobuf_VERSION)
+    add_subdirectory(protobuf/cmake EXCLUDE_FROM_ALL)
+    get_directory_property(protobuf_VERSION DIRECTORY protobuf/cmake DEFINITION protobuf_VERSION)
 endif()
 if (USE_STATIC_PROTOBUF)
     include(FetchContent)
     FetchContent_Declare(
             ext_protobuf_static
-            URL ${protobuf_location}
+            URL ${CMAKE_CURRENT_SOURCE_DIR}/../protobuf
     )
     FetchContent_GetProperties(ext_protobuf_static)
     if((NOT ext_protobuf_static_POPULATED) AND BUILD_STANDALONE_STATIC)
@@ -122,3 +122,8 @@ if (NOT BUILD_STANDALONE_STATIC)
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
     export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
 endif()
+
+# forward variables used in the other places
+set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
+set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
+set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
