@@ -155,12 +155,12 @@ void PermuteKernel::prepareParams() {
         tmp_order.push_back(params.order[params.dst_block_order[i]]);
 
     const bool byDst = isPermutationsByDstStrides(tmp_order);
-    SizeVector first_block_dims = byDst ? params.dst_block_dims : params.src_block_dims;
-    SizeVector second_block_dims = byDst ? params.src_block_dims : params.dst_block_dims;
-    SizeVector first_block_order = byDst ? params.dst_block_order : params.src_block_order;
-    SizeVector second_block_order = byDst ? params.src_block_order : params.dst_block_order;
-    SizeVector first_block_strides = byDst ? dst_block_strides : src_block_strides;
-    SizeVector second_block_strides = byDst ? src_block_strides : dst_block_strides;
+    SizeVector first_block_dims     = byDst ? params.dst_block_dims  : params.src_block_dims;
+    SizeVector second_block_dims    = byDst ? params.src_block_dims  : params.dst_block_dims;
+    SizeVector first_block_order    = byDst ? params.dst_block_order : params.src_block_order;
+    SizeVector second_block_order   = byDst ? params.src_block_order : params.dst_block_order;
+    SizeVector first_block_strides  = byDst ? dst_block_strides      : src_block_strides;
+    SizeVector second_block_strides = byDst ? src_block_strides      : dst_block_strides;
 
     SizeVector new_first_block_dims = first_block_dims;
     SizeVector new_second_block_dims(second_block_dims.size(), 1);
@@ -169,7 +169,6 @@ void PermuteKernel::prepareParams() {
     SizeVector new_first_block_order = first_block_order;
 
     const size_t n_dims = first_block_strides.size();
-    SizeVector mask(n_dims, 0);
     if (!byDst) {
         tmp_order.clear();
         for (size_t i = 0; i < first_block_order.size(); i++) {
@@ -179,6 +178,7 @@ void PermuteKernel::prepareParams() {
         }
     }
 
+    SizeVector mask(n_dims, 0);
     for (int i = tmp_order.size() - 1; i >= 0; i--) {
         int pos = std::distance(std::find(
                 second_block_order.rbegin(), second_block_order.rend(), tmp_order[i]), second_block_order.rend() - 1);
@@ -194,11 +194,13 @@ void PermuteKernel::prepareParams() {
     }
     if (!second_block_order.empty()) {
         int pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), second_block_order.front()));
+
         new_second_block_strides.insert(new_second_block_strides.begin() + pos, second_block_strides.front());
         new_first_block_strides.insert(new_first_block_strides.begin() + pos, new_first_block_strides[pos] * second_block_dims.back());
         new_first_block_order.insert(new_first_block_order.begin() + pos, new_first_block_order[pos]);
         new_first_block_dims.insert(new_first_block_dims.begin() + pos + 1, second_block_dims.back());
         new_first_block_dims[pos] = div_up(new_first_block_dims[pos], new_first_block_dims[pos + 1]);
+
         mask.insert(mask.begin() + pos + 1, 1);
         mask[pos] = 1;
     }
@@ -284,6 +286,7 @@ bool PermuteKernel::isPermutationsByDstStrides(const SizeVector& order) const {
     const size_t n_dims = order.size();
     if (n_dims < 4 || std::count(order.begin(), order.end(), 1) != 1)
         return true;
+
     SizeVector default_order(n_dims);
     std::iota(default_order.begin(), default_order.end(), 0);
 
@@ -303,10 +306,12 @@ bool PermuteKernel::isPermutationsByDstStrides(const SizeVector& order) const {
     if (order_channel_to_last == order)
         return dims_after_first > params.dst_block_dims.back();
 
-    // check order such as 0132, 01432, etc
-    SizeVector order_spatial_reverse(default_order);
-    std::reverse(order_spatial_reverse.begin() + 2, order_spatial_reverse.end());
-    return order_spatial_reverse != order;
+    // check order such as 0132
+    SizeVector order_spatial_reverse = {0, 1, 3, 2};
+    if (order_spatial_reverse == order)
+        return params.src_block_dims[n_dims - 2] <= params.src_block_dims[n_dims - 1];
+
+    return true;
 }
 
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {

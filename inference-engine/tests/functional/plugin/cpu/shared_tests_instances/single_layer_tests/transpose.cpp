@@ -35,7 +35,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose2D, TransposeLayerTest,
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                 TransposeLayerTest::getTestCaseName);
 
-std::vector<std::vector<size_t>> inputShape4D = {{2, 2, 2, 2}, {1, 10, 2, 3}, {2, 3, 4, 5}, {3, 2, 3, 16}};
+std::vector<std::vector<size_t>> inputShape4D = {{2, 2, 2, 2}, {1, 10, 3, 3}, {2, 3, 4, 5}, {3, 2, 3, 16}, {2, 2, 16, 3}};
 std::vector<std::vector<size_t>> order4D      = {
         {}, {0, 1, 2, 3}, {0, 1, 3, 2}, {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 3, 1, 2}, {0, 3, 2, 1},
         {1, 0, 2, 3}, {1, 0, 3, 2}, {1, 2, 0, 3}, {1, 2, 3, 0}, {1, 3, 0, 2}, {1, 3, 2, 0},
