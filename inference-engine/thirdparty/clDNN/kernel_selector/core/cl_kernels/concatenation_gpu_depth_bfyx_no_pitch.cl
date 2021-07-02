@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 //
 // In this kernel we are processing "fyx" as flatten 1D "elements".
@@ -22,7 +23,7 @@
     #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_float8(intel_sub_group_block_read8((const __global uint*)(ptr) + (byte_offset)))
     #define ALIGNED_BLOCK_WRITE8(ptr, byte_offset, val) intel_sub_group_block_write8((__global uint*)(ptr) + (byte_offset), as_uint8(val))
 #endif
-    
+
 __attribute__((reqd_work_group_size(1, WORK_GROUP_SIZE, 1)))
 __attribute__((intel_reqd_sub_group_size(WORK_GROUP_SIZE)))
 KERNEL (concatenation_gpu_depth_bfyx_no_padding)(__global UNIT_TYPE* input, __global UNIT_TYPE* output, uint output_offset_in_concat_axis)

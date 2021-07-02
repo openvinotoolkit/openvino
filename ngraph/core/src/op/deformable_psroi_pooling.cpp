@@ -8,7 +8,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::DeformablePSROIPooling::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::DeformablePSROIPooling, "DeformablePSROIPooling", 1);
 
 op::v1::DeformablePSROIPooling::DeformablePSROIPooling(const Output<Node>& input,
                                                        const Output<Node>& coords,

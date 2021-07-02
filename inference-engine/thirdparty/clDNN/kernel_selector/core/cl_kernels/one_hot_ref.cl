@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #if OUTPUT_LAYOUT_BFZYX
     #define GET_COORDS_INDEX(prefix, coords) GET_DATA_INDEX_5D(prefix, coords[0], coords[1], coords[2], coords[3], coords[4])
