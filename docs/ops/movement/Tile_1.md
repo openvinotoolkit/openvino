@@ -14,8 +14,8 @@ No attributes available.
 
 **Inputs**:
 
-* **1**: "data" - an input tensor to be padded. A tensor of type *T*1. **Required.**
-* **2**: "repeats" - a per-dimension replication factor. For example, *repeats* equal to 88 means that the output tensor gets 88 copies of data from the specified axis. A tensor of type *T*2. **Required.**
+* **1**: "data" - an input tensor to be padded. A tensor of type *T1*. **Required.**
+* **2**: "repeats" - a per-dimension replication factor. For example, *repeats* equal to 88 means that the output tensor gets 88 copies of data from the specified axis. A tensor of type *T2*. **Required.**
 
 **Outputs**:
 
