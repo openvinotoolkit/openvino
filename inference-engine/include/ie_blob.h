@@ -243,17 +243,6 @@ protected:
      * @return The allocator for allocator-based blobs or nullptr if there is none
      */
     virtual const std::shared_ptr<IAllocator>& getAllocator() const noexcept = 0;
-
-    /**
-     * @brief Gets a handle to allocated memory
-     *
-     * @return The handle to allocated memory for allocator-based blobs or nullptr if there is none
-     */
-    virtual void* getHandle() const noexcept = 0;
-
-    /// private
-    template <typename>
-    friend class TBlobProxy;
 };
 
 /**
@@ -472,7 +461,7 @@ protected:
      *
      * @return The handle to allocated memory for allocator-based blobs or if there is none then a nullptr.
      */
-    void* getHandle() const noexcept override = 0;
+    virtual void* getHandle() const noexcept = 0;
 
     /// private
     template <typename>
@@ -610,7 +599,7 @@ public:
      */
     void allocate() noexcept override {
         const auto allocator = getAllocator();
-        const auto rawHandle = allocator->alloc(size() * sizeof(T));
+        const auto rawHandle = allocator->alloc(byteSize());
 
         if (rawHandle == nullptr) {
             return;
@@ -761,6 +750,7 @@ protected:
     template <class S>
     LockedMemory<S> lockme() const {
         return LockedMemory<S>(_allocator.get(), getHandle(), 0);
+         //   getTensorDesc().getBlockingDesc().getOffsetPadding());
     }
 
     /**

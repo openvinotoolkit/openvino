@@ -21,8 +21,8 @@ namespace ngraph
             class NGRAPH_API HardSigmoid : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"HardSigmoid", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 HardSigmoid();
 
                 /// \brief      Constructs a HardSigmoid operation.
