@@ -29,6 +29,9 @@ public:
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap& map, Predicate predicate);
     virtual BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const = 0;
+    std::unique_ptr<BlockedMemoryDesc> createUniqueDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const {
+        return make_unique<BlockedMemoryDesc>(createDesc(precision, srcDims));
+    }
     virtual size_t getMinimalRank() const = 0;
     virtual ~BlockedDescCreator() = default;
 };

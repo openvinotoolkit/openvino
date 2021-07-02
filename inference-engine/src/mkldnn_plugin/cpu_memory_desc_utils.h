@@ -20,8 +20,9 @@ public:
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const MemoryDesc& desc);
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const BlockedMemoryDesc& desc);
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const InferenceEngine::TensorDesc& desc);
+    static BlockedMemoryDesc convertToBlockedDescriptor(const MKLDNNMemoryDesc& inpDesc);
 
-    static MemoryDescPtr getUndefinedMemoryDesc(const MKLDNNMemoryDesc& desc);
+    //static MemoryDescPtr getUndefinedMemoryDesc(const MKLDNNMemoryDesc& desc);
 };
 
 }  // namespace MKLDNNPlugin
