@@ -334,7 +334,8 @@ class TestGraphUtils(unittest.TestCase):
                                                 - Concat->result
                                                /
         input_2 -> hsigmoid_3 -> ShapeOf    ->
-        The returned op should be first met HSigmoids which are hsigmoid_2 and hsigmoid_4
+        The returned op should be first met HSigmoids which is hsigmoid_2, but not the hsigmoid_3 located after banned
+        operation of type "ShapeOf"
         """
         nodes = {**regular_op('input_1', {'op': 'Parameter'}),
                  **regular_op('hsigmoid_1', {'op': 'HSigmoid'}),
