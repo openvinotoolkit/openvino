@@ -27,11 +27,11 @@
 
 **Inputs**:
 
-* **1**: `cond` - tensor of type *T_COND* and arbitrary shape with selection mask.
+* **1**: `cond` - tensor of type *T_COND* and arbitrary shape with selection mask. **Required**.
 
-* **2**: `then` - tensor of type *T* and arbitrary shape with elements to take where the corresponding element in `cond` is `true`.
+* **2**: `then` - tensor of type *T* and arbitrary shape with elements to take where the corresponding element in `cond` is `true`. **Required**.
 
-* **3**: `else` - tensor of type *T* and arbitrary shape with elements to take where the corresponding element in `cond` is `false`.
+* **3**: `else` - tensor of type *T* and arbitrary shape with elements to take where the corresponding element in `cond` is `false`. **Required**.
 
 
 **Outputs**:
