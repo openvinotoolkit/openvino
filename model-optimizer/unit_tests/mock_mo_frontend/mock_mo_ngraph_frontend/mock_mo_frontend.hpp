@@ -325,7 +325,7 @@ protected:
     {
         if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))
         {
-            auto path = as_type_ptr<VariantWrapper<path_type>>(variants[0])->get();
+            auto path = as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
             m_stat.m_load_paths.push_back(path);
         }
         return std::make_shared<InputModelMockPy>();

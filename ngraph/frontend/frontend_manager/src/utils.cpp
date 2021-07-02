@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "frontend_manager/utils.hpp"
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "plugin_loader.hpp"
+#include "utils.hpp"
 
 #ifndef _WIN32
 #include <dlfcn.h>

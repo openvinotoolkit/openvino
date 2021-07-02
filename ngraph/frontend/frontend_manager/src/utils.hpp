@@ -3,7 +3,7 @@
 //
 
 #include <string>
-#include "frontend_manager_defs.hpp"
+#include "frontend_manager/frontend_manager_defs.hpp"
 
 namespace ngraph
 {
