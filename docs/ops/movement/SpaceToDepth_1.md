@@ -6,11 +6,32 @@
 
 **Short description**: *SpaceToDepth* operation rearranges data from the spatial dimensions of the input tensor into depth dimension of the output tensor.
 
+
+**Detailed description**
+
+*SpaceToDepth* operation permutes element from the input tensor with shape `[N, C, D1, D2, ..., DK]`, to the output tensor where values from the input spatial dimensions `D1, D2, ..., DK` are moved to the new depth dimension.
+
+The operation is equivalent to the following transformation of the input tensor `data` with `K` spatial dimensions of shape `[N, C, D1, D2, ..., DK]` to *Y* output tensor. If `mode = blocks_first`:
+
+    x' = reshape(data, [N, C, D1 / block_size, block_size, D2 / block_size, block_size, ... , DK / block_size, block_size])
+
+    x'' = transpose(x',  [0,  3, 5, ..., K + (K + 1), 1,  2, 4, ..., K + K])
+
+    y = reshape(x'', [N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ... , DK / block_size])
+
+If `mode = depth_first`:
+
+    x' = reshape(data, [N, C, D1 / block_size, block_size, D2 / block_size, block_size, ..., DK / block_size, block_size])
+
+    x'' = transpose(x', [0,  1, 3, 5, ..., K + (K + 1),  2, 4, ..., K + K])
+
+    y = reshape(x'', [N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ..., DK / block_size])
+
 **Attributes**
 
 * *block_size*
 
-  * **Description**: *block_size* specifies the size of the value block to be moved. The depth dimension size must be evenly divided by `block_size ^ (len(input.shape) - 2)`.
+  * **Description**: specifies the size of the value block to be moved. The spatial dimensions must be evenly divided by `block_size`.
   * **Range of values**: a positive integer
   * **Type**: `int`
   * **Default value**: 1
@@ -28,32 +49,15 @@
 
 **Inputs**
 
-*   **1**: `data` - input tensor of any type with rank >= 3. Required.
+*   **1**: `data` - input tensor of type *T* with rank >= 3. **Required.**
 
 **Outputs**
 
-*   **1**: permuted tensor with shape `[N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ..., DK / block_size]`.
+*   **1**: permuted tensor of type *T* and shape `[N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ..., DK / block_size]`.
 
-**Detailed description**
+**Types**
 
-*SpaceToDepth* operation permutes element from the input tensor with shape `[N, C, D1, D2, ..., DK]`, to the output tensor where values from the input spatial dimensions `D1, D2, ..., DK` are moved to the new depth dimension. Refer to the [ONNX* specification](https://github.com/onnx/onnx/blob/master/docs/Operators.md#SpaceToDepth) for an example of the 4D input tensor case.
-
-The operation is equivalent to the following transformation of the input tensor `data` with `K` spatial dimensions of shape `[N, C, D1, D2, ..., DK]` to *Y* output tensor. If `mode = blocks_first`:
-
-    x' = reshape(data, [N, C, D1/block_size, block_size, D2/block_size, block_size, ... , DK/block_size, block_size])
-
-    x'' = transpose(x',  [0,  3, 5, ..., K + (K + 1), 1,  2, 4, ..., K + K])
-
-    y = reshape(x'', [N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ... , DK / block_size])
-
-If `mode = depth_first`:
-
-    x' = reshape(data, [N, C, D1/block_size, block_size, D2/block_size, block_size, ..., DK/block_size, block_size])
-
-    x'' = transpose(x', [0,  1, 3, 5, ..., K + (K + 1),  2, 4, ..., K + K])
-
-    y = reshape(x'', [N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ..., DK / block_size])
-
+* *T*: any supported type.
 
 **Example**
 
