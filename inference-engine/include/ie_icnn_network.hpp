@@ -223,7 +223,7 @@ protected:
     /**
      * @brief Default destructor.
      */
-    virtual ~ICNNNetwork() = default;
+    ~ICNNNetwork() = default;
     IE_SUPPRESS_DEPRECATED_END
 };
 
