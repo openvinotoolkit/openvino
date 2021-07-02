@@ -11,13 +11,13 @@ foreach(component IN LISTS openvino_export_components)
 endforeach()
 add_custom_target(ie_dev_targets ALL DEPENDS ${all_dev_targets})
 
-configure_package_config_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
+configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
                               INSTALL_DESTINATION share # not used
-                              PATH_VARS "OpenVINO_MAIN_SOURCE_DIR;gflags_BINARY_DIR"
+                              PATH_VARS "OpenVINO_SOURCE_DIR;gflags_BINARY_DIR"
                               NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
-configure_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
                "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
                @ONLY)
 endfunction()
@@ -54,7 +54,7 @@ generate_fake_dev_package()
 # automatically import plugins from the 'plugins' folder
 file(GLOB local_extra_modules "runtime/plugins/*")
 # add template plugin
-list(APPEND local_extra_modules "${OpenVINO_MAIN_SOURCE_DIR}/docs/template_plugin")
+list(APPEND local_extra_modules "${OpenVINO_SOURCE_DIR}/docs/template_plugin")
 
 # detect where IE_EXTRA_MODULES contains folders with CMakeLists.txt
 # other folders are supposed to have sub-folders with CMakeLists.txt

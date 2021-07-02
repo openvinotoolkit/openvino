@@ -23,6 +23,7 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
+                pugixml::static
                 ${EXPORT_DEPENDENCIES}
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}

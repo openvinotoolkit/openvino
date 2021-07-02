@@ -10,6 +10,10 @@
 	path = thirdparty/zlib/zlib
 	url = https://github.com/madler/zlib.git
 	ignore = dirty
+[submodule "thirdparty/pugixml"]
+	path = thirdparty/pugixml
+	url = https://github.com/zeux/pugixml.git
+	ignore = dirty
 [submodule "thirdparty/ade"]
 	path = thirdparty/ade
 	url = https://github.com/opencv/ade.git
@@ -25,12 +29,15 @@
 [submodule "thirdparty/ocl/icd_loader"]
 	path = thirdparty/ocl/icd_loader
 	url = https://github.com/KhronosGroup/OpenCL-ICD-Loader.git
+	ignore = dirty
 [submodule "thirdparty/ocl/cl_headers"]
 	path = thirdparty/ocl/cl_headers
 	url = https://github.com/KhronosGroup/OpenCL-Headers.git
+	ignore = dirty
 [submodule "thirdparty/ocl/clhpp_headers"]
 	path = thirdparty/ocl/clhpp_headers
 	url = https://github.com/KhronosGroup/OpenCL-CLHPP.git
+	ignore = dirty
 [submodule "thirdparty/onnx"]
 	path = thirdparty/onnx/onnx
 	url = https://github.com/openvinotoolkit/onnx.git
