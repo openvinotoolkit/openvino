@@ -4,11 +4,6 @@
 
 set(TARGET_NAME sharedTestClasses)
 
-list(APPEND EXPORT_DEPENDENCIES
-        funcTestUtils
-        ngraphFunctions
-        )
-
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -24,9 +19,8 @@ addIeTarget(
         LINK_LIBRARIES
             PRIVATE
                 pugixml::static
-                ${EXPORT_DEPENDENCIES}
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
+                funcTestUtils
+                ngraphFunctions
 )
 
 # CVS-55373

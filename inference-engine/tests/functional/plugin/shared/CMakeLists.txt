@@ -4,13 +4,6 @@
 
 set(TARGET_NAME funcSharedTests)
 
-list(APPEND EXPORT_DEPENDENCIES
-        funcTestUtils
-        ngraphFunctions
-        lptNgraphFunctions
-        sharedTestClasses
-        )
-
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 addIeTarget(
@@ -28,7 +21,10 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 pugixml::static
-                ${EXPORT_DEPENDENCIES}
+                funcTestUtils
+                ngraphFunctions
+                lptNgraphFunctions
+                sharedTestClasses
             PRIVATE
                 inference_engine_transformations
         DEPENDENCIES
@@ -36,8 +32,6 @@ addIeTarget(
             mock_engine
             HeteroPlugin
             MultiDevicePlugin
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
 )
 
 # CVS-55376

@@ -4,13 +4,8 @@
 
 set (TARGET_NAME "format_reader")
 
-file (GLOB MAIN_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-        )
-
-file (GLOB LIBRARY_HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        )
+file (GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file (GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -18,7 +13,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 
 # Create library file from sources.
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${LIBRARY_HEADERS})
+add_library(${TARGET_NAME} SHARED EXCLUDE_FROM_ALL ${MAIN_SRC} ${LIBRARY_HEADERS})
 
 # Find OpenCV components if exist
 find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)

@@ -5,7 +5,11 @@
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h *.inc)
 
 function(add_graph_transformer_target TARGET_NAME STATIC_IE)
-    add_library(${TARGET_NAME} STATIC ${SOURCES})
+    if(STATIC_IE)
+        set(exclude_from_all EXCLUDE_FROM_ALL)
+    endif()
+
+    add_library(${TARGET_NAME} STATIC ${exclude_from_all} ${SOURCES})
 
     set_ie_threading_interface_for(${TARGET_NAME})
 

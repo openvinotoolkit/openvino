@@ -107,6 +107,9 @@ function(add_gtest_libraries)
     endif()
     set_target_properties(gtest gtest_main gmock gmock_main
                           PROPERTIES FOLDER thirdparty)
+    
+    openvino_developer_export_targets(COMPONENT inference_engine_tests
+                                      TARGETS gmock gmock_main gtest gtest_main)
 endfunction()
 
 if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
