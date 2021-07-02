@@ -36,7 +36,6 @@ jobs:
 
   steps:
   - script: |
-      echo This is the variable TOX_COMMAND: $(TOX_COMMAND)
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
@@ -94,5 +93,5 @@ jobs:
     displayName: 'Create swap'
 
   - script: |
-      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image /bin/bash -c $(TOX_COMMAND)
+      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image /bin/bash -c "$(TOX_COMMAND)"
     displayName: 'Docker run'
