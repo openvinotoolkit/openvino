@@ -17,9 +17,9 @@
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes must match,
-    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
-    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
+    * *none* - no auto-broadcasting is allowed, all input shapes must match
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
   * **Type**: `string`
   * **Default value**: "numpy"
   * **Required**: *no*
@@ -27,11 +27,11 @@
 
 **Inputs**:
 
-* **1**: `cond` tensor of type *T_COND* and arbitrary shape with selection mask.
+* **1**: `cond` - tensor of type *T_COND* and arbitrary shape with selection mask.
 
-* **2**: `then` tensor of type *T* and arbitrary shape with elements to take where the corresponding element in `cond` is `true`. 
+* **2**: `then` - tensor of type *T* and arbitrary shape with elements to take where the corresponding element in `cond` is `true`.
 
-* **3**: `else` tensor of type *T* and arbitrary shape with elements to take where the corresponding element in `cond` is `false`.
+* **3**: `else` - tensor of type *T* and arbitrary shape with elements to take where the corresponding element in `cond` is `false`.
 
 
 **Outputs**:
