@@ -99,7 +99,7 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt)
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt)
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
@@ -123,7 +123,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE
                                                       $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-                                                             $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
+                                                             $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -159,8 +159,8 @@ if (TBBBIND_2_4_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
-                                             ${NGRAPH_LIBRARIES} inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
+                                             ngraph inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
@@ -200,8 +200,8 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_transformations pugixml)
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
+                                               inference_engine_transformations pugixml::static)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
@@ -294,7 +294,7 @@ set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}")
 set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
-configure_package_config_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
+configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
                                INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
                                PATH_VARS ${PATH_VARS})
@@ -304,12 +304,12 @@ set(IE_NGRAPH_DIR "../ngraph/cmake")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "share/ie_parallel.cmake")
 
-configure_package_config_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
+configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
                               INSTALL_DESTINATION share
                               PATH_VARS ${PATH_VARS})
 
-configure_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
                "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
                @ONLY)
 

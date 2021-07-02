@@ -12,7 +12,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR auto_plugin.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES} inference_engine inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE ngraph inference_engine inference_engine_transformations)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 

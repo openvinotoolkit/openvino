@@ -16,6 +16,25 @@ add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
 
 #
+# Pugixml
+#
+
+if(ENABLE_SYSTEM_PUGIXML)
+    find_package(PugiXML REQUIRED)
+    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+    add_library(pugixml::static ALIAS pugixml)
+else()
+    function(ie_build_pugixml)
+        set(BUILD_SHARED_LIBS OFF)
+        add_subdirectory(pugixml EXCLUDE_FROM_ALL)
+        set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml::static)
+    endfunction()
+
+    ie_build_pugixml()
+endif()
+
+#
 # Fluid, G-API, OpenCV HAL
 #
 
