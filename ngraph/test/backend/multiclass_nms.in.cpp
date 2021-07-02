@@ -40,13 +40,14 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_score)
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{1, 6, 4};  // N 1, C 2, M 6
     const auto scores_shape = Shape{1, 2, 6};
@@ -54,17 +55,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_score)
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
 
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -110,13 +101,14 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_class_id)
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{1, 6, 4}; // N 1, C 2, M 6
     const auto scores_shape = Shape{1, 2, 6};
@@ -124,17 +116,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_class_id)
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
 
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -180,13 +162,15 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_output_type_i32)
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
+    attrs.output_type = element::i32;
 
     const auto boxes_shape = Shape{1, 6, 4}; // N 1, C 2, M 6
     const auto scores_shape = Shape{1, 2, 6};
@@ -194,17 +178,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_output_type_i32)
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
 
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i32,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -257,13 +231,14 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score)
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1
         };
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
@@ -271,17 +246,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score)
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
 
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -335,30 +300,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_class_id)
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
         };
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -412,13 +368,15 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score_cro
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1
         };
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
+    attrs.sort_result_across_batch = true;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
@@ -426,17 +384,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score_cro
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
 
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  true,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -494,30 +442,22 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_class_id_
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
         };
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
+    attrs.sort_result_across_batch = true;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  true,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -566,30 +506,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_flipped_coordinates)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{1, 6, 4}; // N 1, C 1, M 6
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -633,30 +564,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_identical_boxes)
 
     std::vector<float> scores_data = {0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9};
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{1, 10, 4}; // N 1, C 1, M 10
     const auto scores_shape = Shape{1, 1, 10};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -697,30 +619,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_limit_output_size)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t nms_top_k = 2;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 2;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -760,30 +673,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_single_box)
 
     std::vector<float> scores_data = {0.9};
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{1, 1, 4};
     const auto scores_shape = Shape{1, 1, 1};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -824,30 +728,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_IOU)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.2f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.2f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -889,30 +784,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_IOU_and_scores)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.95f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.95f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -953,30 +839,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_no_output)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 2.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 2.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -1026,30 +903,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_background)
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
         };
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto keep_top_k = -1;
-    const auto background_class = 0;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    attrs.keep_top_k = -1;
+    attrs.background_class = 0;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -1100,30 +968,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_keep_top_k)
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
         };
 
-    const int64_t nms_top_k = 3;
-    const float iou_threshold = 0.5f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto keep_top_k = 3;
-    const auto background_class = -1;
-    const auto nms_eta = 1.0f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.iou_threshold = 0.5f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    attrs.keep_top_k = 3;
+    attrs.background_class = -1;
+    attrs.nms_eta = 1.0f;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -1177,30 +1036,21 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_nms_eta)
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
         };
 
-    const int64_t nms_top_k = -1;
-    const float iou_threshold = 1.0f;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
-    const auto nms_eta = 0.1f;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = -1;
+    attrs.iou_threshold = 1.0f;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::CLASSID;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
+    attrs.nms_eta = 0.1f;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MulticlassNms>(boxes,
-                                                  scores,
-                                                  sort_result_type,
-                                                  false,
-                                                  element::i64,
-                                                  iou_threshold,
-                                                  score_threshold,
-                                                  nms_top_k,
-                                                  keep_top_k,
-                                                  background_class,
-                                                  nms_eta);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 

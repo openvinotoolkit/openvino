@@ -228,16 +228,7 @@ namespace ngraph
                             const Shape& boxes_data_shape,
                             const float* scores_data,
                             const Shape& scores_data_shape,
-                            op::util::NmsBase::SortResultType sort_result_type,
-                            bool sort_result_across_batch,
-                            float score_threshold,
-                            int nms_top_k,
-                            int keep_top_k,
-                            int background_class,
-                            const op::v8::MatrixNms::DecayFunction decay_function,
-                            float gaussian_sigma,
-                            float post_threshold,
-                            bool normalized,
+                            const op::v8::MatrixNms::Attributes& attrs,
                             float* selected_outputs,
                             const Shape& selected_outputs_shape,
                             int64_t* selected_indices,
@@ -268,21 +259,21 @@ namespace ngraph
 
                     for (int64_t class_idx = 0; class_idx < num_classes; class_idx++)
                     {
-                        if (class_idx == background_class)
+                        if (class_idx == attrs.background_class)
                             continue;
                         const float* scoresPtr =
                             scores_data + batch * (num_classes * num_boxes) + class_idx * num_boxes;
-                        if (decay_function == op::v8::MatrixNms::DecayFunction::GAUSSIAN)
+                        if (attrs.decay_function == op::v8::MatrixNms::DecayFunction::GAUSSIAN)
                         {
                             nms_matrix<float, true>(boxesPtr,
                                                     boxes_data_shape,
                                                     scoresPtr,
                                                     scores_data_shape,
-                                                    score_threshold,
-                                                    post_threshold,
-                                                    gaussian_sigma,
-                                                    nms_top_k,
-                                                    normalized,
+                                                    attrs.score_threshold,
+                                                    attrs.post_threshold,
+                                                    attrs.gaussian_sigma,
+                                                    attrs.nms_top_k,
+                                                    attrs.normalized,
                                                     &all_indices,
                                                     &all_scores);
                         }
@@ -292,11 +283,11 @@ namespace ngraph
                                                      boxes_data_shape,
                                                      scoresPtr,
                                                      scores_data_shape,
-                                                     score_threshold,
-                                                     post_threshold,
-                                                     gaussian_sigma,
-                                                     nms_top_k,
-                                                     normalized,
+                                                     attrs.score_threshold,
+                                                     attrs.post_threshold,
+                                                     attrs.gaussian_sigma,
+                                                     attrs.nms_top_k,
+                                                     attrs.normalized,
                                                      &all_indices,
                                                      &all_scores);
                         }
@@ -312,9 +303,9 @@ namespace ngraph
                         break;
                     }
 
-                    if (keep_top_k > -1)
+                    if (attrs.keep_top_k > -1)
                     {
-                        auto k = static_cast<size_t>(keep_top_k);
+                        auto k = static_cast<size_t>(attrs.keep_top_k);
                         if (num_det > k)
                             num_det = k;
                     }
@@ -352,9 +343,9 @@ namespace ngraph
                     num_per_batch.push_back(num_det);
                 }
 
-                if (sort_result_across_batch)
+                if (attrs.sort_result_across_batch)
                 { /* sort across batch */
-                    if (sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
+                    if (attrs.sort_result_type == op::v8::MatrixNms::SortResultType::SCORE)
                     {
                         std::sort(
                             filtered_boxes.begin(),
@@ -368,7 +359,7 @@ namespace ngraph
                                         l.class_index == r.class_index && l.index < r.index);
                             });
                     }
-                    else if (sort_result_type == op::v8::MulticlassNms::SortResultType::CLASSID)
+                    else if (attrs.sort_result_type == op::v8::MatrixNms::SortResultType::CLASSID)
                     {
                         std::sort(filtered_boxes.begin(),
                                   filtered_boxes.end(),

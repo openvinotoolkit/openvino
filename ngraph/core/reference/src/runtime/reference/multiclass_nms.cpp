@@ -163,15 +163,7 @@ namespace ngraph
                                 const Shape& boxes_data_shape,
                                 const float* scores_data,
                                 const Shape& scores_data_shape,
-                                op::util::NmsBase::SortResultType sort_result_type,
-                                bool sort_result_across_batch,
-                                float iou_threshold,
-                                float score_threshold,
-                                int nms_top_k,
-                                int keep_top_k,
-                                int background_class,
-                                float nms_eta,
-                                bool normalized,
+                                const op::v8::MulticlassNms::Attributes& attrs,
                                 float* selected_outputs,
                                 const Shape& selected_outputs_shape,
                                 int64_t* selected_indices,
@@ -210,10 +202,10 @@ namespace ngraph
 
                     for (int64_t class_idx = 0; class_idx < num_classes; class_idx++)
                     {
-                        if (class_idx == background_class)
+                        if (class_idx == attrs.background_class)
                             continue;
 
-                        auto adaptive_threshold = iou_threshold;
+                        auto adaptive_threshold = attrs.iou_threshold;
 
                         const float* scoresPtr =
                             scores_data + batch * (num_classes * num_boxes) + class_idx * num_boxes;
@@ -223,7 +215,7 @@ namespace ngraph
                         for (int64_t box_idx = 0; box_idx < num_boxes; box_idx++)
                         {
                             if (scoresPtr[box_idx] >=
-                                score_threshold) /* NOTE: ">=" instead of ">" used in PDPD */
+                                attrs.score_threshold) /* NOTE: ">=" instead of ">" used in PDPD */
                             {
                                 candidate_boxes.emplace_back(
                                     r[box_idx], box_idx, scoresPtr[box_idx], 0, batch, class_idx);
@@ -235,9 +227,9 @@ namespace ngraph
                         // threshold nms_top_k for each class
                         // NOTE: "nms_top_k" in PDPD not exactly equal to
                         // "max_output_boxes_per_class" in ONNX.
-                        if (nms_top_k > -1 && nms_top_k < candiate_size)
+                        if (attrs.nms_top_k > -1 && attrs.nms_top_k < candiate_size)
                         {
-                            candiate_size = nms_top_k;
+                            candiate_size = attrs.nms_top_k;
                         }
 
                         if (candiate_size <= 0) // early drop
@@ -274,7 +266,7 @@ namespace ngraph
                                  --j)
                             {
                                 float iou = multiclass_nms_v8::intersectionOverUnion(
-                                    next_candidate.box, selected[j].box, normalized);
+                                    next_candidate.box, selected[j].box, attrs.normalized);
                                 next_candidate.score *= func(iou, adaptive_threshold);
 
                                 if (iou >= adaptive_threshold)
@@ -283,7 +275,7 @@ namespace ngraph
                                     break;
                                 }
 
-                                if (next_candidate.score <= score_threshold)
+                                if (next_candidate.score <= attrs.score_threshold)
                                 {
                                     break;
                                 }
@@ -293,16 +285,16 @@ namespace ngraph
 
                             if (!should_hard_suppress)
                             {
-                                if (nms_eta < 1 && adaptive_threshold > 0.5)
+                                if (attrs.nms_eta < 1 && adaptive_threshold > 0.5)
                                 {
-                                    adaptive_threshold *= nms_eta;
+                                    adaptive_threshold *= attrs.nms_eta;
                                 }
                                 if (next_candidate.score == original_score)
                                 {
                                     selected.push_back(next_candidate);
                                     continue;
                                 }
-                                if (next_candidate.score > score_threshold)
+                                if (next_candidate.score > attrs.score_threshold)
                                 {
                                     sorted_boxes.push(next_candidate);
                                 }
@@ -329,16 +321,17 @@ namespace ngraph
                               });
 
                     // threshold keep_top_k for each batch element
-                    if (keep_top_k > -1 && keep_top_k < num_dets)
+                    if (attrs.keep_top_k > -1 && attrs.keep_top_k < num_dets)
                     {
-                        num_dets = keep_top_k;
+                        num_dets = attrs.keep_top_k;
                         selected_boxes.resize(num_dets);
                     }
 
                     // sort
-                    if (!sort_result_across_batch)
+                    if (!attrs.sort_result_across_batch)
                     {
-                        if (sort_result_type == op::v8::MulticlassNms::SortResultType::CLASSID)
+                        if (attrs.sort_result_type ==
+                            op::v8::MulticlassNms::SortResultType::CLASSID)
                         {
                             std::sort(
                                 selected_boxes.begin(),
@@ -363,9 +356,9 @@ namespace ngraph
                     }
                 } // for each batch element
 
-                if (sort_result_across_batch)
+                if (attrs.sort_result_across_batch)
                 { /* sort across batch */
-                    if (sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
+                    if (attrs.sort_result_type == op::v8::MulticlassNms::SortResultType::SCORE)
                     {
                         std::sort(
                             filteredBoxes.begin(),
@@ -379,7 +372,8 @@ namespace ngraph
                                         l.class_index == r.class_index && l.index < r.index);
                             });
                     }
-                    else if (sort_result_type == op::v8::MulticlassNms::SortResultType::CLASSID)
+                    else if (attrs.sort_result_type ==
+                             op::v8::MulticlassNms::SortResultType::CLASSID)
                     {
                         std::sort(filteredBoxes.begin(),
                                   filteredBoxes.end(),

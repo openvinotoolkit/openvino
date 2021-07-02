@@ -40,33 +40,23 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_output_type_i64)
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = 0;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = 0;
 
     const auto boxes_shape = Shape{1, 6, 4};  // N 1, C 2, M 6
     const auto scores_shape = Shape{1, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.0f;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.0f;
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -113,33 +103,24 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_output_type_i32)
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = 0;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = 0;
 
     const auto boxes_shape = Shape{1, 6, 4}; // N 1, C 2, M 6
     const auto scores_shape = Shape{1, 2, 6};
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.0f;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.0f;
+    attrs.output_type = ngraph::element::i32;
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i32,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -186,33 +167,23 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_gaussian)
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = 0;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = 0;
 
     const auto boxes_shape = Shape{1, 6, 4};  // N 1, C 2, M 6
     const auto scores_shape = Shape{1, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::GAUSSIAN;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.0f;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::GAUSSIAN;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.0f;
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -264,33 +235,23 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes)
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3}; // 1
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = 0;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = 0;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.0f;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.0f;
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -346,33 +307,24 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes_by_score_cross_b
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3}; // 1
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.5;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.5;
+    attrs.sort_result_across_batch = true;
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              true,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -430,33 +382,24 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes_by_classid_cross
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3}; // 1
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::CLASSID;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::CLASSID;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.5;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.5;
+    attrs.sort_result_across_batch = true;
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              true,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -514,32 +457,22 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_by_keep_top_k)
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3}; // 1
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::CLASSID;
-    const auto keep_top_k = 3;
-    const auto background_class = 0;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::CLASSID;
+    attrs.keep_top_k = 3;
+    attrs.background_class = 0;
 
     const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.0f;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.0f;
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -590,33 +523,23 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_background)
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
         0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
 
     const auto boxes_shape = Shape{1, 6, 4};  // N 1, C 2, M 6
     const auto scores_shape = Shape{1, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.0f;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.0f;
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -664,33 +587,23 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_flipped_coordinates)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
 
     const auto boxes_shape = Shape{1, 6, 4}; // N 1, C 1, M 6
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.0f;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.0f;
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -736,33 +649,23 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_post_threshold)
     std::vector<float> scores_data = {
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.00;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.00;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
 
     const auto boxes_shape = Shape{1, 6, 4};  // N 1, C 2, M 6
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.8;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.8;
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -807,33 +710,23 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_identical_boxes)
 
     std::vector<float> scores_data = {0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9};
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
 
     const auto boxes_shape = Shape{1, 10, 4}; // N 1, C 1, M 10
     const auto scores_shape = Shape{1, 1, 10};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.8;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.8;
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -873,33 +766,23 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_nms_top_k)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t nms_top_k = 2;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 2;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
 
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.0f;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.0f;
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -939,33 +822,23 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_single_box)
 
     std::vector<float> scores_data = {0.9};
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 0.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 0.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
 
     const auto boxes_shape = Shape{1, 1, 4};
     const auto scores_shape = Shape{1, 1, 1};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.0f;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.0f;
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
@@ -1006,33 +879,23 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_no_output)
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
-    const int64_t nms_top_k = 3;
-    const float score_threshold = 2.0f;
-    const auto sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
-    const auto keep_top_k = -1;
-    const auto background_class = -1;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.score_threshold = 2.0f;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
+    attrs.keep_top_k = -1;
+    attrs.background_class = -1;
 
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
-    const auto decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
-    const float gaussian_sigma = 2.0f;
-    const float post_threshold = 0.0f;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
+    attrs.gaussian_sigma = 2.0f;
+    attrs.post_threshold = 0.0f;
 
-    auto nms = make_shared<op::v8::MatrixNms>(boxes,
-                                              scores,
-                                              sort_result_type,
-                                              false,
-                                              element::i64,
-                                              score_threshold,
-                                              nms_top_k,
-                                              keep_top_k,
-                                              background_class,
-                                              decay_function,
-                                              gaussian_sigma,
-                                              post_threshold);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
