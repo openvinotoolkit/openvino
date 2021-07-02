@@ -42,6 +42,7 @@ static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std
         return std::make_tuple(false, 0, 0, 0);
     }
 
+    std::cout << "VerifyAndGetConvParams TRUE" << std::endl;
     return std::make_tuple(true, width, in_channels, out_channels);
 }
 
