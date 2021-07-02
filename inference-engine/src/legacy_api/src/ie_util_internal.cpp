@@ -467,8 +467,6 @@ struct NodePrinter {
                     operation = "Pow";
                 else if (eltwise->_operation == EltwiseLayer::Mean)
                     operation = "Mean";
-                else if (eltwise->_operation == EltwiseLayer::Abs)
-                    operation = "Abs";
 
                 printed_properties.emplace_back("operation", operation);
             }
