@@ -28,13 +28,13 @@ Sequences in the batch can have different length. The lengths of sequences are c
 
 **Inputs**
 
-* **1**: `data` - input tensor with batch of sequences of type `T_F` and shape `[T, N, C]`, where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. **Required.**
+* **1**: `data` - input tensor with batch of sequences of type *T_F* and shape `[T, N, C]`, where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. **Required.**
 
-* **2**: `sequence_mask` - input tensor with sequence masks for each sequence in the batch of type `T_F` populated with values `0` and `1` and shape `[T, N]`. **Required.**
+* **2**: `sequence_mask` - input tensor with sequence masks for each sequence in the batch of type *T_F* populated with values `0` and `1` and shape `[T, N]`. **Required.**
 
 **Output**
 
-* **1**: Output tensor of type `T_F` and shape `[N, T, 1, 1]` which is filled with integer elements containing final sequence class indices. A final sequence can be shorter that the size `T` of the tensor, all elements that do not code sequence classes are filled with `-1`.
+* **1**: Output tensor of type *T_F* and shape `[N, T, 1, 1]` which is filled with integer elements containing final sequence class indices. A final sequence can be shorter that the size `T` of the tensor, all elements that do not code sequence classes are filled with `-1`.
 
 **Types**
 * *T_F*: any supported floating point type.

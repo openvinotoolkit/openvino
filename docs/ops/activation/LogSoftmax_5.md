@@ -24,11 +24,11 @@ LogSoftmax(x, axis) = t - Log(ReduceSum(Exp(t), axis))
 
 **Inputs**:
 
-*   **1**: Input tensor *x* of type T with enough number of dimension to be compatible with *axis* attribute. Required.
+*   **1**: Input tensor *x* of type *T* with enough number of dimension to be compatible with *axis* attribute. Required.
 
 **Outputs**:
 
-*   **1**: The resulting tensor of the same shape and of type T.
+*   **1**: The resulting tensor of the same shape and of type *T*.
 
 **Types**
 

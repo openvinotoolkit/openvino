@@ -25,14 +25,7 @@ function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHI
       set (${VAR} $ENV{${ENVIRONMENT}} PARENT_SCOPE)
     endif ()
   endif()
-
 endfunction(resolve_archive_dependency)
-
-function(resolve_pull_request GITHUB_PULL_REQUEST TARGET_PATH)
-    get_filename_component(FILE_NAME ${GITHUB_PULL_REQUEST} NAME)
-    set (PATCH_URL "")
-    DownloadAndApply("${PATCH_URL}/${GITHUB_PULL_REQUEST}" "${IE_MAIN_SOURCE_DIR}/${TARGET_PATH}/${FILE_NAME}")
-endfunction(resolve_pull_request)
 
 function(extract_version_from_filename filename regex version)
     string(REGEX MATCH ${regex} match ${filename})
@@ -51,10 +44,8 @@ function(read_version archive regex version_var)
 endfunction(read_version)
 
 function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
-
   list(REMOVE_AT ARGV 0)
-  set(SUPPORTED_ARGS FOLDER ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH ENVIRONMENT GITHUB_PULL_REQUEST VERSION_REGEX SHA256 FILES_TO_EXTRACT)
-
+  set(SUPPORTED_ARGS FOLDER ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH ENVIRONMENT VERSION_REGEX SHA256 FILES_TO_EXTRACT)
 
   #unnecessary vars
   foreach(arg ${ARGV})
@@ -134,11 +125,8 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
             read_version(${archive} ${VERSION_REGEX} "${NAME_OF_CMAKE_VAR}_VERSION")
         endif()
     endif()
-
-  elseif (DEFINED GITHUB_PULL_REQUEST)
-    resolve_pull_request(${GITHUB_PULL_REQUEST} ${TARGET_PATH})
   else()
-    message(FATAL_ERROR "Dependency of unknowntype, SHOULD set one of ARCHIVE_WIN, ARCHIVE, ARCHIVE_LIN, ARCHIVE_MAC, ARCHIVE_ANDROID, GITHUB_PULL_REQUEST")
+    message(FATAL_ERROR "Dependency of unknowntype, SHOULD set one of ARCHIVE_WIN, ARCHIVE, ARCHIVE_LIN, ARCHIVE_MAC, ARCHIVE_ANDROID")
   endif()
 
 endfunction(RESOLVE_DEPENDENCY)

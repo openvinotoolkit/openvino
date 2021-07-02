@@ -110,6 +110,7 @@ set(SRC
     type_prop/convert.cpp
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
+    type_prop/cos.cpp
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
@@ -231,6 +232,7 @@ set(SRC
     visitors/op/constant.cpp
     visitors/op/convert.cpp
     visitors/op/convolution_backprop.cpp
+    visitors/op/cos.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/depth_to_space.cpp
@@ -327,7 +329,7 @@ if (ENABLE_CLDNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     endif()
 endif()
 
-if (NGRAPH_INTERPRETER_ENABLE AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
+if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     list(APPEND SRC
         builder.cpp
         backend_api.cpp)
@@ -386,6 +388,7 @@ set(MULTI_TEST_SRC
     backend/deformable_convolution.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
+    backend/experimental_detectron_generate_proposals.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
@@ -631,10 +634,7 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_editor)
 endif()
 
-if (NGRAPH_INTERPRETER_ENABLE)
-    target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
-    target_link_libraries(unit-test PRIVATE interpreter_backend)
-endif()
+target_link_libraries(unit-test PRIVATE interpreter_backend)
 
 install(TARGETS unit-test
         RUNTIME DESTINATION tests

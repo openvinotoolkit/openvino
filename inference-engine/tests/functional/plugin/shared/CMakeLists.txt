@@ -27,6 +27,7 @@ addIeTarget(
                 ${PUBLIC_HEADERS_DIR}
         LINK_LIBRARIES
             PUBLIC
+                pugixml::static
                 ${EXPORT_DEPENDENCIES}
             PRIVATE
                 inference_engine_transformations

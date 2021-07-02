@@ -46,10 +46,6 @@ if(NOT ENABLE_DOCKER)
 
     install(TARGETS templatePlugin template_extension
             LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
-    if(ENABLE_FUNCTIONAL_TESTS)
-        install(TARGETS templateFuncTests
-                RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-    endif()
 endif()
 
 set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check")
@@ -74,13 +70,13 @@ function(build_docs)
     endif()
 
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-    set(DOXYGEN_DIR "${OpenVINO_MAIN_SOURCE_DIR}/docs/doxygen")
-    set(IE_SOURCE_DIR "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine")
+    set(DOXYGEN_DIR "${OpenVINO_SOURCE_DIR}/docs/doxygen")
+    set(IE_SOURCE_DIR "${OpenVINO_SOURCE_DIR}/inference-engine")
     set(PYTHON_API_IN "${IE_SOURCE_DIR}/ie_bridges/python/src/openvino/inference_engine/ie_api.pyx")
     set(PYTHON_API_OUT "${DOCS_BUILD_DIR}/python_api/ie_api.pyx")
     set(C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
-    set(NGRAPH_DIR "${OpenVINO_MAIN_SOURCE_DIR}/ngraph")
+    set(NGRAPH_DIR "${OpenVINO_SOURCE_DIR}/ngraph")
     set(NGRAPH_PY_DIR "${NGRAPH_DIR}/python/src/ngraph/")
     set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/" "${NGRAPH_DIR}/frontend/onnx_import/include")
 
@@ -103,17 +99,17 @@ function(build_docs)
     configure_file(${FOOTER_SOURCE} ${FOOTER_BUILD} @ONLY)
 
     file(GLOB_RECURSE doc_source_files
-        LIST_DIRECTORIES true RELATIVE ${OpenVINO_MAIN_SOURCE_DIR}
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.png"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.gif"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.jpg"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.svg"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.md"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.png"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.gif"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.jpg"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.svg")
+        LIST_DIRECTORIES true RELATIVE ${OpenVINO_SOURCE_DIR}
+        "${OpenVINO_SOURCE_DIR}/docs/*.md"
+        "${OpenVINO_SOURCE_DIR}/docs/*.png"
+        "${OpenVINO_SOURCE_DIR}/docs/*.gif"
+        "${OpenVINO_SOURCE_DIR}/docs/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/docs/*.svg"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.md"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.png"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.gif"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.svg")
 
     configure_file(${PYTHON_API_IN} ${PYTHON_API_OUT} @ONLY)
 
@@ -224,19 +220,19 @@ function(build_docs)
 
     # ovino doc files
     file(GLOB_RECURSE ovino_doc_files
-        LIST_DIRECTORIES true RELATIVE ${OpenVINO_MAIN_SOURCE_DIR}
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.png"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.gif"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.jpg"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.md"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.png"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.gif"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.jpg")
+        LIST_DIRECTORIES true RELATIVE ${OpenVINO_SOURCE_DIR}
+        "${OpenVINO_SOURCE_DIR}/docs/*.md"
+        "${OpenVINO_SOURCE_DIR}/docs/*.png"
+        "${OpenVINO_SOURCE_DIR}/docs/*.gif"
+        "${OpenVINO_SOURCE_DIR}/docs/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.md"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.png"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.gif"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg")
 
     foreach(source_file ${ovino_doc_files})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E copy
-            "${OpenVINO_MAIN_SOURCE_DIR}/${source_file}" "${DOCS_BUILD_DIR}/openvino/${source_file}")
+            "${OpenVINO_SOURCE_DIR}/${source_file}" "${DOCS_BUILD_DIR}/openvino/${source_file}")
     endforeach()
 
     # omz doc files
@@ -371,7 +367,7 @@ function(build_docs)
     find_program(browser NAMES xdg-open)
     if(browser)
         add_custom_target(ie_docs_open
-                          COMMAND ${browser} "${OpenVINO_MAIN_SOURCE_DIR}/docs/html/index.html"
+                          COMMAND ${browser} "${OpenVINO_SOURCE_DIR}/docs/html/index.html"
                           DEPENDS ie_docs
                           COMMENT "Open OpenVINO documentation"
                           VERBATIM)
