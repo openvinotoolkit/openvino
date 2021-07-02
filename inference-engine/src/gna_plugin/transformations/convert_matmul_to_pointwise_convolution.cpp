@@ -28,7 +28,6 @@ static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std
     }
 
     if (input1_shape.size() != 2 || input2_shape.size() != 2 || output_shape.size() < 2) {
-        std::cout << "VerifyAndGetConvParams FALSE: invalid input/output shape size" << std::endl; // DEBUG
         return std::make_tuple(false, 0, 0, 0);
     }
 
@@ -40,11 +39,9 @@ static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std
         out_channels % GNALimitations::convFiltersNumDivider != 0 ||
         out_channels > GNALimitations::convMaxFiltersNum ||
         in_channels > GNALimitations::convFilterMaxSize) {
-        std::cout << "VerifyAndGetConvParams FALSE: invalid GNA limits" << std::endl; // DEBUG
         return std::make_tuple(false, 0, 0, 0);
     }
 
-    std::cout << "VerifyAndGetConvParams TRUE" << std::endl; // DEBUG
     return std::make_tuple(true, width, in_channels, out_channels);
 }
 
@@ -182,7 +179,6 @@ ConvertMatmulWithFqToPointWiseConvolution::ConvertMatmulWithFqToPointWiseConvolu
         ngraph::pattern::wrap_type<ngraph::opset7::Constant>()});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        std::cout << "FOUND MATCH" << std::endl; // FIXME: DEBUG
         const auto& pattern_map = m.get_pattern_value_map();
         auto add_it = pattern_map.find(add);
         auto add_node = (add_it == std::end(pattern_map) ? nullptr : add_it->second.get_node_shared_ptr());
