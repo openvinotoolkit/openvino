@@ -6,7 +6,6 @@
 # Configure and install Google Protobuf ...
 #------------------------------------------------------------------------------
 
-set(PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 if (MSVC)
@@ -51,7 +50,7 @@ if (USE_STATIC_PROTOBUF)
     include(FetchContent)
     FetchContent_Declare(
             ext_protobuf_static
-            URL ${CMAKE_CURRENT_SOURCE_DIR}/../protobuf
+            URL ${CMAKE_CURRENT_SOURCE_DIR}/protobuf
     )
     FetchContent_GetProperties(ext_protobuf_static)
     if((NOT ext_protobuf_static_POPULATED) AND BUILD_STANDALONE_STATIC)
@@ -64,7 +63,7 @@ endif()
 if (BUILD_STANDALONE_STATIC)
     set(Protobuf_INCLUDE_DIRS ${ext_protobuf_static_SOURCE_DIR}/src)
 else()
-    set(Protobuf_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/thirdparty/protobuf/src)
+    set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
 endif()
 
 if(NGRAPH_USE_PROTOBUF_LITE)
@@ -110,9 +109,6 @@ endif()
 if(CMAKE_CROSSCOMPILING AND NOT PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
     message(WARNING "system protobuf version does not match with the compiled one, please update system protobuf or submodule")
 endif()
-
-# Now make sure we restore the original flags
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")
 
 if (NOT BUILD_STANDALONE_STATIC)
     message("NGRAPH_INSTALL_LIB = ${NGRAPH_INSTALL_LIB}")
