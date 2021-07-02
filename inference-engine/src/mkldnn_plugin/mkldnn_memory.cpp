@@ -18,7 +18,7 @@
 #include "mkldnn_extension_utils.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
-#include "ie_mkldnn.h"
+#include "mkldnn/ie_mkldnn.h"
 
 using namespace InferenceEngine;
 using namespace mkldnn;

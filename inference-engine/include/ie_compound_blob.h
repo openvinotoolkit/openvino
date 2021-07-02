@@ -113,11 +113,6 @@ protected:
      * @brief Returns nullptr as CompoundBlob is not allocator-based
      */
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override;
-
-    /**
-     * @brief Returns nullptr as CompoundBlob is not allocator-based
-     */
-    void* getHandle() const noexcept override;
 };
 
 /**

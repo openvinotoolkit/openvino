@@ -17,7 +17,7 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::SpaceToDepth, "SpaceToDepth", 0);
+NGRAPH_RTTI_DEFINITION(op::SpaceToDepth, "SpaceToDepth", 0);
 
 op::SpaceToDepth::SpaceToDepth(const Output<Node>& data,
                                const SpaceToDepthMode& mode,
