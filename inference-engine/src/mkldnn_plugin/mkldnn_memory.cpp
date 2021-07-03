@@ -295,10 +295,13 @@ MKLDNNMemoryDesc::operator mkldnn::memory::desc() const {
 }
 
 MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::desc& desc) :
-    MemoryDesc(Shape(desc.dims()), MKLDNNExtensionUtils::DataTypeToIEPrecision(desc.data_type()), Mkldnn), desc(desc) {}
+    MemoryDesc(Shape(desc.dims()), MKLDNNExtensionUtils::DataTypeToIEPrecision(desc.data_type()), Mkldnn), desc(desc) {
+    IE_ASSERT(desc.data.format_kind != dnnl::impl::format_kind::any) << "Memory format any is prohibited!";
+}
 
 MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format)
-       : MemoryDesc(Shape(dims), MKLDNNExtensionUtils::DataTypeToIEPrecision(dataType), Mkldnn), desc(dims, dataType, mkldnn::memory::format_tag::any) {
+       : MemoryDesc(Shape(dims), MKLDNNExtensionUtils::DataTypeToIEPrecision(dataType), Mkldnn) {
+    IE_ASSERT(format != memory::format_tag::any) << "Memory format any is prohibited!";
     if (format != memory::format_tag::undef) {
         if (format == memory::format_tag::x && dims.size() == 0) {
             desc = mkldnn::memory::desc(mkldnn::memory::dims(1, 1), dataType, format);
@@ -966,26 +969,17 @@ bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
         return false;
     }
 
-    // any format is not supported by the BlockedMemoryDesc
+    const auto dims = desc.dims();
+
     if (desc.data.format_kind != dnnl_blocked) {
         return false;
     }
-
-    const auto dims = desc.dims();
 
     const auto &blk_desc = desc.data.format_desc.blocking;
 
     const size_t outer_ndims = dims.size();
     const size_t inner_ndims = blk_desc.inner_nblks;
     const size_t total_ndims = outer_ndims + inner_ndims;
-
-    // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
-    std::vector<size_t> outer_order(outer_ndims);
-    std::iota(outer_order.begin(), outer_order.end(), 0);
-    std::sort(outer_order.begin(), outer_order.end(),
-              [&blk_desc] (size_t ind_l, size_t ind_r) {
-                  return blk_desc.strides[ind_l] > blk_desc.strides[ind_r];
-              });
 
     // strides of inner dims. In case of 4i16o4i will be {64, 4, 1}
     std::vector<size_t> inner_strides(inner_ndims, 1);
@@ -998,6 +992,19 @@ bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
     for (int i = 0; i < inner_ndims; i++) {
         total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
     }
+    std::vector<size_t> outer_block_dims(std::begin(dims), std::begin(dims) + outer_ndims);
+    for (size_t i = 0; i < outer_block_dims.size(); i++) {
+        outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
+    }
+
+    // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
+    std::vector<size_t> outer_order(outer_ndims);
+    std::iota(outer_order.begin(), outer_order.end(), 0);
+    std::sort(outer_order.begin(), outer_order.end(),
+              [&blk_desc, &outer_block_dims] (size_t ind_l, size_t ind_r) {
+                  return (blk_desc.strides[ind_l] > blk_desc.strides[ind_r]) ||
+                         (blk_desc.strides[ind_l] == blk_desc.strides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
+              });
 
     // blocked order
     // [new_outer_order] U [inner_idxs]
@@ -1005,7 +1012,7 @@ bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
     std::copy(outer_order.begin(), outer_order.end(), blk_order.begin());
     std::copy(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, blk_order.begin() + dims.size());
 
-    if (blk_order != rhs.getOrder()) {
+    if (!isEqualOrUndefined(blk_order, rhs.getOrder())) {
         return false;
     }
 
@@ -1026,7 +1033,7 @@ bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
     std::copy(blk_desc.inner_blks, blk_desc.inner_blks + blk_desc.inner_nblks,
               blk_dims.end() - blk_desc.inner_nblks);
     std::transform(outer_order.begin(), outer_order.end(), blk_dims.begin(),
-                   [&] (size_t i) { return div_up(dims[i], total_block_per_dim[i]); });
+                   [&] (size_t i) { return outer_block_dims[i]; });
 
     if (!isEqualOrUndefined(blk_dims, rhs.getBlockDims())) {
         return false;
@@ -1042,8 +1049,9 @@ bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
         return false;
     }
 
-    size_t ie_blk_offset0 = desc.data.offset0;
-    return !(ie_blk_offset0 != rhs.getOffsetPadding() && ie_blk_offset0 != Shape::UNDEFINED_DIM && rhs.getOffsetPadding() != Shape::UNDEFINED_DIM);
+    size_t blk_offset0 = desc.data.offset0;
+
+    return !(blk_offset0 != rhs.getOffsetPadding() && blk_offset0 != Shape::UNDEFINED_DIM && rhs.getOffsetPadding() != Shape::UNDEFINED_DIM);
 }
 
 bool MKLDNNMemoryDesc::checkGeneralLayout(GeneralLayout layoutType) const {
