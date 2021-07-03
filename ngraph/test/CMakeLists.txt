@@ -526,27 +526,9 @@ set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
 # ---- PaddlePaddle FrontEnd testing ------
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
-    find_package (PythonInterp 3 REQUIRED)
-    set(PDPD_PYTHON_OK TRUE)
-    if(NOT PYTHON_EXECUTABLE)
-        message("Python3 is required to build the PDPD frontend unit tests")
-        set(PDPD_PYTHON_OK FALSE)
-    endif()
+    ie_check_pip_package(paddlepaddle WARNING)
 
-    if (PDPD_PYTHON_OK)
-        execute_process(
-                COMMAND ${PYTHON_EXECUTABLE} -m pip show paddlepaddle
-                RESULT_VARIABLE PIP_EXIT_CODE
-                OUTPUT_QUIET
-        )
-
-        if (NOT ${PIP_EXIT_CODE} EQUAL 0)
-            message("Python paddlepaddle package is not installed. Please use \"pip install paddlepaddle==2.0.1\".")
-            set(PDPD_PYTHON_OK FALSE)
-        endif()
-    endif()
-
-    if (PDPD_PYTHON_OK)
+    if(paddlepaddle_FOUND)
         file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
         set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
         set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
