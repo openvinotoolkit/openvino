@@ -3,7 +3,6 @@
 //
 
 #include <algorithm>
-#include <regex>
 #include <string>
 #include <map>
 #include <vector>
@@ -1208,57 +1207,69 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
 
 // Set all non const data paths precision to BF16
 void MKLDNNGraph::EnforceBF16() {
-    auto findLastSignificantNodeId = [&]() {
-        static std::unordered_set<Type> significantNodes {
-            Convolution,
-            FullyConnected,
-            RNNCell,
-            RNNSeq,
-            MatMul,
-            ROIPooling,
-        };
-
-        int lsNodeId = 0;
-
-        for (int i = 0; i < graphNodes.size(); i++) {
-            if (!significantNodes.count(graphNodes[i]->getType()))
-                continue;
-
-            lsNodeId = i;
-        }
-
-        return lsNodeId;
+    // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
+    // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
+    if (!implication(isQuantized(), config.manualEnforceBF16))
+        return;
+    /* list of node types that must be forced to be executed in BF16 precision
+     * because of performance gains */
+    static const std::unordered_set<Type> significantNodes {
+        Convolution,
+        FullyConnected,
+        RNNCell,
+        RNNSeq,
+        MatMul,
+        ROIPooling,
     };
 
-    SortTopologically();
+    auto shouldNotBeSkipped = [&](const MKLDNNNodePtr& node) {
+        return significantNodes.count(node->getType());
+    };
 
-    int lsNodeId = findLastSignificantNodeId();
-    const auto lsNode = graphNodes[lsNodeId];
-
-    // std::cout << "### EnforceBF16: Last significant node is " << NameFromType(lsNode->getType()) << " " << lsNode->getName() << "\n";
-
-    if (implication(isQuantized(), config.manualEnforceBF16)) {
-        for (int i = 0; i < graphNodes.size(); i++) {
-            const auto& node = graphNodes[i];
-
-            if (lsNodeId < i) {
-                // std::cout << "### Skipping node - " << node->getName() << "\n";
+    std::function<void(const MKLDNNNodePtr&, std::unordered_set<MKLDNNNodePtr>& skipNodes)> searchForNodesToSkip;
+    searchForNodesToSkip = [&](const MKLDNNNodePtr& node, std::unordered_set<MKLDNNNodePtr>& skipNodes) -> void {
+        for (const auto& edge : node->getParentEdges()) {
+            const auto& parent = edge.lock()->getParent();
+            if (shouldNotBeSkipped(parent)) // stop at significant nodes
                 continue;
+
+            const auto res = skipNodes.insert(parent);
+            if (res.second) // node not visited yet
+                searchForNodesToSkip(parent, skipNodes);
+        }
+    };
+
+    auto getNodesToSkip = [&]() {
+        std::unordered_set<MKLDNNNodePtr> nodesToSkip;
+        // starting from output nodes
+        for (const auto& entry : outputNodesMap) {
+            const auto& node = entry.second;
+            searchForNodesToSkip(node, nodesToSkip);
+        }
+
+        return nodesToSkip;
+    };
+    /* Skip BF16 enforcement for tail of the graph by forming set of nodes to skip.
+     * Necessary to maintain accuracy.
+     * Experiments show zero peformance impact on average */
+    std::unordered_set<MKLDNNNodePtr> nodesToSkip = getNodesToSkip();
+
+    for (const auto& node : graphNodes) {
+        if (nodesToSkip.count(node))
+            continue;
+
+        if (node->getType() != Input && node->getType() != Output) {
+            for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
+                const auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
+                if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude skipNodes after Constant Inputs
+                    !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
+                    node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
+                    node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
             }
 
-            if (node->getType() != Input && node->getType() != Output) {
-                for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
-                    auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
-                    if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude nodes after Constant Inputs
-                        !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
-                        node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
-                        node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
-                }
-
-                for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-                    if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
-                        node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
-                }
+            for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+                if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
+                    node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
             }
         }
     }
