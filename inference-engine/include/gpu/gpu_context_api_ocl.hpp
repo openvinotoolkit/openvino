@@ -269,7 +269,7 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
  * @brief This function is used to obtain remote blob object from user-supplied cl::Image2D wrapper object
  * @param desc A tensor descriptor object representing remote blob configuration
  * @param ctx A remote context used to create remote blob
- * @param buffer A cl::Image2D object wrapped by a remote blob
+ * @param image A cl::Image2D object wrapped by a remote blob
  * @return A remote blob instance
  */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl::Image2D& image) {
