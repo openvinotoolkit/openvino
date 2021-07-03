@@ -250,6 +250,12 @@ class FloorMod(Elementwise):
     operation = staticmethod(lambda a, b: np.ma.fmod(a, b))
 
 
+class Mod(Elementwise):
+    op = 'Mod'
+    op_type = 'Mod'
+    operation = staticmethod(lambda a, b: np.ma.mod(a, b))
+
+
 class Negative(UnaryElementwise):
     op = 'Negative'
     op_type = 'Negative'
