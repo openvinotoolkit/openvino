@@ -132,11 +132,11 @@ private:
 };
 
 inline bool dimsEqualStrong(size_t lhs, size_t rhs) {
-    return rhs == lhs && lhs != Shape::UNDEFINED_DIM && rhs != Shape::UNDEFINED_DIM;
+    return (lhs == rhs && lhs != Shape::UNDEFINED_DIM && rhs != Shape::UNDEFINED_DIM);
 }
 
 inline bool dimsEqualWeak(size_t lhs, size_t rhs) {
-    return (lhs == Shape::UNDEFINED_DIM || rhs == Shape::UNDEFINED_DIM || lhs == lhs);
+    return (lhs == Shape::UNDEFINED_DIM || rhs == Shape::UNDEFINED_DIM || lhs == rhs);
 }
 
 inline bool isEqualOrUndefined(const std::vector<size_t> lhs, const std::vector<size_t>& rhs) {

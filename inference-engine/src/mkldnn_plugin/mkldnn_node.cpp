@@ -1259,10 +1259,9 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
 
     //  WA-start : TI node requires all attributes to construct internal subgpath
     //             including extManager, socket and mkldnn::eng.
-    // TODO [DS]: uncomment
-//    MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
-//    if (ti != nullptr)
-//        ti->setExtManager(extMgr);
+    MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
+    if (ti != nullptr)
+        ti->setExtManager(extMgr);
     //  WA-end
 
     if (!newNode) {
