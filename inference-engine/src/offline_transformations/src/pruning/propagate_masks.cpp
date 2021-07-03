@@ -312,9 +312,9 @@ public:
             auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
-            auto out_mask_callback = [input_mask_row, weights_mask_row, union_eltwise_type](Mask::Ptr cur_mask) -> bool {
+            auto out_mask_callback = [input_mask_row, weights_mask_row, union_eltwise_type, m_input](Mask::Ptr cur_mask) -> bool {
                 Mask::Ptr result_mask;
-                if (union_eltwise_type) {
+                if (union_eltwise_type && !ngraph::is_type<opset6::Concat>(m_input.get_node_shared_ptr())) {
                     result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
                 } else {
                     result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
