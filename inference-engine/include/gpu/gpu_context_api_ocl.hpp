@@ -39,6 +39,7 @@ public:
 
     /**
      * @brief Returns the underlying OpenCL context handle.
+     * @return `cl_context`
      */
     cl_context get() {
         return _ObjFromParams<cl_context, gpu_handle_param>(getParams(), GPU_PARAM_KEY(OCL_CONTEXT),
@@ -47,7 +48,7 @@ public:
 
     /**
      * @brief OpenCL context handle conversion operator for the ClContext object.
-     * @return Underlying OpenCL context handle
+     * @return `cl_context`
      */
     operator cl_context() {
         return get();
@@ -55,7 +56,7 @@ public:
 
     /**
      * @brief Standard Khronos cl::Context wrapper conversion operator for the ClContext object.
-     * @return cl::Context object
+     * @return `cl::Context` object
      */
     operator cl::Context() {
         return cl::Context(get(), true);
@@ -101,6 +102,7 @@ public:
 
     /**
      * @brief Returns the underlying OpenCL memory object handle.
+     * @return underlying OpenCL memory object handle
      */
     cl_mem get() {
         return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE),
@@ -109,6 +111,7 @@ public:
 
     /**
      * @brief OpenCL memory handle conversion operator.
+     * @return `cl_mem`
      */
     operator cl_mem() {
         return get();
@@ -116,7 +119,7 @@ public:
 
     /**
      * @brief Standard Khronos cl::Buffer wrapper conversion operator.
-     * @return cl::Buffer object
+     * @return `cl::Buffer` object
      */
     operator cl::Buffer() {
         return cl::Buffer(get(), true);
@@ -144,6 +147,7 @@ public:
 
     /**
      * @brief Returns the underlying OpenCL memory object handle.
+     * @return `cl_mem`
      */
     cl_mem get() {
         return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE),
@@ -152,6 +156,7 @@ public:
 
     /**
      * @brief OpenCL memory handle conversion operator.
+     * @return `cl_mem`
      */
     operator cl_mem() {
         return get();
@@ -159,7 +164,7 @@ public:
 
     /**
      * @brief Standard Khronos cl::Image2D wrapper conversion operator for the ClContext object.
-     * @return cl::Image2D object
+     * @return `cl::Image2D` object
      */
     operator cl::Image2D() {
         return cl::Image2D(get(), true);
