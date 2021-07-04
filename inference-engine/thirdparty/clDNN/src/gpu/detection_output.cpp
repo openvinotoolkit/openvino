@@ -26,9 +26,13 @@ extern primitive_impl* create_detection_output_cpu(const detection_output_node& 
 extern primitive_impl* create_detection_output_gpu(const detection_output_node& arg);
 
 static primitive_impl* create_detection_output(const detection_output_node& arg) {
-    /* TODO: Will be removed. For just debugging */
-    char* DEBUG_SWITCH = getenv("DEBUG_SWITCH");
-    if (DEBUG_SWITCH == nullptr) {
+    auto confidence = convert_data_tensor(arg.confidence().get_output_layout());
+    const size_t batch_num = confidence.Batch().v;
+    const size_t feature_num = confidence.Feature().v;
+    auto primitive = arg.get_primitive();
+    const int top_k = primitive->top_k;
+    const float confidence_threshold = primitive->confidence_threshold;
+    if ((batch_num >= 4 && confidence_threshold >= 0.1 && top_k <= 400) || feature_num < 10000) {
         printf("[ DEBUG ] Creating detection output primitive for GPU\n");
         return create_detection_output_gpu(arg);
     } else {
