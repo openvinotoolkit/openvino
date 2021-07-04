@@ -12,7 +12,7 @@ The following Inference Engine Python API is used in the application:
 | Options                    | Values                                                                  |
 | :------------------------- | :---------------------------------------------------------------------- |
 | Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization | [C++](../../../../samples/hello_query_device)                           |
+| Other language realization | [C++](../../../../samples/hello_query_device/README.md)                           |
 
 ## How It Works
 

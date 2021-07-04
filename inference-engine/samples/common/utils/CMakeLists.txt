@@ -6,7 +6,7 @@ set(TARGET_NAME "ie_samples_utils")
 file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp" "*.h")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_library(${TARGET_NAME} STATIC ${SOURCES})
+add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${SOURCES})
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "src")
 
 target_include_directories(${TARGET_NAME}

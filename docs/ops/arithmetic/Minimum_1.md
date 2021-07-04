@@ -11,7 +11,7 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 \f[
 o_{i} = min(a_{i}, b_{i})
-\f] 
+\f]
 
 **Attributes**:
 
@@ -27,12 +27,12 @@ o_{i} = min(a_{i}, b_{i})
 
 **Inputs**
 
-* **1**: A tensor of type T and arbitrary shape. Required.
-* **2**: A tensor of type T and arbitrary shape. Required.
+* **1**: A tensor of type *T* and arbitrary shape. Required.
+* **2**: A tensor of type *T* and arbitrary shape. Required.
 
 **Outputs**
 
-* **1**: The result of element-wise minimum operation. A tensor of type T with shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise minimum operation. A tensor of type *T* with shape equal to broadcasted shape of two inputs.
 
 **Types**
 
