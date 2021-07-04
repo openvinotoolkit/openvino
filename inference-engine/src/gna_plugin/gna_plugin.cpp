@@ -63,6 +63,7 @@
 #include "transformations/swap_input_matmul_gna.hpp"
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
+#include "transformations/convert_padded2valid_conv.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -678,6 +679,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ConvertPadded2ValidConv>();
+        manager.register_pass<ConvertPaddedWithBias2ValidConv>();
+        manager.register_pass<ConvertPaddedWithBiasAF2ValidConv>();
+        manager.register_pass<ConvertPaddedWithBiasMaxPool2ValidConv>();
+        manager.register_pass<ConvertPaddedWithBiasMaxPoolAF2ValidConv>();
+        manager.register_pass<ConvertPaddedTransposedWithBias2ValidConv>();
+        manager.register_pass<ConvertPaddedTransposedWithBiasAF2ValidConv>();
         // TODO enable this transformation for networks with convolutions
         if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
             manager.register_pass<ConvertMatmulWithFqToPointWiseConvolution>();
