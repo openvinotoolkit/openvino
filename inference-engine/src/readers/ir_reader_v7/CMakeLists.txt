@@ -16,7 +16,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 
 # Create module library
 
-add_library(${TARGET_NAME} MODULE ${LIBRARY_SRC})
+add_library(${TARGET_NAME} MODULE EXCLUDE_FROM_ALL ${LIBRARY_SRC})
 
 ie_faster_build(${TARGET_NAME}
     UNITY
@@ -31,7 +31,7 @@ target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/"
                                                   "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader")
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api inference_engine_plugin_api
-                                             inference_engine_legacy inference_engine pugixml openvino::itt)
+                                             inference_engine_legacy inference_engine pugixml::static openvino::itt)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
