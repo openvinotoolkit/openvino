@@ -911,7 +911,8 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
         output.replace(replacement);
 
         // Union tensor names and set them to the replacement tensor
-        for (const auto & name : output.get_tensor_ptr()->get_names()) {
+        for (const auto& name : output.get_tensor_ptr()->get_names())
+        {
             output_names.insert(name);
         }
         replacement.get_tensor_ptr()->set_names(output_names);
