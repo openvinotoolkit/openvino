@@ -674,6 +674,7 @@ extensions/ops/ctc_greedy_decoder.py
 extensions/ops/ctc_greedy_decoder_seq_len.py
 extensions/ops/ctc_loss.py
 extensions/ops/cumsum.py
+extensions/ops/depth_to_space.py
 extensions/ops/dequantize_linear.py
 extensions/ops/DetectionOutput.py
 extensions/ops/detectionoutput_onnx.py
