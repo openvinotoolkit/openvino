@@ -91,7 +91,7 @@ void MKLDNNAdaPoolingNode::getSupportedDescriptors() {
     auto parentDims = getParentEdgeAt(0)->getDims();
     auto childDims = getChildEdgeAt(0)->getDims();
 
-    const int spatialDimsCount = parentDims.ndims() - 2;
+    spatialDimsCount = parentDims.ndims() - 2;
     if (spatialDimsCount != 1 && spatialDimsCount != 2 && spatialDimsCount != 3) {
         IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
     }
@@ -103,30 +103,11 @@ void MKLDNNAdaPoolingNode::getSupportedDescriptors() {
     if (getChildEdgeAt(0)->getDims().ndims() != getParentEdgeAt(0)->getDims().ndims()) {
         IE_THROW() << errorPrefix << "must keep data rank";
     }
-
-    MKLDNNMemoryDesc in_candidate, out_candidate;
-    switch (spatialDimsCount) {
-        case 1:
-            in_candidate = MKLDNNMemoryDesc{parentDims, inputDataType, memory::format_tag::abc};
-            out_candidate = MKLDNNMemoryDesc{childDims, outputDataType, memory::format_tag::abc};
-            break;
-        case 2:
-            in_candidate = MKLDNNMemoryDesc{parentDims, inputDataType, memory::format_tag::nchw};
-            out_candidate = MKLDNNMemoryDesc{childDims, outputDataType, memory::format_tag::nchw};
-            break;
-        case 3:
-        default:
-            in_candidate = MKLDNNMemoryDesc{parentDims, inputDataType, memory::format_tag::ncdhw};
-            out_candidate = MKLDNNMemoryDesc{childDims, outputDataType, memory::format_tag::ncdhw};
-    }
-    createDescriptor({in_candidate}, {out_candidate});
-
 }
 
 void MKLDNNAdaPoolingNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
 
 //    if (!mayiuse(avx512_core)) {
 //        if (outputPrec == Precision::BF16 || inputPrec0 == Precision::BF16)
@@ -141,45 +122,51 @@ void MKLDNNAdaPoolingNode::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(2);
     config.outConfs.resize(1);
 
-    std::vector<std::pair<memory::format_tag, memory::format_tag>> supportedFormats {
-            {memory::format_tag::nchw, memory::format_tag::nchw},  // TODO: as pooling
-//            {memory::format_tag::nhwc, memory::format_tag::nhwc},
-//            {memory::format_tag::nChw16c, memory::format_tag::nChw16c},
-//            {memory::format_tag::nChw8c, memory::format_tag::nChw8c}
-    };
-
-    for (auto fmts : supportedFormats) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmts.first);
+    for (auto fmt : getAvailableFormatsForDims(getParentEdgeAt(0)->getDims())) {
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
         config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::data_type::s32, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmts.second);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmts.second});
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmt});
     }
 }
 
 std::vector<memory::format_tag> MKLDNNAdaPoolingNode::getAvailableFormatsForDims(const MKLDNNDims &dims) const {
-//    if (dims.ndims() == 0)
-//        return {memory::format_tag::x};
-//    else if (dims.ndims() == 1)
-//        return {memory::format_tag::x};
-//    else if (dims.ndims() == 2)
-//        return {memory::format_tag::nc};
-//    else if (dims.ndims() == 3)
-//        return {memory::format_tag::tnc, memory::format_tag::ntc};
-//    else if (dims.ndims() == 4)
-//        return {memory::format_tag::nChw8c, memory::format_tag::nChw16c, memory::format_tag::nhwc, memory::format_tag::nchw};
-//    else if (dims.ndims() == 5)
-//        return {memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c, memory::format_tag::ndhwc, memory::format_tag::ncdhw};
-//    return {memory::format_tag::any};
-// TODO: why ? ^
+    auto plainFmt = [&]() {
+        if (dims.ndims() == 3)
+            return memory::format_tag::ncw;
+        else if (dims.ndims() == 4)
+            return memory::format_tag::nchw;
+        else if (dims.ndims() == 5)
+            return memory::format_tag::ncdhw;
+        return memory::format_tag::any;
+    };
+    auto blockedFmt = [&]() {
+        if (dims.ndims() == 3)
+            return mayiuse(avx512_common) ? memory::format_tag::nCw16c : memory::format_tag::nCw8c;
+        else if (dims.ndims() == 4)
+            return mayiuse(avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
+        else if (dims.ndims() == 5)
+            mayiuse(avx512_common) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c;
+        return memory::format_tag::any;
+    };
+    auto tallFmt = [&]() {
+        if (dims.ndims() == 3)
+            return memory::format_tag::nwc;
+        else if (dims.ndims() == 4)
+            return memory::format_tag::nhwc;
+        else if (dims.ndims() == 5)
+            return memory::format_tag::ndhwc;
+        return memory::format_tag::any;
+    };
 
-// TODO: only for not plane
-    if (dims.ndims() == 3)
-        return {memory::format_tag::tnc, memory::format_tag::ntc};
-    else if (dims.ndims() == 4)
-        return {memory::format_tag::nChw8c, memory::format_tag::nChw16c, memory::format_tag::nhwc, memory::format_tag::nchw};
-    else if (dims.ndims() == 5)
-        return {memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c, memory::format_tag::ndhwc, memory::format_tag::ncdhw};
-    return {memory::format_tag::any};
+    if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
+        return { tallFmt() };
+    } else if (true || getParentEdgeAt(0)->getDims()[1] == 1) {  // TODO: remove
+        // plain format for 1-channel tensor is preferable
+        return { plainFmt() };
+    } else {
+        return { plainFmt(), tallFmt(), blockedFmt() };
+    }
 }
 
 namespace {
@@ -231,16 +218,80 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
     auto isPlainFmt = srcMemory0.GetDesc().isPlainFormat();
     auto isNhwcFmt = srcMemory0.GetDesc().isTailCFormat();
 
-    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *src = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    // TODO: check length og 1-th input
 
 //    auto nominalRoiCount = static_cast<int>(srcMemory1.GetDims()[0]);
 //    int realRois = 0;
     auto inputDimVector = srcMemory0.GetDims();
+    const int N = static_cast<int>(inputDimVector[0]);
     const int C = static_cast<int>(inputDimVector[1]);
-    const int H = static_cast<int>(inputDimVector[2]);
-    const int W = static_cast<int>(inputDimVector[3]);
+    const int ID = static_cast<int>(spatialDimsCount == 3 ? inputDimVector[2] : 1);
+    const int IH = static_cast<int>(spatialDimsCount >= 2 ? inputDimVector[spatialDimsCount + 1] : 1);
+    const int IW = static_cast<int>(inputDimVector[spatialDimsCount + 2]);
+
+    const int OD = static_cast<int>(spatialDimsCount == 3 ? srcPooledSpatialShapes[0] : 1);
+    const int OH = static_cast<int>(spatialDimsCount >= 2 ? srcPooledSpatialShapes[spatialDimsCount - 2] : 1);
+    const int OW = static_cast<int>(srcPooledSpatialShapes[spatialDimsCount - 1]);
+
+    const int chPadding = srcMemory0.GetDescriptor().data.padded_dims[1];
+    const int blockCount = chPadding / blockSize;
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        IE_THROW() << "CPU AdaPooling node with name '" << getName() << "' doesn't have primitive descriptors.";
+    auto config = selectedPrimitiveDescriptor->getConfig();
+    auto srcStrides = config.inConfs[0].desc.getBlockingDesc().getStrides();
+    auto dstStrides = config.outConfs[0].desc.getBlockingDesc().getStrides();
+
+    // unified strides array
+    const size_t inStrides[5] = {
+            srcStrides[0],
+            srcStrides[1],
+            (spatialDimsCount == 5 ? srcStrides[2] : 0),
+            (spatialDimsCount >= 4 ? srcStrides[spatialDimsCount] : 0),
+            srcStrides[spatialDimsCount + 1] };
+    const size_t outStrides[5] = {
+            dstStrides[0],
+            dstStrides[1],
+            (spatialDimsCount == 5 ? dstStrides[2] : 0),
+            (spatialDimsCount >= 4 ? dstStrides[spatialDimsCount] : 0),
+            dstStrides[spatialDimsCount + 1] };
+    // TODO: ?
+//    const memory_desc_wrapper src_d(pd()->src_md());
+//    const memory_desc_wrapper dst_d(pd()->dst_md());
+
+// TODO: задать лямбду-алгоритм
+    auto pool = [] (inputType *srcData, outputType *dstData, int od, int oh, int ow) {
+
+    };
+
+    if (algorithm == Algorithm::AdaptivePoolingMax) {
+        parallel_nd(N, blockCount, OD, OH, OW,
+                    [&](int n, int blkIdx, int od, int oh, int ow) {
+            auto srcData = &src[n * inStrides[0] + blkIdx * inStrides[1]];
+            auto dstData = &dst[n * outStrides[0] + blkIdx * outStrides[1] + od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4]];
+//            const int srcIndex = n * nStride +
+            int cStart = blkIdx * blockSize;
+            int cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
+            for (int c = cStart; c < cEnd; c++) {
+                const int blockResidual = (isPlainFmt ? 0 : c % blockSize);
+                srcData = srcData + blockResidual;
+                dstData = dstData + blockResidual;
+                pool(srcData, dstData, od, ow, oh);
+            }
+        });
+        parallel_nd(N, C, OD, OH, OW,
+                    [&](int mb, int oc, int od, int oh, int ow) {
+                        auto data_p_off = get_offset(dst_d, mb, oc, od, oh, ow);
+                        float res = 0.f;
+                        set_ws(mb, oc, od, oh, ow, 0);
+                        ker_max(res, mb, oc, od, oh, ow);
+
+                        dst[data_p_off] = cpu::saturate_and_round<dst_data_t >(res);
+                    });
+    }
 
     const int binCount = pooledH * pooledW;
 

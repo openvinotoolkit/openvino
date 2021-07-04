@@ -33,6 +33,7 @@ private:
     int pooledH;
     int pooledW;
     int pooledD;
+    int spatialDimsCount;
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
     template <typename inputType, typename outputType>
