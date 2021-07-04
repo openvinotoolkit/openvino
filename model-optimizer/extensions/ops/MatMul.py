@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 
 from mo.front.common.partial_infer.utils import assign_dims_to_weights, int64_array, compare_dimensions, compare_shapes, \
-    shape_array
+    shape_array, is_fully_defined
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -100,11 +100,16 @@ class MatMul(Op):
         """
         a_value = node.in_port(0).get_source().data.get_value()
         b_value = node.in_port(1).get_source().data.get_value()
-        if a_value is not None and b_value is not None:
+        if a_value is not None and b_value is not None and is_fully_defined(a_value) and is_fully_defined(b_value):
             if node.transpose_a:
                 a_value = transpose(a_value)
             if node.transpose_b:
                 b_value = transpose(b_value)
+            # np.matmul does not work correctly with masked arrays, so need explicitly convert inputs to regular arrays
+            if isinstance(a_value, np.ma.masked_array):
+                a_value = a_value.filled()
+            if isinstance(b_value, np.ma.masked_array):
+                b_value = b_value.filled()
             node.out_port(0).data.set_value(np.matmul(a_value, b_value))
 
     @staticmethod
