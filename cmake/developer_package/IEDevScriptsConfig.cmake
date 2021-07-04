@@ -121,10 +121,10 @@ endif()
 
 # allow to override default OUTPUT_ROOT root
 if(NOT DEFINED OUTPUT_ROOT)
-    if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
-        message(FATAL_ERROR "OpenVINO_MAIN_SOURCE_DIR is not defined")
+    if(NOT DEFINED OpenVINO_SOURCE_DIR)
+        message(FATAL_ERROR "OpenVINO_SOURCE_DIR is not defined")
     endif()
-    set(OUTPUT_ROOT ${OpenVINO_MAIN_SOURCE_DIR})
+    set(OUTPUT_ROOT ${OpenVINO_SOURCE_DIR})
 endif()
 
 # Enable postfixes for Debug/Release builds
@@ -186,6 +186,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
+
+set(CMAKE_WARN_DEPRECATED OFF)
+set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON)
 
 # LTO
 

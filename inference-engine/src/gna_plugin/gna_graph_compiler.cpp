@@ -355,17 +355,18 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     uint32_t num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
 
     //  convert to 2D and set GNA input feature map size
-    uint32_t num_feature_map_columns = in_channels * convolution._stride_x * convolution._stride_y;
+    uint32_t effectiveStride = convolution._stride_x * convolution._stride_y;
     if (convolution._stride_y != 1) {
-        num_feature_map_columns = in_channels * convolution._stride_x;
+        effectiveStride = convolution._stride_x;
     } else if (in_width == 1 && convolution._stride_x != 1) {
-        num_feature_map_columns = in_channels * convolution._stride_y;
+        effectiveStride = convolution._stride_y;
     }
+    uint32_t num_feature_map_columns = in_channels * effectiveStride;
+
     uint32_t num_feature_map_rows = (in_channels * in_width) / num_feature_map_columns;
 
     uint32_t num_filters = convolution._out_depth;
     uint32_t num_filter_coefficients = single_conv_kernel_size + num_conv_kernel_padding;
-    uint32_t num_filter_rows = num_filter_coefficients / num_feature_map_columns;
     uint32_t num_columns_in = num_inputs + num_input_padding;
 
     uint32_t num_columns_out = (((num_inputs - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
@@ -416,21 +417,16 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         weight_scale_factor = quantized->_weights_quant.GetScale();
         output_scale_factor = quantized->_dst_quant.GetScale();
     }
-
     auto& currentComponent = dnnComponents.addComponent(convolution.name, "convolution");
     dnn->InitConvolutional1DComponent(currentComponent,
-        1,
         num_columns_in,
-        1,
         num_columns_out,
         num_bytes_per_input,
         num_bytes_per_output,
         num_bytes_per_weight,
         num_bytes_per_bias,
         num_filters,
-        num_filter_rows,
         num_filter_coefficients,
-        1,
         num_feature_map_rows,
         num_feature_map_columns,
         weight_scale_factor,
@@ -858,6 +854,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         swap(h_dim_in, w_dim_in);
         swap(h_dim_out, w_dim_out);
         swap(pooling._kernel[X_AXIS], pooling._kernel[Y_AXIS]);
+        swap(pooling._stride[X_AXIS], pooling._stride[Y_AXIS]);
     }
 
     void* ptr_inputs = nullptr;
@@ -1021,13 +1018,8 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto layerInfo = LayerInfo(concatParent);
         // auto layerInfo = LayerInfo(getCreatorLayer(concatLayerInput->insData[it].lock()).lock());
         if (layerInfo.isInput()) {
-            auto & bytesAllocated = inputDesc->bytes_allocated_for_input[((InferenceEngine::CNNLayerPtr)layerInfo)->name];
-
             connectInput(layer, &concatLayerInfo.gna_ptr,
-                         concatLayerInfo.reserved_size, inputLayer.offset, idx, false);
-
-            // TODO: currently connectInput api accept only total size, for concat we need extension for allocated, and actual sizes
-            bytesAllocated = inputLayer.tensorSize;
+                inputLayer.tensorSize, inputLayer.offset, idx, false);
 
             concatLayerInfo.input_allocated = true;
         } else if (layerInfo.isMemory()) {

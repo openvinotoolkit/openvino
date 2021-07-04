@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/fetch.cl"
 #include "include/reshape_dims.cl"
 #include "include/data_types.cl"
 

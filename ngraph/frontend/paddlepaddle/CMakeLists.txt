@@ -8,10 +8,6 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-if (TARGET ext_protobuf)
-    add_dependencies(${TARGET_NAME} ext_protobuf)
-endif()
-
 set(${TARGET_NAME}_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Create named folders for the sources within the .vcproj
@@ -56,9 +52,7 @@ add_custom_target(${TARGET_NAME}_proto DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
 
 # Disable all warnings for generated code
-set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_FLAGS -w)
-
-include_directories(${Protobuf_INCLUDE_DIRS} ${${TARGET_NAME}_INCLUDE_DIR})
+set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w)
 
 # Create shared library
 add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
@@ -70,10 +64,17 @@ if(NOT WIN32)
     add_dependencies(${TARGET_NAME} libprotobuf_static)
 endif()
 
+if (TARGET ext_protobuf)
+    add_dependencies(${TARGET_NAME} ext_protobuf)
+endif()
+
 target_include_directories(${TARGET_NAME}
+        PUBLIC
+            $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
+            $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
         PRIVATE
+            ${Protobuf_INCLUDE_DIRS}
             ${CMAKE_CURRENT_SOURCE_DIR}/src
-            ${FRONTEND_INCLUDE_PATH}
             ${CMAKE_CURRENT_BINARY_DIR})
 
 if(COMMAND ie_add_vs_version_file)
@@ -82,12 +83,13 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 if(WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf PUBLIC ngraph PRIVATE ngraph::builder)
+    target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
 else()
-    target_link_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT} PUBLIC ngraph PRIVATE ngraph::builder)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT})
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager)
+target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
+                                     PRIVATE ngraph::builder)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
@@ -96,5 +98,11 @@ install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+
+install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/paddlepaddle_frontend
+        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
+        COMPONENT ngraph_dev
+        FILES_MATCHING PATTERN "*.hpp"
+)
 
 export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")

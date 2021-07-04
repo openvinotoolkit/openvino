@@ -6,7 +6,6 @@
 #include "loop_inst.h"
 #include "network_impl.h"
 #include "implementation_map.h"
-#include "math_utils.h"
 #include "register_gpu.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
