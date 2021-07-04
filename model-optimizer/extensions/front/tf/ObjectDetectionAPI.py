@@ -35,6 +35,7 @@ from mo.front.tf.graph_utils import add_activation_function_after_node, add_conv
     create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.clamp import Clamp, AttributedClamp
 from mo.ops.concat import Concat
 from mo.ops.const import Const
@@ -1108,7 +1109,6 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         max_proposals = _value_or_raise(match, pipeline_config, 'first_stage_max_proposals')
         proposal_ratios = _value_or_raise(match, pipeline_config, 'anchor_generator_aspect_ratios')
         proposal_scales = _value_or_raise(match, pipeline_config, 'anchor_generator_scales')
-        anchors_count = len(proposal_ratios) * len(proposal_scales)
 
         # Convolution/matmul node that produces classes predictions
         # Transpose result of the tensor with classes permissions so it will be in a correct layout for Softmax
@@ -1137,7 +1137,6 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
 #        xyxy_anchors = add_convolution_to_swap_xy_coordinates(graph, yxyx_anchors, 4)
 
-        # TODO need to divide by the height/width of the input
         variance_height = pipeline_config.get_param('frcnn_variance_height')
         variance_width = pipeline_config.get_param('frcnn_variance_width')
         variance_x = pipeline_config.get_param('frcnn_variance_x')
@@ -1154,8 +1153,8 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         input_image_hw = node_to_get_shape_value_of_indices(input_shape, [1, 2])  # NHWC layout
         hwhw = create_op_with_const_inputs(graph, Tile, {1: int64_array([2])}, {'name': 'image_hwhw'}, input_image_hw)
 
-        # TODO change fp32 to the type specified
-        hwhw_float = Cast(graph, {'dst_type': np.float32}).create_node([hwhw])
+        hwhw_float = Cast(graph,
+                          {'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node([hwhw])
         scaled_anchors = Div(graph, {'name': 'scaled_anchors'}).create_node([yxyx_anchors, hwhw_float])
 
         flattened_anchors = create_op_with_const_inputs(graph, Reshape, {1: int64_array([1, 1, -1])},
@@ -1194,12 +1193,12 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                               'num_classes': 2,
                               'objectness_score': 0,
                               'share_location': True,
-                              'top_k': 2000000000,
+                              'top_k': 6000,
                               'variance_encoded_in_target': False,
                               'nms_threshold': _value_or_raise(match, pipeline_config, 'first_stage_nms_iou_threshold'),
                               'name': 'first_do',
                               }).create_node([reshape_box_logits, flattened_conf, duplicate_anchors])
-        # DetectionOutput output tensor has x and y coordinates are swapped
+        # DetectionOutput output tensor has x and y coordinates swapped
 
         # switch to 3D to avoid issues that part of the model with 4D shapes should be inferred in NCHW layout
         do_3d = create_op_with_const_inputs(graph, Squeeze, {1: int64_array(0)}, {'name': do.name + '/squeeze_do'}, do)
@@ -1224,85 +1223,6 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                                        'name': 'proposals'}).create_node()
         do_split.out_port(0).connect(proposal_node.in_port(0))
         clamped_xyxy_coord.out_port(0).connect(proposal_node.in_port(1))
-
-        ########################################################################################
-
-        # reshape_classes_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, anchors_count, 2, -1]),
-        #                                                         dict(name='predictions/Reshape'))
-        # predictions_node.insert_node_after(reshape_classes_node, 0)
-        # mark_as_correct_data_layout(reshape_classes_node)
-        #
-        # softmax_conf_op = Softmax(graph, dict(axis=2, nchw_layout=True, name=reshape_classes_node.id + '/Softmax'))
-        # softmax_conf_node = softmax_conf_op.create_node([reshape_classes_node])
-        #
-        # order_const = Const(graph, dict(value=int64_array([0, 2, 1, 3]),
-        #                                 name=softmax_conf_node.name + '/TransposeOrder')).create_node()
-        # permute_reshape_softmax_op = Transpose(graph, dict())
-        # permute_reshape_softmax_node = permute_reshape_softmax_op.create_node([softmax_conf_node, order_const], dict(
-        #     name=softmax_conf_node.name + '/Transpose'))
-        # mark_input_as_in_correct_layout(permute_reshape_softmax_node, 1)
-        # mark_output_as_in_correct_layout(permute_reshape_softmax_node, 0)
-        #
-        # initial_shape_op = Shape(graph, dict(name=predictions_node.id + '/Shape'))
-        # initial_shape_node = initial_shape_op.create_node([predictions_node])
-        #
-        # reshape_permute_op = Reshape(graph, dict(name='Reshape_Transpose_Class'))
-        # reshape_permute_node = reshape_permute_op.create_node([permute_reshape_softmax_node, initial_shape_node])
-        # mark_input_as_in_correct_layout(reshape_permute_node, 0)
-        # mark_output_as_in_correct_layout(reshape_permute_node, 0)
-        #
-        # variance_height = pipeline_config.get_param('frcnn_variance_height')
-        # variance_width = pipeline_config.get_param('frcnn_variance_width')
-        # variance_x = pipeline_config.get_param('frcnn_variance_x')
-        # variance_y = pipeline_config.get_param('frcnn_variance_y')
-        # anchor_generator_height_stride = pipeline_config.get_param('anchor_generator_height_stride')
-        # anchor_generator_width_stride = pipeline_config.get_param('anchor_generator_width_stride')
-        # anchor_generator_height = pipeline_config.get_param('anchor_generator_height')
-        # anchor_generator_width = pipeline_config.get_param('anchor_generator_width')
-        #
-        # if variance_height != variance_width:
-        #     log.error('The values for variance for height "{}" is not equal to variance for width "{}". The detection '
-        #               'results will be inaccurate.'.format(variance_height, variance_width))
-        # if variance_x != variance_y:
-        #     log.error('The values for variance for x "{}" is not equal to variance for y "{}". The detection '
-        #               'results will be inaccurate.'.format(variance_x, variance_y))
-        # if anchor_generator_height_stride != anchor_generator_width_stride:
-        #     log.error('The values for the anchor generator height stride "{}" is not equal to the anchor generator '
-        #               'width stride "{}". The detection results will be inaccurate.'.format(
-        #         anchor_generator_height_stride, anchor_generator_width_stride))
-        # if anchor_generator_height != anchor_generator_width:
-        #     log.error('The values for the anchor generator height "{}" is not equal to the anchor generator width '
-        #               'stride "{}". The detection results will be inaccurate.'.format(anchor_generator_height,
-        #                                                                               anchor_generator_width))
-        #
-        # proposal_op = ProposalOp(graph, dict(min_size=1,
-        #                                      framework='tensorflow',
-        #                                      pre_nms_topn=2 ** 31 - 1,
-        #                                      box_size_scale=variance_height,
-        #                                      box_coordinate_scale=variance_x,
-        #                                      post_nms_topn=max_proposals,
-        #                                      feat_stride=anchor_generator_height_stride,
-        #                                      ratio=proposal_ratios,
-        #                                      scale=proposal_scales,
-        #                                      normalize=1,
-        #                                      base_size=anchor_generator_height,
-        #                                      nms_thresh=_value_or_raise(match, pipeline_config,
-        #                                                                 'first_stage_nms_iou_threshold')))
-        # for key in ('clip_before_nms', 'clip_after_nms'):
-        #     if key in match.custom_replacement_desc.custom_attributes:
-        #         proposal_op.attrs[key] = int(match.custom_replacement_desc.custom_attributes[key])
-        #
-        # anchors_node = backward_bfs_for_operation(match.single_input_node(0)[0], ['Add'])[0]
-        #
-        # # creates input to store input image height, width and scales (usually 1.0s)
-        # # the batch size for this input is fixed because it is allowed to pass images of the same size only as input
-        # input_op_with_image_size = Parameter(graph, dict(shape=int64_array([1, 3]), fixed_batch=True))
-        # input_with_image_size_node = input_op_with_image_size.create_node([], dict(name='image_info'))
-        #
-        # proposal_node = proposal_op.create_node([reshape_permute_node, anchors_node, input_with_image_size_node],
-        #                                         dict(name='proposals'))
-
-        # models with use_matmul_crop_and_resize = True should not swap order of elements (YX to XY) after the Proposal
 
         # TODO FIXME ??? Check for other models
         # swap_proposals = not match.custom_replacement_desc.custom_attributes.get('do_not_swap_proposals', False) and \
