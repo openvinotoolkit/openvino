@@ -106,7 +106,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
 //    common_fusions->add_matcher<ngraph::pass::MVNFusion>(); // -
 //    common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>(); // -
 //    common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>(); // - BatchToSpaceToUpsample  ???
-    common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>(); // + DilatedConvolutionConverter
+//    common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>(); // + DilatedConvolutionConverter
     common_fusions->add_matcher<ngraph::pass::GeluFusion>(); // + GeLUMergerErf
     common_fusions->set_name("ngraph::pass::CommonFusions");
 

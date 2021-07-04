@@ -11,7 +11,7 @@ from mo.ops.const import Const
 
 
 class DilatedConvolutionConverter(MiddleReplacementPattern):
-    enabled = False
+    enabled = True
     force_clean_up = True
 
     def run_after(self):
