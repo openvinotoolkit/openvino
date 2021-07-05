@@ -47,8 +47,8 @@
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
-#include <ngraph/runtime/reference/mod.hpp>
 #include <ngraph/runtime/reference/matrix_nms.hpp>
+#include <ngraph/runtime/reference/mod.hpp>
 #include <ngraph/runtime/reference/multiclass_nms.hpp>
 #include <ngraph/runtime/reference/mvn.hpp>
 #include <ngraph/runtime/reference/non_max_suppression.hpp>
