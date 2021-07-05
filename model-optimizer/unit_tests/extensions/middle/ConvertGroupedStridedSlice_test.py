@@ -60,8 +60,8 @@ nodes_attributes = {
     'concat_1_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     'op_output': {'kind': 'op', 'op': 'Result'},
-    'op_output_1': {'kind': 'op', 'op': 'Result'},
-    'op_output_2': {'kind': 'op', 'op': 'Result'},
+    'op_output_1': {'kind': 'op', 'op': 'Result', 'keep_output_port': True},
+    'op_output_2': {'kind': 'op', 'op': 'Result', 'keep_output_port': True},
 
     # Squeeze layers
     'sslice_1/Squeeze_shrink': {'type': None, 'value': None, 'kind': 'op', 'op': 'Squeeze'},
