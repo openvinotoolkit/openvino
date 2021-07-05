@@ -56,10 +56,10 @@ If *clip* is defined, the coordinates of prior boxes are recalculated with the f
 
 * *clip*
 
-  * **Description**: *clip* is a flag that denotes if each value in the output tensor should be clipped within [0,1].
+  * **Description**: *clip* is a flag that denotes if each value in the output tensor should be clipped within `[0,1]`.
   * **Range of values**:
     * false or 0 - clipping is not performed
-    * true or 1  - each value in the output tensor is within [0,1]
+    * true or 1  - each value in the output tensor is within `[0,1]`
   * **Type**: `boolean`
   * **Default value**: true
   * **Required**: *no*
@@ -86,14 +86,6 @@ If *clip* is defined, the coordinates of prior boxes are recalculated with the f
   * **Range of values**: floating point positive numbers
   * **Type**: `float[]`
   * **Default value**: []
-  * **Required**: *no*
-
-* *img_h (img_w)*
-
-  * **Description**: *img_h (img_w)* specifies height (width) of input image. These attributes are taken from the second input `image_size` height(width) unless provided explicitly as the value for this attributes.
-  * **Range of values**: floating point positive number
-  * **Type**: `float`
-  * **Default value**: 0
   * **Required**: *no*
 
 **Inputs**:
