@@ -287,6 +287,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/softmax.cpp
@@ -464,6 +465,7 @@ set(MULTI_TEST_SRC
     backend/roll.in.cpp
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
+    backend/space_to_depth.in.cpp
     backend/select.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
@@ -673,4 +675,3 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     add_dependencies(unit-test pdpd_test_models)
     add_dependencies(unit-test paddlepaddle_ngraph_frontend)
 endif()
-
