@@ -190,9 +190,8 @@ def main():
             try:
                 create_memcheck_report(records, args.db_url, args.db_collection, args.timeline_report)
                 logging.info('Created memcheck timeline report %s', args.timeline_report)
-            except Exception:
-                logging.warning('Failed to create timeline report')
-                pass
+            except Exception as ex:
+                logging.warning(f'Failed to create timeline report: {ex}')
 
         # compare runs and prepare report
         if args.compare:
