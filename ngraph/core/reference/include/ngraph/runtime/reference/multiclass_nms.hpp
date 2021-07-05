@@ -36,7 +36,9 @@ namespace ngraph
                                 const Shape& selected_indices_shape,
                                 int64_t* valid_outputs);
 
-            void multiclass_nms_postprocessing(const HostTensorVector& outputs,
+            void multiclass_nms_postprocessing(void* prois,
+                                               void* pscores,
+                                               void* pselected_num,
                                                const ngraph::element::Type output_type,
                                                const std::vector<float>& selected_outputs,
                                                const std::vector<int64_t>& selected_indices,

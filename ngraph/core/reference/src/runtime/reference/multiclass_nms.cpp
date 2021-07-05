@@ -421,7 +421,9 @@ namespace ngraph
                 }
             }
 
-            void multiclass_nms_postprocessing(const HostTensorVector& outputs,
+            void multiclass_nms_postprocessing(void* prois,
+                                               void* pscores,
+                                               void* pselected_num,
                                                const ngraph::element::Type output_type,
                                                const std::vector<float>& selected_outputs,
                                                const std::vector<int64_t>& selected_indices,
@@ -430,25 +432,6 @@ namespace ngraph
             {
                 auto num_selected = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
 
-                /* shape & type */
-
-                outputs[0]->set_element_type(selected_scores_type); // "selected_outputs"
-                outputs[0]->set_shape(Shape{static_cast<size_t>(num_selected), 6});
-
-                size_t num_of_outputs = outputs.size();
-
-                if (num_of_outputs >= 2)
-                {
-                    outputs[1]->set_element_type(output_type); // "selected_indices"
-                    outputs[1]->set_shape(Shape{static_cast<size_t>(num_selected), 1});
-                }
-
-                if (num_of_outputs >= 3)
-                {
-                    outputs[2]->set_element_type(output_type); // "selected_num"
-                    outputs[2]->set_shape(Shape{valid_outputs.size()});
-                }
-
                 /* data */
                 size_t selected_outputs_size = num_selected * 6;
 
@@ -456,7 +439,7 @@ namespace ngraph
                 {
                 case element::Type_t::bf16:
                 {
-                    bfloat16* scores_ptr = outputs[0]->get_data_ptr<bfloat16>();
+                    bfloat16* scores_ptr = static_cast<bfloat16*>(prois);
                     for (size_t i = 0; i < selected_outputs_size; ++i)
                     {
                         scores_ptr[i] = bfloat16(selected_outputs[i]);
@@ -465,7 +448,7 @@ namespace ngraph
                 break;
                 case element::Type_t::f16:
                 {
-                    float16* scores_ptr = outputs[0]->get_data_ptr<float16>();
+                    float16* scores_ptr = static_cast<float16*>(prois);
                     for (size_t i = 0; i < selected_outputs_size; ++i)
                     {
                         scores_ptr[i] = float16(selected_outputs[i]);
@@ -474,7 +457,7 @@ namespace ngraph
                 break;
                 case element::Type_t::f32:
                 {
-                    float* scores_ptr = outputs[0]->get_data_ptr<float>();
+                    float* scores_ptr = static_cast<float*>(prois);
                     memcpy(
                         scores_ptr, selected_outputs.data(), selected_outputs_size * sizeof(float));
                 }
@@ -482,7 +465,7 @@ namespace ngraph
                 default:;
                 }
 
-                if (num_of_outputs < 2)
+                if (pscores == nullptr)
                 {
                     return;
                 }
@@ -491,35 +474,35 @@ namespace ngraph
 
                 if (output_type == ngraph::element::i64)
                 {
-                    int64_t* indices_ptr = outputs[1]->get_data_ptr<int64_t>();
+                    int64_t* indices_ptr = static_cast<int64_t*>(pscores);
                     memcpy(indices_ptr,
                            selected_indices.data(),
                            selected_indices_size * sizeof(int64_t));
                 }
                 else
                 {
-                    int32_t* indices_ptr = outputs[1]->get_data_ptr<int32_t>();
+                    int32_t* indices_ptr = static_cast<int32_t*>(pscores);
                     for (size_t i = 0; i < selected_indices_size; ++i)
                     {
                         indices_ptr[i] = static_cast<int32_t>(selected_indices[i]);
                     }
                 }
 
-                if (num_of_outputs < 3)
+                if (pselected_num == nullptr)
                 {
                     return;
                 }
 
                 if (output_type == ngraph::element::i64)
                 {
-                    int64_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int64_t>();
+                    int64_t* valid_outputs_ptr = static_cast<int64_t*>(pselected_num);
                     memcpy(valid_outputs_ptr,
                            valid_outputs.data(),
                            valid_outputs.size() * sizeof(int64_t));
                 }
                 else
                 {
-                    int32_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int32_t>();
+                    int32_t* valid_outputs_ptr = static_cast<int32_t*>(pselected_num);
                     for (size_t i = 0; i < valid_outputs.size(); ++i)
                     {
                         valid_outputs_ptr[i] = static_cast<int32_t>(valid_outputs[i]);

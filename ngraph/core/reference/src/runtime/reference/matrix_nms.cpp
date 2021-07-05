@@ -391,28 +391,29 @@ namespace ngraph
                 }
             }
 
-            void matrix_nms_postprocessing(const HostTensorVector& outputs,
+            void matrix_nms_postprocessing(void* prois,
+                                           void* pscores,
+                                           void* pselected_num,
                                            const ngraph::element::Type output_type,
                                            const std::vector<float>& selected_outputs,
                                            const std::vector<int64_t>& selected_indices,
                                            const std::vector<int64_t>& valid_outputs)
             {
                 int64_t total_num = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
-                outputs[0]->set_shape(Shape{static_cast<size_t>(total_num), 6});
-                float* ptr = outputs[0]->get_data_ptr<float>();
+
+                float* ptr = static_cast<float*>(prois);
                 memcpy(ptr, selected_outputs.data(), total_num * sizeof(float) * 6);
 
-                if (outputs.size() >= 2)
+                if (pscores)
                 {
-                    outputs[1]->set_shape(Shape{static_cast<size_t>(total_num), 1});
                     if (output_type == ngraph::element::i64)
                     {
-                        int64_t* indices_ptr = outputs[1]->get_data_ptr<int64_t>();
+                        int64_t* indices_ptr = static_cast<int64_t*>(pscores);
                         memcpy(indices_ptr, selected_indices.data(), total_num * sizeof(int64_t));
                     }
                     else
                     {
-                        int32_t* indices_ptr = outputs[1]->get_data_ptr<int32_t>();
+                        int32_t* indices_ptr = static_cast<int32_t*>(pscores);
                         for (size_t i = 0; i < (size_t)total_num; ++i)
                         {
                             indices_ptr[i] = static_cast<int32_t>(selected_indices[i]);
@@ -420,16 +421,16 @@ namespace ngraph
                     }
                 }
 
-                if (outputs.size() >= 3)
+                if (pselected_num)
                 {
                     if (output_type == ngraph::element::i64)
                     {
-                        int64_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int64_t>();
+                        int64_t* valid_outputs_ptr = static_cast<int64_t*>(pselected_num);
                         std::copy(valid_outputs.begin(), valid_outputs.end(), valid_outputs_ptr);
                     }
                     else
                     {
-                        int32_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int32_t>();
+                        int32_t* valid_outputs_ptr = static_cast<int32_t*>(pselected_num);
                         for (size_t i = 0; i < (size_t)valid_outputs.size(); ++i)
                         {
                             valid_outputs_ptr[i] = static_cast<int32_t>(valid_outputs[i]);

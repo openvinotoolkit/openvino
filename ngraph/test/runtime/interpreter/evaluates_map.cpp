@@ -1035,7 +1035,27 @@ namespace
                                                 info.selected_indices_shape,
                                                 valid_outputs.data());
 
-        runtime::reference::matrix_nms_postprocessing(outputs,
+        void* pscores = nullptr;
+        void* pselected_num = nullptr;
+        void* prois;
+        size_t num_selected = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
+
+        outputs[0]->set_shape({num_selected, 6});
+        prois = outputs[0]->get_data_ptr();
+
+        if (outputs.size() >= 2)
+        {
+            outputs[1]->set_shape({num_selected, 1});
+            pscores = outputs[1]->get_data_ptr();
+        }
+        if (outputs.size() >= 3)
+        {
+            pselected_num = outputs[2]->get_data_ptr();
+        }
+
+        runtime::reference::matrix_nms_postprocessing(prois,
+                                                pscores,
+                                                pselected_num,
                                                 op->get_output_type(),
                                                 selected_outputs,
                                                 selected_indices,
@@ -1156,7 +1176,28 @@ namespace
 
         auto selected_scores_type = element::f32; // FIXME
 
-        runtime::reference::multiclass_nms_postprocessing(outputs,
+        void* pscores = nullptr;
+        void* pselected_num = nullptr;
+        void* prois;
+        size_t num_selected = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
+
+        outputs[0]->set_element_type(selected_scores_type);
+        outputs[0]->set_shape({num_selected, 6});
+        prois = outputs[0]->get_data_ptr();
+
+        if (outputs.size() >= 2)
+        {
+            outputs[1]->set_shape({num_selected, 1});
+            pscores = outputs[1]->get_data_ptr();
+        }
+        if (outputs.size() >= 3)
+        {
+            pselected_num = outputs[2]->get_data_ptr();
+        }
+
+        runtime::reference::multiclass_nms_postprocessing(prois,
+                                                pscores,
+                                                pselected_num,
                                                 op->get_output_type(),
                                                 selected_outputs,
                                                 selected_indices,
