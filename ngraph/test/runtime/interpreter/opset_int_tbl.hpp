@@ -97,3 +97,6 @@ NGRAPH_OP(DFT, op::v7)
 NGRAPH_OP(Einsum, op::v7)
 NGRAPH_OP(IDFT, op::v7)
 NGRAPH_OP(Roll, ngraph::op::v7)
+
+NGRAPH_OP(AdaptiveAvgPool, ngraph::op::v8)
+NGRAPH_OP(AdaptiveMaxPool, ngraph::op::v8)

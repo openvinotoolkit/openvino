@@ -304,6 +304,7 @@ public:
 
     /**
      * @brief Returns the tensor description
+     * @return A tensor description
      */
     const TensorDesc& getTensorDesc() const noexcept override {
         return tensorDesc;
@@ -311,6 +312,7 @@ public:
 
     /**
      * @brief Returns the tensor description
+     * @return A tensor description
      */
     TensorDesc& getTensorDesc() noexcept override {
         return tensorDesc;
@@ -395,7 +397,7 @@ public:
      *
      * @return A LockedMemory object
      */
-    virtual LockedMemory<void> rwmap()noexcept = 0;
+    virtual LockedMemory<void> rwmap() noexcept = 0;
 
     /**
      * @brief Gets read only access to the memory in virtual space of the process.
@@ -419,7 +421,7 @@ public:
      *
      * @return A LockedMemory object
      */
-    virtual LockedMemory<const void> rmap()const noexcept = 0;
+    virtual LockedMemory<const void> rmap() const noexcept = 0;
 
     /**
      * @brief Gets "write only direction" access to the memory in virtual space of the process.
@@ -446,7 +448,7 @@ public:
      *
      * @return A LockedMemory object
      */
-    virtual LockedMemory<void> wmap()noexcept = 0;
+    virtual LockedMemory<void> wmap() noexcept = 0;
 
 protected:
     /**
@@ -567,11 +569,6 @@ public:
      */
     virtual ~TBlob();
 
-    /**
-     * @brief Gets the size of the given type.
-     *
-     * @return Size of the type
-     */
     size_t element_size() const noexcept override {
         return sizeof(T);
     }
@@ -594,9 +591,6 @@ public:
         return std::move(lockme<const T>());
     }
 
-    /**
-     * @brief Allocates or reallocates memory
-     */
     void allocate() noexcept override {
         const auto allocator = getAllocator();
         const auto rawHandle = allocator->alloc(byteSize());
@@ -612,27 +606,14 @@ public:
             });
     }
 
-    /**
-     * @brief Frees all allocated data
-     */
     bool deallocate() noexcept override {
         return free();
     }
 
-    /**
-     * @brief Creates a new LockedMemory instance holding void pointer.
-     *
-     * @return LockedMemory instance holding void pointer
-     */
     LockedMemory<void> buffer() noexcept override {
         return std::move(lockme<void>());
     }
 
-    /**
-     * @brief Creates a new LockedMemory instance holding constant void pointer.
-     *
-     * @return LockedMemory instance holding constant void pointer
-     */
     LockedMemory<const void> cbuffer() const noexcept override {
         return std::move(lockme<const void>());
     }
@@ -734,6 +715,7 @@ protected:
 
     /**
      * @brief Frees handler and cleans up the stored data.
+     * @return `true` if memory was freed
      */
     virtual bool free() {
         bool bCanRelease = _handle != nullptr;
@@ -753,11 +735,6 @@ protected:
          //   getTensorDesc().getBlockingDesc().getOffsetPadding());
     }
 
-    /**
-     * @brief Gets an allocator or creates a default one.
-     *
-     * @return IAllocator instance
-     */
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
         // in case when constructor without allocator was used
         if (!_allocator) {
@@ -767,9 +744,6 @@ protected:
         return _allocator;
     }
 
-    /**
-     * @brief Returns handle to the stored data.
-     */
     void* getHandle() const noexcept override {
         return _handle.get();
     }
