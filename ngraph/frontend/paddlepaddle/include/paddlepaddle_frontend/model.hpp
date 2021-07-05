@@ -13,13 +13,6 @@ namespace ngraph
     {
         class OpPlacePDPD;
         class TensorPlacePDPD;
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        typedef std::wstring path_type;
-#else
-        typedef std::string path_type;
-#endif
-
         class PDPD_API InputModelPDPD : public InputModel
         {
             friend class FrontEndPDPD;
@@ -31,7 +24,10 @@ namespace ngraph
             std::map<std::string, Output<Node>> getTensorValues() const;
 
         public:
-            explicit InputModelPDPD(const path_type& path);
+            explicit InputModelPDPD(const std::string& path);
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            explicit InputModelPDPD(const std::wstring& path);
+#endif
             explicit InputModelPDPD(const std::vector<std::istream*>& streams);
             std::vector<Place::Ptr> get_inputs() const override;
             std::vector<Place::Ptr> get_outputs() const override;
