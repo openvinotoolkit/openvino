@@ -38,9 +38,9 @@ set "PATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PATH%"
 
 
 :: Model Downloader
-if exist %INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader (
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;%PYTHONPATH%
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;%PATH%"
+if exist %INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PATH%"
 )
 
 :: Inference Engine
