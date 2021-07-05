@@ -68,6 +68,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> intActivationTy
         {Negative,              {}},
         {Ceiling,               {}},
         {Cos,                   {}},
+        {Sinh,                  {}},
         {Sqrt,                  {}},
         {Tanh,                  {}},
 };
