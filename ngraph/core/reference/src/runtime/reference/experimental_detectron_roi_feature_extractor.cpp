@@ -339,6 +339,26 @@ namespace ngraph
                 float* output_rois_features,
                 float* output_rois)
             {
+                std::cout << "Running reference implementation calculations for "
+                             "ExperimentalDetectronROIFeatureExtractor...\n";
+                std::cout << "Its arguments are\n\n";
+                std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+                std::cout << "Input data:\n";
+                for (size_t i = 0; i < inputs.size(); ++i)
+                {
+                    std::cout << "    input number " << i << " has data: ";
+                    for (auto x : inputs[i])
+                    {
+                        std::cout << x << ", ";
+                    }
+                    std::cout << "\n\n";
+                }
+                std::cout << "Input shapes:\n";
+                for (size_t i = 0; i < input_shapes.size(); ++i)
+                {
+                    std::cout << "    input number " << i << " has shape: " << input_shapes[i] <<"\n\n";
+                }
+
                 int64_t output_dim_ = attrs.output_size;
                 auto pyramid_scales_ = attrs.pyramid_scales;
                 int64_t sampling_ratio_ = attrs.sampling_ratio;
@@ -353,10 +373,32 @@ namespace ngraph
                     static_cast<int64_t>(input_shapes[input_features_start_port][1]);
                 const int64_t feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
+                std::cout << "output_dim_:     " << output_dim_ << "\n";
+                std::cout << "pyramid_scales_: ";
+                for (auto x : pyramid_scales_)
+                {
+                    std::cout << x << ", ";
+                }
+                std::cout << "\n";
+                std::cout << "sampling_ratio_: " << sampling_ratio_ << "\n";
+                std::cout << "aligned_:        " << (aligned_ ? "true" : "false") << "\n";
+                std::cout << "pooled_height_:  " << pooled_height_ << "\n";
+                std::cout << "pooled_width_:   " << pooled_width_ << "\n";
+                std::cout << "levels_num:      " << levels_num << "\n";
+                std::cout << "num_rois:        " << num_rois << "\n";
+                std::cout << "channels_num:    " << channels_num << "\n";
+                std::cout << "feaxels_per_roi: " << feaxels_per_roi << "\n\n";
+
                 const float* input_rois = inputs[input_rois_port].data();
 
                 std::vector<int64_t> level_ids(num_rois, 0);
                 redistribute_rois(input_rois, level_ids.data(), num_rois, levels_num);
+                std::cout << "level_ids:             ";
+                for (auto x : level_ids)
+                {
+                    std::cout << x << ", ";
+                }
+                std::cout << "\n\n";
 
                 std::vector<float> reordered_rois(4 * num_rois, 0);
                 std::vector<int64_t> original_rois_mapping(num_rois, 0);
@@ -366,9 +408,27 @@ namespace ngraph
                       4,
                       reordered_rois.data(),
                       original_rois_mapping.data());
+                std::cout << "reordered_rois:        ";
+                for (auto x : reordered_rois)
+                {
+                    std::cout << x << ", ";
+                }
+                std::cout << "\n\n";
+                std::cout << "original_rois_mapping: ";
+                for (auto x : original_rois_mapping)
+                {
+                    std::cout << x << ", ";
+                }
+                std::cout << "\n\n";
 
                 std::vector<int64_t> rois_per_level;
                 split_points(level_ids, rois_per_level, levels_num + 1);
+                std::cout << "rois_per_level:        ";
+                for (auto x : rois_per_level)
+                {
+                    std::cout << x << ", ";
+                }
+                std::cout << "\n\n";
 
                 std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
                 for (int64_t i = 0; i < levels_num; ++i)

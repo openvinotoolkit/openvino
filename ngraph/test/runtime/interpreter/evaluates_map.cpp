@@ -1130,7 +1130,7 @@ namespace
         std::cout << "Input data:\n";
         for (size_t i = 0; i < input_data.size(); ++i)
         {
-            std::cout << "    input number " << i << "has data: ";
+            std::cout << "    input number " << i << " has data: ";
             for (auto x : input_data[i])
             {
                 std::cout << x << ", ";
@@ -1140,7 +1140,7 @@ namespace
         std::cout << "Input shapes:\n";
         for (size_t i = 0; i < input_shapes.size(); ++i)
         {
-            std::cout << "    input number " << i << "has shape: " << input_shapes[i] <<"\n\n";
+            std::cout << "    input number " << i << " has shape: " << input_shapes[i] <<"\n\n";
         }
 
         const auto info =
