@@ -47,7 +47,8 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
 bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    // To avoid issues with dynamism we make ngraph::Function dynamic and in the end we change it back
+    // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
+    // transformations we restore original shapes to the nGraph Function back
     std::unordered_map<std::string, PartialShape> input_shapes;
     for (auto && param : f->get_parameters()) {
         input_shapes[param->get_friendly_name()] = param->get_partial_shape();
@@ -58,64 +59,22 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    // manager.register_pass<ngraph::pass::ConstantFolding>();
-    // Resolves dynamism (replaces NonZero), CF needed
-    manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // + RemoveFilteringBoxesBySize
-
-    // TODO: move to KMB
-    manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>(); // + QuantizeDequantizeLinear
-    // manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>(); // - ??? do we need this in offline?
-
-    // manager.register_pass<ngraph::pass::ConstantFolding>();
-    // depends on CF
-    // manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // - (ConvertGroupedStridedSlice - also relies on shape)
-    // manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>(); // - keep in offline
-
-    // auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>(); - TBD
-    // transpose_sinking->add_matcher<ngraph::pass::TransposeSinking>();
-    // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
-    // because it replaces pattern that may contain Transposes which must be optimized before
-    // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
-    // transpose_sinking->add_matcher<ngraph::pass::SplitSqueezeConcatFusion>();
-
-//    auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
-//    eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
-//    eliminations->add_matcher<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
-//    eliminations->add_matcher<ngraph::pass::NopElimination>(); // may introduce fake dynamism
-//    eliminations->set_name("ngraph::pass::CommonEliminations");
-
-    // manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>();
+    manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-//    common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>(); // -
-
-    // requires static shape
-    // common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>(); // +
-
-
-    common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>(); // + SoftplusFusion
-    common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>(); // + MishFusion
-    common_fusions->add_matcher<ngraph::pass::SwishFusion>(); // + SwishWithSigmoidWithoutBeta,
-//    common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false); // + ShuffleChannelFusion
-    common_fusions->add_matcher<ngraph::pass::HSwishFusion>(); // + HSwishWithClamp
-    common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>(); // + HSigmoidWithClamp...
-//    common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>(); // -
-//    common_fusions->add_matcher<ngraph::pass::ClampFusion>(); // -
-    common_fusions->add_matcher<ngraph::pass::PadFusion>(); // - RemoveUselessPad ???
-//    common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>(); // -
-//    common_fusions->add_matcher<ngraph::pass::MVNFusion>(); // -
-//    common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>(); // -
-//    common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>(); // - BatchToSpaceToUpsample  ???
-//    common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>(); // + DilatedConvolutionConverter
-    common_fusions->add_matcher<ngraph::pass::GeluFusion>(); // + GeLUMergerErf
+    common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
+    common_fusions->add_matcher<ngraph::pass::SwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
+    common_fusions->add_matcher<ngraph::pass::PadFusion>();
+    common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
-
-    // TODO: replace ConvToBinaryConv and BinarizeWeightsM1P1
-    // manager.register_pass<ngraph::pass::BinarizeWeights>();
-    // manager.register_pass<ngraph::pass::ConvToBinaryConv>();
 
     manager.run_passes(f);
 
+    // Restore original shapes to the nGraph Function
     for (auto && param : f->get_parameters()) {
         param->set_partial_shape(input_shapes.at(param->get_friendly_name()));
     }
