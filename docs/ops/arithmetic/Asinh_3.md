@@ -2,7 +2,7 @@
 
 **Versioned name**: *Asinh-3*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Asinh* is inverse hyperbolic sine (arcsinh) operation.
 
@@ -22,7 +22,7 @@ a_{i} = asinh(a_{i})
 
 **Outputs**
 
-* **1**: The result of element-wise *Asinh* operation applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
+* **1**: The result of element-wise asinh operation applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
 
 **Types**
 

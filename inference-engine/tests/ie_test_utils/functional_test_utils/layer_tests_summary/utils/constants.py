@@ -10,6 +10,7 @@ VERIFIED_OP_REFERENCES = [
     'Assign-6',
     'AvgPool-1',
     'BatchNormInference-5',
+    'BatchToSpace-2',
     'BinaryConvolution-1',
     'Broadcast-1',
     'Broadcast-3',
