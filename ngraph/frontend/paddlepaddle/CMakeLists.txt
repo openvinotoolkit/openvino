@@ -64,10 +64,6 @@ if(NOT WIN32)
     add_dependencies(${TARGET_NAME} libprotobuf_static)
 endif()
 
-if (TARGET ext_protobuf)
-    add_dependencies(${TARGET_NAME} ext_protobuf)
-endif()
-
 target_include_directories(${TARGET_NAME}
         PUBLIC
             $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
