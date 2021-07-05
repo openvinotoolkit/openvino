@@ -4,11 +4,6 @@
 
 set(TARGET_NAME ngraphFunctions)
 
-list(APPEND EXPORT_DEPENDENCIES
-        ngraph_backend
-        interpreter_backend
-        )
-
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 addIeTarget(
@@ -23,7 +18,6 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 ngraph
-                # ngraph_backend
                 interpreter_backend
         ADD_CPPLINT
         DEVELOPER_PACKAGE
