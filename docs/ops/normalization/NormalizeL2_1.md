@@ -12,7 +12,7 @@ Each element in the output is the result of division of corresponding element fr
 
     output[i0, i1, ..., iN] = x[i0, i1, ..., iN] / sqrt(eps_mode(sum[j0,..., jN](x[j0, ..., jN]**2), eps))
 
-Where indices `i0, ..., iN` run through all valid indices for the 1st input and summation `sum[j0, ..., jN]` have `jk = ik` for those dimensions `k` that are not in the set of indices specified by the `axes` input of the operation.
+Where indices `i0, ..., iN` run through all valid indices for the `data` input and summation `sum[j0, ..., jN]` have `jk = ik` for those dimensions `k` that are not in the set of indices specified by the `axes` input of the operation.
 `eps_mode` selects how the reduction value and `eps` are combined. It can be `max` or `add` depending on `eps_mode` attribute value.
 
 Particular cases:
@@ -54,7 +54,7 @@ Particular cases:
 * *T*: arbitrary supported floating-point type.
 * *T_IND*: any supported integer type.
 
-**Example**
+**Examples**
 
 ```xml
 <layer id="1" type="NormalizeL2" ...>
@@ -67,7 +67,32 @@ Particular cases:
             <dim>24</dim>
         </port>
         <port id="1">
-            <dim>2</dim>         <!-- value is [2, 3] that means independent normalization in each channel -->
+            <dim>1</dim>         <!-- axes list [1] means normalization over channel dimension -->
+        </port>
+    </input>
+    <output>
+        <port id="2">
+            <dim>6</dim>
+            <dim>12</dim>
+            <dim>10</dim>
+            <dim>24</dim>
+        </port>
+    </output>
+</layer>
+```
+
+```xml
+<layer id="1" type="NormalizeL2" ...>
+    <data eps="1e-8" eps_mode="add"/>
+    <input>
+        <port id="0">
+            <dim>6</dim>
+            <dim>12</dim>
+            <dim>10</dim>
+            <dim>24</dim>
+        </port>
+        <port id="1">
+            <dim>3</dim>         <!-- axes list [1, 2, 3] means normalization over channel and spatial dimensions -->
         </port>
     </input>
     <output>
