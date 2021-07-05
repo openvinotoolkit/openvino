@@ -35,9 +35,9 @@ if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_
     set(protoc_version "3.9.2")
 
     RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
-        ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
+        ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.zip"
         TARGET_PATH "${TEMP}/protoc-${protoc_version}-linux-x86_64"
-        SHA256 "a1bedd5c05ca51e49f8f254faa3d7331e05b3a806c151fb111d582f154d0fee8"
+        SHA256 "0d9034a3b02bd77edf5ef926fb514819a0007f84252c5e6a6391ddfc4189b904"
     )
     debug_message(STATUS "host protoc-${protoc_version} root path = " ${SYSTEM_PROTOC_ROOT})
 
