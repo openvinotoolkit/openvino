@@ -18,11 +18,11 @@ a_{i} = asinh(a_{i})
 
 **Inputs**
 
-* **1**: A tensor of type `T` and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise asinh operation applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
+* **1**: The result of element-wise asinh operation applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 
