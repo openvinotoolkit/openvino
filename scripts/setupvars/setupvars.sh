@@ -53,6 +53,10 @@ if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
     export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
 fi
 
+if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
+    export LD_LIBRARY_PATH=$INSTALLDIR/tools/compile_tool${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+fi
+
 if [ -e "$INSTALLDIR/extras/opencv" ]; then
     if [ -f "$INSTALLDIR/extras/opencv/setupvars.sh" ]; then
         source "$INSTALLDIR/extras/opencv/setupvars.sh"
@@ -71,6 +75,12 @@ fi
 export PATH="$INTEL_OPENVINO_DIR/tools/model_optimizer${PATH:+:$PATH}"
 export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
 
+
+
+if [ -e "$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader" ]; then
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader:$PYTHONPATH"
+    export PATH="$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader:$PATH"
+fi
 
 if [ -e "$INTEL_OPENVINO_DIR/tools/accuracy_checker" ]; then
     export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/accuracy_checker:$PYTHONPATH"

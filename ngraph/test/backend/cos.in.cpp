@@ -2,23 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-#include <cinttypes>
-#include <cmath>
-#include <cstdlib>
-#include <random>
-#include <string>
-
-// clang-format off
-#ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#define DEFAULT_FLOAT_TOLERANCE_BITS ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#endif
-
-#ifdef ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#endif
-// clang-format on
-
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/engine/test_engines.hpp"
@@ -31,7 +14,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, cos)
+NGRAPH_TEST(${BACKEND_NAME}, cos_float)
 {
     Shape shape{11};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -51,5 +34,18 @@ NGRAPH_TEST(${BACKEND_NAME}, cos)
                                           -0.41614684f,
                                           -0.65364362f,
                                           -0.65364362f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, cos_int)
+{
+    Shape shape{5};
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto f = make_shared<Function>(make_shared<op::Cos>(A), ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int32_t>({1, 2, 3, 4, 5});
+    test_case.add_expected_output<int32_t>(shape,
+                                         {1, 0, -1, -1, 0});
     test_case.run();
 }

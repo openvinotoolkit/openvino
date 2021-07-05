@@ -36,6 +36,13 @@ set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PYTHONPATH%
 set "PATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PATH%"
 )
 
+
+:: Model Downloader
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;%PATH%"
+)
+
 :: Inference Engine
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
@@ -46,6 +53,11 @@ set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin;%HDDL_INSTALL_DIR%\bin;
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
 set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\cmake"
+)
+
+:: Compile tool
+if exist %INTEL_OPENVINO_DIR%\tools\compile_tool (
+set "PATH=%INTEL_OPENVINO_DIR%\tools\compile_tool;%PATH%"
 )
 
 :: Add libs dirs to the PATH

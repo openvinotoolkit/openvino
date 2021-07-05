@@ -19,13 +19,11 @@ project (ngraph)
 
 option(NGRAPH_UNIT_TEST_ENABLE "Control the building of unit tests" ON)
 option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of unit tests using backends" ON)
-option(NGRAPH_INTERPRETER_ENABLE "Control the building of the INTERPRETER backend" ON)
 option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
 option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" OFF)
 option(NGRAPH_ONNX_EDITOR_ENABLE "Enable ONNX Editor" OFF)
 option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" OFF)
 option(NGRAPH_PYTHON_BUILD_ENABLE "Enable build nGraph python package wheel" OFF)
-option(NGRAPH_DYNAMIC_COMPONENTS_ENABLE "Enable dynamic loading of components" ON)
 option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" OFF)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE)
@@ -36,8 +34,6 @@ if(NGRAPH_ONNX_EDITOR_ENABLE AND NOT NGRAPH_ONNX_IMPORT_ENABLE)
 endif()
 
 message(STATUS "NGRAPH_DEBUG_ENABLE:                  ${NGRAPH_DEBUG_ENABLE}")
-message(STATUS "NGRAPH_DYNAMIC_COMPONENTS_ENABLE:     ${NGRAPH_DYNAMIC_COMPONENTS_ENABLE}")
-message(STATUS "NGRAPH_INTERPRETER_ENABLE:            ${NGRAPH_INTERPRETER_ENABLE}")
 message(STATUS "NGRAPH_ONNX_IMPORT_ENABLE:            ${NGRAPH_ONNX_IMPORT_ENABLE}")
 message(STATUS "NGRAPH_ONNX_EDITOR_ENABLE:            ${NGRAPH_ONNX_EDITOR_ENABLE}")
 message(STATUS "NGRAPH_PDPD_FRONTEND_ENABLE:          ${NGRAPH_PDPD_FRONTEND_ENABLE}")
@@ -86,43 +82,11 @@ endif()
 message(STATUS "NGRAPH_FORWARD_CMAKE_ARGS ${NGRAPH_FORWARD_CMAKE_ARGS}")
 
 #-----------------------------------------------------------------------------------------------
-# Installation logic...
-#-----------------------------------------------------------------------------------------------
-
-if (LINUX)
-    include(GNUInstallDirs)
-else()
-    set(CMAKE_INSTALL_BINDIR "bin" CACHE STRING "User executables (bin)")
-    set(CMAKE_INSTALL_LIBDIR "lib" CACHE STRING "Object code libraries (lib)")
-    set(CMAKE_INSTALL_INCLUDEDIR "include" CACHE STRING "C header files (include)")
-    set(CMAKE_INSTALL_DOCDIR "doc" CACHE STRING "Document files (doc)")
-    mark_as_advanced(CMAKE_INSTALL_BINDIR CMAKE_INSTALL_LIBDIR CMAKE_INSTALL_INCLUDEDIR, CMAKE_INSTALL_DOCDIR)
-endif()
-
-if (DEFINED NGRAPH_INSTALL_PREFIX)
-    set(CMAKE_INSTALL_PREFIX ${NGRAPH_INSTALL_PREFIX})
-endif()
-message(STATUS "Installation directory: ${CMAKE_INSTALL_PREFIX}")
-
-#-----------------------------------------------------------------------------------------------
 # Compile Flags for nGraph...
 #-----------------------------------------------------------------------------------------------
 
 if (WIN32)
     string(REPLACE "/W3" "/W0" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-endif()
-
-if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror")
-endif()
-
-if(WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS")
-endif()
-
-if (NGRAPH_DYNAMIC_COMPONENTS_ENABLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE")
 endif()
 
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -158,11 +122,11 @@ if(BUILD_SHARED_LIBS)
     install(EXPORT ngraphTargets
         FILE ngraphTargets.cmake
         NAMESPACE ngraph::
-        DESTINATION "deployment_tools/ngraph/cmake"
+        DESTINATION "runtime/cmake"
         COMPONENT ngraph_dev)
 endif()
 
-configure_package_config_file(${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
+configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
     INSTALL_DESTINATION cmake)
 
@@ -172,7 +136,7 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-    DESTINATION "deployment_tools/ngraph/cmake"
+    DESTINATION "runtime/cmake"
     COMPONENT ngraph_dev)
 
 set(USE_STATIC_PROTOBUF OFF)

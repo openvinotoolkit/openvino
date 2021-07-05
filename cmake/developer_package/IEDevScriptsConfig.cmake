@@ -121,10 +121,10 @@ endif()
 
 # allow to override default OUTPUT_ROOT root
 if(NOT DEFINED OUTPUT_ROOT)
-    if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
-        message(FATAL_ERROR "OpenVINO_MAIN_SOURCE_DIR is not defined")
+    if(NOT DEFINED OpenVINO_SOURCE_DIR)
+        message(FATAL_ERROR "OpenVINO_SOURCE_DIR is not defined")
     endif()
-    set(OUTPUT_ROOT ${OpenVINO_MAIN_SOURCE_DIR})
+    set(OUTPUT_ROOT ${OpenVINO_SOURCE_DIR})
 endif()
 
 # Enable postfixes for Debug/Release builds
@@ -187,6 +187,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
+set(CMAKE_WARN_DEPRECATED OFF)
+set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON)
+
 # LTO
 
 if(ENABLE_LTO)
@@ -244,6 +247,25 @@ function(ie_mark_target_as_cc TARGET_NAME)
 
     get_target_property(sources ${TARGET_NAME} SOURCES)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
+endfunction()
+
+# check python package
+
+function(ie_check_pip_package name message_type)
+    find_package(PythonInterp 3 REQUIRED)
+
+    execute_process(
+        COMMAND ${PYTHON_EXECUTABLE} -m pip show ${name}
+        RESULT_VARIABLE PIP_EXIT_CODE
+        OUTPUT_QUIET
+    )
+
+    if(NOT PIP_EXIT_CODE EQUAL 0)
+        set(${name}_FOUND OFF PARENT_SCOPE)
+        message(${message_type} "${name} package is not installed. Please use \"${PYTHON_EXECUTABLE} -m pip install ${name}\".")
+    else()
+        set(${name}_FOUND ON PARENT_SCOPE)
+    endif()
 endfunction()
 
 # Code style utils

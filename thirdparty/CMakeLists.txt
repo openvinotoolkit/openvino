@@ -16,6 +16,25 @@ add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
 
 #
+# Pugixml
+#
+
+if(ENABLE_SYSTEM_PUGIXML)
+    find_package(PugiXML REQUIRED)
+    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+    add_library(pugixml::static ALIAS pugixml)
+else()
+    function(ie_build_pugixml)
+        set(BUILD_SHARED_LIBS OFF)
+        add_subdirectory(pugixml EXCLUDE_FROM_ALL)
+        set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml::static)
+    endfunction()
+
+    ie_build_pugixml()
+endif()
+
+#
 # Fluid, G-API, OpenCV HAL
 #
 
@@ -61,7 +80,7 @@ function(add_gtest_libraries)
     endif()
 
     set(BUILD_SHARED_LIBS OFF)
-    set(INSTALL_GTEST OFF)
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
@@ -75,12 +94,12 @@ function(add_gtest_libraries)
         set(gtest_targets "gtest;gtest_main;gmock;gmock_main")
         foreach(target_name ${gtest_targets})
             if(TARGET "${target_name}")
-                get_target_property(_target_cxx_flags ${target_name} COMPILE_FLAGS)
+                get_target_property(_target_cxx_flags ${target_name} COMPILE_OPTIONS)
                 if(_target_cxx_flags)
                     if(CMAKE_CXX_FLAGS_DEBUG MATCHES ".+/Z7.+" OR CMAKE_CXX_FLAGS_RELWITHDEBINFO MATCHES ".+/Z7.+")
                         string(REPLACE "-Zi" " " _target_cxx_flags ${_target_cxx_flags})
                         message(STATUS "Removing -Zi flag from target " ${target_name})
-                        set_target_properties(${target_name} PROPERTIES COMPILE_FLAGS "${_target_cxx_flags}")
+                        set_target_properties(${target_name} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
                     endif()
                 endif()
             endif()
@@ -88,6 +107,9 @@ function(add_gtest_libraries)
     endif()
     set_target_properties(gtest gtest_main gmock gmock_main
                           PROPERTIES FOLDER thirdparty)
+    
+    openvino_developer_export_targets(COMPONENT inference_engine_tests
+                                      TARGETS gmock gmock_main gtest gtest_main)
 endfunction()
 
 if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
@@ -101,16 +123,16 @@ endif()
 ie_cpack_add_component(cpp_samples_deps)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        DESTINATION "samples/cpp/thirdparty"
         COMPONENT cpp_samples_deps
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        DESTINATION "samples/cpp/thirdparty"
         COMPONENT cpp_samples_deps
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        DESTINATION "samples/cpp/thirdparty"
         COMPONENT cpp_samples_deps
         USE_SOURCE_PERMISSIONS)

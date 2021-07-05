@@ -30,7 +30,9 @@ if(NOT WIN32)
                     -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
                     -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
                     -DCMAKE_CXX_VISIBILITY_PRESET=${CMAKE_CXX_VISIBILITY_PRESET}
-                    -DNGRAPH_INSTALL_LIB=${NGRAPH_INSTALL_LIB}
+                    -DIE_CPACK_RUNTIME_PATH=${IE_CPACK_RUNTIME_PATH}
+                    -DIE_CPACK_LIBRARY_PATH=${IE_CPACK_LIBRARY_PATH}
+                    -DIE_CPACK_ARCHIVE_PATH=${IE_CPACK_ARCHIVE_PATH}
                     -DSYSTEM_PROTOC=${SYSTEM_PROTOC}
                      ${NGRAPH_FORWARD_CMAKE_ARGS}
             COMMAND ${CMAKE_COMMAND} --build . --target libprotobuf
@@ -41,6 +43,8 @@ if(NOT WIN32)
     add_custom_target(libprotobuf_static
             DEPENDS ${PROTOBUF_STATIC_LIB_OUTPUT})
 endif()
+
+set(FRONTEND_INSTALL_INCLUDE "runtime/include/ngraph/frontend")
 
 add_subdirectory(frontend_manager)
 

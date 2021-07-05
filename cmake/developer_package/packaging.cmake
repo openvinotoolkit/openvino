@@ -10,7 +10,6 @@ include(CPackComponent)
 #
 # Set library directory for cpack
 #
-set(IE_CPACK_IE_DIR       deployment_tools/inference_engine)
 function(ie_cpack_set_library_dir)
     if(WIN32)
         set(IE_CPACK_LIBRARY_PATH runtime/lib PARENT_SCOPE)

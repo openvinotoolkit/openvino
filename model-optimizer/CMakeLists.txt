@@ -37,6 +37,8 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         PATTERN "extensions/front/caffe/CustomLayersMapping.xml" EXCLUDE
         PATTERN "mo/utils/convert.py" EXCLUDE
         PATTERN "unit_tests" EXCLUDE
+        PATTERN "openvino_mo.egg-info" EXCLUDE
+        PATTERN "build" EXCLUDE
         
         REGEX ".*__pycache__.*" EXCLUDE
         REGEX ".*\\.pyc$" EXCLUDE
@@ -44,3 +46,8 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         REGEX ".*\\.DS_Store$" EXCLUDE
         REGEX ".*_test\.py$" EXCLUDE
         )
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/unit_tests
+        DESTINATION tools/model_optimizer
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)

@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import argparse
 import logging as log
+import os
 import sys
 
 import cv2
@@ -135,7 +136,10 @@ def main():
             output_image = cv2.resize(output_image, (w, h))
 
         cv2.imwrite(f'out_{i}.bmp', output_image)
-        log.info(f'Image out_{i}.bmp created!')
+        if os.path.exists(f'out_{i}.bmp'):
+            log.info(f'Image out_{i}.bmp created!')
+        else:
+            log.error(f'Image out_{i}.bmp was not created. Check your permissions.')
 
     # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n')
