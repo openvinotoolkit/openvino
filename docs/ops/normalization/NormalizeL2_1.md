@@ -4,7 +4,7 @@
 
 **Category**: *Normalization*
 
-**Short description**: *NormalizeL2* operation performs L2 normalization of the 1st input tensor in slices specified by the 2nd input.
+**Short description**: *NormalizeL2* operation performs L2 normalization of the first input tensor in slices specified by the second input.
 
 **Detailed Description**
 
