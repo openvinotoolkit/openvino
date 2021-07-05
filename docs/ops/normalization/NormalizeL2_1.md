@@ -15,9 +15,10 @@ Each element in the output is the result of division of corresponding element fr
 Where indices `i0, ..., iN` run through all valid indices for the 1st input and summation `sum[j0, ..., jN]` have `jk = ik` for those dimensions `k` that are not in the set of indices specified by the `axes` input of the operation.
 `eps_mode` selects how the reduction value and `eps` are combined. It can be `max` or `add` depending on `eps_mode` attribute value.
 
-- One of the corner cases is when `axes` is an empty list, then each input element is divided by itself resulting value 1 for all non-zero elements.
+Particular cases:
 
-- Another corner case is where `axes` input contains all dimensions from `data` tensor, which means that a single L2 reduction value is calculated for entire input tensor and each input element is divided by that value.
+1. If `axes` is an empty list, then each input element is divided by itself resulting value `1` for all non-zero elements.
+2. If `axes` contains all dimensions of input `data`, a single L2 reduction value is calculated for entire input tensor and each input element is divided by that value.
 
 
 **Attributes**
