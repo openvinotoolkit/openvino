@@ -503,7 +503,7 @@ namespace ngraph
                 else
                 {
                     int32_t* valid_outputs_ptr = static_cast<int32_t*>(pselected_num);
-                    for (int64_t i = 0; i < valid_outputs.size(); ++i)
+                    for (size_t i = 0; i < valid_outputs.size(); ++i)
                     {
                         valid_outputs_ptr[i] = static_cast<int32_t>(valid_outputs[i]);
                     }
