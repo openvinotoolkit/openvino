@@ -16,7 +16,7 @@ a_{i} = atan(a_{i})
 
 **Inputs**
 
-* **1**: An tensor of type *T* and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
