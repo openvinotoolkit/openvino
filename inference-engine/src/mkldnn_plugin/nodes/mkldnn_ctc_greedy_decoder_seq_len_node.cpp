@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "base.hpp"
 
 #include <string>
 #include <vector>
@@ -58,15 +57,15 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::initSupportedPrimitiveDescriptors() {
     if (seqLenPrecision != Precision::I32 && seqLenPrecision != Precision::I64)
         IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
-    std::vector<DataConfigurator> inDataConf;
+    std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
-    inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+    inDataConf.emplace_back(GeneralLayout::ncsp, Precision::FP32);
     for (int i = 1; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
+        inDataConf.emplace_back(GeneralLayout::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{TensorDescCreatorTypes::ncsp, Precision::I32},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                         {{GeneralLayout::ncsp, Precision::I32},
+                          {GeneralLayout::ncsp, Precision::I32}},
                          impl_desc_type::ref_any);
 }
 
@@ -76,13 +75,13 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
     int* decodedClasses =  reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemoryPtr()->GetPtr());
     int* decodedClassesLength = reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_LENGTH_INDEX)[0]->getMemoryPtr()->GetPtr());
 
-    const size_t B = getParentEdgeAt(DATA_INDEX)->getDims()[0];;
-    const size_t T = getParentEdgeAt(DATA_INDEX)->getDims()[1];;
-    const int C = getParentEdgeAt(DATA_INDEX)->getDims()[2];;
+    const size_t B = getParentEdgeAt(DATA_INDEX)->getShape().getStaticDims()[0];;
+    const size_t T = getParentEdgeAt(DATA_INDEX)->getShape().getStaticDims()[1];;
+    const int C = getParentEdgeAt(DATA_INDEX)->getShape().getStaticDims()[2];;
     const size_t TC = T * C;
 
     int blankIndex = C - 1;
-    if (inDims.size() > BLANK_INDEX)
+    if (inputShapes.size() > BLANK_INDEX)
         blankIndex = (reinterpret_cast<const int  *>(getParentEdgeAt(BLANK_INDEX)->getMemoryPtr()->GetPtr()))[0];
 
     size_t workAmount = 0;
@@ -91,7 +90,7 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
             std::string errorMsg = errorPrefix
                                    + ". Sequence length " + std::to_string(sequenceLengths[b])
                                    + " cannot be greater than according decoded classes dimension size "
-                                   + std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getDims()[1]);
+                                   + std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getShape().getStaticDims()[1]);
             IE_THROW() << errorMsg;
         }
         workAmount += sequenceLengths[b];
