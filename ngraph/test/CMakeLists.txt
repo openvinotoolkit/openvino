@@ -171,6 +171,7 @@ set(SRC
     type_prop/parameter.cpp
     type_prop/power.cpp
     type_prop/prelu.cpp
+    type_prop/prior_box.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
     type_prop/range.cpp
@@ -446,6 +447,7 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/prelu.in.cpp
+    backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
