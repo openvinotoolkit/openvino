@@ -24,6 +24,7 @@ namespace ngraph
             bool clip = true;
             float step_widths = 0.0f;
             float step_heights = 0.0f;
+            float step = 0.0f;
             float offset = 0.0f;
             std::vector<float> variances;
         };
