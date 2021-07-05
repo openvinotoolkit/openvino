@@ -15,8 +15,12 @@
 */
 
 #include "detection_output_inst.h"
+#include "primitive_gpu_base.h"
+#include "implementation_map.h"
+#include "cldnn/runtime/error_handler.hpp"
+#include "kernel_selector_helper.h"
+#include "detection_output/detection_output_kernel_selector.h"
 #include "detection_output/detection_output_kernel_ref.h"
-#include "register_gpu.hpp"
 
 namespace cldnn {
 namespace gpu {

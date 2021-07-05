@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
+#include "include/common.cl"
 #include "include/detection_output_common.cl"
-
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 #define NUM_CLASSES_ACC (NUM_CLASSES + 1)

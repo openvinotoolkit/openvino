@@ -17,7 +17,7 @@
 #include "detection_output_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "detection_output/detection_output_kernel_selector.h"
 #include "detection_output/detection_output_kernel_ref.h"
@@ -28,6 +28,10 @@ namespace gpu {
 struct detection_output_gpu : typed_primitive_gpu_impl<detection_output> {
     using parent = typed_primitive_gpu_impl<detection_output>;
     using parent::parent;
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<detection_output_gpu>(*this);
+    }
 
 private:
     static void setDetectOutSpecificParams(kernel_selector::detection_output_params::DedicatedParams& detectOutParams,

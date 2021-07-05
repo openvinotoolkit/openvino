@@ -152,25 +152,25 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
 
 void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const {
     if (idx == 0) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
     } else if (idx == 1) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
     } else if (idx == 2) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
     } else if (idx == 3) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
     }
 }
 
@@ -255,9 +255,9 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
         auto& kernel = kd.kernels[i];
         KernelBase::CheckDispatchData(kernelName, dispatchData);
-        kernel.workGroups.global = dispatchData.gws;
-        kernel.workGroups.local  = dispatchData.lws;
-        kernel.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
+        kernel.params.workGroups.global = dispatchData.gws;
+        kernel.params.workGroups.local  = dispatchData.lws;
+        kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         SetKernelArguments(detectOutParams, kernel, i);
     }
 
