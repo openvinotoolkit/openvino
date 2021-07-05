@@ -13,6 +13,7 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
+#include <cpu_memory_desc_utils.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -60,18 +61,20 @@ void MKLDNNBroadcastNode::initSupportedPrimitiveDescriptors() {
 
     Precision prec = getOriginalInputPrecisionAtPort(BROADCAST_INPUT);
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, prec},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
-                         {{TensorDescCreatorTypes::ncsp, prec}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, prec},
+                          {GeneralLayout::ncsp, Precision::I32}},
+                         {{GeneralLayout::ncsp, prec}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
-    size_t shape_size = (getParentEdgeAt(BROADCAST_SHAPE)->getDesc().getDims())[0];
-    SizeVector dst_dims = getChildEdgeAt(0)->getDesc().getDims();
-    SizeVector src_dims = getParentEdgeAt(BROADCAST_INPUT)->getDesc().getDims();
-    SizeVector srcStrides = getParentEdgeAt(BROADCAST_INPUT)->getDesc().getBlockingDesc().getStrides();
-    size_t data_size = getParentEdgeAt(BROADCAST_INPUT)->getDesc().getPrecision().size();
+    size_t shape_size = (getParentEdgeAt(BROADCAST_SHAPE)->getMemory().GetDesc().getShape().getStaticDims())[0];
+    SizeVector dst_dims = getChildEdgeAt(0)->getMemory().GetDesc().getShape().getStaticDims();
+    SizeVector src_dims = getParentEdgeAt(BROADCAST_INPUT)->getMemory().GetDesc().getShape().getStaticDims();
+
+    auto srcDesc = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(BROADCAST_INPUT)->getMemory().GetDesc());
+    SizeVector srcStrides = srcDesc.getStrides();
+    size_t data_size = srcDesc.getPrecision().size();
 
     if (!src_dims.size())
         src_dims = SizeVector(1, 1);
@@ -86,7 +89,8 @@ void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
         IE_THROW() << "Output tensor dimension is smaller then input tensor dimension";
     }
 
-    InferenceEngine::SizeVector dstStrides = getChildEdgeAt(0)->getDesc().getBlockingDesc().getStrides();
+    auto dstDesc = MemoryDescUtils::convertToBlockedDescriptor(getChildEdgeAt(0)->getMemory().GetDesc());
+    InferenceEngine::SizeVector dstStrides = dstDesc.getStrides();
     InferenceEngine::SizeVector src_aligned(dst_dims.size());
     InferenceEngine::SizeVector srcStrides_aligned(dst_dims.size());
     size_t prefix_size = dst_dims.size() - src_dims.size();

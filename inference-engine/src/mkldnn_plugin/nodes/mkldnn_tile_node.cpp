@@ -85,20 +85,18 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
         precision.size() != sizeof(PrecisionTrait<Precision::I8>::value_type)) {
         IE_THROW() << errorPrefix << " has unsupported input precision: " << precision;
     }
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    auto& inDims = getParentEdgeAt(0)->getDims();
-    memory::format_tag fmt = MKLDNNMemory::GetPlainFormat(inDims);
+    auto descCreator = BlockedDescCreator::getCommonCreators().at(GeneralLayout::ncsp);
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
-    config.inConfs[TILE_INPUT].desc = MKLDNNMemoryDesc(getParentEdgeAt(TILE_INPUT)->getDims(), inputDataType, fmt);
-    config.inConfs[TILE_REPEATS].desc = MKLDNNMemoryDesc(getParentEdgeAt(TILE_REPEATS)->getDims(), memory::data_type::s32, memory::format_tag::x);
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), inputDataType, fmt);
+    config.inConfs[TILE_INPUT].desc = descCreator->createUniqueDesc(precision, getParentEdgeAt(TILE_INPUT)->getShape().getStaticDims());
+    config.inConfs[TILE_REPEATS].desc = descCreator->createUniqueDesc(Precision::I32, getParentEdgeAt(TILE_REPEATS)->getShape().getStaticDims());
+    config.outConfs[0].desc = descCreator->createUniqueDesc(precision, getChildEdgeAt(0)->getShape().getStaticDims());
     config.outConfs[0].inPlace = noTiling ? 0 : -1;
-    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmt});
+    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 }
 
 void MKLDNNTileNode::createPrimitive() {
@@ -135,13 +133,13 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_inner_dim *= batchToProcess();
     }
 
-    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.GetDesc().isBlockedCFormat(8)) {
+    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw8c)
          */
         m_inner_dim *= 8;
         m_outer_dim /= 8;
-    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.GetDesc().isBlockedCFormat(16)) {
+    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw16c)
          */
@@ -149,7 +147,7 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_outer_dim /= 16;
     }
 
-    m_inner_dim *= srcMemory.GetDesc().GetElementSize();
+    m_inner_dim *= srcMemory.GetDesc().getPrecision().size();
     for (int i = 0; i < m_outer_dim; ++i) {
         for (int t = 0; t < tiles; ++t) {
             cpu_memcpy(dst_ptr, src_ptr, m_inner_dim);
