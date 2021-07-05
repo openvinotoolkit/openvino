@@ -227,30 +227,58 @@ namespace
                                     const bool aligned,
                                     T* top_data)
     {
+        std::cout << "    ROIAlignForward_cpu_kernel running...\n";
+        std::cout << "    Its arguments are\n";
+        std::cout << "    nthreads:       " << nthreads << "\n";
+        std::cout << "    bottom_data:    " << bottom_data << "\n";
+        std::cout << "    spatial_scale:  " << spatial_scale << "\n";
+        std::cout << "    channels:       " << channels << "\n";
+        std::cout << "    height:         " << height << "\n";
+        std::cout << "    width:          " << width << "\n";
+        std::cout << "    pooled_height:  " << pooled_height << "\n";
+        std::cout << "    pooled_width:   " << pooled_width << "\n";
+        std::cout << "    sampling_ratio: " << sampling_ratio << "\n";
+        std::cout << "    bottom_rois:    " << bottom_rois << "\n";
+        std::cout << "    aligned:        " << (aligned ? "true" : "false") << "\n\n";
+        std::cout << "    top_data:       " << top_data << "\n";
         int64_t roi_cols = 4;
 
         int64_t n_rois = nthreads / channels / pooled_width / pooled_height;
+        std::cout << "    roi_cols:       " << roi_cols << "\n";
+        std::cout << "    n_rois:         " << n_rois << "\n";
         // (n, c, ph, pw) is an element in the pooled output
+        std::cout << "Loop with respect to n in range(0, n_rois)...\n";
         for (int64_t n = 0; n < n_rois; ++n)
         {
+            std::cout << "        n:       " << n << "\n";
             int64_t index_n = n * channels * pooled_width * pooled_height;
+            std::cout << "        index_n: " << index_n << "\n";
 
             // roi could have 4 or 5 columns
             const T* offset_bottom_rois = bottom_rois + n * roi_cols;
             int64_t roi_batch_ind = 0;
+            std::cout << "        offset_bottom_rois before if stmt: " << offset_bottom_rois << "\n";
+            std::cout << "        roi_batch_ind before if stmt:      " << roi_batch_ind << "\n";
             if (roi_cols == 5)
             {
                 roi_batch_ind = static_cast<int64_t>(offset_bottom_rois[0]);
                 offset_bottom_rois++;
             }
+            std::cout << "        offset_bottom_rois after if stmt:  " << offset_bottom_rois << "\n";
+            std::cout << "        roi_batch_ind after if stmt:       " << roi_batch_ind << "\n";
 
 //             T offset = aligned ? static_cast<T>(0.5) : static_cast<T>(0.0);
             T offset = aligned ? (T)0.5 : (T)0.0;
+            std::cout << "        offset: " << offset << "\n";
             // Do not using rounding; this implementation detail is critical
             T roi_start_w = offset_bottom_rois[0] * spatial_scale - offset;
             T roi_start_h = offset_bottom_rois[1] * spatial_scale - offset;
             T roi_end_w = offset_bottom_rois[2] * spatial_scale - offset;
             T roi_end_h = offset_bottom_rois[3] * spatial_scale - offset;
+            std::cout << "        roi_start_w: " << roi_start_w << "\n";
+            std::cout << "        roi_start_h: " << roi_start_h << "\n";
+            std::cout << "        roi_end_w:   " << roi_end_w << "\n";
+            std::cout << "        roi_end_h:   " << roi_end_h << "\n";
 
             // Force malformed ROIs to be 1x1
 //             T roi_width = std::max(roi_end_w - roi_start_w, static_cast<T>(1.0));
