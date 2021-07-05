@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/fused_op.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/op/op.hpp"
 
 namespace ngraph
 {
@@ -63,10 +61,6 @@ namespace ngraph
             protected:
                 std::size_t m_blocksize;
                 SpaceToDepthMode m_mode;
-
-            private:
-                bool evaluate_space_to_depth(const HostTensorVector& outputs,
-                                             const HostTensorVector& inputs) const;
             };
         } // namespace v0
         using v0::SpaceToDepth;
