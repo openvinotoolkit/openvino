@@ -49,7 +49,10 @@ Particular cases:
 
 * **1**: Normalized tensor of the same shape and type as the `data` input.
 
+**Types**
 
+* *T*: arbitrary supported floating-point type.
+* *T_IND*: any supported integer type.
 
 **Example**
 
