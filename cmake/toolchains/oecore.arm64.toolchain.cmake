@@ -26,7 +26,7 @@ endif()
 
 set(OECORE_TARGET_NAME              "aarch64-ese-linux")
 set(OECORE_TARGET_SYSROOT           "${OECORE_BASE_DIR}/sysroots/${OECORE_TARGET_NAME}")
-set(OECORE_HOST_SYSROOT             "${OECORE_BASE_DIR}/sysroots/x86_64-pokysdk-linux")
+set(OECORE_HOST_SYSROOT             "${OECORE_BASE_DIR}/sysroots/x86_64-esesdk-linux")
 set(OECORE_HOST_COMPILER_BIN_DIR    "${OECORE_HOST_SYSROOT}/usr/bin/${OECORE_TARGET_NAME}")
 
 set(CMAKE_SYSTEM_NAME       "Linux")
