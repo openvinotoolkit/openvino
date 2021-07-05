@@ -19,16 +19,14 @@ namespace testing {
 
 namespace {
 
-struct Graph
-{
+struct Graph {
     std::shared_ptr<ngraph::Function> createFunction();
 
     std::shared_ptr<ngraph::opset7::Parameter> input_params;
     std::shared_ptr<ngraph::op::Op> output;
 };
 
-std::shared_ptr<ngraph::Function> Graph::createFunction()
-{
+std::shared_ptr<ngraph::Function> Graph::createFunction() {
     auto result = std::make_shared<ngraph::opset7::Result>(output);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                               ngraph::ParameterVector{input_params});
@@ -38,18 +36,15 @@ std::shared_ptr<ngraph::Function> Graph::createFunction()
 
 // TODO: use std::make_unique when C++14 will be available
 template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args)
-{
+std::unique_ptr<T> make_unique(Args&&... args) {
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
-class CreateGraphDecorator
-{
+class CreateGraphDecorator {
 public:
     CreateGraphDecorator(std::unique_ptr<CreateGraphDecorator> prev_builder = nullptr) : prev_builder_(std::move(prev_builder)) {}
     virtual ~CreateGraphDecorator() = default;
-    virtual Graph build()
-    {
+    virtual Graph build() {
         Graph graph;
         if (prev_builder_)
             graph = prev_builder_->build();
@@ -59,13 +54,15 @@ public:
 protected:
     virtual void updateGraph(Graph&) = 0;
 private:
+    CreateGraphDecorator(const CreateGraphDecorator&) = delete;
+    CreateGraphDecorator& operator=(const CreateGraphDecorator&) = delete;
+private:
     std::unique_ptr<CreateGraphDecorator> prev_builder_;
 };
 
 using CreateGraphDecoratorPtr = std::unique_ptr<CreateGraphDecorator>;
 
-class CreateBaseDecorator : public CreateGraphDecorator
-{
+class CreateBaseDecorator : public CreateGraphDecorator {
 public:
     // always the first decorator => no prev_builder
     CreateBaseDecorator(const ngraph::Shape& input_data_shape,
@@ -86,19 +83,17 @@ Graph CreateBaseDecorator::build() {
     graph.input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64,
                                                                      input_data_shape_);
     graph.output = ngraph::opset7::Constant::create(ngraph::element::i64, input_const_shape_, {1});
-    return graph; 
+    return graph;
 }
 
-class CreateFakeQuantize : public CreateGraphDecorator
-{
+class CreateFakeQuantize : public CreateGraphDecorator {
 public:
     CreateFakeQuantize(CreateGraphDecoratorPtr prev_builder = nullptr) : CreateGraphDecorator(std::move(prev_builder)) {}
 protected:
     void updateGraph(Graph&) override;
 };
 
-std::shared_ptr<ngraph::opset7::FakeQuantize> createFakeQuantizeNode(std::shared_ptr<ngraph::op::Op> parent_node)
-{
+std::shared_ptr<ngraph::opset7::FakeQuantize> createFakeQuantizeNode(std::shared_ptr<ngraph::op::Op> parent_node) {
     auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
     auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
     auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
@@ -108,35 +103,30 @@ std::shared_ptr<ngraph::opset7::FakeQuantize> createFakeQuantizeNode(std::shared
                                                                   output_high, 11);
 }
 
-void CreateFakeQuantize::updateGraph(Graph& graph)
-{
+void CreateFakeQuantize::updateGraph(Graph& graph) {
     graph.output = createFakeQuantizeNode(graph.output);
 }
 
-class CreateMatMul : public CreateGraphDecorator
-{
+class CreateMatMul : public CreateGraphDecorator {
 public:
     CreateMatMul(CreateGraphDecoratorPtr prev_builder = nullptr) : CreateGraphDecorator(std::move(prev_builder)) {}
 protected:
     void updateGraph(Graph&) override;
 };
 
-void CreateMatMul::updateGraph(Graph& graph)
-{
+void CreateMatMul::updateGraph(Graph& graph) {
     auto matmul_node = std::make_shared<ngraph::opset7::MatMul>(graph.input_params, graph.output);
     graph.output = matmul_node;
 }
 
-class CreateAdd : public CreateGraphDecorator
-{
+class CreateAdd : public CreateGraphDecorator {
 public:
     CreateAdd(CreateGraphDecoratorPtr prev_builder = nullptr) : CreateGraphDecorator(std::move(prev_builder)) {}
 protected:
     void updateGraph(Graph&) override;
 };
 
-void CreateAdd::updateGraph(Graph& graph)
-{
+void CreateAdd::updateGraph(Graph& graph) {
     auto bias = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
     auto add_node = std::make_shared<ngraph::opset7::Add>(graph.output, bias);
     graph.output = add_node;
@@ -144,32 +134,30 @@ void CreateAdd::updateGraph(Graph& graph)
 
 template<typename DecorT, typename... DecorTs>
 auto createBuildDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
-                          const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8}) -> typename std::enable_if<(sizeof...(DecorTs) == 0), CreateGraphDecoratorPtr>::type
-{
+                          const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8})
+                                -> typename std::enable_if<(sizeof...(DecorTs) == 0), CreateGraphDecoratorPtr>::type {
     CreateGraphDecoratorPtr build_decorator = make_unique<CreateBaseDecorator>(input_data_shape, input_const_shape);
     return make_unique<DecorT>(std::move(build_decorator));
 }
 
 template<typename DecorT, typename... DecorTs>
 auto createBuildDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
-                          const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8}) -> typename std::enable_if<(sizeof...(DecorTs) > 0), CreateGraphDecoratorPtr>::type
-{
+                          const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8})
+                                -> typename std::enable_if<(sizeof...(DecorTs) > 0), CreateGraphDecoratorPtr>::type {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator<DecorTs...>(input_data_shape, input_const_shape);
     return make_unique<DecorT>(std::move(build_decorator));
 }
 
 template<typename DecorT, typename... DecorTs>
 Graph createTransformedGraph(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
-                             const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8})
-{
+                             const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8}) {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator<DecorT, DecorTs...>(input_data_shape, input_const_shape);
     return build_decorator->build();
 }
 
 // ------------------------------------------------------------------------------------------------------------
 
-Graph createReferenceGraph(bool addConstFakeQuantizeNode, bool insertAddNode, bool addOutFakeQuantizeNode)
-{
+Graph createReferenceGraph(bool addConstFakeQuantizeNode, bool insertAddNode, bool addOutFakeQuantizeNode) {
     Graph graph;
 
     graph.input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64,
@@ -180,7 +168,7 @@ Graph createReferenceGraph(bool addConstFakeQuantizeNode, bool insertAddNode, bo
                                                                         ngraph::Shape{4},
                                                                         ngraph::Shape{1, 1, 16, 8});
     auto reshape_before =  std::make_shared<ngraph::opset7::Reshape>(graph.input_params, const_reshape_before, false);
-    
+
     auto const_transpose_before = ngraph::opset7::Constant::create(ngraph::element::i64,
                                                                     ngraph::Shape{4},
                                                                     ngraph::Shape{0, 3, 1, 2});
@@ -201,14 +189,15 @@ Graph createReferenceGraph(bool addConstFakeQuantizeNode, bool insertAddNode, bo
                                                                     ngraph::CoordinateDiff{0, 0},
                                                                     ngraph::Strides{1, 1},
                                                                     ngraph::op::PadType::VALID);
-    
+
     parent_node = conv_node;
-    if (insertAddNode)
-    {
+
+    if (insertAddNode) {
         auto bias = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto add_node = std::make_shared<ngraph::opset7::Add>(parent_node, bias);
         parent_node = add_node;
     }
+
     if (addOutFakeQuantizeNode)
         parent_node = createFakeQuantizeNode(parent_node);
 
@@ -239,6 +228,7 @@ public:
 };
 
 void ConvertMatmulToPointWiseConvolutionFixture::SetUp() {
+    // TODO: use auto & [transformed_graph, reference_graph] = this->GetParam() when C++17
     Graph transformed_graph;
     Graph reference_graph;
     std::tie(transformed_graph, reference_graph, pass_manager) = this->GetParam();
@@ -255,8 +245,7 @@ void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ng
 }
 
 template <typename TransformationT>
-ngraph::pass::Manager createPassManager()
-{
+ngraph::pass::Manager createPassManager() {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<TransformationT>();
@@ -268,7 +257,7 @@ TEST_P(ConvertMatmulToPointWiseConvolutionFixture, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(ConvertMatmulToPointWiseConvolutionTestSuite, ConvertMatmulToPointWiseConvolutionFixture,
-                         ::testing::Values(std::make_tuple(createTransformedGraph<CreateMatMul>(), 
+                         ::testing::Values(std::make_tuple(createTransformedGraph<CreateMatMul>(),
                                                            createReferenceGraph(false /* addConstFakeQuantizeNode */,
                                                                                 false /* insertAddNode */,
                                                                                 false /* addOutFakeQuantizeNode */),
@@ -312,13 +301,11 @@ INSTANTIATE_TEST_SUITE_P(ConvertMatmulToPointWiseConvolutionTestSuite, ConvertMa
                                                            createReferenceGraph(true /* addConstFakeQuantizeNode */,
                                                                                 false /* insertAddNode */,
                                                                                 true /* addOutFakeQuantizeNode */),
-                                                           createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>())
-                                          ));
+                                                           createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>())));
 
 // -------------------------------------------------------------------------------------------------------
 
-class ITransformedGraphFactory
-{
+class ITransformedGraphFactory {
 public:
     virtual ~ITransformedGraphFactory() = default;
     virtual Graph createGraph(const ngraph::Shape& input_data_shape,
@@ -326,26 +313,25 @@ public:
 };
 
 template<typename DecorT, typename... DecorTs>
-class TransformedGraphFactory : public ITransformedGraphFactory
-{
+class TransformedGraphFactory : public ITransformedGraphFactory {
 public:
     TransformedGraphFactory() = default;
 
     Graph createGraph(const ngraph::Shape& input_data_shape,
-                      const ngraph::Shape& input_const_shape) override
-    {
+                      const ngraph::Shape& input_const_shape) override {
         return createTransformedGraph<DecorT, DecorTs...>(input_data_shape, input_const_shape);
     }
+private:
+    TransformedGraphFactory(const TransformedGraphFactory&) = delete;
+    TransformedGraphFactory& operator=(const TransformedGraphFactory&) = delete;
 };
 
-struct FixtureData
-{
+struct FixtureData {
     std::shared_ptr<ITransformedGraphFactory> graph_factory;
     ngraph::pass::Manager pass_manager;
-    
+
     template<typename TransformationT, typename DecorT, typename... DecorTs>
-    static FixtureData create()
-    {
+    static FixtureData create() {
         FixtureData fixture_data;
         fixture_data.graph_factory = std::make_shared<TransformedGraphFactory<DecorT, DecorTs...>>();
         fixture_data.pass_manager = createPassManager<TransformationT>();
@@ -366,6 +352,7 @@ public:
 };
 
 void ConvertMatmulToPointWiseConvolutionInvalidInputFixture::SetUp() {
+    // TODO: use auto & [fixture_data, input_shapes] = this->GetParam() when C++17
     FixtureData fixture_data;
     FixtureInputShapes input_shapes;
     std::tie(fixture_data, input_shapes) = this->GetParam();
@@ -386,20 +373,38 @@ void execute_test_cloned_function(std::shared_ptr<ngraph::Function> function,
     ASSERT_TRUE(result.valid);
 }
 
-std::vector<FixtureData> transform_types = 
-{
-    FixtureData::create<GNAPluginNS::ConvertMatmulToPointWiseConvolution, CreateMatMul>(),
-    FixtureData::create<GNAPluginNS::ConvertMatmulToPointWiseConvolution, CreateMatMul, CreateFakeQuantize>(),
-    FixtureData::create<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution, CreateAdd, CreateMatMul>(),
-    FixtureData::create<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution, CreateAdd, CreateMatMul, CreateFakeQuantize>(),
-    FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution, CreateFakeQuantize, CreateAdd, CreateMatMul>(),
-    FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution, CreateFakeQuantize, CreateAdd, CreateMatMul, CreateFakeQuantize>(),
-    FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution, CreateFakeQuantize, CreateMatMul>(),
-    FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution, CreateFakeQuantize, CreateMatMul, CreateFakeQuantize>()
+std::vector<FixtureData> transform_types = {
+    FixtureData::create<GNAPluginNS::ConvertMatmulToPointWiseConvolution,
+                        CreateMatMul>(),
+    FixtureData::create<GNAPluginNS::ConvertMatmulToPointWiseConvolution,
+                        CreateMatMul,
+                        CreateFakeQuantize>(),
+    FixtureData::create<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution,
+                        CreateAdd,
+                        CreateMatMul>(),
+    FixtureData::create<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution,
+                        CreateAdd,
+                        CreateMatMul,
+                        CreateFakeQuantize>(),
+    FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution,
+                        CreateFakeQuantize,
+                        CreateAdd,
+                        CreateMatMul>(),
+    FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution,
+                        CreateFakeQuantize,
+                        CreateAdd,
+                        CreateMatMul,
+                        CreateFakeQuantize>(),
+    FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution,
+                        CreateFakeQuantize,
+                        CreateMatMul>(),
+    FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution,
+                        CreateFakeQuantize,
+                        CreateMatMul,
+                        CreateFakeQuantize>()
 };
 
-std::vector<FixtureInputShapes> input_shapes = 
-{
+std::vector<FixtureInputShapes> input_shapes = {
     std::make_tuple(ngraph::Shape{16, 16, 16}, ngraph::Shape{16, 16, 16}),
     std::make_tuple(ngraph::Shape{16, 9}, ngraph::Shape{9, 9}),
     std::make_tuple(ngraph::Shape{16, 65533}, ngraph::Shape{65533, 2}),
