@@ -4,44 +4,48 @@
 
 **Category**: *Data movement*
 
-**Short description**: The *BatchToSpace* operation reshapes the "batch" dimension 0 into N - 1 dimensions of shape `block_shape` + [batch] and interleaves these blocks back into the grid defined by the spatial dimensions `[1, ..., N - 1]` to obtain a result with the same rank as `data` input. The spatial dimensions of this intermediate result are then optionally cropped according to `crops_begin` and `crops_end` to produce the output. This is the reverse of the *SpaceToBatch* operation.
+**Short description**: The *BatchToSpace* operation reshapes the "batch" dimension 0 into N - 1 dimensions of shape `block_shape` + [batch] and interleaves these blocks back into the grid defined by the spatial dimensions `[1, ..., N - 1]` to obtain a result with the same rank as `data` input. The spatial dimensions of this intermediate result are then optionally cropped according to `crops_begin` and `crops_end` to produce the output.
 
-**Detailed description**:
+**Detailed description**
 
-The *BatchToSpace* operation is similar to the TensorFlow* operation [BatchToSpaceND](https://www.tensorflow.org/api_docs/python/tf/batch_to_space_nd)
+The operation is equivalent to the following transformation of the input tensor `data` with shape `[batch, D_1, D_2, ..., D_{N-1}]` and `block_shape`, `crops_begin`, `crops_end` of shape `[N]` to *Y* output tensor.
 
-The operation is equivalent to the following transformation of the input tensors `data` with shape `[batch, D_1, D_2 ... D_{N-1}]` and `block_shape`, `crops_begin`, `crops_end` of shape `[N]` to *Y* output tensor.
+\f[x' = reshape(data, [B_1, \ldots, B_{N - 1}, \frac{batch}{\left(B_1 \times \ldots \times B_{N - 1}\right)}, D_1, D_2, \ldots, D_{N - 1}])\f]
+\f[x'' = transpose(x', [N, N + 1, 0, N + 2, 1, \ldots, N + N - 1, N - 1])\f]
+\f[x''' = reshape(x'', [\frac{batch}{\left(B_1 \times \ldots \times B_{N - 1}\right)}, D_1 \times B_1, D_2 \times B_2, ... , D_{N - 1} \times B_{N - 1}])\f]
 
-    note: B_0 is expected to be 1.
-    x' = reshape(`data`, [B_1, ..., B_{N - 1}, batch / (B_1 * ... B_{N - 1}), D_1, D_2, ..., D_{N - 1}]), where B_i = block_shape[i]
+Crop the start and end of dimensions according to `crops_begin`, `crops_end` to produce the output of shape:
+\f[shape_y = [\frac{batch}{\left(B_1 \times \ldots \times B_{N - 1}\right)}, crop(D_1 \times B_1, CB_1, CE_1), crop(D_2 \times B_2, CB_2, CE_2), \ldots , crop(D_{N - 1} \times B_{N - 1}, CB_{N - 1}, CE_{N - 1})]\f]
 
-    x'' = transpose(x', [N, N + 1, 0, N + 2, 1, ..., N + N - 1, N - 1])
+where
 
-    x''' = reshape(x'', [batch / (B_1 * ... * B_{N - 1}), D_1 * B_1, D_2 * B_2, ... , D_{N - 1} * B_{N - 1}])
+- \f$B_i\f$ = block_shape[i]
+- \f$B_0\f$ is expected to be 1
+- \f$CB_i\f$ = crops_begin[i]
+- \f$CE_i\f$ = crops_end[i]
+- \f$CB_0\f$ and \f$CE_0\f$ are expected to be 0
+- \f$CB_i + CE_i \leq D_i \times B_i \f$
 
-   Crop the start and end of dimensions according to `crops_begin`, `crops_end` to produce the output of shape:
-   note: `crops_begin[0], crops_end[0]` are expected to be 0.
-    `y = [batch / (B_1 * ... * B_{N - 1}), crop(D_1 * B_1, crops_begin[1], crops_end[1]), crop(D_2 * B_2, crops_begin[2], crops_end[2]), ... , crop(D_{N - 1} * B_{N - 1}, crops_begin[N - 1], crops_end[N - 1])]`
-
-**Attributes**
-
-    No attributes available.
+**Attributes**: *BatchToSpace* operation has no attributes.
 
 **Inputs**
 
-*   **1**: `data` - input N-D tensor `[batch, D_1, D_2 ... D_{N-1}]` of *T1* type with rank >= 2. **Required.**
-*   **2**: `block_shape` - input 1-D tensor of *T2* type with shape `[N]` that is equal to the size of `data` input shape. All values must be >= 1.`block_shape[0]` is expected to be 1. **Required.** 
-*   **3**: `crops_begin` - input 1-D tensor of *T2* type with shape `[N]` that is equal to the size of `data` input shape. All values must be non-negative. crops_begin specifies the amount to crop from the beginning along each axis of `data` input . It is required that `crop_start[i] + crop_end[i] <= block_shape[i] * input_shape[i]`. `crops_begin[0]` is expected to be 0. **Required.**
-*   **4**: `crops_end` - input 1-D tensor of *T2* type with shape `[N]` that is equal to the size of `data` input shape. All values must be non-negative. crops_end specifies the amount to crop from the ending along each axis of `data` input. It is required that `crop_start[i] + crop_end[i] <= block_shape[i] * input_shape[i]`. `crops_end[0]` is expected to be 0. **Required.**
+*   **1**: `data` - A tensor of type *T* and rank greater than or equal to 4. Layout is `[batch, D_1, D_2 ... D_{N-1}]` (number of batches, spatial axes). **Required.**
+*   **2**: `block_shape` - Specifies the block sizes of `batch` axis of `data` input which are moved to the corresponding spatial axes. A 1D tensor of type *T_INT* and shape `[N]`. All element values must be greater than or equal to 1.`block_shape[0]` is expected to be 1. **Required.**
+*   **3**: `crops_begin` - Specifies the amount to crop from the beginning along each axis of `data` input. A 1D tensor of type *T_INT* and shape `[N]`. All element values must be greater than or equal to 0. `crops_begin[0]` is expected to be 0. **Required.**
+*   **4**: `crops_end` - Specifies the amount to crop from the ending along each axis of `data` input. A 1D tensor of type *T_INT* and shape `[N]`. All element values must be greater than or equal to 0. `crops_end[0]` is expected to be 0. **Required.**
+*   **Note**: `N` corresponds to the rank of `data` input.
+*   **Note**: `batch` axis of `data` input must be evenly divisible by the cumulative product of `block_shape` elements.
+*   **Note**: It is required that `crops_begin[i] + crops_end[i] <= block_shape[i] * input_shape[i]`.
 
 **Outputs**
 
-*   **1**: N-D tensor with shape `[batch / (block_shape[0] * block_shape[1] * ... * block_shape[N - 1]), D_1 * block_shape[1] - crops_begin[1] - crops_end[1], D_2 * block_shape[2] - crops_begin[2] - crops_end[2], ..., D_{N - 1} * block_shape[N - 1] - crops_begin[N - 1] - crops_end[N - 1]` of the same type as `data` input. 
+*   **1**: Permuted tensor of type *T* with the same rank as `data` input tensor, and shape `[batch / (block_shape[0] * block_shape[1] * ... * block_shape[N - 1]), D_1 * block_shape[1] - crops_begin[1] - crops_end[1], D_2 * block_shape[2] - crops_begin[2] - crops_end[2], ..., D_{N - 1} * block_shape[N - 1] - crops_begin[N - 1] - crops_end[N - 1]`.
 
 **Types**
 
-* *T1*: any supported type.
-* *T2*: any supported integer type.
+* *T*: any supported type.
+* *T_INT*: any supported integer type.
 
 **Example**
 
