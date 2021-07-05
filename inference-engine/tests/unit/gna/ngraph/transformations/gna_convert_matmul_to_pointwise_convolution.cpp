@@ -68,8 +68,8 @@ class CreateBaseDecorator : public CreateGraphDecorator
 {
 public:
     // always the first decorator => no prev_builder
-    CreateBaseDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
-                        const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8}) :
+    CreateBaseDecorator(const ngraph::Shape& input_data_shape,
+                        const ngraph::Shape& input_const_shape) :
                         CreateGraphDecorator(nullptr),
                         input_data_shape_(input_data_shape),
                         input_const_shape_(input_const_shape) {}
@@ -83,7 +83,6 @@ private:
 
 Graph CreateBaseDecorator::build() {
     Graph graph;
-    std::cout << "input_data_shape_.size() " << input_data_shape_.size() << std::endl;
     graph.input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64,
                                                                      input_data_shape_);
     graph.output = ngraph::opset7::Constant::create(ngraph::element::i64, input_const_shape_, {1});
@@ -144,45 +143,24 @@ void CreateAdd::updateGraph(Graph& graph)
 }
 
 template<typename Arg, typename... Args>
-auto createBuildDecorator() -> typename std::enable_if<(sizeof...(Args) == 0), CreateGraphDecoratorPtr>::type
-{
-    CreateGraphDecoratorPtr build_decorator = make_unique<CreateBaseDecorator>();
-    return make_unique<Arg>(std::move(build_decorator));
-}
-
-template<typename Arg, typename... Args>
-auto createBuildDecorator() -> typename std::enable_if<(sizeof...(Args) > 0), CreateGraphDecoratorPtr>::type
-{
-    CreateGraphDecoratorPtr build_decorator = createBuildDecorator<Args...>();
-    return make_unique<Arg>(std::move(build_decorator));
-}
-
-template<typename Arg, typename... Args>
-Graph createTransformedGraph()
-{
-    CreateGraphDecoratorPtr build_decorator = createBuildDecorator<Arg, Args...>();
-    return build_decorator->build();
-}
-
-template<typename Arg, typename... Args>
-auto createBuildDecorator(const ngraph::Shape& input_data_shape,
-                          const ngraph::Shape& input_const_shape) -> typename std::enable_if<(sizeof...(Args) == 0), CreateGraphDecoratorPtr>::type
+auto createBuildDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
+                          const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8}) -> typename std::enable_if<(sizeof...(Args) == 0), CreateGraphDecoratorPtr>::type
 {
     CreateGraphDecoratorPtr build_decorator = make_unique<CreateBaseDecorator>(input_data_shape, input_const_shape);
     return make_unique<Arg>(std::move(build_decorator));
 }
 
 template<typename Arg, typename... Args>
-auto createBuildDecorator(const ngraph::Shape& input_data_shape,
-                          const ngraph::Shape& input_const_shape) -> typename std::enable_if<(sizeof...(Args) > 0), CreateGraphDecoratorPtr>::type
+auto createBuildDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
+                          const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8}) -> typename std::enable_if<(sizeof...(Args) > 0), CreateGraphDecoratorPtr>::type
 {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator<Args...>(input_data_shape, input_const_shape);
     return make_unique<Arg>(std::move(build_decorator));
 }
 
 template<typename Arg, typename... Args>
-Graph createTransformedGraph(const ngraph::Shape& input_data_shape,
-                             const ngraph::Shape& input_const_shape)
+Graph createTransformedGraph(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
+                             const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8})
 {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator<Arg, Args...>(input_data_shape, input_const_shape);
     return build_decorator->build();
@@ -249,29 +227,7 @@ Graph createReferenceGraph(bool addConstFakeQuantizeNode, bool insertAddNode, bo
 
 } // namespace
 
-// -------------------------------------------------------------------------------------------------------
 
-TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionTestInputRank3) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    {
-        Graph graph = createTransformedGraph<CreateMatMul>({16, 16, 16}, {16, 16, 16});
-
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-        reference_func = ngraph::clone_function(*func);
-        
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::ConvertMatmulToPointWiseConvolution>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
 
 // -------------------------------------------------------------------------------------------------------
 
@@ -360,5 +316,118 @@ INSTANTIATE_TEST_SUITE_P(ConvertMatmulToPointWiseConvolutionTestSuite, ConvertMa
                                                                                true /* addOutFakeQuantizeNode */),
                                                            createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>())
                                           ));
+
+// -------------------------------------------------------------------------------------------------------
+
+TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionTestInputRank3) {
+    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
+    {
+        Graph graph = createTransformedGraph<CreateMatMul>({16, 16, 16}, {16, 16, 16});
+
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+        reference_func = ngraph::clone_function(*func);
+        
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::ConvertMatmulToPointWiseConvolution>();
+        m.run_passes(func);
+        ASSERT_NO_THROW(check_rt_info(func));
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    ASSERT_TRUE(result.valid);
+}
+
+
+TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionTestInputSizeSmall) {
+    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
+    {
+        Graph graph = createTransformedGraph<CreateMatMul>({8, 4}, {4, 4});
+
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+        reference_func = ngraph::clone_function(*func);
+        
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::ConvertMatmulToPointWiseConvolution>();
+        m.run_passes(func);
+        ASSERT_NO_THROW(check_rt_info(func));
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    ASSERT_TRUE(result.valid);
+}
+
+TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionTestOutputChannelMod4) {
+    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
+    {
+        Graph graph = createTransformedGraph<CreateMatMul>({16, 9}, {9, 9});
+
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+        reference_func = ngraph::clone_function(*func);
+        
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::ConvertMatmulToPointWiseConvolution>();
+        m.run_passes(func);
+        ASSERT_NO_THROW(check_rt_info(func));
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    ASSERT_TRUE(result.valid);
+}
+
+TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionTestOutputChannelLarge) {
+    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
+    {
+        Graph graph = createTransformedGraph<CreateMatMul>({16, 65533}, {65533, 2});
+
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+        reference_func = ngraph::clone_function(*func);
+        
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::ConvertMatmulToPointWiseConvolution>();
+        m.run_passes(func);
+        ASSERT_NO_THROW(check_rt_info(func));
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    ASSERT_TRUE(result.valid);
+}
+
+TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionTesInputChannelLarge) {
+    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
+    {
+        Graph graph = createTransformedGraph<CreateMatMul>({16, 769}, {769, 2});
+
+        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
+        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{graph.input_params});
+        reference_func = ngraph::clone_function(*func);
+        
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::ConvertMatmulToPointWiseConvolution>();
+        m.run_passes(func);
+        ASSERT_NO_THROW(check_rt_info(func));
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    ASSERT_TRUE(result.valid);
+}
 
 } // namespace testing
