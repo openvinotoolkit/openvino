@@ -83,11 +83,13 @@ VERIFIED_OP_REFERENCES = [
     'ReorgYOLO-2',
     'Result-1'
     'Round-5',
+    'SpaceToDepth-1',
     'ScatterNDUpdate-4',
     'ShapeOf-1',
     'ShapeOf-3',
     'Sigmoid-1',
     'Sin-1',
+    'Sinh-1'
     'SoftPlus-4',
     'Softmax-1',
     'Split-1',
