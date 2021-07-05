@@ -17,9 +17,10 @@ class PadNormalizer(BackReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(type='Pad'):
             name = node.soft_get('name', node.id)
-            if node.in_port(3).disconnected():
+            if node.soft_get('mode') == 'constant' and not node.is_in_port_connected(3): #node.in_port(3).disconnected():
                 # create Constant node of proper data type (equal to the data type of the Pad first input)
                 convert_pad_value = create_op_with_const_inputs(graph, ConvertLike, {0: 0.0},
                                                                 {'name': name + '/pad_value_convert'})
                 convert_pad_value.in_port(1).connect(node.in_port(0).get_source())
+                node.add_input_port(3, skip_if_exist=True)
                 node.in_port(3).connect(convert_pad_value.out_port(0))

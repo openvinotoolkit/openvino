@@ -99,8 +99,6 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
     @staticmethod
     def pass_rc_through_pad(node: Node, reverse_channels: Node):
-        print("----------------------------------------------")
-        print(node.name)
         # detaching reverse_channels node from the graph
         reverse_channels.out_port(0).get_connection().set_source(
             reverse_channels.in_port(0).get_connection().get_source())
