@@ -171,7 +171,7 @@ namespace ngraph
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
             template <>
             std::basic_string<wchar_t> get_const_path(const std::basic_string<wchar_t>& folder,
-                           const std::string& name)
+                                                      const std::string& name)
             {
                 std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
                 std::wstring _name = converter.from_bytes(name);
@@ -196,7 +196,7 @@ namespace ngraph
                 }
                 else
                 {
-                    model_file += pdpd::PATH_SEPARATOR + "__model__";
+                    model_file += pdpd::get_path_sep<T>() + "__model__";
                 }
                 return model_file;
             }
@@ -219,7 +219,7 @@ namespace ngraph
                 }
                 else
                 {
-                    model_file += pdpd::WPATH_SEPARATOR + L"__model__";
+                    model_file += pdpd::get_path_sep<wchar_t>() + L"__model__";
                 }
                 return model_file;
             }
