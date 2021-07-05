@@ -23,15 +23,7 @@ const std::vector<SizeVector> shapes = {
 };
 
 const std::vector<Precision> precisions = {
-    Precision::U8,
-    Precision::I8,
-    Precision::U16,
-    Precision::I16,
-    Precision::I32,
-    Precision::U64,
-    Precision::I64,
-    Precision::FP32,
-    Precision::BOOL
+    Precision::FP32
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Check, ConstantResultSubgraphTest,
