@@ -47,7 +47,8 @@ Particular cases:
 
 **Outputs**
 
-* **1**: Tensor of the same shape and type as the `data` input and normalized slices defined by `axes` input.
+* **1**: Normalized tensor of the same shape and type as the `data` input.
+
 
 
 **Example**
