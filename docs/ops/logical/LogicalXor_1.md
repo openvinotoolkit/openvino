@@ -20,12 +20,12 @@
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required**.
-* **2**: A tensor of type T. **Required**.
+* **1**: A tensor of type *T*. **Required**.
+* **2**: A tensor of type *T*. **Required**.
 
 **Outputs**
 
-* **1**: The result of element-wise logical XOR operation. A tensor of type T.
+* **1**: The result of element-wise logical XOR operation. A tensor of type *T*.
 
 **Types**
 

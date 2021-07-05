@@ -4,13 +4,8 @@
 
 set (TARGET_NAME "format_reader")
 
-file (GLOB MAIN_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-        )
-
-file (GLOB LIBRARY_HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        )
+file (GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file (GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj

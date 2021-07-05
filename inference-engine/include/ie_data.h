@@ -93,6 +93,7 @@ public:
 
     /**
      * @brief Gets the layout value for this Data instance
+     * @return Layout
      */
     Layout getLayout() const;
 
