@@ -4,11 +4,10 @@
 
 **Category**: Arithmetic unary operation
 
-**Short description**: *Asinh* is inverse hyperbolic sine (arcsinh) operation.
+**Short description**: *Asinh* performs element-wise inverse hyperbolic sine operation (arcsinh) on a given input tensor.
 
 **Detailed description**:
-For each element from the input tensor calculates corresponding
-element in the output tensor with the following formula:
+*Asinh* performs element-wise inverse hyperbolic sine operation on a given input tensor, based on the following mathematical formula:
 
 \f[
 a_{i} = asinh(a_{i})
@@ -22,15 +21,13 @@ a_{i} = asinh(a_{i})
 
 **Outputs**
 
-* **1**: The result of element-wise asinh operation applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
+* **1**: The result of element-wise *Asinh* operation. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
+* *T*: any supported floating-point type.
 
-**Examples**
-
-*Example 1*
+**Example**
 
 ```xml
 <layer ... type="Asinh">
