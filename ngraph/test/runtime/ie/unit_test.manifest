@@ -673,9 +673,6 @@ conv_bias_add_2d
 space_to_batch
 batch_to_space
 
-# [Validation] Argument must have rank >= 2 and <= 4 (argument shape: {1,2,2,2,3})
-normalize_across_1axis_5d
-normalize_across_123axes_5d
 
 # Unsupported operator detected in the graph.
 gemm
