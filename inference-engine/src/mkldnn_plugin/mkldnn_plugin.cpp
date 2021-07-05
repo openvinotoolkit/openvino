@@ -113,9 +113,7 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT) {
-    auto nGraphFunc = clonedNetwork.getFunction();
-
+static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
@@ -366,7 +364,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT) {
     });
 
     postLPTPassManager.run_passes(nGraphFunc);
+}
 
+static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT) {
+    auto nGraphFunc = clonedNetwork.getFunction();
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT);
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
@@ -422,27 +424,35 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
     // Traverse nGraph Function in topological order
     for (auto & node : nGraphFunc->get_ordered_ops()) {
         // todo : bias data size (always fp)
-        if (std::strcmp("MatMul", node->get_type_info().name) && std::strcmp("Convolution", node->get_type_info().name)
-            && std::strcmp("ConvolutionBackpropData", node->get_type_info().name)) {
-            int inputs_data_size_bytes = 0;
-            for (int i = 0; i < node->get_input_size(); i++) {
-                auto type = node->input_value(i).get_element_type();
-                const bool isINT8 = isLowPrecision(type); // bf16 tbd
-                const bool isBF16 = isHalfPrecision(type); // bf16 tbd
-                const int data_type_size = isINT8 ? 1 : isBF16 ? 2 : 4;
-                ngraph::Input<ngraph::Node> input = node->input(i);
-                const auto shapeInput = input.get_shape();
-                const auto non_const = !get_constant_from_source(node->input_value(i));
-                const auto dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
-                                                           std::multiplies<int>());
-                const auto not_amortized = non_const || (dataSizeInput * data_type_size) > L3_cache_size;
-                inputs_data_size_bytes += not_amortized * (dataSizeInput * data_type_size);
+        const auto node_name = node->get_type_info().name;
+        if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name)
+            && std::strcmp("ConvolutionBackpropData", node_name)) {
+                int inputs_data_size_bytes = 0;
+                if (!std::strcmp("GRUSequence", node_name)
+                    || !std::strcmp("TensorIterator", node_name)
+                        || !std::strcmp("LSTMSequence", node_name)) {
+                    // RNN and alikes are not considered
+                    std::cout << "TYPE: " << node_name << "  Name: " << node->get_friendly_name()
+                              << " considering non-supported! falling back..." << std::endl;
+                }
+                for (int i = 0; i < node->get_input_size(); i++) {
+                    auto type = node->input_value(i).get_element_type();
+                    const bool isINT8 = isLowPrecision(type); // bf16 tbd
+                    const bool isBF16 = isHalfPrecision(type); // bf16 tbd
+                    const int data_type_size = isINT8 ? 1 : isBF16 ? 2 : 4;
+                    ngraph::Input<ngraph::Node> input = node->input(i);
+                    const auto shapeInput = input.get_shape();
+                    const auto non_const = !get_constant_from_source(node->input_value(i));
+                    const auto dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
+                                                               std::multiplies<int>());
+                    const auto not_amortized = non_const || (dataSizeInput * data_type_size) > L3_cache_size;
+                    inputs_data_size_bytes += not_amortized * (dataSizeInput * data_type_size);
             }
             // no need to track outputs, as these are inputs to some layers
             const auto factor = memLimitedFactor(inputs_data_size_bytes, 1 /*already in bytes*/);
             if (factor < worst_case_all) {
                 worst_case_all = factor;
-                std::cout << "TYPE: " << node->get_type_info().name << "  Name: " << node->get_friendly_name()
+                std::cout << "TYPE: " << node_name << "  Name: " << node_name
                           << " inputs_data_size_bytes " << inputs_data_size_bytes << ", factor: " << factor << std::endl;
             }
             continue;
@@ -455,9 +465,9 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
         const int data_type_size = isINT8 ? 1 : isBF16 ? 2 : 4;
 
         int dataSizeInput = 0, dataSizeOutput = 0;
-        std::cout << "Type: " << node->get_type_info().name << "  Name: "
+        std::cout << "Type: " << node_name << "  Name: "
                   << node->get_friendly_name();
-        if (!std::strcmp("MatMul", node->get_type_info().name)) {
+        if (!std::strcmp("MatMul", node_name)) {
             ngraph::Input<ngraph::Node> input0 = node->input(0);
             ngraph::Input<ngraph::Node> input1 = node->input(1);
             ngraph::Output<ngraph::Node> output = node->output(0);
@@ -511,7 +521,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
 //                                << " L2_cache_size: " << L2_cache_size << " L3_cache_size: " << L3_cache_size
 //                                << "   FACTOR: " << factor << std::endl;
             }
-        } else if (!std::strcmp("Convolution", node->get_type_info().name)) {
+        } else if (!std::strcmp("Convolution", node_name)) {
             // Check that input and output shape a fully defined (not dynamic)
             ngraph::Input<ngraph::Node> input = node->input(0);
             ngraph::Output<ngraph::Node> output = node->output(0);
@@ -556,7 +566,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                           << ", dataSize: " << dataSizeInput + dataSizeOutput
                           << ", L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
             }
-        } else if (!std::strcmp("ConvolutionBackpropData", node->get_type_info().name)) {
+        } else if (!std::strcmp("ConvolutionBackpropData", node_name)) {
             // Check that input and output shape a fully defined (not dynamic)
             ngraph::Input<ngraph::Node> input = node->input(0);
             ngraph::Output<ngraph::Node> output = node->output(0);
@@ -638,7 +648,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-    Transformation(clonedNetwork, enableLPT);
+    auto nGraphFunc = clonedNetwork.getFunction();
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT);
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
     //const auto& mode = config.find(PluginConfigParams::KEY_OV_PERFORMANCE_MODE);
@@ -696,6 +707,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             //}
         //}
     //}
+    ConvertToCPUSpecificOpset(nGraphFunc);
+
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
