@@ -5,7 +5,7 @@
 #include <behavior_test_plugin.h>
 #include <XLink.h>
 #include <mvnc.h>
-#include <mvnc/include/ncPrivateTypes.h>
+#include <ncPrivateTypes.h>
 #include <watchdog.h>
 #include <watchdogPrivate.hpp>
 #include <thread>

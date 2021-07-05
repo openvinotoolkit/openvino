@@ -13,7 +13,6 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
             ${IE_MAIN_SOURCE_DIR}/tests_deprecated/behavior/vpu/myriad_tests/helpers
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE}
