@@ -17,11 +17,11 @@ erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
 
 **Inputs**
 
-* **1**: A tensor `x` of type `T` and arbitrary shape. **Required**.
+* **1**: A tensor `x` of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise *Erf* function applied to the input tensor `x`. A tensor of type `T` and the same shape as `x` input tensor.
+* **1**: The result of element-wise *Erf* function applied to the input tensor `x`. A tensor of type *T* and the same shape as `x` input tensor.
 
 **Types**
 
