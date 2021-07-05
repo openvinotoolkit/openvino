@@ -12,6 +12,11 @@
 #include "framework.pb.h"
 #include "node_context.hpp"
 
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#include <codecvt>
+#include <locale>
+#endif
+
 namespace ngraph
 {
     namespace frontend
@@ -21,7 +26,7 @@ namespace ngraph
         class InputModelPDPD::InputModelPDPDImpl
         {
         public:
-            InputModelPDPDImpl(const std::string& path, const InputModel& input_model);
+            InputModelPDPDImpl(const path_type& path, const InputModel& input_model);
             InputModelPDPDImpl(const std::vector<std::istream*>& streams,
                                const InputModel& input_model);
             std::vector<Place::Ptr> getInputs() const;
@@ -50,7 +55,7 @@ namespace ngraph
 
         private:
             void loadPlaces();
-            void loadConsts(std::string folder_with_weights, std::istream* weight_stream);
+            void loadConsts(const path_type& folder_with_weights, std::istream* weight_stream);
 
             std::vector<std::shared_ptr<OpPlacePDPD>> m_op_places;
             std::map<std::string, std::shared_ptr<TensorPlacePDPD>> m_var_places;
@@ -165,7 +170,30 @@ namespace ngraph
 
         } // namespace pdpd
 
-        void InputModelPDPD::InputModelPDPDImpl::loadConsts(std::string folder_with_weights,
+        namespace pdpd
+        {
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            const path_type EXT = L".pdmodel";
+            const path_type MODEL_NAME = L"\\__model__";
+            const path_type PARAMS_EXT = L".pdiparams";
+            const wchar_t PATH_SEPARATOR = L'\\';
+            const path_type EMPTY_STR = L"";
+#else
+            const path_type EXT = ".pdmodel";
+            const path_type PARAMS_EXT = ".pdiparams";
+            const path_type EMPTY_STR = "";
+#ifdef _WIN32
+            const char PATH_SEPARATOR = '\\';
+            const path_type MODEL_NAME = "\\__model__";
+#else
+            const char PATH_SEPARATOR = '/';
+            const path_type MODEL_NAME = "/__model__";
+#endif
+
+#endif
+        } // namespace pdpd
+
+        void InputModelPDPD::InputModelPDPDImpl::loadConsts(const path_type& folder_with_weights,
                                                             std::istream* weight_stream)
         {
             for (const auto& item : m_var_places)
@@ -192,7 +220,13 @@ namespace ngraph
                 }
                 else if (!folder_with_weights.empty())
                 {
-                    std::ifstream is(folder_with_weights + "/" + name,
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+                    std::wstring _name = converter.from_bytes(name);
+#else
+                    std::string _name = name;
+#endif
+                    std::ifstream is(folder_with_weights + pdpd::PATH_SEPARATOR + _name,
                                      std::ios::in | std::ifstream::binary);
                     FRONT_END_GENERAL_CHECK(is && is.is_open(),
                                             "Cannot open file for constant value.");
@@ -210,19 +244,20 @@ namespace ngraph
             }
         }
 
-        InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& path,
+        InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const path_type& path,
                                                                const InputModel& input_model)
             : m_fw_ptr{std::make_shared<ProgramDesc>()}
             , m_input_model(input_model)
         {
-            std::string ext = ".pdmodel";
-            std::string model_file(path);
+            path_type model_file{path};
             std::unique_ptr<std::ifstream> weights_stream;
-            if (model_file.length() >= ext.length() &&
-                (0 == model_file.compare(model_file.length() - ext.length(), ext.length(), ext)))
+            if (model_file.length() >= pdpd::EXT.length() &&
+                (0 == model_file.compare(
+                          model_file.length() - pdpd::EXT.length(), pdpd::EXT.length(), pdpd::EXT)))
             {
-                std::string weights_file(path);
-                weights_file.replace(weights_file.size() - ext.size(), ext.size(), ".pdiparams");
+                path_type weights_file{path};
+                weights_file.replace(
+                    weights_file.size() - pdpd::EXT.size(), pdpd::EXT.size(), pdpd::PARAMS_EXT);
                 weights_stream = std::unique_ptr<std::ifstream>(
                     new std::ifstream(weights_file, std::ios::binary));
                 // Don't throw error if file isn't opened
@@ -230,15 +265,16 @@ namespace ngraph
             }
             else
             {
-                model_file += "/__model__";
+                model_file += pdpd::MODEL_NAME;
             }
 
             std::ifstream pb_stream(model_file, std::ios::binary);
+            FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file doesn't exist");
             FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream),
                                     "Model can't be parsed");
 
             loadPlaces();
-            loadConsts(weights_stream ? "" : path, weights_stream.get());
+            loadConsts(weights_stream ? pdpd::EMPTY_STR : path, weights_stream.get());
         }
 
         InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(
@@ -257,7 +293,7 @@ namespace ngraph
 
             loadPlaces();
             if (streams.size() > 1)
-                loadConsts("", streams[1]);
+                loadConsts(pdpd::EMPTY_STR, streams[1]);
         }
 
         std::vector<Place::Ptr> InputModelPDPD::InputModelPDPDImpl::getInputs() const
@@ -362,7 +398,7 @@ namespace ngraph
             m_tensor_values[name] = constant;
         }
 
-        InputModelPDPD::InputModelPDPD(const std::string& path)
+        InputModelPDPD::InputModelPDPD(const path_type& path)
             : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)}
         {
         }
