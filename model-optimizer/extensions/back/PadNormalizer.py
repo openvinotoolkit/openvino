@@ -1,13 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
-from mo.ops.squeeze import Squeeze
-from mo.front.tf.graph_utils import create_op_with_const_inputs
 from extensions.ops.ConvertLike import ConvertLike
+from mo.back.replacement import BackReplacementPattern
+from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.graph.graph import Graph
 
 
 class PadNormalizer(BackReplacementPattern):

@@ -423,8 +423,6 @@ class ApplyReverseChannels(BackReplacementPattern):
         """
         Following transformations should run in strict order, that is why we disabled them all and run here 
         """
-        print("---------------------------")
-        print("ApplyReverseChannels")
         if graph.graph['cmd_params'].reverse_input_channels:
             InsertReverseChannels().find_and_replace_pattern(graph)
         ReverseChannelsPropagationDown().find_and_replace_pattern(graph)
