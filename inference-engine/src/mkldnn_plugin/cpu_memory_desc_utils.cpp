@@ -319,6 +319,16 @@ MKLDNNMemoryDesc MemoryDescUtils::convertToMKLDNNMemoryDesc(const InferenceEngin
     return MKLDNNMemoryDesc(mkldnnDesc);
 }
 
+BlockedMemoryDesc MemoryDescUtils::convertToBlockedDescriptor(const MemoryDesc &desc) {
+    if (desc.getType() == MemoryDescType::Blocked) {
+        return *(desc.as<BlockedMemoryDesc>());
+    } else if (desc.getType() == MemoryDescType::Mkldnn) {
+        return MemoryDescUtils::convertToBlockedDescriptor(*(desc.as<MKLDNNMemoryDesc>()));
+    } else {
+        IE_THROW() << "Cannot convert to blocked memory descriptor. Unsupported memory desc type";
+    }
+}
+
 //MemoryDescPtr MemoryDescUtils::getUndefinedMemoryDesc(const MKLDNNMemoryDesc& desc) {
 //    if (desc.getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
 //        IE_THROW() << "Cannot get undefined memory descriptor for non blocked format kind";

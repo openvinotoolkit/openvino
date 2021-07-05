@@ -113,7 +113,7 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    auto srcDesc = getBlockedDesc(getParentEdgeAt(0)->getMemory().GetDesc());
+    auto srcDesc = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(0)->getMemory().GetDesc());
 
     const bool blocked = srcDesc.checkGeneralLayout(GeneralLayout::nCsp8c) || srcDesc.checkGeneralLayout(GeneralLayout::nCsp16c);
     const auto dimsSize = inDims.size();
@@ -131,7 +131,7 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
         blockShape.erase(blockShape.begin() + 1);
     }
 
-    auto dstDesc = getBlockedDesc(getChildEdgeAt(0)->getMemory().GetDesc());
+    auto dstDesc = MemoryDescUtils::convertToBlockedDescriptor(getChildEdgeAt(0)->getMemory().GetDesc());
 
     const size_t blockSize = blocked ? dstDesc.getBlockDims().back() : 1lu;
     const size_t blockCountInput = srcDesc.getBlockDims()[1];
@@ -237,16 +237,6 @@ void MKLDNNBatchToSpaceNode::execute(mkldnn::stream strm) {
 
 bool MKLDNNBatchToSpaceNode::created() const {
     return getType() == BatchToSpace;
-}
-
-BlockedMemoryDesc MKLDNNBatchToSpaceNode::getBlockedDesc(const MemoryDesc &desc) const {
-    if (desc.getType() == MemoryDescType::Blocked) {
-        return *(desc.as<BlockedMemoryDesc>());
-    } else if (desc.getType() == MemoryDescType::Mkldnn) {
-        return MemoryDescUtils::convertToBlockedDescriptor(*(desc.as<MKLDNNMemoryDesc>()));
-    } else {
-        IE_THROW() << "'" << getTypeStr() << "' with name '" << getName() << "' has unsupported memory desc type";
-    }
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNBatchToSpaceNode, BatchToSpace)
