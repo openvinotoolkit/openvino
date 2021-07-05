@@ -93,9 +93,9 @@ namespace ngraph
                                            : std::max(static_cast<int>(std::floor(x_idx)), 0);
 
                     const int y2 =
-                            use_pad ? y1 + 1 : std::min(static_cast<int>(std::ceil(y_idx)), y_size - 1);
+                        use_pad ? y1 + 1 : std::min(static_cast<int>(std::ceil(y_idx)), y_size - 1);
                     const int x2 =
-                            use_pad ? x1 + 1 : std::min(static_cast<int>(std::ceil(x_idx)), x_size - 1);
+                        use_pad ? x1 + 1 : std::min(static_cast<int>(std::ceil(x_idx)), x_size - 1);
 
                     const float distX = x_idx - x1;
                     const float distY = y_idx - y1;
@@ -141,9 +141,9 @@ namespace ngraph
                     const int filter_size_y = filter_shape[1];
                     const int filter_size_x = filter_shape[2];
                     const int dilated_filter_size_y =
-                            filter_size_y + (filter_size_y - 1) * (p.dilation[0] - 1);
+                        filter_size_y + (filter_size_y - 1) * (p.dilation[0] - 1);
                     const int dilated_filter_size_x =
-                            filter_size_x + (filter_size_x - 1) * (p.dilation[1] - 1);
+                        filter_size_x + (filter_size_x - 1) * (p.dilation[1] - 1);
 
                     const int input_channel_size = shape_size(shape_reduce(batch_shape));
                     const int filter_channel_size = shape_size(shape_reduce(filter_shape));
@@ -182,7 +182,7 @@ namespace ngraph
                                         {
                                             T y_offset = offsets_channel[out_idx];
                                             T x_offset =
-                                                    offsets_channel[offsets_spatial_size + out_idx];
+                                                offsets_channel[offsets_spatial_size + out_idx];
                                             T rel_i_y = i_y + (f_y * p.dilation[0]) + y_offset;
                                             T rel_i_x = i_x + (f_x * p.dilation[1]) + x_offset;
                                             T mask_val = mask_channel[out_idx];
@@ -194,10 +194,10 @@ namespace ngraph
                                             if (bilinear_interpolation_pad)
                                             {
                                                 padding =
-                                                        !((static_cast<int>(rel_i_x) > -1 &&
-                                                           static_cast<int>(rel_i_x) < input_size_x) &&
-                                                          (static_cast<int>(rel_i_y) > -1 &&
-                                                           static_cast<int>(rel_i_y) < input_size_y));
+                                                    !((static_cast<int>(rel_i_x) > -1 &&
+                                                       static_cast<int>(rel_i_x) < input_size_x) &&
+                                                      (static_cast<int>(rel_i_y) > -1 &&
+                                                       static_cast<int>(rel_i_y) < input_size_y));
                                             }
                                             else
                                             {
@@ -209,14 +209,14 @@ namespace ngraph
                                                 continue;
 
                                             int f_buf_idx = (f_y * filter_size_x) + f_x;
-                                            sum += bilinear_interpolation(
-                                                    input_channel,
-                                                    rel_i_x,
-                                                    rel_i_y,
-                                                    input_size_x,
-                                                    input_size_y,
-                                                    bilinear_interpolation_pad) *
-                                                   filter_channel[f_buf_idx] * mask_val;
+                                            sum +=
+                                                bilinear_interpolation(input_channel,
+                                                                       rel_i_x,
+                                                                       rel_i_y,
+                                                                       input_size_x,
+                                                                       input_size_y,
+                                                                       bilinear_interpolation_pad) *
+                                                filter_channel[f_buf_idx] * mask_val;
                                         }
                                     }
                                     input_channel += input_channel_size;
@@ -279,7 +279,7 @@ namespace ngraph
                 const size_t group_offset_size = shape_size(group_offset_shape);
                 const size_t group_offset_batch_size = shape_size(shape_reduce(o_shape));
                 const size_t deformable_groups_per_group =
-                        std::ceil(static_cast<float>(deformable_groups) / static_cast<float>(groups));
+                    std::ceil(static_cast<float>(deformable_groups) / static_cast<float>(groups));
 
                 const size_t group_filters_count = f_shape[filter_out_ch_axis] / groups;
                 const Shape group_filter_shape = shape_reduce(f_shape);

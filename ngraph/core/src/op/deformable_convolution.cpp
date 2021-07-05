@@ -3,10 +3,10 @@
 //
 
 #include "ngraph/op/deformable_convolution.hpp"
-#include "ngraph/runtime/reference/deformable_convolution.hpp"
 #include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
+#include "ngraph/runtime/reference/deformable_convolution.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -291,7 +291,7 @@ namespace deformable_convolution
                              group,
                              deformable_group,
                              use_bilinear_interpolation_padding);
-            default: rc = false; break;
+        default: rc = false; break;
         }
         return rc;
     }
@@ -301,17 +301,16 @@ bool op::v8::DeformableConvolution::evaluate(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(DeformableConvolution_v8_evaluate);
-    deformable_convolution::evaluate_deformable_convolution(
-            inputs,
-            outputs[0],
-            get_strides(),
-            get_dilations(),
-            get_pads_begin(),
-            get_pads_end(),
-            get_auto_pad(),
-            get_group(),
-            get_deformable_group(),
-            get_bilinear_interpolation_pad());
+    deformable_convolution::evaluate_deformable_convolution(inputs,
+                                                            outputs[0],
+                                                            get_strides(),
+                                                            get_dilations(),
+                                                            get_pads_begin(),
+                                                            get_pads_end(),
+                                                            get_auto_pad(),
+                                                            get_group(),
+                                                            get_deformable_group(),
+                                                            get_bilinear_interpolation_pad());
     return true;
 }
 
@@ -320,9 +319,9 @@ bool op::v8::DeformableConvolution::has_evaluate() const
     NGRAPH_OP_SCOPE(DeformableConvolution_v8_has_evaluate);
     switch (get_input_element_type(0))
     {
-        case ngraph::element::f16:
-        case ngraph::element::f32: return true;
-        default: break;
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
     }
     return false;
 }
