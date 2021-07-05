@@ -14,13 +14,36 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<float> eps = {1e-6f, 1e-4f, 1e-2f, 0.1};
+const std::vector<float> eps = {1e-6f, 1e-2f, 0.1, 0.5};
 
 
 const std::vector<ngraph::op::EpsMode> epsMode = {
         ngraph::op::EpsMode::ADD,
         ngraph::op::EpsMode::MAX,
 };
+
+/* ============= 1D ============= */
+const std::vector<std::vector<int64_t>> axes_1D = {
+        // Unsupported by CPU
+        {},
+        {0}
+};
+
+const auto normL2params_1D = testing::Combine(
+        testing::ValuesIn(axes_1D),
+        testing::ValuesIn(eps),
+        testing::ValuesIn(epsMode),
+        testing::ValuesIn(std::vector<std::vector<size_t>>({{5, 3}})),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_NormalizeL2_1D,
+        NormalizeL2LayerTest,
+        normL2params_1D,
+        NormalizeL2LayerTest::getTestCaseName
+);
 
 /* ============= 2D ============= */
 const std::vector<std::vector<int64_t>> axes_2D = {
@@ -56,6 +79,7 @@ const std::vector<std::vector<int64_t>> axes_3D = {
 
         // Unsupported by CPU
         {0},
+        {2},
         {0, 1},
         {2, 1},
         {0, 1, 2}
@@ -85,6 +109,8 @@ const std::vector<std::vector<int64_t>> axes_4D = {
 
         // Unsupported by CPU
         {0},
+        {2},
+        {3},
         {0, 1},
         {1, 2},
         {2, 3},

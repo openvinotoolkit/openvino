@@ -43,7 +43,6 @@ void NormalizeL2LayerTest::SetUp() {
     ngraph::op::EpsMode epsMode;
     InferenceEngine::Precision netPrecision;
     std::tie(axes, eps, epsMode, inputShape, netPrecision, targetDevice) = this->GetParam();
-    threshold = threshold > eps ? eps : threshold;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto data_input = params[0];
