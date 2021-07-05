@@ -144,8 +144,6 @@ static void validate_mappings(loop_node const & node) {
     const auto& output_primitive_maps = node.get_output_primitive_maps();
 
     // check all loop inputs have their own primitive_map
-
-#if 1
     for (const auto& id : outer_inputs) {
         if (id == node.get_trip_count_id() ||
             id == node.get_initial_execution_id() ||
@@ -158,7 +156,6 @@ static void validate_mappings(loop_node const & node) {
             CLDNN_ERROR_MESSAGE(node.id(), msg.c_str());
         }
     }
-#endif
 
     // check all io_primitive_maps have their corresponding external id
     for (const auto& pm : input_primitive_maps) {

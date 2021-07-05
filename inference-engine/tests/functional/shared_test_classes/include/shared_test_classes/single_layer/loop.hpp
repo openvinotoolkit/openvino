@@ -50,7 +50,8 @@ using StaticShapeLoopParams = typename std::tuple<
         int64_t,
         InferenceEngine::SizeVector,
         InferenceEngine::Precision,
-        std::string
+        std::string,
+        std::map<std::string, std::string>
         >;
 
 /**

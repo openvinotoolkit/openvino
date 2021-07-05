@@ -36,8 +36,8 @@ static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int
 }
 
 static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::shared_ptr<ngraph::Node>& op,
-                                            const cldnn::primitive_id& id, const cldnn::primitive_id& input,
-                                            const int32_t output_idx) {
+                                                        const cldnn::primitive_id& id, const cldnn::primitive_id& input,
+                                                        const int32_t output_idx) {
     const auto precision = DataTypeFromPrecision(op->get_output_element_type(output_idx));
     const auto format = DefaultFormatForDims(op->get_output_shape(output_idx).size());
     const auto tensor = CldnnTensorFromIEDims(op->get_output_shape(output_idx));
@@ -48,7 +48,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
 }
 
 static void UpdateBackedge(std::vector<cldnn::loop::backedge_mapping>& back_edges,
-        const cldnn::primitive_id& old_primitive_id, const cldnn::primitive_id& new_primitive_id) {
+                            const cldnn::primitive_id& old_primitive_id, const cldnn::primitive_id& new_primitive_id) {
     for (auto& back_edge : back_edges) {
         if (back_edge.from == old_primitive_id) {
             back_edge.from = new_primitive_id;
@@ -116,11 +116,7 @@ void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
 
     cldnn::primitive_id body_execution_condition_id;
     if (special_body_ports.body_condition_output_idx >= 0) {
-#if 0
-        auto body_condition_output = body_outputs.at(special_body_ports.body_condition_output_idx);
-#else
         auto body_condition_output = body_outputs.at(special_body_ports.body_condition_output_idx)->get_input_node_shared_ptr(0);
-#endif
         body_execution_condition_id = layer_type_name_ID(body_condition_output);
         std::string output_name = ngraph::op::util::create_ie_output_name(body_condition_output);
         const auto networkOutput = networkOutputs.at(output_name);
@@ -134,7 +130,6 @@ void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     auto body_topology = *body_program.GetTopology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges
-
     std::vector<cldnn::loop::io_primitive_map> input_primitive_maps;
     std::vector<cldnn::loop::io_primitive_map> output_primitive_maps;
     std::vector<cldnn::loop::backedge_mapping> back_edges;

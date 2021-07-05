@@ -150,7 +150,8 @@ namespace LayerTestsDefinitions {
             start_value,
             data_shape,
             data_prc,
-            targetDevice) = GetParam();
+            targetDevice,
+            configuration) = GetParam();
 
         const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_prc);
         const auto ngShape = ngraph::Shape{data_shape};

@@ -90,9 +90,6 @@ TEST(loop_gpu, basic_no_concat)
     EXPECT_EQ(output_layout.size.spatial[0], 4);
     EXPECT_EQ(output_layout.size.spatial[1], 5);
 
-    mem_lock<int32_t> ptr{num_iteration_mem, get_test_stream()};
-    EXPECT_EQ(ptr[0], trip_count);
-
     // value check
     mem_lock<float> output_ptr{output, get_test_stream()};
     EXPECT_EQ(output_ptr.size(), input_data.size());
@@ -163,10 +160,6 @@ TEST(loop_gpu, basic_concat)
     EXPECT_EQ(output_layout.size.feature[0], 1);
     EXPECT_EQ(output_layout.size.spatial[0], 4);
     EXPECT_EQ(output_layout.size.spatial[1], 5);
-
-    mem_lock<int32_t> ptr{num_iteration_mem, get_test_stream()};
-    const int32_t actual_iterations = ptr[0];
-    EXPECT_EQ(actual_iterations, trip_count);
 
     // value check
     mem_lock<float> output_ptr{output, get_test_stream()};
@@ -302,14 +295,6 @@ TEST(loop_gpu, basic_concat_nested)
     EXPECT_EQ(output_layout.size.feature[0], 1);
     EXPECT_EQ(output_layout.size.spatial[0], 4);
     EXPECT_EQ(output_layout.size.spatial[1], 5);
-
-    // check trip count = actual iteration
-    mem_lock<int64_t> inner_num_iteration_ptr{inner_num_iteration_mem, get_test_stream()};
-    int64_t inner_actual_iterations = inner_num_iteration_ptr[0];
-    EXPECT_EQ(inner_actual_iterations, inner_trip_count);
-    mem_lock<int64_t> num_iteration_ptr{num_iteration_mem, get_test_stream()};
-    int64_t actual_iterations = num_iteration_ptr[0];
-    EXPECT_EQ(actual_iterations, outer_trip_count);
 
     // check output values
     EXPECT_EQ(output_layout.count(), expected.size());
