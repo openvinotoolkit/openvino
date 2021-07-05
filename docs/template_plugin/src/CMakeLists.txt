@@ -31,7 +31,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
 # Link inference backend library to plugin. Here we use ngraph interpreter_backend as example
 target_link_libraries(${TARGET_NAME} PRIVATE
-    IE::ngraph_backend
     IE::interpreter_backend)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

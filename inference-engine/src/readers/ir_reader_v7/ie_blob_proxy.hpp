@@ -56,7 +56,7 @@ public:
      * @param offset Offset in memory
      * @param dims Dimensions of the given blob
      */
-    TBlobProxy(Precision p, Layout l, const Blob::Ptr& blob, size_t offset, const SizeVector& dims)
+    TBlobProxy(Precision p, Layout l, const MemoryBlob::Ptr& blob, size_t offset, const SizeVector& dims)
         : base(TensorDesc(p, dims, l)), realObject(blob), offset(offset * blob->element_size()) {
         checkWindow();
     }
@@ -79,7 +79,7 @@ public:
      * @return LockedMemory instance of type void
      */
     LockedMemory<void> buffer() noexcept override {
-        return {getAllocator().get(), getHandle(), offset};
+        return {getAllocator().get(), realObject->getHandle(), offset};
     }
 
     /**
@@ -87,7 +87,7 @@ public:
      * @return LockedMemory instance of type const void
      */
     LockedMemory<const void> cbuffer() const noexcept override {
-        return {getAllocator().get(), getHandle(), offset};
+        return {getAllocator().get(), realObject->getHandle(), offset};
     }
 
     /**
@@ -95,7 +95,7 @@ public:
      * @return LockedMemory instance of the given type
      */
     LockedMemory<T> data() noexcept override {
-        return {getAllocator().get(), getHandle(), offset};
+        return {getAllocator().get(), realObject->getHandle(), offset};
     }
 
     /**
@@ -103,7 +103,7 @@ public:
      * @return Read-only LockedMemory instance of the given type
      */
     LockedMemory<const T> readOnly() const noexcept override {
-        return {getAllocator().get(), getHandle(), offset};
+        return {getAllocator().get(), realObject->getHandle(), offset};
     }
 
 protected:
@@ -113,14 +113,6 @@ protected:
      */
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
         return realObject->getAllocator();
-    }
-
-    /**
-     * @brief Gets a handle pointer
-     * @return A handle pointer
-     */
-    void* getHandle() const noexcept override {
-        return realObject->getHandle();
     }
 
     /**
@@ -149,7 +141,7 @@ protected:
     }
 
 private:
-    typename Blob::Ptr realObject;
+    typename MemoryBlob::Ptr realObject;
     size_t offset;
 };
 }  // namespace InferenceEngine

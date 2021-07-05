@@ -6,11 +6,6 @@ set(TARGET_NAME unitTestUtils)
 
 add_subdirectory(mocks/mock_engine)
 
-list(APPEND EXPORT_DEPENDENCIES
-        commonTestUtils_s
-        inference_engine_s
-        gmock)
-
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -18,13 +13,12 @@ addIeTarget(
         ADD_CPPLINT
         DEVELOPER_PACKAGE
             inference_engine_tests
+        LINK_LIBRARIES
+            PUBLIC
+                commonTestUtils_s
+                inference_engine_s
+                gmock
         INCLUDES
             PRIVATE
                 $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
 )
-
-target_link_libraries(${TARGET_NAME}
-        PUBLIC
-        ${EXPORT_DEPENDENCIES})
