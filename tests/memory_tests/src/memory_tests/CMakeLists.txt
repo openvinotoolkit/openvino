@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# add dummy `time_tests` target combines all time tests
-add_custom_target(time_tests)
+# add dummy `memory_tests` target combines all memory tests
+add_custom_target(memory_tests)
 
 # Build test from every source file.
 # Test target name is source file name without extension.
@@ -13,7 +13,7 @@ foreach(test_source ${tests})
     get_filename_component(test_name ${test_source} NAME_WE)
     add_executable(${test_name} ${test_source})
 
-    target_link_libraries(${test_name} PRIVATE IE::inference_engine timetests_helper)
+    target_link_libraries(${test_name} PRIVATE IE::inference_engine memory_tests_helper)
 
-    add_dependencies(time_tests ${test_name})
+    add_dependencies(memory_tests ${test_name})
 endforeach()

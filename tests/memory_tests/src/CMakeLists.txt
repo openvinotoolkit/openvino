@@ -2,5 +2,5 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_subdirectory(timetests)
-add_subdirectory(timetests_helper)
+add_subdirectory(memory_tests)
+add_subdirectory(memory_tests_helper)

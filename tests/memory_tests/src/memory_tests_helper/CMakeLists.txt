@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "timetests_helper")
+set (TARGET_NAME "memory_tests_helper")
 
 file (GLOB SRC *.cpp)
 add_library(${TARGET_NAME} STATIC ${SRC})

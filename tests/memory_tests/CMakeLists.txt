@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.13)
 
 set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type")
 
-project(time_tests)
+project(memory_tests)
 
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
