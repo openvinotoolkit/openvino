@@ -88,8 +88,8 @@ void op::v1::BatchToSpace::validate_and_infer_types()
     if (data_rank.is_static())
     {
         NODE_VALIDATION_CHECK(this,
-                              (data_rank.get_length() >= 2),
-                              "data input must have rank greater or equal than 2. Got: ",
+                              (data_rank.get_length() >= 4),
+                              "data input must have rank greater than or equal to 4. Got: ",
                               data_rank.get_length());
 
         if (inputs_same_ps.is_static())
