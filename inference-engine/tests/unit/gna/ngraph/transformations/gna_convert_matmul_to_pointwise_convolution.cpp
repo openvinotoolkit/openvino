@@ -276,216 +276,89 @@ TEST(TransformationTests, ConvertMatmulToPointWiseConvolutionTestInputRank3) {
 // -------------------------------------------------------------------------------------------------------
 
 class ConvertMatmulToPointWiseConvolutionFixture: public CommonTestUtils::TestsCommon,
-                                                  public ::testing::WithParamInterface<std::tuple<Graph, Graph>> {
+                                                  public ::testing::WithParamInterface<std::tuple<Graph, Graph, ngraph::pass::Manager>> {
 public:
     void SetUp() override;
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
+    ngraph::pass::Manager pass_manager;
 };
 
 void ConvertMatmulToPointWiseConvolutionFixture::SetUp() {
-    Graph working_graph;
+    Graph transformed_graph;
     Graph reference_graph;
-    std::tie(working_graph, reference_graph) = this->GetParam();
+    std::tie(transformed_graph, reference_graph, pass_manager) = this->GetParam();
 
-    function = working_graph.createFunction();
+    function = transformed_graph.createFunction();
     reference_function = reference_graph.createFunction();
 }
 
-void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<GNAPluginNS::ConvertMatmulToPointWiseConvolution>();
-    manager.run_passes(function);
+void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function, ngraph::pass::Manager& pass_manager) {
+    pass_manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid);
 }
 
+template <typename TransformationT>
+ngraph::pass::Manager createPassManager()
+{
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<TransformationT>();
+    return manager;
+}
+
 TEST_P(ConvertMatmulToPointWiseConvolutionFixture, CompareFunctions) {
-    execute_test(function, reference_function);
+    execute_test(function, reference_function, pass_manager);
 }
 
 INSTANTIATE_TEST_SUITE_P(ConvertMatmulToPointWiseConvolutionTestSuite, ConvertMatmulToPointWiseConvolutionFixture,
-                        ::testing::Values(std::make_tuple(createTransformedGraph<CreateMatMul>(), 
-                                                          createReferenceGraph(false /* addConstFakeQuantizeNode */,
+                         ::testing::Values(std::make_tuple(createTransformedGraph<CreateMatMul>(), 
+                                                           createReferenceGraph(false /* addConstFakeQuantizeNode */,
                                                                                false /* insertAddNode */,
-                                                                               false /* addOutFakeQuantizeNode */)),
-                                          std::make_tuple(createTransformedGraph<CreateMatMul, CreateFakeQuantize>(), 
-                                                          createReferenceGraph(true /* addConstFakeQuantizeNode */,
+                                                                               false /* addOutFakeQuantizeNode */),
+                                                           createPassManager<GNAPluginNS::ConvertMatmulToPointWiseConvolution>()),
+                                           std::make_tuple(createTransformedGraph<CreateMatMul, CreateFakeQuantize>(),
+                                                           createReferenceGraph(true /* addConstFakeQuantizeNode */,
                                                                                false /* insertAddNode */,
-                                                                               false /* addOutFakeQuantizeNode */))
+                                                                               false /* addOutFakeQuantizeNode */),
+                                                           createPassManager<GNAPluginNS::ConvertMatmulToPointWiseConvolution>()),
+                                           std::make_tuple(createTransformedGraph<CreateMatMul, CreateFakeQuantize>(),
+                                                           createReferenceGraph(true /* addConstFakeQuantizeNode */,
+                                                                               false /* insertAddNode */,
+                                                                               false /* addOutFakeQuantizeNode */),
+                                                           createPassManager<GNAPluginNS::ConvertMatmulToPointWiseConvolution>()),
+                                           std::make_tuple(createTransformedGraph<CreateAdd, CreateMatMul>(),
+                                                           createReferenceGraph(false /* addConstFakeQuantizeNode */,
+                                                                               true /* insertAddNode */,
+                                                                               false /* addOutFakeQuantizeNode */),
+                                                           createPassManager<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>()),
+                                           std::make_tuple(createTransformedGraph<CreateAdd, CreateMatMul, CreateFakeQuantize>(),
+                                                           createReferenceGraph(true /* addConstFakeQuantizeNode */,
+                                                                               true /* insertAddNode */,
+                                                                               false /* addOutFakeQuantizeNode */),
+                                                           createPassManager<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>()),
+                                           std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd, CreateMatMul>(),
+                                                           createReferenceGraph(false /* addConstFakeQuantizeNode */,
+                                                                               true /* insertAddNode */,
+                                                                               true /* addOutFakeQuantizeNode */),
+                                                           createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>()),
+                                           std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd, CreateMatMul, CreateFakeQuantize>(),
+                                                           createReferenceGraph(true /* addConstFakeQuantizeNode */,
+                                                                               true /* insertAddNode */,
+                                                                               true /* addOutFakeQuantizeNode */),
+                                                           createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>()),
+                                           std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateMatMul>(),
+                                                           createReferenceGraph(false /* addConstFakeQuantizeNode */,
+                                                                               false /* insertAddNode */,
+                                                                               true /* addOutFakeQuantizeNode */),
+                                                           createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>()),
+                                           std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateMatMul, CreateFakeQuantize>(),
+                                                           createReferenceGraph(true /* addConstFakeQuantizeNode */,
+                                                                               false /* insertAddNode */,
+                                                                               true /* addOutFakeQuantizeNode */),
+                                                           createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>())
                                           ));
-
-
-// -------------------------------------------------------------------------------------------------------
-
-TEST(TransformationTests, ConvertMatmulWithBiasToPointWiseConvolutionTest) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    {
-        Graph graph = createTransformedGraph<CreateAdd, CreateMatMul>();
-
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        Graph graph = createReferenceGraph(false /* addConstFakeQuantizeNode */, true /* insertAddNode */, false /* addOutFakeQuantizeNode */);
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-    }
-
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-
-TEST(TransformationTests, ConvertMatmulWithBiasToPointWiseConvolutionFqTest) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    {
-        Graph graph = createTransformedGraph<CreateAdd, CreateMatMul, CreateFakeQuantize>();
-
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        Graph graph = createReferenceGraph(true /* addConstFakeQuantizeNode */, true /* insertAddNode */, false /* addOutFakeQuantizeNode */);
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-    }
-
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-
-TEST(TransformationTests, ConvertMatmulWithFqToPointWiseConvolutionTest) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    {
-        Graph graph = createTransformedGraph<CreateFakeQuantize, CreateAdd, CreateMatMul>();
-
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        Graph graph = createReferenceGraph(false /* addConstFakeQuantizeNode */, true /* insertAddNode */, true /* addOutFakeQuantizeNode */);
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-    }
-
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-
-TEST(TransformationTests, ConvertMatmulWithFqToPointWiseConvolutionFqTest) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    {
-        Graph graph = createTransformedGraph<CreateFakeQuantize, CreateAdd, CreateMatMul, CreateFakeQuantize>();
-
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        Graph graph = createReferenceGraph(true /* addConstFakeQuantizeNode */, true /* insertAddNode */, true /* addOutFakeQuantizeNode */);
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-    }
-
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-
-TEST(TransformationTests, ConvertMatmulWithFqToPointWiseConvolutionTestNoAddNode) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    {
-        Graph graph = createTransformedGraph<CreateFakeQuantize, CreateMatMul>();
-
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        Graph graph = createReferenceGraph(false /* addConstFakeQuantizeNode */, false /* insertAddNode */, true /* addOutFakeQuantizeNode */);
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-    }
-
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-
-TEST(TransformationTests, ConvertMatmulWithFqToPointWiseConvolutionFqTestNoAdd) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    {
-        Graph graph = createTransformedGraph<CreateFakeQuantize, CreateMatMul, CreateFakeQuantize>();
-
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>();
-        m.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    {
-        Graph graph = createReferenceGraph(true /* addConstFakeQuantizeNode */, false /* insertAddNode */, true /* addOutFakeQuantizeNode */);
-        auto result = std::make_shared<ngraph::opset7::Result>(graph.output);
-        reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{graph.input_params});
-    }
-
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
 
 } // namespace testing
