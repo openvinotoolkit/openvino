@@ -47,7 +47,7 @@ public:
 };
 
 typedef std::tuple <
-    ngraph::Shape,
+    ngraph::PartialShape,
     ReduceTransformationTestValues
 > ReduceTransformationParams;
 
@@ -55,7 +55,7 @@ template <typename ReduceType>
 class ReduceTransformation : public LayerTransformation, public testing::WithParamInterface<ReduceTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::Shape inputShape = std::get<0>(GetParam());
+        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
         const ReduceTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::ReduceFunction::getOriginal<ReduceType>(
@@ -76,7 +76,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ReduceTransformationParams> obj) {
-        const ngraph::Shape inputShape = std::get<0>(obj.param);
+        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
         const ReduceTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;

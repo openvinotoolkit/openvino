@@ -67,7 +67,7 @@ if(ENABLE_SSE42)
     list(APPEND LIBRARY_SRC ${SSE_SRC})
 
     ie_sse42_optimization_flags(sse4_2_flags)
-    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_OPTIONS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
 
     if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.16")
@@ -261,7 +261,7 @@ endif()
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
-install(DIRECTORY "${IE_MAIN_SOURCE_DIR}/include" DESTINATION ${IE_CPACK_IE_DIR}
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}" DESTINATION ${IE_CPACK_IE_DIR}
         COMPONENT core_dev)
 
 install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
@@ -272,6 +272,15 @@ install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
 install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
         DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT core)
+
+# for InferenceEngineUnitTest
+if(WIN32)
+    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+else()
+    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+            DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+endif()
 
 # Install cmake scripts
 
@@ -285,7 +294,7 @@ set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}")
 set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
-configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
+configure_package_config_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
                                INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
                                PATH_VARS ${PATH_VARS})
@@ -295,12 +304,12 @@ set(IE_NGRAPH_DIR "../ngraph/cmake")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "share/ie_parallel.cmake")
 
-configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
+configure_package_config_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
                               INSTALL_DESTINATION share
                               PATH_VARS ${PATH_VARS})
 
-configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+configure_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
                "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
                @ONLY)
 

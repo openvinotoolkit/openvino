@@ -18,12 +18,12 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-template<class T>
+template <class T>
 class BatchNormAttrTest : public ::testing::Test
 {
 };
 
-TYPED_TEST_CASE_P(BatchNormAttrTest);
+TYPED_TEST_SUITE_P(BatchNormAttrTest);
 
 TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op)
 {
@@ -47,10 +47,8 @@ TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op)
     EXPECT_EQ(g_batch_norm->get_eps_value(), batch_norm->get_eps_value());
 }
 
-REGISTER_TYPED_TEST_CASE_P(
-    BatchNormAttrTest,
-    batch_norm_inference_op);
+REGISTER_TYPED_TEST_SUITE_P(BatchNormAttrTest, batch_norm_inference_op);
 
 using Types = ::testing::Types<op::v0::BatchNormInference, op::v5::BatchNormInference>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(attributes, BatchNormAttrTest, Types);
+INSTANTIATE_TYPED_TEST_SUITE_P(attributes, BatchNormAttrTest, Types);

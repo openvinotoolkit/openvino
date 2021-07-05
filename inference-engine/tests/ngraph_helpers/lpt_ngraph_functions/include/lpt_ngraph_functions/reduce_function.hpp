@@ -21,7 +21,7 @@ public:
     template <typename ReduceType>
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const std::vector<int64_t>& constantValues,
         const bool keepDims) {
@@ -81,7 +81,7 @@ public:
     template <typename ReduceType>
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const std::vector<int64_t>& constantValues,
         const bool keepDims,
