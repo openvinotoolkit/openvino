@@ -9,6 +9,7 @@ VERIFIED_OP_REFERENCES = [
     'Assign-6',
     'AvgPool-1',
     'BatchNormInference-5',
+    'BatchToSpace-2',
     'BinaryConvolution-1',
     'Broadcast-1',
     'Broadcast-3',
@@ -82,11 +83,13 @@ VERIFIED_OP_REFERENCES = [
     'ReorgYOLO-2',
     'Result-1'
     'Round-5',
+    'SpaceToDepth-1',
     'ScatterNDUpdate-4',
     'ShapeOf-1',
     'ShapeOf-3',
     'Sigmoid-1',
     'Sin-1',
+    'Sinh-1'
     'SoftPlus-4',
     'Softmax-1',
     'Split-1',

@@ -80,7 +80,7 @@ function(add_gtest_libraries)
     endif()
 
     set(BUILD_SHARED_LIBS OFF)
-    set(INSTALL_GTEST OFF)
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
@@ -107,6 +107,9 @@ function(add_gtest_libraries)
     endif()
     set_target_properties(gtest gtest_main gmock gmock_main
                           PROPERTIES FOLDER thirdparty)
+    
+    openvino_developer_export_targets(COMPONENT inference_engine_tests
+                                      TARGETS gmock gmock_main gtest gtest_main)
 endfunction()
 
 if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)

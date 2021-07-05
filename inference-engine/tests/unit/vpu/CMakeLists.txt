@@ -22,7 +22,6 @@ addIeTargetTest(
             unitTestUtils
             mvnc
             ngraph
-            ngraph_backend
             interpreter_backend
             inference_engine_lp_transformations # for ngraphFunctions
         ADD_CPPLINT

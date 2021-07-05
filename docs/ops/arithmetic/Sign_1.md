@@ -2,7 +2,7 @@
 
 **Versioned name**: *Sign-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Sign* performs element-wise sign operation with given tensor.
 
@@ -12,11 +12,11 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise sign operation. A tensor of type T with mapped elements of the input tensor to -1 (if it is negative), 0 (if it is zero), or 1 (if it is positive).
+* **1**: The result of element-wise sign operation. A tensor of type *T* with mapped elements of the input tensor to -1 (if it is negative), 0 (if it is zero), or 1 (if it is positive).
 
 **Types**
 
