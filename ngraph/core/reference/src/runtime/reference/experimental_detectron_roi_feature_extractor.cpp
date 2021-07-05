@@ -431,10 +431,14 @@ namespace ngraph
                 std::cout << "\n\n";
 
                 std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
+                std::cout << "Loop through levels...\n";
                 for (int64_t i = 0; i < levels_num; ++i)
                 {
+                    std::cout << "    i:                 " << i << "\n";
                     const int64_t level_rois_offset = rois_per_level[i];
                     const int64_t level_rois_num = rois_per_level[i + 1] - level_rois_offset;
+                    std::cout << "    level_rois_offset: " << level_rois_offset << "\n";
+                    std::cout << "    level_rois_num:    " << level_rois_num << "\n";
                     if (level_rois_num > 0)
                     {
                         const float* featuremap = inputs[input_features_start_port + i].data();
@@ -442,6 +446,8 @@ namespace ngraph
                             static_cast<int64_t>(input_shapes[input_features_start_port + i][2]);
                         const int64_t featuremap_width =
                             static_cast<int64_t>(input_shapes[input_features_start_port + i][3]);
+                        std::cout << "    featuremap_height: " << featuremap_height << "\n";
+                        std::cout << "    featuremap_width:  " << featuremap_width << "\n";
                         ROIAlignForward_cpu_kernel<float>(
                             feaxels_per_roi * level_rois_num,
                             featuremap,
