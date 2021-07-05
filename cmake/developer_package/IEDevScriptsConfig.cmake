@@ -249,6 +249,25 @@ function(ie_mark_target_as_cc TARGET_NAME)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
 endfunction()
 
+# check python package
+
+function(ie_check_pip_package name message_type)
+    find_package(PythonInterp 3 REQUIRED)
+
+    execute_process(
+        COMMAND ${PYTHON_EXECUTABLE} -m pip show ${name}
+        RESULT_VARIABLE PIP_EXIT_CODE
+        OUTPUT_QUIET
+    )
+
+    if(NOT PIP_EXIT_CODE EQUAL 0)
+        set(${name}_FOUND OFF PARENT_SCOPE)
+        message(${message_type} "${name} package is not installed. Please use \"${PYTHON_EXECUTABLE} -m pip install ${name}\".")
+    else()
+        set(${name}_FOUND ON PARENT_SCOPE)
+    endif()
+endfunction()
+
 # Code style utils
 
 include(cpplint/cpplint)
