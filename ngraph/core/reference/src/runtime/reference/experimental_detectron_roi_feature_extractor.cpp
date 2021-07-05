@@ -287,6 +287,10 @@ namespace
             T roi_height = std::max(roi_end_h - roi_start_h, (T)1.);
             T bin_size_h = static_cast<T>(roi_height) / static_cast<T>(pooled_height);
             T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
+            std::cout << "        roi_width:   " << roi_width << "\n";
+            std::cout << "        roi_height:  " << roi_height << "\n";
+            std::cout << "        bin_size_h:  " << bin_size_h << "\n";
+            std::cout << "        bin_size_w:  " << bin_size_w << "\n";
 
             // We use roi_bin_grid to sample the grid and mimic integral
             int64_t roi_bin_grid_h =
@@ -299,6 +303,9 @@ namespace
 
             // We do average (integral) pooling inside a bin
             const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w); // e.g. = 4
+            std::cout << "        roi_bin_grid_h:  " << roi_bin_grid_h << "\n";
+            std::cout << "        roi_bin_grid_w:  " << roi_bin_grid_w << "\n";
+            std::cout << "        count:           " << count << "\n";
 
             // we want to precalculate indices and weights shared by all channels,
             // this is the key point of optimization
@@ -317,6 +324,21 @@ namespace
                                               roi_bin_grid_h,
                                               roi_bin_grid_w,
                                               pre_calc);
+            std::cout << "        pre_calc:\n";
+            for (const auto& p : pre_calc)
+            {
+                std::cout << "            PreCalc{"
+                          << ".pos1=" << p.pos1 << ", "
+                          << ".pos2=" << p.pos2 << ", "
+                          << ".pos3=" << p.pos3 << ", "
+                          << ".pos4=" << p.pos4 << ", "
+                          << ".w1=" << p.w1 << ", "
+                          << ".w2=" << p.w2 << ", "
+                          << ".w3=" << p.w3 << ", "
+                          << ".w4=" << p.w4 << "}\n";
+            }
+            std::cout << "\n\n";
+
             for (int64_t c = 0; c < channels; c++)
             {
                 int64_t index_n_c = index_n + c * pooled_width * pooled_height;
