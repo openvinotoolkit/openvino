@@ -414,7 +414,7 @@ namespace ngraph
                     else
                     {
                         int32_t* indices_ptr = static_cast<int32_t*>(pscores);
-                        for (size_t i = 0; i < (size_t)total_num; ++i)
+                        for (int64_t i = 0; i < total_num; ++i)
                         {
                             indices_ptr[i] = static_cast<int32_t>(selected_indices[i]);
                         }
@@ -431,7 +431,7 @@ namespace ngraph
                     else
                     {
                         int32_t* valid_outputs_ptr = static_cast<int32_t*>(pselected_num);
-                        for (size_t i = 0; i < (size_t)valid_outputs.size(); ++i)
+                        for (size_t i = 0; i < valid_outputs.size(); ++i)
                         {
                             valid_outputs_ptr[i] = static_cast<int32_t>(valid_outputs[i]);
                         }

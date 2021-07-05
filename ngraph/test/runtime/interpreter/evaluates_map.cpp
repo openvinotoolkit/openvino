@@ -1038,7 +1038,7 @@ namespace
         void* pscores = nullptr;
         void* pselected_num = nullptr;
         void* prois;
-        size_t num_selected = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
+        size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0));
 
         outputs[0]->set_shape({num_selected, 6});
         prois = outputs[0]->get_data_ptr();
@@ -1179,7 +1179,7 @@ namespace
         void* pscores = nullptr;
         void* pselected_num = nullptr;
         void* prois;
-        size_t num_selected = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
+        size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0));
 
         outputs[0]->set_element_type(selected_scores_type);
         outputs[0]->set_shape({num_selected, 6});

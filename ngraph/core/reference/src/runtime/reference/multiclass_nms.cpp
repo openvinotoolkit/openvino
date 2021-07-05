@@ -433,14 +433,14 @@ namespace ngraph
                 auto num_selected = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
 
                 /* data */
-                size_t selected_outputs_size = num_selected * 6;
+                int64_t selected_outputs_size = num_selected * 6;
 
                 switch (selected_scores_type)
                 {
                 case element::Type_t::bf16:
                 {
                     bfloat16* scores_ptr = static_cast<bfloat16*>(prois);
-                    for (size_t i = 0; i < selected_outputs_size; ++i)
+                    for (int64_t i = 0; i < selected_outputs_size; ++i)
                     {
                         scores_ptr[i] = bfloat16(selected_outputs[i]);
                     }
@@ -449,7 +449,7 @@ namespace ngraph
                 case element::Type_t::f16:
                 {
                     float16* scores_ptr = static_cast<float16*>(prois);
-                    for (size_t i = 0; i < selected_outputs_size; ++i)
+                    for (int64_t i = 0; i < selected_outputs_size; ++i)
                     {
                         scores_ptr[i] = float16(selected_outputs[i]);
                     }
@@ -470,7 +470,7 @@ namespace ngraph
                     return;
                 }
 
-                size_t selected_indices_size = num_selected * 1;
+                int64_t selected_indices_size = num_selected * 1;
 
                 if (output_type == ngraph::element::i64)
                 {
@@ -482,7 +482,7 @@ namespace ngraph
                 else
                 {
                     int32_t* indices_ptr = static_cast<int32_t*>(pscores);
-                    for (size_t i = 0; i < selected_indices_size; ++i)
+                    for (int64_t i = 0; i < selected_indices_size; ++i)
                     {
                         indices_ptr[i] = static_cast<int32_t>(selected_indices[i]);
                     }
@@ -503,7 +503,7 @@ namespace ngraph
                 else
                 {
                     int32_t* valid_outputs_ptr = static_cast<int32_t*>(pselected_num);
-                    for (size_t i = 0; i < valid_outputs.size(); ++i)
+                    for (int64_t i = 0; i < valid_outputs.size(); ++i)
                     {
                         valid_outputs_ptr[i] = static_cast<int32_t>(valid_outputs[i]);
                     }
