@@ -24,6 +24,8 @@ ie_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag
 
 ie_option (ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" OFF)
 
+ie_option (ENABLE_UB_SANITIZER "enable UndefinedBahavior sanitizer" OFF)
+
 ie_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
 
 ie_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_CXX_COMPILER_ID STREQUAL GNU" OFF)
