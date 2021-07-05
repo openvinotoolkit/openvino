@@ -131,11 +131,12 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     m.register_pass<ngraph::pass::InitNodeInfo>();
     m.register_pass<ngraph::pass::ConstantFolding>();
     m.run_passes(nGraphFunc);
-
-    auto before = std::chrono::steady_clock::now();
-    nGraphFunc->validate_nodes_and_infer_types();
-    auto after = std::chrono::steady_clock::now();
-    std::cout << "Validate time: " << std::chrono::duration_cast<std::chrono::microseconds>(after - before).count() << " microseconds" << std::endl;
+    for (size_t i = 0; i < 10; ++i) {
+        auto before = std::chrono::steady_clock::now();
+        nGraphFunc->validate_nodes_and_infer_types();
+        auto after = std::chrono::steady_clock::now();
+        std::cout << "Validate time: " << std::chrono::duration_cast<std::chrono::microseconds>(after - before).count() << " microseconds" << std::endl;
+    }
 
     auto get_convert_precisions = []() {
         precisions_array array = {

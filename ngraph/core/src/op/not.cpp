@@ -28,15 +28,16 @@ bool ngraph::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-// TODO(amprocte): Update this to allow only boolean, for consistency with logical binops.
 void op::v1::LogicalNot::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_LogicalNot_validate_and_infer_types);
-    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
-
-    set_output_type(0, args_et, args_pshape);
+    const auto& element_type = get_input_element_type(0);
+    NODE_VALIDATION_CHECK(this,
+                          element_type.compatible(element::boolean),
+                          "Arguments cannot have non boolean element type (argument element type: ",
+                          element_type,
+                          ").");
+    set_output_type(0, element_type, get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& new_args) const

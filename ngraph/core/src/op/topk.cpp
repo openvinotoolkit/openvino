@@ -254,8 +254,7 @@ bool ngraph::op::v1::TopK::visit_attributes(AttributeVisitor& visitor)
 void op::v1::TopK::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_TopK_validate_and_infer_types);
-    const auto& input_partial_shape = get_input_partial_shape(0);
-    const auto input_rank = input_partial_shape.rank();
+    const auto input_rank = get_input_partial_shape(0).rank();
 
     NODE_VALIDATION_CHECK(this,
                           input_rank.is_dynamic() || input_rank.get_length() > 0,
@@ -271,14 +270,7 @@ void op::v1::TopK::validate_and_infer_types()
                           "Index element type attribute should be either \'i32\' or \'i64\'. Got: ",
                           m_index_element_type);
 
-    if (op::is_constant(input_value(1).get_node()))
-    {
-        // Check k value
-        read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
-    }
-
-    PartialShape output_shape{input_partial_shape};
-
+    auto output_shape = get_input_partial_shape(0);
     if (output_shape.rank().is_static())
     {
         m_normalized_axis = ngraph::normalize_axis(this, m_axis, output_shape.rank());
@@ -288,6 +280,12 @@ void op::v1::TopK::validate_and_infer_types()
         {
             if (k_as_shape.is_static())
             {
+                NODE_VALIDATION_CHECK(this,
+                                      k_as_shape[0].get_length() > 0,
+                                      "The value of 'K' must be a positive number.",
+                                      " (got ",
+                                      k_as_shape[0],
+                                      ").");
                 output_shape[m_normalized_axis] = k_as_shape[0];
             }
             else
@@ -307,7 +305,7 @@ void op::v1::TopK::validate_and_infer_types()
         else
         {
             output_shape[m_normalized_axis] =
-                Dimension(0, input_partial_shape[m_normalized_axis].get_max_length());
+                Dimension(0, output_shape[m_normalized_axis].get_max_length());
         }
     }
 

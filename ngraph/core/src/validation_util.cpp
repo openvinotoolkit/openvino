@@ -954,6 +954,26 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
     return dim;
 }
 
+void ngraph::normalize_axes(const Node* node,
+                            const int64_t& tensor_rank,
+                            std::vector<int64_t>& axes)
+{
+    const auto& min_value = -tensor_rank;
+    const auto& max_value = tensor_rank ? (tensor_rank - 1) : 0;
+    transform(axes.begin(), axes.end(), axes.begin(), [=](int64_t& axis) {
+        NODE_VALIDATION_CHECK(node,
+                              ((axis >= min_value) && (axis <= max_value)),
+                              " Parameter axis ",
+                              axis,
+                              " out of the tensor rank range [",
+                              min_value,
+                              ", ",
+                              max_value,
+                              "].");
+        return axis < 0 ? axis + tensor_rank : axis;
+    });
+}
+
 std::vector<size_t> ngraph::normalize_axes(const std::string& node_description,
                                            const std::vector<int64_t>& axes,
                                            const Rank& tensor_rank)
@@ -1435,6 +1455,14 @@ pair<HostTensorPtr, HostTensorPtr> ngraph::evaluate_both_bounds(const Output<Nod
 
 bool ngraph::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape)
 {
+    if (const auto& constant = get_constant_from_source(output))
+    {
+        pshape = constant->cast_vector<Dimension>();
+        NGRAPH_CHECK(std::all_of(pshape.begin(), pshape.end(), [](const Dimension& d) {
+            return d.is_static() && d.get_length() >= 0;
+        }));
+        return true;
+    }
     HostTensorPtr lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(output);
     bool shape_defined = false;

@@ -40,11 +40,6 @@ op::Squeeze::Squeeze(const Output<Node>& data)
 void op::Squeeze::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_Squeeze_validate_and_infer_types);
-    auto data = input_value(0);
-    bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
-    bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
-    auto data_partial_shape = data.get_partial_shape();
-
     std::shared_ptr<op::v0::Constant> axes_constant;
     if (get_input_size() == 1)
     {
@@ -54,88 +49,66 @@ void op::Squeeze::validate_and_infer_types()
     }
     else
     {
-        auto axes_node = input_value(1).get_node_shared_ptr();
-        auto axes_pshape = get_input_partial_shape(1);
-        axes_constant = get_constant_from_source(axes_node);
-
+        const auto& axes_rank = get_input_partial_shape(1).rank();
+        axes_constant = get_constant_from_source(input_value(1));
         NODE_VALIDATION_CHECK(this,
-                              axes_pshape.rank().compatible(0) || axes_pshape.rank().compatible(1),
+                              axes_rank.compatible(0) || axes_rank.compatible(1),
                               "Second input (axes) should not be of rank higher than 1. Got: ",
-                              axes_pshape.rank().get_length());
+                              axes_rank.get_length());
     }
+    auto data_partial_shape = get_input_partial_shape(0);
+    bool data_has_dynamic_shape = data_partial_shape.is_dynamic();
+    const auto& data_rank = data_partial_shape.rank();
+    bool data_has_dynamic_rank = data_rank.is_dynamic();
 
-    bool axes_is_empty_constant = (axes_constant && axes_constant->get_data_ptr() != nullptr)
-                                      ? axes_constant->cast_vector<int64_t>().empty()
-                                      : false;
+    std::vector<int64_t> axes;
+    if (axes_constant && axes_constant->get_data_ptr() != nullptr)
+        axes = axes_constant->cast_vector<int64_t>();
 
     if (data_has_dynamic_rank || !axes_constant || !axes_constant->get_data_ptr() ||
-        (data_has_dynamic_shape && axes_is_empty_constant))
+        (data_has_dynamic_shape && axes.empty()))
     {
         // If data has a static rank despite being dynamic, it's possible none
         // of the dimensions will be equal to 1. If so, the input shape can be
         // propagated at this point to the output shape.
-        if (!data_has_dynamic_rank && axes_is_empty_constant)
-        {
-            bool no_squeezable_dimension_present = true;
-            uint64_t data_rank = data_partial_shape.rank().get_length();
-            for (uint64_t idx = 0; idx < data_rank; ++idx)
-            {
-                if (data_partial_shape[idx].compatible(1))
-                {
-                    no_squeezable_dimension_present = false;
-                    break;
-                }
-            }
-            if (no_squeezable_dimension_present)
+        if (!data_has_dynamic_rank && axes.empty())
+            if (std::none_of(data_partial_shape.begin(), data_partial_shape.end(), [](const Dimension& d){ return d == 1; }))
             {
                 set_output_type(0, get_input_element_type(0), data_partial_shape);
                 return;
             }
-        }
-
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         return;
     }
 
-    uint64_t data_rank = data_partial_shape.rank().get_length();
-
-    // Get value of axes from Constant
-    auto axes =
-        normalize_axes(this->description(), axes_constant->cast_vector<int64_t>(), data_rank);
+    auto rank_value = data_rank.get_length();
+    normalize_axes(this, rank_value, axes);
 
     // Prepare set of unique axes marked to be removed from input data.
-    vector<bool> axes_to_squeeze(data_rank, false);
-    if (axes_is_empty_constant)
+    vector<bool> axes_to_squeeze(rank_value, false);
+    if (axes.empty())
     {
-        auto data_shape = data.get_shape();
-        // Default behaviour is to remove all single dimension axes.
-        for (uint64_t idx = 0; idx < data_rank; ++idx)
-        {
-            if (data_shape.at(idx) == 1)
-            {
-                axes_to_squeeze.at(idx) = true;
-            }
-        }
+        Shape output_shape;
+        const auto& input_shape = get_input_shape(0);
+        std::copy_if(
+                input_shape.begin(), input_shape.end(),
+                std::back_inserter(output_shape), [](const size_t &d) { return d != 1; });
+        set_output_type(0, get_input_element_type(0), output_shape);
+        return;
     }
-    else
+    set<size_t, greater<size_t>> unique_axes(begin(axes), end(axes));
+    for (uint64_t axis : unique_axes)
     {
-        set<size_t, greater<size_t>> unique_axes(begin(axes), end(axes));
-        for (uint64_t axis : unique_axes)
-        {
-            if (!data_has_dynamic_shape)
-            {
-                auto data_shape = data.get_shape();
-                NODE_VALIDATION_CHECK(
-                    this,
-                    (data_shape.at(axis) == 1),
-                    "provided axis value is invalid. Only axes of size 1 may be removed.");
-            }
-            axes_to_squeeze.at(axis) = true;
-        }
+        const auto& dim = data_partial_shape[axis];
+        NODE_VALIDATION_CHECK(
+            this,
+            dim.is_dynamic() || dim == 1,
+            "provided axis value is invalid. Only axes of size 1 may be removed.");
+        axes_to_squeeze.at(axis) = true;
     }
 
     vector<Dimension> output_data_shape;
-    for (uint64_t idx = 0; idx < data_rank; ++idx)
+    for (auto idx = 0; idx < rank_value; ++idx)
     {
         if (!axes_to_squeeze.at(idx))
         {
