@@ -7,6 +7,7 @@ setlocal enabledelayedexpansion
 set TARGET=CPU
 set SAMPLE_OPTIONS=
 set BUILD_FOLDER=%USERPROFILE%\Documents\Intel\OpenVINO
+set VENV_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\venv_openvino
 
 :: command line arguments parsing
 :input_arguments_loop
@@ -22,10 +23,12 @@ if not "%1"=="" (
         shift
     )
     if "%1"=="-help" (
-        echo %~n0%~x0 is security barrier camera demo that showcases three models coming with the product
+        echo Security barrier camera demo that showcases three models coming with the product
         echo.
         echo Options:
-        echo -d name     Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified
+        echo    -help                      Print help message
+        echo    -d DEVICE                  Specify the target device to infer on; CPU, GPU, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified
+        echo    -sample-options OPTIONS    Specify command line arguments for the sample
         exit /b
     )
     shift
@@ -78,9 +81,22 @@ if not "%python_ver%"=="okay" (
 )
 
 :: install yaml python modules required for downloader.py
-pip3 install --user -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requirements.in"
-if ERRORLEVEL 1 GOTO errorHandling
+if exist "%VENV_DIR%" (
+    echo.
+    echo ###############^|^| Using the existing python virtual environment ^|^|###############
+    echo.
+) else (
+    echo.
+    echo ###############^|^| Creating the python virtual environment ^|^|###############
+    echo.
+    python -m venv "%VENV_DIR%"
+)
 
+call "%VENV_DIR%\Scripts\activate.bat"
+python -m pip install -U pip
+python -m pip install -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requirements.in"
+
+if ERRORLEVEL 1 GOTO errorHandling
 
 set models_path=%BUILD_FOLDER%\openvino_models\ir
 set models_cache=%BUILD_FOLDER%\openvino_models\cache
