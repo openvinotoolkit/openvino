@@ -16,7 +16,8 @@ namespace ngraph
             class NGRAPH_API Tanh : public util::UnaryElementwiseArithmetic
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
+                static constexpr NodeTypeInfo type_info{"Tanh", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a hyperbolic tangent operation.
                 ///
                 /// \param arg Node that produces the input tensor.

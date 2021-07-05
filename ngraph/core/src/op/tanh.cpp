@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Tanh, "Tanh", 0, util::UnaryElementwiseArithmetic);
+constexpr NodeTypeInfo op::Tanh::type_info;
 
 op::Tanh::Tanh(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)

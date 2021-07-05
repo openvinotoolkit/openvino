@@ -4,7 +4,6 @@
 
 #include "unary_ops.hpp"
 
-using namespace ngraph;
 using Type = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Erf, element::f32>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_atrribute,
