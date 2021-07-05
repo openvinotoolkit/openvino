@@ -41,9 +41,9 @@ Particular cases:
 
 **Inputs**
 
-* **1**: `data` - input tensor to be normalized. Type of elements is any floating point type. **Required.**
+* **1**: `data` - A tensor of type *T* and arbitrary shape. **Required.**
 
-* **2**: `axes` - scalar or 1D tensor with axis indices for the `data` input along which L2 reduction is calculated. **Required.**
+* **2**: `axes` - Axis indices of `data` input tensor, along which L2 reduction is calculated. A scalar or 1D tensor of unique elements and type *T_IND*. The range of elements is `[-r, r-1]`, where `r` is the rank of `data` input tensor. **Required.**
 
 **Outputs**
 
