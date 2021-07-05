@@ -18,7 +18,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-constexpr NodeTypeInfo op::HardSigmoid::type_info;
+NGRAPH_RTTI_DEFINITION(op::HardSigmoid, "HardSigmoid", 0, op::util::FusedOp);
 
 op::HardSigmoid::HardSigmoid()
     : FusedOp()

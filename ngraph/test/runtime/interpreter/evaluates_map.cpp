@@ -31,6 +31,7 @@
 #include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
+#include <ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/fft.hpp>
@@ -336,7 +337,8 @@ namespace
                                                           op->get_strides(),
                                                           op->get_dilations(),
                                                           op->get_pads_begin(),
-                                                          op->get_pads_end());
+                                                          op->get_pads_end(),
+                                                          op->get_output_padding());
         return true;
     }
 
@@ -2486,6 +2488,71 @@ namespace
                                                                 inputs[1]->get_shape(),
                                                                 max_rois,
                                                                 outputs[0]->get_data_ptr<T>());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto attrs = op->get_attrs();
+
+        size_t post_nms_count = 0;
+        if (attrs.post_nms_count < 0)
+        {
+            throw ngraph_error("The attribute post_nms_count of the operation "
+                               "ExperimentalDetectronGenerateProposalsSingleImage must be a "
+                               "nonnegative integer.");
+        }
+        else
+        {
+            post_nms_count = static_cast<size_t>(attrs.post_nms_count);
+        }
+
+        const Shape output_rois_shape = Shape{post_nms_count, 4};
+        const Shape output_scores_shape = Shape{post_nms_count};
+
+        const auto output_type = op->get_input_element_type(0);
+
+        const auto im_info_shape = inputs[0]->get_shape();
+        const auto anchors_shape = inputs[1]->get_shape();
+        const auto deltas_shape = inputs[2]->get_shape();
+        const auto scores_shape = inputs[3]->get_shape();
+
+        const auto im_info_data = get_floats(inputs[0], im_info_shape);
+        const auto anchors_data = get_floats(inputs[1], anchors_shape);
+        const auto deltas_data = get_floats(inputs[2], deltas_shape);
+        const auto scores_data = get_floats(inputs[3], scores_shape);
+
+        std::vector<float> output_rois(shape_size(output_rois_shape));
+        std::vector<float> output_scores(shape_size(output_scores_shape));
+
+        outputs[0]->set_element_type(output_type);
+        outputs[0]->set_shape(output_rois_shape);
+        outputs[1]->set_element_type(output_type);
+        outputs[1]->set_shape(output_scores_shape);
+
+        runtime::reference::experimental_detectron_proposals_single_image(im_info_data.data(),
+                                                                          anchors_data.data(),
+                                                                          deltas_data.data(),
+                                                                          scores_data.data(),
+                                                                          attrs,
+                                                                          im_info_shape,
+                                                                          anchors_shape,
+                                                                          deltas_shape,
+                                                                          scores_shape,
+                                                                          output_rois.data(),
+                                                                          output_scores.data());
+        runtime::reference::experimental_detectron_proposals_single_image_postprocessing(
+            outputs[0]->get_data_ptr(),
+            outputs[1]->get_data_ptr(),
+            output_type,
+            output_rois,
+            output_scores,
+            output_rois_shape,
+            output_scores_shape);
+
         return true;
     }
 
