@@ -65,8 +65,8 @@ target_image_path="$ROOT_DIR/car.png"
 
 run_again="Then run the script again\n\n"
 
-if [ -e "$ROOT_DIR/../../setupvars.sh" ]; then
-    setupvars_path="$ROOT_DIR/../../setupvars.sh"
+if [ -e "$ROOT_DIR/../../../setupvars.sh" ]; then
+    setupvars_path="$ROOT_DIR/../../../setupvars.sh"
 else
     echo -ne "Error: setupvars.sh is not found\n"
 fi
