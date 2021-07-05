@@ -48,7 +48,6 @@ if(NOT ENABLE_DOCKER)
             LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
-set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check")
 set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation")
 set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation")
@@ -56,18 +55,14 @@ set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation")
 
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
-    find_package(PythonInterp 3 REQUIRED)
     find_package(LATEX REQUIRED)
 
-    execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} -m pip show lxml
-        RESULT_VARIABLE PIP_EXIT_CODE
-        OUTPUT_QUIET
-    )
+    ie_check_pip_package(lxml FATAL_ERROR)
+    ie_check_pip_package(LinkChecker WARNING)
 
-    if (NOT ${PIP_EXIT_CODE} EQUAL 0)
-        message(FATAL_ERROR "lxml package is not installed. Please use \"pip install lxml\".")
-    endif()
+    find_host_program(LINKCHECKER_PY
+                      NAMES linkchecker
+                      DOC "linkchecker tools for documentation check")
 
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(DOXYGEN_DIR "${OpenVINO_SOURCE_DIR}/docs/doxygen")
@@ -357,7 +352,7 @@ function(build_docs)
 
     if(EXISTS "${LINKCHECKER_PY}")
         add_custom_target(docs_check
-                            COMMAND ${PYTHON_EXECUTABLE} "${LINKCHECKER_PY}" -v "${DOCS_BUILD_DIR}/html/"
+                            COMMAND "${LINKCHECKER_PY}" -v "${DOCS_BUILD_DIR}/html/"
                             COMMENT "Check links in generated documentation"
                             WORKING_DIRECTORY "${DOCS_BUILD_DIR}"
                             VERBATIM)

@@ -66,7 +66,6 @@ public:
      * This method need to be called to find out input names for using them later
      * when calling InferenceEngine::InferRequest::SetBlob
      *
-     * @param inputs Reference to InferenceEngine::ConstInputsDataMap object.
      * @return A collection that contains string as key, and const InputInfo smart pointer as value
      */
     ConstInputsDataMap GetInputsInfo() const;

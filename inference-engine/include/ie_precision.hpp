@@ -91,13 +91,21 @@ public:
         precisionInfo.value = CUSTOM;
     }
 
-    /** @brief Creates custom precision with specific underlined type */
+    /**
+     * @brief Creates custom precision with specific underlined type
+     * @param typeName A string name of precision
+     * @return Precision converted from string name
+     */
     template <class T>
     static Precision fromType(const char* typeName = nullptr) {
         return Precision(8 * sizeof(T), typeName == nullptr ? typeid(T).name() : typeName);
     }
 
-    /** @brief checks whether given storage class T can be used to store objects of current precision */
+    /**
+     * @brief checks whether given storage class T can be used to store objects of current precision
+     * @param typeName A string name of precision
+     * @return `true` if `typeName` has underlaying storage type
+     */
     template <class T>
     bool hasStorageType(const char* typeName = nullptr) const noexcept {
         try {

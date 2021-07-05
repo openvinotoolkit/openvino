@@ -46,9 +46,6 @@ public:
      */
     explicit RemoteBlob(const TensorDesc& tensorDesc): MemoryBlob(tensorDesc) {}
 
-    /**
-    * @brief Returns the number of bytes per element.
-    */
     size_t element_size() const noexcept override {
         return tensorDesc.getPrecision().size();
     }

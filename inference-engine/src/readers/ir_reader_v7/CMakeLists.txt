@@ -16,7 +16,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 
 # Create module library
 
-add_library(${TARGET_NAME} MODULE EXCLUDE_FROM_ALL ${LIBRARY_SRC})
+add_library(${TARGET_NAME} MODULE ${LIBRARY_SRC})
 
 ie_faster_build(${TARGET_NAME}
     UNITY

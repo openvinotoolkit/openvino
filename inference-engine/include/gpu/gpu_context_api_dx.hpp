@@ -106,8 +106,8 @@ public:
     }
 
     /**
-     * @brief Returns plane ID of underlying video decoder surface,
-     * or 0 if no video surface was shared.
+     * @brief Returns plane ID of underlying video decoder surface, or 0 if no video surface was shared.
+     * @return Plane ID
      */
     uint32_t plane() {
         return _ObjFromParams<uint32_t, uint32_t>(getParams(),
