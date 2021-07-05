@@ -52,7 +52,7 @@ private:
         static constexpr float memThresholdNotLimited = 1.0f;
         static constexpr float memThresholdAssumeLimited = 0.5f;
         static constexpr float memThresholdAssumeLimitedAVX512 = memThresholdAssumeLimited/2;
-        static constexpr float memThresholdAssumeLimitedMuch = memThresholdAssumeLimited/4;
+        static constexpr float memThresholdAssumeLimitedMuch = memThresholdAssumeLimited/8;
         static constexpr float memThresholdUnknown = FLT_MAX;
 
         static constexpr float memLimitedRatioThresholdAVX512 = 0.10;
