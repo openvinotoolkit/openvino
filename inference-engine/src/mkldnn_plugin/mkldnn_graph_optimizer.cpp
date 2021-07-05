@@ -999,35 +999,34 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         bool isSutableParent1 = parent1->getType() == Convolution || parent1->getType() == BinaryConvolution;
         bool isSutableParent2 = parent2->getType() == Convolution || parent2->getType() == BinaryConvolution;
 
-        // TODO [mkutakov]: uncomment
-//        auto canFuseSum = [](MKLDNNBinaryConvolutionNode *binConv, MKLDNNNodePtr fuseCandidate) {
-//            if (binConv->getImplType() == impl_desc_type::ref)
-//                return false;
-//
-//            if (binConv->isFusedWith(FakeQuantize))
-//                return false;
-//
-//            if (fuseCandidate->getAlgorithm() == EltwiseAdd) {
-//                for (auto& fusedNode : binConv->fusedWith) {
-//                    const auto eltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(fusedNode);
-//                    if (eltwise && eltwise->isSpecialConvolutionAddFusing()) {
-//                        return false;
-//                    }
-//                }
-//                return true;
-//            }
-//            return false;
-//        };
-//
-//        auto* binConvNode1 = dynamic_cast<MKLDNNBinaryConvolutionNode *>(parent1.get());
-//        if (binConvNode1) {
-//            isSutableParent1 = isSutableParent1 && canFuseSum(binConvNode1, graphNode);
-//        }
-//
-//        auto* binConvNode2 = dynamic_cast<MKLDNNBinaryConvolutionNode *>(parent2.get());
-//        if (binConvNode2) {
-//            isSutableParent2 = isSutableParent2 && canFuseSum(binConvNode2, graphNode);
-//        }
+        auto canFuseSum = [](MKLDNNBinaryConvolutionNode *binConv, MKLDNNNodePtr fuseCandidate) {
+            if (binConv->getImplType() == impl_desc_type::ref)
+                return false;
+
+            if (binConv->isFusedWith(FakeQuantize))
+                return false;
+
+            if (fuseCandidate->getAlgorithm() == EltwiseAdd) {
+                for (auto& fusedNode : binConv->fusedWith) {
+                    const auto eltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(fusedNode);
+                    if (eltwise && eltwise->isSpecialConvolutionAddFusing()) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        };
+
+        auto* binConvNode1 = dynamic_cast<MKLDNNBinaryConvolutionNode *>(parent1.get());
+        if (binConvNode1) {
+            isSutableParent1 = isSutableParent1 && canFuseSum(binConvNode1, graphNode);
+        }
+
+        auto* binConvNode2 = dynamic_cast<MKLDNNBinaryConvolutionNode *>(parent2.get());
+        if (binConvNode2) {
+            isSutableParent2 = isSutableParent2 && canFuseSum(binConvNode2, graphNode);
+        }
 
         auto* convNode1 = dynamic_cast<MKLDNNConvolutionNode *>(parent1.get());
         if (convNode1) {
@@ -1114,10 +1113,9 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         if (mergedConvNode != nullptr)
             childPort = mergedConvNode->getParentEdges().size();
 
-        // TODO [mkutakov] : uncomment
-//        auto* mergedBinConvNode = dynamic_cast<MKLDNNBinaryConvolutionNode*>(mergedConv.get());
-//        if (mergedBinConvNode != nullptr)
-//            childPort = mergedBinConvNode->getParentEdges().size();
+        auto* mergedBinConvNode = dynamic_cast<MKLDNNBinaryConvolutionNode*>(mergedConv.get());
+        if (mergedBinConvNode != nullptr)
+            childPort = mergedBinConvNode->getParentEdges().size();
 
         MKLDNNEdgePtr edgePtr(new MKLDNNEdge(peerNode, mergedConv, peer_port, childPort));
         graph.GetEdges().push_back(edgePtr);

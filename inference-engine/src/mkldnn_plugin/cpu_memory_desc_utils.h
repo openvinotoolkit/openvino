@@ -21,6 +21,7 @@ public:
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const BlockedMemoryDesc& desc);
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const InferenceEngine::TensorDesc& desc);
     static BlockedMemoryDesc convertToBlockedDescriptor(const MKLDNNMemoryDesc& inpDesc);
+    static BlockedMemoryDesc convertToBlockedDescriptor(const MemoryDesc& desc);
 
     //static MemoryDescPtr getUndefinedMemoryDesc(const MKLDNNMemoryDesc& desc);
 };

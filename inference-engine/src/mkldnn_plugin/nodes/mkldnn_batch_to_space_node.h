@@ -27,7 +27,6 @@ public:
 private:
     template<typename T>
     void batchToSpaceKernel();
-    BlockedMemoryDesc getBlockedDesc(const MemoryDesc& desc) const;
 
 private:
     InferenceEngine::SizeVector inDims;
