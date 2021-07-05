@@ -16,8 +16,7 @@ namespace ngraph
             class NGRAPH_API Sinh : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Sinh", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a hyperbolic sine operation.
                 ///
                 /// \param arg Node that produces the input tensor.
