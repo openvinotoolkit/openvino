@@ -44,7 +44,7 @@ Output(i,j,k) = max(Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end
 **Outputs**:
 
 *   **1**: Output of type *T* and shape `[N, C, H_out]`, `[N, C, H_out, W_out]` or `[N, C, D_out, H_out, W_out]`.
-*   **2**: Output of type specified by *index_element_type* and same shape as the first output containing indices of elements in the first output. The values of indices are computed as if input was flatten 1-D tensor, so the values are in the range `[0, N * C * H * W * D)`.
+*   **2**: Output of type specified by *index_element_type* and same shape as the first output containing indices of elements in the first output. The values of indices are computed as if input spatial dimensions were flatten, so the values are in the range `[0, H * W * D)`.
 
 **Types**
 
