@@ -8,3 +8,5 @@ After you convert model to TensorFlow* format you can run the Model-Optimizer co
 ```sh
 python mo.py --input "input_1[1 1333 1333 3]" --input_model retinanet_resnet50_coco_best_v2.1.0.pb --data_type FP32 --transformations_config ./extensions/front/tf/retinanet.json
 ```
+
+Where `transformations_config` command line parameter specifies the configuration json file containing hints to the Model Optimizer on how to convert the model. The json file contains some parameters which must be changed if you train the model yourself. Also it contain how to matching end pints for replacing subgraph nodes. After converting model to IR output nodes will be replaced to DetectionOutput layer.
