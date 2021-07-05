@@ -61,7 +61,8 @@ def deformable_convolution(
         bilinear_interpolation_pad: bool = False,
         name: Optional[str] = None,
 ) -> Node:
-    """Create node performing deformable convolution.
+    """Return a node which performs deformable convolution operation.
+
     @param data: The node providing data batch tensor.
     @param offsets: The node providing offset tensor.
     @param filters: The node providing filters tensor.
