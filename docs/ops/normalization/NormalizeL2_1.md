@@ -34,7 +34,7 @@ Particular cases:
 * *eps_mode*
 
   * **Description**: Specifies how *eps* is combined with L2 value calculated before division.
-  * **Range of values**: `add`, `max`
+  * **Range of values**: `add` or `max`
   * **Type**: `string`
   * **Default value**: None
   * **Required**: *yes*
