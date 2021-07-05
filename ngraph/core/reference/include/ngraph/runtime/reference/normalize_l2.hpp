@@ -25,9 +25,8 @@ namespace ngraph
                 AxisSet axes = reduction_axes;
                 if (reduction_axes.empty())
                 {
-                    // One of the corner cases is when axes is an empty list,
-                    // then we divide each input element by itself resulting value 1 for all
-                    // non-zero elements
+                    // When axes is an empty list, then each `data` element is divided by itself
+                    // resulting value 1 for all non-zero elements
                     for (size_t i = 0; i < shape_size(data_shape); ++i)
                     {
                         out[i] = data[i] == 0 ? 0 : 1;
@@ -35,7 +34,7 @@ namespace ngraph
                     return;
                 }
                 std::vector<T> sqr_data(shape_size(data_shape));
-                for (size_t i = 0; i < shape_size(data_shape); i++)
+                for (size_t i = 0; i < shape_size(data_shape); ++i)
                 {
                     sqr_data[i] = data[i] * data[i];
                 }
