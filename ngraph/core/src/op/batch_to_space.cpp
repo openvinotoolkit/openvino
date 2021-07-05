@@ -39,8 +39,6 @@ void op::v1::BatchToSpace::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v1_BatchToSpace_validate_and_infer_types);
 
     const auto& data_et = get_input_element_type(0);
-    const auto& data_pshape = get_input_partial_shape(0);
-
     const auto& block_shape_et = get_input_element_type(1);
     const auto& crops_begin_et = get_input_element_type(2);
     const auto& crops_end_et = get_input_element_type(3);
@@ -62,6 +60,7 @@ void op::v1::BatchToSpace::validate_and_infer_types()
                           "block_shape and crops inputs must have integer element type. Got: ",
                           inputs_integer_et);
 
+    const PartialShape& data_pshape = get_input_partial_shape(0);
     const PartialShape& block_shape_ps = get_input_partial_shape(1);
     const PartialShape& crops_begin_ps = get_input_partial_shape(2);
     const PartialShape& crops_end_ps = get_input_partial_shape(3);
@@ -206,8 +205,10 @@ namespace
         size_t block_values_size = shape_size(inputs[1]->get_shape());
         size_t crops_begin_size = shape_size(inputs[2]->get_shape());
         size_t crops_end_size = shape_size(inputs[3]->get_shape());
-        NGRAPH_CHECK(block_values_size == data_rank && crops_begin_size == data_rank &&
-                     crops_end_size == data_rank);
+        NGRAPH_CHECK(
+            block_values_size == data_rank && crops_begin_size == data_rank &&
+                crops_end_size == data_rank,
+            "Invalid block_shape/crops_begin/crops_end shape with respect to rank of data input");
 
         const auto* block_values = inputs[1]->get_data_ptr<int64_t>();
         const auto* crops_begin_values = inputs[2]->get_data_ptr<int64_t>();
@@ -215,7 +216,7 @@ namespace
 
         const bool block_vals_valid = std::all_of(
             block_values, block_values + block_values_size, [](int64_t elem) { return elem >= 1; });
-        NGRAPH_CHECK(block_vals_valid);
+        NGRAPH_CHECK(block_vals_valid, "Invalid element values of block_shape input");
 
         const bool crops_begin_vals_valid = std::all_of(crops_begin_values,
                                                         crops_begin_values + crops_begin_size,
@@ -223,18 +224,22 @@ namespace
         const bool crops_end_vals_valid = std::all_of(crops_end_values,
                                                       crops_end_values + crops_end_size,
                                                       [](int64_t elem) { return elem >= 0; });
-        NGRAPH_CHECK(crops_begin_vals_valid && crops_end_vals_valid);
+        NGRAPH_CHECK(crops_begin_vals_valid && crops_end_vals_valid,
+                     "Invalid element values of crops_begin/crops_end input/s");
 
         const std::size_t block_prod = std::accumulate(
             block_values, block_values + block_values_size, 1UL, std::multiplies<std::size_t>());
-        NGRAPH_CHECK(data_shape[0] % block_prod == 0);
+        NGRAPH_CHECK(data_shape[0] % block_prod == 0,
+                     "Invalid batch axis of data input with respect to block_shape values");
 
         for (size_t i = 0; i < data_rank; i++)
         {
             const bool is_valid_crops_and_shape =
                 crops_begin_values[i] + crops_end_values[i] <=
                 block_values[i] * static_cast<int64_t>(data_shape[i]);
-            NGRAPH_CHECK(is_valid_crops_and_shape);
+            NGRAPH_CHECK(
+                is_valid_crops_and_shape,
+                "Invalid crops values (out of bounds) with respect to the shape of data input");
         }
 
         Shape dispersed_shape(1);
