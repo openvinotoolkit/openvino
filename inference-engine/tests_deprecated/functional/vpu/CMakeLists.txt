@@ -64,6 +64,7 @@ addIeTargetTest(
     LINK_LIBRARIES
         IESharedTests
         vpu_custom_kernels
+        ngraph::frontend_manager
     LINK_LIBRARIES_WHOLE_ARCHIVE
         myriadTestData
         VPUCommonTests
