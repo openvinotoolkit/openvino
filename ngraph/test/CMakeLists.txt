@@ -355,6 +355,8 @@ set(MULTI_TEST_SRC
     backend/abs.in.cpp
     backend/acos.in.cpp
     backend/acosh.in.cpp
+    backend/adaptive_avg_pool.in.cpp
+    backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
