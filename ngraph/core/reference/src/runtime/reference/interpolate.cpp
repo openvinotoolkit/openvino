@@ -137,6 +137,7 @@ InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_lin
     std::vector<float> a(num_of_axes);
     std::vector<int64_t> r(num_of_axes);
 
+    NGRAPH_SUPPRESS_DEPRECATED_START
     CoordinateTransform output_transform(m_out_shape);
     CoordinateTransform input_transform(m_input_data_shape);
 
@@ -159,6 +160,7 @@ InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_lin
     result.r = r;
     result.prod_a = prod_a;
     result.shape_for_indeces = shape_for_indeces;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     return result;
 }

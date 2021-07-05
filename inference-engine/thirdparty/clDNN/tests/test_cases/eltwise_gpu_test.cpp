@@ -3321,7 +3321,7 @@ TEST_P(eltwise_same_input_test, random) {
     execute_same_input(param, true);
 }
 
-INSTANTIATE_TEST_CASE_P(eltwise_same_input,
+INSTANTIATE_TEST_SUITE_P(eltwise_same_input,
                         eltwise_same_input_test,
                         testing::ValuesIn(
                             eltwise_same_input_param_generator()
@@ -3329,7 +3329,7 @@ INSTANTIATE_TEST_CASE_P(eltwise_same_input,
                             .simple_params(data_types::f32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
                             .simple_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .simple_params(data_types::f32, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
-                        ), );
+                        ));
 
 // mode, input type, input sizes
 using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<std::vector<int32_t>>>;
@@ -3490,12 +3490,12 @@ static std::vector<std::vector<std::vector<int32_t>>> inputs = {
         {{1, 32, 1, 1, 1}, {8, 32, 3, 4, 5}},
 };
 
-INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test,
+INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test,
                         ::testing::Combine(
                                 ::testing::ValuesIn(modes),
                                 ::testing::ValuesIn(types),
                                 ::testing::ValuesIn(inputs)
-                                ), );
+                                ));
 
 class eltwise_test_6d : public eltwise_test {};
 TEST_P(eltwise_test_6d, bfwzyx) {
@@ -3572,12 +3572,12 @@ static std::vector<std::vector<std::vector<int32_t>>> inputs_6d = {
         {{1, 32, 1, 1, 1, 7}, {8, 32, 4, 5, 6, 7}},
 };
 
-INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_6d,
+INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_6d,
                         ::testing::Combine(
                                 ::testing::ValuesIn(modes),
                                 ::testing::ValuesIn(types),
                                 ::testing::ValuesIn(inputs_6d)
-                                ), );
+                                ));
 
 class eltwise_test_mixed_precision : public eltwise_test {};
 TEST_P(eltwise_test_mixed_precision, fsv16) {
@@ -3653,12 +3653,12 @@ TEST_P(eltwise_test_mixed_precision, fsv16) {
 
 static std::vector<data_types> mixed_types = {data_types::i8, data_types::u8};
 
-INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_mixed_precision,
+INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_precision,
                         ::testing::Combine(
                                 ::testing::ValuesIn(modes),
                                 ::testing::ValuesIn(mixed_types),
                                 ::testing::ValuesIn(inputs)
-                                ), );
+                                ));
 
 
 struct eltwise_layout_test_params {
@@ -3748,7 +3748,7 @@ TEST_P(eltwise_test_mixed_layout, mixed_layout) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_mixed_layout,
+INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_layout,
                         ::testing::ValuesIn(std::vector<eltwise_layout_test_params>{
                             eltwise_layout_test_params{CASE_ELTWISE_TEST1},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST2},
@@ -3759,7 +3759,7 @@ INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_mixed_layout,
                             eltwise_layout_test_params{CASE_ELTWISE_TEST7},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST8},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST9},
-                        }), );
+                        }));
 
 //
 struct eltwise_random_test_params {
@@ -3937,7 +3937,7 @@ TEST_P(eltwise_random_test, random) {
     execute_compare(param, true);
 }
 
-INSTANTIATE_TEST_CASE_P(eltwise_smoke_fsv4,
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv4,
                         eltwise_random_test,
                         testing::ValuesIn(
                             eltwise_random_test_param_generator()
@@ -3949,4 +3949,4 @@ INSTANTIATE_TEST_CASE_P(eltwise_smoke_fsv4,
                             .simple_params(data_types::f16, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                             .simple_params(data_types::i8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                             .simple_params(data_types::u8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
-                        ), );
+                        ));

@@ -35,6 +35,7 @@ public:
 
     const cl::Context& get_cl_context() const;
     const cl::Device& get_cl_device() const;
+    const cl::UsmHelper& get_usm_helper() const;
 
     bool extension_supported(std::string extension) const;
 
@@ -42,9 +43,11 @@ public:
     stream& get_program_stream() const override;
 
     static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration);
+
 private:
     std::string _extensions;
     std::unique_ptr<stream> _program_stream;
+    std::unique_ptr<cl::UsmHelper> _usm_helper;
 };
 
 }  // namespace ocl

@@ -11,46 +11,125 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-batchToSpaceParamsTuple bts_only_test_cases[] = {
-        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 1, 1, 1},
-                                InferenceEngine::Precision::FP32,
-                                InferenceEngine::Precision::UNSPECIFIED,
-                                InferenceEngine::Precision::UNSPECIFIED,
-                                InferenceEngine::Layout::ANY,
-                                InferenceEngine::Layout::ANY,
-                                CommonTestUtils::DEVICE_CPU),
-        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 3, 1, 1},
-                                InferenceEngine::Precision::FP32,
-                                InferenceEngine::Precision::UNSPECIFIED,
-                                InferenceEngine::Precision::UNSPECIFIED,
-                                InferenceEngine::Layout::ANY,
-                                InferenceEngine::Layout::ANY,
-                                CommonTestUtils::DEVICE_CPU),
-        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 1, 2, 2},
-                                InferenceEngine::Precision::FP32,
-                                InferenceEngine::Precision::UNSPECIFIED,
-                                InferenceEngine::Precision::UNSPECIFIED,
-                                InferenceEngine::Layout::ANY,
-                                InferenceEngine::Layout::ANY,
-                                CommonTestUtils::DEVICE_CPU),
-        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {8, 1, 1, 2},
-                                InferenceEngine::Precision::FP32,
-                                InferenceEngine::Precision::UNSPECIFIED,
-                                InferenceEngine::Precision::UNSPECIFIED,
-                                InferenceEngine::Layout::ANY,
-                                InferenceEngine::Layout::ANY,
-                                CommonTestUtils::DEVICE_CPU),
-        batchToSpaceParamsTuple({1, 1, 3, 2, 2}, {0, 0, 1, 0, 3}, {0, 0, 2, 0, 0}, {12, 1, 2, 1, 2},
-                                InferenceEngine::Precision::FP32,
-                                InferenceEngine::Precision::UNSPECIFIED,
-                                InferenceEngine::Precision::UNSPECIFIED,
-                                InferenceEngine::Layout::ANY,
-                                InferenceEngine::Layout::ANY,
-                                CommonTestUtils::DEVICE_CPU),
+const std::vector<InferenceEngine::Precision> net_precisions = {
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::I32
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN, BatchToSpaceLayerTest, ::testing::ValuesIn(bts_only_test_cases),
-                        BatchToSpaceLayerTest::getTestCaseName);
+const std::vector<std::vector<size_t>> data_shapes_4D = {
+        {4, 1, 2, 2},
+        {4, 3, 2, 2},
+        {8, 1, 3, 2}
+};
 
+const std::vector<std::vector<int64_t>> block_shapes_4D = {
+        {1, 1, 2, 2},
+        {1, 2, 1, 2}
+};
+
+const std::vector<std::vector<int64_t>> crops_begin_4D = {
+        {0, 0, 0, 0},
+        {0, 0, 0, 1},
+        {0, 0, 2, 0}
+};
+
+const std::vector<std::vector<int64_t>> crops_end_4D = {
+        {0, 0, 0, 0},
+        {0, 0, 1, 0},
+        {0, 0, 0, 2}
+};
+
+const auto space_to_batch_4d_spatial_dims_tests = ::testing::Combine(
+        ::testing::Values(block_shapes_4D[0]),
+        ::testing::ValuesIn(crops_begin_4D),
+        ::testing::ValuesIn(crops_end_4D),
+        ::testing::ValuesIn(data_shapes_4D),
+        ::testing::ValuesIn(net_precisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU));
+
+const auto space_to_batch_4d_channel_dim_tests = ::testing::Combine(
+        ::testing::Values(block_shapes_4D[1]),
+        ::testing::Values(crops_begin_4D[0]),
+        ::testing::Values(crops_end_4D[0]),
+        ::testing::ValuesIn(data_shapes_4D),
+        ::testing::ValuesIn(net_precisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU));
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_BatchToSpace_4D_spatial_dims,
+        BatchToSpaceLayerTest,
+        space_to_batch_4d_spatial_dims_tests,
+        BatchToSpaceLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_BatchToSpace_4D_channel_dim,
+        BatchToSpaceLayerTest,
+        space_to_batch_4d_channel_dim_tests,
+        BatchToSpaceLayerTest::getTestCaseName);
+
+const std::vector<std::vector<size_t>> data_shapes_5D = {
+        {12, 1, 2, 1, 2}
+};
+
+const std::vector<std::vector<int64_t>> block_shapes_5D = {
+        {1, 1, 3, 2, 2},
+        {1, 2, 1, 2, 3}
+};
+
+const std::vector<std::vector<int64_t>> crops_begin_5D = {
+        {0, 0, 0, 0, 0},
+        {0, 0, 0, 1, 0},
+        {0, 0, 1, 0, 0}
+};
+
+const std::vector<std::vector<int64_t>> crops_end_5D = {
+        {0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 1},
+        {0, 0, 0, 0, 1}
+};
+
+const auto space_to_batch_5d_spatial_dims_tests = ::testing::Combine(
+        ::testing::Values(block_shapes_5D[0]),
+        ::testing::ValuesIn(crops_begin_5D),
+        ::testing::ValuesIn(crops_end_5D),
+        ::testing::ValuesIn(data_shapes_5D),
+        ::testing::ValuesIn(net_precisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU));
+
+const auto space_to_batch_5d_channel_dim_tests = ::testing::Combine(
+        ::testing::Values(block_shapes_5D[1]),
+        ::testing::Values(crops_begin_5D[0]),
+        ::testing::Values(crops_end_5D[0]),
+        ::testing::ValuesIn(data_shapes_5D),
+        ::testing::ValuesIn(net_precisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU));
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_BatchToSpace_5D_spatial_dims,
+        BatchToSpaceLayerTest,
+        space_to_batch_5d_spatial_dims_tests,
+        BatchToSpaceLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_BatchToSpace_5D_channel_dim,
+        BatchToSpaceLayerTest,
+        space_to_batch_5d_channel_dim_tests,
+        BatchToSpaceLayerTest::getTestCaseName);
 
 }  // namespace

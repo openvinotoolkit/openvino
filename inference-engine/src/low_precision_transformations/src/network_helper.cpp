@@ -549,7 +549,11 @@ std::shared_ptr<ngraph::Node> NetworkHelper::separateInStandaloneBranch(std::sha
         }
 
         std::vector<Output<Node>> inputs = node->input_values();
-        const size_t inputIndex = NetworkHelper::getChildInputIndex(dequantization.multiply, node);
+        const auto originalParent = dequantization.multiply ?
+            dequantization.multiply->shared_from_this() :
+            dequantization.subtract->shared_from_this();
+
+        const size_t inputIndex = NetworkHelper::getChildInputIndex(originalParent, node);
         inputs[inputIndex] = parent;
         const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
 
@@ -1000,7 +1004,7 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     const float dequantizationMul,
     const float dequantizationSub,
     const ngraph::element::Type originalPrecision,
-    const ngraph::Shape dataNodeOutputShape,
+    const ngraph::PartialShape dataNodeOutputShape,
     element::Type precision,
     const ngraph::element::Type deqPrecision) {
     // TODO: we create input here! we really need it here?
@@ -1079,7 +1083,7 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(
         updatePrecision ? precision : fq->get_output_element_type(0),
-        fq->get_output_shape(0));
+        fq->get_output_partial_shape(0));
     std::shared_ptr<ngraph::Node> parent = input;
 
     std::shared_ptr<ngraph::opset1::Convert> convert;
@@ -1289,9 +1293,9 @@ std::shared_ptr<opset1::Constant> NetworkHelper::normalizeDequantizationShape(co
             return constant;
         }
 
-        const auto eltwiseShape = eltwise->get_output_shape(0);
-        if (constantShape.size() < eltwiseShape.size()) {
-            Shape unsqueezeConstantShape(eltwiseShape.size() - constantShape.size());
+        const size_t eltwiseRank = eltwise->get_output_partial_shape(0).rank().get_length();
+        if (constantShape.size() < eltwiseRank) {
+            Shape unsqueezeConstantShape(eltwiseRank - constantShape.size());
             std::iota(unsqueezeConstantShape.begin(), unsqueezeConstantShape.end(), 0ul);
 
             const auto newConstant = fold<opset1::Unsqueeze>(
@@ -1633,6 +1637,72 @@ std::vector<element::Type> NetworkHelper::precisionIntersection(
                           v2Copy.begin(), v2Copy.end(),
                           std::back_inserter(v3));
     return v3;
+}
+
+bool NetworkHelper::isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq) {
+    const auto pInputShape = fq->get_input_partial_shape(0);
+    auto olShape = fq->get_input_shape(3);
+
+    if (shape_size(olShape) > 1ul) {
+        if (pInputShape.rank().is_dynamic()) {
+            return true;
+        }
+
+        const size_t rank = pInputShape.rank().get_length();
+        while (olShape.size() < rank) {
+            olShape.insert(olShape.begin(), 1ul);
+        }
+
+        for (size_t i = 0; i < olShape.size(); ++i) {
+            if (olShape[i] != 1ul && pInputShape[i].is_dynamic()) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool NetworkHelper::isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx) {
+    const auto dequantization = getDequantization(layer, inputIdx);
+    if (dequantization.empty()) {
+        return false;
+    }
+
+    const auto dataPShape = dequantization.data.get_partial_shape();
+    auto constantByDynamicDymension = [&dataPShape](const std::shared_ptr<opset1::Constant>& constant) {
+        auto constShape = constant->get_shape();
+        if (shape_size(constShape) == 1ul) {
+            return false;
+        }
+
+        const auto rank = dataPShape.rank();
+        if (rank.is_dynamic()) {
+            return true;
+        }
+
+        const size_t rankValue = rank.get_length();
+        while (constShape.size() < rankValue) {
+            constShape.insert(constShape.begin(), 1ul);
+        }
+
+        for (size_t i = 0; i < constShape.size(); ++i) {
+            if (constShape[i] != 1ul && dataPShape[i].is_dynamic()) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    if (dequantization.subtract && constantByDynamicDymension(dequantization.subtractConstant)) {
+        return true;
+    }
+    if (dequantization.multiply && constantByDynamicDymension(dequantization.multiplyConstant)) {
+        return true;
+    }
+
+    return false;
 }
 
 }  // namespace low_precision

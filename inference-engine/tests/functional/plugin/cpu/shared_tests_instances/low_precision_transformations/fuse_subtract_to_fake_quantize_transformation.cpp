@@ -31,7 +31,7 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseSubtractToFakeQuantizeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseSubtractToFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),

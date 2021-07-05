@@ -18,6 +18,7 @@
 
 namespace {
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 
 class VariadicSplitTransformationTestValues {
@@ -36,7 +37,7 @@ public:
         std::vector<ngraph::builder::subgraph::DequantizationOperations> dequantizationAfter;
     };
 
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::int64_t axis;
     std::vector<size_t> splitLengths;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -121,7 +122,7 @@ TEST_P(VariadicSplitTransformation, CompareFunctions) {
 const std::vector<VariadicSplitTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{2}, std::vector<size_t>{ 10, 6 },
+        { 1, 3, 16, 16 }, std::int64_t{2}, std::vector<size_t>{ 10, 6 },
         LayerTransformation::createParamsU8I8(),
         // ActualValues
         {
@@ -139,9 +140,47 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
             }
         }
     },
+    // U8 per tensor quantization
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        std::int64_t{2}, std::vector<size_t>{ 10, 6 },
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {{ngraph::element::f32}, {128.f}, {3.f}},
+                {{ngraph::element::f32}, {128.f}, {3.f}},
+            }
+        }
+    },
+    {
+        PartialShape::dynamic(),
+        std::int64_t{2}, std::vector<size_t>{ 10, 6 },
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}},
+            ngraph::element::f32,
+            {}
+        }
+    },
     // I8 per tensor quantization
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{2}, std::vector<size_t>{ 10, 6 },
+        { 1, 3, 16, 16 }, std::int64_t{2}, std::vector<size_t>{ 10, 6 },
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -159,7 +198,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // U8 per channel quantization with different values
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, std::vector<size_t>{ 2, 1 },
+        { 1, 3, 16, 16 }, std::int64_t{1}, std::vector<size_t>{ 2, 1 },
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -181,9 +220,54 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
             }
         }
     },
+    // U8 per channel quantization with different values, dynamic shape
+    {
+        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+        std::int64_t{1}, std::vector<size_t>{ 2, 1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32},
+            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {
+                    {ngraph::element::f32},
+                    {{1.f, 2.f}, ngraph::element::f32, {1, 2, 1, 1}},
+                    {{11.f, 22.f}, ngraph::element::f32, {1, 2, 1, 1}}
+                },
+                {{ngraph::element::f32}, {3.f}, {33.f}}
+            }
+        }
+    },
+    // U8 per channel quantization with different values, dynamic shape (dynamic channels)
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        std::int64_t{1}, std::vector<size_t>{ 2, 1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32},
+            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32},
+            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
     // U8 per channel quantization with different values (constants without batch)
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{ -3 }, std::vector<size_t>{ 2, 1 },
+        { 1, 3, 16, 16 }, std::int64_t{ -3 }, std::vector<size_t>{ 2, 1 },
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -207,7 +291,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // I8 per channel quantization with different values
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, std::vector<size_t>{ 2, 1 },
+        { 1, 3, 16, 16 }, std::int64_t{1}, std::vector<size_t>{ 2, 1 },
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -231,7 +315,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // U8 per channel quantization with the same values
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, std::vector<size_t>{ 2, 1 },
+        { 1, 3, 16, 16 }, std::int64_t{1}, std::vector<size_t>{ 2, 1 },
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -251,7 +335,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // I8 per channel quantization with the same values
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, std::vector<size_t>{ 2, 1 },
+        { 1, 3, 16, 16 }, std::int64_t{1}, std::vector<size_t>{ 2, 1 },
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -271,7 +355,27 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // U8 split second dimension
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-1}, std::vector<size_t>{ 10, 4, 2 },
+        { 1, 3, 16, 16 }, std::int64_t{-1}, std::vector<size_t>{ 10, 4, 2 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {{ngraph::element::f32}, {128.f}, {3.f}},
+                {{ngraph::element::f32}, {128.f}, {3.f}},
+                {{ngraph::element::f32}, {128.f}, {3.f}},
+            }
+        }
+    },
+    // U8 split second dimension, dynamic shape
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        std::int64_t{-1}, std::vector<size_t>{ 10, 4, 2 },
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -290,7 +394,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // I8 split second dimension
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-1}, std::vector<size_t>{ 10, 4, 2 },
+        { 1, 3, 16, 16 }, std::int64_t{-1}, std::vector<size_t>{ 10, 4, 2 },
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -309,7 +413,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // U8 per channel split
     {
-        ngraph::Shape({ 1, 4, 224, 224 }), std::int64_t{-3}, std::vector<size_t>{ 1, 2, 1 },
+        { 1, 4, 224, 224 }, std::int64_t{-3}, std::vector<size_t>{ 1, 2, 1 },
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::i8,
@@ -334,7 +438,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // U8 without subtract
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{3}, std::vector<size_t>{ 1, 1, 14 },
+        { 1, 3, 16, 16 }, std::int64_t{3}, std::vector<size_t>{ 1, 1, 14 },
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -367,7 +471,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // I8 without subtract
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{3}, std::vector<size_t>{ 1, 1, 14 },
+        { 1, 3, 16, 16 }, std::int64_t{3}, std::vector<size_t>{ 1, 1, 14 },
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -400,7 +504,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // I8 split second dimension
     {
-        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, std::vector<size_t>{ 2, 2 },
+        { 1, 4, 3, 3 }, std::int64_t{1}, std::vector<size_t>{ 2, 2 },
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -428,7 +532,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // without Convert
     {
-        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, std::vector<size_t>{ 2, 2 },
+        { 1, 4, 3, 3 }, std::int64_t{1}, std::vector<size_t>{ 2, 2 },
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::f32,
@@ -456,7 +560,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // no dequantization
     {
-        ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, std::vector<size_t>{ 2, 2 },
+        { 1, 3, 4, 4 }, std::int64_t{2}, std::vector<size_t>{ 2, 2 },
         LayerTransformation::createParamsI8I8(),
         // ActualValues
         { },
@@ -464,7 +568,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
         { }
     },
 };
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     VariadicSplitTransformation,
     ::testing::ValuesIn(testValues),

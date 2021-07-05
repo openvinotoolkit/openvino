@@ -45,9 +45,11 @@ TEST_P(ReduceMaxTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> inputShapes = {
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> inputShapes = {
     {1, 3, 16, 16},
-    {4, 3, 16, 16}
+    {4, 3, 16, 16},
+    {Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}
 };
 
 const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestValues = {
@@ -67,7 +69,7 @@ const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestVal
             {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         }
     },
-    // U8: don't keep dims, per-channel quantization with negative values, reduction by special dimensions
+    // U8: don't keep dims, per-channel quantization with negative values, reduction by spatial dimensions
     {
         LayerTransformation::createParamsU8I8(),
         {2, 3},
@@ -139,7 +141,7 @@ const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestVal
             {{ngraph::element::f32}, {128.f}, {0.1f}}
         }
     },
-    // U8: keep dims, per-channel quantization, reduction by special dimensions
+    // U8: keep dims, per-channel quantization, reduction by spatial dimensions
     {
         LayerTransformation::createParamsU8I8(),
         {2, 3},
@@ -155,7 +157,7 @@ const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestVal
             {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         }
     },
-    // U8: don't keep dims, per-channel quantization, reduction by special dimensions
+    // U8: don't keep dims, per-channel quantization, reduction by spatial dimensions
     {
         LayerTransformation::createParamsU8I8(),
         {2, 3},
@@ -187,7 +189,7 @@ const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestVal
             {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         }
     },
-    // I8: don't keep dims, per-channel quantization with negative values, reduction by special dimensions
+    // I8: don't keep dims, per-channel quantization with negative values, reduction by spatial dimensions
     {
         LayerTransformation::createParamsI8I8(),
         {2, 3},
@@ -235,7 +237,7 @@ const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestVal
             {{ngraph::element::f32}, {64.f}, {0.1f}}
         }
     },
-    // I8: don't keep dims, per-channel quantization, reduction by special dimensions
+    // I8: don't keep dims, per-channel quantization, reduction by spatial dimensions
     {
         LayerTransformation::createParamsI8I8(),
         {2, 3},
@@ -251,7 +253,7 @@ const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestVal
             {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3}}}
         }
     },
-    // I8: keep dims, per-channel quantization, reduction by special dimensions
+    // I8: keep dims, per-channel quantization, reduction by spatial dimensions
     {
         LayerTransformation::createParamsI8I8(),
         {2, 3},
@@ -267,7 +269,7 @@ const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestVal
             {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         }
     },
-    // not update precisions, keep dims, per-channel quantization, reduction by special dimensions
+    // not update precisions, keep dims, per-channel quantization, reduction by spatial dimensions
     {
         LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
         {2, 3},
@@ -283,7 +285,7 @@ const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestVal
             {{}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         }
     },
-    // I8: keep dims, no dequantization, reduction by special dimensions
+    // I8: keep dims, no dequantization, reduction by spatial dimensions
     {
         LayerTransformation::createParamsI8I8(),
         {2, 3},
@@ -301,11 +303,91 @@ const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestVal
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ReduceMaxTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(reduceMaxTransformationTestValues)),
     ReduceMaxTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
+    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
+};
+
+const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        {2, 3},
+        true,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {-2},
+        false,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ReduceMaxTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicChannels),
+        ::testing::ValuesIn(reduceMaxTransformationTestValues)),
+    ReduceMaxTransformation::getTestCaseName);
+} // namespace testValues2
+
+namespace testValues3 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+    PartialShape::dynamic()
+};
+
+const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        {-2},
+        false,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}},
+            ngraph::element::f32,
+            {}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ReduceMaxTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicRank),
+        ::testing::ValuesIn(reduceMaxTransformationTestValues)),
+    ReduceMaxTransformation::getTestCaseName);
+} // namespace testValues3
 } // namespace
