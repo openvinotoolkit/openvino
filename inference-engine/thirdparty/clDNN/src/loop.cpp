@@ -144,8 +144,6 @@ static void validate_mappings(loop_node const & node) {
     const auto& output_primitive_maps = node.get_output_primitive_maps();
 
     // check all loop inputs have their own primitive_map
-
-#if 1
     for (const auto& id : outer_inputs) {
         if (id == node.get_trip_count_id() ||
             id == node.get_initial_execution_id() ||
@@ -158,7 +156,6 @@ static void validate_mappings(loop_node const & node) {
             CLDNN_ERROR_MESSAGE(node.id(), msg.c_str());
         }
     }
-#endif
 
     // check all io_primitive_maps have their corresponding external id
     for (const auto& pm : input_primitive_maps) {
@@ -293,7 +290,7 @@ void loop_inst::preprocess_backedge_memory() {
             loop_node::write_scalar_value(initial_mem, stream, 0);
             current_iteratoin_backedge_mapping_idx = backedge_memory_mappings.size();
         } else {
-            if (input_map_ptrs.size() == 0) {
+            if (input_map_ptrs.empty()) {
                 CLDNN_ERROR_MESSAGE(id(), "no input_mapping for backedged input");
             }
             initial_mem = get_external_memory(input_map_ptrs.front()->external_id);

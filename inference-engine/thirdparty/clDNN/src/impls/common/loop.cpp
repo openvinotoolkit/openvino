@@ -54,12 +54,14 @@ struct loop_impl : typed_primitive_impl<loop> {
         }
 
         // read trip_count from outer network
+        bool update_num_iterations = false;
         const primitive_id& trip_count_id = node.get_trip_count_id();
         memory::ptr trip_count_mem = outer_network.get_primitive(trip_count_id)->output_memory_ptr();
         int64_t trip_count = loop_node::read_scalar_value(trip_count_mem, stream);
         if (trip_count < 0) {
             const int64_t max_iteration = node.get_max_iteration();
             trip_count = max_iteration;
+            update_num_iterations = true;
         }
 
         // read initial execution condition from outer network
@@ -73,7 +75,6 @@ struct loop_impl : typed_primitive_impl<loop> {
             const primitive_id& condition_id = node.get_condition_id();
             execution_condition_mem = body_network->get_primitive(condition_id)->output_memory_ptr();
         }
-
 
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
         const auto& concatenated_output_mem_mappings = instance.concatenated_output_mem_mappings;
@@ -142,19 +143,21 @@ struct loop_impl : typed_primitive_impl<loop> {
             concat_output.restore_concatenated_mem();
         }
 
-        // update num_iterations (actual number of iterations)
-        int64_t actual_iterations = 0;
-        if (node.is_current_iteration_used()) {
-            const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
-            auto current_iteration_mem = backedge_mapping.from_primitive->output_memory_ptr();
-            actual_iterations = loop_node::read_scalar_value(current_iteration_mem, stream);
-        } else {
-            actual_iterations = current_iteration_idx;
-        }
+        if (update_num_iterations) {
+            // update num_iterations (actual number of iterations)
+            int64_t actual_iterations = 0;
+            if (node.is_current_iteration_used()) {
+                const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
+                auto current_iteration_mem = backedge_mapping.from_primitive->output_memory_ptr();
+                actual_iterations = loop_node::read_scalar_value(current_iteration_mem, stream);
+            } else {
+                actual_iterations = current_iteration_idx;
+            }
 
-        const primitive_id& num_iteration_id = node.get_num_iteration_id();
-        memory::ptr num_actual_iterations_mem = outer_network.get_primitive(num_iteration_id)->output_memory_ptr();
-        loop_node::write_scalar_value(num_actual_iterations_mem, stream, actual_iterations);
+            const primitive_id& num_iteration_id = node.get_num_iteration_id();
+            memory::ptr num_actual_iterations_mem = outer_network.get_primitive(num_iteration_id)->output_memory_ptr();
+            loop_node::write_scalar_value(num_actual_iterations_mem, stream, actual_iterations);
+        }
 
         ev->set();
         return ev;

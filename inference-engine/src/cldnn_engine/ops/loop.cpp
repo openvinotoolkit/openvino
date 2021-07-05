@@ -13,6 +13,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
 #include "transformations/utils/utils.hpp"
+#include "ie_ngraph_utils.hpp"
 
 #include "cldnn/primitives/loop.hpp"
 #include "cldnn/primitives/mutable_data.hpp"
@@ -36,8 +37,8 @@ static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int
 }
 
 static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::shared_ptr<ngraph::Node>& op,
-                                            const cldnn::primitive_id& id, const cldnn::primitive_id& input,
-                                            const int32_t output_idx) {
+                                                        const cldnn::primitive_id& id, const cldnn::primitive_id& input,
+                                                        const int32_t output_idx) {
     const auto precision = DataTypeFromPrecision(op->get_output_element_type(output_idx));
     const auto format = DefaultFormatForDims(op->get_output_shape(output_idx).size());
     const auto tensor = CldnnTensorFromIEDims(op->get_output_shape(output_idx));
@@ -48,7 +49,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
 }
 
 static void UpdateBackedge(std::vector<cldnn::loop::backedge_mapping>& back_edges,
-        const cldnn::primitive_id& old_primitive_id, const cldnn::primitive_id& new_primitive_id) {
+                            const cldnn::primitive_id& old_primitive_id, const cldnn::primitive_id& new_primitive_id) {
     for (auto& back_edge : back_edges) {
         if (back_edge.from == old_primitive_id) {
             back_edge.from = new_primitive_id;
@@ -66,25 +67,6 @@ static std::string GetExternalInputName(const int64_t body_parameter_index,
         }
     }
     return {""};
-}
-
-static InferenceEngine::Precision GetPrecisionFromNgraphType(ngraph::element::Type_t type) {
-#define CASE(ngraph_type, ie_type) \
-    case ngraph::element::ngraph_type: \
-        return InferenceEngine::Precision::ePrecision::ie_type;
-    switch (type) {
-        CASE(i8, I8)
-        CASE(i16, I16)
-        CASE(i32, I32)
-        CASE(i64, I64)
-        CASE(u8, U8)
-        CASE(u16, U16)
-        CASE(u32, U32)
-        CASE(u64, U64)
-    }
-#undef CASE
-    throw std::runtime_error("not integer type");
-    return {};
 }
 
 void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
@@ -108,25 +90,17 @@ void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
         body_current_iteration_id = layer_type_name_ID(current_iteration_input);
         std::string input_name = ngraph::op::util::create_ie_output_name(current_iteration_input);
         const auto networkInput = networkInputs.at(input_name);
-        if (networkInput->getPrecision().is_float()) {
-            auto precision = GetPrecisionFromNgraphType(current_iteration_input->get_element_type());
-            networkInput->setPrecision(precision);
-        }
+        auto precision = InferenceEngine::details::convertPrecision(current_iteration_input->get_element_type());
+        networkInput->setPrecision(precision);
     }
 
     cldnn::primitive_id body_execution_condition_id;
     if (special_body_ports.body_condition_output_idx >= 0) {
-#if 0
-        auto body_condition_output = body_outputs.at(special_body_ports.body_condition_output_idx);
-#else
         auto body_condition_output = body_outputs.at(special_body_ports.body_condition_output_idx)->get_input_node_shared_ptr(0);
-#endif
         body_execution_condition_id = layer_type_name_ID(body_condition_output);
         std::string output_name = ngraph::op::util::create_ie_output_name(body_condition_output);
         const auto networkOutput = networkOutputs.at(output_name);
-        if (networkOutput->getPrecision().is_float()) {
-            networkOutput->setPrecision(InferenceEngine::Precision::I64);
-        }
+        networkOutput->setPrecision(InferenceEngine::Precision::I64);
     }
 
     // get body topology from ngraph function
@@ -134,11 +108,9 @@ void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     auto body_topology = *body_program.GetTopology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges
-
     std::vector<cldnn::loop::io_primitive_map> input_primitive_maps;
     std::vector<cldnn::loop::io_primitive_map> output_primitive_maps;
     std::vector<cldnn::loop::backedge_mapping> back_edges;
-    std::map<cldnn::primitive_id, cldnn::primitive_id> reordered_output_ids;
 
     // set input mapping & back edges
     for (const auto& loop_input_desc : loop_input_descs) {
@@ -185,7 +157,7 @@ void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     const cldnn::primitive_id execution_condition_id = layer_type_name_ID(op->get_input_node_shared_ptr(1));
     const int64_t num_iterations = op->get_num_iterations();
     if (num_iterations < 0) {
-        throw std::runtime_error("loop's num_iteration cannot be negative");
+        IE_THROW() << "loop's num_iteration cannot be negative";
     }
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {

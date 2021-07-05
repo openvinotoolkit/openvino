@@ -86,7 +86,10 @@ public:
 
     static size_t convert_to_raw_axis(size_t axis, size_t ndim) {
         // convert between bfyx, bfzyx, bfzyxw and tensor.size.raw
-        assert(axis < ndim);
+        if (axis >= ndim) {
+            throw std::runtime_error("axis should be less than ndim");
+        }
+
         if (axis < 2) {
             return axis;
         }
@@ -120,9 +123,16 @@ public:
             break;
         }
         default:
-            assert(false);
+            throw std::runtime_error("Invalid data type : " + data_type_traits::name(prim_layout.data_type));
         }
         return trip_count;
+    }
+
+    template<typename T>
+    static inline void validate_input_value(int64_t input) {
+        if (input < std::numeric_limits<T>::min() || input > std::numeric_limits<T>::max()) {
+            throw std::runtime_error("Invalid data value : " + std::to_string(input));
+        }
     }
 
     static void write_scalar_value(memory::ptr mem, stream& stream, int64_t input) {
@@ -130,33 +140,30 @@ public:
 
         switch (prim_layout.data_type) {
         case data_types::u8: {
-            assert(input >= std::numeric_limits<uint8_t>::min() &&
-                   input <= std::numeric_limits<uint8_t>::max());
+            validate_input_value<uint8_t>(input);
             mem_lock<uint8_t> lock_prim_output{mem, stream};
-            *lock_prim_output.data() = static_cast<uint8_t>(input);
+            lock_prim_output[0] = static_cast<uint8_t>(input);
             break;
         }
         case data_types::i8: {
-            assert(input >= std::numeric_limits<int8_t>::min() &&
-                   input <= std::numeric_limits<int8_t>::max());
+            validate_input_value<int8_t>(input);
             mem_lock<int8_t> lock_prim_output{mem, stream};
-            *lock_prim_output.data() = static_cast<int8_t>(input);
+            lock_prim_output[0] = static_cast<int8_t>(input);
             break;
         }
         case data_types::i32: {
-            assert(input >= std::numeric_limits<int32_t>::min() &&
-                   input <= std::numeric_limits<int32_t>::max());
+            validate_input_value<int32_t>(input);
             mem_lock<int32_t> lock_prim_output{mem, stream};
-            *lock_prim_output.data() = static_cast<int32_t>(input);
+            lock_prim_output[0] = static_cast<int32_t>(input);
             break;
         }
         case data_types::i64: {
             mem_lock<int64_t> lock_prim_output{mem, stream};
-            *lock_prim_output.data() = input;
+            lock_prim_output[0] = input;
             break;
         }
         default:
-            assert(false);
+            throw std::runtime_error("Invalid data type : " + data_type_traits::name(prim_layout.data_type));
         }
     }
 
@@ -165,7 +172,9 @@ public:
         auto input = std::find_if(dependency_list.begin(), dependency_list.end(), [&inputDesc](const program_node* p){
             return p->id() == inputDesc.external_id;
         });
-        assert(input != dependency_list.end());
+        if (input == dependency_list.end()) {
+            throw std::runtime_error("Can't find input from dependency_list");
+        }
         layout calculated_layout = (*input)->get_output_layout();
         auto shape = calculated_layout.size.sizes(calculated_layout.format);
 
@@ -237,28 +246,28 @@ public:
         const topology_map& body_topology_map = body.get_primitives();
         const layout body_input_layout(data_types::i64, format::bfyx, {1, 1, 1, 1});
 
-        // add current_iteration primitive
-        // if current_iteration primitive is not exist in body,
+        // add current_iteration primitive if current_iteration primitive is not exist in body
         if (body_topology_map.find(current_iteration_id) == body_topology_map.end()) {
             body.add(std::make_shared<input_layout>(current_iteration_id, body_input_layout));
         } else {
             const auto& body_input_prim = body.at(current_iteration_id);
             const auto input_layout_prim = std::dynamic_pointer_cast<input_layout>(body_input_prim);
             if (!input_layout_prim) {
-                CLDNN_ERROR_MESSAGE(this->id(), "Not cldnn::input_layout");
+                CLDNN_ERROR_MESSAGE(this->id(), "current_iteration primitive should be cldnn::input_layout");
             } else {
                 input_layout_prim->change_layout(body_input_layout);
             }
         }
 
-        // add increment value: 1
+        // add incremental data: 1
+        // it is used to update current_iteration in body network
         const primitive_id increment_value_id = current_iteration_id + "_inc";
         auto mem = get_program().get_engine().allocate_memory(body_input_layout);
         auto& stream = get_program().get_stream();
         write_scalar_value(mem, stream, 1);
         body.add(std::make_shared<data>(increment_value_id, mem));
 
-        // add eltwise sum to update current_iteration
+        // add eltwise sum updating current_iteration with incremental data
         const primitive_id updated_currnet_iteration_id = current_iteration_id + "_update";
         body.add(std::make_shared<eltwise>(updated_currnet_iteration_id,
             current_iteration_id, increment_value_id, eltwise_mode::sum));
@@ -286,27 +295,15 @@ public:
     }
 
     void build_body_program() const {
-        const std::vector<cldnn::program_node *>& deps = get_dependencies();
-        // setup internal inputs
-        const primitive_id& trip_count_id = get_trip_count_id();
-        const primitive_id& initial_execution = get_initial_execution_id();
-        const primitive_id& num_iteration = get_num_iteration_id();
-        for (const cldnn::program_node * dep : deps) {
-            const primitive_id& id = dep->id();
-            if (id == trip_count_id || id == initial_execution || id == num_iteration) {
-                continue;
-            }
+        for (const auto& pm : input_primitive_maps) {
+            layout calculated_layout = calc_body_input_layout(pm);
+            const primitive_id& internal_input_id = pm.internal_id;
 
-            for (const auto& pm : input_primitive_maps) {
-                layout calculated_layout = calc_body_input_layout(pm);
-                const primitive_id& internal_input_id = pm.internal_id;
-
-                // add inputs for body network if not exist
-                if (body.get_primitives().count(internal_input_id) == 0) {
-                    body.add(std::make_shared<input_layout>(internal_input_id, calculated_layout));
-                } else {
-                    body.change_input_layout(internal_input_id, calculated_layout);
-                }
+            // add inputs for body network if not exist
+            if (body.get_primitives().count(internal_input_id) == 0) {
+                body.add(std::make_shared<input_layout>(internal_input_id, calculated_layout));
+            } else {
+                body.change_input_layout(internal_input_id, calculated_layout);
             }
         }
 
@@ -479,7 +476,10 @@ private:
             bytes_iteration_initial_offset(initial_offset * bytes_iteration) {}
 
         static int64_t get_batch_size(layout mem_layout, int64_t axis) {
-            assert(axis >= 0);
+            if (axis < 0) {
+                throw std::runtime_error("axis should be positive integer or zero");
+            }
+
             int64_t batch_size = 1;
             for (int64_t i = 0; i < axis; ++i) {
                 batch_size *= mem_layout.size.raw[i];
