@@ -37,7 +37,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize,
     const ngraph::element::Type precisionBeforeDequantization,
@@ -55,7 +55,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize,
     const ngraph::element::Type precisionBeforeDequantization,
