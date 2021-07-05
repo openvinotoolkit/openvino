@@ -7,6 +7,7 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate.hpp"
 #include "ngraph/coordinate_diff.hpp"
+#include "ngraph/deprecated.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
 
@@ -17,6 +18,7 @@ namespace ngraph
     ///        produces the following coordinates:
     ///             {0,0}, {0,1}, {0,2},
     ///             {1,0}, {1,1}, {2,2}
+    /// \deprecated
     class CoordinateIterator
     {
         /// \brief Coordinates iterator constructor
@@ -79,6 +81,8 @@ namespace ngraph
 
         /// \brief The tensor element index calculation by given coordinate.
         /// \param c tensor element coordinate
+        /// \deprecated
+        NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
         size_t index(const Coordinate& c) const noexcept;
 
         /// \brief Returns an iterator to the first coordinate of the tensor.
@@ -94,7 +98,9 @@ namespace ngraph
     /// \brief Class which allows to calculate item index with given coordinates in tensor
     ///        and helps to iterate over the subset of coordinates.
     ///        Tensor items should be placed in memory in row-major order.
-    class CoordinateTransform : protected CoordinateTransformBasic
+    /// \deprecated
+    class NGRAPH_DEPRECATED("This class is deprecated and will be removed soon.")
+        CoordinateTransform : protected CoordinateTransformBasic
     {
     public:
         using Iterator = CoordinateIterator;
