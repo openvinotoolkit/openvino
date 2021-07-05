@@ -19,6 +19,7 @@ namespace ngraph
             template <typename T>
             void log_softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 auto temp_shape = reduce(shape, axes, true);
                 auto temp_elements = shape_size(temp_shape);
                 auto temp_max = std::vector<T>(temp_elements, 0);
@@ -44,6 +45,7 @@ namespace ngraph
                         (arg[transform.index(coord)] - temp_max[temp_transform.index(temp_coord)]) -
                         std::log(temp_sum[temp_transform.index(temp_coord)]);
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

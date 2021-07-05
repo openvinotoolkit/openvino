@@ -24,6 +24,7 @@ namespace ngraph
                        const Shape& out_shape,
                        size_t elem_size)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 const CoordinateTransform input_transform(
                     arg_shape, lower_bounds, upper_bounds, strides);
 
@@ -45,6 +46,7 @@ namespace ngraph
                         std::advance(dst_mem, elem_size);
                     }
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

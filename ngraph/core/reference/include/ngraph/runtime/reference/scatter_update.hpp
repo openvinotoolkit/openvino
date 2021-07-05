@@ -41,6 +41,7 @@ namespace ngraph
                 //         u_coord in slice updates[..., i_coord, ...]
                 //          data[index(d_coord)] = updates[index(u_coord)]
 
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform indices_transform{indices_shape};
                 CoordinateTransform data_transform{data_shape};
 
@@ -106,6 +107,7 @@ namespace ngraph
                     }
                     updates_indices_coord_iter++;
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

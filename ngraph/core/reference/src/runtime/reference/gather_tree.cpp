@@ -83,6 +83,7 @@ void runtime::reference::gather_tree(const char* step_ids,
         throw ngraph_error("max_seq_len must have size of BATCH_SIZE");
     }
 
+    NGRAPH_SUPPRESS_DEPRECATED_START
     ngraph::CoordinateTransform cordinate_transform(step_ids_shape);
 
     for (const auto& coord : cordinate_transform)
@@ -136,4 +137,5 @@ void runtime::reference::gather_tree(const char* step_ids,
             }
         }
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

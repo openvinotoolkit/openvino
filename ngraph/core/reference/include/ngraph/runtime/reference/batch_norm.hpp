@@ -32,6 +32,7 @@ namespace ngraph
                                       T* out,
                                       const Shape& in_shape)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 auto eps_casted = static_cast<T>(eps);
 
                 size_t in_idx = 0;
@@ -48,6 +49,7 @@ namespace ngraph
                     out[in_idx] = normalized * ch_gamma + ch_beta;
                     in_idx++;
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

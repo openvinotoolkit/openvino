@@ -315,6 +315,7 @@ namespace ngraph
                             }
                         }
 
+                        NGRAPH_SUPPRESS_DEPRECATED_START
                         CoordinateTransform arg0_transform(arg0_shape);
                         CoordinateTransform arg1_transform(arg1_squeezed_shape);
                         CoordinateTransform output_transform(arg0_shape);
@@ -326,6 +327,7 @@ namespace ngraph
                                 elementwise_functor(arg0[arg0_transform.index(output_coord)],
                                                     arg1[arg1_transform.index(arg1_coord)]);
                         }
+                        NGRAPH_SUPPRESS_DEPRECATED_END
                     }
                 }
             }
@@ -437,6 +439,7 @@ namespace ngraph
                                                              arg1_padded_shape[i]}));
                         }
 
+                        NGRAPH_SUPPRESS_DEPRECATED_START
                         CoordinateTransform arg0_transform(arg0_squeezed_shape);
                         CoordinateTransform arg1_transform(arg1_squeezed_shape);
                         CoordinateTransform arg2_transform(arg2_squeezed_shape);
@@ -452,6 +455,7 @@ namespace ngraph
                                                     arg1[arg1_transform.index(arg1_coord)],
                                                     arg2[arg2_transform.index(arg2_coord)]);
                         }
+                        NGRAPH_SUPPRESS_DEPRECATED_END
                     }
                     break;
                 case op::AutoBroadcastType::PDPD:
@@ -521,6 +525,7 @@ namespace ngraph
                         }
                     }
 
+                    NGRAPH_SUPPRESS_DEPRECATED_START
                     CoordinateTransform arg0_transform(arg0_squeezed_shape);
                     CoordinateTransform arg1_transform(arg1_shape);
                     CoordinateTransform arg2_transform(arg2_squeezed_shape);
@@ -535,6 +540,7 @@ namespace ngraph
                                                 arg1[arg1_transform.index(output_coord)],
                                                 arg2[arg2_transform.index(arg2_coord)]);
                     }
+                    NGRAPH_SUPPRESS_DEPRECATED_END
                 }
                 }
             }

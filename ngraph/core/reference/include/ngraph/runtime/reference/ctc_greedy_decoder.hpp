@@ -23,6 +23,7 @@ namespace ngraph
                                     const Shape& out_shape,
                                     const bool ctc_merge_repeated)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 const auto max_seq_len = data_shape[0];
                 const auto batch_size = data_shape[1];
                 const auto class_count = data_shape[2];
@@ -66,6 +67,7 @@ namespace ngraph
                     }
                 }
                 std::copy(tmp_out.begin(), tmp_out.end(), out);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

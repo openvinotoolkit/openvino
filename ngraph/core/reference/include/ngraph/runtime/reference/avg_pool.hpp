@@ -31,6 +31,7 @@ namespace ngraph
                                    const Shape& padding_above,
                                    bool include_padding_in_avg_computation)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform out_transform(out_shape);
 
                 for (const Coordinate& out_coord : out_transform)
@@ -107,6 +108,7 @@ namespace ngraph
                         }
                     }
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>
@@ -120,6 +122,7 @@ namespace ngraph
                           const Shape& padding_above,
                           bool include_padding_in_avg_computation)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 auto old_mode = std::fegetround();
                 std::fesetround(FE_TONEAREST);
                 // At the outermost level we will walk over every output coordinate O.
@@ -259,6 +262,7 @@ namespace ngraph
                     }
                     std::fesetround(old_mode);
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime
