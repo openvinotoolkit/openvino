@@ -115,16 +115,52 @@ namespace
                                            int64_t roi_bin_grid_w,
                                            std::vector<PreCalc<T>>& pre_calc)
     {
+        std::cout << "        Running function pre_calc_for_bilinear_interpolate...\n";
+        std::cout << "        Its arguments are\n";
+        std::cout << "        height:         " << height << "\n";
+        std::cout << "        width:          " << width << "\n";
+        std::cout << "        pooled_height:  " << pooled_height << "\n";
+        std::cout << "        pooled_width:   " << pooled_width << "\n";
+        std::cout << "        iy_upper:       " << iy_upper << "\n";
+        std::cout << "        ix_upper:       " << ix_upper << "\n";
+        std::cout << "        roi_start_h:    " << roi_start_h << "\n";
+        std::cout << "        roi_start_w:    " << roi_start_w << "\n";
+        std::cout << "        bin_size_h:     " << bin_size_h << "\n";
+        std::cout << "        bin_size_w:     " << bin_size_w << "\n";
+        std::cout << "        roi_bin_grid_h: " << roi_bin_grid_h << "\n";
+        std::cout << "        roi_bin_grid_w: " << roi_bin_grid_w << "\n";
+        std::cout << "        pre_calc:\n";
+        for (const auto& p : pre_calc)
+        {
+            std::cout << "            PreCalc{"
+                      << ".pos1=" << p.pos1 << ", "
+                      << ".pos2=" << p.pos2 << ", "
+                      << ".pos3=" << p.pos3 << ", "
+                      << ".pos4=" << p.pos4 << ", "
+                      << ".w1=" << p.w1 << ", "
+                      << ".w2=" << p.w2 << ", "
+                      << ".w3=" << p.w3 << ", "
+                      << ".w4=" << p.w4 << "}\n";
+        }
+        std::cout << "\n\n";
+
         int64_t pre_calc_index = 0;
+        std::cout << "            pre_calc_index: " << pre_calc_index << "\n";
+        std::cout << "            Loop with respect to ph in range(0, pooled_height)\n";
         for (int64_t ph = 0; ph < pooled_height; ph++)
         {
+            std::cout << "                ph: " << ph << "\n";
+            std::cout << "                Loop with respect to pw in range(0, pooled_width)\n";
             for (int64_t pw = 0; pw < pooled_width; pw++)
             {
+                std::cout << "                    pw: " << pw << "\n";
+                std::cout << "                    Loop with respect to iy in range(0, iy_upper)\n";
                 for (int64_t iy = 0; iy < iy_upper; iy++)
                 {
+                    std::cout << "                        iy: " << iy << "\n";
                     const T yy = roi_start_h + ph * bin_size_h +
                                  static_cast<T>(iy + .5f) * bin_size_h /
-                                     static_cast<T>(roi_bin_grid_h); // e.g., 0.5, 1.5
+                                     static_cast<T>(roi_bin_grid_h);
                     for (int64_t ix = 0; ix < ix_upper; ix++)
                     {
                         const T xx =
