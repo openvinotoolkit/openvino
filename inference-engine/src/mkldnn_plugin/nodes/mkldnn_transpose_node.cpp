@@ -10,7 +10,8 @@
 #include <mkldnn_selective_build.h>
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
-
+#include <utils/general_utils.h>
+#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -66,7 +67,7 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(prec);
     auto inputOrderDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
@@ -74,53 +75,63 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].constant = false;
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
-    config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), inputOrderDataType, memory::format_tag::x);
-    if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nchw);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nchw});
+    config.inConfs[1].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticMklDims(), inputOrderDataType, memory::format_tag::x);
+    if (getParentEdgeAt(0)->getShape().getRank() == 4) {
+        config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType, memory::format_tag::nchw);
+        config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType, memory::format_tag::nchw);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 
-        auto srcDims = getParentEdgeAt(0)->getDims();
+        auto srcDims = getParentEdgeAt(0)->getShape().getStaticMklDims();
         if (srcDims[1] % 8 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nChw8c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nChw8c});
+            config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType,
+                                                                   memory::format_tag::nChw8c);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (srcDims[1] % 16 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nChw16c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nChw16c});
+            config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType,
+                                                                   memory::format_tag::nChw16c);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nhwc);
-            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nhwc);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nhwc});
+            config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType,
+                                                                   memory::format_tag::nhwc);
+            config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType,
+                                                                    memory::format_tag::nhwc);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
-    } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ncdhw);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::ncdhw});
+    } else if (getParentEdgeAt(0)->getShape().getRank() == 5) {
+        config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType,
+                                                               memory::format_tag::ncdhw);
+        config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType,
+                                                                memory::format_tag::ncdhw);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 
-        auto srcDims = getParentEdgeAt(0)->getDims();
+        auto srcDims = getParentEdgeAt(0)->getShape().getStaticMklDims();
         if (srcDims[1] % 8 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nCdhw8c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nCdhw8c});
+            config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType,
+                                                                   memory::format_tag::nCdhw8c);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (srcDims[1] % 16 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nCdhw16c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nCdhw16c});
+            config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType,
+                                                                   memory::format_tag::nCdhw16c);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ndhwc);
-            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ndhwc);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::ndhwc});
+            config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType,
+                                                                   memory::format_tag::ndhwc);
+            config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType,
+                                                                    memory::format_tag::ndhwc);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
     } else {
         // general plain case
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
+        config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType);
+        config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     }
 }
@@ -135,23 +146,22 @@ void MKLDNNTransposeNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    if (getParentEdgeAt(0)->getMemory().GetDesc().isPlainFormat() &&
+    if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp) &&
         std::find(optimizedOrders.begin(), optimizedOrders.end(), order) != optimizedOrders.end()) {
         isOptimized = true;
         return;
     }
 
     PermuteParams params;
-    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
+    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
     params.order = order;
+    auto srcDesc = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(0)->getMemory().GetDesc());
+    params.src_block_dims = srcDesc.getBlockDims();
+    params.src_block_order = srcDesc.getOrder();
 
-    auto srcDesc = getParentEdgeAt(0)->getDesc();
-    params.src_block_dims = srcDesc.getBlockingDesc().getBlockDims();
-    params.src_block_order = srcDesc.getBlockingDesc().getOrder();
-
-    auto dstDesc = getChildEdgeAt(0)->getDesc();
-    params.dst_block_dims = dstDesc.getBlockingDesc().getBlockDims();
-    params.dst_block_order = dstDesc.getBlockingDesc().getOrder();
+    auto dstDesc = MemoryDescUtils::convertToBlockedDescriptor(getChildEdgeAt(0)->getMemory().GetDesc());
+    params.dst_block_dims = dstDesc.getBlockDims();
+    params.dst_block_order = dstDesc.getOrder();
 
     permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }
@@ -263,7 +273,7 @@ void MKLDNNTransposeNode::execute(mkldnn::stream strm) {
     int MB = batchToProcess();
 
     if (isOptimized) {
-        const size_t dataSize = getParentEdgeAt(0)->getDesc().getPrecision().size();
+        const size_t dataSize = getParentEdgeAt(0)->getMemory().GetDesc().getPrecision().size();
         TransposeContext ctx = {this, srcMemPtr, dstMemPtr, MB};
         OV_SWITCH(MKLDNNPlugin, TransposeOptimizedEmitter, ctx, dataSize,
                   OV_CASE(1, PrecisionTrait<Precision::U8>::value_type),

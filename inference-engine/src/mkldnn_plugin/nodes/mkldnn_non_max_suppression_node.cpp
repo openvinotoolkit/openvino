@@ -13,6 +13,7 @@
 #include "ie_parallel.hpp"
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include "utils/general_utils.h"
+#include <cpu_memory_desc_utils.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -114,18 +115,18 @@ void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
     checkOutput(outputShape_SELECTEDINDICES, supportedIntOutputPrecision, "selected_indices", NMS_SELECTEDINDICES);
     checkOutput(outputShape_SELECTEDSCORES, supportedFloatPrecision, "selected_scores", NMS_SELECTEDSCORES);
 
-    std::vector<DataConfigurator> inDataConf;
+    std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
     for (int i = 0; i < getOriginalInputsNumber(); ++i) {
         Precision inPrecision = i == NMS_MAXOUTPUTBOXESPERCLASS ? Precision::I32 : Precision::FP32;
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, inPrecision);
+        inDataConf.emplace_back(GeneralLayout::ncsp, inPrecision);
     }
 
-    std::vector<DataConfigurator> outDataConf;
+    std::vector<PortConfigurator> outDataConf;
     outDataConf.reserve(getOriginalOutputsNumber());
     for (int i = 0; i < getOriginalOutputsNumber(); ++i) {
         Precision outPrecision = i == NMS_SELECTEDSCORES ? Precision::FP32 : Precision::I32;
-        outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, outPrecision);
+        outDataConf.emplace_back(GeneralLayout::ncsp, outPrecision);
     }
 
     addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
@@ -135,24 +136,24 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     const float *boxes = reinterpret_cast<const float *>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float *scores = reinterpret_cast<const float *>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
-    max_output_boxes_per_class = outDims.size() > NMS_SELECTEDSCORES ? 0 : num_boxes;
-    if (inDims.size() > NMS_MAXOUTPUTBOXESPERCLASS) {
+    max_output_boxes_per_class = outputShapes.size() > NMS_SELECTEDSCORES ? 0 : num_boxes;
+    if (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS) {
         max_output_boxes_per_class = reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0];
     }
 
     if (max_output_boxes_per_class == 0)
         return;
 
-    iou_threshold = outDims.size() > NMS_SELECTEDSCORES ? 0.0f : 1.0f;
-    if (inDims.size() > NMS_IOUTHRESHOLD)
+    iou_threshold = outputShapes.size() > NMS_SELECTEDSCORES ? 0.0f : 1.0f;
+    if (inputShapes.size() > NMS_IOUTHRESHOLD)
         iou_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOUTHRESHOLD)->getMemoryPtr()->GetPtr())[0];
 
     score_threshold = 0.0f;
-    if (inDims.size() > NMS_SCORETHRESHOLD)
+    if (inputShapes.size() > NMS_SCORETHRESHOLD)
         score_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_SCORETHRESHOLD)->getMemoryPtr()->GetPtr())[0];
 
     soft_nms_sigma = 0.0f;
-    if (inDims.size() > NMS_SOFTNMSSIGMA)
+    if (inputShapes.size() > NMS_SOFTNMSSIGMA)
         soft_nms_sigma = reinterpret_cast<float *>(getParentEdgeAt(NMS_SOFTNMSSIGMA)->getMemoryPtr()->GetPtr())[0];
     scale = 0.0f;
     if (soft_nms_sigma > 0.0) {
@@ -162,15 +163,15 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     int *selected_indices = reinterpret_cast<int *>(getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->GetPtr());
 
     float *selected_scores = nullptr;
-    if (outDims.size() > NMS_SELECTEDSCORES)
+    if (outputShapes.size() > NMS_SELECTEDSCORES)
         selected_scores = reinterpret_cast<float *>(getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr()->GetPtr());
 
     int *valid_outputs = nullptr;
-    if (outDims.size() > NMS_VALIDOUTPUTS)
+    if (outputShapes.size() > NMS_VALIDOUTPUTS)
         valid_outputs = reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
 
-    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getDesc().getBlockingDesc().getStrides();
-    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getDesc().getBlockingDesc().getStrides();
+    auto boxesStrides = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(NMS_BOXES)->getMemory().GetDesc()).getStrides();
+    auto scoresStrides = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(NMS_SCORES)->getMemory().GetDesc()).getStrides();
 
     std::vector<filteredBoxes> filtBoxes(max_output_boxes_per_class * num_batches * num_classes);
 
@@ -205,10 +206,11 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
                       });
     }
 
-    const size_t selectedBoxesNum = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getDims()[0];
+    const size_t selectedBoxesNum = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getShape().getStaticDims()[0];
     const size_t validOutputs = std::min(filtBoxes.size(), selectedBoxesNum);
 
-    int selectedIndicesStride = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getDesc().getBlockingDesc().getStrides()[0];
+    int selectedIndicesStride = MemoryDescUtils::convertToBlockedDescriptor(
+                                                    getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemory().GetDesc()).getStrides()[0];
     int *selectedIndicesPtr = selected_indices;
     float *selectedScoresPtr = selected_scores;
 
@@ -218,7 +220,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
         selectedIndicesPtr[1] = filtBoxes[idx].class_index;
         selectedIndicesPtr[2] = filtBoxes[idx].box_index;
         selectedIndicesPtr += selectedIndicesStride;
-        if (outDims.size() > NMS_SELECTEDSCORES) {
+        if (outputShapes.size() > NMS_SELECTEDSCORES) {
             selectedScoresPtr[0] = static_cast<float>(filtBoxes[idx].batch_index);
             selectedScoresPtr[1] = static_cast<float>(filtBoxes[idx].class_index);
             selectedScoresPtr[2] = static_cast<float>(filtBoxes[idx].score);
@@ -226,10 +228,10 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
         }
     }
     std::fill(selectedIndicesPtr, selectedIndicesPtr + (selectedBoxesNum - idx) * selectedIndicesStride, -1);
-    if (outDims.size() > NMS_SELECTEDSCORES) {
+    if (outputShapes.size() > NMS_SELECTEDSCORES) {
         std::fill(selectedScoresPtr, selectedScoresPtr + (selectedBoxesNum - idx) * selectedIndicesStride, -1.f);
     }
-    if (outDims.size() > NMS_VALIDOUTPUTS)
+    if (outputShapes.size() > NMS_VALIDOUTPUTS)
         *valid_outputs = static_cast<int>(validOutputs);
 }
 

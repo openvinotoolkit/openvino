@@ -37,19 +37,19 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
     if (!getChildEdges().size())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
-    if (getParentEdgeAt(0)->getDims().ndims() == 3) {
-        MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::abc);
-        createDescriptor({in_candidate}, {});
+    if (getParentEdgeAt(0)->getShape().getRank() == 3) {
+        MemoryDescPtr in_candidate = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType, memory::format_tag::abc);
+        createDescriptor({in_candidate.get()}, {});
     }
 
-    for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getDims())) {
-        MKLDNNDims dims = getParentEdgeAt(0)->getDims();
+    for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getShape())) {
+        const auto dims = getParentEdgeAt(0)->getShape().getStaticMklDims();
         if (MKLDNNMemoryDesc(dims, inputDataType, format).blocksExtended())
             continue;
 
-        MKLDNNMemoryDesc in_candidate(dims, inputDataType, format);
+        MemoryDescPtr in_candidate = make_unique<MKLDNNMemoryDesc>(dims, inputDataType, format);
 
-        createDescriptor({in_candidate}, {});
+        createDescriptor({in_candidate.get()}, {});
     }
 }
 
@@ -63,7 +63,7 @@ void MKLDNNSoftMaxNode::createPrimitive() {
     descs[0] = desc;
     std::shared_ptr<softmax_forward::desc> selected_desc_ptr = descs[0];
 
-    const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 

@@ -50,18 +50,18 @@ MKLDNNFullyConnectedNode::MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph:
     }
 }
 
-std::vector<memory::format_tag> MKLDNNFullyConnectedNode::getAvailableFormatsForDims(const MKLDNNDims &dims) const {
-    if (dims.ndims() == 0)
+std::vector<memory::format_tag> MKLDNNFullyConnectedNode::getAvailableFormatsForDims(const Shape &dims) const {
+    if (dims.getRank() == 0)
         return {memory::format_tag::x};
-    else if (dims.ndims() == 1)
+    else if (dims.getRank() == 1)
         return {memory::format_tag::x};
-    else if (dims.ndims() == 2)
+    else if (dims.getRank() == 2)
         return {memory::format_tag::nc};
-    else if (dims.ndims() == 3)
+    else if (dims.getRank() == 3)
         return {memory::format_tag::tnc};
-    else if (dims.ndims() == 4)
+    else if (dims.getRank() == 4)
         return {memory::format_tag::nChw8c, memory::format_tag::nChw16c, memory::format_tag::nhwc, memory::format_tag::nchw};
-    else if (dims.ndims() == 5)
+    else if (dims.getRank() == 5)
         return {memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c, memory::format_tag::ndhwc, memory::format_tag::ncdhw};
     return {memory::format_tag::any};
 }

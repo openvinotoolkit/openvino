@@ -14,6 +14,7 @@
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset7.hpp>
+#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -41,7 +42,7 @@ MKLDNNRollNode::MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mk
             IE_THROW() << layerErrorPrefix << " has incorrect number of input/output edges!";
         }
 
-        shape = inDims[DATA_INDEX].ToSizeVector();
+        shape = inputShapes[DATA_INDEX].getStaticDims();
         const auto &dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
 
         if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) == supportedPrecisionSizes.end())
@@ -52,7 +53,7 @@ MKLDNNRollNode::MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mk
         }
         numOfDims = shape.size();
 
-        if (shape != outDims[0].ToSizeVector()) {
+        if (shape != outputShapes[0].getStaticDims()) {
             IE_THROW() << layerErrorPrefix << " has different 'data' input and output dimensions";
         }
 
@@ -62,7 +63,7 @@ MKLDNNRollNode::MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mk
             IE_THROW() << layerErrorPrefix << " has unsupported 'axes' input precision: " << axesTensorPrec.name();
         }
 
-        const auto axesTensorRank = inDims[AXES_INDEX].ndims();
+        const auto axesTensorRank = inputShapes[AXES_INDEX].getRank();
         if (axesTensorRank > 1) {
             IE_THROW() << layerErrorPrefix << " doesn't support 'axes' input tensor with rank: " << axesTensorRank;
         }
@@ -73,7 +74,7 @@ MKLDNNRollNode::MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mk
             IE_THROW() << layerErrorPrefix << " has unsupported 'shift' input precision: " << shiftTensorPrec.name();
         }
 
-        const auto shiftTensorRank = inDims[SHIFT_INDEX].ndims();
+        const auto shiftTensorRank = inputShapes[SHIFT_INDEX].getRank();
         if (shiftTensorRank > 1) {
             IE_THROW() << layerErrorPrefix << " doesn't support 'shift' input tensor with rank: " << shiftTensorRank;
         }
@@ -92,32 +93,31 @@ void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
 
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    auto srcDims = getParentEdgeAt(0)->getDims();
+    auto srcDims = getParentEdgeAt(0)->getShape().getStaticDims();
 
-    auto dataMemoryFormat = MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims());
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
 
-    auto createDataConfig = [](const MKLDNNDims& dims, memory::data_type dataType) -> InferenceEngine::DataConfig {
-        InferenceEngine::DataConfig dataConfig;
+    auto createDataConfig = [](const Shape& dims, memory::data_type dataType) -> PortConfig {
+        PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = MKLDNNMemoryDesc(dims, dataType, MKLDNNMemory::GetPlainFormat(dims));
+        dataConfig.desc = make_unique<MKLDNNMemoryDesc>(dims.getStaticMklDims(), dataType, MKLDNNMemory::GetPlainFormatByRank(dims.getRank()));
         return dataConfig;
     };
 
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(0)->getDims(), dataType));
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(1)->getDims(), memory::data_type::s32));
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(2)->getDims(), memory::data_type::s32));
+    config.inConfs.push_back(createDataConfig(getParentEdgeAt(0)->getShape(), dataType));
+    config.inConfs.push_back(createDataConfig(getParentEdgeAt(1)->getShape(), memory::data_type::s32));
+    config.inConfs.push_back(createDataConfig(getParentEdgeAt(2)->getShape(), memory::data_type::s32));
 
-    config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getDims(), dataType));
+    config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getShape(), dataType));
 
-    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref, dataMemoryFormat});
+    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
 }
 
 
 void MKLDNNRollNode::execute(mkldnn::stream strm) {
-    const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getDesc().getPrecision();
+    const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().GetDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {
         case sizeof(PrecisionTrait<Precision::I8>::value_type): {
@@ -156,7 +156,7 @@ void MKLDNNRollNode::rollImpl() {
     auto *output = reinterpret_cast<DataType*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     std::vector<size_t> shiftsVector(numOfDims, 0);
 
-    const size_t axesLength = axesEdge->getDims()[0];
+    const size_t axesLength = axesEdge->getShape().getStaticDims()[0];
     for (size_t dim = 0; dim < axesLength ; ++dim) {
         int32_t currentAxis = axes[dim] < 0 ? axes[dim] + numOfDims : axes[dim];
         int32_t shiftSum = shiftsVector[currentAxis] + shifts[dim];
@@ -171,7 +171,7 @@ void MKLDNNRollNode::rollImpl() {
     const size_t elementSize = sizeof(DataType);
 
     const size_t nIterations = totalElements / blockSize;
-    const auto strides = dataEdge->getDesc().getBlockingDesc().getStrides();
+    const auto strides = MemoryDescUtils::convertToBlockedDescriptor(dataEdge->getMemory().GetDesc()).getStrides();
     parallel_for(nIterations, [&](size_t iter) {
         size_t start = iter * blockSize;
         size_t leftBlockStartOffset = start;

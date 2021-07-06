@@ -18,7 +18,7 @@ public:
 
     void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
                           const std::vector<const MemoryDesc*>& outputDesc) override;
-    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
+    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initDescriptor(const NodeConfig& config) override;
