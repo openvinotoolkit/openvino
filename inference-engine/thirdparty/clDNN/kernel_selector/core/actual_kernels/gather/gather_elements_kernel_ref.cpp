@@ -77,7 +77,8 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
         break;
 
     case DataLayout::bfzyx:
-        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
+        // dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
+        dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
         break;
 
     case DataLayout::bfwzyx:
@@ -130,6 +131,7 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
 
 JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
+
     // parameters in gather_elements_kernel_ref.h
     auto p_axis = static_cast<int8_t>(params.axis);
     if (p_axis < 0) {
@@ -139,7 +141,8 @@ JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_para
     jit.AddConstant(MakeJitConstant("AXIS", p_axis));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf = { "", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };
+        std::vector<std::string> idx_order = GetDefaultOrder(params.inputs[0].GetDims().size());
+        FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 
@@ -177,10 +180,10 @@ bool GatherElementsKernelRef::Validate(const Params& p, const optional_params& o
     //     }
     // }
 
-    // for (auto& fused_op : params.fused_ops) {
-    //     if (!IsFusedPrimitiveSupported(fused_op))
-    //         return false;
-    // }
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
 
     return true;
 }
