@@ -112,7 +112,7 @@ fi
 
 . "$VENV_DIR/bin/activate"
 python -m pip install -U pip
-python -m pip install -r "$ROOT_DIR/extras/open_model_zoo/tools/downloader/requirements.in"
+python -m pip install -r "$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader/requirements.in"
 
 # Step 1. Downloading Intel models
 echo -ne "\n###############|| Downloading Intel models ||###############\n\n"

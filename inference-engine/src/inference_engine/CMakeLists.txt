@@ -267,8 +267,8 @@ endif()
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}"
-        DESTINATION "runtime/include"
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
+        DESTINATION "runtime/include/ie"
         COMPONENT core_dev)
 
 install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
