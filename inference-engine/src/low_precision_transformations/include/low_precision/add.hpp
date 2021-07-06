@@ -13,10 +13,9 @@ namespace low_precision {
 
 class LP_TRANSFORMATIONS_API AddTransformation : public EltwiseBaseTransformation {
 public:
-    AddTransformation(const Params& params) : EltwiseBaseTransformation(params) {}
-    ~AddTransformation() override {}
-    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    NGRAPH_RTTI_DECLARATION;
+    AddTransformation(const Params& params = Params());
+    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };
 
