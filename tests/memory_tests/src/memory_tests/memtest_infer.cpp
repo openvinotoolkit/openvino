@@ -32,7 +32,7 @@ int runPipeline(const std::string &model, const std::string &device) {
       }
       {
         SCOPED_MEM_COUNTER(create_exenetwork);
-        if (TimeTest::fileExt(model) == "blob") {
+        if (MemoryTest::fileExt(model) == "blob") {
           SCOPED_MEM_COUNTER(import_network);
           exeNetwork = ie.ImportNetwork(model, device);
         }

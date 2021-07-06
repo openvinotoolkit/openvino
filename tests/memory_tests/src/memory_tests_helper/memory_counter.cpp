@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "timetests_helper/timer.h"
+#include "memory_tests_helper/memory_counter.h"
 #include <fstream>
 #include <memory>
 #include <string>
+#include <cstring>
 #include <vector>
 
 #include "statistics_writer.h"

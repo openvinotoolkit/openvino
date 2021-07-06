@@ -26,4 +26,4 @@ public:
 
 #define SCOPED_MEM_COUNTER(mem_counter_name) MemoryTest::MemoryCounter mem_counter_name(#mem_counter_name);
 
-} // namespace TimeTest
+} // namespace MemoryTest

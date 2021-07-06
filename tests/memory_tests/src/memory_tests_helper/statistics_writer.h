@@ -74,9 +74,13 @@ public:
     if (!statistics_file)
       throw std::runtime_error("Statistic file path isn't set");
     for (auto& mem_counter: mem_struct_order) {
-      std::string tabs = std::string(TAB* mem_structure[timer].first, ' ');
+      std::string tabs = std::string(TAB * mem_structure[mem_counter].first, ' ');
       statistics_file << tabs << "- " << mem_counter << ":" << '\n'
-                      << tabs << "  " << "- " << mem_structure[mem_counter].second << '\n'; # TODO: update print of mem_structure[timer].second
+                      << tabs << "  " << "- VMRSS: " << mem_structure[mem_counter].second[0] << '\n'
+                      << tabs << "  " << "- VMHWM: " << mem_structure[mem_counter].second[1] << '\n'
+                      << tabs << "  " << "- VMSIZE: " << mem_structure[mem_counter].second[2] << '\n'
+                      << tabs << "  " << "- VMPEAK: " << mem_structure[mem_counter].second[3] << '\n'
+                      << tabs << "  " << "- THREADS: " << mem_structure[mem_counter].second[4] << '\n';
     }
     statistics_file << "---" << '\n' << "measurement_unit: Kb";
   }
