@@ -72,7 +72,7 @@ void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
     SizeVector dst_dims = getChildEdgeAt(0)->getMemory().GetDesc().getShape().getStaticDims();
     SizeVector src_dims = getParentEdgeAt(BROADCAST_INPUT)->getMemory().GetDesc().getShape().getStaticDims();
 
-    auto srcDesc = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(BROADCAST_INPUT)->getMemory().GetDesc());
+    auto srcDesc = getParentEdgeAt(BROADCAST_INPUT)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     SizeVector srcStrides = srcDesc.getStrides();
     size_t data_size = srcDesc.getPrecision().size();
 
@@ -89,7 +89,7 @@ void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
         IE_THROW() << "Output tensor dimension is smaller then input tensor dimension";
     }
 
-    auto dstDesc = MemoryDescUtils::convertToBlockedDescriptor(getChildEdgeAt(0)->getMemory().GetDesc());
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     InferenceEngine::SizeVector dstStrides = dstDesc.getStrides();
     InferenceEngine::SizeVector src_aligned(dst_dims.size());
     InferenceEngine::SizeVector srcStrides_aligned(dst_dims.size());

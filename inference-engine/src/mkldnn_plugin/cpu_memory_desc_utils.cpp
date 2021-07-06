@@ -4,6 +4,7 @@
 
 #include "cpu_memory_desc.h"
 #include "cpu_memory_desc_utils.h"
+#include "mkldnn_memory.h"
 #include "utils/general_utils.h"
 #include <limits>
 #include <vector>

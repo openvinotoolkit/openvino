@@ -67,6 +67,8 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_non_max_suppression_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_cum_sum_node.cpp
+        #${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
 )
@@ -121,6 +123,8 @@ file(GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_non_max_suppression_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_cum_sum_node.h
+        #${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/base.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.h

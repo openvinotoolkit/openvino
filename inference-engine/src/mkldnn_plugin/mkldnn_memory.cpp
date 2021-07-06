@@ -282,6 +282,34 @@ void *MKLDNNMemory::GetPtr() const  {
     return ptr;
 }
 
+template<>
+MKLDNNMemoryDesc MKLDNNMemory::GetDescWithType<MKLDNNMemoryDesc, 0, 0>() const {
+    if (auto descPtr = dynamic_cast<const MKLDNNMemoryDesc*>(pMemDesc.get())) {
+        return *descPtr;
+    } else {
+        switch (pMemDesc->getType()) {
+            case (MemoryDescType::Blocked):
+                return MemoryDescUtils::convertToMKLDNNMemoryDesc(*(pMemDesc->as<BlockedMemoryDesc>()));
+            default:
+                IE_THROW() << "Can not convert unsupported memory descriptor";
+        }
+    }
+}
+
+template<>
+BlockedMemoryDesc MKLDNNMemory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
+    if (auto descPtr = dynamic_cast<const BlockedMemoryDesc*>(pMemDesc.get())) {
+        return *descPtr;
+    } else {
+        switch (pMemDesc->getType()) {
+            case (MemoryDescType::Mkldnn):
+                return MemoryDescUtils::convertToBlockedDescriptor(*(pMemDesc->as<MKLDNNMemoryDesc>()));
+            default:
+                IE_THROW() << "Can not convert unsupported memory descriptor";
+        }
+    }
+}
+
 bool MKLDNNMemoryDesc::operator==(const MKLDNNMemoryDesc &rhs) const {
     return this->desc == rhs.desc;
 }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "list.hpp"
-#include "base.hpp"
 
 #include <string>
 #include <vector>
@@ -13,6 +12,7 @@
 #include "ie_precision.hpp"
 #include <ie_ngraph_utils.hpp>
 #include "mkldnn_cum_sum_node.h"
+#include "cpu_memory_desc_utils.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -78,20 +78,20 @@ void MKLDNNCumSumNode::initSupportedPrimitiveDescriptors() {
             IE_THROW() << errorPrefix << " has unsupported 'axis' input precision: " << axisTensorPrec.name();
     }
 
-    std::vector<DataConfigurator> inDataConf;
+    std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
-    inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, dataPrecision);
+    inDataConf.emplace_back(GeneralLayout::ncsp, dataPrecision);
     for (int i = 1; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
+        inDataConf.emplace_back(GeneralLayout::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{TensorDescCreatorTypes::ncsp, dataPrecision}},
+                         {{GeneralLayout::ncsp, dataPrecision}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNCumSumNode::execute(mkldnn::stream strm) {
-    if (inDims.size() == numOfInputs)
-        axis = getAxis(getParentEdgeAt(AXIS)->getBlob(), getParentEdgeAt(CUM_SUM_DATA)->getBlob());
+    if (inputShapes.size() == numOfInputs)
+        axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
 
     switch (dataPrecision) {
         case Precision::I8   : {
@@ -134,7 +134,7 @@ template <typename dataType>
 void MKLDNNCumSumNode::exec() {
     const auto *input = reinterpret_cast<const dataType *>(getParentEdgeAt(CUM_SUM_DATA)->getMemoryPtr()->GetPtr());
     auto *output = reinterpret_cast<dataType *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
-    const std::vector<size_t> strides = getParentEdgeAt(CUM_SUM_DATA)->getDesc().getBlockingDesc().getStrides();
+    const std::vector<size_t> strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
 
     if (reverse) {
         if (exclusive) {
@@ -248,18 +248,18 @@ inline size_t MKLDNNCumSumNode::getStartOffset(const std::vector<size_t> &forSta
     return startOffset;
 }
 
-size_t MKLDNNCumSumNode::getAxis(const Blob::CPtr& _axis, const Blob::CPtr& _data) const {
-    const auto& axisPrecision = _axis->getTensorDesc().getPrecision();
-    const int64_t dataShapeSize = static_cast<int64_t>(_data->getTensorDesc().getDims().size());
+size_t MKLDNNCumSumNode::getAxis(const MKLDNNMemory& _axis, const MKLDNNMemory& _data) const {
+    const auto& axisPrecision = _axis.GetDesc().getPrecision();
+    const int64_t dataShapeSize = static_cast<int64_t>(_data.GetDesc().getShape().getRank());
     int64_t axisValueFromBlob;
     switch (axisPrecision) {
         case Precision::I32 : {
-            const auto *axisPtr = _axis->cbuffer().as<const int32_t *>();
+            const auto *axisPtr = reinterpret_cast<const int32_t *>(_axis.GetPtr());
             axisValueFromBlob = static_cast<int64_t>(axisPtr[0]);
             break;
         }
         case Precision::I64 : {
-            const auto *axisPtr = _axis->cbuffer().as<const int64_t *>();
+            const auto *axisPtr = reinterpret_cast<const int64_t *>(_axis.GetPtr());
             axisValueFromBlob = axisPtr[0];
             break;
         }
