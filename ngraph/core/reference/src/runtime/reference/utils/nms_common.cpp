@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cstring>
+#include <numeric>
 
 #include "ngraph/runtime/reference/utils/nms_common.hpp"
 
