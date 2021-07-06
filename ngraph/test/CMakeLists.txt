@@ -643,7 +643,7 @@ add_subdirectory(frontend)
 ### END FRONTEND ###
 
 #PaddlePaddle - test models generator
-if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
+if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
     file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
@@ -662,6 +662,7 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
     add_dependencies(unit-test pdpd_test_models)
     add_dependencies(unit-test paddlepaddle_ngraph_frontend)
-
-    target_link_libraries(unit-test PRIVATE cnpy)
 endif()
+
+target_link_libraries(unit-test PRIVATE cnpy)
+
