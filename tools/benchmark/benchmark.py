@@ -3,7 +3,7 @@
 
 import os
 from datetime import datetime
-from statistics import median
+from statistics import quantiles
 from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
 
 from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
@@ -98,7 +98,7 @@ class Benchmark:
                 raise Exception(f"Wait for all requests is failed with status code {status}!")
         return infer_request.latency
 
-    def infer(self, exe_network, batch_size, progress_bar=None):
+    def infer(self, exe_network, batch_size, latency_percentile, progress_bar=None):
         progress_count = 0
         infer_requests = exe_network.requests
 
@@ -155,7 +155,7 @@ class Benchmark:
         for infer_request_id in in_fly:
             times.append(infer_requests[infer_request_id].latency)
         times.sort()
-        latency_ms = median(times)
+        latency_ms = quantiles(times, 100)[latency_percentile - 1]
         fps = batch_size * 1000 / latency_ms if self.api_type == 'sync' else batch_size * iteration / total_duration_sec
         if progress_bar:
             progress_bar.finish()

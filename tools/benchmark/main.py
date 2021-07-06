@@ -32,6 +32,8 @@ def run(args):
                 logger.warning(" -nstreams default value is determined automatically for a device. "
                                "Although the automatic selection usually provides a reasonable performance, "
                                "but it still may be non-optimal for some cases, for more information look at README. ")
+        if args.latency_percentile > 100 or args.latency_percentile < 1
+            logger.error("The percentile value is incorrect. The applicable values range is [1, 100].")
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
@@ -344,7 +346,7 @@ def run(args):
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, progress_bar)
+        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, args.latency_percentile, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
@@ -372,9 +374,13 @@ def run(args):
                                           ('total number of iterations', str(iteration)),
                                       ])
             if MULTI_DEVICE_NAME not in device_name:
+                if args.latency_percentile == 50:
+                    latency_prefix = 'latency (ms)'
+                else:
+                    latency_prefix = 'latency (' + args.latency_percentile + ' percentile) (ms)'
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('latency (ms)', f'{latency_ms:.2f}'),
+                                              (latency_prefix, f'{latency_ms:.2f}'),
                                           ])
 
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
@@ -388,7 +394,10 @@ def run(args):
         print(f'Count:      {iteration} iterations')
         print(f'Duration:   {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
-            print(f'Latency:    {latency_ms:.2f} ms')
+            if args.latency_percentile == 50:
+                print(f'Latency:    {latency_ms:.2f} ms')
+            else:
+                print(f'Latency ({args.latency_percentile} percentile):    {latency_ms:.2f} ms')
         print(f'Throughput: {fps:.2f} FPS')
 
         del exe_network
