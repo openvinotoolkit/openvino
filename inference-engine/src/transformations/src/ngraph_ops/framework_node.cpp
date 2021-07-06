@@ -26,7 +26,7 @@ shared_ptr<Node> op::FrameworkNode::clone_with_new_inputs(const OutputVector& ne
 }
 
 void op::FrameworkNode::cache_output_descriptor() {
-    for (uint64_t i = 0; i < get_output_size(); ++i) {
+    for (size_t i = 0; i < get_output_size(); ++i) {
         m_output_desc.emplace_back(get_output_partial_shape(i), get_output_element_type(i));
     }
 }
@@ -61,6 +61,8 @@ void op::FrameworkNode::validate_and_infer_types() {
             const auto& orig_input_pshape = std::get<0>(m_inputs_desc[i]);
             if (orig_input_pshape == input_pshape) {
                 reset_output_shape_to_original = true;
+            } else if (input_pshape.rank().is_dynamic()) {
+                reset_output_shape_to_dynamic = true;
             } else if (rank.is_static() && orig_input_pshape.rank().is_static() &&
                        rank.get_length() == orig_input_pshape.rank().get_length()) {
                 for (int64_t dim = 0; dim < rank.get_length(); ++dim) {
@@ -69,9 +71,6 @@ void op::FrameworkNode::validate_and_infer_types() {
                                                  orig_input_pshape[dim].get_length() == input_pshape[dim].get_length()),
                                           get_error_message());
                 }
-                // Here we make an assumption that if input shape was changed but the rank is static and equal to the
-                // old rank and all dimension are dynamic or equal to the old ones so we can make output shape fully
-                // dynamic with the same rank.
                 reset_output_shape_to_dynamic = true;
             } else {
                 NODE_VALIDATION_CHECK(this, m_inputs_desc[i] == std::make_tuple(input_pshape, input_type), get_error_message());
@@ -83,15 +82,14 @@ void op::FrameworkNode::validate_and_infer_types() {
         cache_output_descriptor();
         for (size_t i = 0; i < get_output_size(); ++i) {
             if (get_output_partial_shape(i).rank().is_static()) {
-                set_output_type(i, get_output_element_type(i),
-                                PartialShape::dynamic(get_output_partial_shape(i).rank().get_length()));
+                set_output_type(i, get_output_element_type(i), PartialShape::dynamic());
             }
         }
     }
 
     if (reset_output_shape_to_original && !m_output_desc.empty()) {
         for (size_t i = 0; i < get_output_size(); ++i) {
-                set_output_type(i, std::get<1>(m_output_desc[i]), std::get<0>(m_output_desc[i]));
+            set_output_type(i, std::get<1>(m_output_desc[i]), std::get<0>(m_output_desc[i]));
         }
     }
 }

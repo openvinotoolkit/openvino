@@ -28,14 +28,21 @@ TEST(TransformationTests, FrameworkNode) {
     param->validate_and_infer_types();
 
     ASSERT_NO_THROW(f_node->validate_and_infer_types());
-    ASSERT_EQ(f_node->get_output_partial_shape(0), PartialShape::dynamic(2));
+    ASSERT_EQ(f_node->get_output_partial_shape(0), PartialShape::dynamic());
 
-    // Set fully dynamic shape
+    // Set dynamic shape
     param->set_partial_shape(PartialShape::dynamic(2));
     param->validate_and_infer_types();
 
     ASSERT_NO_THROW(f_node->validate_and_infer_types());
-    ASSERT_EQ(f_node->get_output_partial_shape(0), PartialShape::dynamic(2));
+    ASSERT_EQ(f_node->get_output_partial_shape(0), PartialShape::dynamic());
+
+    // Set fully dynamic shape
+    param->set_partial_shape(PartialShape::dynamic());
+    param->validate_and_infer_types();
+
+    ASSERT_NO_THROW(f_node->validate_and_infer_types());
+    ASSERT_EQ(f_node->get_output_partial_shape(0), PartialShape::dynamic());
 
     // Set original static shape
     param->set_partial_shape(Shape{1, 64});

@@ -620,6 +620,7 @@ extensions/middle/RemoveRedundantReshapeAfterCropAndResize.py
 extensions/middle/RemoveRedundantReshapes.py
 extensions/middle/RemoveUselessConcatSplit.py
 extensions/middle/RemoveUselessCrops.py
+extensions/middle/RemoveUselessPad.py
 extensions/middle/ReplaceMemoryOffsetWithSplice.py
 extensions/middle/ReplacePNorm.py
 extensions/middle/ReplaceSpliceNodePattern.py
