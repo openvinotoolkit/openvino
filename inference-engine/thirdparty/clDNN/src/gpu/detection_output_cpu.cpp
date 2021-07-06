@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "detection_output_inst.h"
 #include "network_impl.h"
@@ -396,10 +384,8 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                 }
             }
         }
-        // In case number of detections is smaller than keep_top_k fill the rest of the buffer with invalid image id
-        // (-1).
-        while (count < num_of_images * args.keep_top_k) {
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (dtype)-1.f;
+        for (int i = count; i < num_of_images * args.keep_top_k; i++) {
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (i == count ? (dtype)-1.f : (dtype)0.f);
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 1] = (dtype)0.f;
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 2] = (dtype)0.f;
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 3] = (dtype)0.f;

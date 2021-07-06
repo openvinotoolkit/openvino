@@ -1,23 +1,9 @@
-/*
-// Copyright (c) 2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "detection_output_kernel_ref.h"
 #include "kernel_selector_utils.h"
-
-#define PRIOR_BOX_SIZE 4  // Each prior-box consists of [xmin, ymin, xmax, ymax].
 
 namespace kernel_selector {
 
@@ -111,13 +97,9 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
     } else if (idx == 1) {
         const size_t kSplitNum = 16;
         if (detectOutParams.decrease_label_id) {
-            // dispatchData.gws = { 1, 1, 1};
-            // dispatchData.lws = { 1, 1, 1};
             dispatchData.gws = {input.Batch().v, 1, kSplitNum};
             dispatchData.lws = {1, 1, kSplitNum};
         } else {
-            // dispatchData.gws = { 1, 1, 1};
-            // dispatchData.lws = { 1, 1, 1};
             dispatchData.gws = {input.Batch().v, num_classes, kSplitNum};
             const size_t kClassSize = GetOptimalLocalClassSize(dispatchData.gws, params.engineInfo);
             dispatchData.lws = {1, kClassSize, kSplitNum};
@@ -125,11 +107,9 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
     } else if (idx == 2) {
         if (detectOutParams.decrease_label_id) {
             dispatchData.gws = {input.Batch().v, 1, 1};
-            // dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
             dispatchData.lws = {1, 1, 1};
         } else {
             dispatchData.gws = {input.Batch().v, num_classes, 1};
-            // dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
             dispatchData.lws = {1, 1, 1};
         }
     } else if (idx == 3) {
@@ -144,8 +124,6 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
         dispatchData.gws = {1, 1, 1};
         dispatchData.lws = {1, 1, 1};
     }
-    // printf("idx[%d] gws: { %zd, %zd, %zd }\n", idx, dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
-    // printf("idx[%d] lws: { %zd, %zd, %zd }\n", idx, dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
 
     return dispatchData;
 }
@@ -153,24 +131,24 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
 void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const {
     if (idx == 0) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
     } else if (idx == 1) {
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
     } else if (idx == 2) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
     } else if (idx == 3) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
     }
 }
 
@@ -188,17 +166,14 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     auto num_loc_classes = (detectOutParams.detectOutParams.share_location) ? 1 : num_classes;
     auto num_prior_boxes = (loc_feature_num / (num_loc_classes * prior_box_size));
 
-    constexpr size_t buffer_bytes = 16; // bboxes[xmin, ymin, xmax, ymax], scores[batchId, classId, boxId, score]
+    constexpr size_t buffer_bytes = 16;  // The size of struct Scores in detection_output_gpu_ref.cl
     size_t buffer_stride = num_prior_boxes * buffer_bytes;
-    size_t buffer1_size = num_of_images * num_classes * buffer_stride;
-    size_t buffer2_size = num_of_images * num_classes * buffer_stride;
-    size_t buffer3_size = num_of_images * (num_classes + 1) * 4;
-    // printf("GetKernelsData | buffer_stride = [%zd], buffer1_size = [%zd], buffer2/3_size = [%zd], buffer4_size = [%zd]\n",
-    //        buffer_stride, buffer1_size, buffer2_size, buffer4_size);
+    size_t buffer_size = num_of_images * num_classes * buffer_stride;
+    size_t num_scores_size = num_of_images * (num_classes + 1) * sizeof(int);
 
-    kd.internalBufferSizes.push_back(buffer1_size);
-    kd.internalBufferSizes.push_back(buffer2_size);
-    kd.internalBufferSizes.push_back(buffer3_size);
+    kd.internalBufferSizes.push_back(buffer_size);
+    kd.internalBufferSizes.push_back(buffer_size);
+    kd.internalBufferSizes.push_back(num_scores_size);
     kd.internalBufferDataType = Datatype::F32;
 
     for (size_t i = 0; i < kKernelsNum; i++) {
@@ -208,47 +183,32 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
         cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
         if (i == 0) {
             if (detectOutParams.detectOutParams.decrease_label_id) {
-                //cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_MXNET", "true"));
-                cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_MXNET_OPT", "true"));
+                cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
             } else {
                 size_t num_bit_mask = CeilDiv(num_prior_boxes, 8);
                 size_t num_score_per_item = RoundUp(CeilDiv(num_prior_boxes, 256), 8);
                 size_t num_score_block = CeilDiv(num_prior_boxes, num_score_per_item);
-                //printf("num_prior_boxes=%zd | num_bit_mask=%zd, num_score_per_item=%zd, num_score_block=%zd\n",
-                //        num_prior_boxes, num_bit_mask, num_score_per_item, num_score_block);
-                // cldnnJit.AddConstant(MakeJitConstant("IS_ZERO_ITER_CAFFE", "true"));
-                cldnnJit.AddConstants({MakeJitConstant("IS_ZERO_ITER_CAFFE_OPT", "true"),
+                cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("NUM_BIT_MASK", num_bit_mask),
                                        MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item),
                                        MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)});
             }
         } else if (i == 1) {
              if (detectOutParams.detectOutParams.decrease_label_id) {
-                // cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER_MXNET", "true"));
-                cldnnJit.AddConstants({MakeJitConstant("IS_FIRST_ITER_MXNET_OPT", "true"),
+                cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
                                        MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
              } else {
-                // cldnnJit.AddConstant(MakeJitConstant("IS_FIRST_ITER_CAFFE", "true"));
-                cldnnJit.AddConstants({MakeJitConstant("IS_FIRST_ITER_CAFFE_OPT", "true"),
+                cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
                                        MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
              }
-        } else if (i == 2) {
-            if (detectOutParams.detectOutParams.decrease_label_id) {
-                //cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_MXNET", "true"));
-                cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_MXNET_OPT", "true"));
-            } else {
-                //cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_CAFFE", "true"));
-                cldnnJit.AddConstant(MakeJitConstant("IS_SECOND_ITER_CAFFE_OPT", "true"));
-            }
         } else {
             if (detectOutParams.detectOutParams.decrease_label_id) {
-                cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER_MXNET", "true"));
+                cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
             } else {
-                // cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER_CAFFE", "true"));
-                cldnnJit.AddConstant(MakeJitConstant("IS_THIRD_ITER_CAFFE_OPT", "true"));
+                cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"));
             }
         }
 

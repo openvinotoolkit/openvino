@@ -46,7 +46,7 @@
 // Number of bboxes to keep in output
 #define KEEP_BBOXES_NUM ((KEEP_TOP_K < NUM_OF_IMAGE_BBOXES)? KEEP_TOP_K : NUM_OF_IMAGE_BBOXES)
 
-void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_location, __global UNIT_TYPE* input_prior_box, const uint idx_prior, const uint idx_class, const uint idx_image)
+inline void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_location, __global UNIT_TYPE* input_prior_box, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     const uint prior_box_offset = ((PRIOR_BATCH_SIZE == 1)? 0 : idx_image) * NUM_OF_PRIOR_COMPONENTS * (VARIANCE_ENCODED_IN_TARGET ? 1 : 2);
     const uint prior_offset = prior_box_offset + idx_prior * PRIOR_INFO_SIZE + PRIOR_COORD_OFFSET;
@@ -168,7 +168,7 @@ void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_l
     }
 }
 
-UNIT_TYPE FUNC(get_score)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
+inline UNIT_TYPE FUNC(get_score)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     const uint confidence_offset =                    // offset in kernel input 'input_confidence'
             (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
