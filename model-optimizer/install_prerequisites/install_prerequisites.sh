@@ -181,6 +181,7 @@ else
     "$python_binary" -m pip install --upgrade pip
     "$python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     find_ie_bindings "$python_binary" false
+    echo
     echo "[WARNING] All Model Optimizer dependencies are installed globally."
     echo "[WARNING] If you want to keep Model Optimizer in separate sandbox"
     echo "[WARNING] run install_prerequisites.sh \"{caffe|tf|tf2|mxnet|kaldi|onnx}\" venv"

@@ -166,6 +166,16 @@ goto ie_search_end
 
 :ie_search_end
 
+IF %USE_VENV% == "true" (
+    echo.
+    echo Before running the Model Optimizer, please activate virtualenv environment by running "%VENV_DIR%\Scripts\activate.bat"
+) ELSE (
+    echo.
+    echo [ WARNING ] All Model Optimizer dependencies are installed globally.
+    echo [ WARNING ] If you want to keep Model Optimizer in separate sandbox
+    echo [ WARNING ] run install_prerequisites.sh "{caffe|tf|tf2|mxnet|kaldi|onnx}" venv
+)
+
 echo *****************************************************************************************
 echo Optional: To speed up model conversion process, install protobuf-*.egg located in the
 echo "model-optimizer\install_prerequisites" folder or building protobuf library from sources.
