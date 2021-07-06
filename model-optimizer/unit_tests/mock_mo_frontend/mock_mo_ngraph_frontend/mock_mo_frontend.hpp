@@ -67,7 +67,9 @@ class MOCK_API PlaceMockPy : public Place
 
 public:
     PlaceMockPy(const std::string& name = {}, bool is_op = false, int portIndex = -1)
-        : m_name(name), m_is_op(is_op), m_portIndex(portIndex)
+        : m_name(name)
+        , m_is_op(is_op)
+        , m_portIndex(portIndex)
     {
     }
 
@@ -88,7 +90,8 @@ public:
     {
         m_stat.m_get_input_port++;
         m_stat.m_lastArgInt = inputPortIndex;
-        if (inputPortIndex < 10) {
+        if (inputPortIndex < 10)
+        {
             return std::make_shared<PlaceMockPy>(m_name, false, inputPortIndex);
         }
         return nullptr;
@@ -121,7 +124,8 @@ public:
     {
         m_stat.m_get_output_port++;
         m_stat.m_lastArgInt = outputPortIndex;
-        if (outputPortIndex < 10) {
+        if (outputPortIndex < 10)
+        {
             return std::make_shared<PlaceMockPy>(m_name, false, outputPortIndex);
         }
         return nullptr;
@@ -160,7 +164,8 @@ public:
         m_stat.m_is_equal++;
         m_stat.m_lastArgPlace = another;
         std::shared_ptr<PlaceMockPy> mock = std::dynamic_pointer_cast<PlaceMockPy>(another);
-        return m_name == mock->m_name && m_is_op == mock->m_is_op && m_portIndex == mock->m_portIndex;
+        return m_name == mock->m_name && m_is_op == mock->m_is_op &&
+               m_portIndex == mock->m_portIndex;
     }
 
     bool is_equal_data(Ptr another) const override
@@ -169,11 +174,14 @@ public:
         m_stat.m_lastArgPlace = another;
         std::shared_ptr<PlaceMockPy> mock = std::dynamic_pointer_cast<PlaceMockPy>(another);
         if (mock->m_name.find("conv2d") != std::string::npos &&
-                m_name.find("conv2d") != std::string::npos) {
+            m_name.find("conv2d") != std::string::npos)
+        {
             return true;
         }
-        if ((mock->m_name.find("8") != std::string::npos || mock->m_name.find("9") != std::string::npos) &&
-                (m_name.find("8") != std::string::npos || m_name.find("9") != std::string::npos)) {
+        if ((mock->m_name.find("8") != std::string::npos ||
+             mock->m_name.find("9") != std::string::npos) &&
+            (m_name.find("8") != std::string::npos || m_name.find("9") != std::string::npos))
+        {
             return true;
         }
         return mock->m_is_op == m_is_op;
@@ -243,13 +251,25 @@ class MOCK_API InputModelMockPy : public InputModel
     static PartialShape m_returnShape;
 
     std::set<std::string> m_operations = {
-            "8", "9", "8:9", "operation", "operation:0", "0:operation", "tensorAndOp", "conv2d"
-    };
-    std::set<std::string> m_tensors = {
-            "8:9", "tensor", "tensor:0", "0:tensor", "tensorAndOp", "conv2d:0", "0:conv2d",
-            "mock_input1", "mock_input2", "newInput1", "newIn1", "newIn2",
-            "mock_output1", "mock_output2", "new_output2", "newOut1", "newOut2"
-    };
+        "8", "9", "8:9", "operation", "operation:0", "0:operation", "tensorAndOp", "conv2d"};
+    std::set<std::string> m_tensors = {"8:9",
+                                       "tensor",
+                                       "tensor:0",
+                                       "0:tensor",
+                                       "tensorAndOp",
+                                       "conv2d:0",
+                                       "0:conv2d",
+                                       "mock_input1",
+                                       "mock_input2",
+                                       "newInput1",
+                                       "newIn1",
+                                       "newIn2",
+                                       "mock_output1",
+                                       "mock_output2",
+                                       "new_output2",
+                                       "newOut1",
+                                       "newOut2"};
+
 public:
     std::vector<Place::Ptr> get_inputs() const override
     {
@@ -269,7 +289,8 @@ public:
     {
         m_stat.m_get_place_by_operation_name++;
         m_stat.m_lastArgString = opName;
-        if (m_operations.count(opName)) {
+        if (m_operations.count(opName))
+        {
             return std::make_shared<PlaceMockPy>(opName, true);
         }
         return nullptr;
@@ -279,7 +300,8 @@ public:
     {
         m_stat.m_get_place_by_tensor_name++;
         m_stat.m_lastArgString = tensorName;
-        if (m_tensors.count(tensorName)) {
+        if (m_tensors.count(tensorName))
+        {
             return std::make_shared<PlaceMockPy>(tensorName);
         }
         return nullptr;

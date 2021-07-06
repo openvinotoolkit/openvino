@@ -31,7 +31,8 @@ static void register_mock_model_stat(py::module m)
     py::class_<ModelStat> mdlStat(m, "ModelStat", py::dynamic_attr());
     mdlStat.def_property_readonly("get_inputs", &ModelStat::get_inputs);
     mdlStat.def_property_readonly("get_outputs", &ModelStat::get_outputs);
-    mdlStat.def_property_readonly("get_place_by_operation_name", &ModelStat::get_place_by_operation_name);
+    mdlStat.def_property_readonly("get_place_by_operation_name",
+                                  &ModelStat::get_place_by_operation_name);
     mdlStat.def_property_readonly("get_place_by_tensor_name", &ModelStat::get_place_by_tensor_name);
 
     mdlStat.def_property_readonly("set_partial_shape", &ModelStat::set_partial_shape);
