@@ -74,6 +74,14 @@ function(_ie_target_no_deprecation_error)
             set(flags "-Wno-error=deprecated-declarations")
         endif()
 
+        # adding rpath-link to ngraph; needed for cross-compilation
+        set_and_check(_ngraph_lib_dir "@PACKAGE_IE_NGRAPH_LIB_DIR@")
+        set_and_check(_ie_lib_dir "@PACKAGE_IE_IE_LIB_DIR@")
+        set_target_properties(${ARGV} PROPERTIES
+                              INTERFACE_LINK_OPTIONS "-Wl,-rpath-link,${_ngraph_lib_dir}:${_ie_lib_dir}")
+        unset(_ngraph_lib_dir)
+        unset(_ie_lib_dir)
+
         set_target_properties(${ARGV} PROPERTIES INTERFACE_COMPILE_OPTIONS ${flags})
     endif()
 endfunction()

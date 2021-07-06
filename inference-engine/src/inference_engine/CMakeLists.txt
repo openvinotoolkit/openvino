@@ -224,8 +224,8 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 # install TBB
 
 list(APPEND core_components ngraph)
-list(APPEND PATH_VARS "IE_INCLUDE_DIR" "IE_NGRAPH_DIR"
-                      "IE_PARALLEL_CMAKE")
+list(APPEND PATH_VARS "IE_INCLUDE_DIR" "IE_NGRAPH_DIR" "IE_NGRAPH_LIB_DIR"
+                      "IE_PARALLEL_CMAKE" "IE_IE_LIB_DIR")
 
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
@@ -292,6 +292,8 @@ install(EXPORT InferenceEngineTargets
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}")
+set(IE_NGRAPH_LIB_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+set(IE_IE_LIB_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
@@ -301,6 +303,8 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceE
 
 set(IE_INCLUDE_DIR "include")
 set(IE_NGRAPH_DIR "../ngraph/cmake")
+set(IE_NGRAPH_LIB_DIR "../ngraph/lib")
+set(IE_IE_LIB_DIR "../lib")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "share/ie_parallel.cmake")
 
