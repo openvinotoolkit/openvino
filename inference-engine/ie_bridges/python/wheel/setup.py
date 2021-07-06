@@ -342,7 +342,7 @@ def get_package_dir(install_cfg):
 
 def pkg_filter(*patterns):
     """
-    Filter folder by given patterns 
+    Filter folder by given patterns
     """
     return lambda name: any(fnmatchcase(name, pat=pat) for pat in patterns)
 
