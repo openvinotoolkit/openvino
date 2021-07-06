@@ -29,19 +29,12 @@ struct ConvData {
     size_t input_height;
     size_t input_width;
     size_t input_channel_count;
-    size_t filter_height;
-    size_t filter_width;
     size_t filter_count;
-    size_t filter_dilation_width;
-    size_t filter_dilation_height;
-    size_t filter_stride_width;
-    size_t filter_stride_height;
     size_t pads_begin_width;
     size_t pads_begin_height;
     size_t pads_end_width;
     size_t pads_end_height;
     ngraph::op::PadType padding_type;
-    ngraph::Shape output_shape;
     ngraph::element::Type element_type;
 };
 
@@ -55,25 +48,16 @@ static bool VerifyAndGetConvParams(std::shared_ptr<ngraph::opset7::Convolution> 
         return false;
     }
 
-    conv_data.output_shape = conv->get_output_shape(0);
     conv_data.padding_type = conv->get_auto_pad();
     conv_data.input_channel_count = conv->input_value(0).get_shape()[1];
     conv_data.input_height = conv->input_value(0).get_shape()[2];
     conv_data.input_width = conv->input_value(0).get_shape()[3];
     conv_data.filter_count = conv->input_value(1).get_shape()[0];
-    conv_data.filter_height = conv->input_value(1).get_shape()[2];
-    conv_data.filter_width = conv->input_value(1).get_shape()[3];
-    conv_data.filter_dilation_height = conv->get_dilations()[0];
-    conv_data.filter_dilation_width = conv->get_dilations()[1];
-    conv_data.filter_stride_height = conv->get_strides()[0];
-    conv_data.filter_stride_width = conv->get_strides()[1];
     conv_data.pads_begin_height = conv->get_pads_begin()[0];
     conv_data.pads_begin_width = conv->get_pads_begin()[1];
     conv_data.pads_end_height = conv->get_pads_end()[0];
     conv_data.pads_end_width = conv->get_pads_end()[1];
     conv_data.element_type = conv->get_element_type();
-
-    IE_ASSERT(conv_data.filter_count == conv_data.output_shape[1]);
 
     return conv_data.pads_begin_height || conv_data.pads_end_height || conv_data.pads_begin_width || conv_data.pads_end_width;
 }
@@ -117,11 +101,11 @@ static bool VerifyMaxPool(std::shared_ptr<ngraph::opset7::MaxPool> max_pool) {
     auto pool_kernel = max_pool->get_kernel();
 
     // Check if MaxPool vertical stride == pool size
-    // (TODO: remove when 50386 and 50379 are fixed and also verify pool_kernel[0] > 8 limitation below, gna_limitations can be used then)
+    // (TODO: verify pool_kernel[0] > 8 limitation below, gna_limitations can be used then)
     // Check if padding is VALID
     return (max_pool->get_auto_pad() == ngraph::op::PadType::VALID &&
         pool_kernel.size() == 2 && pool_strides.size() == 2 &&
-        pool_kernel[0] == pool_strides[0] && pool_kernel[0] <= 8);
+        pool_kernel[0] <= 8);
 }
 
 static std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {
@@ -163,7 +147,7 @@ static std::shared_ptr<ngraph::Node> CreatePaddedNet(std::shared_ptr<ngraph::ops
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 },
             ngraph::Shape{ 1ull, shape_size(leading_transpose->input_value(0).get_shape()) }), false);
 
-    // zero padding
+    // Constant with zero padding
     auto const_holding_padding = std::make_shared<ngraph::opset7::Constant>(conv_data.element_type, ngraph::Shape{ 1, biggest_padding }, 0);
 
     copy_runtime_info(conv, const_holding_padding);
