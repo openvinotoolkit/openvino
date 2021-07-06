@@ -191,24 +191,24 @@ std::vector<Place::Ptr> InputModel::get_outputs() const
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensorName) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_tensor_name);
+    return nullptr;
 }
 
-Place::Ptr InputModel::get_place_by_operation_name(const std::string& operationName)
+Place::Ptr InputModel::get_place_by_operation_name(const std::string& operationName) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name);
+    return nullptr;
 }
 
 Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::string& operationName,
                                                                   int inputPortIndex)
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_input_port);
+    return nullptr;
 }
 
 Place::Ptr InputModel::get_place_by_operation_name_and_output_port(const std::string& operationName,
                                                                    int outputPortIndex)
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_output_port);
+    return nullptr;
 }
 
 void InputModel::set_name_for_tensor(Place::Ptr tensor, const std::string& newName)
@@ -350,42 +350,42 @@ Place::Ptr Place::get_producing_port() const
 
 Place::Ptr Place::get_input_port() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_input_port(int inputPortIndex) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_input_port(const std::string& inputName) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_input_port(const std::string& inputName, int inputPortIndex) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_output_port() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_output_port(int outputPortIndex) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_output_port(const std::string& outputName) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_output_port(const std::string& outputName, int outputPortIndex) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+    return nullptr;
 }
 
 std::vector<Place::Ptr> Place::get_consuming_ports() const

@@ -31,6 +31,7 @@ static void register_mock_model_stat(py::module m)
     py::class_<ModelStat> mdlStat(m, "ModelStat", py::dynamic_attr());
     mdlStat.def_property_readonly("get_inputs", &ModelStat::get_inputs);
     mdlStat.def_property_readonly("get_outputs", &ModelStat::get_outputs);
+    mdlStat.def_property_readonly("get_place_by_operation_name", &ModelStat::get_place_by_operation_name);
     mdlStat.def_property_readonly("get_place_by_tensor_name", &ModelStat::get_place_by_tensor_name);
 
     mdlStat.def_property_readonly("set_partial_shape", &ModelStat::set_partial_shape);
@@ -67,6 +68,7 @@ static void register_mock_place_stat(py::module m)
     placeStat.def_property_readonly("is_input", &PlaceStat::is_input);
     placeStat.def_property_readonly("is_output", &PlaceStat::is_output);
     placeStat.def_property_readonly("is_equal", &PlaceStat::is_equal);
+    placeStat.def_property_readonly("is_equal_data", &PlaceStat::is_equal_data);
 }
 
 PYBIND11_MODULE(mock_mo_python_api, m)

@@ -69,26 +69,29 @@ namespace ngraph
             /// \brief Returns a tensor place by a tensor name following framework conventions, or
             /// nullptr if a tensor with this name doesn't exist.
             /// \param tensorName Name of tensor
-            /// \return Tensor place corresponding to specifed tensor name
+            /// \return Tensor place corresponding to specified tensor name or nullptr if not exists
             virtual Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
 
             /// \brief Returns an operation place by an operation name following framework
-            /// conventions, or nullptr if an operation with this name doesn't exist. \param
-            /// operationName Name of operation \return Place representing operation
-            virtual Place::Ptr get_place_by_operation_name(const std::string& operationName);
+            /// conventions, or nullptr if an operation with this name doesn't exist.
+            ///
+            /// \param operationName Name of operation
+            ///
+            /// \return Place representing operation or nullptr if not exists
+            virtual Place::Ptr get_place_by_operation_name(const std::string& operationName) const;
 
             /// \brief Returns an input port place by operation name and appropriate port index
             /// \param operationName Name of operation
             /// \param outputPortIndex Index of input port for this operation
-            /// \return Place representing input port of operation
+            /// \return Place representing input port of operation or nullptr if not exists
             virtual Place::Ptr
                 get_place_by_operation_name_and_input_port(const std::string& operationName,
                                                            int inputPortIndex);
 
             /// \brief Returns an output port place by operation name and appropriate port index
-            /// \param operationNameNname of operation
+            /// \param operationName Name of operation
             /// \param outputPortIndex Index of output port for this operation
-            /// \return Place representing output port of operation
+            /// \return Place representing output port of operation or nullptr if not exists
             virtual Place::Ptr
                 get_place_by_operation_name_and_output_port(const std::string& operationName,
                                                             int outputPortIndex);
