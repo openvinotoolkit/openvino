@@ -163,14 +163,14 @@ if (NGRAPH_ONNX_IMPORT_ENABLE OR USE_STATIC_PROTOBUF)
     set(BUILD_STANDALONE_STATIC OFF)
 
     if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
-        include(cmake/external_protobuf.cmake)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/protobuf ${CMAKE_BINARY_DIR}/_deps/protobuf)
     else()
-        find_package(Protobuf 2.6.1 REQUIRED)
+        find_package(Protobuf REQUIRED)
     endif()
 
     if (NGRAPH_ONNX_IMPORT_ENABLE)
         # target onnx_proto will be shared lib, onnx static
-        include(cmake/external_onnx.cmake)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/onnx ${CMAKE_BINARY_DIR}/_deps/onnx)
         if (TARGET ext_protobuf)
             add_dependencies(onnx ext_protobuf)
         endif()
