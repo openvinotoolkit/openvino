@@ -167,8 +167,9 @@ namespace
                     {
                         std::cout << "                            ix: " << ix << "\n";
                         const T xx =
-                            roi_start_w + pw * bin_size_w +
-                            static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                            roi_start_w + static_cast<T>(pw) * bin_size_w +
+                            static_cast<T>(static_cast<T>(ix) + 0.5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                        std::cout << "                            xx: " << xx << "\n";
 
                         T x = xx;
                         T y = yy;
