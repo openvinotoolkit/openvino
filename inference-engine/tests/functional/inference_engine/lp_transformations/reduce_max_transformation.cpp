@@ -33,15 +33,14 @@ class ReduceMaxTransformation : public ReduceTransformation<opset1::ReduceMax> {
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceMaxTransformation, ngraph::opset1::ReduceMax>(
-            low_precision::LayerTransformation::Params(transformationParams));
+        transform.add<ngraph::pass::low_precision::ReduceMaxTransformation, ngraph::opset1::ReduceMax>(transformationParams);
         transform.transform(actualFunction);
     }
 };
 
 TEST_P(ReduceMaxTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
