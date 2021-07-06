@@ -14,8 +14,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<float> eps = {1e-6f, 1e-2f, 0.1, 0.5};
-
+const std::vector<float> eps = {1e-12f, 1e-6f, 1e-3f, 0.1, 0.5, 100.0};
 
 const std::vector<ngraph::op::EpsMode> epsMode = {
         ngraph::op::EpsMode::ADD,
