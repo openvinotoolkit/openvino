@@ -519,3 +519,67 @@ Standard ONNX\* operators:
 | Upsample | No |
 | Where | No |
 | Xor | No |
+
+
+## PaddlePaddle\* Supported Operators
+
+Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
+
+| Operator Name in PaddlePaddle\*| Limitations|
+| :----------| :----------|
+| adpative_pool2d | Only support 'NCHW' input data_layout |
+| arg_max | No |
+| assign_value | No |
+| batch_norm | No |
+| bilinear_interp | Only supports the same data_layout |
+| bilinear_interp_v2 | Only supports the same data_layout |
+| bmm | No |
+| cast | No |
+| clip | No |
+| concat | No |
+| conv2d | Only supports 'NCHW' layout |
+| depthwise_conv2d | Only supports 'NCHW' layout |
+| deformable_conv | No |
+| elementwise_add | No |
+| elementwise_div | No |
+| elementwise_max | No |
+| elementwise_min | No |
+| elementwise_mul | No |
+| elementwise_pow | No |
+| elementwise_sub | No |
+| equal | No |
+| expand_v2 | No |
+| fill_constant_batch_size_like | Only supports 'FP32' data type |
+| fill_constant | No |
+| flatten_contiguous_range | No |
+| greater_equal | No |
+| hard_sigmoid | No |
+| hard_swish | No |
+| leaky_relu | No |
+| log | No |
+| logical_not | No |
+| matmul | No |
+| matrix_nms | Only supports IE CPU plugin with 'number of selected boxes' static shape(eg: min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)) |
+| max_pool2d_with_index | No |
+| mul | No |
+| multiclass_nms | Only supports IE CPU plugin with 'number of selected boxes' static shape(eg: min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)) |
+| nearest_interp | Only supports the same data_layout |
+| nearest_interp_v2 | Only supports the same data_layout |
+| pad3d | Not support 'Circular' mode |
+| pow | No |
+| pool2d | Only support 'NCHW' input data_layout |
+| range | Only supports 'FP32' output data type |
+| relu | No |
+| relu6 | No |
+| reshape2 | No |
+| rnn | Only support 'LSTM' Mode now |
+| scale | No |
+| shape | No |
+| slice | Not support 'tensor' type of 'starts' and 'ends' |
+| softmax | No |
+| sigmoid | No |
+| split | No |
+| squeeze2 | No |
+| transpose2 | No |
+| unsqueeze2 | Only support 'int32_t' input data type |
+| yolo_box | No |
