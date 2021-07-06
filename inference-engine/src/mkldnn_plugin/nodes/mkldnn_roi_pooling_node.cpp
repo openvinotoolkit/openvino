@@ -482,9 +482,9 @@ void MKLDNNROIPoolingNode::execute() {
         IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
-    auto src_strides = MemoryDescUtils::convertToBlockedDescriptor(srcMemory0.GetDesc()).getStrides();
-    auto dst_strides = MemoryDescUtils::convertToBlockedDescriptor(dstMemory.GetDesc()).getStrides();
-    size_t src_roi_step = MemoryDescUtils::convertToBlockedDescriptor(srcMemory1.GetDesc()).getStrides()[0];
+    auto src_strides = srcMemory0.GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto dst_strides = dstMemory.GetDescWithType<BlockedMemoryDesc>().getStrides();
+    size_t src_roi_step = srcMemory1.GetDescWithType<BlockedMemoryDesc>().getStrides()[0];
 
     int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
     int MB = jpp.mb;

@@ -160,7 +160,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
 
     const int channelDim = 1;
     if (isBlocked) {
-        const auto blkDesc = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(0)->getMemory().GetDesc());
+        const auto blkDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
         size_t blkSize = blkDesc.getBlockDims().back();
         size_t CB = div_up(inShape_[1], blkSize);
         SizeVector srcBlockedDims = blkDesc.getBlockDims();

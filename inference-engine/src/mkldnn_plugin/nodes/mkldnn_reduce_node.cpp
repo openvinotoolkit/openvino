@@ -1567,7 +1567,7 @@ void MKLDNNReduceNode::execute(mkldnn::stream strm) {
     const auto idx_data = reinterpret_cast<const int32_t *>(srcIndexesMemPtr->GetData());
     size_t dst_size = dstMemPtr->GetSize();
     src_dims = getParentEdgeAt(REDUCE_DATA)->getShape().getStaticDims();
-    src_strides =  MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(REDUCE_DATA)->getMemory().GetDesc()).getStrides();
+    src_strides = getParentEdgeAt(REDUCE_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
     dims_size = src_dims.size();
     calc_process_dst_dims(idx_data);
 

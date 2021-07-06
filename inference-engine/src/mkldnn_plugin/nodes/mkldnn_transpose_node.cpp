@@ -155,11 +155,11 @@ void MKLDNNTransposeNode::createPrimitive() {
     PermuteParams params;
     params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
     params.order = order;
-    auto srcDesc = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(0)->getMemory().GetDesc());
+    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     params.src_block_dims = srcDesc.getBlockDims();
     params.src_block_order = srcDesc.getOrder();
 
-    auto dstDesc = MemoryDescUtils::convertToBlockedDescriptor(getChildEdgeAt(0)->getMemory().GetDesc());
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     params.dst_block_dims = dstDesc.getBlockDims();
     params.dst_block_order = dstDesc.getOrder();
 

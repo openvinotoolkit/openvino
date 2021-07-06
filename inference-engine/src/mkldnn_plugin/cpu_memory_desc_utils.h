@@ -10,9 +10,10 @@
 #include <ie_common.h>
 #include <ie_layouts.h>
 #include "mkldnn_dims.h"
-#include "mkldnn_memory.h"
 
 namespace MKLDNNPlugin {
+class MKLDNNMemoryDesc;
+class BlockedMemoryDesc;
 
 class MemoryDescUtils {
 public:
@@ -20,8 +21,13 @@ public:
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const MemoryDesc& desc);
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const BlockedMemoryDesc& desc);
     static MKLDNNMemoryDesc convertToMKLDNNMemoryDesc(const InferenceEngine::TensorDesc& desc);
+
+private:
     static BlockedMemoryDesc convertToBlockedDescriptor(const MKLDNNMemoryDesc& inpDesc);
     static BlockedMemoryDesc convertToBlockedDescriptor(const MemoryDesc& desc);
+
+    friend class MKLDNNMemory;
+    friend class MKLDNNGraphOptimizer;
 
     //static MemoryDescPtr getUndefinedMemoryDesc(const MKLDNNMemoryDesc& desc);
 };

@@ -1182,9 +1182,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNEltwiseNode::createPrimitive() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
-
-    auto initDims = [this, config](size_t maxInputSize) {
+    auto initDims = [this](size_t maxInputSize) {
         size_t inputNum = getParentEdges().size();
 
         dims_in.resize(inputNum);
@@ -1194,7 +1192,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
 
         dims_out.resize(maxInputSize, 1);
 
-        auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[0].desc);
+        auto outBlockingDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
         std::vector<size_t> order(maxInputSize);
         auto outOrder = outBlockingDesc.getOrder();
         for (size_t i = 0; i < order.size(); i++) {
@@ -1210,7 +1208,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
 
         for (int i = 0; i < inputNum; i++) {
-            auto inBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[i].desc);
+            auto inBlockingDesc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
             size_t inRank = inBlockingDesc.getBlockDims().size();
 
             // WA to normalize blocked and planar layouts
@@ -1236,13 +1234,13 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     };
 
-    auto initOffsets = [this, config](size_t maxInputSize) {
+    auto initOffsets = [this](size_t maxInputSize) {
         size_t inputNum = getParentEdges().size();
 
         offsets_out.resize(maxInputSize, 1);
         offset_out_calc(offsets_out, dims_out);
         for (int j = 0; j < maxInputSize; j++) {
-            offsets_out[j] *= config.outConfs[0].desc->getPrecision().size();
+            offsets_out[j] *= getChildEdgeAt(0)->getMemory().GetDesc().getPrecision().size();
         }
 
         offsets_in.resize(inputNum);
@@ -1250,7 +1248,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
             offsets_in[i].resize(maxInputSize, 1);
             offset_in_calc(offsets_in[i], dims_in[i], dims_out);
             for (int j = 0; j < maxInputSize; j++) {
-                offsets_in[i][j] *= config.inConfs[i].desc->getPrecision().size();
+                offsets_in[i][j] *= getParentEdgeAt(i)->getMemory().GetDesc().getPrecision().size();
             }
         }
 
@@ -1294,7 +1292,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     };
 
-    auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[0].desc);
+    auto outBlockingDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     tensorRank = std::max(static_cast<size_t>(optimalTensorRank), outBlockingDesc.getBlockDims().size());
     initDims(tensorRank);
 
@@ -1318,7 +1316,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
         fullWorkAmount *= dims_out[i];
     }
 
-    isDynBatchEnabled = config.dynBatchSupport;
+    isDynBatchEnabled = getSelectedPrimitiveDescriptor()->getConfig().dynBatchSupport;
 
     size_t minimalConcurrency = parallel_get_max_threads();
     size_t minimalJitWorkAmount = 256;
@@ -1385,17 +1383,19 @@ void MKLDNNEltwiseNode::createPrimitive() {
 
     initOffsets(tensorRank);
 
-    jep.inputs_number = config.inConfs.size();
+    const size_t inpuPortsCount = getSelectedPrimitiveDescriptor()->getConfig().inConfs.size();
+
+    jep.inputs_number = inpuPortsCount;
     jep.input_size = tensorRank;
 
-    for (int i = 0; i < config.inConfs.size(); i++) {
+    for (int i = 0; i < inpuPortsCount; i++) {
         jep.src_size[i] = dims_in[i][dims_in[i].size() - 1];
-        jep.src_prc[i] = config.inConfs[i].desc->getPrecision();
+        jep.src_prc[i] = getParentEdgesAtPort(i).front()->getMemory().GetDesc().getPrecision();
     }
     jep.dst_size = dims_out[dims_out.size() - 1];
-    jep.dst_prc = config.outConfs[0].desc->getPrecision();
+    jep.dst_prc = getChildEdgesAtPort(0).front()->getMemory().GetDesc().getPrecision();
 
-    for (int i = 0; i < config.inConfs.size(); i++) {
+    for (int i = 0; i < inpuPortsCount; i++) {
         jep.src_offsets[i] = offsets_in[i];
     }
     jep.dst_offsets = offsets_out;

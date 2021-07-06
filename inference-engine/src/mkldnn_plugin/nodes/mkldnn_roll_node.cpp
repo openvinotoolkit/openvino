@@ -171,7 +171,7 @@ void MKLDNNRollNode::rollImpl() {
     const size_t elementSize = sizeof(DataType);
 
     const size_t nIterations = totalElements / blockSize;
-    const auto strides = MemoryDescUtils::convertToBlockedDescriptor(dataEdge->getMemory().GetDesc()).getStrides();
+    const auto strides = dataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
     parallel_for(nIterations, [&](size_t iter) {
         size_t start = iter * blockSize;
         size_t leftBlockStartOffset = start;
