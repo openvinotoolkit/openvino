@@ -43,10 +43,10 @@ public:
  * operations with the first Gather in this group and updated indices input
  * in case all Gathers in the group are consumed by the same Concat in incremental order.
  */
-class ngraph::pass::GroupedGatherElimination: public ngraph::pass::FunctionPass {
+class ngraph::pass::GroupedGatherElimination: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    GroupedGatherElimination();
 };
 
 /**

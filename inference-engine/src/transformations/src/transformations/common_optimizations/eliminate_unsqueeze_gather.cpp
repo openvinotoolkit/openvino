@@ -84,7 +84,7 @@ ngraph::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
         auto new_gather = gather->clone_with_new_inputs({gather->input_value(0), new_indices, gather->input_value(2)});
 
         new_gather->set_friendly_name(gather->get_friendly_name());
-        ngraph::copy_runtime_info(unsqueeze, {new_gather, new_indices});
+        ngraph::copy_runtime_info({unsqueeze, gather}, {new_gather, new_indices});
         ngraph::replace_node(unsqueeze, new_gather);
         return true;
     };
