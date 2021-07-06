@@ -116,7 +116,8 @@ const ngraph::OpSet& ngraph::get_opset7()
     return opset;
 }
 
-size_t ngraph::OpSet& get_initial_opset(const ngraph::NodeTypeInfo &type_info) {
+size_t get_initial_opset(const std::shared_ptr<ngraph::Node> &node) {
+    auto type_info = node->get_type_info();
     std::vector<ngraph::OpSet> opsets;
     opsets.push_back(ngraph::get_opset1());
     opsets.push_back(ngraph::get_opset2());
@@ -126,9 +127,9 @@ size_t ngraph::OpSet& get_initial_opset(const ngraph::NodeTypeInfo &type_info) {
     opsets.push_back(ngraph::get_opset6());
     opsets.push_back(ngraph::get_opset7());
 
-    for (size_t opset = 1; opset <= opsets.size(); ++opset) {
-        if (opset.contains_type(type_info)) {
-            return opset;
+    for (size_t i = 0; i < opsets.size(); ++i) {
+        if (opsets[i].contains_type(type_info)) {
+            return i+1;
         }
     }
     std::stringstream msg;
