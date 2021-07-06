@@ -199,6 +199,18 @@ jobs:
     continueOnError: false
     enabled: false
 
+  - script: |
+      export MO_ROOT=$(REPO_DIR)/model-optimizer/
+      export IE_APP_PATH=$(REPO_DIR)/inference-engine/
+      export PYTHONPATH=$(REPO_DIR)/tests/layer_tests/:$(PYTHONPATH)
+      sudo apt-get install python3-setuptools
+      python3 -m pip install --upgrade pip
+      python3 -m pip install -r $(REPO_DIR)/tests/layer_tests/requirements.txt
+      env
+      pytest .tests/layer_tests/tensorflow_tests/test_tf_Add.py --junitxml=TEST-tf_Add.xml
+    displayName: 'Add Layer Tests'
+    continueOnError: false
+
   - task: PublishTestResults@2
     condition: always()
     inputs:
