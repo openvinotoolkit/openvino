@@ -23,7 +23,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Atan::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Atan, "Atan", 0, util::UnaryElementwiseArithmetic);
 
 op::Atan::Atan(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
