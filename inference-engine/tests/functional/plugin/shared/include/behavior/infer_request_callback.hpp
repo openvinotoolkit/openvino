@@ -36,8 +36,9 @@ TEST_P(CallbackTests, canCallSyncAndAsyncWithCompletionCallback) {
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     bool isCalled = false;
-    req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
+    req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest r, InferenceEngine::StatusCode)>>(
             [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
+                ASSERT_TRUE(req == request); //the callback is called on the same impl of the request
                 // HSD_1805940120: Wait on starting callback return HDDL_ERROR_INVAL_TASK_HANDLE
                 if (targetDevice != CommonTestUtils::DEVICE_HDDL) {
                     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), status);

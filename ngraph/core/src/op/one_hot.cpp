@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::OneHot::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::OneHot, "OneHot", 1);
 
 op::v1::OneHot::OneHot(const Output<Node>& indices,
                        const Output<Node>& depth,
@@ -174,4 +174,16 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
     NGRAPH_CHECK(static_cast<int64_t>(out_shape[axis]) == depth,
                  "Incompatible axis and depth values.");
     return one_hot::evaluate_onehot(output_values, input_values, axis);
+}
+
+bool op::v1::OneHot::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_OneHot_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64: return true;
+    default: break;
+    }
+    return false;
 }

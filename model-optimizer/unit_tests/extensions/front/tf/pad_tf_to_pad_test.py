@@ -27,6 +27,7 @@ nodes_attributes = {
     **const('squeeze_1_axis', int64_array([0])),
     'squeeze_2': {'type': 'Squeeze', 'kind': 'op', 'op': 'Squeeze'},
     **const('squeeze_2_axis', int64_array([0])),
+    'convert_like': {'type': 'ConvertLike', 'kind': 'op', 'op': 'ConvertLike'},
 
     **const('pad_fill', np.array(0.0)),
 }
@@ -73,7 +74,9 @@ class PadTFToPadTest(unittest.TestCase):
                             {}, nodes_with_edges_only=True)
         graph.get_op_nodes(op='TFPad')[0].add_input_port(2)
 
-        graph_ref = build_graph(nodes_attributes, common_edges + [('pad_fill', 'pad', {'in': 3, 'out': 0})],
+        graph_ref = build_graph(nodes_attributes, common_edges + [('pad_fill', 'convert_like', {'in': 0, 'out': 0}),
+                                                                  ('placeholder', 'convert_like', {'in': 1, 'out': 0}),
+                                                                  ('convert_like', 'pad', {'in': 3, 'out': 0})],
                                 {}, nodes_with_edges_only=True)
         self._run_test(graph, graph_ref)
 

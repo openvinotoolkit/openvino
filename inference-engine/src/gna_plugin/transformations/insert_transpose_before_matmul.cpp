@@ -2,17 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <openvino/cc/ngraph/itt.hpp>
+
 #include "transformations/insert_transpose_before_matmul.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
+#include <ngraph/rt_info.hpp>
 
 using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(InsertTransposeBeforeMatmul, "InsertTransposeBeforeMatmul", 0);
 
 InsertTransposeBeforeMatmul::InsertTransposeBeforeMatmul() {
+    MATCHER_SCOPE(InsertTransposeBeforeMatmul);
     auto reshape = ngraph::pattern::wrap_type<ngraph::opset7::Reshape>({ngraph::pattern::any_input(),
                                                                         ngraph::pattern::any_input()},
                                                                         ngraph::pattern::rank_equals(2));
@@ -56,9 +60,10 @@ InsertTransposeBeforeMatmul::InsertTransposeBeforeMatmul() {
             input.replace_source_output(reshapeAfter);
         }
 
+        ngraph::copy_runtime_info(matmul_node, {transpose, reshapeAfter});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(root, "InsertTransposeBeforeMatmul");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }

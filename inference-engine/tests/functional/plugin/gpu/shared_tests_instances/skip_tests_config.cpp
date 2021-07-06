@@ -22,6 +22,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
+            R"(.*(PreprocessDynamicallyInSetBlobTest).*)",
             // TODO: Issue: 51764
             ".*PreprocessConversionTest.*",
             // TODO: Issue: 41462
@@ -44,7 +45,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*ActivationParamLayerTest.*)",
             // Unknown issues
             R"(.*(LSTMSequence).*mode=.*_RAND_SEQ_LEN_CONST.*)",
-            R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
@@ -52,10 +52,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(LPT/StridedSliceTransformation).*)",
             // TODO: Issue: 48106
             R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
-            // TODO: Issue: 54436
-            R"(.*LSTMSequence.*CompareWithRefs.*mode=PURE_SEQ_RAND_SEQ_LEN_PARAM.*direction=bidirectional_clip=0.7_netPRC=FP32.*)",
-            R"(.*LSTMSequence.*CompareWithRefs.*mode=CONVERT_TO_TI_RAND_SEQ_LEN_PARAM_seq.*direction=bidirectional_clip=0.7_netPRC=FP32.*)",
             // TODO: Issue: 54194
             R"(.*ActivationLayerTest.*SoftPlus.*)",
+            // need to implement Export / Import
+            R"(.*IEClassImportExportTestP.*)"
     };
 }

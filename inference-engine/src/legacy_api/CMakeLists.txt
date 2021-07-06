@@ -41,7 +41,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
 
@@ -56,8 +56,8 @@ add_library(${TARGET_NAME} STATIC
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
-                                     PRIVATE pugixml openvino::itt
-                                             ${NGRAPH_LIBRARIES} inference_engine_transformations)
+                                     PRIVATE pugixml::static openvino::itt
+                                             ngraph inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
 
@@ -68,11 +68,4 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME})
-
-# install
-
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})

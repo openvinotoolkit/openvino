@@ -63,7 +63,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
+    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+                                                    const std::string& deviceName,
                                                     const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
@@ -78,7 +79,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath, const std::string& deviceName,
+    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
+                                                    const std::string& deviceName,
                                                     const std::map<std::string, std::string>& config) = 0;
 
     /**
@@ -89,7 +91,8 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
+                                                      const std::string& deviceName = {},
                                                       const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
@@ -124,22 +127,19 @@ public:
     virtual std::vector<std::string> GetAvailableDevices() const = 0;
 
     /**
+     * @brief Checks whether device supports Export & Import functionality of network
+     *
+     * @param deviceName - A name of a device to get a metric value.
+     * @return True if device has IMPORT_EXPORT_SUPPORT metric in SUPPORTED_METRICS and
+     * this metric returns 'true', False otherwise.
+     */
+    virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
+
+    /**
      * @brief Default virtual destructor
      */
     virtual ~ICore() = default;
 };
-
-/**
- * @brief Type of magic value
- * @ingroup ie_dev_api_plugin_api
- */
-using ExportMagic = std::array<char, 4>;
-
-/**
- * @brief Magic number used by ie core to identify exported network with plugin name
- * @ingroup ie_dev_api_plugin_api
- */
-constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
 
 /**
  * @private

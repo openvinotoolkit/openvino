@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <pugixml.hpp>
 #include <gtest/gtest.h>
 
 #include "ngraph/ngraph.hpp"

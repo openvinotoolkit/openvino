@@ -8,20 +8,23 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
+#include <type_traits>
 
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <threading/ie_executor_manager.hpp>
+
 #include "auto_exec_network.hpp"
 
 namespace AutoPlugin {
 namespace IE = InferenceEngine;
 using ConfigType = std::map<std::string, std::string>;
 
-class AutoInferencePlugin : public IE::InferencePluginInternal {
+class AutoInferencePlugin : public IE::IInferencePlugin {
 public:
     AutoInferencePlugin();
     ~AutoInferencePlugin() = default;
-    IE::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const IE::CNNNetwork& network, const ConfigType& config) override;
+    IE::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const IE::CNNNetwork& network, const ConfigType& config) override;
     IE::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& fileName, const ConfigType& config) override;
     IE::QueryNetworkResult QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const override;
     IE::Parameter GetMetric(const std::string& name, const std::map<std::string, IE::Parameter>& options) const override;
@@ -29,10 +32,15 @@ public:
     void SetConfig(const ConfigType& config) override;
 
 private:
-    std::vector<AutoPlugin::DeviceInformation> GetDeviceChoice(const ConfigType&  config) const;
-
-protected:
-    ConfigType GetSupportedConfig(const ConfigType& config, const AutoPlugin::DeviceName & deviceName) const;
+    std::shared_ptr<AutoExecutableNetwork> LoadNetworkImpl(const std::string& modelPath,
+                                                           const InferenceEngine::CNNNetwork& network,
+                                                           const ConfigType &config,
+                                                           const std::string &networkPrecision = METRIC_VALUE(FP32));
+    std::vector<DeviceName> GetDeviceList(const ConfigType&  config) const;
+    std::vector<std::string> GetOptimizationCapabilities(const std::map<std::string, IE::Parameter>& options) const;
+    DeviceName SelectDevice(const std::vector<DeviceName>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
+    void CheckConfig(const ConfigType& config);
+    static ConfigType mergeConfigs(ConfigType config, const ConfigType& local);
 };
 
 }  // namespace AutoPlugin

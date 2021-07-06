@@ -45,9 +45,11 @@ TEST_P(ReduceMeanTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> inputShapes = {
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> inputShapes = {
     {1, 3, 16, 16},
-    {4, 3, 16, 16}
+    {4, 3, 16, 16},
+    {Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}
 };
 
 const std::vector<ReduceTransformationTestValues> reduceMeanTransformationTestValues = {
@@ -269,11 +271,91 @@ const std::vector<ReduceTransformationTestValues> reduceMeanTransformationTestVa
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ReduceMeanTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(reduceMeanTransformationTestValues)),
     ReduceMeanTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
+    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
+};
+
+const std::vector<ReduceTransformationTestValues> reduceMeanTransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        {-2},
+        false,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::f32,
+            {{}, {128.f}, {0.1f}}
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {0},
+        true,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}},
+            ngraph::element::f32,
+            {}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ReduceMeanTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicChannels),
+        ::testing::ValuesIn(reduceMeanTransformationTestValues)),
+    ReduceMeanTransformation::getTestCaseName);
+} // namespace testValues2
+
+namespace testValues3 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+    PartialShape::dynamic()
+};
+
+const std::vector<ReduceTransformationTestValues> reduceMeanTransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        {-2},
+        false,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}},
+            ngraph::element::f32,
+            {}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ReduceMeanTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicRank),
+        ::testing::ValuesIn(reduceMeanTransformationTestValues)),
+    ReduceMeanTransformation::getTestCaseName);
+} // namespace testValues3
 } // namespace

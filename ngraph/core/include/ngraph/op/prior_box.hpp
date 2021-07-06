@@ -42,8 +42,8 @@ namespace ngraph
             class NGRAPH_API PriorBox : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"PriorBox", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 PriorBox() = default;
                 /// \brief Constructs a PriorBox operation
                 ///
@@ -66,6 +66,7 @@ namespace ngraph
                 virtual bool visit_attributes(AttributeVisitor& visitor) override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 PriorBoxAttrs m_attrs;

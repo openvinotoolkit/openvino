@@ -370,14 +370,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             auto minOutValue = quantizedParams->_dst_quant.GetMinValues().front();
             auto maxOutValue = quantizedParams->_dst_quant.GetMaxValues().front();
             auto absMax = std::max(std::abs(minOutValue), std::abs(maxOutValue));
-            auto absMin = std::min(std::abs(minOutValue), std::abs(maxOutValue));
 
             result = (quantizedParams->_dst_quant.GetLevels() - 1) / (maxOutValue - minOutValue);
-            if (0 && fp32eq(absMin, 0.0f) && !fp32eq(absMax, 0.0f)) {
-                result = (quantizedParams->_dst_quant.GetLevels() - 1) / (2 * absMax);
-            }
-            //
-            //result = MAX_VAL_2B_FEAT / absMax;
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
                 result = max_activation_scale_factor;
             }
@@ -401,6 +395,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                 (layer.isIdentity() || layer.isFakeQuantize()) && LayerInfo(prevLayer).isWeightableIdentity()) {
                 auto prevLayerQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
                 if (!fp32eq(prevLayerQuant->_src_quant.GetScale(), 1.0f) &&
+                    prevLayerQuant->_src_quant.IsStatsSet() &&
                     (prevLayer2 == nullptr || LayerInfo(prevLayer2).has8BOr16BOutput())) {
                     result = prevLayerQuant->_src_quant.GetScale();
                     usePrevScaleFactor = true;
@@ -425,6 +420,17 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                         << " from: " << result << " to: " << newScaleFactor << "\n";
                     result = newScaleFactor;
                 }
+            }
+        }
+
+        /* Destination max value for Relu is equal to its source max value,
+         * so we can control overflows if we know only destination statistics
+         */
+        if (!quantizedParams->_dst_quant.IsStatsSet() && quantizedParams->_src_quant.IsStatsSet() && layer.isRelu()) {
+            auto maxInValue = quantizedParams->_src_quant.GetMaxValues().front();
+            auto limit = (inputsSize == 1 ? std::numeric_limits<int8_t>::max() : std::numeric_limits<int16_t>::max()) - 1;
+            if (result * maxInValue > limit) {
+                result = limit / maxInValue;
             }
         }
 

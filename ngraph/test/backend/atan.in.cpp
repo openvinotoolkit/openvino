@@ -31,7 +31,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, atan)
+NGRAPH_TEST(${BACKEND_NAME}, atan_float)
 {
     Shape shape{11};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -51,5 +51,18 @@ NGRAPH_TEST(${BACKEND_NAME}, atan)
                                           0.78539816f,
                                           1.10714872f,
                                           1.32581766f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, atan_int)
+{
+    Shape shape{5};
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto f = make_shared<Function>(make_shared<op::Atan>(A), ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int32_t>({-2, -1, 0, 1, 2});
+    test_case.add_expected_output<int32_t>(shape,
+                                         {-1, -1, 0, 1, 1});
     test_case.run();
 }

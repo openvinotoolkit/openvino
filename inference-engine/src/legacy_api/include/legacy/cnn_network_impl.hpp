@@ -28,7 +28,6 @@ IE_SUPPRESS_DEPRECATED_START
 class CNNNetworkImpl final : public ICNNNetwork {
 public:
     CNNNetworkImpl();
-    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl);
     explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl);
     ~CNNNetworkImpl();
 

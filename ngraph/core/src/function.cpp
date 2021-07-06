@@ -528,6 +528,10 @@ bool Function::evaluate(const HostTensorVector& output_tensors,
         output_tensor_map[result] = output_tensors.at(i);
         outputs.push_back(result);
     }
+    for (const auto& m_sink : m_sinks)
+    {
+        outputs.push_back(m_sink);
+    }
     evaluate_nodes(value_map, output_tensor_map, outputs, evaluation_context);
     return true;
 }

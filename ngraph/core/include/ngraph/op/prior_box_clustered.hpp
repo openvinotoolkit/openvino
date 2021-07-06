@@ -35,8 +35,8 @@ namespace ngraph
             class NGRAPH_API PriorBoxClustered : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"PriorBoxClustered", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 PriorBoxClustered() = default;
                 /// \brief Constructs a PriorBoxClustered operation
                 ///
@@ -54,6 +54,7 @@ namespace ngraph
                 virtual bool visit_attributes(AttributeVisitor& visitor) override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 PriorBoxClusteredAttrs m_attrs;

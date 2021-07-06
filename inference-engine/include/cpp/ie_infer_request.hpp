@@ -22,6 +22,10 @@ namespace InferenceEngine {
 
 class IInferRequestInternal;
 
+namespace details {
+class ICompletionCallbackWrapper;
+}  // namespace details
+
 /**
  * @copybrief IInferRequest
  *
@@ -29,8 +33,8 @@ class IInferRequestInternal;
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 class INFERENCE_ENGINE_API_CLASS(InferRequest) {
-    details::SharedObjectLoader              _so;
-    std::shared_ptr<IInferRequestInternal>   _impl;
+    details::SharedObjectLoader                          _so;
+    std::shared_ptr<IInferRequestInternal>               _impl;
 
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr
@@ -217,8 +221,23 @@ public:
      * @return true if current InferRequest object is initialized, false - otherwise
      */
     explicit operator bool() const noexcept;
+
+    /**
+     * @brief Compares whether this request wraps the same impl underneath
+     * @return true if current InferRequest object doesn't wrap the same impl as the operator's arg
+     */
+    bool operator!=(const InferRequest&) const noexcept;
+
+    /**
+     * @brief Compares whether this request wraps the same impl underneath
+     * @return true if current InferRequest object wraps the same impl as the operator's arg
+     */
+    bool operator==(const InferRequest&) const noexcept;
 };
 
+/**
+ * @private
+ */
 template<>
 struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> {
     void operator()(std::function<void(InferRequest, StatusCode)> f) {
@@ -229,6 +248,9 @@ struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> 
 
 IE_SUPPRESS_DEPRECATED_START
 
+/**
+ * @private
+ */
 template<>
 struct InferRequest::SetCallback<IInferRequest::CompletionCallback> {
     void operator()(IInferRequest::CompletionCallback f) {

@@ -12,7 +12,7 @@ using namespace testing;
 //
 //----------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(tricky_ncdhw_userpad, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(tricky_ncdhw_userpad, myriadLayersConvNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 19, 65, 47}),
         Values(KernelShape {1, 3, 5}),
@@ -26,7 +26,7 @@ INSTANTIATE_TEST_CASE_P(tricky_ncdhw_userpad, myriadLayersConvNDTest_smoke,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(tricky_ncdhw_autopad, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(tricky_ncdhw_autopad, myriadLayersConvNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 19, 65, 47}),
         Values(KernelShape {1, 3, 5}),
@@ -48,7 +48,7 @@ INSTANTIATE_TEST_CASE_P(tricky_ncdhw_autopad, myriadLayersConvNDTest_smoke,
 //
 //----------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(simple_ncdhw_userpad, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(simple_ncdhw_userpad, myriadLayersConvNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 20, 64, 48}),
         Values(KernelShape {3, 3, 3}),
@@ -62,7 +62,7 @@ INSTANTIATE_TEST_CASE_P(simple_ncdhw_userpad, myriadLayersConvNDTest_smoke,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(simple_ncdhw_autopad, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(simple_ncdhw_autopad, myriadLayersConvNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 20, 64, 48}),
         Values(KernelShape {3, 3, 3}),
@@ -84,7 +84,7 @@ INSTANTIATE_TEST_CASE_P(simple_ncdhw_autopad, myriadLayersConvNDTest_smoke,
 //
 //----------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(tricky_nchw_userpad, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(tricky_nchw_userpad, myriadLayersConvNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 65, 47}),
         Values(KernelShape {1, 3}),
@@ -98,7 +98,7 @@ INSTANTIATE_TEST_CASE_P(tricky_nchw_userpad, myriadLayersConvNDTest_smoke,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(tricky_nchw_autopad, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(tricky_nchw_autopad, myriadLayersConvNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 65, 47}),
         Values(KernelShape {1, 3}),
@@ -120,7 +120,7 @@ INSTANTIATE_TEST_CASE_P(tricky_nchw_autopad, myriadLayersConvNDTest_smoke,
 //
 //----------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(simple_nchw_userpad, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(simple_nchw_userpad, myriadLayersConvNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 64, 48}),
         Values(KernelShape {3, 3}),
@@ -134,7 +134,7 @@ INSTANTIATE_TEST_CASE_P(simple_nchw_userpad, myriadLayersConvNDTest_smoke,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(simple_nchw_autopad, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(simple_nchw_autopad, myriadLayersConvNDTest_smoke,
     Combine(
         Values(InputShape {1, 3, 64, 48}),
         Values(KernelShape {3, 3}),
@@ -158,7 +158,7 @@ INSTANTIATE_TEST_CASE_P(simple_nchw_autopad, myriadLayersConvNDTest_smoke,
 
 // NB: requires 1GB of RAM on device (e.g. ma2085 board)
 // Stress test: large image with large depth, large kernel
-INSTANTIATE_TEST_CASE_P(i3d_id6, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(i3d_id6, myriadLayersConvNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 3, 79, 224, 224}),
                                 Values(KernelShape {7, 7, 7}),
@@ -171,7 +171,7 @@ INSTANTIATE_TEST_CASE_P(i3d_id6, myriadLayersConvNDTest_smoke,
                                 Values(Groups(1))));
 
 // Like `i3d_id6` test but with smaller image (so must fit in Myriad X)
-INSTANTIATE_TEST_CASE_P(i3d_id6_shrink, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(i3d_id6_shrink, myriadLayersConvNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 3, 39, 112, 112}),
                                 Values(KernelShape {7, 7, 7}),
@@ -184,7 +184,7 @@ INSTANTIATE_TEST_CASE_P(i3d_id6_shrink, myriadLayersConvNDTest_smoke,
                                 Values(Groups(1))));
 
 // Average-size image, trivial kernel 1x1x1
-INSTANTIATE_TEST_CASE_P(i3d_id12, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(i3d_id12, myriadLayersConvNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 64, 40, 56, 56}),
                                 Values(KernelShape {1, 1, 1}),
@@ -197,7 +197,7 @@ INSTANTIATE_TEST_CASE_P(i3d_id12, myriadLayersConvNDTest_smoke,
                                 Values(Groups(1))));
 
 // Average-size image, non-trivial kernel 3x3x3
-INSTANTIATE_TEST_CASE_P(i3d_id17, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(i3d_id17, myriadLayersConvNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 64, 40, 56, 56}),
                                 Values(KernelShape {3, 3, 3}),
@@ -210,7 +210,7 @@ INSTANTIATE_TEST_CASE_P(i3d_id17, myriadLayersConvNDTest_smoke,
                                 Values(Groups(1))));
 
 // Small image (7x7), trivial kernel
-INSTANTIATE_TEST_CASE_P(i3d_id249, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(i3d_id249, myriadLayersConvNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 832, 10, 7, 7}),
                                 Values(KernelShape {1, 1, 1}),
@@ -223,7 +223,7 @@ INSTANTIATE_TEST_CASE_P(i3d_id249, myriadLayersConvNDTest_smoke,
                                 Values(Groups(1))));
 
 // Small image (7x7), non-trivial kernel
-INSTANTIATE_TEST_CASE_P(i3d_id301, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(i3d_id301, myriadLayersConvNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 48, 10, 7, 7}),
                                 Values(KernelShape {3, 3, 3}),
@@ -236,7 +236,7 @@ INSTANTIATE_TEST_CASE_P(i3d_id301, myriadLayersConvNDTest_smoke,
                                 Values(Groups(1))));
 
 // Trivial image (1x1), trivial kernel
-INSTANTIATE_TEST_CASE_P(i3d_id314, myriadLayersConvNDTest_smoke,
+INSTANTIATE_TEST_SUITE_P(i3d_id314, myriadLayersConvNDTest_smoke,
                         Combine(
                                 Values(InputShape {1, 1024, 9, 1, 1}),
                                 Values(KernelShape {1, 1, 1}),

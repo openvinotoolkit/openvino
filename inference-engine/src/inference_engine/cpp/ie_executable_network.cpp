@@ -5,26 +5,25 @@
 #include "ie_common.h"
 
 #include "cpp/ie_executable_network.hpp"
+#include "cpp/exception2status.hpp"
 #include "ie_executable_network_base.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 
 namespace InferenceEngine {
 
 #define EXEC_NET_CALL_STATEMENT(...)                                                               \
-    if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";                   \
+    if (_impl == nullptr) IE_THROW(NotAllocated) << "ExecutableNetwork was not initialized.";      \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
-    } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
-        IE_THROW() << ex.what();                                                                   \
-    } catch (...) {                                                                                \
-        IE_THROW(Unexpected);                                                                      \
-    }
+    } catch(...) {details::Rethrow();}
 
 ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader&      so,
                                      const IExecutableNetworkInternal::Ptr&  impl)
     : _so(so), _impl(impl) {
     IE_ASSERT(_impl != nullptr);
 }
+
+IE_SUPPRESS_DEPRECATED_START
 
 ConstOutputsDataMap ExecutableNetwork::GetOutputsInfo() const {
     EXEC_NET_CALL_STATEMENT(return _impl->GetOutputsInfo());
@@ -33,8 +32,6 @@ ConstOutputsDataMap ExecutableNetwork::GetOutputsInfo() const {
 ConstInputsDataMap ExecutableNetwork::GetInputsInfo() const {
     EXEC_NET_CALL_STATEMENT(return _impl->GetInputsInfo());
 }
-
-IE_SUPPRESS_DEPRECATED_START
 
 void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
     if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";
@@ -59,14 +56,12 @@ std::vector<VariableState> ExecutableNetwork::QueryState() {
     return controller;
 }
 
-IE_SUPPRESS_DEPRECATED_END
-
 InferRequest ExecutableNetwork::CreateInferRequest() {
     EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
 }
 
 InferRequest::Ptr ExecutableNetwork::CreateInferRequestPtr() {
-    EXEC_NET_CALL_STATEMENT(return std::make_shared<InferRequest>(CreateInferRequest()));
+    return std::make_shared<InferRequest>(CreateInferRequest());
 }
 
 void ExecutableNetwork::Export(const std::string& modelFileName) {

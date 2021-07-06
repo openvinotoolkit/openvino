@@ -8,6 +8,8 @@
 #include <iomanip>
 
 #include <vpu/utils/io.hpp>
+#include <vpu/configuration/options/log_level.hpp>
+#include <vpu/configuration/options/copy_optimization.hpp>
 
 namespace vpu {
 
@@ -158,6 +160,18 @@ void TestModel::setStageBatchInfo(
     }
 }
 
+PluginConfiguration createConfiguration() {
+    PluginConfiguration configuration;
+    configuration.registerOption<LogLevelOption>();
+    configuration.registerOption<CopyOptimizationOption>();
+
+IE_SUPPRESS_DEPRECATED_START
+    configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+IE_SUPPRESS_DEPRECATED_END
+
+    return configuration;
+}
+
 void GraphTransformerTest::SetUp() {
     ASSERT_NO_FATAL_FAILURE(TestsCommon::SetUp());
 
@@ -167,9 +181,11 @@ void GraphTransformerTest::SetUp() {
         consoleOutput());
 
     stageBuilder = std::make_shared<StageBuilder>();
-    frontEnd = std::make_shared<FrontEnd>(stageBuilder, &_mockCore);
+    frontEnd = std::make_shared<FrontEnd>(stageBuilder, _mockCore);
     backEnd = std::make_shared<BackEnd>();
     passManager = std::make_shared<PassManager>(stageBuilder, backEnd);
+
+    config = createConfiguration();
 }
 
 void GraphTransformerTest::TearDown() {
@@ -186,13 +202,13 @@ void GraphTransformerTest::TearDown() {
 
 void GraphTransformerTest::InitCompileEnv() {
     if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_FILE_NAME")) {
-        config.dumpInternalGraphFileName = envVar;
+        config.compileConfig().dumpInternalGraphFileName = envVar;
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_DIRECTORY")) {
-        config.dumpInternalGraphDirectory = envVar;
+        config.compileConfig().dumpInternalGraphDirectory = envVar;
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_ALL_PASSES")) {
-        config.dumpAllPasses = std::stoi(envVar) != 0;
+        config.compileConfig().dumpAllPasses = std::stoi(envVar) != 0;
     }
 
     CompileEnv::init(platform, config, _log);

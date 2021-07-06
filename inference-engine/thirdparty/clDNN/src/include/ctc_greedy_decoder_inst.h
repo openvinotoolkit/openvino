@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/ctc_greedy_decoder.hpp"
+#include "cldnn/primitives/ctc_greedy_decoder.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

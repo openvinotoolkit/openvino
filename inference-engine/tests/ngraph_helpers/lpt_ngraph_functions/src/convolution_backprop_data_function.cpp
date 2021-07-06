@@ -38,6 +38,7 @@ std::shared_ptr<Function> ConvolutionBackpropDataFunction::get(
         CoordinateDiff{ 0, 0 },
         CoordinateDiff{ 0, 0 },
         Strides{ 1, 1 });
+    convolutionBackpropData->set_friendly_name("convolutionBackpropData");
 
     ngraph::ResultVector results{ std::make_shared<opset1::Result>(convolutionBackpropData) };
     return std::make_shared<ngraph::Function>(results, ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
@@ -91,7 +92,7 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
 std::shared_ptr<Function> ConvolutionBackpropDataFunction::getOriginal(
     const element::Type precision,
     const element::Type netPrecision,
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::DequantizationOperations& dequantization,
     const std::shared_ptr<Node>& weights) {
@@ -116,7 +117,7 @@ std::shared_ptr<Function> ConvolutionBackpropDataFunction::getOriginal(
 std::shared_ptr<Function>  ConvolutionBackpropDataFunction::getReference(
     const element::Type precision,
     const element::Type netPrecision,
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::DequantizationOperations& dequantization,
     const std::shared_ptr<Node>& weights,

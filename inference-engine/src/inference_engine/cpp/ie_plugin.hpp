@@ -27,11 +27,7 @@
     if (!_ptr) IE_THROW() << "Wrapper used in the PLUGIN_CALL_STATEMENT was not initialized.";    \
     try {                                                                                         \
         __VA_ARGS__;                                                                              \
-    } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                      \
-        IE_THROW() << ex.what();                                                                  \
-    } catch (...) {                                                                               \
-        IE_THROW(Unexpected);                                                                     \
-    }
+    } catch(...) {details::Rethrow();}
 
 namespace InferenceEngine {
 /**
@@ -48,7 +44,7 @@ public:
         PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
 
-    void SetCore(ICore* core) {
+    void SetCore(std::weak_ptr<InferenceEngine::ICore> core) {
         PLUGIN_CALL_STATEMENT(_ptr->SetCore(core));
     }
 
@@ -56,7 +52,7 @@ public:
         PLUGIN_CALL_STATEMENT(return _ptr->GetVersion());
     }
 
-    void AddExtension(InferenceEngine::IExtensionPtr extension) {
+    void AddExtension(const InferenceEngine::IExtensionPtr& extension) {
         PLUGIN_CALL_STATEMENT(_ptr->AddExtension(extension));
     }
 
@@ -68,7 +64,9 @@ public:
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config)});
     }
 
-    details::SOPointer<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
+    details::SOPointer<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
+                                                               const std::shared_ptr<RemoteContext>& context,
+                                                               const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
     }
 
@@ -85,7 +83,7 @@ public:
     }
 
     details::SOPointer<IExecutableNetworkInternal> ImportNetwork(const std::string& modelFileName,
-                                    const std::map<std::string, std::string>& config) {
+                                                                 const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(modelFileName, config)});
     }
 
@@ -95,8 +93,8 @@ public:
     }
 
     details::SOPointer<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
-                                    const RemoteContext::Ptr& context,
-                                    const std::map<std::string, std::string>& config) {
+                                                                 const std::shared_ptr<RemoteContext>& context,
+                                                                 const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
     }
 
@@ -104,11 +102,11 @@ public:
         PLUGIN_CALL_STATEMENT(return _ptr->GetMetric(name, options));
     }
 
-    RemoteContext::Ptr CreateContext(const ParamMap& params) {
+    std::shared_ptr<RemoteContext> CreateContext(const ParamMap& params) {
         PLUGIN_CALL_STATEMENT(return _ptr->CreateContext(params));
     }
 
-    RemoteContext::Ptr GetDefaultContext(const ParamMap& params) {
+    std::shared_ptr<RemoteContext> GetDefaultContext(const ParamMap& params) {
         PLUGIN_CALL_STATEMENT(return _ptr->GetDefaultContext(params));
     }
 

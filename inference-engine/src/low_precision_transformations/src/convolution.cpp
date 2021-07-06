@@ -87,17 +87,17 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
             // Insert explicit broadcast for channel dimension [1] and immediately fold it
             Shape broadcastShape(subtract->get_output_partial_shape(0).rank().get_length(), 1);
-            broadcastShape[1] = subtract->get_output_shape(0)[1];
+            broadcastShape[1] = subtract->get_output_partial_shape(0)[1].get_length();
 
             std::shared_ptr<Node> newShift = fold<opset1::Broadcast>(
-                subtract->input_value(1).get_node_shared_ptr(),
+                subtract->input_value(1),
                 std::make_shared<opset1::Constant>(
                     element::i64,
                     Shape{ length },
                     broadcastShape));
 
             const auto newSubtract = as_type_ptr<opset1::Subtract>(subtract->clone_with_new_inputs({
-                subtract->input_value(0).get_node_shared_ptr(),
+                subtract->input_value(0),
                 newShift }));
             NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
@@ -115,12 +115,12 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             if (scales.size() == 1ul) {
                 newMultiplyAfterConst = dequantization.multiply->input_value(1).get_node_shared_ptr()->clone_with_new_inputs({});
             } else {
-                const ngraph::Shape inputShape = convolution->get_input_shape(0);
-                const size_t inputChannelsInGroup = inputShape[1] / groupsCount;
-                const ngraph::Shape outputShape = convolution->get_output_shape(0);
-                std::vector<float> outputScales(outputShape[1]);
+                const ngraph::PartialShape inputPShape = convolution->get_input_partial_shape(0);
+                const size_t inputChannelsInGroup = inputPShape[1].get_length() / groupsCount;
+                const ngraph::PartialShape outputPShape = convolution->get_output_partial_shape(0);
+                std::vector<float> outputScales(outputPShape[1].get_length());
 
-                const size_t outputChannelsInGroup = outputShape[1] / groupsCount;
+                const size_t outputChannelsInGroup = outputPShape[1].get_length() / groupsCount;
                 for (size_t group = 0; group < groupsCount; ++group) {
                     const float scaleValue = scales[group * inputChannelsInGroup];
 
@@ -130,8 +130,9 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                     }
                 }
 
+                const size_t outRank = outputPShape.rank().get_length();
                 auto newMulShape = Shape{ outputScales.size() };
-                for (size_t i = 0; i < convolution->get_output_shape(0).size() - 2; ++i) {
+                for (size_t i = 0; i < outRank - 2; ++i) {
                     newMulShape.push_back(1ul);
                 }
 
@@ -176,7 +177,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         if (is_type<opset1::Convert>(convolution->get_input_node_ptr(0))) {
             auto newConvolution = convolution->clone_with_new_inputs({
                 convolution->get_input_node_ptr(0)->get_input_source_output(0),
-                convolution->get_input_node_shared_ptr(1) });
+                convolution->input_value(1)});
             replace_node(convolution, newConvolution);
             convolution = newConvolution;
         }
@@ -249,7 +250,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 zeroPointShape[0] = weightsShape[0];
 
                 auto zeroPointConstant = fold<opset1::Broadcast>(
-                    subtractFromWeights->get_input_node_shared_ptr(1),
+                    subtractFromWeights->input_value(1),
                     std::make_shared<opset1::Constant>(element::i32, Shape{ zeroPointShape.size() }, zeroPointShape));
                 NetworkHelper::copyInfo(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
                 replace_node(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
@@ -266,7 +267,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             auto newConvolution = convolution->clone_with_new_inputs({
                 convolution->get_input_source_output(0),
                 childNode.get() == convolution.get() ?
-                    convolution->get_input_node_ptr(1)->get_input_node_shared_ptr(0) :
+                    convolution->get_input_node_ptr(1)->input_value(0) :
                     childNode->copy_with_new_inputs({convertFromWeights->input_value(0), childNode->input_value(1)})});
             replace_node(convolution, newConvolution);
             convolution = newConvolution;

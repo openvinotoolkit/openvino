@@ -41,18 +41,6 @@ using details::CNNNetworkNGraphImpl;
 using InferenceEngine::details::CNNNetworkNGraphImpl;
 using ngraph::Function;
 
-static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<const ngraph::Function>& func,
-                                                      bool constFolding) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "copyFunction");
-
-    auto specialized_function = ngraph::clone_function(*func);
-
-    if (constFolding) {
-        ngraph::pass::ConstantFolding().run_on_function(specialized_function);
-    }
-    return specialized_function;
-}
-
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName,
                                                DataPtr& ptr) {
     const auto isCompatible = [](size_t size, const Layout& l) -> bool {
@@ -120,7 +108,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
     const std::shared_ptr<Function>& nGraph,
     const std::vector<IExtensionPtr>& exts)
     : _ngraph_function(nGraph), _ie_extensions(exts) {
-    // Restore usual attributes for ICNNNetwork
+    // Restore usual attributes for CNNNetwork
     auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
         info->setInputData(inData);
@@ -166,12 +154,13 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     IE_SUPPRESS_DEPRECATED_START
     const ICNNNetwork& iNetwork = network;
+    IE_SUPPRESS_DEPRECATED_END
     const auto net = dynamic_cast<const CNNNetworkNGraphImpl*>(&iNetwork);
     if (network.getFunction() == nullptr || !net) {
         IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
-    _ngraph_function = copyFunction(network.getFunction(), false);
+    _ngraph_function = ngraph::clone_function(*network.getFunction());
     validateFunctionNames();
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
@@ -195,7 +184,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         info->setLayout(inputInfo.second->getLayout());
         _inputData[name] = info;
     }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 void CNNNetworkNGraphImpl::setInputInfo(InputInfo::Ptr data) {
@@ -314,10 +302,6 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     return 1;
 }
 
-std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool constFolding) const {
-    return copyFunction(_ngraph_function, constFolding);
-}
-
 void CNNNetworkNGraphImpl::reshape() {
     reshape({});
 }
@@ -325,29 +309,43 @@ void CNNNetworkNGraphImpl::reshape() {
 StatusCode
 CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                               ResponseDesc* responseDesc) noexcept {
+    if (inputShapes.empty()) return OK;
+
+    const auto & params = _ngraph_function->get_parameters();
+
+    // Check that we need to do reshape only if input shapes will be changed
+    bool needReshape = false;
+    for (const auto & param : params) {
+        const auto it = inputShapes.find(param->get_friendly_name());
+        if (it == inputShapes.end()) {
+            continue;
+        }
+        if (param->get_partial_shape().is_dynamic() || param->get_shape() != it->second) {
+            needReshape = true;
+            break;
+        }
+    }
+
+    if (!needReshape) return OK;
+
+    // save original parameters shape
+    std::map<std::string, ngraph::PartialShape> originalInputShapes;
+    for (const auto & param : params) {
+        originalInputShapes[param->get_friendly_name()] = param->get_partial_shape();
+    }
+
     try {
-        auto params = _ngraph_function->get_parameters();
+        ngraph::pass::Manager ssr_manager;
+        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+        ssr_manager.run_passes(_ngraph_function);
 
-        // Check that we need to do reshape only if input shapes will be changed
-        bool needReshape = false;
-        for (size_t i = 0; i < params.size() && !inputShapes.empty(); i++) {
-            const auto& param = params[i];
-            auto it = inputShapes.find(param->get_friendly_name());
-            if (it == inputShapes.end())
-                continue;
-            if (param->get_partial_shape().is_dynamic() || param->get_shape() != it->second) {
-                needReshape = true;
-                break;
-            }
+        std::map<std::string, ngraph::PartialShape> reshapeShapes;
+        for (const auto & item : inputShapes) {
+            reshapeShapes[item.first] = ngraph::PartialShape(item.second);
         }
-        if (needReshape) {
-            ngraph::pass::Manager ssr_manager;
-            ssr_manager.register_pass<ngraph::pass::SmartReshape>();
-            ssr_manager.run_passes(_ngraph_function);
-
-            reshape(inputShapes);
-        }
+        reshape(reshapeShapes);
     } catch (std::exception& ex) {
+        reshape(originalInputShapes);
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
     }
 
@@ -355,7 +353,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 }
 
 void
-CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes) {
+CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();
@@ -384,7 +382,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         if (outputs_are_static) {
             specialized_ngraph_function = _ngraph_function;
         } else {
-            specialized_ngraph_function = cloneFunction(false);
+            specialized_ngraph_function = ngraph::clone_function(*_ngraph_function);
             {
                 OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
                 // TODO: remove this code on 2022.x once we introduce new API with new behavior

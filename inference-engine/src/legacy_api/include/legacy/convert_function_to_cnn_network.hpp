@@ -20,11 +20,11 @@ namespace details {
 
 std::shared_ptr<CNNNetworkImpl>
 convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                             const ICNNNetwork &network, bool keep_constant_inputs = false);
+                             const CNNNetwork &network, bool keep_constant_inputs = false);
 
 void
 convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                             const ICNNNetwork &ngraphNetwork,
+                             const CNNNetwork &ngraphNetwork,
                              CNNNetworkImpl* cnnNetworkImpl,
                              bool keep_constant_inputs = false);
 
@@ -53,7 +53,8 @@ private:
 
 enum BlobType {
     weights,
-    biases };
+    biases
+};
 
 inline Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& constLayer) {
     if (!constLayer) IE_THROW() << "Cannot share weights! Constant operation is empty!";
