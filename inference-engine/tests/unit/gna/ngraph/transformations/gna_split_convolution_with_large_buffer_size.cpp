@@ -30,7 +30,7 @@ std::shared_ptr<ngraph::Function> Graph::createFunction() {
 
 // TODO: use std::make_unique when C++14 will be available
 template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args) {
+std::unique_ptr<T> createUnique(Args&&... args) {
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
@@ -212,14 +212,14 @@ void CreateConcat::updateGraph(Graph& graph)
 
 template<typename DecorT, typename... DecorTs>
 auto createBuildDecorator() -> typename std::enable_if<(sizeof...(DecorTs) == 0), CreateGraphDecoratorPtr>::type {
-    CreateGraphDecoratorPtr build_decorator = make_unique<CreateBaseDecorator>();
-    return make_unique<DecorT>(std::move(build_decorator));
+    CreateGraphDecoratorPtr build_decorator = createUnique<CreateBaseDecorator>();
+    return createUnique<DecorT>(std::move(build_decorator));
 }
 
 template<typename DecorT, typename... DecorTs>
 auto createBuildDecorator() -> typename std::enable_if<(sizeof...(DecorTs) > 0), CreateGraphDecoratorPtr>::type {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator<DecorTs...>();
-    return make_unique<DecorT>(std::move(build_decorator));
+    return createUnique<DecorT>(std::move(build_decorator));
 }
 
 template<typename DecorT, typename... DecorTs>
@@ -229,8 +229,8 @@ Graph createGraph() {
 }
 
 CreateGraphDecoratorPtr createBuildDecorator(const ngraph::Shape& input_shape, const ngraph::Shape& kernel_shape) {
-    CreateGraphDecoratorPtr base_decorator = make_unique<CreateBaseDecorator>(input_shape);
-    return make_unique<CreateConvolution>(std::move(base_decorator), kernel_shape);
+    CreateGraphDecoratorPtr base_decorator = createUnique<CreateBaseDecorator>(input_shape);
+    return createUnique<CreateConvolution>(std::move(base_decorator), kernel_shape);
 }
 
 template<typename DecorT, typename... DecorTs>
@@ -238,7 +238,7 @@ auto createBuildDecorator(const ngraph::Shape& input_shape,
                                              const ngraph::Shape& kernel_shape) 
                                                 -> typename std::enable_if<(sizeof...(DecorTs) == 0), CreateGraphDecoratorPtr>::type {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator(input_shape, kernel_shape);
-    return make_unique<DecorT>(std::move(build_decorator));
+    return createUnique<DecorT>(std::move(build_decorator));
 }
 
 template<typename DecorT, typename... DecorTs>
@@ -246,7 +246,7 @@ auto createBuildDecorator(const ngraph::Shape& input_shape,
                                              const ngraph::Shape& kernel_shape) 
                                                 -> typename std::enable_if<(sizeof...(DecorTs) > 0), CreateGraphDecoratorPtr>::type {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator<DecorTs...>(input_shape, kernel_shape);
-    return make_unique<DecorT>(std::move(build_decorator));
+    return createUnique<DecorT>(std::move(build_decorator));
 }
 
 Graph createSolidGraph(const ngraph::Shape& input_shape, const ngraph::Shape& kernel_shape) {
