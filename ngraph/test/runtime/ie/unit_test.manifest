@@ -911,6 +911,46 @@ non_zero
 non_zero_all_1s
 non_zero_all_0s
 
+# NormalizeL2 - Plugins support normalize over "channel" dimension
+# or "channel + all spatial" dimensions for 2D, 3D or 4D cases
+# Ticket: TBA
+normalize_l2_1D_axes_empty_add
+normalize_l2_1D_axes_empty_max
+normalize_l2_1D_axes_0_add
+normalize_l2_1D_axes_0_max
+normalize_l2_2D_axes_0_add
+normalize_l2_2D_axes_0_max
+normalize_l2_2D_axes_01_add
+normalize_l2_2D_axes_01_max
+normalize_l2_3D_axes_2_add
+normalize_l2_3D_axes_2_max
+normalize_l2_4D_axes_0_max
+normalize_l2_4D_axes_0_add
+normalize_l2_4D_axes_2_max
+normalize_l2_4D_axes_2_add
+normalize_l2_4D_axes_3_max
+normalize_l2_4D_axes_3_add
+normalize_l2_4D_axes_23_max
+normalize_l2_4D_axes_23_add
+normalize_l2_4D_axes_unsorted_312_max
+normalize_l2_4D_axes_unsorted_312_add
+normalize_l2_4D_axes_0123_max
+normalize_l2_4D_axes_0123_add
+normalize_l2_5D_axes_empty_max
+normalize_l2_5D_axes_empty_add
+normalize_l2_5D_axes_1_max
+normalize_l2_5D_axes_1_add
+normalize_l2_5D_axes_2_max
+normalize_l2_5D_axes_2_add
+normalize_l2_5D_axes_3_max
+normalize_l2_5D_axes_3_add
+normalize_l2_5D_axes_4_max
+normalize_l2_5D_axes_4_add
+normalize_l2_5D_axes_34_max
+normalize_l2_5D_axes_34_add
+normalize_l2_5D_axes_234_max
+normalize_l2_5D_axes_234_add
+
 # (Constant W, R inputs are required) Ticket: 49207
 # W, R inputs as Parameter, default clip value
 # Operation has a form that is not supported.
