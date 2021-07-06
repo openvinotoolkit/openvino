@@ -122,14 +122,19 @@ namespace
             {
                 for (int64_t iy = 0; iy < iy_upper; iy++)
                 {
+                    std::cout << "                        iy: " << iy << "\n";
                     const T yy = roi_start_h + static_cast<T>(ph) * bin_size_h +
-                                 static_cast<T>(static_cast<T>(iy) + 0.5f) * bin_size_h /
+                                 static_cast<T>(static_cast<T>(iy) + static_cast<T>(0.5f)) * bin_size_h /
                                      static_cast<T>(roi_bin_grid_h);
+                    std::cout << "                        yy: " << yy << "\n";
+                    std::cout << "                        Loop with respect to ix in range(0, ix_upper)\n";
                     for (int64_t ix = 0; ix < ix_upper; ix++)
                     {
+                        std::cout << "                            ix: " << ix << "\n";
                         const T xx =
-                            roi_start_w + pw * bin_size_w +
-                            static_cast<T>(ix + 0.5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                            roi_start_w + static_cast<T>(pw) * bin_size_w +
+                            static_cast<T>(static_cast<T>(ix) + static_cast<T>(0.5f)) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                        std::cout << "                            xx: " << xx << "\n";
 
                         T x = xx;
                         T y = yy;
@@ -311,7 +316,7 @@ namespace
             // this is the key point of optimization
             std::vector<PreCalc<T>> pre_calc(roi_bin_grid_h * roi_bin_grid_w * pooled_width *
                                              pooled_height);
-            pre_calc_for_bilinear_interpolate(height,
+            pre_calc_for_bilinear_interpolate<T>(height,
                                               width,
                                               pooled_height,
                                               pooled_width,
