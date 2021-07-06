@@ -16,23 +16,29 @@ const char *debug_configuration::prefix = "GPU_Debug: ";
 static void print_option(std::string option_name, std::string option_value) {
     GPU_DEBUG_COUT << "Config " << option_name << " = " << option_value << std::endl;
 }
+
+static void get_int_env(const std::string &var, int &val) {
+    if (const auto env_var = std::getenv(var.c_str())) {
+        val = std::stoi(env_var);
+        print_option(var, std::to_string(val));
+    }
+}
+
+static void get_str_env(const std::string &var, std::string &val) {
+    if (const auto env_var = std::getenv(var.c_str())) {
+        val = env_var;
+        print_option(var, val);
+    }
+}
+
 #endif
 
 debug_configuration::debug_configuration()
         : verbose(0)
         , dump_graphs(std::string()) {
 #ifdef GPU_DEBUG_CONFIG
-    const std::string OV_GPU_VERBOSE("OV_GPU_Verbose");
-    const std::string OV_GPU_DUMP_GRAPHS("OV_GPU_DumpGraphs");
-    if (const auto env_var = std::getenv(OV_GPU_VERBOSE.c_str())) {
-        verbose = std::stoi(env_var);
-        print_option(OV_GPU_VERBOSE, std::to_string(verbose));
-    }
-
-    if (const auto env_var = std::getenv(OV_GPU_DUMP_GRAPHS.c_str())) {
-        dump_graphs = env_var;
-        print_option(OV_GPU_DUMP_GRAPHS, dump_graphs);
-    }
+    get_int_env("OV_GPU_Verbose", verbose);
+    get_str_env("OV_GPU_DumpGraphs", dump_graphs);
 #endif
 }
 
