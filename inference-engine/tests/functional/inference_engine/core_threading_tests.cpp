@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_core.hpp>
-#include <details/ie_exception.hpp>
 #include <ie_plugin_config.hpp>
 #include <ie_extension.h>
 
@@ -21,8 +20,16 @@
 #include <fstream>
 
 class CoreThreadingTests : public ::testing::Test {
+protected:
+    std::string modelName = "CoreThreadingTests.xml", weightsName = "CoreThreadingTests.bin";
+
 public:
     void SetUp() override {
+        FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
+    }
+
+    void TearDown() override {
+        CommonTestUtils::removeIRFiles(modelName, weightsName);
     }
 
     void runParallel(std::function<void(void)> func,
@@ -46,11 +53,11 @@ public:
 
     void safeAddExtension(InferenceEngine::Core & ie) {
         try {
-            auto extension = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
+            auto extension = std::make_shared<InferenceEngine::Extension>(
                 FileUtils::makePluginLibraryName<char>({},
                     std::string("template_extension") + IE_BUILD_POSTFIX));
             ie.AddExtension(extension);
-        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        } catch (const InferenceEngine::Exception & ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
         }
     }
@@ -109,7 +116,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
     runParallel([&] () {
         std::string fileName, deviceName;
-        std:tie(fileName, deviceName) = getPluginXml();
+        std::tie(fileName, deviceName) = getPluginXml();
         ie.RegisterPlugins(fileName);
         ie.GetVersions(deviceName);
         ASSERT_EQ(0, std::remove(fileName.c_str()));
@@ -127,7 +134,7 @@ TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
         for (auto && deviceName : devices) {
             try {
                 ie.UnregisterPlugin(deviceName);
-            } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+            } catch (const InferenceEngine::Exception & ex) {
                 // if several threads unload plugin at once, the first thread does this
                 // while all others will throw an exception that plugin is not registered
                 ASSERT_STR_CONTAINS(ex.what(), "name is not registered in the");
@@ -139,11 +146,10 @@ TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
 // tested function: ReadNetwork, AddExtension
 TEST_F(CoreThreadingTests, ReadNetwork) {
     InferenceEngine::Core ie;
-    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
-    auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+    auto network = ie.ReadNetwork(modelName, weightsName);
 
     runParallel([&] () {
         safeAddExtension(ie);
-        (void)ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+        (void)ie.ReadNetwork(modelName, weightsName);
     }, 100, 12);
 }

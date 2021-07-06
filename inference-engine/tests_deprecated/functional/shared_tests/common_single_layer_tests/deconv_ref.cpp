@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <precision_utils.h>
 #include <gtest/gtest.h>
 #include "deconv_ref.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 using namespace InferenceEngine;
 
@@ -19,7 +19,7 @@ void ref_deconv_common(const std::vector<InferenceEngine::Blob::Ptr> srcs,
                        size_t bias_size,
                        const CommonTestUtils::conv_common_params &prm) {
     if (srcs[0]->getTensorDesc().getLayout() != Layout::NCHW)
-        THROW_IE_EXCEPTION << "Reference FP32 convolution supports NCHW layout only";
+        IE_THROW() << "Reference FP32 convolution supports NCHW layout only";
 
     size_t KH = prm.kernel[Y_AXIS];
     size_t KW = prm.kernel[X_AXIS];

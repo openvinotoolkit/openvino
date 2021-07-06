@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "permute_kernel_base.h"
 #include "kernel_selector_utils.h"
 
@@ -33,10 +37,10 @@ KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const option
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     return {kd};
 }
-}
+}  // namespace kernel_selector

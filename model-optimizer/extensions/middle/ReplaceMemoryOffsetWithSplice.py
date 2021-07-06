@@ -1,28 +1,15 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
-import logging as log
 
-from extensions.front.kaldi.replace_lstm_node_pattern import create_zero_value_with_batch_from_input
 from extensions.ops.splice import Splice
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.assign import Assign
 from mo.ops.concat import Concat
+from mo.ops.const import Const
 from mo.ops.crop import Crop
 from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
@@ -38,6 +25,10 @@ class ReplaceMemoryOffsetNodePattern(MiddleReplacementPattern):
     def run_before(self):
         from extensions.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern
         return [RemoveMemoryDuplicationPattern]
+
+    def run_after(self):
+        from extensions.middle.split_tdnn_memoryoffset import SplitTdnnMemoryOffset
+        return [SplitTdnnMemoryOffset]
 
     @staticmethod
     def pattern():
@@ -86,7 +77,7 @@ class ReplaceMemoryOffsetNodePattern(MiddleReplacementPattern):
         outs = input_node_out_port.get_destinations()
         for in_port in outs:
             out_ = in_port.node
-            if out_['op'] != 'MemoryOffset' and out_['op'] != 'Splice':
+            if out_.op == 'Concat' and out_ == out_node_in_ports[0].node:
                 crop_input = Crop(graph, {'name': 'Splice_Crop',
                                           'axis': int64_array([1]),
                                           'offset': int64_array([-min(0, in_shape[1] * node_t)]),
@@ -146,7 +137,9 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
         in_shape = input_port.data.get_shape()
         node_t = abs(node.t)
 
-        init_value_memory_out = create_zero_value_with_batch_from_input(input_port, in_shape[1]*node_t)
+        init_value_memory_out = Const(graph, {'name': 'init_value_' + pair_name,
+                                              'value': np.zeros(int64_array([in_shape[0], in_shape[1]*node_t])),
+                                              'shape': int64_array([in_shape[0], in_shape[1]*node_t])}).create_node()
         memory_out = ReadValue(graph, {'name': pair_name, 'variable_id': node_name+pair_name}).create_node()
         init_value_memory_out.out_port(0).connect(memory_out.in_port(0))
 
@@ -174,14 +167,6 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
             out = Result(graph, {'name': 'Memory_output'}).create_node()
             memory_in.out_port(0).connect(out.in_port(0))
             out_port.get_connection().set_source(memory_out.out_port(0))
-
-        if not graph.graph['cmd_params'].static_shape:
-            log.error(
-                "Model can not be translated in a reshape-able way.\n"
-                "Model Optimizer key static_shape was turned on to prevent related errors.\n"
-                "There will be no success changing input shapes of the model with the help of "
-                "InferenceEngine reshape method", extra={'is_warning': True})
-            graph.graph['cmd_params'].static_shape = True
 
         graph.remove_node(op_output_id)
         graph.remove_node(node.id)

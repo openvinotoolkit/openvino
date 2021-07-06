@@ -1,32 +1,17 @@
-/*
-// Copyright (c) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <gtest/gtest.h>
-
 #include "test_utils.h"
 
-#include "api/topology.hpp"
-#include "api/network.hpp"
-#include "api/input_layout.hpp"
-#include "api/non_max_suppression.hpp"
-#include "api/data.hpp"
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/non_max_suppression.hpp>
+#include <cldnn/primitives/data.hpp>
 
 using namespace cldnn;
+using namespace ::tests;
 
 template <typename T>
 struct non_max_suppression_basic : public testing::Test {
@@ -85,14 +70,14 @@ struct non_max_suppression_basic : public testing::Test {
     const layout boxes_layout = layout(type_to_data_type<T>::value, format::bfyx, tensor(batch(batch_size), feature(boxes_num), spatial(1, 4)));
     const layout scores_layout = layout(type_to_data_type<T>::value, format::bfyx, tensor(batch(batch_size), feature(classes_num), spatial(1, boxes_num)));
 
-    memory get_boxes_memory(engine& engine) {
-        auto mem = memory::allocate(engine, boxes_layout);
+    memory::ptr get_boxes_memory(engine& engine) {
+        auto mem = engine.allocate_memory(boxes_layout);
         tests::set_values(mem, boxes_data);
         return mem;
     }
 
-    memory get_scores_memory(engine& engine) {
-        auto mem = memory::allocate(engine, scores_layout);
+    memory::ptr get_scores_memory(engine& engine) {
+        auto mem = engine.allocate_memory(scores_layout);
         tests::set_values(mem, scores_data);
         return mem;
     }
@@ -101,10 +86,10 @@ struct non_max_suppression_basic : public testing::Test {
 };
 
 using nms_types = testing::Types<float, half_t>;
-TYPED_TEST_CASE(non_max_suppression_basic, nms_types);
+TYPED_TEST_SUITE(non_max_suppression_basic, nms_types);
 
 TYPED_TEST(non_max_suppression_basic, basic) {
-    auto engine = tests::get_test_engine();
+    auto& engine = tests::get_test_engine();
 
     topology topo;
     topo.add(input_layout("boxes", this->boxes_layout));
@@ -134,7 +119,7 @@ TYPED_TEST(non_max_suppression_basic, basic) {
     };
 
     auto out_mem = result.at("nms").get_memory();
-    auto out_ptr = out_mem.pointer<int>();
+    cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
@@ -143,9 +128,9 @@ TYPED_TEST(non_max_suppression_basic, basic) {
 }
 
 TYPED_TEST(non_max_suppression_basic, num_per_class) {
-    auto engine = tests::get_test_engine();
+    auto& engine = tests::get_test_engine();
 
-    auto num_per_class_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    auto num_per_class_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(num_per_class_mem, { 1.f });
 
     topology topo;
@@ -177,7 +162,7 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
     };
 
     auto out_mem = result.at("nms").get_memory();
-    auto out_ptr = out_mem.pointer<int>();
+    cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
@@ -186,11 +171,11 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
 }
 
 TYPED_TEST(non_max_suppression_basic, iou_threshold) {
-    auto engine = tests::get_test_engine();
+    auto& engine = tests::get_test_engine();
 
-    auto num_per_class_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    auto num_per_class_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(num_per_class_mem, { 3.f });
-    auto iou_threshold_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    auto iou_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(iou_threshold_mem, { 0.4f });
 
     topology topo;
@@ -223,7 +208,7 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
     };
 
     auto out_mem = result.at("nms").get_memory();
-    auto out_ptr = out_mem.pointer<int>();
+    cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
@@ -232,13 +217,13 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
 }
 
 TYPED_TEST(non_max_suppression_basic, score_threshold) {
-    auto engine = tests::get_test_engine();
+    auto& engine = tests::get_test_engine();
 
-    auto num_per_class_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    auto num_per_class_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(num_per_class_mem, { 3.f });
-    auto iou_threshold_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    auto iou_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(iou_threshold_mem, { 0.4f });
-    auto score_threshold_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    auto score_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(score_threshold_mem, { 0.4f });
 
     topology topo;
@@ -272,7 +257,7 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
     };
 
     auto out_mem = result.at("nms").get_memory();
-    auto out_ptr = out_mem.pointer<int>();
+    cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
@@ -281,15 +266,15 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
 }
 
 TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
-    auto engine = tests::get_test_engine();
+    auto& engine = tests::get_test_engine();
 
-    auto num_per_class_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    auto num_per_class_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(num_per_class_mem, { 3.f });
-    auto iou_threshold_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    auto iou_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(iou_threshold_mem, { 0.4f });
-    auto score_threshold_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    auto score_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(score_threshold_mem, { 0.4f });
-    auto soft_nms_sigma_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    auto soft_nms_sigma_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(soft_nms_sigma_mem, { 0.5f });
 
     topology topo;
@@ -324,7 +309,7 @@ TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
     };
 
     auto out_mem = result.at("nms").get_memory();
-    auto out_ptr = out_mem.pointer<int>();
+    cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {

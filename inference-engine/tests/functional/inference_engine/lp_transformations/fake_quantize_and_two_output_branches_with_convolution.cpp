@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -130,9 +130,9 @@ const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues> fak
             {{}, {}, {}},
             ngraph::element::f32,
             { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1 }}},
+            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
             { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1 }}},
+            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
         }
     },
     // not update precisions
@@ -149,9 +149,9 @@ const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues> fak
             {{}, {}, {}},
             ngraph::element::f32,
             { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1 }}},
+            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
             { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1 }}},
+            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
         }
     }
 };
@@ -161,7 +161,7 @@ const std::vector<ngraph::Shape> shapes = {
     // TODO: 3D tensor
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
     ::testing::Combine(

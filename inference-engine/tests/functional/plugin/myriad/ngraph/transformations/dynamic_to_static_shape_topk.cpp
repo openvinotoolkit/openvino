@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,7 +135,7 @@ protected:
 TEST_P(DynamicToStaticShapeTopKConst, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeTopKConst, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeTopKConst, combinations);
 
 
 class DynamicToStaticShapeTopK : public CommonTestUtils::TestsCommon,
@@ -239,6 +239,6 @@ protected:
 TEST_P(DynamicToStaticShapeTopK, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeTopK, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeTopK, combinations);
 
 }  // namespace

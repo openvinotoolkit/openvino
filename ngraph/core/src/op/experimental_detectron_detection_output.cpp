@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 
@@ -76,7 +64,7 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
             this, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");
 
         NODE_VALIDATION_CHECK(this,
-                              rois_shape[1].is_static() && rois_shape[1].get_length() == 4u,
+                              rois_shape[1].is_dynamic() || rois_shape[1].get_length() == 4u,
                               "The last dimension of the 'input_rois' input must be equal to 4. "
                               "Got: ",
                               rois_shape[1]);
@@ -87,14 +75,12 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
         NODE_VALIDATION_CHECK(
             this, deltas_shape.rank().get_length() == 2, "Input deltas rank must be equal to 2.");
 
-        if (deltas_shape[1].is_static())
-        {
-            NODE_VALIDATION_CHECK(this,
+        NODE_VALIDATION_CHECK(this,
+                              deltas_shape[1].is_dynamic() ||
                                   deltas_shape[1].get_length() == m_attrs.num_classes * 4,
-                                  "The last dimension of the 'input_deltas' input must be equal to "
-                                  "the value of the attribute 'num_classes' * 4. Got: ",
-                                  deltas_shape[1]);
-        }
+                              "The last dimension of the 'input_deltas' input must be equal to "
+                              "the value of the attribute 'num_classes' * 4. Got: ",
+                              deltas_shape[1]);
     }
 
     if (scores_shape.rank().is_static())
@@ -102,14 +88,12 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
         NODE_VALIDATION_CHECK(
             this, scores_shape.rank().get_length() == 2, "Input scores rank must be equal to 2.");
 
-        if (scores_shape[1].is_static())
-        {
-            NODE_VALIDATION_CHECK(this,
+        NODE_VALIDATION_CHECK(this,
+                              scores_shape[1].is_dynamic() ||
                                   scores_shape[1].get_length() == m_attrs.num_classes,
-                                  "The last dimension of the 'input_scores' input must be equal to "
-                                  "the value of the attribute 'num_classes'. Got: ",
-                                  scores_shape[1]);
-        }
+                              "The last dimension of the 'input_scores' input must be equal to "
+                              "the value of the attribute 'num_classes'. Got: ",
+                              scores_shape[1]);
     }
 
     if (im_info_shape.rank().is_static())

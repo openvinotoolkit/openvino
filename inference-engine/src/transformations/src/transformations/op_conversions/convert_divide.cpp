@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ ngraph::pass::ConvertDivide::ConvertDivide() {
         }
 
         auto pow = std::make_shared<ngraph::opset1::Power>(div->input(1).get_source_output(),
-                                                           op::Constant::create(div->get_input_element_type(1), Shape{1}, {-1}));
+                                                           op::Constant::create(div->get_input_element_type(1), Shape{}, {-1}));
 
         auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
 

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 /**
  * @brief Defines openvino domains for tracing
@@ -34,9 +22,9 @@ namespace ngraph
             OV_ITT_DOMAIN(nGraph);
             OV_ITT_DOMAIN(nGraphPass_LT);
             OV_ITT_DOMAIN(ngraph_op, "nGraph::Op");
-        }
-    }
-}
+        } // namespace domains
+    }     // namespace itt
+} // namespace ngraph
 OV_CC_DOMAINS(ngraph_op);
 OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
 
@@ -53,7 +41,8 @@ OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
                                " is disabled!")
 #define NGRAPH_PASS_CALLBACK(matcher)
 #else
-#define NGRAPH_OP_SCOPE(region) OV_ITT_SCOPED_TASK(ngraph::itt::domains::ngraph_op, #region)
+#define NGRAPH_OP_SCOPE(region)                                                                    \
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::ngraph_op, OV_PP_TOSTRING(region))
 #define NGRAPH_PASS_CALLBACK(matcher)
 #endif
 

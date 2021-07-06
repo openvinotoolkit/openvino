@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporationconvert2OutputVector
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,7 +120,9 @@ enum ActivationTypes {
     Swish,
     HSigmoid,
     RoundHalfToEven,
-    RoundHalfAwayFromZero
+    RoundHalfAwayFromZero,
+    GeluErf,
+    GeluTanh
 };
 
 enum EltwiseTypes {
@@ -131,7 +133,8 @@ enum EltwiseTypes {
     SQUARED_DIFF,
     POWER,
     FLOOR_MOD,
-    MOD
+    MOD,
+    ERF
 };
 
 enum ComparisonTypes {
@@ -177,6 +180,11 @@ enum ReductionType {
     L2
 };
 
+enum class DFTOpType {
+    FORWARD,
+    INVERSE
+};
+
 enum class InputLayerType {
     CONSTANT,
     PARAMETER,
@@ -198,10 +206,21 @@ enum class TensorIteratorBody {
 
 enum class SequenceTestsMode {
     PURE_SEQ,
+    PURE_SEQ_RAND_SEQ_LEN_CONST,
+    PURE_SEQ_RAND_SEQ_LEN_PARAM,
     CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
     CONVERT_TO_TI_MAX_SEQ_LEN_PARAM,
     CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
     CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
+};
+
+enum class MemoryTransformation {
+    NONE,
+    LOW_LATENCY,
+    LOW_LATENCY_REGULAR_API,
+    LOW_LATENCY_V2,
+    LOW_LATENCY_V2_REGULAR_API,
+    LOW_LATENCY_V2_ORIGINAL_INIT
 };
 
 std::ostream &operator<<(std::ostream &os, const ReductionType &m);
@@ -237,10 +256,10 @@ inline ngraph::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType
     return nodes;
 }
 
-std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
-                                                           const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           const std::vector<ngraph::element::Type> &inputTypes = {},
-                                                           const std::vector<ngraph::element::Type_t> convertType = {});
+std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
+        interpreterFunction(const std::shared_ptr<Function> &function,
+                            const std::vector<std::vector<std::uint8_t>> &inputs,
+                            const std::vector<ngraph::element::Type> &inputTypes = {});
 
 //
 // This function compares two nGraph functions and requires them to have exactly one output
@@ -255,8 +274,7 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
                                        const std::vector<std::vector<std::uint8_t>> &inputs,
                                        const std::vector<ngraph::element::Type> &inputTypes = {});
 
-std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Function> &function,
-                                                    std::vector<ngraph::element::Type_t> convertType = {});
+std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getConstData(const std::shared_ptr<Function> &function);
 
 std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_info,
                                                const ngraph::OutputVector &outputVector);
@@ -287,6 +305,8 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCa
 std::ostream& operator<<(std::ostream & os, TensorIteratorBody type);
 
 std::ostream& operator<<(std::ostream & os, SequenceTestsMode type);
+
+std::ostream& operator<<(std::ostream & os, MemoryTransformation type);
 
 }  // namespace helpers
 }  // namespace ngraph

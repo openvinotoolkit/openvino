@@ -1,10 +1,9 @@
-// Copyright (C) 2019-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/opsets/opset5.hpp"
 #include "shared_test_classes/subgraph/split_concat_memory.hpp"
-#include "common_test_utils/xml_net_builder/ir_net.hpp"
 
 namespace SubgraphTestsDefinitions {
 

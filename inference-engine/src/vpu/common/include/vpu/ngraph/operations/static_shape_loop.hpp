@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,9 @@ public:
     explicit StaticShapeLoop(const Loop& loop);
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor&) override;
+
+protected:
+    ngraph::PartialShape m_evaluatedIterationsCount;
 };
 
 }  // namespace op

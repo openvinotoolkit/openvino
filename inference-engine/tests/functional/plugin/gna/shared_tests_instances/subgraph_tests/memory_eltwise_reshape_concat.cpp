@@ -1,5 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <subgraph_tests/memory_eltwise_reshape_concat.hpp>
 #include "common_test_utils/test_constants.hpp"
 
@@ -24,7 +26,7 @@ std::map<std::string, std::string> additional_config = {
 };
 } // namespace
 
-INSTANTIATE_TEST_CASE_P(smoke_MemoryEltwiseReshapeConcatTest, MemoryEltwiseReshapeConcatTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MemoryEltwiseReshapeConcatTest, MemoryEltwiseReshapeConcatTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),

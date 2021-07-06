@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ namespace subgraph {
 std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     const ngraph::element::Type netPrecision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ngraph::opset1::Constant> weights,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
@@ -34,8 +34,10 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     dequantizationStructure.multiply.outPrecision = netPrecision;
     const auto dequantization = makeDequantization(input, dequantizationStructure);
 
-    const size_t inputChannelsCount = inputShape[1];
-    const size_t outputChannelsCount = 2 * inputShape[1];
+    bool channelsIsDynamic = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
+
+    const size_t inputChannelsCount = !channelsIsDynamic ? inputShape[1].get_length() : 3ul;
+    const size_t outputChannelsCount = 2 * inputChannelsCount;
 
     if ((weights->cast_vector<float>().size() != 1ul) && (weights->cast_vector<float>().size() != (inputChannelsCount * outputChannelsCount))) {
         throw std::runtime_error("unexpected actual weights values size");
@@ -147,7 +149,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectW
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
     const auto subtract = isCorrect ? nullptr : std::make_shared<DequantizationSubtract>(fqOnWeights,
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{ 1, 1, 1, 1 }, 3.0f));
+        std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, 3.0f));
 
     const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
         fakeQuantizeOnData.empty() ? input : fqOnData,
@@ -213,7 +215,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
 std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const ngraph::element::Type netPrecision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ngraph::opset1::Constant> weights,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
@@ -225,8 +227,10 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     dequantizationBeforeStructure.multiply.outPrecision = netPrecision;
     const auto deqBefore = makeDequantization(input, dequantizationBeforeStructure);
 
-    const size_t inputChannelsCount = inputShape[1];
-    const size_t outputChannelsCount = 2 * inputShape[1];
+    bool channelsIsDynamic = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
+
+    const size_t inputChannelsCount = !channelsIsDynamic ? inputShape[1].get_length() : 3ul;
+    const size_t outputChannelsCount = 2 * inputChannelsCount;
 
     if ((weights->cast_vector<float>().size() != 1ul) && (weights->cast_vector<float>().size() != (inputChannelsCount * outputChannelsCount))) {
         throw std::runtime_error("unexpected actual weights values size");
@@ -244,7 +248,9 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
 
     std::shared_ptr<ngraph::Node> onWeights = fakeQuantizeOnWeights.empty() ?
-        std::dynamic_pointer_cast<ngraph::Node>(weights) :
+        (weights->get_output_element_type(0).is_real() ?
+            convertedWeights :
+            std::dynamic_pointer_cast<ngraph::Node>(weights)) :
         ngraph::builder::makeFakeQuantize(
             convertedWeights->output(0),
             netPrecision,

@@ -1,61 +1,98 @@
 #!/usr/bin/env python3
 
-"""
- Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-
-import os
-import re
 import argparse
+import os
+import platform
+import sys
 
 try:
-    # needed by find_ie_version.py which call check_ie_bindings.py as python script
-    import version # pylint: disable=import-error
-except ImportError:
-    import mo.utils.version
+    import mo
+    execution_type = "mo"
+except ModuleNotFoundError:
+    mo_root_path = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
+    sys.path.insert(0, mo_root_path)
+    execution_type = "install_prerequisites.{}".format("bat" if platform.system() == "Windows" else "sh")
 
-from extract_release_version import extract_release_version
+import mo.utils.version as v
+try:
+    import openvino_telemetry as tm  # pylint: disable=import-error,no-name-in-module
+except ImportError:
+    import mo.utils.telemetry_stub as tm
+from mo.utils.error import classify_error_type
+
+
+def send_telemetry(mo_version: str, message: str, event_type: str):
+    t = tm.Telemetry(app_name='Version Checker', app_version=mo_version)
+    # do not trigger new session if we are executing from the check from within the MO because it is actually not model
+    # conversion run which we want to send
+    if execution_type != 'mo':
+        t.start_session(execution_type)
+    t.send_event(execution_type, event_type, message)
+    if execution_type != "mo":
+        t.end_session(execution_type)
+    t.force_shutdown(1.0)
 
 
 def import_core_modules(silent: bool, path_to_module: str):
-    try:
-        from openvino.inference_engine import IECore, get_version # pylint: disable=import-error
-        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI # pylint: disable=import-error
+    """
+        This function checks that InferenceEngine Python API is available
+        and necessary python modules exists. So the next list of imports
+        must contain all IE/NG Python API imports that are used inside MO.
 
-        import openvino # pylint: disable=import-error
+    :param silent: enables or disables logs printing to stdout
+    :param path_to_module: path where python API modules were found
+    :return: True if all imports were successful and False otherwise
+    """
+    try:
+        from openvino.inference_engine import get_version, read_network  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, \
+            GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+
+        # TODO: it is temporary import to check that nGraph python API is available. But in future
+        # we need to replace it with Frontend imports
+        from ngraph.impl.op import Parameter  # pylint: disable=import-error,no-name-in-module
+        from _pyngraph import PartialShape, Dimension  # pylint: disable=import-error,no-name-in-module
+
+        import openvino  # pylint: disable=import-error,no-name-in-module
+        import ngraph  # pylint: disable=import-error,no-name-in-module
+
+        if silent:
+            return True
 
         ie_version = str(get_version())
-        mo_version = str(version.get_version()) # pylint: disable=no-member
+        mo_version = str(v.get_version())  # pylint: disable=no-member,no-name-in-module
 
-        if not silent:
-            print("\t- {}: \t{}".format("Inference Engine found in", os.path.dirname(openvino.__file__)))
-            print("{}: \t{}".format("Inference Engine version", ie_version))
-            print("{}: \t    {}".format("Model Optimizer version", mo_version))
+        print("\t- {}: \t{}".format("Inference Engine found in", os.path.dirname(openvino.__file__)))
+        # TODO: when nGraph version will be available we need to start compare it to IE and MO versions. Ticket: 58091
+        print("\t- {}: \t{}".format("nGraph found in", os.path.dirname(ngraph.__file__)))
+        print("{}: \t{}".format("Inference Engine version", ie_version))
+        print("{}: \t{}".format("Model Optimizer version", mo_version))
 
-        # MO and IE version have a small difference in the beginning of version because
-        # IE version also includes API version. For example:
-        #   Inference Engine version: 2.1.custom_HEAD_4c8eae0ee2d403f8f5ae15b2c9ad19cfa5a9e1f9
-        #   Model Optimizer version:      custom_HEAD_4c8eae0ee2d403f8f5ae15b2c9ad19cfa5a9e1f9
-        # So to match this versions we skip IE API version.
-        if not re.match(r"^([0-9]+).([0-9]+).{}$".format(mo_version), ie_version):
-            extracted_release_version = extract_release_version()
-            is_custom_mo_version = extracted_release_version == (None, None)
-            if not silent:
-                print("[ WARNING ] Model Optimizer and Inference Engine versions do no match.")
-                print("[ WARNING ] Consider building the Inference Engine Python API from sources or reinstall OpenVINO (TM) toolkit using \"pip install openvino{}\" {}".format(
-                    "", "(may be incompatible with the current Model Optimizer version)" if is_custom_mo_version else "=={}.{}".format(*extracted_release_version), ""))
+        versions_mismatch = False
+        if mo_version != ie_version:
+            versions_mismatch = True
+            extracted_mo_release_version = v.extract_release_version(mo_version)
+            mo_is_custom = extracted_mo_release_version == (None, None)
+
+            print("[ WARNING ] Model Optimizer and Inference Engine versions do no match.")
+            print("[ WARNING ] Consider building the Inference Engine Python API from sources or reinstall OpenVINO "
+                  "(TM) toolkit using", end=" ")
+            if mo_is_custom:
+                print("\"pip install openvino\" (may be incompatible with the current Model Optimizer version)")
+            else:
+                print("\"pip install openvino=={}.{}\"".format(*extracted_mo_release_version))
+
+        simplified_mo_version = v.get_simplified_mo_version()
+        message = str(dict({
+            "platform": platform.system(),
+            "mo_version": simplified_mo_version,
+            "ie_version": v.get_simplified_ie_version(version=ie_version),
+            "versions_mismatch": versions_mismatch,
+        }))
+        send_telemetry(simplified_mo_version, message, 'ie_version_check')
 
         return True
     except Exception as e:
@@ -63,6 +100,18 @@ def import_core_modules(silent: bool, path_to_module: str):
         if "No module named 'openvino'" not in str(e) and not silent:
             print("[ WARNING ] Failed to import Inference Engine Python API in: {}".format(path_to_module))
             print("[ WARNING ] {}".format(e))
+
+            # Send telemetry message about warning
+            simplified_mo_version = v.get_simplified_mo_version()
+            message = str(dict({
+                "platform": platform.system(),
+                "mo_version": simplified_mo_version,
+                "ie_version": v.get_simplified_ie_version(env=os.environ),
+                "python_version": sys.version,
+                "error_type": classify_error_type(e),
+            }))
+            send_telemetry(simplified_mo_version, message, 'ie_import_failed')
+
         return False
 
 

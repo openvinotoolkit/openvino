@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,9 +25,8 @@ if(ENABLE_TESTS)
         add_subdirectory(tests/functional)
     endif()
 endif()
-# [cmake:main]
 
 # install
 
-# ATTENTION: uncomment to install component
-# ie_cpack(template)
+ie_cpack(template)
+# [cmake:main]

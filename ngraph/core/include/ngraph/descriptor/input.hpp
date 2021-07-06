@@ -1,21 +1,10 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
+#include <map>
 #include <memory>
 
 #include "ngraph/descriptor/tensor.hpp"
@@ -23,6 +12,8 @@
 namespace ngraph
 {
     class Node;
+
+    class Variant;
 
     namespace descriptor
     {
@@ -63,6 +54,11 @@ namespace ngraph
             /// \return the tensor of the connected output
             Tensor& get_tensor();
 
+            using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+
+            RTMap& get_rt_info() { return m_rt_info; }
+            const RTMap& get_rt_info() const { return m_rt_info; }
+
             /// \brief Replace the current output that supplies a value for this input with output i
             ///        of node
             void replace_output(std::shared_ptr<Node> node, size_t i);
@@ -82,6 +78,7 @@ namespace ngraph
             ///
             /// See Node::set_input_is_relevant_to_value for more details.
             bool get_is_relevant_to_value() const { return m_is_relevant_to_value; }
+
         protected:
             /// \return the tensor for the connected output
             std::shared_ptr<const Tensor> get_tensor_ptr() const;
@@ -109,10 +106,11 @@ namespace ngraph
             Node* m_node;   // The node we are an input for
             size_t m_index; // Index into all input tensors
             Output* m_output;
+            RTMap m_rt_info;
 
         private:
             bool m_is_relevant_to_shape;
             bool m_is_relevant_to_value;
         };
-    }
-}
+    } // namespace descriptor
+} // namespace ngraph

@@ -1,25 +1,13 @@
-"""
- Copyright (C) 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import copy
 
 from extensions.ops.loop import Loop
 from extensions.ops.parameter import Parameter
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.extractor import extract_node_attrs, FrontExtractorOp
-from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors
+from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors, create_tf_edge
 from mo.front.tf.extractors.utils import tf_dtype_extractor
 from mo.graph.graph import add_opoutput, Graph, Node
 from mo.ops.op import PermuteAttrs
@@ -47,23 +35,23 @@ def update_body_graph(body_graph: Graph, subgraph_proto: dict,
         id = body_graph.unique_id(pb_node.name)
         map_original_name[pb_node.name] = id
         body_graph.add_node(id, pb=pb_node, kind='op')
+        if hasattr(body_graph, 'op_names_statistic') and hasattr(pb_node, 'op'):
+            body_graph.op_names_statistic[pb_node.op] += 1
 
         # add incoming edges based on data_nodes_map
         for dst_port, inp in enumerate(pb_node.input):
             orig_src_id = inp.split(":")[0]
+
+            # TODO: avoid this temporal workaround for TF 2.4 or higher RNN layers:
+            #  skip control flow dependency
+            if orig_src_id[0] == '^':
+                continue
+
             src_id = map_original_name[orig_src_id]
             src_port = 0 if len(inp.split(":")) == 1 else int(inp.split(":")[-1])
             assert (body_graph.has_node(src_id))
-            edge_attrs = {
-                'out': src_port,
-                'in': dst_port,
-                'name': src_id,
-                'fw_tensor_debug_info': [(src_id, src_port)],
-                'in_attrs': ['in', 'name'],
-                'out_attrs': ['out', 'name'],
-                'data_attrs': ['fw_tensor_debug_info']
-            }
-            body_graph.add_edge(src_id, id, **edge_attrs)
+
+            body_graph.add_edges_from([create_tf_edge(src_id + ":" + str(src_port), id, dst_port)])
 
     # create Result nodes in the loop body graph
     for output in subgraph_proto['output_arg']:

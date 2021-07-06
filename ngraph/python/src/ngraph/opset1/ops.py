@@ -1,18 +1,5 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
@@ -1497,17 +1484,17 @@ def lstm_sequence(
                                     Shape: [batch_size]. Integer type.
     @param W: Tensor with weights for matrix multiplication operation with input portion of data.
               Shape: [num_directions, 4*hidden_size, input_size].
-    :param R: The tensor with weights for matrix multiplication operation with hidden state.
+    @param R: The tensor with weights for matrix multiplication operation with hidden state.
               Shape: [num_directions, 4*hidden_size, hidden_size].
-    :param B: The tensor with biases.
+    @param B: The tensor with biases.
               Shape: [num_directions, 4*hidden_size].
-    :param hidden_size: Specifies hidden state size.
-    :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
-    :param activations: The list of three activation functions for gates.
-    :param activations_alpha: The list of alpha parameters for activation functions.
-    :param activations_beta: The list of beta parameters for activation functions.
-    :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
-    :param name: An optional name of the output node.
+    @param hidden_size: Specifies hidden state size.
+    @param direction: Specifies if the RNN is forward, reverse, or bidirectional.
+    @param activations: The list of three activation functions for gates.
+    @param activations_alpha: The list of alpha parameters for activation functions.
+    @param activations_beta: The list of beta parameters for activation functions.
+    @param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
+    @param name: An optional name of the output node.
 
     @return The new node represents LSTMSequence. Node outputs count: 3.
     """
@@ -2800,11 +2787,11 @@ def tensor_iterator(
     """
     attributes = {
         "body": graph_body.serialize(),
-        "slice_input_desc": [desc.serialize() for desc in slice_input_desc],
-        "merged_input_desc": [desc.serialize() for desc in merged_input_desc],
-        "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc],
-        "body_output_desc": [desc.serialize() for desc in body_output_desc],
-        "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
+        "input_descriptions": {"slice_input_desc": [desc.serialize() for desc in slice_input_desc],
+                               "merged_input_desc": [desc.serialize() for desc in merged_input_desc],
+                               "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc]},
+        "output_descriptions": {"body_output_desc": [desc.serialize() for desc in body_output_desc],
+                                "concat_output_desc": [desc.serialize() for desc in concat_output_desc]}
     }
 
     return _get_node_factory_opset1().create("TensorIterator", as_nodes(*inputs), attributes)

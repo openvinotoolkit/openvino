@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,31 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             { },
             ngraph::element::f32,
             { {}, {}, { 0.01f } },
+            ngraph::element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
+    {
+        ngraph::Shape{128, 3},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::f32,
+            { {}, {}, { {0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3} } },
+            ngraph::element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Multiply by zero
+    {
+        ngraph::Shape{1, 3, 16, 16},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::f32,
+            { {}, {}, { {0.01f, 0.f, 0.01f} } },
             ngraph::element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
@@ -79,7 +104,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseFakeQuantizeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),

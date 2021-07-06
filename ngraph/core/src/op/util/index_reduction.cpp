@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 #include "itt.hpp"
@@ -23,9 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-op::util::IndexReduction::IndexReduction()
-{
-}
+op::util::IndexReduction::IndexReduction() {}
 
 op::util::IndexReduction::IndexReduction(const Output<Node>& arg,
                                          uint64_t axis,
@@ -63,7 +49,7 @@ void op::util::IndexReduction::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, rank.is_dynamic() || rank.get_length() >= 1, "Argument rank is zero.");
     NODE_VALIDATION_CHECK(this,
-                          rank.is_dynamic() || m_axis < rank.get_length(),
+                          rank.is_dynamic() || m_axis < static_cast<uint64_t>(rank.get_length()),
                           "Reduction axis (",
                           m_axis,
                           ") is not less than argument rank (",
@@ -90,7 +76,7 @@ void op::util::IndexReduction::validate_and_infer_types()
         std::vector<Dimension> output_dims(rank.get_length() - 1);
         size_t j = 0;
 
-        for (size_t i = 0; i < rank.get_length() - 1; i++)
+        for (int64_t i = 0; i < rank.get_length() - 1; i++)
         {
             if (j == m_axis)
             {

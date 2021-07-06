@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ TEST_P(MvnLayerTest, Serialize) {
     Serialize();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsMVN, MvnLayerTest, MvnCases,
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN, MvnLayerTest, MvnCases,
                         MvnLayerTest::getTestCaseName);
 
 // ------------------- MVN-6 -------------------------------------------------
@@ -47,7 +47,7 @@ TEST_P(Mvn6LayerTest, Serialize) {
     Serialize();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_MVN_5D, Mvn6LayerTest,
     ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{
                            {1, 10, 5, 7, 8}, {1, 3, 8, 9, 49}}),

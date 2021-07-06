@@ -1,20 +1,9 @@
 #!/bin/bash
 
-# Copyright (c) 2018-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
 BASE_DIR="$( dirname "$SCRIPT_DIR" )"
 
 INSTALLDIR="${BASE_DIR}"
@@ -72,6 +61,10 @@ if [ -e "$INSTALLDIR/deployment_tools/inference_engine/external/tbb" ]; then
     export TBB_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/tbb/cmake
 fi
 
+if [ -e "$INSTALLDIR/deployment_tools/tools/compile_tool" ]; then
+    export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/tools/compile_tool${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+fi
+
 if [ -e "$INSTALLDIR/deployment_tools/ngraph" ]; then
     export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/ngraph/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     export ngraph_DIR=$INSTALLDIR/deployment_tools/ngraph/cmake
@@ -95,6 +88,12 @@ fi
 export PATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PATH:+:$PATH}"
 export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
 
+
+
+if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader" ]; then
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader:$PYTHONPATH"
+    export PATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/downloader:$PATH"
+fi
 
 if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_checker" ]; then
     export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_checker:$PYTHONPATH"

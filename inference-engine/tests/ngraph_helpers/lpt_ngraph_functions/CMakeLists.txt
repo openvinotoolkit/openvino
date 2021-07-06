@@ -1,12 +1,8 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME lptNgraphFunctions)
-
-list(APPEND EXPORT_DEPENDENCIES
-        ngraphFunctions
-        )
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -21,7 +17,7 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
-                ${EXPORT_DEPENDENCIES}
+                ngraphFunctions
                 inference_engine_lp_transformations
                 inference_engine_legacy
         ADD_CPPLINT
@@ -29,8 +25,6 @@ addIeTarget(
             ngraphFunctions
         DEVELOPER_PACKAGE
             inference_engine_tests
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
 )
 
 ie_faster_build(${TARGET_NAME}

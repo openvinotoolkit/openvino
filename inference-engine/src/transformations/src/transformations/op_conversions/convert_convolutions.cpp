@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,6 +113,7 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
                                                                        deconv->get_dilations(),
                                                                        deconv->get_pads_begin(),
                                                                        deconv->get_pads_end(),
+                                                                       deconv->get_output_element_type(0),
                                                                        1 /* groups */,
                                                                        deconv->get_auto_pad(),
                                                                        deconv->get_output_padding(),
@@ -158,6 +159,7 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
                                                                      gconv->get_dilations(),
                                                                      gconv->get_pads_begin(),
                                                                      gconv->get_pads_end(),
+                                                                     gconv->get_output_element_type(0),
                                                                      group,
                                                                      gconv->get_auto_pad(),
                                                                      gconv->get_output_padding(),

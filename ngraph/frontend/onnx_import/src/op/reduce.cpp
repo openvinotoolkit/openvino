@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <functional>
 #include <memory>
@@ -53,7 +41,6 @@ namespace ngraph
                     const std::int64_t noop_with_empty_axes =
                         node.get_attribute_value<std::int64_t>("noop_with_empty_axes", 0);
                     const auto input = node.get_ng_inputs().at(0);
-                    const auto input_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
                     if (node.get_ng_inputs().size() > 1)
                     {
                         const auto reduction_axes = node.get_ng_inputs().at(1);
@@ -75,17 +62,7 @@ namespace ngraph
                     }
                     else
                     {
-                        if (input_rank.is_static())
-                        {
-                            auto all_axes = onnx_import::common::get_monotonic_range<int64_t>(
-                                input_rank.get_length());
-                            return default_opset::Constant::create(
-                                element::i64, Shape{all_axes.size()}, all_axes);
-                        }
-                        else
-                        {
-                            return get_dynamic_all_axes_range(node);
-                        }
+                        return get_dynamic_all_axes_range(node);
                     }
                 }
 
@@ -112,7 +89,8 @@ namespace ngraph
                     if (input_rank.is_static())
                     {
                         CHECK_VALID_NODE(node,
-                                         reduction_axes.size() <= input_rank.get_length(),
+                                         static_cast<int64_t>(reduction_axes.size()) <=
+                                             input_rank.get_length(),
                                          "Number of reduction axes (",
                                          reduction_axes.size(),
                                          ") is larger than the input tensor's rank (",

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ public:
 
     static std::string getTestCaseNameByParams(
         const ngraph::element::Type& type,
-        const ngraph::Shape& shape,
+        const ngraph::PartialShape& shape,
         const ngraph::pass::low_precision::LayerTransformation::Params& params);
 
     static ngraph::builder::subgraph::DequantizationOperations toDequantizationOperations(

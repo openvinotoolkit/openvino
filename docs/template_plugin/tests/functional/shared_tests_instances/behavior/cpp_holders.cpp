@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,19 +20,19 @@ const std::vector<std::vector<int >> orders = {
     {2, 1, 0}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTest,
         ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::ValuesIn(orders)),
         HoldersTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTestImportNetwork,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTestImportNetwork,
         ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE, "HETERO:TEMPLATE"),
         ::testing::ValuesIn(orders)),
         HoldersTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTestOnImportedNetwork,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTestOnImportedNetwork,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE, "HETERO:TEMPLATE"),
         HoldersTestOnImportedNetwork::getTestCaseName);
 

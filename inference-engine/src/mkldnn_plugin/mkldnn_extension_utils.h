@@ -59,6 +59,9 @@ public:
     /** Construct blocked Channel PartialBlkDesc based on dims information */
     static PartialBlkDesc makeCBlocked(const InferenceEngine::SizeVector &dims, size_t block_size);
 
+    /** Construct per Channel PartialBlkDesc based on dims information */
+    static PartialBlkDesc makeTailC(const InferenceEngine::SizeVector &dims);
+
     /** Compare operators. Allow to use it as key for std::map */
     bool operator == (const PartialBlkDesc& it) const;
     bool operator < (const PartialBlkDesc& it) const;
@@ -79,8 +82,6 @@ public:
     static bool initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2);
     static std::string getReorderArgs(const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc);
     static InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::Precision> precisions);
-    static bool isDenseTensor(const InferenceEngine::TensorDesc &desc);
-    static bool isDefaultTensor(const InferenceEngine::TensorDesc &desc);
 };
 
 }  // namespace MKLDNNPlugin

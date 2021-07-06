@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,6 +131,6 @@ TEST_P(Gather_GatherElements, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_Gather_GatherElements, Gather_GatherElements, testing::Values(CommonTestUtils::DEVICE_MYRIAD));
+INSTANTIATE_TEST_SUITE_P(smoke_Gather_GatherElements, Gather_GatherElements, testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 } // namespace

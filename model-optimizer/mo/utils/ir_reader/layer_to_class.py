@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import os
@@ -20,9 +7,11 @@ import os
 import numpy as np
 
 from extensions.back.TopKNormalizer import TopKNormalizer
+from extensions.middle.FakeSplitOutputs import AddFakeOutputsToSplit
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
+from extensions.ops.dft import FFTBase
 from extensions.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
 from extensions.ops.embedding_bag import EmbeddingBagBase
 from extensions.ops.loop import Loop
@@ -72,7 +61,7 @@ def collect_ops(path: str):
     import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'])
     import_by_path(os.path.join(path, 'extensions', 'ops'), ['extensions', 'ops'])
     update_registration(classes=[Op, Activation, Elementwise, UnaryElementwise, LogicalElementwise,
-                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase],
+                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase, FFTBase],
                         enabled_transforms=[], disabled_transforms=[])
 
 
@@ -169,7 +158,14 @@ def propagate_const_values(op: Node):
 
     op['shape'] = out_data_node.shape
     # Reshape data node value for correct shape
-    op['value'] = np.reshape(value, op.shape)
+    if op['element_type'] in ['u4', 'i4']:
+        # Packed data types are custom from numpy perspective.
+        # Shape from the IR is incompatible with numpy value we store.
+        op['value'] = value
+        op['force_type'] = op['element_type'].upper()
+        op['force_shape'] = op.shape.copy()
+    else:
+        op['value'] = np.reshape(value, op.shape)
 
 
 def groupconv_to_conv(op: Node):
@@ -199,6 +195,13 @@ def groupconv_to_conv(op: Node):
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
     # we need to set this attrs for correct shape infer as convolution
     op['group'] = group
+    # The only way GroupConvolution with 'group' = 1 appears in IR is by converting from TF DepthwiseConv2dNative.
+    # In this case we need to specify 'op' parameter for the
+    # extensions.back.ConvolutionNormalizer.ConvolutionWithGroupsResolver to work properly.
+    # Otherwise  there will be 'Convolution' instead 'GroupConvolution' in restored IR, since 'GroupConvolution' is
+    # extended as node with 'type' = 'Convolution' by IR reader
+    if group == 1:
+        op['op'] = 'DepthwiseConv2dNative'
     op.type = 'Convolution'
 
 
@@ -278,6 +281,9 @@ postprocessing_op_nodes = {
     'Assign': assign_add_output_result,
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
+    # Call normalize Split outputs for generated IR by ir-reader
+    'Split': AddFakeOutputsToSplit.split_normalize_outputs,
+    'VariadicSplit': AddFakeOutputsToSplit.split_normalize_outputs,
 }
 
 
@@ -305,9 +311,9 @@ def restore_tensor_names(op: Node):
                 op.out_node(out_port)['fw_tensor_debug_info'] = []
                 for out_tensor_name in out_tensor_names:
                     out_tensor_name = out_tensor_name.replace(str_to_replace, ',')
-                    op.out_node(out_port)['fw_tensor_debug_info'].append((out_tensor_name, out_port, out_tensor_name))
+                    op.out_node(out_port)['fw_tensor_debug_info'].append((out_tensor_name, out_tensor_name))
             else:
-                op.out_node(out_port)['fw_tensor_debug_info'] = [(out_tensor_names, out_port, out_tensor_names)]
+                op.out_node(out_port)['fw_tensor_debug_info'] = [(out_tensor_names, out_tensor_names)]
 
 
 def copy_graph_with_ops(graph: Graph) -> Graph:

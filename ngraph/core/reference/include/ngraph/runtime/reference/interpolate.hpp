@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -51,8 +39,7 @@ namespace ngraph
                 ///
                 /// \param mode the mode of the calculation of the nearest pixel
                 GetNearestPixel(Nearest_mode mode)
-                    : m_mode{mode}
-                    , m_func{get_func(mode)}
+                    : m_func{get_func(mode)}
                 {
                 }
 
@@ -72,7 +59,6 @@ namespace ngraph
             private:
                 using Func = std::function<int64_t(float, bool)>;
 
-                Nearest_mode m_mode;
                 Func m_func;
 
                 /// \brief Gets the function to calculate the nearest pixel.
@@ -133,8 +119,7 @@ namespace ngraph
                 ///
                 /// \param mode the mode of the calculation of the source coordinate.
                 GetOriginalCoordinate(Transform_mode mode)
-                    : m_mode{mode}
-                    , m_func{get_func(mode)}
+                    : m_func{get_func(mode)}
                 {
                 }
 
@@ -163,7 +148,6 @@ namespace ngraph
             private:
                 using Func = std::function<float(float, float, float, float)>;
 
-                Transform_mode m_mode;
                 Func m_func;
 
                 /// \brief Gets the function to calculate the source coordinate.
@@ -191,8 +175,10 @@ namespace ngraph
                         };
                         break;
                     case Transform_mode::align_corners:
-                        return [](
-                            float x_resized, float, float length_resized, float length_original) {
+                        return [](float x_resized,
+                                  float,
+                                  float length_resized,
+                                  float length_original) {
                             return length_resized == 1
                                        ? 0
                                        : x_resized * (length_original - 1) / (length_resized - 1);
@@ -219,9 +205,7 @@ namespace ngraph
                                       const std::vector<float>& scales)
                     : m_get_nearest_pixel{attrs.nearest_mode}
                     , m_get_original_coord{attrs.coordinate_transformation_mode}
-                    , m_interp_mode{attrs.mode}
                     , m_antialias{attrs.antialias}
-                    , m_cube_coeff{attrs.cube_coeff}
                     , m_input_data_shape{input_data_shape}
                     , m_axes{axes}
                     , m_out_shape{out_shape}
@@ -294,9 +278,7 @@ namespace ngraph
             private:
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
-                InterpolateMode m_interp_mode;
                 bool m_antialias;
-                double m_cube_coeff;
 
                 Shape m_input_data_shape;
                 std::vector<int64_t> m_axes;
@@ -407,6 +389,7 @@ namespace ngraph
             {
                 auto info = helper.get_info_for_linear_mode();
 
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
 
@@ -442,6 +425,7 @@ namespace ngraph
                         out[output_transform.index(output_coord)] = static_cast<T>(summa / wsum);
                     }
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>
@@ -475,7 +459,8 @@ namespace ngraph
                                     (m_axes == axes_without_batch_and_channels));
                 }
 
-                assert(correct_axes);
+                if (!correct_axes)
+                    throw ngraph_error("Axes are not correct!");
 
                 const auto info = helper.get_info_for_generic_linear_onnx();
 
@@ -603,6 +588,7 @@ namespace ngraph
                 size_t input_rank = m_input_data_shape.size();
                 size_t num_of_axes = m_axes.size();
 
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
                 Shape indices_shape{std::vector<size_t>(num_of_axes, 4)};
@@ -648,11 +634,13 @@ namespace ngraph
 
                     out[output_transform.index(output_coord)] = static_cast<T>(summa);
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>
             void InterpolateEval<T>::nearest_func(const T* input_data, T* out)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
 
@@ -662,6 +650,7 @@ namespace ngraph
                     out[output_transform.index(output_coord)] =
                         input_data[input_transform.index(input_coord)];
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>
@@ -676,6 +665,6 @@ namespace ngraph
                 InterpolateEval<T> evaluator{attrs};
                 evaluator(input_data, input_data_shape, scales, axes, out, out_shape);
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

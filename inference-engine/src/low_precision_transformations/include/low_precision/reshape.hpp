@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,8 @@ public:
     static bool canBeTransformed(
         const ngraph::Shape& subtractShape,
         const ngraph::Shape& multiplyShape,
-        const ngraph::Shape& inputShape,
-        const ngraph::Shape& outputShape);
+        const ngraph::PartialShape& inputShape,
+        const ngraph::PartialShape& outputShape);
 };
 
 } // namespace low_precision

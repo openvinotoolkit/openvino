@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ const auto shuffleChannelsParamsNegativeAxis4D = ::testing::Combine(
         ::testing::ValuesIn(groups)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannelsSerialization, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannelsSerialization, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 shuffleChannelsParams4D,
                 ::testing::ValuesIn(netPrecisions),

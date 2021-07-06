@@ -1,21 +1,9 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
-
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #if defined(__fc_f16)
 
@@ -39,19 +27,19 @@ KERNEL(fc_f16)(
     const unsigned batch_id = 0;
 #else
     const unsigned batch_id = get_global_id(2);
-    
+
     const unsigned out_z = y / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const unsigned out_yx = y % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const unsigned out_y = out_yx / (OUTPUT_SIZE_X);
     const unsigned out_x = out_yx % (OUTPUT_SIZE_X);
-    
+
     const unsigned oidx = batch_id*OUTPUT_BATCH_PITCH + out_z*OUTPUT_FEATURE_PITCH + out_y*OUTPUT_Y_PITCH + out_x + OUTPUT_OFFSET;
 #endif
-    
+
     // TODO: we need to support multi dims. currently it doesn't
     // TODO: check cases we have padding in y/z dimensions
     unsigned w = INPUT0_BATCH_PITCH;
-    
+
     #if (LAST_INPUT_SIZE_DIV_4 == 0)
     w /= VEC_SIZE;
     __global const half4 *mat_read    = (__global const half4 *) (matrix);
@@ -128,7 +116,7 @@ KERNEL(fc_f16)(
     if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0], ACTIVATION_PARAMS);
     #endif
 }
-#endif 
+#endif
 
 
 #if defined(__fc_f32)
@@ -153,18 +141,18 @@ KERNEL(fc_f32)(
     const unsigned batch_id = 0;
 #else
     const unsigned batch_id = get_global_id(2);
-    
+
     const unsigned out_z = y / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const unsigned out_yx = y % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const unsigned out_y = out_yx / (OUTPUT_SIZE_X);
     const unsigned out_x = out_yx % (OUTPUT_SIZE_X);
-    
+
     const unsigned oidx = batch_id*OUTPUT_BATCH_PITCH + out_z*OUTPUT_FEATURE_PITCH + out_y*OUTPUT_Y_PITCH + out_x + OUTPUT_OFFSET;
 #endif
     // TODO: we need to support multi dims. currently it doesn't
     // TODO: check cases we have padding in y/z dimensions
     unsigned w = INPUT0_BATCH_PITCH;
-    
+
     #if BIAS_TERM
     const float bias = biases[y];
     #else
@@ -242,5 +230,4 @@ KERNEL(fc_f32)(
 
     if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0] + bias, ACTIVATION_PARAMS);
 }
-#endif 
-
+#endif

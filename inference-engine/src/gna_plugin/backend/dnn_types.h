@@ -34,9 +34,25 @@ enum DnnActivationType : uint8_t {
     kActNumType
 };
 
+struct FakeQuantizeParams {
+    int8_t set;
+    size_t levels;
+    // if input is per-channel quantization - input pointers contains per-channel ranges
+    int8_t  inputPerChannel;
+    float* input_low;
+    float* input_high;
+    // if output is per-channel quantization - output pointers contains per-channel ranges
+    int8_t  outputPerChannel;
+    float* output_low;
+    float* output_high;
+};
+
 struct DnnActivation {
     // for prelu
     DnnActivationType type;
+    FakeQuantizeParams fqParams;
+    FakeQuantizeParams srcFQParams;
+
     union {
         struct {
             float negative_slope;
@@ -50,23 +66,12 @@ struct DnnActivation {
             float low;
             float high;
         } clamp;
-        struct {
-            int32_t levels;
-            // if input is per-channel quantization - input pointers contains per-channel ranges
-            int8_t  inputPerChannel;
-            float  *input_low;
-            float  *input_high;
-            // if output is per-channel quantization - output pointers contains per-channel ranges
-            int8_t  outputPerChannel;
-            float  *output_low;
-            float  *output_high;
-        } fakeQuantize;
     } args;
     operator DnnActivationType () const noexcept {
         return type;
     }
     static DnnActivation fromType(DnnActivationType type) {
-        DnnActivation activation;
+        DnnActivation activation{};
         activation.type = type;
         activation.args = {};
         return activation;
@@ -140,15 +145,13 @@ typedef struct {
     uint32_t num_bytes_per_weight;
     uint32_t num_bytes_per_bias;
     uint32_t num_filters;
-    uint32_t num_filter_rows;
     uint32_t num_filter_coefficients;
-    uint32_t num_feature_maps;
     uint32_t num_feature_map_rows;
     uint32_t num_feature_map_columns;
     float weight_scale_factor;
     void *ptr_filters;     // filters stored one after the other
     void *ptr_biases;
-} intel_convolutionalD_t;
+} intel_convolutional1D_t;
 
 typedef struct {
     std::array<uint32_t, 2> convStride;
@@ -159,10 +162,10 @@ typedef struct {
 } intel_convolutional2D_t;
 
 typedef struct {
-    uint32_t num_inputs;         // pool size
-    uint32_t num_inputs_step;     // pool step
-    uint32_t num_inputs_stride;  // pool stride (number of convolution filters)
-    bool do_sum_not_max;
+    std::array<uint32_t, 2> poolingWindowXY;
+    std::array<uint32_t, 2> poolingStrideXY;
+    std::array<uint32_t, 3> inCHW;
+    std::array<uint32_t, 3> outCHW;
 } intel_maxpool_t;
 
 typedef struct {
@@ -192,7 +195,6 @@ typedef struct {
     uint32_t num_copy_rows;            // number of rows to copy
 } intel_copy_t;
 
-#if GNA_LIB_VER == 2
 enum OvGnaType {
     OvGnaTypeInt8 = 1,
     OvGnaTypeInt16 = 2,
@@ -200,6 +202,7 @@ enum OvGnaType {
     OvGnaTypePwl = 8,
 };
 
+#if GNA_LIB_VER == 2
 enum OvGnaMode {
     OvGnaModeDefault = 0,
     OvGnaModeDisabled = -1
@@ -252,7 +255,7 @@ static std::string OvGnaModeToString(OvGnaMode mode) {
 }
 #endif
 
-typedef struct {
+struct intel_dnn_component_t {
 #if GNA_LIB_VER == 2
     std::vector < OvGnaTensor > tensors;
 #endif
@@ -268,7 +271,7 @@ typedef struct {
     intel_dnn_orientation_t orientation_out;
     union operation_struct_t {
         intel_affine_t affine;
-        intel_convolutionalD_t conv1D;
+        intel_convolutional1D_t conv1D;
         intel_convolutional2D_t conv2D;
         intel_maxpool_t maxpool;
         intel_piecewiselinear_t pwl;
@@ -282,9 +285,9 @@ typedef struct {
     float output_scale_factor;
     float input_scale_factor;
     const char * original_layer_name = nullptr;
-} intel_dnn_component_t;
+};
 
-typedef struct {
+struct intel_score_error_t {
     uint32_t num_scores;
     uint32_t num_errors;
     float threshold;
@@ -296,4 +299,4 @@ typedef struct {
     float max_rel_error;
     float sum_rel_error;
     float sum_squared_rel_error;
-} intel_score_error_t;
+};

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -162,6 +162,6 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
     CompareCommonAbsolute(output, refOut0, ERROR_BOUND);
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsLSTMCell_smoke,
-                        ::testing::Values<lstmcell_test_params>(MAKE_STRUCT(lstmcell_test_params, 512, 128)),
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsLSTMCell_smoke,
+        ::testing::Values<lstmcell_test_params>(MAKE_STRUCT(lstmcell_test_params, 512, 128))
 );

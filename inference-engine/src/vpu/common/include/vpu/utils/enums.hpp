@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
-#include <iostream>
+#include <ostream>
 #include <sstream>
 
 #include <vpu/utils/checked_cast.hpp>

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 #include <ngraph/validation_util.hpp>
@@ -253,9 +241,7 @@ void Node::invalidate_values()
         output.get_tensor().invalidate_values();
 }
 
-void Node::validate_and_infer_types()
-{
-}
+void Node::validate_and_infer_types() {}
 
 void Node::set_input_is_relevant_to_shape(size_t i, bool relevant)
 {
@@ -566,7 +552,7 @@ namespace ngraph
 {
     ostream& operator<<(ostream& out, const Node& node) { return node.write_description(out, 1); }
     ostream& operator<<(ostream& out, const Node* node) { return node->write_description(out, 1); }
-}
+} // namespace ngraph
 
 std::ostream& Node::write_description(std::ostream& out, uint32_t depth) const
 {
@@ -957,10 +943,22 @@ vector<Output<const Node>> Node::outputs() const
     return result;
 }
 
+bool Node::has_evaluate() const
+{
+    return false;
+}
+
 bool Node::evaluate(const HostTensorVector& output_values,
                     const HostTensorVector& input_values) const
 {
     return false;
+}
+
+bool Node::evaluate(const HostTensorVector& output_values,
+                    const HostTensorVector& input_values,
+                    const EvaluationContext& evaluationContext) const
+{
+    return evaluate(output_values, input_values);
 }
 
 bool Node::evaluate_lower(const HostTensorVector& output_values) const
@@ -1056,14 +1054,14 @@ AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref)
 
 bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor)
 {
-    int64_t size = m_ref.size();
+    size_t size = m_ref.size();
     visitor.on_attribute("size", size);
     if (size != m_ref.size())
     {
         m_ref.resize(size);
     }
     ostringstream index;
-    for (int64_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         index.str("");
         index << i;

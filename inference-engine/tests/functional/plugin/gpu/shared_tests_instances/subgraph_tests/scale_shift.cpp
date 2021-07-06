@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
 
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(smoke_ScaleShift, ScaleShiftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ScaleShift, ScaleShiftLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
                                 ::testing::ValuesIn(netPrecisions),

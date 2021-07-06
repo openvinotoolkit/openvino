@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ std::vector<DataType> precisions = {
         ngraph::element::i32
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_StridedSlice, DSR_StridedSlice,
+INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice, DSR_StridedSlice,
                         ::testing::Combine(
                             ::testing::ValuesIn(testCases),
                             ::testing::ValuesIn(precisions),

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,7 +136,8 @@ QuantizationDetails QuantizationDetails::getDetails(std::shared_ptr<opset1::Fake
     size_t outputIntervalsCount;
     getOutputIntervals(quantize, outputLowValues, outputHighValues, outputIntervalsCount);
 
-    const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::isConstantPath(quantize));
+    const size_t outputChannelsCount = outputLowValues.size() == 1ul ? 1ul :
+        NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::isConstantPath(quantize));
     if (!outputLayoutIsSupported(quantize)) {
         THROW_IE_LPT_EXCEPTION(*quantize) << "Expected output channels count " << outputIntervalsCount << " but found " << outputChannelsCount;
     }

@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "strided_slice_inst.h"
 #include "primitive_gpu_base.h"
@@ -20,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "strided_slice/strided_slice_kernel_ref.h"
 #include "strided_slice/strided_slice_kernel_selector.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "data_inst.h"
 #include <vector>
 
@@ -33,6 +21,10 @@ struct strided_slice_gpu : typed_primitive_gpu_impl<strided_slice> {
     using parent = typed_primitive_gpu_impl<strided_slice>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<strided_slice_gpu>(*this);
+    }
+
 public:
     static primitive_impl* create(const strided_slice_node& arg) {
         auto params = get_default_params<kernel_selector::strided_slice_params>(arg);
@@ -42,21 +34,22 @@ public:
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
         for (size_t i = 1; i < arg.get_dependencies().size(); ++i) {
             auto& input = arg.get_dependency(i).as<data>();
-            auto& mem = input.get_attached_memory();
+            auto mem = input.get_attached_memory_ptr();
             std::vector<int32_t> sizes;
             if (input.get_output_layout().data_type == cldnn::data_types::i64) {
-                int64_t* data = static_cast<int64_t*>(mem.lock());
+                mem_lock<int64_t> lock{mem, arg.get_program().get_stream()};
+                int64_t* data = lock.data();
                 std::vector<int64_t> sizes_i64 = std::vector<int64_t>(data, data + input.get_output_layout().count());
                 sizes.resize(sizes_i64.size());
                 for (size_t j = 0; j < sizes.size(); j++)
                     sizes[j] = static_cast<int32_t>(sizes_i64[j]);
             } else {
-                int32_t* data = static_cast<int32_t*>(mem.lock());
+                mem_lock<int32_t> lock{mem, arg.get_program().get_stream()};
+                int32_t* data = lock.data();
                 sizes = std::vector<int32_t>(data, data + input.get_output_layout().count());
             }
             pad_vector_to_size(sizes, dims_num, i != 1);  // for "begin" completion used 0 value, for other - 1
             params.striding_params.push_back(sizes);
-            mem.unlock();
         }
 
         params.end_mask = arg.get_primitive()->end_mask;

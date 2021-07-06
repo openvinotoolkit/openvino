@@ -1,18 +1,9 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 
 KERNEL(border_gpu_ref)(
@@ -65,7 +56,7 @@ KERNEL(border_gpu_ref)(
     const uint in_lz = in_sz + blt_sz;
     const uint in_lw = in_sw + blt_sw;
     const uint in_lf = in_sf + blt_sf;
-    const uint in_lb = in_sb + blt_sb;  
+    const uint in_lb = in_sb + blt_sb;
 
     const uint out_xz  = (uint) get_global_id(0);
     const uint out_yw  = (uint) get_global_id(1);

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -22,6 +10,8 @@
 #include <ngraph/runtime/reference/lstm_cell.hpp>
 #include <ngraph/runtime/reference/rnn_cell.hpp>
 #include <ngraph/runtime/reference/split.hpp>
+
+#include "reverse_sequence.hpp"
 
 namespace ngraph
 {
@@ -189,19 +179,20 @@ namespace ngraph
                     if (enable_mask)
                     {
                         size_t part_size_single_batch = part_shape_size / batch * sizeof(T);
-                        for (int i = 0; i < batch; ++i)
+                        for (size_t i = 0; i < batch; ++i)
                         {
-                            if ((time_step + 1) > seq_len_values[i])
+                            auto shift = i * part_size_single_batch;
+                            if ((time_step + 1) > static_cast<size_t>(seq_len_values[i]))
                             {
                                 continue;
                             }
-                            std::memcpy(h_list[time_step].data() + i * part_size_single_batch,
-                                        outputs[1] + i * part_size_single_batch,
+                            std::memcpy(h_list[time_step].data() + shift,
+                                        outputs[1] + shift,
                                         part_size_single_batch);
                             if (type == CellType::LSTM)
                             {
-                                std::memcpy(c_list[time_step].data() + i * part_size_single_batch,
-                                            outputs[2] + i * part_size_single_batch,
+                                std::memcpy(c_list[time_step].data() + shift,
+                                            outputs[2] + shift,
                                             part_size_single_batch);
                             }
                         }
@@ -218,18 +209,29 @@ namespace ngraph
                         }
                         else
                         {
-                            for (int i = 0; i < batch; ++i)
+                            for (size_t i = 0; i < batch; ++i)
                             {
-                                std::memcpy(outputs[1] + i * part_size_single_batch,
-                                            h_list[seq_len_values[i] - 1].data() +
-                                                i * part_size_single_batch,
-                                            part_size_single_batch);
-                                if (type == CellType::LSTM)
+                                size_t idx = seq_len_values[i] - 1;
+                                auto shift = i * part_size_single_batch;
+                                if (idx >= 0 && idx < h_list.size())
                                 {
-                                    std::memcpy(outputs[2] + i * part_size_single_batch,
-                                                c_list[seq_len_values[i] - 1].data() +
-                                                    i * part_size_single_batch,
+                                    std::memcpy(outputs[1] + shift,
+                                                h_list[idx].data() + shift,
                                                 part_size_single_batch);
+                                    if (type == CellType::LSTM)
+                                    {
+                                        std::memcpy(outputs[2] + shift,
+                                                    c_list[idx].data() + shift,
+                                                    part_size_single_batch);
+                                    }
+                                }
+                                else
+                                {
+                                    std::memset(outputs[1] + shift, 0, part_size_single_batch);
+                                    if (type == CellType::LSTM)
+                                    {
+                                        std::memset(outputs[2] + shift, 0, part_size_single_batch);
+                                    }
                                 }
                             }
                         }
@@ -352,7 +354,7 @@ namespace ngraph
                     // update H,C,W,R,B shapes after split
                     shapes[2][1] = 1;
                     shapes[3][1] = 1;
-                    for (int i = 4; i < shapes.size(); ++i)
+                    for (size_t i = 4; i < shapes.size(); ++i)
                     {
                         shapes[i][0] = 1;
                     }
@@ -491,7 +493,7 @@ namespace ngraph
                         X_shape, seq_lengths_shape, H_shape, W_shape, R_shape, B_shape};
                     // update H,W,R,B shapes after split
                     shapes[2][1] = 1;
-                    for (int i = 3; i < shapes.size(); ++i)
+                    for (size_t i = 3; i < shapes.size(); ++i)
                     {
                         shapes[i][0] = 1;
                     }
@@ -614,7 +616,7 @@ namespace ngraph
                         X_shape, seq_lengths_shape, H_shape, W_shape, R_shape, B_shape};
                     // update H,W,R,B shapes after split
                     shapes[2][1] = 1;
-                    for (int i = 3; i < shapes.size(); ++i)
+                    for (size_t i = 3; i < shapes.size(); ++i)
                     {
                         shapes[i][0] = 1;
                     }
@@ -665,6 +667,6 @@ namespace ngraph
                                                sizeof(T));
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

@@ -1,5 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <vector>
 #include "subgraph_tests/split_relu.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -45,7 +47,7 @@ namespace {
             {std::string(GNA_CONFIG_KEY(COMPACT_MODE)), "NO"}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_split_connected, SplitRelu,
+    INSTANTIATE_TEST_SUITE_P(smoke_split_connected, SplitRelu,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(connect_index),

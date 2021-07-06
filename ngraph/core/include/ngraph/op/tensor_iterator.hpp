@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -32,8 +20,8 @@ namespace ngraph
             class NGRAPH_API TensorIterator : public op::util::SubGraphOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"TensorIterator", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 TensorIterator() = default;
@@ -50,16 +38,10 @@ namespace ngraph
                 /// \return the body of the iteration
                 std::shared_ptr<Function> get_function() override;
 
-                int64_t get_num_iterations() const { return m_num_iterations; }
-                void set_num_iterations(int64_t num_iterations)
-                {
-                    m_num_iterations = num_iterations;
-                }
-
             private:
-                int64_t m_num_iterations = -1;
+                void try_to_set_num_iterations_if_no_slice_inputs();
             };
-        }
+        } // namespace v0
         using v0::TensorIterator;
-    }
-}
+    } // namespace op
+} // namespace ngraph

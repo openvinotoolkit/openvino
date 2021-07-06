@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ const std::vector<ngraph::helpers::InputLayerType> inputType = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_maximum, MaxMinLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_maximum, MaxMinLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
                                 ::testing::ValuesIn(opType),

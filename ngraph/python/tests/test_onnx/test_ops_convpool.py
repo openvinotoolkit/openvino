@@ -1,26 +1,14 @@
-# ******************************************************************************
-# Copyright 2018-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
+from onnx.onnx_cpp2py_export.checker import ValidationError
 
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
-from tests import xfail_issue_35911, xfail_issue_35912
 
 
 @pytest.fixture
@@ -269,7 +257,6 @@ def test_2d_conv_transpose():
     )
 
 
-@xfail_issue_35911
 def test_pad_opset_1():
     x = np.ones((2, 2), dtype=np.float32)
     y = np.pad(x, pad_width=1, mode="constant")
@@ -293,7 +280,7 @@ def test_pad_opset_1():
 
     # no paddings arttribute
     model = get_node_model("Pad", x)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValidationError):
         import_onnx_model(model)
 
 
@@ -319,7 +306,6 @@ def test_pad_opset_2():
         run_model(model, [x])
 
 
-@xfail_issue_35912
 def test_pad_negative_values_begin():
     x = np.ones((2, 2), dtype=np.float32)
 
@@ -334,7 +320,6 @@ def test_pad_negative_values_begin():
     assert np.array_equal(ng_result, np.array([[1], [1]]))
 
 
-@xfail_issue_35912
 def test_pad_negative_values_end():
     x = np.ones((2, 2), dtype=np.float32)
 

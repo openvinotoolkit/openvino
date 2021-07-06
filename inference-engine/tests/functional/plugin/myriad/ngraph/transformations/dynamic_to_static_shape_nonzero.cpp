@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,7 +91,7 @@ TEST_P(DynamicToStaticShapeNonZeroTests, CompareFunctions) {
     compareFunctions();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeNonZeroTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeNonZeroTests, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,

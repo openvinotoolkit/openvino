@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 add_definitions(-DIN_NGRAPH_LIBRARY)
 
@@ -51,20 +39,11 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph library")
 endif()
 
-target_link_libraries(ngraph PRIVATE openvino::conditional_compilation openvino::itt ngraph::builder ngraph::reference)
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference)
 
 ie_mark_target_as_cc(ngraph)
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    message(STATUS "Enable Address Sanitizer")
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
-
-if(NGRAPH_LIB_VERSIONING_ENABLE)
-    set_target_properties(ngraph PROPERTIES
-        VERSION ${NGRAPH_VERSION}
-        SOVERSION ${NGRAPH_API_VERSION})
-endif()
+add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
@@ -81,6 +60,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # and it's better to use them as static libraries in 3rd party projects
     set_target_properties(ngraph PROPERTIES LINK_FLAGS "/IGNORE:4217,4286")
 endif()
+
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
@@ -105,23 +89,13 @@ install(TARGETS ngraph EXPORT ngraphTargets
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-    DESTINATION ${NGRAPH_INSTALL_INCLUDE}/
-    COMPONENT ngraph
+    DESTINATION ${NGRAPH_INSTALL_INCLUDE}
+    COMPONENT ngraph_dev
     FILES_MATCHING
         PATTERN "*.hpp"
         PATTERN "*.h"
+        PATTERN "*version.in.hpp" EXCLUDE
 )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/ngraph/version.hpp
     DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph
-    COMPONENT ngraph)
-
-set(CPACK_GENERATOR "DEB")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "nGraph library")
-set(CPACK_PACKAGE_NAME "nGraph")
-set(CPACK_PACKAGE_VENDOR "Intel")
-
-set(CPACK_PACKAGE_VERSION_MAJOR ${NGRAPH_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${NGRAPH_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${NGRAPH_VERSION_PATCH})
-include(CPack)
+    COMPONENT ngraph_dev)

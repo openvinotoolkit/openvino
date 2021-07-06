@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,6 @@ std::string TransposeLayerTest::getTestCaseName(testing::TestParamInfo<transpose
 }
 
 void TransposeLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     std::vector<size_t> inputShape, inputOrder;
     InferenceEngine::Precision netPrecision;
     std::tie(inputOrder, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();

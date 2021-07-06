@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "details/ie_exception.hpp"
+#include "ie_common.h"
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
 
@@ -98,7 +98,7 @@ class SharedObjectLoader::Impl {
     // Exclude current directory from DLL search path process wise.
     // If application specific path was configured before then
     // current directory is already excluded.
-    // GetDLLDirectory does not distinguish if aplication specific
+    // GetDLLDirectory does not distinguish if application specific
     // path was set to "" or NULL so reset it to "" to keep
     // application safe.
     void ExcludeCurrentDirectoryA() {
@@ -210,7 +210,7 @@ class SharedObjectLoader::Impl {
 
         if (!shared_object) {
             char cwd[1024];
-            THROW_IE_EXCEPTION << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
+            IE_THROW() << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
                                << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
     }
@@ -226,7 +226,7 @@ class SharedObjectLoader::Impl {
 
         if (!shared_object) {
             char cwd[1024];
-            THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()
+            IE_THROW() << "Cannot load library '" << pluginName << "': " << GetLastError()
                 << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
     }
@@ -239,22 +239,22 @@ class SharedObjectLoader::Impl {
      * @brief Searches for a function symbol in the loaded module
      * @param symbolName Name of function to find
      * @return A pointer to the function if found
-     * @throws InferenceEngineException if the function is not found
+     * @throws Exception if the function is not found
      */
     void* get_symbol(const char* symbolName) const {
         if (!shared_object) {
-            THROW_IE_EXCEPTION << "Cannot get '" << symbolName << "' content from unknown library!";
+            IE_THROW() << "Cannot get '" << symbolName << "' content from unknown library!";
         }
         auto procAddr = reinterpret_cast<void*>(GetProcAddress(shared_object, symbolName));
         if (procAddr == nullptr)
-            THROW_IE_EXCEPTION << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
+            IE_THROW(NotFound)
+                << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
 
         return procAddr;
     }
 };
 
-SharedObjectLoader::~SharedObjectLoader() noexcept(false) {
-}
+SharedObjectLoader::~SharedObjectLoader() {}
 
 SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
     _impl = std::make_shared<Impl>(pluginName);
@@ -266,6 +266,9 @@ SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
 #endif
 
 void* SharedObjectLoader::get_symbol(const char* symbolName) const {
+    if (_impl == nullptr) {
+        IE_THROW(NotAllocated) << "SharedObjectLoader is not initialized";
+    }
     return _impl->get_symbol(symbolName);
 }
 

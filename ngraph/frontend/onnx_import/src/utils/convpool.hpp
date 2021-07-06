@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -112,6 +100,16 @@ namespace ngraph
             ///
             ngraph::op::PadType get_auto_pad(const Node& node);
 
+            /// \brief      Reshape group convolution filters to match desired shape:
+            ///             from [C_INPUT x C_OUTPUT/groups x k1 x k2 x ... x kn]
+            ///             to [GROUPS, C_INPUT, C_OUTPUT, K_D, ..., K_1]
+            ///
+            /// \param[in]  filters     Filter input to reshape
+            /// \param[in]  groups      Number of groups
+            ///
+            /// \return     Reshaped filters input.
+            Output<ngraph::Node> get_reshaped_filters(const Output<ngraph::Node>& filters,
+                                                      int64_t groups);
         } // namespace convpool
 
     } // namespace  onnx_import

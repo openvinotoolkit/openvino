@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,10 @@
 #include "ngraph/op/power.hpp"
 #include "ngraph/op/floor_mod.hpp"
 
-#include "api/activation.hpp"
-#include "api/eltwise.hpp"
-#include "api/reorder.hpp"
-#include "api/reshape.hpp"
+#include "cldnn/primitives/activation.hpp"
+#include "cldnn/primitives/eltwise.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 
@@ -151,7 +151,7 @@ void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Power>& op)
         if (ngraph::shape_size(power_node->get_output_shape(0)) == 1) {
             float pow;
             if (!ngraph::op::util::get_single_value(power_node, pow))
-                THROW_IE_EXCEPTION << "Invalid parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+                IE_THROW() << "Invalid parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
             CreateUnaryEltwiseOp(p, op, cldnn::activation_func::pow, {pow});
             return;
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,10 +54,13 @@ class LayerInfo {
         IS_VALID();
         return layer->insData.size() > 1;
     }
-    bool has16BOutput() const noexcept {
+    // The name of the funciton may be somehwat misleading
+    // Explanation: when in low precision mode the listed layers have 8-bit outputs
+    // and when in 16-bit input mode, they have 16-bit outputs
+    bool has8BOr16BOutput() const noexcept {
         IS_VALID();
-        static InferenceEngine::details::caseless_set<std::string> layersWith16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
-        return layersWith16BOutputs.find(layer->type) != layersWith16BOutputs.end() ||
+        static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
+        return layersWith8BOr16BOutputs.find(layer->type) != layersWith8BOr16BOutputs.end() ||
                                                                         isActivation() ||
                                                             (isCrop() && !isCropAffined());
     }
@@ -72,7 +75,8 @@ class LayerInfo {
             [this]() { return isConvolution(); },
             [this]() { return isPooling(); },
             [this]() { return isPower(); },
-            [this]() { return isCropAffined(); }
+            [this]() { return isCropAffined(); },
+            [this]() { return isGemm(); },
         };
 
         for (auto && has32BOutputs : has32BOutputsProbes) {
@@ -85,6 +89,32 @@ class LayerInfo {
     static bool isBatchSizeConstrained(const std::string name) {
         static InferenceEngine::details::caseless_set<std::string> layersWithConstrains = {"memory", "convolution"};
         return layersWithConstrains.find(name) != layersWithConstrains.end();
+    }
+    size_t getOutputBatchSize() const {
+        if (!layer) {
+            THROW_GNA_EXCEPTION << "layer is null";
+        }
+        if (!layer->outData[0]) {
+            THROW_GNA_EXCEPTION << "output data of layer '" << layer->name << "' is null";
+        }
+        auto& dims = layer->outData[0]->getDims();
+        auto layout = layer->outData[0]->getLayout();
+        switch (dims.size()) {
+        case 1:
+            return 1;
+        case 2:
+            if (layout == InferenceEngine::Layout::NC) {
+                return dims[0];
+            } else if (layout == InferenceEngine::Layout::CN) {
+                return dims[1];
+            } else {
+                THROW_GNA_EXCEPTION << "batch size is not define in layer '" << layer->name << "'";
+            }
+        case 4:
+            return dims[0];
+        default:
+            THROW_GNA_EXCEPTION << "batch size is not define in layer '" << layer->name << "'";
+        }
     }
     bool isActivation() const noexcept {
         IS_VALID();
@@ -103,7 +133,8 @@ class LayerInfo {
              "neglog",
              "neghalflog",
              "softsign",
-             "power"};
+             "power",
+             "fakequantize"};
 
         if (isPower()) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
@@ -157,7 +188,10 @@ class LayerInfo {
         IS_VALID();
         return nullptr != as<const InferenceEngine::ScaleShiftLayer*>();
     }
-
+    bool isSyntheticScaleShift() const noexcept {
+        IS_VALID();
+        return layer->name.find("SyntheticScaleShift") != std::string::npos;
+    }
     bool isEltwise() const noexcept {
         IS_VALID();
         return nullptr != as<const InferenceEngine::EltwiseLayer*>();
@@ -193,8 +227,23 @@ class LayerInfo {
     bool isIdentity() const noexcept {
         return isOfType("identity");
     }
+    bool isTanh() const noexcept {
+        return isOfType("tanh");
+    }
+    bool isSigmoid() const noexcept {
+        return isOfType("sigmoid");
+    }
+    bool isSoftSign() const noexcept {
+        return isOfType("softsign");
+    }
+    bool isClamp() const noexcept {
+        return isOfType("clamp");
+    }
     bool isFullyConnected() const noexcept {
         return isOfType("FullyConnected") || isOfType("InnerProduct");
+    }
+    bool isGemm() const noexcept {
+        return isOfType("Gemm");
     }
     bool isSplit() const noexcept {
         return isOfType("split");
@@ -241,7 +290,7 @@ class LayerInfo {
                 return false;
             }
             // check dims in between
-            for (int j = permute.first + 1; j != permute.second; j++) {
+            for (int j = std::min(permute.first, permute.second) + 1; j < std::max(permute.first, permute.second); j++) {
                 if (inputsOrderTransformed[j] != 1) {
                     return false;
                 }
@@ -250,6 +299,9 @@ class LayerInfo {
             std::swap(inputsOrderTransformed[permute.first], inputsOrderTransformed[permute.second]);
         }
         return true;
+    }
+    bool isNonValuesChangable() const {
+        return isNonFunctional() || isSplit() || isSlice() || isConcat();
     }
     bool isPooling() const noexcept {
         return isOfType("pooling");
@@ -282,6 +334,9 @@ class LayerInfo {
 
     bool isCopyDelayed() const noexcept {
         return isOfType(DelayedCopyLayerName);
+    }
+    bool isWeightableIdentity() const noexcept {
+        return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
     }
 
     size_t paddingSize() const {

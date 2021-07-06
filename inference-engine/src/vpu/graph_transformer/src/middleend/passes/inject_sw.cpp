@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,7 @@ void PassImpl::run(const Model& model) {
     // Collect HW and SW candidates
     //
 
-    if (!env.config.injectSwOps.hasValue() &&
+    if (!env.config.compileConfig().injectSwOps.hasValue() &&
         model->numStages() > nMaxStagesForInjectSw) {
         env.log->warning(
             "Pass [injectSw] SKIPPED : number of stages (%d) is larger than threshold %d",

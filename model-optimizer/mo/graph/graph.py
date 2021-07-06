@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import collections
 import logging as log
 from copy import deepcopy
@@ -573,6 +561,7 @@ class Graph(nx.MultiDiGraph):
             self.node = self.nodes
 
     unique_id_count = 0
+    op_names_statistic = collections.Counter()
 
     # SAFE API DESCRIPTION
     # all provided methods below are designed to be more safe and convenient
@@ -1043,23 +1032,26 @@ def dict_includes(big: dict, sub_dict: dict, skip_attr_names=[]):
     )
 
 
-def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True):
+def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port: bool = False):
     """
     Creates and connects Result node to node_name port. Cuts existing port if requested.
     :param graph: graph to operate with
     :param node_name: name of existing node in the graph that we want to add Result to
     :param port: output port of node to connect Result to
     :param cut: determines way of operating with edge specified by node_name and port
+    :param keep_output_port: special attribute determines if this operation is saved in IR or not
     """
     # we import it here because Op imports add_attrs_props and update_ie_fields from this file
     from mo.ops.result import Result
     node = Node(graph, node_name)
     if cut and len(node.out_edges()) != 0:
-        opoutput_node = Result(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port)})
+        opoutput_node = Result(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port),
+                                                                       'keep_output_port': keep_output_port})
     else:
-        opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port)})
+        opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port),
+                                                                   'keep_output_port': keep_output_port})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
-        opoutput_node.in_edge()['fw_tensor_debug_info'] = [(node_name, port)]
+
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))
     log.debug(str(graph.node[opoutput_node.id]))
     log.debug("Add edge from {} to {}".format(node_name, opoutput_node.id))
@@ -1096,6 +1088,44 @@ def rename_node(node: Node, name):
 def rename_nodes(nodes: List[tuple]):
     for node, name in nodes:
         rename_node(node, name)
+
+
+def get_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str):
+    """
+    Gets edge attribute value between two nodes.
+    This method is introduced for implementation of manual replacing of nodes attributes
+    with tensor debug information. It is needed after removing of fake outputs.
+    Also there are cases when graph transformations lead to mismatch of tensor name
+    and input node, so manual attribute change is needed.
+    This method should only be used during the front phase.
+    And it is applicable only for cases when there is just one edge between two given nodes.
+    """
+    for edge_idx in node1.out_edges():
+        edge = node1.out_edge(edge_idx)
+        out_port = edge['out']
+        out_node = node1.out_node(out_port)
+        if out_node.id == node2.id:
+            if attr_name in edge:
+                return edge[attr_name]
+    return None
+
+
+def set_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, new_value):
+    """
+    Sets edge attribute value between two nodes.
+    This method is introduced for implementation of manual replacing of nodes attributes
+    with tensor debug information. It is needed after removing of fake outputs.
+    Also there are cases when graph transformations lead to mismatch of tensor name
+    and input node, so manual attribute change is needed.
+    This method should only be used during the front phase.
+    And it is applicable only for cases when there is just one edge between two given nodes.
+    """
+    for edge_idx in node1.out_edges():
+        edge = node1.out_edge(edge_idx)
+        out_port = edge['out']
+        out_node = node1.out_node(out_port)
+        if out_node.id == node2.id:
+            edge[attr_name] = new_value
 
 # All functions below are deprecated and will be removed in next release
 # Please, use methods from Graph/Node classes instead

@@ -2,35 +2,33 @@
 
 **Versioned name**: *Negative-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
-**Short description**: *Negative* performs element-wise negative operation with given tensor.
+**Short description**: *Negative* performs element-wise negative operation on a given input tensor.
 
-**Attributes**:
+**Detailed description**
 
-    No attributes available.
-
-**Inputs**
-
-* **1**: An tensor of type T. **Required.**
-
-**Outputs**
-
-* **1**: The result of element-wise negative operation. A tensor of type T.
-
-**Types**
-
-* *T*: any numeric type.
-
-*Negative* does the following with the input tensor *a*:
+*Negative* performs element-wise negative operation on a given input tensor, based on the following mathematical formula:
 
 \f[
 a_{i} = -a_{i}
 \f]
 
-**Examples**
+**Attributes**: *Negative* operation has no attributes.
 
-*Example 1*
+**Inputs**
+
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise *Negative* operation applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
+
+**Types**
+
+* *T*: any supported signed numeric type.
+
+**Example**
 
 ```xml
 <layer ... type="Negative">

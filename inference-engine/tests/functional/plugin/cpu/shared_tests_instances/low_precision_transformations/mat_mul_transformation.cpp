@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ std::vector<MatMulTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, MatMulTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::Shape({ 1, 384, 1024 })),

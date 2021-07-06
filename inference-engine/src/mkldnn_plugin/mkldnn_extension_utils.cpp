@@ -28,7 +28,7 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
     case mkldnn::memory::data_type::undef:
         return 0;
     default:
-        THROW_IE_EXCEPTION << "Unsupported data type.";
+        IE_THROW() << "Unsupported data type.";
     }
 }
 
@@ -48,7 +48,7 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
         case InferenceEngine::Precision::BIN:
             return memory::data_type::bin;
         default: {
-            THROW_IE_EXCEPTION << "The plugin does not support " << prec.name();
+            IE_THROW() << "The plugin does not support " << prec.name();
         }
     }
 }
@@ -68,7 +68,7 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
         case memory::data_type::bin:
             return InferenceEngine::Precision::BIN;
         default: {
-            THROW_IE_EXCEPTION << "Unsupported data type.";
+            IE_THROW() << "Unsupported data type.";
         }
     }
 }
@@ -134,9 +134,19 @@ PartialBlkDesc PartialBlkDesc::makeCBlocked(const InferenceEngine::SizeVector &d
     return res;
 }
 
+
+PartialBlkDesc PartialBlkDesc::makeTailC(const InferenceEngine::SizeVector &dims) {
+    PartialBlkDesc res = makePlain(dims);
+    if (dims.size() > 2) {
+        auto itr = res.outer_order.begin() + 1;
+        std::rotate(itr, itr + 1, res.outer_order.end());
+    }
+    return res;
+}
+
 PartialBlkDesc PartialBlkDesc::extractFrom(const InferenceEngine::TensorDesc &desc) {
     if (desc.getLayout() == InferenceEngine::ANY)
-        THROW_IE_EXCEPTION << "Cannot extract partial blocked descriptor for `ANY` layout";
+        IE_THROW() << "Cannot extract partial blocked descriptor for `ANY` layout";
 
     const auto &dims = desc.getDims();
     const auto &blk = desc.getBlockingDesc();
@@ -208,29 +218,4 @@ InferenceEngine::Precision MKLDNNExtensionUtils::getMaxPrecision(std::vector<Inf
     }
 
     return InferenceEngine::Precision::UNSPECIFIED;
-}
-
-bool MKLDNNExtensionUtils::isDenseTensor(const InferenceEngine::TensorDesc &desc) {
-    if (desc.getLayout() == InferenceEngine::Layout::SCALAR)
-        return true;
-
-    auto blkDesc = desc.getBlockingDesc();
-    auto blkDims = blkDesc.getBlockDims();
-    auto strides = blkDesc.getStrides();
-
-    if (blkDims.size() != desc.getDims().size() || strides[blkDims.size() - 1] != 1)
-        return false;
-
-    for (int i = static_cast<int>(blkDims.size()) - 2; i >=0; i--) {
-        if (strides[i] != strides[i + 1] * blkDims[i + 1])
-            return false;
-    }
-
-    return true;
-}
-
-bool MKLDNNExtensionUtils::isDefaultTensor(const InferenceEngine::TensorDesc &desc) {
-    auto blkDesc = desc.getBlockingDesc();
-    return isDenseTensor(desc) && blkDesc.getOffsetPadding() == 0 &&
-           std::all_of(blkDesc.getOffsetPaddingToData().begin(), blkDesc.getOffsetPaddingToData().end(), [](size_t i){ return i == 0; });
 }

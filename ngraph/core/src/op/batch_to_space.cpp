@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -124,7 +113,7 @@ void op::v1::BatchToSpace::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, data_type, PartialShape::dynamic());
+        set_output_type(0, data_type, PartialShape::dynamic(data_pshape.rank()));
     }
 }
 
@@ -255,11 +244,19 @@ namespace
             flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
         return true;
     }
-}
+} // namespace
 
 bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_BatchToSpace);
     return batch_to_space_evaluate(outputs, inputs);
+}
+
+bool ngraph::op::v1::BatchToSpace::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_BatchToSpace_has_evaluate);
+    return !get_input_partial_shape(0).is_dynamic() &&
+           (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5) &&
+           get_input_shape(0).size() <= shape_size(get_input_shape(1));
 }

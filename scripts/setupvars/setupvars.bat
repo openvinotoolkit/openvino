@@ -1,19 +1,7 @@
 @echo off
 
-:: Copyright (c) 2018-2020 Intel Corporation
-::
-:: Licensed under the Apache License, Version 2.0 (the "License");
-:: you may not use this file except in compliance with the License.
-:: You may obtain a copy of the License at
-::
-::      http://www.apache.org/licenses/LICENSE-2.0
-::
-:: Unless required by applicable law or agreed to in writing, software
-:: distributed under the License is distributed on an "AS IS" BASIS,
-:: WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-:: See the License for the specific language governing permissions and
-:: limitations under the License.
-
+:: Copyright (C) 2018-2021 Intel Corporation
+:: SPDX-License-Identifier: Apache-2.0
 
 set ROOT=%~dp0
 call :GetFullPath "%ROOT%\.." ROOT
@@ -49,13 +37,20 @@ set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer;%PYTHONPATH
 set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer;%PATH%"
 )
 
+
+:: Model Downloader
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;%PATH%"
+)
+
 :: Inference Engine
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\share"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\hddl"
 set "OPENMP_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\omp\lib"
 set "GNA_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\gna\lib"
 
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Release;%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENMP_DIR%;%GNA_DIR%;%PATH%"
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Release;%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENMP_DIR%;%GNA_DIR%;%OPENVINO_LIB_PATHS%"
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions (
 set ARCH_ROOT_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions
 )
@@ -65,15 +60,23 @@ set ARCH_ROOT_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\int
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb (
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\bin;%PATH%"
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\bin;%OPENVINO_LIB_PATHS%"
 set "TBB_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\cmake"
 )
 
 :: nGraph
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\ngraph (
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\lib;%PATH%"
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\lib;%OPENVINO_LIB_PATHS%"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\cmake"
 )
+
+:: Compile tool
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\tools\compile_tool (
+set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\tools\compile_tool;%PATH%"
+)
+
+:: Add libs dirs to the PATH
+set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 
 :: Check if Python is installed
 python --version 2>NUL

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,14 @@
 namespace LayerTestsDefinitions {
 
 TEST_P(GatherLayerTest, CompareWithRefs) {
+    Run();
+};
+
+TEST_P(Gather7LayerTest, CompareWithRefs) {
+    Run();
+};
+
+TEST_P(Gather8LayerTest, CompareWithRefs) {
     Run();
 };
 

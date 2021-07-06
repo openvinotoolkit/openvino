@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,8 +36,9 @@ TEST_P(CallbackTests, canCallSyncAndAsyncWithCompletionCallback) {
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     bool isCalled = false;
-    req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
+    req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest r, InferenceEngine::StatusCode)>>(
             [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
+                ASSERT_TRUE(req == request); //the callback is called on the same impl of the request
                 // HSD_1805940120: Wait on starting callback return HDDL_ERROR_INVAL_TASK_HANDLE
                 if (targetDevice != CommonTestUtils::DEVICE_HDDL) {
                     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), status);
@@ -46,7 +47,7 @@ TEST_P(CallbackTests, canCallSyncAndAsyncWithCompletionCallback) {
             });
 
     req.StartAsync();
-    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
 
     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
     ASSERT_TRUE(isCalled);
@@ -71,15 +72,12 @@ TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) 
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
-            [&](InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode status) {
+            [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
                 if (status != InferenceEngine::StatusCode::OK) {
                     data.promise.set_value(status);
                 } else {
                     if (data.numIter.fetch_add(1) != NUM_ITER) {
-                        auto sts = request->StartAsync(nullptr);
-                        if (sts != InferenceEngine::StatusCode::OK) {
-                            data.promise.set_value(sts);
-                        }
+                        request.StartAsync();
                     } else {
                         data.promise.set_value(InferenceEngine::StatusCode::OK);
                     }
@@ -87,7 +85,7 @@ TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) 
             });
     auto future = data.promise.get_future();
     req.StartAsync();
-    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ((int) InferenceEngine::StatusCode::OK, waitStatus);
     future.wait();
     auto callbackStatus = future.get();
@@ -107,7 +105,7 @@ TEST_P(CallbackTests, inferDoesNotCallCompletionCallback) {
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     bool isCalled = false;
     req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
-            [&](InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode status) {
+            [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
                 isCalled = true;
             });
     req.Infer();
@@ -122,20 +120,41 @@ TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::IInferRequest::Ptr req = static_cast<InferenceEngine::IInferRequest::Ptr &>(execNet.CreateInferRequest());
-    req->SetCompletionCallback(
-            [](InferenceEngine::IInferRequest::Ptr, InferenceEngine::StatusCode status) {
-                THROW_IE_EXCEPTION << "returnGeneralErrorIfCallbackThrowException";
-            });
+    auto req = execNet.CreateInferRequest();
+    req.SetCompletionCallback([] {
+        IE_THROW(GeneralError);
+    });
 
-    InferenceEngine::ResponseDesc resp;
-    req->StartAsync(&resp);
-    InferenceEngine::StatusCode waitStatus = InferenceEngine::StatusCode::INFER_NOT_STARTED;
-    while (InferenceEngine::StatusCode::RESULT_NOT_READY == waitStatus ||
-           InferenceEngine::StatusCode::INFER_NOT_STARTED == waitStatus) {
-        waitStatus = req->Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY, &resp);
-    }
-    ASSERT_EQ(InferenceEngine::StatusCode::GENERAL_ERROR, waitStatus);
-    ASSERT_NE(std::string(resp.msg).find("returnGeneralErrorIfCallbackThrowException"), std::string::npos);
+    ASSERT_NO_THROW(req.StartAsync());
+    ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::GeneralError);
 }
+
+TEST_P(CallbackTests, LegacyCastAndSetuserDataGetUserData) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    InferenceEngine::InferRequest req = execNet.CreateInferRequest();
+    int userData = 0;
+    {
+        IE_SUPPRESS_DEPRECATED_START
+        InferenceEngine::IInferRequest::Ptr ireq = req;
+        ASSERT_EQ(InferenceEngine::OK, ireq->SetUserData(static_cast<void*>(&userData), nullptr));
+        ASSERT_EQ(InferenceEngine::OK, ireq->SetCompletionCallback(
+                [](InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode status) {
+                    void* userDataPtr = nullptr;
+                    ASSERT_EQ(InferenceEngine::OK, request->GetUserData(&userDataPtr, nullptr));
+                    ASSERT_NE(nullptr, userDataPtr);
+                    *static_cast<int*>(userDataPtr) = 42;
+                }));
+        IE_SUPPRESS_DEPRECATED_END
+    }
+    req.StartAsync();
+    req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+    ASSERT_EQ(42, userData);
+}
+
 }  // namespace BehaviorTestsDefinitions

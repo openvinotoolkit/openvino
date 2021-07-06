@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -45,6 +33,7 @@ namespace ngraph
                 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
                 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2
 
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform indices_transform{indices_shape};
                 CoordinateTransform data_transform{data_shape};
 
@@ -59,7 +48,8 @@ namespace ngraph
                                  ".");
                     out_buf[data_transform.index(out_cord)] = updates[indices_idx];
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

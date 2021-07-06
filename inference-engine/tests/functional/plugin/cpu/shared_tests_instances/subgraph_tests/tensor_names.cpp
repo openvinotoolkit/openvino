@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 using namespace SubgraphTestsDefinitions;
 
 namespace {
-    INSTANTIATE_TEST_CASE_P(smoke_Check, TensorNamesTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Check, TensorNamesTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
                             TensorNamesTest::getTestCaseName);
 }  // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -346,12 +346,12 @@ TEST_P(VPU_NoMergeParallelFCTest, NoMergeParallelFCMergeCases) {
     AssertNotMergedCorrectly(testInputDimensions, testFCDescriptors);
 }
 
-INSTANTIATE_TEST_CASE_P(MergeParallelFCTest, VPU_MergeParallelFCTest, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(MergeParallelFCTest, VPU_MergeParallelFCTest, testing::Combine(
     testing::ValuesIn(inputDimensions),
     testing::ValuesIn(FCDescriptorsMerge)
 ));
 
-INSTANTIATE_TEST_CASE_P(NoMergeParallelFCTest, VPU_NoMergeParallelFCTest, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(NoMergeParallelFCTest, VPU_NoMergeParallelFCTest, testing::Combine(
     testing::ValuesIn(inputDimensions),
     testing::ValuesIn(FCDescriptorsNoMerge)
 ));

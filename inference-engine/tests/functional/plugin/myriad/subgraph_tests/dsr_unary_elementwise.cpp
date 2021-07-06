@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ TEST_P(DSR_UnaryElementwise, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicUnaryElementwise, DSR_UnaryElementwise,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicUnaryElementwise, DSR_UnaryElementwise,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32),
         ::testing::Values(DataShapeWithUpperBound{ngraph::Shape{8, 800}, ngraph::Shape{10, 1000}}),

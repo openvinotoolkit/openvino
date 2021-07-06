@@ -4,11 +4,11 @@
 
 **Category**: Data movement operations
 
-**Short description**: Creates a copy of the first input tensor with updated elements specified with second and third input tensors. This is similar to [Reference](https://github.com/onnx/onnx/blob/master/docs/Operators.md#ScatterND)
+**Short description**: Creates a copy of the first input tensor with updated elements specified with second and third input tensors. 
 
 **Detailed description**: The operation produces a copy of `data` tensor and updates its value to values specified 
 by `updates` at specific index positions specified by `indices`. The output shape is the same as the shape of `data`. 
-`indices` tensor must not have duplicate entries. In case duplicate entries in `indices` the result is undefined.
+`indices` tensor must not have duplicate entries. In case of duplicate entries in `indices` the result is undefined.
 
 The last dimension of `indices` can be at most the rank of `data.shape`. 
 The last dimension of `indices` corresponds to indices into elements if `indices.shape[-1]` = `data.shape.rank` or slices 
@@ -48,7 +48,7 @@ output  = [[[5, 5, 5, 5], [6, 6, 6, 6], [7, 7, 7, 7], [8, 8, 8, 8]],
 
 *   **2**: `indices` tensor with indices of arbitrary rank `q` >= 1 and of type *T_IND*. All index values `i_j` in index entry `(i_0, i_1, ...,i_k)` (where `k = indices.shape[-1]`) must be within bounds `[0, s_j - 1]` where `s_j = data.shape[j]`. `k` must be at most `r`. Required.
 
-*   **3**: `updates` tensor of rank `r - indices.shape[-1] + q - 1` of type *T*. Required.
+*   **3**: `updates` tensor of rank `r - indices.shape[-1] + q - 1` of type *T*. If expected `updates` rank is 0D it can be a tensor with single element. Required.
 
 **Outputs**:
 
@@ -56,9 +56,9 @@ output  = [[[5, 5, 5, 5], [6, 6, 6, 6], [7, 7, 7, 7], [8, 8, 8, 8]],
 
 **Types**
 
-* *T*: any supported type.
+* *T*: any numeric type.
 
-* *T_IND*: any supported integer types.
+* *T_IND*: `int32` or `int64`
 
 **Example**
 

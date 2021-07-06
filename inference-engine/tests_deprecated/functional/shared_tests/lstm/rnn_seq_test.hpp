@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,7 @@ TEST_P(RNNSeqTest, DISABLED_SingleRNN) {
     auto resh = std::get<7>(p);
 
     if (device_name == "GPU" && cell.type != LSTM)
-        SKIP();
+        GTEST_SKIP();
 
     cell.clip = clip;
 

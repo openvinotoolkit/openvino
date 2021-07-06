@@ -1,25 +1,12 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/ctc_greedy_decoder.hpp"
 #include "ngraph/op/interpolate.hpp"
-#include "ngraph/op/prior_box.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
 #include "ngraph/op/region_yolo.hpp"
 #include "ngraph/op/reorg_yolo.hpp"
@@ -56,47 +43,6 @@ TEST(type_prop_layers, interpolate)
     EXPECT_TRUE(make_shared<op::v0::Interpolate>(image, dyn_output_shape, attrs)
                     ->get_output_partial_shape(0)
                     .same_scheme(PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()}));
-}
-
-TEST(type_prop_layers, prior_box1)
-{
-    op::PriorBoxAttrs attrs;
-    attrs.min_size = {2.0f, 3.0f};
-    attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
-    attrs.scale_all_sizes = false;
-
-    auto layer_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {32, 32});
-    auto image_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
-    auto pb = make_shared<op::PriorBox>(layer_shape, image_shape, attrs);
-    ASSERT_EQ(pb->get_shape(), (Shape{2, 20480}));
-}
-
-TEST(type_prop_layers, prior_box2)
-{
-    op::PriorBoxAttrs attrs;
-    attrs.min_size = {2.0f, 3.0f};
-    attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
-    attrs.flip = true;
-    attrs.scale_all_sizes = false;
-
-    auto layer_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {32, 32});
-    auto image_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
-    auto pb = make_shared<op::PriorBox>(layer_shape, image_shape, attrs);
-    ASSERT_EQ(pb->get_shape(), (Shape{2, 32768}));
-}
-
-TEST(type_prop_layers, prior_box3)
-{
-    op::PriorBoxAttrs attrs;
-    attrs.min_size = {256.0f};
-    attrs.max_size = {315.0f};
-    attrs.aspect_ratio = {2.0f};
-    attrs.flip = true;
-
-    auto layer_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 1});
-    auto image_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
-    auto pb = make_shared<op::PriorBox>(layer_shape, image_shape, attrs);
-    ASSERT_EQ(pb->get_shape(), (Shape{2, 16}));
 }
 
 TEST(type_prop_layers, prior_box_clustered)

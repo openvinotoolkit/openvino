@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -70,8 +58,9 @@
 #include <openvino/pp.hpp>
 #include <openvino/itt.hpp>
 
-#define OV_CC_EXPAND(...) OV_PP_EXPAND(__VA_ARGS__)
-#define OV_CC_CAT(_0, _1) OV_PP_CAT(_0, _1)
+#define OV_CC_EXPAND OV_PP_EXPAND
+#define OV_CC_CAT OV_PP_CAT
+#define OV_CC_TOSTRING OV_PP_TOSTRING
 
 #ifdef SELECTIVE_BUILD_ANALYZER
 # include <string>
@@ -198,25 +187,10 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 
 #define OV_CC_DOMAINS(Module)
 
-// Placeholder for first macro argument
-#define OV_CC_SCOPE_ARG_PLACEHOLDER_1 0,
+#define OV_CC_SCOPE_IS_ENABLED OV_PP_IS_ENABLED
 
-// This macro returns second argument, first argument is ignored
-#define OV_CC_SCOPE_SECOND_ARG(...) OV_PP_EXPAND(OV_CC_SCOPE_SECOND_ARG_(__VA_ARGS__, 0))
-#define OV_CC_SCOPE_SECOND_ARG_(...) OV_PP_EXPAND(OV_CC_SCOPE_SECOND_ARG_GET(__VA_ARGS__))
-#define OV_CC_SCOPE_SECOND_ARG_GET(ignored, val, ...) val
-
-// Return macro argument value
-#define OV_CC_SCOPE_IS_ENABLED(x) OV_CC_SCOPE_IS_ENABLED1(x)
-
-// Generate junk macro or {0, } sequence if val is 1
-#define OV_CC_SCOPE_IS_ENABLED1(val) OV_CC_SCOPE_IS_ENABLED2(OV_PP_CAT(OV_CC_SCOPE_ARG_PLACEHOLDER_, val))
-
-// Return second argument from possible sequences {1, 0}, {0, 1, 0}
-#define OV_CC_SCOPE_IS_ENABLED2(arg1_or_junk) OV_CC_SCOPE_SECOND_ARG(arg1_or_junk 1, 0)
-
-#define OV_SCOPE(Module, region)                                                         \
-    if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(Module, _, region)))
+#define OV_SCOPE(Module, region)    \
+    for (bool ovCCScopeIsEnabled = OV_PP_IS_ENABLED(OV_PP_CAT3(Module, _, region)); ovCCScopeIsEnabled; ovCCScopeIsEnabled = false)
 
 // Switch is disabled
 #define OV_CC_SWITCH_0(Module, fn, ctx, val)
@@ -225,7 +199,7 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 #define OV_CC_SWITCH_1(Module, fn, ctx, val) openvino::cc::internal::match<fn>(ctx, val, OV_PP_CAT4(Module, _, fn, _cases));
 
 #define OV_SWITCH(Module, fn, ctx, val, ...)    \
-    OV_PP_EXPAND(OV_PP_CAT(OV_CC_SWITCH_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(Module, _, fn)))(Module, fn, ctx, val))
+    OV_PP_EXPAND(OV_PP_CAT(OV_CC_SWITCH_, OV_PP_IS_ENABLED(OV_PP_CAT3(Module, _, fn)))(Module, fn, ctx, val))
 
 #define OV_CASE(Case, Type) openvino::cc::internal::make_case_wrapper<Type>(Case)
 

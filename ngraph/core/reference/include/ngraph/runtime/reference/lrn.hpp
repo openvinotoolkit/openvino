@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -32,7 +20,7 @@ namespace ngraph
             static size_t point_to_flat_idx(const Shape& shape, const std::vector<size_t>& point)
             {
                 size_t idx = point[0];
-                for (int i = 1; i < point.size(); i++)
+                for (size_t i = 1; i < point.size(); i++)
                 {
                     idx *= shape[i];
                     idx += point[i];
@@ -50,7 +38,7 @@ namespace ngraph
                 std::vector<size_t> indices;
                 indices.reserve(slice_size);
                 indices.push_back(point_to_flat_idx(full_shape, coord));
-                for (int i = 0; i < slice_size - 1; i++)
+                for (size_t i = 0; i < slice_size - 1; i++)
                 {
                     for (int r = rank - 1; r >= 0; r--)
                     {
@@ -85,6 +73,7 @@ namespace ngraph
                      double dbias,
                      size_t size)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 T alpha = static_cast<T>(dalpha);
                 T beta = static_cast<T>(dbeta);
                 T bias = static_cast<T>(dbias);
@@ -123,6 +112,7 @@ namespace ngraph
                     T x = arg[index];
                     out[index] = x / (std::pow(bias + scale * square_sum, beta));
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

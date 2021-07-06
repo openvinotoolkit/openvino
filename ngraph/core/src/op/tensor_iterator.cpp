@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/tensor_iterator.hpp"
 #include "itt.hpp"
@@ -23,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v0::TensorIterator::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::TensorIterator, "TensorIterator", 0, op::util::SubGraphOp);
 
 op::v0::TensorIterator::TensorIterator(const OutputVector& values)
     : op::util::SubGraphOp(values)
@@ -36,14 +24,6 @@ bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("body", m_body);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
-
-    for (const auto& output_description : m_output_descriptions)
-    {
-        if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description))
-        {
-            m_num_iterations = ((std::abs(concat->m_end - concat->m_start)) / concat->m_part_size);
-        }
-    }
 
     return true;
 }
@@ -110,12 +90,9 @@ void op::v0::TensorIterator::validate_and_infer_types()
     };
 
     // Input
-    uint64_t index_it = 0;
     for (const auto& input_description : m_input_descriptions)
     {
         auto index = input_description->m_input_index;
-        NODE_VALIDATION_CHECK(this, index == index_it, "Input_index not in order");
-        index_it++;
 
         if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
         {
@@ -152,7 +129,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
                 m_body->get_results().at(merged_input_description->m_body_value_index)->input(0);
             ends.push_back(body_value.get_node()->shared_from_this());
 
-            auto body_value_partial_shape = body_value.get_partial_shape();
             auto body_parameter =
                 m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
 
@@ -176,12 +152,11 @@ void op::v0::TensorIterator::validate_and_infer_types()
     revalidate_and_infer_types_for_body_ops();
 
     // Output
-    index_it = 0;
+    try_to_set_num_iterations_if_no_slice_inputs();
+
     for (const auto& output_description : m_output_descriptions)
     {
         auto index = output_description->m_output_index;
-        NODE_VALIDATION_CHECK(this, index == index_it, "Output_index not in order");
-        index_it++;
 
         auto body_value =
             m_body->get_results().at(output_description->m_body_value_index)->input_value(0);
@@ -239,6 +214,35 @@ void op::v0::TensorIterator::validate_and_infer_types()
 std::shared_ptr<Function> op::v0::TensorIterator::get_function()
 {
     return get_body();
+}
+
+namespace
+{
+    template <typename Desc>
+    bool has_slice_input_desc(const Desc& desc)
+    {
+        const auto is_slice_input_desc = +[](typename Desc::const_reference d) {
+            return is_type<op::util::SubGraphOp::SliceInputDescription>(d);
+        };
+        return std::any_of(begin(desc), end(desc), is_slice_input_desc);
+    }
+} // namespace
+
+void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs()
+{
+    if (m_num_iterations != -1 || has_slice_input_desc(get_input_descriptions()))
+    {
+        return;
+    }
+
+    for (const auto& output_description : m_output_descriptions)
+    {
+        if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description))
+        {
+            m_num_iterations = ((std::abs(concat->m_end - concat->m_start)) / concat->m_part_size);
+            break;
+        }
+    }
 }
 
 std::shared_ptr<Node>

@@ -1,8 +1,7 @@
 #!/usr/bin/python3
 
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
 
 import datetime
 import logging as log
@@ -16,14 +15,14 @@ try:
     from openvino.inference_engine import IENetwork, IECore
 except Exception as e:
     exception_type = type(e).__name__
-    print("The following error happened while importing Python API module:\n[ {} ] {}".format(exception_type, e))
+    print(f"The following error happened while importing Python API module:\n[ {exception_type} ] {e}")
     sys.exit(1)
 
 try:
     import ngraph as ng
 except Exception as e:
     exception_type = type(e).name
-    print("The following error happened while importing nGraph module:\n[ {} ] {}".format(exception_type, e))
+    print(f"The following error happened while importing nGraph module:\n[ {exception_type} ] {e}")
     sys.exit(1)
 
 from utils import get_config_dictionary, get_layers_list, print_output_layers, input_processing, \
@@ -37,7 +36,7 @@ from utils import get_config_dictionary, get_layers_list, print_output_layers, i
 ###
 
 
-@error_handling('plugin of \'{plugin.device}\' device config \'{config}\' loading')
+@error_handling('plugin of \'{device}\' device config \'{config}\' loading')
 def set_plugin_config(core: IECore, device: str, config: str = None):
     core.set_config(get_config_dictionary(config_file=config), device_name=device)
 
@@ -69,7 +68,7 @@ def get_net(model: str, core: IECore):
     return net
 
 
-@error_handling('loading network to plugin of {plugin.device} device')
+@error_handling('loading network to plugin of {device} device')
 def get_exec_net(core, net, device):
     return core.load_network(network=net, device_name=device)
 
@@ -101,17 +100,17 @@ def get_model_info(net: IENetwork):
 ###
 
 
-@error_handling('processing inference on \'{device}\' device')
+@error_handling('processing inference')
 def get_infer_results(executable_network, inputs: dict):
     return executable_network.infer(inputs=inputs)
 
 
-@error_handling('getting performance counts from executable network on \'{device}\' device')
+@error_handling('getting performance counts from executable network')
 def get_perf_counts(executable_network):
     return executable_network.requests[0].get_perf_counts()
 
 
-@error_handling('getting inference results for outputs: \'{output}\'')
+@error_handling('getting inference results for outputs: \'{output}\' on \'{device}\' device')
 def infer(net: IENetwork, core: IECore, device: str, inputs: dict, output: list):
     executable_network = get_exec_net(core=core, net=net, device=device)
     infer_dict = get_infer_results(executable_network=executable_network, inputs=inputs)
@@ -121,7 +120,7 @@ def infer(net: IENetwork, core: IECore, device: str, inputs: dict, output: list)
     result = {}
     for out in output:
         if out not in infer_dict:
-            log.warning("There is no '{}' layer in Inference Engine outputs results".format(out))
+            log.warning(f"There is no '{out}' layer in Inference Engine outputs results")
             continue
         pc = pc[out] if out in pc else no_info_pc
         pc['device'] = device
@@ -129,7 +128,7 @@ def infer(net: IENetwork, core: IECore, device: str, inputs: dict, output: list)
     return result
 
 
-@error_handling('getting inference results for outputs: \'{output}\'')
+@error_handling('getting inference results for outputs: \'{layers}\'')
 def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out_layers: list, inputs: dict,
                            ref_inputs: dict, core: IECore, device: str, ref_core: IECore, ref_device: str, layers: str,
                            num_of_iterations: int):
@@ -152,8 +151,8 @@ def one_ir_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     net = get_net(model=args.model, core=core)
     net_layers, net_inputs, net_outputs = get_model_info(net)
-    log.info('{} vs {}'.format(args.device, args.reference_device))
-    log.info('The same IR on both devices: {}'.format(args.model))
+    log.info(f'{args.device} vs {args.reference_device}')
+    log.info(f'The same IR on both devices: {args.model}')
     out_layers = get_layers_list(net_layers, net_inputs, net_outputs, args.layers)
     print_input_layers(net_inputs)
     print_output_layers(out_layers)
@@ -167,7 +166,7 @@ def one_ir_mode(args):
                                                             ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
     for out_layer in out_layers:
-        log.info('Layer {} statistics'.format(out_layer))
+        log.info(f'Layer {out_layer} statistics')
         net_copy = get_net_copy_with_output(model=args.model, output=out_layer, core=core)
         results = infer(net=net_copy, core=core, device=args.device, inputs=inputs, output=[out_layer])
         if out_layer not in results:
@@ -193,9 +192,9 @@ def two_ir_mode(args):
     net_layers, net_inputs, net_outputs = get_model_info(net)
     ref_net = get_net(model=args.reference_model, core=ref_core)
     ref_net_layers, ref_net_inputs, ref_net_outputs = get_model_info(ref_net)
-    log.info('{} vs {}'.format(args.device, args.reference_device))
-    log.info('IR for {} : {}'.format(args.device, args.model))
-    log.info('IR for {} : {}'.format(args.reference_device, args.reference_model))
+    log.info(f'{args.device} vs {args.reference_device}')
+    log.info(f'IR for {args.device} : {args.model}')
+    log.info(f'IR for {args.reference_device} : {args.reference_model}')
     out_layers = get_layers_list(net_layers, net_inputs, net_outputs, args.layers)
     ref_out_layers = get_layers_list(ref_net_layers, ref_net_inputs, ref_net_outputs, args.layers)
     print_input_layers(net_inputs)
@@ -216,9 +215,9 @@ def two_ir_mode(args):
     for out_layer in layers_map:
         ref_out_layer = layers_map[out_layer]
         if out_layer == ref_out_layer:
-            log.info('Layer {} statistics'.format(out_layer))
+            log.info(f'Layer {out_layer} statistics')
         else:
-            log.info('Statistics \'{}\' vs \'{}\''.format(out_layer, ref_out_layer))
+            log.info(f'Statistics \'{out_layer}\' vs \'{ref_out_layer}\'')
         net_copy = get_net_copy_with_output(model=args.model, output=out_layer, core=core)
         ref_net_copy = get_net_copy_with_output(model=args.reference_model, output=ref_out_layer, core=ref_core)
         results = infer(net=net_copy, core=core, device=args.device, inputs=inputs, output=[out_layer])
@@ -247,7 +246,7 @@ def dump_mode(args):
     inputs = input_processing(args.model, net.input_info, args.input)
     dump_dict = {}
     for out_layer in out_layers:
-        log.info('Layer {} processing'.format(out_layer))
+        log.info(f'Layer {out_layer} processing')
         net_copy = get_net_copy_with_output(model=args.model, output=out_layer, core=core)
         results = infer(net=net_copy, core=core, device=args.device, inputs=inputs, output=[out_layer])
         if out_layer not in results:
@@ -259,8 +258,8 @@ def dump_mode(args):
 
 def load_mode(args):
     core = get_plugin(args.device, args.l, args.config)
-    log.info('IR for {} : {}'.format(args.device, args.model))
-    log.info('Loading blob from {}'.format(args.load))
+    log.info(f'IR for {args.device} : {args.model}')
+    log.info(f'Loading blob from {args.load}')
     net = get_net(model=args.model, core=core)
     net_layers, net_inputs, net_outputs = get_model_info(net)
     out_layers = get_layers_list(net_layers, net_inputs, net_outputs, args.layers)
@@ -274,9 +273,9 @@ def load_mode(args):
     for out_layer in layers_map:
         ref_out_layer = layers_map[out_layer]
         if out_layer == ref_out_layer:
-            log.info('Layer {} statistics'.format(out_layer))
+            log.info(f'Layer {out_layer} statistics')
         else:
-            log.info('Statistics \'{}\' vs \'{}\''.format(out_layer, ref_out_layer))
+            log.info(f'Statistics \'{out_layer}\' vs \'{ref_out_layer}\'')
         net_copy = get_net_copy_with_output(model=args.model, output=out_layer, core=core)
         results = infer(net=net_copy, core=core, device=args.device, inputs=inputs, output=[out_layer])
         if out_layer not in results:
@@ -295,7 +294,7 @@ def load_mode(args):
 
 
 def main(args):
-    log.info('Inference Engine:\n          API version ............ {}'.format(ie.__version__), extra={'no_lvl': True})
+    log.info(f'Inference Engine:\n          API version ............ {ie.__version__}', extra={'no_lvl': True})
     set_verbosity(args.verbosity)
     mode = find_out_cct_mode(args)
     if mode == 1:

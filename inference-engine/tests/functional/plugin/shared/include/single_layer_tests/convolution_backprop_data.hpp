@@ -1,7 +1,8 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// DEPRECATED, can't be removed currently due to arm and kmb-plugin dependency (#55568)
 #pragma once
 
 #include "shared_test_classes/single_layer/convolution_backprop_data.hpp"

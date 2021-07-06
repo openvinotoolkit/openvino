@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 #include <ngraph/validation_util.hpp>
@@ -71,10 +59,14 @@ void op::Concat::validate_and_infer_types()
             }
             auto concat_axis = get_concatenation_axis();
             NODE_VALIDATION_CHECK(this,
-                                  concat_axis < this_input_rank.get_length(),
+                                  concat_axis < this_input_rank.get_length() && concat_axis >= 0,
                                   "Concatenation axis (",
                                   concat_axis,
-                                  ") is out of bounds for ",
+                                  ") is out of bounds [",
+                                  -this_input_rank.get_length(),
+                                  ", ",
+                                  this_input_rank.get_length() - 1,
+                                  "] for ",
                                   "argument ",
                                   i,
                                   ", which has shape ",
@@ -144,17 +136,24 @@ namespace
 
         return true;
     }
-}
+} // namespace
 
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Concat_evaluate);
-    NGRAPH_CHECK(this, !inputs.empty());
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, inputs.size()));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(!inputs.empty());
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, inputs.size()));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }
+
+bool op::Concat::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Concat_has_evaluate);
+    return true;
+}
+
 bool op::Concat::evaluate_lower(const HostTensorVector& output_values) const
 {
     return default_lower_bound_evaluator(this, output_values);

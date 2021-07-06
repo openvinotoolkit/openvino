@@ -1,29 +1,18 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
 #include "ngraph/op/sink.hpp"
 #include "ngraph/op/util/variable.hpp"
+#include "ngraph/op/util/variable_extension.hpp"
 
 namespace ngraph
 {
     namespace op
     {
-        class NGRAPH_API AssignBase : public Sink
+        class NGRAPH_API AssignBase : public Sink, public VariableExtension
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -33,27 +22,6 @@ namespace ngraph
                 : Sink(arguments)
             {
             }
-
-            /// \brief Returns variable connected to this node.
-            virtual std::shared_ptr<ngraph::Variable> get_variable() const { return m_variable; }
-            /// \brief Sets a new variable to be connected to this node.
-            ///
-            /// \param variable New variable to be connected to this node.
-            virtual void set_variable(const std::shared_ptr<ngraph::Variable>& variable)
-            {
-                m_variable = variable;
-            }
-
-            /// \brief Sets the identifier of corresponding variable
-            ///
-            /// \param variable_id New identifier of the variable.
-            virtual void set_variable_id(const std::string& variable_id){};
-
-            /// \brief Returns the identifier of corresponding variable.
-            virtual std::string get_variable_id() const = 0;
-
-        protected:
-            std::shared_ptr<ngraph::Variable> m_variable;
         };
 
         namespace v3
@@ -73,10 +41,6 @@ namespace ngraph
 
                 void validate_and_infer_types() override;
                 std::string get_variable_id() const override { return m_variable_id; }
-                void set_variable_id(const std::string& variable_id) override
-                {
-                    m_variable_id = variable_id;
-                }
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -86,7 +50,7 @@ namespace ngraph
             private:
                 std::string m_variable_id;
             };
-        }
+        } // namespace v3
         namespace v6
         {
             /// \brief Assign operation sets an input value to the variable with `variable_id`
@@ -117,7 +81,13 @@ namespace ngraph
                                  "Variable is not initialized. Variable_id is unavailable");
                     return m_variable->get_info().variable_id;
                 }
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs,
+                              const EvaluationContext& evaluation_context) const override;
+                bool has_evaluate() const override;
+                bool constant_fold(OutputVector& output_values,
+                                   const OutputVector& inputs_values) override;
             };
-        }
-    }
-}
+        } // namespace v6
+    }     // namespace op
+} // namespace ngraph

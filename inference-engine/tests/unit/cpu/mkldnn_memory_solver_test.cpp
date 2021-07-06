@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <gtest/gtest.h>
+#include <ie_common.h>
 
 #include "mkldnn_memory_solver.hpp"
-#include "details/ie_exception.hpp"
 
 using Box = MKLDNNPlugin::MemorySolver::Box;
 
@@ -68,7 +68,7 @@ TEST(MemSolverTest, GetOffsetThrowException) {
     MKLDNNPlugin::MemorySolver ms(boxes);
     ms.solve();
 
-    EXPECT_THROW(ms.getOffset(100), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(ms.getOffset(100), InferenceEngine::Exception);
 }
 
 TEST(MemSolverTest, LinearAndEven) {

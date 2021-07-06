@@ -1,24 +1,12 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "layout_optimizer.h"
 #include "topology_impl.h"
 #include "network_impl.h"
 #include "primitive_inst.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 #include "data_inst.h"
 #include "reorder_inst.h"
@@ -248,9 +236,31 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
          fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
+    if (prev.is_type<permute>()) {
+        auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
+            // Target transform: Rotate feature dim to back to be taken as inner-most axis
+            // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
+            // ex) 0(b), 3(f), 1(y), 2(x)
+            if ((int32_t) order[1] != order.size() - 1) return false;
+            if ((int32_t) order[0] != 0) return false;
+            for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
+                if ((int32_t)order[i] !=  (i - 1)) return false;
+            }
+            return true;
+        };
+
+        auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
+        if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
+         fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
+         && permute_order[1] == 2
+         && (!is_rotating_except_batch(permute_order))) {
+            return false;
+        }
+        return true;
+    }
+
     return false;
 }
-
 
 namespace {
 bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
@@ -393,19 +403,19 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     }
     // A set of rules that define when b_fs_yx_fsv16 mem format can be used for fp16/fp32 case
     int32_t feature_block_size = 16;
-    int32_t correct_data_type = input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32;
-    correct_data_type &= weights_layout.data_type == input_layout.data_type;
-    int32_t correct_batch = (input_layout.size.batch[0] == 1) || (input_layout.size.batch[0] > 1 && input_layout.data_type == data_types::f32);
-    int32_t correct_spatial_dims = input_layout.size.spatial[2] == 1 && input_layout.size.spatial[3] == 1;
+    bool correct_data_type = (input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32) &&
+                             (weights_layout.data_type == input_layout.data_type);
+    bool correct_batch = (input_layout.size.batch[0] == 1) || (input_layout.size.batch[0] > 1 && input_layout.data_type == data_types::f32);
+    bool correct_spatial_dims = input_layout.size.spatial[2] == 1 && input_layout.size.spatial[3] == 1;
     int32_t required_feature_num = weak_restrictions ? feature_block_size / 2 : feature_block_size;
-    int32_t correct_in_feature = (input_layout.size.feature[0] >= required_feature_num &&
+    bool correct_in_feature = (input_layout.size.feature[0] >= required_feature_num &&
                                   output_layout.size.feature[0] >= required_feature_num);
     int32_t in_features_per_group = input_layout.size.feature[0] / conv->groups;
     int32_t out_features_per_group = output_layout.size.feature[0] / conv->groups;
     if (!correct_in_feature && input_layout.size.feature[0] <= 4 && out_features_per_group >= feature_block_size)
         correct_in_feature = true;
-    int32_t depthwise = conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]);  // depthwise conv
-    int32_t grouped = ((feature_block_size % out_features_per_group == 0) &&
+    bool depthwise = conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]);  // depthwise conv
+    bool grouped = ((feature_block_size % out_features_per_group == 0) &&
                        (feature_block_size % in_features_per_group == 0) &&
                        (feature_block_size / out_features_per_group > 1) &&
                        (feature_block_size / in_features_per_group > 1) &&
@@ -782,8 +792,9 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         auto input_tensor = node.get_dependency(0).get_output_layout().size;
         int input_features = input_tensor.feature[0];
         int output_features = expected_tensor.feature[0];
-        float r = float(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
-        if (r > 0.5f)
+        float f_cost = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
+        float stride_cost = 1/static_cast<float>(prim->stride.spatial[0]);
+        if (f_cost * stride_cost > 0.1f)
             expected_format = cldnn::format::b_fs_yx_fsv16;
         else
             expected_format = cldnn::format::bfyx;
@@ -862,12 +873,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<mvn>()) {
         auto input_layout = node.get_dependency(0).get_output_layout();
         if (input_layout.format.dimension() == 5 &&
-            (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16 ))
+            (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16))
             expected = format::bfzyx;
-    } else if (node.is_type<region_yolo>()) {
-        if (_optimization_attributes.b_fs_yx_fsv16_network) {
-            expected = format::bfyx;
-        }
     }
 
     return expected;

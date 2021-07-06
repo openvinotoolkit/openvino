@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,10 +74,10 @@ public:
      */
     PreProcessChannel::Ptr& operator[](size_t index) {
         if (_channelsInfo.empty()) {
-            THROW_IE_EXCEPTION << "accessing pre-process when nothing was set.";
+            IE_THROW() << "accessing pre-process when nothing was set.";
         }
         if (index >= _channelsInfo.size()) {
-            THROW_IE_EXCEPTION << "pre process index " << index << " is out of bounds.";
+            IE_THROW() << "pre process index " << index << " is out of bounds.";
         }
         return _channelsInfo[index];
     }
@@ -92,10 +92,10 @@ public:
      */
     const PreProcessChannel::Ptr& operator[](size_t index) const {
         if (_channelsInfo.empty()) {
-            THROW_IE_EXCEPTION << "accessing pre-process when nothing was set.";
+            IE_THROW() << "accessing pre-process when nothing was set.";
         }
         if (index >= _channelsInfo.size()) {
-            THROW_IE_EXCEPTION << "pre process index " << index << " is out of bounds.";
+            IE_THROW() << "pre process index " << index << " is out of bounds.";
         }
         return _channelsInfo[index];
     }
@@ -130,13 +130,13 @@ public:
      */
     void setMeanImage(const Blob::Ptr& meanImage) {
         if (meanImage.get() == nullptr) {
-            THROW_IE_EXCEPTION << "Failed to set invalid mean image: nullptr";
+            IE_THROW() << "Failed to set invalid mean image: nullptr";
         } else if (meanImage.get()->getTensorDesc().getLayout() != Layout::CHW) {
-            THROW_IE_EXCEPTION << "Mean image layout should be CHW";
+            IE_THROW() << "Mean image layout should be CHW";
         } else if (meanImage.get()->getTensorDesc().getDims().size() != 3) {
-            THROW_IE_EXCEPTION << "Failed to set invalid mean image: number of dimensions != 3";
+            IE_THROW() << "Failed to set invalid mean image: number of dimensions != 3";
         } else if (meanImage.get()->getTensorDesc().getDims()[0] != getNumberOfChannels()) {
-            THROW_IE_EXCEPTION << "Failed to set invalid mean image: number of channels != " << getNumberOfChannels();
+            IE_THROW() << "Failed to set invalid mean image: number of channels != " << getNumberOfChannels();
         }
         _variant = MEAN_IMAGE;
     }
@@ -151,11 +151,11 @@ public:
      */
     void setMeanImageForChannel(const Blob::Ptr& meanImage, const size_t channel) {
         if (meanImage.get() == nullptr) {
-            THROW_IE_EXCEPTION << "Failed to set invalid mean image for channel: nullptr";
+            IE_THROW() << "Failed to set invalid mean image for channel: nullptr";
         } else if (meanImage.get()->getTensorDesc().getDims().size() != 2) {
-            THROW_IE_EXCEPTION << "Failed to set invalid mean image for channel: number of dimensions != 2";
+            IE_THROW() << "Failed to set invalid mean image for channel: number of dimensions != 2";
         } else if (channel >= _channelsInfo.size()) {
-            THROW_IE_EXCEPTION << "Channel " << channel
+            IE_THROW() << "Channel " << channel
                                << " exceed number of PreProcess channels: " << _channelsInfo.size();
         }
         _variant = MEAN_IMAGE;

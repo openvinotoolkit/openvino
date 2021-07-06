@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import copy
 import logging as log
@@ -134,13 +121,20 @@ class Op(object):
         if attrs is None:
             attrs = dict()
         new_node = self.add_node(attrs)
-        # Missed careful handling of debug information
         for i, inp in enumerate(inputs):
             edge_attr = {'in': i, 'out': inp[1],
                          'in_attrs': ['in', 'permutation'],
                          'out_attrs': ['out', 'permutation'],
                          'data_attrs': []} if not inp[0].has_valid('kind') or inp[0].kind == 'op' \
                 else {'in': i, 'in_attrs': ['in', 'permutation']}
+
+            # handling of debug information
+            if inp[0].has_port('out', inp[1]):
+                debug_info = inp[0].out_port(inp[1]).get_tensor_debug_info()
+                if debug_info is not None and len(debug_info) > 0:
+                    edge_attr.update({'fw_tensor_debug_info': debug_info})
+                    edge_attr['data_attrs'].append('fw_tensor_debug_info')
+
             if edge_attrs is not None:
                 edge_attr.update(edge_attrs)
             new_node.add_input_port(i, skip_if_exist=True)

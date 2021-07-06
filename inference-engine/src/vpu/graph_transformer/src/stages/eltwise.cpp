@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,7 +188,7 @@ private:
             serializer.append(attrs().getOrDefault<std::int32_t>("coeff1", 1));
             serializer.append(attrs().getOrDefault<std::int32_t>("coeff2", 1));
         } else {
-             THROW_IE_EXCEPTION << type << " isn't supported";
+             IE_THROW() << type << " isn't supported";
         }
 
         auto postOperation = attrs().getOrDefault<StageType>("postOperation", StageType::Empty);

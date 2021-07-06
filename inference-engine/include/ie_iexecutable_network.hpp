@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include <ostream>
 #include <map>
 #include <memory>
 #include <string>
@@ -17,27 +18,26 @@
 #include "ie_common.h"
 #include "ie_icnn_network.hpp"
 #include "ie_iinfer_request.hpp"
-#include "ie_imemory_state.hpp"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 
-/**
- * @brief A collection that contains string as key, and const Data smart pointer as value
- */
-using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
+_IE_SUPPRESS_DEPRECATED_START_GCC
 
 /**
  * @brief This is an interface of an executable network
  */
-class IExecutableNetwork : public details::IRelease {
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork instead") IExecutableNetwork
+    : public std::enable_shared_from_this<IExecutableNetwork> {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief A smart pointer to the current IExecutableNetwork object
      */
     using Ptr = std::shared_ptr<IExecutableNetwork>;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Gets the Executable network output Data node information.
@@ -65,6 +65,7 @@ public:
      */
     virtual StatusCode GetInputsInfo(ConstInputsDataMap& inputs, ResponseDesc* resp) const noexcept = 0;
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Creates an inference request object used to infer the network.
      *
@@ -75,6 +76,7 @@ public:
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
     virtual StatusCode CreateInferRequest(IInferRequest::Ptr& req, ResponseDesc* resp) noexcept = 0;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Exports the current executable network.
@@ -107,26 +109,8 @@ public:
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
-    // INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo instead")
+    INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo instead")
     virtual StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept = 0;
-    IE_SUPPRESS_DEPRECATED_END
-
-    IE_SUPPRESS_DEPRECATED_START
-    /**
-     * @deprecated Use InferRequest::QueryState instead
-     * @brief Gets state control interface for given executable network.
-     *
-     * State control essential for recurrent networks
-     *
-     * @param pState reference to a pointer that receives internal states
-     * @param idx requested index for receiving memory state
-     * @param resp Optional: pointer to an already allocated object to contain information in case of failure
-     * @return Status code of the operation: InferenceEngine::OK (0) for success, OUT_OF_BOUNDS (-6) no memory state for
-     * given index
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
-    virtual StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Sets configuration for current executable network
@@ -173,6 +157,11 @@ public:
      * @return code of the operation. InferenceEngine::OK if succeeded
      */
     virtual StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept = 0;
+
+protected:
+    ~IExecutableNetwork() = default;
 };
+
+_IE_SUPPRESS_DEPRECATED_END_GCC
 
 }  // namespace InferenceEngine

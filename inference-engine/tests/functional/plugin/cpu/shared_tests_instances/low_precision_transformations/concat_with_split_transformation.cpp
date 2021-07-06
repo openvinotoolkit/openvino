@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,7 @@ const std::vector<ConcatWithSplitTransformationParam> testValues = {
     }
 };
 
-// TODO: Split/VariadicSplit operations are not supported in ConcatTransformation
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_LPT, ConcatWithSplitTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 6, 10, 10 })),

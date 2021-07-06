@@ -1,28 +1,12 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
-from tests import (xfail_issue_34327,
-                   xfail_issue_36485,
-                   xfail_issue_36486,
-                   xfail_issue_36487,
-                   xfail_issue_44976)
+from tests import (xfail_issue_36486, xfail_issue_44976)
 
 
 def test_elu_operator_with_scalar_and_array():
@@ -147,7 +131,6 @@ def test_depth_to_space():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34327
 def test_space_to_batch():
     runtime = get_runtime()
 
@@ -184,7 +167,6 @@ def test_space_to_batch():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34327
 def test_batch_to_space():
     runtime = get_runtime()
 
@@ -220,36 +202,6 @@ def test_batch_to_space():
     expected = np.array([[[[0, 1, 2], [3, 4, 5]], [[6, 7, 8], [9, 10, 11]]]], dtype=np.float32)
 
     assert np.allclose(result, expected)
-
-
-def test_gelu_operator_with_parameters():
-    runtime = get_runtime()
-
-    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
-
-    data_shape = [2, 2]
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
-
-    model = ng.gelu(parameter_data)
-    computation = runtime.computation(model, parameter_data)
-
-    result = computation(data_value)
-    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-    assert np.allclose(result, expected, 0.007, 0.007)
-
-
-def test_gelu_operator_with_array():
-    runtime = get_runtime()
-
-    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
-
-    model = ng.gelu(data_value)
-    computation = runtime.computation(model)
-
-    result = computation()
-    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-
-    assert np.allclose(result, expected, 0.007, 0.007)
 
 
 def test_clamp_operator():
@@ -321,7 +273,6 @@ def test_squared_difference_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_36485
 def test_shuffle_channels_operator():
     runtime = get_runtime()
 
@@ -471,14 +422,14 @@ def test_hard_sigmoid_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_36487
 def test_mvn_operator():
     runtime = get_runtime()
 
     data_shape = [3, 3, 3, 1]
-    across_channels = True
+    axes = [0, 2, 3]
     normalize_variance = True
     eps = np.float32(1e-9)
+    eps_mode = "outside_sqrt"
 
     data_value = np.array(
         [
@@ -503,7 +454,7 @@ def test_mvn_operator():
 
     parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
 
-    model = ng.mvn(parameter_data, across_channels, normalize_variance, eps)
+    model = ng.mvn(parameter_data, axes, normalize_variance, eps, eps_mode)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -511,21 +462,22 @@ def test_mvn_operator():
     expected = np.array(
         [
             [
-                [[0.9951074], [0.14548765], [-1.410561]],
-                [[-1.4999886], [-1.1923014], [-0.03975919]],
-                [[0.8463296], [1.2926502], [1.3340596]],
+                [[1.3546423], [0.33053496], [-1.5450814]],
+                [[-1.2106764], [-0.8925952], [0.29888135]],
+                [[0.38083088], [0.81808794], [0.85865635]],
             ],
             [
-                [[-1.0463363], [-0.1747985], [-0.7784088]],
-                [[0.47672555], [-1.5383], [0.32375798]],
-                [[1.2404392], [1.3878832], [-1.2228798]],
+                [[-1.1060555], [-0.05552877], [-0.78310335]],
+                [[0.83281356], [-1.250282], [0.67467856]],
+                [[0.7669372], [0.9113869], [-1.6463585]],
             ],
             [
-                [[-0.3228847], [1.2063044], [0.22751297]],
-                [[0.91956615], [0.81839436], [-1.2279599]],
-                [[0.5312334], [0.067952], [-1.3592235]],
+                [[-0.23402764], [1.6092131], [0.42940593]],
+                [[1.2906139], [1.1860244], [-0.92945826]],
+                [[0.0721334], [-0.38174], [-1.7799333]],
             ],
         ],
+        dtype=np.float32,
     )
 
     assert np.allclose(result, expected)

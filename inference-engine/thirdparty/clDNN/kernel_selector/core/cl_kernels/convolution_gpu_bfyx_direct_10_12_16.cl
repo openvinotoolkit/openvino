@@ -1,20 +1,9 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 //////////////////////////////////////////////////////////////////////////////
 // Direct Convolution
@@ -171,7 +160,7 @@ KERNEL(convolution_f16_10x12x16)(
 #elif BIAS_PER_OFM
         const half bias = biases[g * FILTER_OFM_NUM + g_out_fm];
 #endif
-        
+
         if ( OUTPUT_SIZE_X % TILE_K == 0 ||
              group_x < max_group_x - 1 )
         {
@@ -182,7 +171,7 @@ KERNEL(convolution_f16_10x12x16)(
                 {
                     half_t vBlockC;
                     half *pvBlockC = (half*)&vBlockC;
-                    for (unsigned i = 0; i < TILE_K; i++) 
+                    for (unsigned i = 0; i < TILE_K; i++)
                     {
                     #if BIAS_TERM && BIAS_PER_OUTPUT
                         const unsigned bias_index = out_fm*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + ( global_y * TILE_M + y )*OUTPUT_SIZE_X + ( global_x * TILE_K + i);
@@ -204,7 +193,7 @@ KERNEL(convolution_f16_10x12x16)(
                 {
                     half_t vBlockC;
                     half *pvBlockC = (half*)&vBlockC;
-                    for (unsigned i = 0; i < RIGHT_PARTIAL_TILE_K; i++) 
+                    for (unsigned i = 0; i < RIGHT_PARTIAL_TILE_K; i++)
                     {
                     #if BIAS_TERM && BIAS_PER_OUTPUT
                         const unsigned bias_index = out_fm*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + ( global_y * TILE_M + y )*OUTPUT_SIZE_X + ( global_x * TILE_K + i);

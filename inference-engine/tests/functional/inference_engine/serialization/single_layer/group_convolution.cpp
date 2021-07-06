@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ const auto groupConv2DParams = ::testing::Combine(
     ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels),
     ::testing::ValuesIn(numGroups), ::testing::ValuesIn(pad_types));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_GroupConvolution2D_Serialization, GroupConvolutionLayerTest,
     ::testing::Combine(
         groupConv2DParams, ::testing::ValuesIn(precisions),

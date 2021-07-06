@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <fstream>
 #include <sstream>
@@ -26,6 +14,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
+#include "ngraph/opsets/opset6.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "util/all_close.hpp"
@@ -102,6 +91,9 @@ TEST(DISABLED_util, dump)
 }
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include "windows.h"
 #define usleep(a) Sleep(a / 1000)
 #endif
@@ -139,7 +131,6 @@ TEST(util, trim)
     EXPECT_STREQ("test", trim(" \t test \t ").c_str());
 }
 
-#if defined(NGRAPH_INTERPRETER_ENABLE)
 TEST(util, all_close)
 {
     auto backend = runtime::Backend::create("INTERPRETER");
@@ -162,7 +153,6 @@ TEST(util, all_close)
     EXPECT_FALSE(ngraph::test::all_close<float>(c, a, .05f, 0));
     EXPECT_TRUE(ngraph::test::all_close<float>(c, a, .11f, 0));
 }
-#endif
 
 class CloneTest : public ::testing::Test
 {
@@ -259,6 +249,74 @@ TEST(graph_util, clone_multiple_results)
     auto f = make_shared<Function>(NodeVector{A_add_B, A_add_B_mul_C}, ParameterVector{A, B, C});
 
     auto copy = clone_function(*f);
+}
+
+TEST(graph_util, clone_rt_info)
+{
+    const std::string testAffinity = "CPU";
+    std::shared_ptr<ngraph::Function> original_f;
+    {
+        ngraph::PartialShape shape({1, 84});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::opset6::Parameter>(type, shape);
+        auto matMulWeights =
+            ngraph::opset6::Constant::create(ngraph::element::Type_t::f32, {10, 84}, {1});
+        auto shapeOf = std::make_shared<ngraph::opset6::ShapeOf>(matMulWeights);
+        auto gConst1 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i32, {1}, {1});
+        auto gConst2 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i64, {}, {0});
+        auto gather = std::make_shared<ngraph::opset6::Gather>(shapeOf, gConst1, gConst2);
+        auto concatConst = ngraph::opset6::Constant::create(ngraph::element::Type_t::i64, {1}, {1});
+        auto concat =
+            std::make_shared<ngraph::opset6::Concat>(ngraph::NodeVector{concatConst, gather}, 0);
+        auto relu = std::make_shared<ngraph::opset6::Relu>(param);
+        auto reshape = std::make_shared<ngraph::opset6::Reshape>(relu, concat, false);
+        auto matMul = std::make_shared<ngraph::opset6::MatMul>(reshape, matMulWeights, false, true);
+        auto matMulBias =
+            ngraph::opset6::Constant::create(ngraph::element::Type_t::f32, {1, 10}, {1});
+        auto addBias = std::make_shared<ngraph::opset6::Add>(matMul, matMulBias);
+        auto result = std::make_shared<ngraph::opset6::Result>(addBias);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        original_f = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    std::unordered_map<std::string, std::string> affinity;
+
+    for (auto&& node : original_f->get_ordered_ops())
+    {
+        auto& nodeInfo = node->get_rt_info();
+
+        nodeInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(testAffinity);
+        affinity[node->get_friendly_name()] = testAffinity;
+
+        for (auto&& output : node->outputs())
+        {
+            auto& outputInfo = output.get_rt_info();
+            outputInfo["affinity"] =
+                std::make_shared<ngraph::VariantWrapper<std::string>>(testAffinity);
+        }
+    }
+
+    auto clonedFunction = ngraph::clone_function(*original_f);
+
+    for (auto&& node : clonedFunction->get_ordered_ops())
+    {
+        auto& nodeInfo = node->get_rt_info();
+        auto itInfo = nodeInfo.find("affinity");
+        ASSERT_TRUE(itInfo != nodeInfo.end());
+        auto value =
+            ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(itInfo->second)->get();
+        ASSERT_TRUE(affinity.find(node->get_friendly_name()) != affinity.end());
+        ASSERT_TRUE(affinity[node->get_friendly_name()] == value);
+
+        for (auto&& output : node->outputs())
+        {
+            auto& outputInfo = output.get_rt_info();
+            ASSERT_TRUE(outputInfo.count("affinity"));
+        }
+    }
 }
 
 TEST(util, round_up)
