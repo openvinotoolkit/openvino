@@ -116,16 +116,10 @@ namespace
                                            std::vector<PreCalc<T>>& pre_calc)
     {
         int64_t pre_calc_index = 0;
-        std::cout << "            pre_calc_index: " << pre_calc_index << "\n";
-        std::cout << "            Loop with respect to ph in range(0, pooled_height)\n";
         for (int64_t ph = 0; ph < pooled_height; ph++)
         {
-            std::cout << "                ph: " << ph << "\n";
-            std::cout << "                Loop with respect to pw in range(0, pooled_width)\n";
             for (int64_t pw = 0; pw < pooled_width; pw++)
             {
-                std::cout << "                    pw: " << pw << "\n";
-                std::cout << "                    Loop with respect to iy in range(0, iy_upper)\n";
                 for (int64_t iy = 0; iy < iy_upper; iy++)
                 {
                     std::cout << "                        iy: " << iy << "\n";
