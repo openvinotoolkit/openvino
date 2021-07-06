@@ -454,6 +454,7 @@ def extract_node_attrs(graph: Graph, extractor: callable):
 def raise_no_node(node_name: str):
     raise Error('No node with name {}'.format(node_name))
 
+
 def raise_node_name_collision(node_name: str, found_nodes: list):
     raise Error('Name collision was found, there are several nodes for mask "{}": {}. '
                 'If your intention was to specify port for node, please instead specify node names connected to '
