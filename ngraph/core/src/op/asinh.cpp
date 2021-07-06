@@ -23,26 +23,6 @@ op::v3::Asinh::Asinh(const Output<Node>& arg)
     constructor_validate_and_infer_types();
 }
 
-void op::v3::Asinh::validate_and_infer_types()
-{
-    NGRAPH_OP_SCOPE(v3_Asinh_validate_and_infer_types);
-
-    NODE_VALIDATION_CHECK(
-        this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
-
-    element::Type element_type = get_input_element_type(0);
-    PartialShape pshape = get_input_partial_shape(0);
-
-    NODE_VALIDATION_CHECK(this,
-                          element_type.is_dynamic() || element_type.is_real(),
-                          "Argument element type is ",
-                          element_type,
-                          "(floating-point expected)");
-
-    set_output_size(1);
-    set_output_type(0, element_type, pshape);
-}
-
 shared_ptr<Node> op::v3::Asinh::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v3_Asinh_clone_with_new_inputs);
@@ -67,6 +47,10 @@ namespace asinhop
 
         switch (arg0->get_element_type())
         {
+            NGRAPH_TYPE_CASE(evaluate_asinh, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_asinh, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_asinh, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_asinh, u64, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_asinh, f16, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_asinh, f32, arg0, out, count);
         default: rc = false; break;
@@ -86,6 +70,10 @@ bool op::v3::Asinh::has_evaluate() const
     NGRAPH_OP_SCOPE(v3_Asinh_has_evaluate);
     switch (get_input_element_type(0))
     {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
     case ngraph::element::f16:
     case ngraph::element::f32: return true;
     default: break;

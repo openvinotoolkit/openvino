@@ -6,8 +6,7 @@
 
 **Short description**: *Asinh* performs element-wise inverse hyperbolic sine operation (arcsinh) on a given input tensor.
 
-**Detailed description**:
-*Asinh* performs element-wise inverse hyperbolic sine operation on a given input tensor, based on the following mathematical formula:
+**Detailed description**: *Asinh* performs element-wise inverse hyperbolic sine operation on a given input tensor, based on the following mathematical formula:
 
 \f[
 a_{i} = asinh(a_{i})
@@ -25,7 +24,7 @@ a_{i} = asinh(a_{i})
 
 **Types**
 
-* *T*: any supported floating-point type.
+* *T*: any numeric type.
 
 **Example**
 
