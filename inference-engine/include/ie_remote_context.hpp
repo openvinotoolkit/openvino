@@ -46,10 +46,6 @@ public:
      */
     explicit RemoteBlob(const TensorDesc& tensorDesc): MemoryBlob(tensorDesc) {}
 
-    size_t element_size() const noexcept override {
-        return tensorDesc.getPrecision().size();
-    }
-
     /**
      * @brief Returns a map of device-specific parameters required for low-level
      * operations with underlying object.
