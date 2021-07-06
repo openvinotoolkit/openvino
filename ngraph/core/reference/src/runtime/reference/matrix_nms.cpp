@@ -9,6 +9,7 @@
 #include <queue>
 #include <vector>
 #include "ngraph/runtime/reference/matrix_nms.hpp"
+#include "ngraph/runtime/reference/utils/nms_common.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace ngraph;
@@ -92,49 +93,6 @@ namespace ngraph
                         return inter_area / (bbox1_area + bbox2_area - inter_area);
                     }
                 }
-
-                struct Rectangle
-                {
-                    Rectangle(float x_left, float y_left, float x_right, float y_right)
-                        : x1{x_left}
-                        , y1{y_left}
-                        , x2{x_right}
-                        , y2{y_right}
-                    {
-                    }
-
-                    Rectangle() = default;
-
-                    float x1 = 0.0f;
-                    float y1 = 0.0f;
-                    float x2 = 0.0f;
-                    float y2 = 0.0f;
-                };
-
-                struct BoxInfo
-                {
-                    BoxInfo(const Rectangle& r,
-                            int64_t idx,
-                            float sc,
-                            int64_t batch_idx,
-                            int64_t class_idx)
-                        : box{r}
-                        , index{idx}
-                        , batch_index{batch_idx}
-                        , class_index{class_idx}
-                        , score{sc}
-                    {
-                    }
-
-                    BoxInfo() = default;
-
-                    Rectangle box;
-                    int64_t index = 0;
-                    int64_t batch_index = 0;
-                    int64_t class_index = 0;
-                    float score = 0.0f;
-                };
-
             } // namespace matrix_nms_v8
 
             template <typename T, bool gaussian>
@@ -235,8 +193,8 @@ namespace ngraph
                             const Shape& selected_indices_shape,
                             int64_t* valid_outputs)
             {
-                using BoxInfo = matrix_nms_v8::BoxInfo;
-                using Rectangle = matrix_nms_v8::Rectangle;
+                using Rectangle = runtime::reference::nms_common::Rectangle;
+                using BoxInfo = runtime::reference::nms_common::BoxInfo;
 
                 // boxes shape: {num_batches, num_boxes, 4}
                 // scores shape: {num_batches, num_classes, num_boxes}
@@ -337,6 +295,7 @@ namespace ngraph
                             BoxInfo{Rectangle{bbox[0], bbox[1], bbox[2], bbox[3]},
                                     batch * num_boxes + idx,
                                     score,
+                                    0,
                                     batch,
                                     cls});
                     }
@@ -388,54 +347,6 @@ namespace ngraph
                     selected_base[3] = filtered_boxes[i].box.y1;
                     selected_base[4] = filtered_boxes[i].box.x2;
                     selected_base[5] = filtered_boxes[i].box.y2;
-                }
-            }
-
-            void matrix_nms_postprocessing(void* prois,
-                                           void* pscores,
-                                           void* pselected_num,
-                                           const ngraph::element::Type& output_type,
-                                           const std::vector<float>& selected_outputs,
-                                           const std::vector<int64_t>& selected_indices,
-                                           const std::vector<int64_t>& valid_outputs)
-            {
-                int64_t total_num = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
-
-                float* ptr = static_cast<float*>(prois);
-                memcpy(ptr, selected_outputs.data(), total_num * sizeof(float) * 6);
-
-                if (pscores)
-                {
-                    if (output_type == ngraph::element::i64)
-                    {
-                        int64_t* indices_ptr = static_cast<int64_t*>(pscores);
-                        memcpy(indices_ptr, selected_indices.data(), total_num * sizeof(int64_t));
-                    }
-                    else
-                    {
-                        int32_t* indices_ptr = static_cast<int32_t*>(pscores);
-                        for (int64_t i = 0; i < total_num; ++i)
-                        {
-                            indices_ptr[i] = static_cast<int32_t>(selected_indices[i]);
-                        }
-                    }
-                }
-
-                if (pselected_num)
-                {
-                    if (output_type == ngraph::element::i64)
-                    {
-                        int64_t* valid_outputs_ptr = static_cast<int64_t*>(pselected_num);
-                        std::copy(valid_outputs.begin(), valid_outputs.end(), valid_outputs_ptr);
-                    }
-                    else
-                    {
-                        int32_t* valid_outputs_ptr = static_cast<int32_t*>(pselected_num);
-                        for (size_t i = 0; i < valid_outputs.size(); ++i)
-                        {
-                            valid_outputs_ptr[i] = static_cast<int32_t>(valid_outputs[i]);
-                        }
-                    }
                 }
             }
         } // namespace reference
