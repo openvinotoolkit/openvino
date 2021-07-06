@@ -36,7 +36,7 @@ std::shared_ptr<ngraph::Function> Graph::createFunction() {
 
 // TODO: use std::make_unique when C++14 will be available
 template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args) {
+std::unique_ptr<T> createUnique(Args&&... args) {
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
@@ -136,8 +136,8 @@ template<typename DecorT, typename... DecorTs>
 auto createBuildDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
                           const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8})
                                 -> typename std::enable_if<(sizeof...(DecorTs) == 0), CreateGraphDecoratorPtr>::type {
-    CreateGraphDecoratorPtr build_decorator = make_unique<CreateBaseDecorator>(input_data_shape, input_const_shape);
-    return make_unique<DecorT>(std::move(build_decorator));
+    CreateGraphDecoratorPtr build_decorator = createUnique<CreateBaseDecorator>(input_data_shape, input_const_shape);
+    return createUnique<DecorT>(std::move(build_decorator));
 }
 
 template<typename DecorT, typename... DecorTs>
@@ -145,7 +145,7 @@ auto createBuildDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{
                           const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8})
                                 -> typename std::enable_if<(sizeof...(DecorTs) > 0), CreateGraphDecoratorPtr>::type {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator<DecorTs...>(input_data_shape, input_const_shape);
-    return make_unique<DecorT>(std::move(build_decorator));
+    return createUnique<DecorT>(std::move(build_decorator));
 }
 
 template<typename DecorT, typename... DecorTs>
