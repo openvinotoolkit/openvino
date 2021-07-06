@@ -41,11 +41,11 @@ endif()
 # TODO: remove before merge
 if(UNIX)
     install(PROGRAMS setupvars/setupvars.sh
-            DESTINATION setupvars
+            DESTINATION bin
             COMPONENT setupvars)
 elseif(WIN32)
     install(PROGRAMS setupvars/setupvars.bat
-            DESTINATION setupvars
+            DESTINATION bin
             COMPONENT setupvars)
 endif()
 
