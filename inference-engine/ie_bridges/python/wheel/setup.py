@@ -352,7 +352,7 @@ def find_packages_iter(where, exclude, include):
     All the packages found in 'where' that pass the 'include' filter, but
     not the 'exclude' filter.
     """
-    for root, dirs in os.walk(where, followlinks=True):
+    for root, dirs, _files in os.walk(where, followlinks=True):
         all_dirs = dirs[:]
         dirs[:] = []
 
