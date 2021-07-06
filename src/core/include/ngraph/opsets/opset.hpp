@@ -60,4 +60,5 @@ const NGRAPH_API OpSet& get_opset5();
 const NGRAPH_API OpSet& get_opset6();
 const NGRAPH_API OpSet& get_opset7();
 const NGRAPH_API OpSet& get_opset8();
+const NGRAPH_API size_t get_initial_opset(const std::shared_ptr<Node> &node);
 }  // namespace ngraph
