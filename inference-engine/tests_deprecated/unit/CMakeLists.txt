@@ -15,7 +15,6 @@ SET (CMAKE_SKIP_RPATH OFF)
 
 file(GLOB
         TEST_SRC
-        graph_tools/*.cpp
         inference_engine_tests/*.cpp
         )
 
@@ -24,6 +23,7 @@ if (ENABLE_GNA)
             GNA_TESTS
             engines/gna/*cpp
             engines/gna/layers/*cpp
+            engines/gna/graph_tools/*cpp
             )
     source_group("gna" FILES ${GNA_TESTS})
     list(APPEND TEST_SRC ${GNA_TESTS})
@@ -68,8 +68,6 @@ if (ENABLE_MYRIAD)
     include_directories(
             engines/vpu/myriad_tests/helpers
             ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include/watchdog
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE})
 
@@ -86,7 +84,6 @@ source_group("include" FILES ${TEST_INCLUDE})
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})
 
 target_include_directories(${TARGET_NAME} PRIVATE
-        ${IE_MAIN_SOURCE_DIR}/src/gna_plugin
         ${CMAKE_CURRENT_SOURCE_DIR})
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
@@ -125,5 +122,10 @@ endif()
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 set_property(TEST ${TARGET_NAME} PROPERTY LABELS IE)
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 add_dependencies(${TARGET_NAME} mock_engine)

@@ -78,83 +78,6 @@ NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
     test_case.run();
 }
 
-
-NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_block_first)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4, 4});
-    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
-    auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
-    auto function = make_shared<Function>(NodeVector{space_to_depth}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({0.f,  1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f,
-                                11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f,
-                                22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f});
-    test_case.add_expected_output<float>(Shape{1, 8, 2, 2},
-                                         {
-                                             0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f,
-                                             1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
-                                             4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f,
-                                             5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
-                                         });
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_depth_first)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4, 4});
-    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
-    auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
-    auto function = make_shared<Function>(NodeVector{space_to_depth}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({0.f,  16.f, 2.f,  18.f, 1.f,  17.f, 3.f,  19.f, 8.f,  24.f, 10.f,
-                                26.f, 9.f,  25.f, 11.f, 27.f, 4.f,  20.f, 6.f,  22.f, 5.f,  21.f,
-                                7.f,  23.f, 12.f, 28.f, 14.f, 30.f, 13.f, 29.f, 15.f, 31.f});
-    test_case.add_expected_output<float>(
-        Shape{1, 8, 2, 2}, {0.f,  2.f,  8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f,  3.f,  9.f,
-                            11.f, 17.f, 19.f, 25.f, 27.f, 4.f,  6.f,  12.f, 14.f, 20.f, 22.f,
-                            28.f, 30.f, 5.f,  7.f,  13.f, 15.f, 21.f, 23.f, 29.f, 31.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_block_first)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
-    auto depth_to_space =
-        make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
-    auto function = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({
-        0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
-        4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
-    });
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 4, 4}, {0.f,  1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f,
-                            11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f,
-                            22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_depth_first)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
-    auto depth_to_space =
-        make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
-    auto function = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({
-        0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
-        4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
-    });
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 4, 4}, {0.f,  16.f, 2.f,  18.f, 1.f,  17.f, 3.f,  19.f, 8.f,  24.f, 10.f,
-                            26.f, 9.f,  25.f, 11.f, 27.f, 4.f,  20.f, 6.f,  22.f, 5.f,  21.f,
-                            7.f,  23.f, 12.f, 28.f, 14.f, 30.f, 13.f, 29.f, 15.f, 31.f});
-    test_case.run();
-}
 // TODO: Issue: 37521
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
 {
@@ -164,7 +87,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -191,7 +114,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_empty_axes_input)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -219,7 +142,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_h_4d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -245,7 +168,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_1axis_5d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -271,7 +194,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_123axes_5d)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -297,7 +220,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x2_shape)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -321,7 +244,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x4_shape)
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -352,7 +275,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d_max_bias)
     float eps{5000};
     auto eps_mode = op::EpsMode::MAX;
 
-    auto normalize = make_shared<op::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     auto function = make_shared<Function>(NodeVector{normalize}, ParameterVector{data});
 
     auto test_case = test::TestCase<TestEngine>(function);

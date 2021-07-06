@@ -4,6 +4,6 @@
 
 ie_add_sample(NAME hello_classification
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-              DEPENDENCIES ie_samples_utils frontend_manager ngraph
+              DEPENDENCIES ie_samples_utils
               OPENCV_DEPENDENCIES core imgcodecs)
 

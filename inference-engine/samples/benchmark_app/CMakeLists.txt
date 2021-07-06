@@ -8,5 +8,5 @@ file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 ie_add_sample(NAME benchmark_app
               SOURCES ${SRC}
               HEADERS ${HDR}
-              DEPENDENCIES format_reader ie_samples_utils frontend_manager ngraph
+              DEPENDENCIES format_reader ie_samples_utils
               OPENCV_DEPENDENCIES core)
