@@ -34,6 +34,7 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
     PYTHONPATH: $(BIN_DIR)/lib/python_api/python3.6
+    LAYER_TESTS_DIR: $(REPO_DIR)/tests/layer_tests
 
   steps:
   - script: |
@@ -203,12 +204,12 @@ jobs:
   - script: |
       export MO_ROOT=$(REPO_DIR)/model-optimizer/
       export IE_APP_PATH=$(REPO_DIR)/inference-engine/
-      export PYTHONPATH=$(PYTHONPATH):$(REPO_DIR)/tests/layer_tests/
+      export PYTHONPATH=$(REPO_DIR)/model-optimizer:$(LAYER_TESTS_DIR):$(PYTHONPATH)
       sudo apt-get install python3-setuptools
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/tests/layer_tests/requirements.txt
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       env
-      python3 -m pytest $(REPO_DIR)/tests/layer_tests/tensorflow_tests/test_tf_Add.py --junitxml=TEST-tf_Add.xml
+      python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Add.py --junitxml=TEST-tf_Add.xml
     displayName: 'Add Layer Tests'
     continueOnError: false
 
