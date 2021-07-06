@@ -89,4 +89,30 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(std::vector<size_t>({1, 4, 224, 224})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     DeformableConvolutionLayerTest::getTestCaseName);
+
+/* ============= Single Test Case ============= */
+const std::vector<std::vector<size_t>> single_deform_vals = {{1, 54, 28, 28}};
+const std::vector<std::vector<size_t>> single_kernel = {{1, 3, 3, 3}};
+const std::vector<size_t> single_deform_groups = {3};
+
+const auto deformableConv2DParams_SingleTestCase = ::testing::Combine(
+    ::testing::ValuesIn(single_deform_vals),
+    ::testing::ValuesIn(single_kernel), ::testing::ValuesIn(strides),
+    ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds),
+    ::testing::ValuesIn(dilations), ::testing::ValuesIn(groups),
+    ::testing::ValuesIn(single_deform_groups), ::testing::ValuesIn(numOutChannels),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT));
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_DeformableConvolution2D_SingleTestCase, DeformableConvolutionLayerTest,
+    ::testing::Combine(
+        deformableConv2DParams_SingleTestCase, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+    DeformableConvolutionLayerTest::getTestCaseName);
+
 }  // namespace
