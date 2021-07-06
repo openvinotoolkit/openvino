@@ -3,7 +3,7 @@
 #
 
 if(NOT WIN32)
-    message(${CMAKE_CURRENT_SOURCE_DIR}/cmake_static_protobuf)
+    message(${CMAKE_SOURCE_DIR}/thirdparty/cmake_static_protobuf)
     message(BINARY ${CMAKE_CURRENT_BINARY_DIR})
 
     # There seems no suitable other way to identify exact output binary name for libprotobuf
@@ -21,7 +21,7 @@ if(NOT WIN32)
     add_custom_command(
             OUTPUT
             ${PROTOBUF_STATIC_LIB_OUTPUT}
-            COMMAND ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/cmake_static_protobuf
+            COMMAND ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR}/thirdparty/cmake_static_protobuf
                     -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
                     -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
                     -DCMAKE_COMPILE_PDB_OUTPUT_DIRECTORY=${CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY}

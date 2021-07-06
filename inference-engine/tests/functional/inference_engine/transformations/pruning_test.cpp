@@ -35,10 +35,12 @@ Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) 
             Coordinate coord_end(shape);
             coord_end[dim] = dim_value + 1;
 
+            NGRAPH_SUPPRESS_DEPRECATED_START
             CoordinateTransform iter(shape, coord_begin, coord_end);
             for (const Coordinate & coord : iter) {
                 values[iter.index(coord)] = 0;
             }
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
     }
     return std::make_shared<opset5::Constant>(element::f32, shape, values);
@@ -57,10 +59,12 @@ TEST(TransformationTests, InitMasksOutputChannel) {
     Shape weights_shape{6, 3, 3, 3};
 
     std::vector<double> values(shape_size(weights_shape), 1);
+    NGRAPH_SUPPRESS_DEPRECATED_START
     CoordinateTransform iter(weights_shape, {0, 1, 0, 0}, {6, 2, 3, 3});
     for (const Coordinate & coord : iter) {
         values[iter.index(coord)] = 0;
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     auto weights = std::make_shared<opset5::Constant>(element::f32, weights_shape, values);
     pass::InitConstMask({1}).apply(weights);
