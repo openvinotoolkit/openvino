@@ -53,7 +53,7 @@ namespace ngraph
 
                 void validate_and_infer_types() override;
 
-                element::Type get_output_type() const { return m_output_type; }
+                const element::Type& get_output_type() const { return m_output_type; }
                 void set_output_type(const element::Type& output_type)
                 {
                     m_output_type = output_type;

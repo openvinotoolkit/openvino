@@ -39,11 +39,11 @@ namespace ngraph
             void multiclass_nms_postprocessing(void* prois,
                                                void* pscores,
                                                void* pselected_num,
-                                               const ngraph::element::Type output_type,
+                                               const ngraph::element::Type& output_type,
                                                const std::vector<float>& selected_outputs,
                                                const std::vector<int64_t>& selected_indices,
                                                const std::vector<int64_t>& valid_outputs,
-                                               const ngraph::element::Type selected_scores_type);
+                                               const ngraph::element::Type& selected_scores_type);
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
