@@ -52,7 +52,6 @@ BranchNodes getBranch(const MultiplyBranch& branch) {
 
 std::shared_ptr<ngraph::Function> MultiplyFunction::get(
     const element::Type precision,
-    const ngraph::Shape& inputShape,
     const MultiplyValues& actualValues) {
     auto branch1Structure = actualValues.branch1;
     branch1Structure.precisionBeforeDequantization = precision;

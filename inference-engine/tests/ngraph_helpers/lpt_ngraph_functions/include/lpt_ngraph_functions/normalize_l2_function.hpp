@@ -30,7 +30,7 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& shape,
+        const ngraph::PartialShape& shape,
         const ngraph::op::EpsMode& epsMode,
         const std::vector<size_t>& axes,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
@@ -38,7 +38,7 @@ public:
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& shape,
+        const ngraph::PartialShape& shape,
         const ngraph::op::EpsMode& epsMode,
         const std::vector<size_t>& axes,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
