@@ -11,6 +11,7 @@ import fastjsonschema as json_validate
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
+from mo.utils.utils import get_mo_root_dir
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -352,8 +353,8 @@ def parse_custom_replacement_config_file(file_name: str):
                     refer_to_faq_msg(70)) from exc
 
     try:
-        base_dir = os.path.dirname(__file__)
-        schema_file = os.path.join(base_dir, "schema.json")
+        base_dir = get_mo_root_dir()#os.path.dirname(__file__)
+        schema_file = os.path.join(base_dir, 'mo', 'utils', 'schema.json')
         with open(schema_file, 'r') as f:
             schema = json.load(f)
             validator = json_validate.compile(schema)
