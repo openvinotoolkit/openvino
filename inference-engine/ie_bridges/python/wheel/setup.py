@@ -9,13 +9,14 @@ import subprocess  # nosec
 import typing
 from pathlib import Path
 from shutil import copyfile, rmtree
+from fnmatch import fnmatchcase
 from distutils.command.install import install
 from distutils.command.build import build
 from distutils.command.clean import clean
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
 from distutils import log
-from setuptools import setup, find_namespace_packages, Extension
+from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from decouple import config
@@ -339,6 +340,40 @@ def get_package_dir(install_cfg):
     return py_package_path
 
 
+def pkg_filter(*patterns):
+    """
+    Filter folder by given patterns 
+    """
+    return lambda name: any(fnmatchcase(name, pat=pat) for pat in patterns)
+
+
+def find_packages_iter(where, exclude, include):
+    """
+    All the packages found in 'where' that pass the 'include' filter, but
+    not the 'exclude' filter.
+    """
+    for root, dirs, files in os.walk(where, followlinks=True):
+        all_dirs = dirs[:]
+        dirs[:] = []
+
+        for dir in all_dirs:
+            full_path = os.path.join(root, dir)
+            rel_path = os.path.relpath(full_path, where)
+            pkg = rel_path.replace(os.path.sep, '.')
+
+            if include(pkg) and not exclude(pkg):
+                yield pkg
+
+            dirs.append(dir)
+
+
+def find_packages(where='.', exclude=(), include=('*',)):
+    """
+    Return a list all Python packages found within directory 'where'
+    """
+    return list(find_packages_iter(where=where, exclude=pkg_filter('ez_setup', '*__pycache__', *exclude), include=pkg_filter(*include)))
+
+
 platforms = ['linux', 'win32', 'darwin']
 if not any(pl in sys.platform for pl in platforms):
     sys.exit(f'Unsupported platform: {sys.platform}, expected: linux, win32, darwin')
@@ -349,7 +384,7 @@ if os.path.exists(package_license):
     copyfile(package_license, 'LICENSE')
 
 
-packages = find_namespace_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
+packages = find_packages(get_package_dir(PY_INSTALL_CFG))
 package_data: typing.Dict[str, list] = {}
 
 setup(
