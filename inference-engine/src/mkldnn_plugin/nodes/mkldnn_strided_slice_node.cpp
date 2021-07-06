@@ -19,6 +19,7 @@
 #include <algorithm>
 #include "caseless.hpp"
 #include <ngraph/opsets/opset1.hpp>
+#include <cpu_memory_desc_utils.h>
 
 #define THROW_ERROR IE_THROW() << "StridedSlice layer with name '" << getName() << "' "
 
@@ -54,7 +55,7 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Nod
     if (isSupportedOperation(op, errorMessage)) {
         const auto ss = std::dynamic_pointer_cast<const ngraph::opset1::StridedSlice>(op);
 
-        const size_t nDims = std::max(inDims[DATA_ID].ndims(), outDims[0].ndims());
+        const size_t nDims = std::max(inputShapes[DATA_ID].getRank(), outputShapes[0].getRank());
 
         auto createMask = [&](const std::vector<int64_t> &origMask, const int bit = 0, bool needReverse = false) {
             std::vector<int> mask(origMask.begin(), origMask.end());
@@ -92,8 +93,8 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     params.parametersAreConstant = isConstantNode(getParentEdgesAtPort(BEGIN_ID)[0]->getParent()) &&
                                    isConstantNode(getParentEdgesAtPort(END_ID)[0]->getParent());
 
-    const SizeVector srcDims = inDims[DATA_ID].ToSizeVector();
-    const SizeVector dstDims = outDims[0].ToSizeVector();
+    const SizeVector srcDims = inputShapes[DATA_ID].getStaticDims();
+    const SizeVector dstDims = outputShapes[0].getStaticDims();
     const size_t nSrcDims = srcDims.size();
     const size_t nDims = std::max(nSrcDims, dstDims.size());
 
@@ -102,21 +103,21 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     if (!getChildEdges().size())
         THROW_ERROR << "has incorrect number of output edges";
 
-    beginDims = inDims[BEGIN_ID].ToSizeVector();
+    beginDims = inputShapes[BEGIN_ID].getStaticDims();
     if (beginDims.size() != 1)
         THROW_ERROR << " should have begin vector with 1 dimension";
 
-    endDims = inDims[END_ID].ToSizeVector();
+    endDims = inputShapes[END_ID].getStaticDims();
     if (endDims.size() != 1)
         THROW_ERROR << "should have end vector with 1 dimension";
     if (beginDims[0] != endDims[0])
         THROW_ERROR << "should have begin vector with size equal to end vector size";
 
-    if (inDims.size() > STRIDE_ID) {
+    if (inputShapes.size() > STRIDE_ID) {
         if (!isConstantNode(getParentEdgesAtPort(STRIDE_ID)[0]->getParent()))
             params.parametersAreConstant = false;
 
-        strideDims = inDims[STRIDE_ID].ToSizeVector();
+        strideDims = inputShapes[STRIDE_ID].getStaticDims();
         if (strideDims.size() > 1)
             THROW_ERROR << "should have stride vector with 1 dimension";
         if (beginDims[0] != strideDims[0])
@@ -206,11 +207,11 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     if (hasStrides)
         stridePrecision = getOriginalInputPrecisionAtPort(STRIDE_ID);
 
-    auto srcDims = getParentEdgeAt(DATA_ID)->getDims();
-    auto dstDims = getChildEdgeAt(0)->getDims();
-    size_t nDims = srcDims.ndims();
+    auto srcDims = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
+    auto dstDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    size_t nDims = srcDims.size();
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(getParentEdges().size());
     config.inConfs[DATA_ID].inPlace = -1;
@@ -225,33 +226,35 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     }
     config.outConfs.resize(1);
 
-    std::vector<TensorDescCreatorTypes> supportedTypes;
+    std::vector<GeneralLayout> supportedTypes;
     if (nDims > 2 && params.equalDims) {
         auto canUseBlocked = [=](const size_t blockSize) {
             return srcDims[1] % blockSize == 0 && abs(stride[1]) == 1 && (begin[1] > srcDims[1] || begin[1] % blockSize == 0);
         };
 
-        supportedTypes.push_back(TensorDescCreatorTypes::nspc);
+        supportedTypes.push_back(GeneralLayout::nspc);
         if (canUseBlocked(8lu))
-            supportedTypes.push_back(TensorDescCreatorTypes::nCsp8c);
+            supportedTypes.push_back(GeneralLayout::nCsp8c);
         if (canUseBlocked(16lu))
-            supportedTypes.push_back(TensorDescCreatorTypes::nCsp16c);
+            supportedTypes.push_back(GeneralLayout::nCsp16c);
     }
-    supportedTypes.push_back(TensorDescCreatorTypes::ncsp);
-    auto creators = TensorDescCreator::getCommonCreators();
-    auto range = TensorDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
+    supportedTypes.push_back(GeneralLayout::ncsp);
+    auto creators = BlockedDescCreator::getCommonCreators();
+    auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[0].desc = itr->second->createDesc(dataPrecision, getParentEdgeAt(DATA_ID)->getDims().ToSizeVector());
-        config.inConfs[BEGIN_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(BEGIN_ID)->getDims(), beginDataType, mkldnn::memory::format_tag::x);
-        config.inConfs[END_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(END_ID)->getDims(), endDataType, mkldnn::memory::format_tag::x);
+        config.inConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getParentEdgeAt(DATA_ID)->getShape().getStaticDims());
+        config.inConfs[BEGIN_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(BEGIN_ID)->getShape().getStaticMklDims(), beginDataType,
+                                                                      mkldnn::memory::format_tag::x);
+        config.inConfs[END_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(END_ID)->getShape().getStaticMklDims(), endDataType,
+                                                                    mkldnn::memory::format_tag::x);
         if (hasStrides)
-            config.inConfs[STRIDE_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(STRIDE_ID)->getDims(),
+            config.inConfs[STRIDE_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(STRIDE_ID)->getShape().getStaticMklDims(),
                                                               MKLDNNExtensionUtils::IEPrecisionToDataType(stridePrecision),
                                                               mkldnn::memory::format_tag::x);
 
-        config.outConfs[0].desc = itr->second->createDesc(dataPrecision, getChildEdgeAt(DATA_ID)->getDims().ToSizeVector());
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
+        config.outConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getChildEdgeAt(DATA_ID)->getShape().getStaticDims());
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
 }
 
@@ -265,16 +268,16 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor.";
 
-    auto srcBlockingDesc = getParentEdgeAt(DATA_ID)->getDesc().getBlockingDesc();
-    auto dstBlockingDesc = getChildEdgeAt(0)->getDesc().getBlockingDesc();
+    auto srcBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(DATA_ID)->getMemory().GetDesc());
+    auto dstBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(getChildEdgeAt(0)->getMemory().GetDesc());
     auto srcOrder = srcBlockingDesc.getOrder();
     params.srcDims = srcBlockingDesc.getBlockDims();
     params.dstDims = dstBlockingDesc.getBlockDims();
-    params.dataSize = getSelectedPrimitiveDescriptor()->getConfig().inConfs[DATA_ID].desc.getPrecision().size();
+    params.dataSize = getSelectedPrimitiveDescriptor()->getConfig().inConfs[DATA_ID].desc->getPrecision().size();
 
     if (params.parametersAreConstant) {
         size_t realNDims = params.dstDims.size();
-        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isPlainFormat())
+        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp))
             orderParametersByLayouts();
 
         SizeVector newSrcDims, newDstDims;
@@ -287,9 +290,10 @@ void MKLDNNStridedSliceNode::createPrimitive() {
 }
 
 void MKLDNNStridedSliceNode::orderParametersByLayouts() {
-    const bool isPerChannelLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isTailCFormat();
-    const bool isBlockedLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isBlockedCFormat();
-    auto srcOrder = getParentEdgeAt(DATA_ID)->getDesc().getBlockingDesc().getOrder();
+    const bool isPerChannelLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nspc);
+    const bool isBlockedLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c) ||
+                                 getParentEdgeAt(DATA_ID)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c);
+    auto srcOrder = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(DATA_ID)->getMemory().GetDesc()).getOrder();
 
     if (isBlockedLayout) {
         const size_t blk = params.srcDims.back();
@@ -553,9 +557,9 @@ void MKLDNNStridedSliceNode::indicesCalculation() {
 
 void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
     if (!params.parametersAreConstant) {
-        auto srcDims = getParentEdgeAt(DATA_ID)->getDims();
-        auto dstDims = getChildEdgeAt(0)->getDims();
-        const size_t nDims = std::max(srcDims.ndims(), dstDims.ndims());
+        auto srcDims = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
+        auto dstDims = getChildEdgeAt(0)->getShape().getStaticDims();
+        const size_t nDims = std::max(srcDims.size(), dstDims.size());
         const size_t ellipsisMaskCounter = std::accumulate(ellipsisMask.begin(), ellipsisMask.end(), 0);
 
         auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
@@ -574,15 +578,15 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
         if (strideDims.size())
             fillingInParameters(stride, STRIDE_ID, strideDims[0], 1);
 
-        if (srcDims.ndims() > 3 && params.equalDims && ellipsisMaskCounter != 0)
-            addHiddenDims(srcDims.ndims());
+        if (srcDims.size() > 3 && params.equalDims && ellipsisMaskCounter != 0)
+            addHiddenDims(srcDims.size());
 
-        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isPlainFormat())
+        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp))
             orderParametersByLayouts();
 
         SizeVector newSrcDims, newDstDims;
         dimsNormalization(newSrcDims, newDstDims);
-        dimsGluing(dstDims.ndims(), newSrcDims, newDstDims);
+        dimsGluing(dstDims.size(), newSrcDims, newDstDims);
 
         if (params.dstDims.size() == 1 || params.nDimsForWork != 1)
             indicesCalculation();

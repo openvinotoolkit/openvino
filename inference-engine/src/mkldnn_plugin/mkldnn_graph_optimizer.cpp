@@ -142,9 +142,8 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();
 
-    // TODO [mkutakov]: uncomment
-//    MergeTransposeAndReorder(graph);
-//    graph.RemoveDroppedNodes();
+    MergeTransposeAndReorder(graph);
+    graph.RemoveDroppedNodes();
 
     graph.RemoveDroppedEdges();
 }
@@ -1692,13 +1691,11 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
         }
 
         auto& transposeOrder = transposeNode->getOrder();
-        auto& layoutOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc->as<BlockedMemoryDesc>()->getOrder();
+        auto &layoutOrder = MemoryDescUtils::convertToBlockedDescriptor(
+                                                *transposeNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc).getOrder();
 
-        auto inDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->as<MKLDNNMemoryDesc>();
-        auto outDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc->as<MKLDNNMemoryDesc>();
-
-        auto inBlockedDesc = MemoryDescUtils::convertToBlockedDescriptor(*inDesc);
-        auto outBlockedDesc = MemoryDescUtils::convertToBlockedDescriptor(*outDesc);
+        auto inBlockedDesc = MemoryDescUtils::convertToBlockedDescriptor(*reorderNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc);
+        auto outBlockedDesc = MemoryDescUtils::convertToBlockedDescriptor(*reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc);
 
         auto& inOrder = inBlockedDesc.getOrder();
         auto& outOrder = outBlockedDesc.getOrder();

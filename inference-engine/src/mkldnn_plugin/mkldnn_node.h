@@ -207,7 +207,7 @@ public:
 
     PortConfigurator(MKLDNNPlugin::GeneralLayout blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
                      bool constant = false, int inPlace = -1) :
-            tensorDescCreator(getBlockedDescCreator(blockedDescType)), constant(constant), inPlace(inPlace) {}
+            tensorDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), constant(constant), inPlace(inPlace) {}
 
     MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr tensorDescCreator;
     const InferenceEngine::Precision prc;
@@ -719,7 +719,7 @@ protected:
 
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
 
-    virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims& dims) const;
+    virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
     int batchToProcess();
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);

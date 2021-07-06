@@ -35,18 +35,18 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (inputDataType != outputDataType)
         inputDataType = outputDataType;
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());
     for (size_t i = 0; i <getParentEdges().size(); i++) {
         config.inConfs[i].inPlace = -1;
         config.inConfs[i].constant = false;
-        config.inConfs[i].desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType);
+        config.inConfs[i].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(i)->getShape().getStaticMklDims(), inputDataType);
     }
     config.outConfs.resize(1);
     config.outConfs[0].inPlace = 0;
     config.outConfs[0].constant = false;
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
+    config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType);
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 

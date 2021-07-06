@@ -13,6 +13,7 @@
 #include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
 #include <ngraph/opsets/opset1.hpp>
+#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -92,8 +93,8 @@ void MKLDNNPadNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "Incorrect number of output edges";
 
-    const SizeVector srcDims = getParentEdgeAt(DATA_ID)->getDims().ToSizeVector();
-    const SizeVector dstDims = getChildEdgeAt(DATA_ID)->getDims().ToSizeVector();
+    const SizeVector srcDims = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
+    const SizeVector dstDims = getChildEdgeAt(DATA_ID)->getShape().getStaticDims();
     if (srcDims.size() != dstDims.size() || padsBegin.size() != srcDims.size() || padsEnd.size() != srcDims.size())
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
 
@@ -122,22 +123,25 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
         precision = precision.is_float() ? InferenceEngine::Precision::FP32 : InferenceEngine::Precision::I32;
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    auto srcDims = getParentEdgeAt(DATA_ID)->getDims();
-    int numOfDims = srcDims.ToSizeVector().size();
+    auto srcDims = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
+    int numOfDims = srcDims.size();
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(isPadValueSpecified ? 4 : 3);
     config.outConfs.resize(1);
 
     auto pushSupportedPrimitiveDescriptor = [&](memory::format_tag memoryFormat) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA_ID)->getDims(), dataType, memoryFormat);
-        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(PADS_BEGIN_ID)->getDims(), memory::data_type::s32, memory::format_tag::x);
-        config.inConfs[2].desc = MKLDNNMemoryDesc(getParentEdgeAt(PADS_END_ID)->getDims(), memory::data_type::s32, memory::format_tag::x);
+        config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticMklDims(), dataType, memoryFormat);
+        config.inConfs[1].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PADS_BEGIN_ID)->getShape().getStaticMklDims(), memory::data_type::s32,
+                                                               memory::format_tag::x);
+        config.inConfs[2].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PADS_END_ID)->getShape().getStaticMklDims(), memory::data_type::s32,
+                                                               memory::format_tag::x);
         if (isPadValueSpecified)
-            config.inConfs[3].desc = MKLDNNMemoryDesc(getParentEdgeAt(PAD_VALUE_ID)->getDims(), memory::data_type::f32, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(DATA_ID)->getDims(), dataType, memoryFormat);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref, memoryFormat});
+            config.inConfs[3].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PAD_VALUE_ID)->getShape().getStaticMklDims(), memory::data_type::f32,
+                                                                   memory::format_tag::x);
+        config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(DATA_ID)->getShape().getStaticMklDims(), dataType, memoryFormat);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     };
 
     if (numOfDims == 4)
@@ -145,7 +149,7 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
     else if (numOfDims == 5)
         pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::ndhwc);
 
-    pushSupportedPrimitiveDescriptor(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
+    pushSupportedPrimitiveDescriptor(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(0)->getShape().getRank()));
 
     auto canUseBlocked = [=](const size_t blockSize) {
         return (padMode == CONSTANT && padsBegin[1] % blockSize == 0 && padsEnd[1] % blockSize == 0) ||
@@ -175,10 +179,11 @@ void MKLDNNPadNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor for Pad " << getName() << " is not set.";
 
-    params.sizeData = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
+    params.sizeData = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
 
-    params.srcDims = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
-    params.dstDims = getChildEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
+    const auto inBlkDesc = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(0)->getMemory().GetDesc());
+    params.srcDims = inBlkDesc.getBlockDims();
+    params.dstDims = MemoryDescUtils::convertToBlockedDescriptor(getChildEdgeAt(0)->getMemory().GetDesc()).getBlockDims();
 
     size_t nDims = params.srcDims.size();
     params.srcStrides.resize(nDims, 1);
@@ -188,13 +193,14 @@ void MKLDNNPadNode::createPrimitive() {
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
     }
 
-    if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
+    if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c) ||
+            getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c)) {
         padsBegin[1] /= params.srcDims[params.srcDims.size() - 1];
         padsEnd[1] /= params.srcDims[params.srcDims.size() - 1];
         padsBegin.push_back(0);
         padsEnd.push_back(0);
     } else {
-        auto order = getParentEdgeAt(0)->getDesc().getBlockingDesc().getOrder();
+        auto order = inBlkDesc.getOrder();
         std::vector<unsigned int> newPadsBegin(padsBegin.size(), 0), newPadsEnd(padsEnd.size(), 0);
         for (size_t i = 0; i < padsBegin.size(); ++i) {
             newPadsBegin[i] = padsBegin[order[i]];
@@ -304,7 +310,7 @@ void MKLDNNPadNode::padConstant() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU Pad node with name '" << getName() << "' doesn't have primitive descriptors.";
-    InferenceEngine::Precision precision = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc.getPrecision();
+    InferenceEngine::Precision precision = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc->getPrecision();
     OV_SWITCH(MKLDNNPlugin, PadConstantEmitter, this, precision,
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),

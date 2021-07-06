@@ -21,6 +21,7 @@
 #include <memory>
 #include <algorithm>
 #include <cmath>
+#include <cpu_memory_desc_utils.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -354,21 +355,21 @@ void MKLDNNROIPoolingNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 
-    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+    if (getParentEdgeAt(0)->getShape().getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getShape().getRank();
     }
 
-    if (getParentEdgeAt(1)->getDims().ndims() != 2) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+    if (getParentEdgeAt(1)->getShape().getRank() != 2) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getShape().getRank();
     }
 
-    if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+    if (getChildEdgeAt(0)->getShape().getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getShape().getRank();
     }
 
-    if (getParentEdgeAt(1)->getDims()[1] != 5) {
+    if (getParentEdgeAt(1)->getShape().getStaticDims()[1] != 5) {
         IE_THROW() << errorPrefix << "has invalid shape on 1st input: ["
-                                          << getParentEdgeAt(1)->getDims()[0] << "," << getParentEdgeAt(1)->getDims()[1] << "]";
+                                  << getParentEdgeAt(1)->getShape().getStaticDims()[0] << "," << getParentEdgeAt(1)->getShape().getStaticDims()[1] << "]";
     }
 }
 
@@ -388,7 +389,7 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
     src_data_size = MKLDNNExtensionUtils::sizeOfDataType(dataType);
     dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(dataType);
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.inConfs[0].constant = false;
@@ -400,7 +401,7 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].constant = false;
     config.outConfs[0].inPlace = -1;
 
-    auto parentDims = getParentEdgeAt(0)->getDims();
+    auto parentDims = getParentEdgeAt(0)->getShape().getStaticDims();
     auto format = mayiuse(avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_common)) {
@@ -413,10 +414,10 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
-    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), dataType, format);
-    config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), dataType, memory::format_tag::nc);
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, format);
-    supportedPrimitiveDescriptors.push_back({config, impl_type, format});
+    config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), dataType, format);
+    config.inConfs[1].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticMklDims(), dataType, memory::format_tag::nc);
+    config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), dataType, format);
+    supportedPrimitiveDescriptors.push_back({config, impl_type});
 }
 
 void MKLDNNROIPoolingNode::createPrimitive() {
@@ -428,8 +429,8 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
     jpp.c_block = simd_w;
 
-    auto inDims = config.inConfs[0].desc.getDims();
-    auto outDims = config.outConfs[0].desc.getDims();
+    auto inDims = config.inConfs[0].desc->getShape().getStaticDims();
+    auto outDims = config.outConfs[0].desc->getShape().getStaticDims();
 
     jpp.mb = outDims[0];
     jpp.c = rnd_up(inDims[1], simd_w);
@@ -447,8 +448,8 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     jpp.nb_c_blocking = mayiuse(cpu::x64::avx512_common) ? 15 : 7;
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    jpp.src_prc = selectedPD->getConfig().inConfs[0].desc.getPrecision();
-    jpp.dst_prc = selectedPD->getConfig().outConfs[0].desc.getPrecision();
+    jpp.src_prc = selectedPD->getConfig().inConfs[0].desc->getPrecision();
+    jpp.dst_prc = selectedPD->getConfig().outConfs[0].desc->getPrecision();
     jpp.src_data_size = jpp.src_prc.size();
     jpp.dst_data_size = jpp.dst_prc.size();
 
@@ -481,9 +482,9 @@ void MKLDNNROIPoolingNode::execute() {
         IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
-    auto src_strides = config.inConfs[0].desc.getBlockingDesc().getStrides();
-    auto dst_strides = config.outConfs[0].desc.getBlockingDesc().getStrides();
-    size_t src_roi_step = config.inConfs[1].desc.getBlockingDesc().getStrides()[0];
+    auto src_strides = MemoryDescUtils::convertToBlockedDescriptor(srcMemory0.GetDesc()).getStrides();
+    auto dst_strides = MemoryDescUtils::convertToBlockedDescriptor(dstMemory.GetDesc()).getStrides();
+    size_t src_roi_step = MemoryDescUtils::convertToBlockedDescriptor(srcMemory1.GetDesc()).getStrides()[0];
 
     int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
     int MB = jpp.mb;

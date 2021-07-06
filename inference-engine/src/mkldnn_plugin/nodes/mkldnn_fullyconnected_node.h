@@ -16,7 +16,7 @@ class MKLDNNFullyConnectedNode : public MKLDNNNode {
 public:
     MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
+    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 
 #include <ngraph/opsets/opset2.hpp>
@@ -48,8 +46,8 @@ void MKLDNNReorgYoloNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32}},
+                         {{GeneralLayout::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
@@ -57,10 +55,10 @@ void MKLDNNReorgYoloNode::execute(mkldnn::stream strm) {
     const auto *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    int IW = (getParentEdgeAt(0)->getDesc().getDims().size() > 3) ? getParentEdgeAt(0)->getDims()[3] : 1;
-    int IH = (getParentEdgeAt(0)->getDesc().getDims().size() > 2) ? getParentEdgeAt(0)->getDims()[2] : 1;
-    int IC = (getParentEdgeAt(0)->getDesc().getDims().size() > 1) ? getParentEdgeAt(0)->getDims()[1] : 1;
-    int B  = (getParentEdgeAt(0)->getDesc().getDims().size() > 0) ? getParentEdgeAt(0)->getDims()[0] : 1;
+    int IW = (getParentEdgeAt(0)->getShape().getRank() > 3) ? getParentEdgeAt(0)->getShape().getStaticDims()[3] : 1;
+    int IH = (getParentEdgeAt(0)->getShape().getRank() > 2) ? getParentEdgeAt(0)->getShape().getStaticDims()[2] : 1;
+    int IC = (getParentEdgeAt(0)->getShape().getRank() > 1) ? getParentEdgeAt(0)->getShape().getStaticDims()[1] : 1;
+    int B  = (getParentEdgeAt(0)->getShape().getRank() > 0) ? getParentEdgeAt(0)->getShape().getStaticDims()[0] : 1;
 
     int ic_off = IC / (stride * stride);
     int ih_off = IH * stride;

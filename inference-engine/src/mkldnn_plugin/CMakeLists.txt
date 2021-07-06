@@ -45,6 +45,29 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_ctc_greedy_decoder_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_ctc_greedy_decoder_seq_len_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_ctc_loss_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_select_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_transpose_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_topk_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_strided_slice_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_space_to_depth_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_shuffle_channels_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_scatter_update_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roll_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_pooling_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_align_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_psroi_pooling_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reverse_sequence_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reshape_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorg_yolo_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_region_yolo_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reduce_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_range_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_pad_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_one_hot_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_non_max_suppression_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
 )
 
@@ -76,6 +99,29 @@ file(GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_ctc_greedy_decoder_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_ctc_greedy_decoder_seq_len_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_ctc_loss_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_select_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_transpose_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_topk_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_strided_slice_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_space_to_depth_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_shuffle_channels_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_scatter_update_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roll_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_pooling_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_align_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_psroi_pooling_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reverse_sequence_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reshape_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorg_yolo_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_region_yolo_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reduce_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_range_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_pad_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_one_hot_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_non_max_suppression_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/base.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.hpp

@@ -29,6 +29,7 @@
 #include "ngraph_transformations/op/power_static.hpp"
 #include "ngraph_transformations/op/leaky_relu.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
+#include <cpu_memory_desc_utils.h>
 
 #include <string>
 #include <vector>
@@ -1193,9 +1194,9 @@ void MKLDNNEltwiseNode::createPrimitive() {
 
         dims_out.resize(maxInputSize, 1);
 
-        auto outBlockingDesc = config.outConfs[0].desc->as<BlockedMemoryDesc>();
+        auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[0].desc);
         std::vector<size_t> order(maxInputSize);
-        auto outOrder = outBlockingDesc->getOrder();
+        auto outOrder = outBlockingDesc.getOrder();
         for (size_t i = 0; i < order.size(); i++) {
             if (i < order.size() - outOrder.size())
                 order[i] = i;
@@ -1203,18 +1204,18 @@ void MKLDNNEltwiseNode::createPrimitive() {
                 order[i] = outOrder[i - (order.size() - outOrder.size())] + (order.size() - outOrder.size());
         }
 
-        size_t outRank = outBlockingDesc->getBlockDims().size();
+        size_t outRank = outBlockingDesc.getBlockDims().size();
         for (int i = 0; i < outRank; i++) {
-            dims_out[dims_out.size() - 1 - i] = outBlockingDesc->getBlockDims()[outRank - 1 - i];
+            dims_out[dims_out.size() - 1 - i] = outBlockingDesc.getBlockDims()[outRank - 1 - i];
         }
 
         for (int i = 0; i < inputNum; i++) {
-            auto inBlockingDesc = config.inConfs[i].desc->as<BlockedMemoryDesc>();
-            size_t inRank = inBlockingDesc->getBlockDims().size();
+            auto inBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[i].desc);
+            size_t inRank = inBlockingDesc.getBlockDims().size();
 
             // WA to normalize blocked and planar layouts
-            auto inOrder = inBlockingDesc->getOrder();
-            size_t startOff = outOrder.size() != outBlockingDesc->getShape().getRank() &&
+            auto inOrder = inBlockingDesc.getOrder();
+            size_t startOff = outOrder.size() != outBlockingDesc.getShape().getRank() &&
                               outOrder[outOrder.size() - 1] != inOrder[inOrder.size() - 1] ? 1 : 0;
 
             // WA to handle nspc layout with 1D tensors
@@ -1223,7 +1224,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
             }
 
             for (int j = 0; j < inRank; j++) {
-                dims_in[i][dims_in[i].size() - 1 - j - startOff] = inBlockingDesc->getBlockDims()[inRank - 1 - j];
+                dims_in[i][dims_in[i].size() - 1 - j - startOff] = inBlockingDesc.getBlockDims()[inRank - 1 - j];
             }
         }
 
@@ -1293,11 +1294,11 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     };
 
-    auto outBlockingDesc = config.outConfs[0].desc->as<BlockedMemoryDesc>();
-    tensorRank = std::max(static_cast<size_t>(optimalTensorRank), outBlockingDesc->getBlockDims().size());
+    auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[0].desc);
+    tensorRank = std::max(static_cast<size_t>(optimalTensorRank), outBlockingDesc.getBlockDims().size());
     initDims(tensorRank);
 
-    auto outOrder = outBlockingDesc->getOrder();
+    auto outOrder = outBlockingDesc.getOrder();
     size_t oc_size = 0;
     offsets_oc.resize(tensorRank, 0);
     if (isFusedWith(FakeQuantize)) {
@@ -1327,7 +1328,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
         bool hasDifferentDims = false;
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
-               (!isDynBatchEnabled || (outBlockingDesc->getBlockDims().size() - collapsedDims > 2))) {
+               (!isDynBatchEnabled || (outBlockingDesc.getBlockDims().size() - collapsedDims > 2))) {
             if (dims_out.size() - collapsedDims - 2 < 0)
                 break;
 
@@ -1379,7 +1380,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     }
 
-    batchDimIdx = tensorRank - outBlockingDesc->getBlockDims().size() + collapsedDims;
+    batchDimIdx = tensorRank - outBlockingDesc.getBlockDims().size() + collapsedDims;
     schedulerWorkAmount = fullWorkAmount / dims_out[dims_out.size() - 1];
 
     initOffsets(tensorRank);

@@ -13,6 +13,7 @@
 #include "mkldnn_psroi_pooling_node.h"
 #include <cpu/x64/jit_generator.hpp>
 #include <nodes/common/blocked_desc_creator.h>
+#include <cpu_memory_desc_utils.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -139,27 +140,27 @@ void MKLDNNPSROIPoolingNode::initSupportedPrimitiveDescriptors() {
     auto dataPrecision = getOriginalInputPrecisionAtPort(0) == Precision::BF16 ? Precision::BF16 : Precision::FP32;
 
     if (getAlgorithm() == Algorithm::PSROIPoolingAverage || getAlgorithm() == Algorithm::PSROIPoolingBilinear) {
-        std::vector<std::pair<TensorDescCreatorTypes, TensorDescCreatorTypes>> dataFomats{
-            {TensorDescCreatorTypes::ncsp, TensorDescCreatorTypes::ncsp},
-            {TensorDescCreatorTypes::nspc, TensorDescCreatorTypes::nspc},
-            {TensorDescCreatorTypes::nCsp16c, TensorDescCreatorTypes::nCsp16c},
-            {TensorDescCreatorTypes::nCsp8c, TensorDescCreatorTypes::nCsp8c}
+        std::vector<std::pair<GeneralLayout, GeneralLayout>> dataFomats{
+            {GeneralLayout::ncsp, GeneralLayout::ncsp},
+            {GeneralLayout::nspc, GeneralLayout::nspc},
+            {GeneralLayout::nCsp16c, GeneralLayout::nCsp16c},
+            {GeneralLayout::nCsp8c, GeneralLayout::nCsp8c}
         };
 
         for (const auto &df : dataFomats) {
-            addSupportedPrimDesc({{df.first, dataPrecision}, {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+            addSupportedPrimDesc({{df.first, dataPrecision}, {GeneralLayout::ncsp, Precision::FP32}},
                                  {{df.second, dataPrecision}},
                                  impl_type);
         }
     } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable && noTrans) {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, dataPrecision}, {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                             {{TensorDescCreatorTypes::ncsp, dataPrecision}},
+        addSupportedPrimDesc({{GeneralLayout::ncsp, dataPrecision}, {GeneralLayout::ncsp, Precision::FP32}},
+                             {{GeneralLayout::ncsp, dataPrecision}},
                              impl_type);
     } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable) {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, dataPrecision},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                             {{TensorDescCreatorTypes::ncsp, dataPrecision}},
+        addSupportedPrimDesc({{GeneralLayout::ncsp, dataPrecision},
+                              {GeneralLayout::ncsp, Precision::FP32},
+                              {GeneralLayout::ncsp, Precision::FP32}},
+                             {{GeneralLayout::ncsp, dataPrecision}},
                              impl_type);
     }
 }
@@ -182,19 +183,18 @@ inline float bilinearInterp(const inputType* data, const float x, const float y,
     return value;
 }
 
-void MKLDNNPSROIPoolingNode::unpackParams(const TensorDesc& srcDesc, const TensorDesc& dstDesc,
+void MKLDNNPSROIPoolingNode::unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc,
                                           int& hInputStride, int& wInputStride,
                                           int& hOutputStride, int& wOutputStride,
-                                          Layout& inFmt, Layout& outFmt,
                                           int& inBlockSize, int& outBlockSize,
                                           int& outBlockCount,
                                           unsigned long& inputChannelsPadding, unsigned long& outputChannelsPadding) {
-    inFmt = srcDesc.getLayout();
-    outFmt = dstDesc.getLayout();
-    int expectedInBlockDimsSize = (inFmt == Layout::BLOCKED ? 5 : 4);
-    int expectedOutBlockDimsSize = (outFmt == Layout::BLOCKED ? 5 : 4);
-    auto inBlkDims = srcDesc.getBlockingDesc().getBlockDims();
-    auto outBlkDims = dstDesc.getBlockingDesc().getBlockDims();
+    const bool inpIsBlk = srcDesc.checkGeneralLayout(GeneralLayout::nCsp16c) || srcDesc.checkGeneralLayout(GeneralLayout::nCsp8c);
+    const bool outIsBlk = dstDesc.checkGeneralLayout(GeneralLayout::nCsp16c) || dstDesc.checkGeneralLayout(GeneralLayout::nCsp8c);
+    int expectedInBlockDimsSize = (inpIsBlk ? 5 : 4);
+    int expectedOutBlockDimsSize = (outIsBlk ? 5 : 4);
+    auto inBlkDims = srcDesc.getBlockDims();
+    auto outBlkDims = dstDesc.getBlockDims();
     if (inBlkDims.size() != expectedInBlockDimsSize)
         IE_THROW() << errorPrefix << " has unexpected size of blocking dims in input (given " << inBlkDims.size() << ", expected "
                           << expectedInBlockDimsSize << ")";
@@ -202,15 +202,15 @@ void MKLDNNPSROIPoolingNode::unpackParams(const TensorDesc& srcDesc, const Tenso
         IE_THROW() << errorPrefix << " has unexpected size of blocking dims in output (given " << outBlkDims.size() << ", expected "
                            << expectedOutBlockDimsSize << ")";
 
-    inBlockSize = (inFmt == Layout::BLOCKED ? srcDesc.getBlockingDesc().getBlockDims()[4] : 1);
-    outBlockSize = (outFmt == Layout::BLOCKED ? dstDesc.getBlockingDesc().getBlockDims()[4] : 1);
-    inputChannelsPadding = srcDesc.getBlockingDesc().getBlockDims()[1] * inBlockSize;
-    outputChannelsPadding = dstDesc.getBlockingDesc().getBlockDims()[1] * outBlockSize;
+    inBlockSize = (inpIsBlk ? srcDesc.getBlockDims()[4] : 1);
+    outBlockSize = (outIsBlk ? dstDesc.getBlockDims()[4] : 1);
+    inputChannelsPadding = srcDesc.getBlockDims()[1] * inBlockSize;
+    outputChannelsPadding = dstDesc.getBlockDims()[1] * outBlockSize;
     outBlockCount = outputChannelsPadding / outBlockSize;
 
     int hOutStrIndex = 0, wOutStrIndex = 0, hInStrIndex = 0, wInStrIndex = 0;
-    const auto& outOrder = dstDesc.getBlockingDesc().getOrder();
-    const auto& inOrder = srcDesc.getBlockingDesc().getOrder();
+    const auto& outOrder = dstDesc.getOrder();
+    const auto& inOrder = srcDesc.getOrder();
     for (int i = 0; i < outOrder.size(); i++) {
         if (outOrder[i] == 2) hOutStrIndex = i;
         if (outOrder[i] == 3) wOutStrIndex = i;
@@ -219,21 +219,20 @@ void MKLDNNPSROIPoolingNode::unpackParams(const TensorDesc& srcDesc, const Tenso
         if (inOrder[i] == 2) hInStrIndex = i;
         if (inOrder[i] == 3) wInStrIndex = i;
     }
-    hInputStride = srcDesc.getBlockingDesc().getStrides()[hInStrIndex];
-    wInputStride = srcDesc.getBlockingDesc().getStrides()[wInStrIndex];
-    hOutputStride = dstDesc.getBlockingDesc().getStrides()[hOutStrIndex];
-    wOutputStride = dstDesc.getBlockingDesc().getStrides()[wOutStrIndex];
+    hInputStride = srcDesc.getStrides()[hInStrIndex];
+    wInputStride = srcDesc.getStrides()[wInStrIndex];
+    hOutputStride = dstDesc.getStrides()[hOutStrIndex];
+    wOutputStride = dstDesc.getStrides()[wOutStrIndex];
 }
 
 template <typename inputType, typename outputType>
 void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType *dstData, const float *bottomRois,
                                             const int n, const int roiBatchInd,
-                                            const TensorDesc& srcDesc, const TensorDesc& dstDesc) {
-    Layout inFmt, outFmt;
+                                            const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc) {
     int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
     unsigned long inputChannelsPadding, outputChannelsPadding;
     unpackParams(srcDesc, dstDesc, hInputStride, wInputStride, hOutputStride, wOutputStride,
-        inFmt, outFmt, inBlockSize, outBlockSize, outBlockCount, inputChannelsPadding, outputChannelsPadding);
+                 inBlockSize, outBlockSize, outBlockCount, inputChannelsPadding, outputChannelsPadding);
     const float roiStartW = static_cast<float>(round(bottomRois[1])) * spatialScale;
     const float roiStartH = static_cast<float>(round(bottomRois[2])) * spatialScale;
     const float roiEndW   = static_cast<float>(round(bottomRois[3] + 1.0f)) * spatialScale;
@@ -273,7 +272,7 @@ void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType
             dstData[dstIndex] = outSum / binArea;
         }
     };
-    if (inFmt == Layout::NHWC) {
+    if (srcDesc.checkGeneralLayout(GeneralLayout::nspc)) {
         parallel_for2d(nh, nw, [&](int h, int w) {
             const int binOffsetOutput = n * nc * nh * nw;
             const int binOffsetInput = roiBatchInd * channels * height * width;
@@ -282,10 +281,10 @@ void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType
                 avgPsroi(c, h, w, 0, 0, binOffsetInput + gc, binOffsetOutput + c);
             }
         });
-    } else if (inFmt == Layout::NCHW) {
+    } else if (srcDesc.checkGeneralLayout(GeneralLayout::ncsp)) {
         parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
             const int gc = (c * groupSize + h) * groupSize + w;
-            const int outputBlockResidual = (outFmt == Layout::NCHW ? 0 : c % inBlockSize);
+            const int outputBlockResidual = (dstDesc.checkGeneralLayout(GeneralLayout::ncsp) ? 0 : c % inBlockSize);
             const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
             const int binOffsetInput = (roiBatchInd * inputChannelsPadding + gc) * height * width;
             const int binOffsetOutput = (n * outputChannelsPadding + outputBlockIdx) * nh * nw;
@@ -297,8 +296,8 @@ void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType
             int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
             for (int c = cStart; c < cEnd; c++) {
                 const int gc = (c * groupSize + h) * groupSize + w;
-                const int inputBlockResidual = (inFmt == Layout::NCHW ? 0 : gc % inBlockSize);
-                const int outputBlockResidual = (outFmt == Layout::NCHW ? 0 : c % inBlockSize);
+                const int inputBlockResidual = (srcDesc.checkGeneralLayout(GeneralLayout::ncsp) ? 0 : gc % inBlockSize);
+                const int outputBlockResidual = (dstDesc.checkGeneralLayout(GeneralLayout::ncsp) ? 0 : c % inBlockSize);
                 const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
                 const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
                 const int binOffsetInput = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
@@ -312,12 +311,11 @@ void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType
 template <typename inputType, typename outputType>
 void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
                                              const int currentRoi, const int roiBatchInd,
-                                             const TensorDesc& srcDesc, const TensorDesc& dstDesc) {
-    Layout inFmt, outFmt;
+                                             const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc) {
     int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
     unsigned long inputChannelsPadding, outputChannelsPadding;
     unpackParams(srcDesc, dstDesc, hInputStride, wInputStride, hOutputStride, wOutputStride,
-                 inFmt, outFmt, inBlockSize, outBlockSize, outBlockCount, inputChannelsPadding, outputChannelsPadding);
+                 inBlockSize, outBlockSize, outBlockCount, inputChannelsPadding, outputChannelsPadding);
     const float roiStartW = bottomRois[1] * spatialScale;
     const float roiStartH = bottomRois[2] * spatialScale;
     const float roiEndW = bottomRois[3] * spatialScale;
@@ -340,13 +338,14 @@ void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputTyp
             const float inY = nh > 1 ? (h * heightScale + boxYmin * (height - 1)) : 0.5f * (boxYmin + boxYmax) * (height - 1);
             for (size_t binX = 0; binX < spatialBinsX; binX++) {
                 size_t gc = c + (binY * spatialBinsX + binX) * nc;
-                if (inFmt == Layout::NHWC) {
+                if (srcDesc.checkGeneralLayout(GeneralLayout::nspc)) {
                     binOffIn = roiBatchInd * channels * height * width + gc;
                     inBlkRes = 0;
                 } else {  // nchw, nChw16c, nChw8c
                     const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
                     binOffIn = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
-                    inBlkRes = (inFmt == Layout::BLOCKED ? gc % inBlockSize : 0);
+                    inBlkRes = ((srcDesc.checkGeneralLayout(GeneralLayout::nCsp16c) || srcDesc.checkGeneralLayout(GeneralLayout::nCsp8c))
+                                ? gc % inBlockSize : 0);
                 }
                 const auto *bottomData = srcData + binOffIn;
 
@@ -386,14 +385,14 @@ void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputTyp
         dstData[dstIndex] = accum;
     };
 
-    if (inFmt == Layout::NHWC) {
+    if (srcDesc.checkGeneralLayout(GeneralLayout::nspc)) {
         const int binOffsetOutput = currentRoi * nc * nh * nw;
         parallel_for2d(nh, nw, [&](int h, int w) {
             for (int c = 0; c < nc; c++) {
                 bilinearPsroi(c, h, w, 0, binOffsetOutput + c);
             }
         });
-    } else if (inFmt == Layout::NCHW) {
+    } else if (srcDesc.checkGeneralLayout(GeneralLayout::ncsp)) {
         parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
             bilinearPsroi(c, h, w, 0, (currentRoi * outputChannelsPadding + c) * binCount);
         });
@@ -404,7 +403,8 @@ void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputTyp
             for (int c = cStart; c < cEnd; c++) {
                 const int outputBlockIdx = (c / inBlockSize) * inBlockSize;
                 const int binOffsetOutput = (currentRoi * outputChannelsPadding + outputBlockIdx) * binCount;
-                const int outputBlockResidual = (inFmt == Layout::BLOCKED ? c % inBlockSize : 0);
+                const int outputBlockResidual = ((srcDesc.checkGeneralLayout(GeneralLayout::nCsp16c) || srcDesc.checkGeneralLayout(GeneralLayout::nCsp8c))
+                                                 ? c % inBlockSize : 0);
                 bilinearPsroi(c, h, w, outputBlockResidual, binOffsetOutput);
             }
         });
@@ -480,8 +480,8 @@ void MKLDNNPSROIPoolingNode::executeSpecified() {
     const auto *bottomRoisBeginning = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    auto srcDesc = getParentEdgeAt(0)->getDesc();
-    auto dstDesc = getChildEdgeAt(0)->getDesc();
+    auto srcDesc = MemoryDescUtils::convertToBlockedDescriptor(getParentEdgeAt(0)->getMemory().GetDesc());
+    auto dstDesc = MemoryDescUtils::convertToBlockedDescriptor(getChildEdgeAt(0)->getMemory().GetDesc());
 
     int realRois = 0;
     for (; realRois < nn; realRois++) {
@@ -497,7 +497,7 @@ void MKLDNNPSROIPoolingNode::executeSpecified() {
     int channelsEachClass = outputDim;
     if (!noTrans) {
         bottomTrans = reinterpret_cast<const float *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-        numClasses = static_cast<int>(getParentEdgeAt(2)->getDesc().getDims()[1]) / 2;
+        numClasses = static_cast<int>(getParentEdgeAt(2)->getShape().getStaticDims()[1]) / 2;
         channelsEachClass /= numClasses;
     }
 
@@ -534,8 +534,8 @@ struct MKLDNNPSROIPoolingNode::PSROIPoolingExecute {
 };
 
 void MKLDNNPSROIPoolingNode::execute(mkldnn::stream strm) {
-    auto inputPrec = getParentEdgesAtPort(0)[0]->getDesc().getPrecision();
-    auto outputPrec = getChildEdgesAtPort(0)[0]->getDesc().getPrecision();
+    auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().GetDesc().getPrecision();
+    auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().GetDesc().getPrecision();
 
     if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
           (inputPrec == Precision::FP32 && outputPrec == Precision::FP32))) {
