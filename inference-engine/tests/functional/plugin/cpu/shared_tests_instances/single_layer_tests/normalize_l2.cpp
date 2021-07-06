@@ -23,8 +23,8 @@ const std::vector<ngraph::op::EpsMode> epsMode = {
 };
 
 /* ============= 1D ============= */
+// [SKIPPED] Unsupported by CPU, issue: 35627
 const std::vector<std::vector<int64_t>> axes_1D = {
-        // Unsupported by CPU
         {},
         {0}
 };
@@ -33,7 +33,7 @@ const auto normL2params_1D = testing::Combine(
         testing::ValuesIn(axes_1D),
         testing::ValuesIn(eps),
         testing::ValuesIn(epsMode),
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{5, 3}})),
+        testing::ValuesIn(std::vector<std::vector<size_t>>({{5}})),
         testing::ValuesIn(netPrecisions),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -51,8 +51,8 @@ const std::vector<std::vector<int64_t>> axes_2D = {
         {1},
 
         // Unsupported by CPU
-        {0},
-        {0, 1},
+        // {0},
+        // {0, 1},
 };
 
 const auto normL2params_2D = testing::Combine(
@@ -78,11 +78,11 @@ const std::vector<std::vector<int64_t>> axes_3D = {
         {1, 2},
 
         // Unsupported by CPU
-        {0},
-        {2},
-        {0, 1},
-        {2, 1},
-        {0, 1, 2}
+        // {0},
+        // {2},
+        // {0, 1},
+        // {2, 1},
+        // {0, 1, 2}
 };
 
 const auto normL2params_3D = testing::Combine(
@@ -108,14 +108,14 @@ const std::vector<std::vector<int64_t>> axes_4D = {
         {1, 2, 3},
 
         // Unsupported by CPU
-        {0},
-        {2},
-        {3},
-        {0, 1},
-        {1, 2},
-        {2, 3},
-        {3, 1, 2},
-        {0, 1, 2, 3}
+        // {0},
+        // {2},
+        // {3},
+        // {0, 1},
+        // {1, 2},
+        // {2, 3},
+        // {3, 1, 2},
+        // {0, 1, 2, 3}
 };
 
 const auto normL2params_4D = testing::Combine(
@@ -133,6 +133,7 @@ INSTANTIATE_TEST_SUITE_P(
         normL2params_4D,
         NormalizeL2LayerTest::getTestCaseName
 );
+
 /* ============= 5D ============= */
 // [SKIPPED] Unsupported by CPU, issue: 35627
 const std::vector<std::vector<int64_t>> axes_5D = {
