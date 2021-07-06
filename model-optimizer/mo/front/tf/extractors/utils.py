@@ -76,7 +76,12 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
     # Otherwise there can be failures during partial inference, because we are storing an empty value with incorrect
     # shape
     if len(shape) == 0 or (len(shape) == 1 and shape.prod() == 0):
-        if len(value) == 1:
+        try:
+            value_length = len(value)
+        except TypeError:
+            # case, when value is a scalar
+            value_length = 0
+        if value_length == 1:
             # return scalar if shape is [] otherwise broadcast according to shape
             try:
                 return np.array(value[0], dtype=type_helper[0])
