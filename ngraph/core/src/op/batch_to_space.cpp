@@ -88,8 +88,8 @@ void op::v1::BatchToSpace::validate_and_infer_types()
     if (data_rank.is_static())
     {
         NODE_VALIDATION_CHECK(this,
-                              (data_rank.get_length() >= 4),
-                              "data input must have rank greater than or equal to 4. Got: ",
+                              (data_rank.get_length() >= 2),
+                              "data input must have rank greater or equal than 2. Got: ",
                               data_rank.get_length());
 
         if (inputs_same_ps.is_static())
@@ -197,10 +197,6 @@ namespace
         }
         auto data_shape = data->get_shape();
         auto data_rank = data_shape.size();
-        if (!(data_rank == 4 || data_rank == 5))
-        {
-            return false;
-        }
 
         size_t block_values_size = shape_size(inputs[1]->get_shape());
         size_t crops_begin_size = shape_size(inputs[2]->get_shape());
