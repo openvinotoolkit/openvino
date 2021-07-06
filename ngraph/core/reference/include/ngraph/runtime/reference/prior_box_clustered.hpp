@@ -102,7 +102,7 @@ namespace ngraph
                             {
                                 for (size_t j = 0; j < var_size; j++)
                                     dst_data[idx + j + out_shape[1]] = variances[j];
-                            }                
+                            }
                         }
                     }
                 }
