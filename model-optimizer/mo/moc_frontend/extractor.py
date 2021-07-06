@@ -14,7 +14,7 @@ import numpy as np
 def decode_name_with_port(input_model: InputModel, node_name: str):
     """
     Decode name with optional port specification w/o traversing all the nodes in the graph
-    TODO: in future node_name can specify input/output port groups and indices (58562)
+    TODO: in future node_name can specify input/output port groups as well as indices (58562)
     :param input_model: Input Model
     :param node_name: user provided node name
     :return: decoded place in the graph
@@ -22,12 +22,12 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     found_nodes = []
     found_node_names = []
 
-    """
-    Helper function to add Place node to list of found nodes. Adds only if node is not None
-    :param found_nodes List[Place]: list of found nodes
-    :param node Place: Place node to add to list
-    """
     def add_found_node(found_nodes: list, node: Place):
+        """
+        Helper function to add Place node to list of found nodes. Adds only if node is not None
+        :param found_nodes List[Place]: list of found nodes
+        :param node Place: Place node to add to list
+        """
         found_nodes.append(node) if node else None
 
     node = input_model.get_place_by_tensor_name(node_name)
@@ -70,8 +70,7 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     # This logic is not going to work with other frontends
 
     # TODO: Add support for input/output group name and port index here (58562)
-    # Legacy frontends use format "number:name:number" to specify input and output port indices
-    # For new frontends this logic shall be extended to additionally support input and output group names
+    # For new frontends logic shall be extended to additionally support input and output group names
     return found_nodes[0]
 
 
