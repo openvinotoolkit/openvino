@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+project(mvnc LANGUAGES C)
+
 set(TARGET_NAME "mvnc")
 
 include(${XLINK_DIR}/XLink.cmake)

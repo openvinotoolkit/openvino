@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBox::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::PriorBox, "PriorBox", 0);
 
 op::PriorBox::PriorBox(const Output<Node>& layer_shape,
                        const Output<Node>& image_shape,
@@ -69,7 +69,7 @@ void op::PriorBox::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, element::f32, PartialShape::dynamic());
+        set_output_type(0, element::f32, PartialShape{2, Dimension::dynamic()});
     }
 }
 
