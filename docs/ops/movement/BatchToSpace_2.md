@@ -8,11 +8,11 @@
 
 **Detailed description**
 
-The operation is equivalent to the following transformation of the input tensor `data` with shape `[batch, D_1, D_2, ..., D_{N-1}]` and `block_shape`, `crops_begin`, `crops_end` of shape `[N]` to *Y* output tensor.
+The operation is equivalent to the following transformation of the input tensor `data` with shape `[batch, D_1, D_2, ..., D_{N-1}]` and `block_shape`, `crops_begin`, `crops_end` of shape `[N]` to *y* output tensor.
 
 \f[x' = reshape(data, [B_1, \ldots, B_{N - 1}, \frac{batch}{\left(B_1 \times \ldots \times B_{N - 1}\right)}, D_1, D_2, \ldots, D_{N - 1}])\f]
 \f[x'' = transpose(x', [N, N + 1, 0, N + 2, 1, \ldots, N + N - 1, N - 1])\f]
-\f[x''' = reshape(x'', [\frac{batch}{\left(B_1 \times \ldots \times B_{N - 1}\right)}, D_1 \times B_1, D_2 \times B_2, ... , D_{N - 1} \times B_{N - 1}])\f]
+\f[x''' = reshape(x'', [\frac{batch}{\left(B_1 \times \ldots \times B_{N - 1}\right)}, D_1 \times B_1, D_2 \times B_2, \ldots, D_{N - 1} \times B_{N - 1}])\f]
 
 Crop the start and end of dimensions according to `crops_begin`, `crops_end` to produce the output of shape:
 \f[shape_y = [\frac{batch}{\left(B_1 \times \ldots \times B_{N - 1}\right)}, crop(D_1 \times B_1, CB_1, CE_1), crop(D_2 \times B_2, CB_2, CE_2), \ldots , crop(D_{N - 1} \times B_{N - 1}, CB_{N - 1}, CE_{N - 1})]\f]
@@ -25,6 +25,8 @@ where
 - \f$CE_i\f$ = crops_end[i]
 - \f$CB_0\f$ and \f$CE_0\f$ are expected to be 0
 - \f$CB_i + CE_i \leq D_i \times B_i \f$
+
+*BatchToSpace* operation is the reverse of *SpaceToBatch* operation.
 
 **Attributes**: *BatchToSpace* operation has no attributes.
 
