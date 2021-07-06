@@ -61,8 +61,7 @@ public:
     CreateAppendableGraphDecorator(std::unique_ptr<CreateGraphDecorator> prev = nullptr) :
         CreateGraphDecorator(std::move(prev)) {}
 protected:
-    void updateGraph(Graph& graph) override
-    {
+    void updateGraph(Graph& graph) override {
         ngraph::OutputVector new_graph_output;
         for (auto& node : graph.output_nodes) {
             new_graph_output.emplace_back(createOutputNode(node));
@@ -109,8 +108,7 @@ private:
     const ngraph::Shape kernel_shape_;
 };
 
-ngraph::Output<ngraph::Node> CreateConvolution::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node)
-{
+ngraph::Output<ngraph::Node> CreateConvolution::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) {
     auto kernel = ngraph::opset7::Constant::create(ngraph::element::f32,
                                                    kernel_shape_, {1});
 
@@ -138,8 +136,7 @@ private:
     const ngraph::Shape split_shape_;
 };
 
-void CreateSplittedConvolution::updateGraph(Graph& graph)
-{
+void CreateSplittedConvolution::updateGraph(Graph& graph) {
     auto split_node_c1 = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{3});
     auto split_node_c2 = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({split_shape_.size()}), split_shape_);
     auto split_node = std::make_shared<ngraph::opset7::VariadicSplit>(graph.input_params,
@@ -168,8 +165,7 @@ protected:
     ngraph::Output<ngraph::Node> createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) override;
 };
 
-ngraph::Output<ngraph::Node> CreateAdd::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node)
-{
+ngraph::Output<ngraph::Node> CreateAdd::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) {
     auto bias = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
     return std::make_shared<ngraph::opset7::Add>(parent_node, bias);
 }
@@ -182,8 +178,7 @@ protected:
     ngraph::Output<ngraph::Node> createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) override;
 };
 
-ngraph::Output<ngraph::Node> CreateFakeQuantize::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node)
-{
+ngraph::Output<ngraph::Node> CreateFakeQuantize::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) {
     auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
     auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
     auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
@@ -201,8 +196,7 @@ protected:
     void updateGraph(Graph& graph) override;
 };
 
-void CreateConcat::updateGraph(Graph& graph)
-{
+void CreateConcat::updateGraph(Graph& graph) {
     ngraph::OutputVector new_graph_output;
     new_graph_output.emplace_back(std::make_shared<ngraph::opset7::Concat>(graph.output_nodes, 3));
     graph.output_nodes.swap(new_graph_output);
@@ -235,7 +229,7 @@ CreateGraphDecoratorPtr createBuildDecorator(const ngraph::Shape& input_shape, c
 
 template<typename DecorT, typename... DecorTs>
 auto createBuildDecorator(const ngraph::Shape& input_shape,
-                                             const ngraph::Shape& kernel_shape) 
+                                             const ngraph::Shape& kernel_shape)
                                                 -> typename std::enable_if<(sizeof...(DecorTs) == 0), CreateGraphDecoratorPtr>::type {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator(input_shape, kernel_shape);
     return createUnique<DecorT>(std::move(build_decorator));
@@ -243,7 +237,7 @@ auto createBuildDecorator(const ngraph::Shape& input_shape,
 
 template<typename DecorT, typename... DecorTs>
 auto createBuildDecorator(const ngraph::Shape& input_shape,
-                                             const ngraph::Shape& kernel_shape) 
+                                             const ngraph::Shape& kernel_shape)
                                                 -> typename std::enable_if<(sizeof...(DecorTs) > 0), CreateGraphDecoratorPtr>::type {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator<DecorTs...>(input_shape, kernel_shape);
     return createUnique<DecorT>(std::move(build_decorator));
@@ -326,10 +320,11 @@ INSTANTIATE_TEST_SUITE_P(SplitConvolutionTestSuite, SplitConvolutionFixture,
                                            std::make_tuple(createSolidGraph<CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
                                                            createSolidGraph<CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
                                                            createPassManager<GNAPluginNS::SplitConvolutionWithFq>()),
-                                           std::make_tuple(createSolidGraph<CreateAdd, CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                                                           createSolidGraph<CreateAdd, CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                                                           createPassManager<GNAPluginNS::SplitConvolutionWithFq>())
-                         ));
+                                           std::make_tuple(createSolidGraph<CreateAdd, CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1},
+                                                                                                           ngraph::Shape{1, 1, 1, 1}),
+                                                           createSolidGraph<CreateAdd, CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1},
+                                                                                                           ngraph::Shape{1, 1, 1, 1}),
+                                                           createPassManager<GNAPluginNS::SplitConvolutionWithFq>())));
 
 } // namespace
 } // namespace testing
