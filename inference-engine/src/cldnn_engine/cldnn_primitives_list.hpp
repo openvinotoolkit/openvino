@@ -208,5 +208,8 @@ REGISTER_FACTORY(v6, MVN);
 // ------------------------------ Supported v7 ops ------------------------------ //
 REGISTER_FACTORY(v7, Gather);
 
+// ------------------------------ Supported v8 ops ------------------------------ //
+REGISTER_FACTORY(v8, Gather);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

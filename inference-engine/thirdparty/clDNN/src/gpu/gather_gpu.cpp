@@ -49,6 +49,7 @@ public:
 
         gather_params.axis = convert_axis(arg.get_primitive()->axis);
         gather_params.batch_dim = size_t(arg.get_primitive()->batch_dim);
+        gather_params.support_neg_ind = arg.get_primitive()->support_neg_ind;
 
         gather_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
 

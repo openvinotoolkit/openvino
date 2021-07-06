@@ -11,10 +11,11 @@ namespace kernel_selector {
 // gather_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct gather_params : public base_params {
-    gather_params() : base_params(KernelType::GATHER), axis(GatherAxis::BATCH), batch_dim(0) {}
+    gather_params() : base_params(KernelType::GATHER), axis(GatherAxis::BATCH), batch_dim(0), support_neg_ind(false) {}
 
     GatherAxis axis;
     int64_t batch_dim;
+    bool support_neg_ind;
     virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
