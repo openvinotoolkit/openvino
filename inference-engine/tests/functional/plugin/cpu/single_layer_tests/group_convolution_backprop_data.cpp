@@ -95,19 +95,16 @@ protected:
 
         auto weiPrc = (inElementType == element::u8) ? element::i8 : inElementType;
 
-        std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData> groupConv;
+        std::shared_ptr<ngraph::Node> groupConv;
         if (!outputShape.empty()) {
             auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
             groupConv = ngraph::builder::makeGroupConvolutionBackpropDataRelaxed(paramOuts[0], outShape, weiPrc, outElementType, kernel,
-                    stride, padBegin, padEnd, dilation, padType, convOutChannels, numGroups, false, outputPadding);
+                    stride, padBegin, padEnd, dilation, padType, convOutChannels, numGroups, outputPadding);
         } else {
             groupConv = ngraph::builder::makeGroupConvolutionBackpropDataRelaxed(paramOuts[0], weiPrc, outElementType, kernel,
-                    stride, padBegin, padEnd, dilation, padType, convOutChannels, numGroups, false, outputPadding);
+                    stride, padBegin, padEnd, dilation, padType, convOutChannels, numGroups, outputPadding);
         }
-
-        auto groupDeconvNode = ngraph::builder::makeGroupConvolutionBackpropDataRelaxed(paramOuts[0], weiPrc, outElementType, kernel,
-                        stride, padBegin, padEnd, dilation, padType, convOutChannels, numGroups);
-        function = makeNgraphFunction(element::f32, inputParams, groupDeconvNode, "groupConvolutionBackpropData");
+        function = makeNgraphFunction(element::f32, inputParams, groupConv, "groupConvolutionBackpropData");
 
         if (inPrc == Precision::U8 || inPrc == Precision::I8) {
             additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::i8, element::f32>>());
@@ -429,7 +426,8 @@ const auto groupDeconvParams_2D_I8 = ::testing::Combine(
         ::testing::ValuesIn(dilations2di8),
         ::testing::ValuesIn(numOutChannels_Blocked),
         ::testing::ValuesIn(numGroups_Blocked),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
 const std::vector<CPUSpecificParams> CPUParams_2D_I8 = {
@@ -448,6 +446,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_I8, GroupDeconvolutionLayerCPUTest,
                                         ::testing::Values(Layout::ANY),
                                         ::testing::Values(Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7 })),
+                                        ::testing::ValuesIn(emptyOutputShape),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_I8)),
                                 ::testing::ValuesIn(fusingParamsSetI8),
@@ -463,7 +462,8 @@ const auto groupDeconvParams_1x1_2D_I8 = ::testing::Combine(
         ::testing::Values(SizeVector({1, 1})),
         ::testing::ValuesIn(numOutChannels_Blocked),
         ::testing::ValuesIn(numGroups_Blocked),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
 const std::vector<CPUSpecificParams> CPUParams_2D_1x1_I8 = {
@@ -483,6 +483,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_1x1_2D_I8, GroupDeconvolutionLayerCPUT
                                         ::testing::Values(Layout::ANY),
                                         ::testing::Values(Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7 })),
+                                        ::testing::ValuesIn(emptyOutputShape),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_1x1_I8)),
                                 ::testing::ValuesIn(fusingParamsSetI8),
@@ -573,7 +574,8 @@ const auto groupDeconvParams_DW_2D_I8 = ::testing::Combine(
         ::testing::ValuesIn(dilations2di8),
         ::testing::ValuesIn(numOutChannels_DW),
         ::testing::ValuesIn(numGroups_DW),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_DW_I8, GroupDeconvolutionLayerCPUTest,
@@ -586,6 +588,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_2D_DW_I8, GroupDeconvolutionLayerCPUTe
                                         ::testing::Values(Layout::ANY),
                                         ::testing::Values(Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({ 2, 32, 7, 7 })),
+                                        ::testing::ValuesIn(emptyOutputShape),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_I8)),
                                 ::testing::ValuesIn(fusingParamsSetI8),
@@ -601,7 +604,8 @@ const auto groupDeconvParams_DW_1x1_2D_I8 = ::testing::Combine(
         ::testing::Values(SizeVector({1, 1})),
         ::testing::ValuesIn(numOutChannels_DW),
         ::testing::ValuesIn(numGroups_DW),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_DW_1x1_2D_I8, GroupDeconvolutionLayerCPUTest,
@@ -614,6 +618,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv_DW_1x1_2D_I8, GroupDeconvolutionLayerC
                                         ::testing::Values(Layout::ANY),
                                         ::testing::Values(Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({ 2, 32, 7, 7 })),
+                                        ::testing::ValuesIn(emptyOutputShape),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_I8)),
                                 ::testing::ValuesIn(fusingParamsSetI8),

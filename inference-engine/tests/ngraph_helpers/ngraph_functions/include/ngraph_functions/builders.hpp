@@ -264,6 +264,22 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropDataRelaxed(const ngraph::Outp
                                                               const op::PadType &autoPad,
                                                               size_t numOutChannels,
                                                               size_t numGroups,
+                                                              const std::vector<ptrdiff_t> &outputPadding = {},
+                                                              const std::vector<float> &filterWeights = {});
+
+std::shared_ptr<Node> makeGroupConvolutionBackpropDataRelaxed(const ngraph::Output<Node> &in,
+                                                              const ngraph::Output<Node> &outputShape,
+                                                              const element::Type &weiType,
+                                                              const element::Type &outType,
+                                                              const std::vector<size_t> &filterSize,
+                                                              const std::vector<size_t> &strides,
+                                                              const std::vector<ptrdiff_t> &padsBegin,
+                                                              const std::vector<ptrdiff_t> &padsEnd,
+                                                              const std::vector<size_t> &dilations,
+                                                              const op::PadType &autoPad,
+                                                              size_t numOutChannels,
+                                                              size_t numGroups,
+                                                              const std::vector<ptrdiff_t> &outputPadding = {},
                                                               const std::vector<float> &filterWeights = {});
 
 std::shared_ptr<ngraph::Node> makeBinaryConvolution(const ngraph::Output<Node> &in,
