@@ -5,6 +5,7 @@
 #include "kernels_factory.hpp"
 #include "kernels_cache.hpp"
 #include "ocl/ocl_engine.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -372,6 +373,10 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             dump_file << "*/\n";
     }
     if (!err_log.empty()) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose) {
+            std::cout << err_log << std::endl;
+        }
         throw std::runtime_error("Program build failed. You may enable OCL source dump to see the error log.\n");
     }
 }

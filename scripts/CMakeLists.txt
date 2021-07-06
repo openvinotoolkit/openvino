@@ -10,6 +10,7 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                       SKIP "${OpenVINO_SOURCE_DIR}/bin"
                            "${OpenVINO_SOURCE_DIR}/build"
                            "${OpenVINO_SOURCE_DIR}/thirdparty"
+                           "${OpenVINO_SOURCE_DIR}/ngraph/python/pybind11"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
                            "${TEMP}"
                            # TODO fix and enable back:
