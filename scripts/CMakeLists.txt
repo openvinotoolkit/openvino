@@ -38,6 +38,17 @@ elseif(WIN32)
             COMPONENT setupvars)
 endif()
 
+# TODO: remove before merge
+if(UNIX)
+    install(PROGRAMS setupvars/setupvars.sh
+            DESTINATION setupvars
+            COMPONENT setupvars)
+elseif(WIN32)
+    install(PROGRAMS setupvars/setupvars.bat
+            DESTINATION setupvars
+            COMPONENT setupvars)
+endif()
+
 # install install_dependencies
 
 if(UNIX)
