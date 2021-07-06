@@ -23,7 +23,7 @@ ngraph::pass::ConvertDeformableConv8To1::ConvertDeformableConv8To1() {
             return false;
 
         if (deformable_conv_v8_node->get_input_size() != 3
-            || deformable_conv_v8_node->get_use_bilinear_interpolation_padding() != false)
+            || deformable_conv_v8_node->get_bilinear_interpolation_pad() != false)
             return false;
 
         auto arg = deformable_conv_v8_node->input_value(0);

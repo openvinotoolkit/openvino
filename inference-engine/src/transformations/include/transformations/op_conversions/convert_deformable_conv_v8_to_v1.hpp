@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API ConvertDeformableConv8To1;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ConvertGather7ToGather1 converts v7::Gather into v1::Gather.
+ * @brief ConvertDeformableConv8To1 converts v8::DeformableConvolution into v1::DeformableConvolution.
  */
 class ngraph::pass::ConvertDeformableConv8To1 : public ngraph::pass::MatcherPass {
 public:
