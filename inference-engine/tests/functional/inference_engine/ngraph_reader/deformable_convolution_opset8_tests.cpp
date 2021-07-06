@@ -149,7 +149,7 @@ TEST_F(NGraphReaderTests, ReadDeformableConvolution8WithMaskNetwork) {
 			</output>
 		</layer>
 	    <layer id="3" name="1090" type="DeformableConvolution" version="opset8">
-            <data deformable_group="1" dilations="1,1" group="1" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+            <data deformable_group="1" dilations="1,1" group="1" pads_begin="1,1" pads_end="1,1" strides="2,2" bilinear_interpolation_pad="true"/>
             <input>
                 <port id="0">
                     <dim>1</dim>

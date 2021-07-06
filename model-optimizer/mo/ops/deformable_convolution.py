@@ -21,9 +21,10 @@ class DeformableConvolution(Op):
             'multiplication_transparent_ports': [(0, 0), (2, 0)],
             'in_ports_count': 3,
             'out_ports_count': 1,
-            'use_bilinear_interpolation_padding': False,
+            'bilinear_interpolation_pad': False,
         }, attrs)
 
     def backend_attrs(self):
-        # the same attributes as in a regular convolution and one additional attribute 'deformable_group' and 'group'
-        return Convolution(self.graph, {}).backend_attrs() + ['deformable_group', 'group']
+        # the same attributes as in a regular convolution and additional attributes 'deformable_group', 'group'
+        # and 'bilinear_interpolation_pad'
+        return Convolution(self.graph, {}).backend_attrs() + ['deformable_group', 'group', 'bilinear_interpolation_pad']
