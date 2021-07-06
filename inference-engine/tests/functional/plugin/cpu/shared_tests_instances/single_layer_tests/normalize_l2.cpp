@@ -133,4 +133,39 @@ INSTANTIATE_TEST_SUITE_P(
         normL2params_4D,
         NormalizeL2LayerTest::getTestCaseName
 );
+/* ============= 5D ============= */
+// [SKIPPED] Unsupported by CPU, issue: 35627
+const std::vector<std::vector<int64_t>> axes_5D = {
+        {},
+        {0},
+        {1},
+        {2},
+        {3},
+        {4},
+        {0, 1},
+        {1, 2},
+        {2, 3},
+        {3, 4},
+        {1, 2, 3},
+        {2, 3, 4},
+        {4, 3, 2},
+        {1, 2, 3, 4},
+        {0, 1, 2, 3}
+};
+
+const auto normL2params_5D = testing::Combine(
+        testing::ValuesIn(axes_5D),
+        testing::ValuesIn(eps),
+        testing::ValuesIn(epsMode),
+        testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 2, 3, 10, 5}})),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_NormalizeL2_5D,
+        NormalizeL2LayerTest,
+        normL2params_5D,
+        NormalizeL2LayerTest::getTestCaseName
+);
 }  // namespace
