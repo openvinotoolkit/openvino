@@ -43,7 +43,9 @@ const std::vector<float> offsets = {
 };
 
 const std::vector<std::vector<float>> variances = {
-    { 0.1f, 0.1f, 0.2f, 0.2f }
+    {0.1f, 0.1f, 0.2f, 0.2f},
+    {0.2f},
+    {}
 };
 
 const std::vector<bool> clips = {

@@ -27,6 +27,7 @@ namespace ngraph
                 size_t num_priors_ = attrs.widths.size();
 
                 auto variances = attrs.variances;
+                NGRAPH_CHECK(variances.size() == 1 || variances.size() == 4 || variances.empty());
                 if (variances.empty())
                     variances.push_back(0.1f);
 
@@ -87,9 +88,21 @@ namespace ngraph
                             dst_data[idx + 2] = xmax;
                             dst_data[idx + 3] = ymax;
 
-                            idx = get_idx(var_size);
-                            for (size_t j = 0; j < var_size; j++)
-                                dst_data[idx + j + out_shape[1]] = variances[j];
+                            idx = get_idx(4);
+
+                            // At this point we have either:
+                            // 1. A single variance value (to be repeated 4 times for each prior)
+                            // 2. 4 variance values
+                            if (var_size == 1)
+                            {
+                                for (size_t j = 0; j < 4; j++)
+                                    dst_data[idx + j + out_shape[1]] = variances[0];
+                            }
+                            else
+                            {
+                                for (size_t j = 0; j < var_size; j++)
+                                    dst_data[idx + j + out_shape[1]] = variances[j];
+                            }                
                         }
                     }
                 }
