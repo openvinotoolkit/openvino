@@ -14,9 +14,7 @@ Start working with the OpenVINO™ toolkit right from your browser: import a mod
 * Analyze the quality of your model and visualize output.
 * Use preconfigured JupyterLab\* environment to learn OpenVINO™ workflow. 
 
-\htmlonly
 <iframe width="560" height="315" src="https://www.youtube.com/embed/on8xSSTKCt8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\endhtmlonly
 
 ## Run DL Workbench 
 
@@ -24,9 +22,7 @@ You can [run DL Workbench](@ref workbench_docs_Workbench_DG_Install) on your loc
 
 Run DL Workbench on your local system by using the installation form. Select your options and run the commands on the local machine:
 
-\htmlonly
 <iframe style="width: 100%; height: 620px;" src="https://openvinotoolkit.github.io/workbench_aux/"  frameborder="0" allow="clipboard-write;"></iframe>
-\endhtmlonly
 
 Once DL Workbench is set up, open the http://127.0.0.1:5665 link.
 
@@ -34,9 +30,7 @@ Once DL Workbench is set up, open the http://127.0.0.1:5665 link.
 
 Watch the video to learn more detailed information on how to run DL Workbench:
 
-\htmlonly
 <iframe width="560" height="315" src="https://www.youtube.com/embed/JBDG2g5hsoM"  frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\endhtmlonly
 
 Congratulations, you have installed DL Workbench. Your next step is to [Get Started with DL Workbench](@ref workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets) and create your first project. 
 

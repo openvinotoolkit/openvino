@@ -14,10 +14,10 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 | Options                    | Values                                                                                                                                                                                                                                                                                |
 | :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Validated Models           | [mobilenet-ssd](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mobilenet-ssd/mobilenet-ssd.md), [face-detection-0206](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/face-detection-0206/description/face-detection-0206.md) |
+| Validated Models           | [mobilenet-ssd](@ref omz_models_model_mobilenet_ssd), [face-detection-0206](@ref omz_models_model_face_detection_0206) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                                                                                                                                                                                              |
 | Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                                                                                                                                                                                               |
-| Other language realization | [C++](../../../../samples/object_detection_sample_ssd), [C](../../../c/samples/object_detection_sample_ssd)                                                                                                                                                                           |
+| Other language realization | [C++](../../../../samples/object_detection_sample_ssd/README.md), [C](../../../c/samples/object_detection_sample_ssd/README.md)                                                                                                                                                                           |
 
 ## How It Works
 

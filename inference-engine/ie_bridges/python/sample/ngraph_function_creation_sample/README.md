@@ -15,11 +15,11 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 | Options                    | Values                                                                  |
 | :------------------------- | :---------------------------------------------------------------------- |
-| Validated Models           | LeNet (image classification network)                                    |
+| Validated Models           | LeNet                                    |
 | Model Format               | Network weights file (\*.bin)                                           |
 | Validated images           | The sample uses OpenCV\* to [read input grayscale image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png) or single-channel `ubyte` image                                          |
 | Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization | [C++](../../../../samples/ngraph_function_creation_sample)              |
+| Other language realization | [C++](../../../../samples/ngraph_function_creation_sample/README.md)              |
 
 ## How It Works
 
