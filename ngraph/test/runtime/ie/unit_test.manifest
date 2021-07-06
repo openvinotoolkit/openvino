@@ -255,6 +255,7 @@ numeric_float_nan
 numeric_float_inf
 numeric_double_nan
 numeric_double_inf
+
 fake_quantize_pdpd
 IE_GPU.fake_quantize
 IE_GPU.fake_quantize_with_clip

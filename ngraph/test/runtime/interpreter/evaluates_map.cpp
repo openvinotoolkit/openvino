@@ -2112,7 +2112,8 @@ namespace
                                              op->get_input_shape(2),
                                              op->get_input_shape(3),
                                              op->get_input_shape(4),
-                                             op->get_levels());
+                                             op->get_levels(),
+                                             op->get_auto_broadcast());
         return true;
     }
 

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
+#include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
 #include "utils/fe_round.hpp"
 
@@ -62,10 +63,35 @@ namespace ngraph
                         begin(current_dims), end(current_dims), begin(offsets), 0);
                 }
 
-                inline Shape align_shape_sizes(const Shape& shape, size_t target_size)
+                inline Shape align_shape_sizes(const Shape& shape,
+                                               const Shape& target_shape,
+                                               const op::AutoBroadcastSpec& broadcast)
                 {
-                    Shape s(target_size - shape.size(), 1);
-                    std::copy(begin(shape), end(shape), std::back_inserter(s));
+                    Shape s;
+                    switch (broadcast.m_type)
+                    {
+                    case op::AutoBroadcastType::NONE:
+                    {
+                        s = shape;
+                        break;
+                    }
+                    case op::AutoBroadcastType::NUMPY:
+                    {
+                        s = Shape(target_shape.size(), 1);
+                        std::copy(begin(shape), end(shape), prev(end(s), shape.size()));
+                        break;
+                    }
+                    case op::AutoBroadcastType::PDPD:
+                    {
+                        const size_t axis = broadcast.m_axis == -1
+                                                ? target_shape.size() - shape.size()
+                                                : static_cast<size_t>(broadcast.m_axis);
+
+                        s = Shape(target_shape.size(), 1);
+                        std::copy(begin(shape), end(shape), next(begin(s), axis));
+                        break;
+                    }
+                    }
                     return s;
                 }
 
@@ -90,7 +116,8 @@ namespace ngraph
                 public:
                     QuantizationBound(const T* const bound_data,
                                       const Shape& bound_shape,
-                                      const Shape& arg_shape)
+                                      const Shape& arg_shape,
+                                      const op::AutoBroadcastSpec& broadcast_spec)
                         : bounds(bound_data)
                     {
                         if (shape_size(bound_shape) == 1)
@@ -106,7 +133,7 @@ namespace ngraph
                             bound = Bound::broadcast;
                             const auto arg_memory_offsets = row_major_strides(arg_shape);
                             const auto unsqueezed_bound_shape =
-                                align_shape_sizes(bound_shape, arg_shape.size());
+                                align_shape_sizes(bound_shape, arg_shape, broadcast_spec);
                             row_strides = calc_broadcast_index_offset(arg_memory_offsets,
                                                                       unsqueezed_bound_shape);
                         }
@@ -178,7 +205,8 @@ namespace ngraph
                                const Shape& in_high_shape,
                                const Shape& out_low_shape,
                                const Shape& out_high_shape,
-                               size_t levels)
+                               const size_t levels,
+                               const op::AutoBroadcastSpec& broadcast_spec)
             {
                 using namespace fake_quantize_details;
 
@@ -207,10 +235,14 @@ namespace ngraph
                         "tensor rank equal to ",
                         arg_shape.size());
 
-                    const QuantizationBound<T> in_low_bound(in_low, in_low_shape, arg_shape);
-                    const QuantizationBound<T> in_high_bound(in_high, in_high_shape, arg_shape);
-                    const QuantizationBound<T> out_low_bound(out_low, out_low_shape, arg_shape);
-                    const QuantizationBound<T> out_high_bound(out_high, out_high_shape, arg_shape);
+                    const QuantizationBound<T> in_low_bound(
+                        in_low, in_low_shape, arg_shape, broadcast_spec);
+                    const QuantizationBound<T> in_high_bound(
+                        in_high, in_high_shape, arg_shape, broadcast_spec);
+                    const QuantizationBound<T> out_low_bound(
+                        out_low, out_low_shape, arg_shape, broadcast_spec);
+                    const QuantizationBound<T> out_high_bound(
+                        out_high, out_high_shape, arg_shape, broadcast_spec);
 
                     std::vector<size_t> current_dim(arg_shape.size(), 0);
                     const auto arg_shape_size = shape_size(arg_shape);
