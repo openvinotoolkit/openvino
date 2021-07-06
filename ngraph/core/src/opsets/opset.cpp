@@ -115,3 +115,23 @@ const ngraph::OpSet& ngraph::get_opset7()
     });
     return opset;
 }
+
+size_t ngraph::OpSet& get_initial_opset(const ngraph::NodeTypeInfo &type_info) {
+    std::vector<ngraph::OpSet> opsets;
+    opsets.push_back(ngraph::get_opset1());
+    opsets.push_back(ngraph::get_opset2());
+    opsets.push_back(ngraph::get_opset3());
+    opsets.push_back(ngraph::get_opset4());
+    opsets.push_back(ngraph::get_opset5());
+    opsets.push_back(ngraph::get_opset6());
+    opsets.push_back(ngraph::get_opset7());
+
+    for (size_t opset = 1; opset <= opsets.size(); ++opset) {
+        if (opset.contains_type(type_info)) {
+            return opset;
+        }
+    }
+    std::stringstream msg;
+    msg << "Initial opset for operation " << type_info.name << "::" << type_info.version << "was not found!";
+    throw ngraph::ngraph_error(msg.str());
+}
