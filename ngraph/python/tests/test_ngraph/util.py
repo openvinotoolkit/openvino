@@ -16,7 +16,7 @@ def _get_numpy_dtype(scalar):
 
 
 def run_op_node(input_data, op_fun, *args):
-    # type: (NumericData, Callable, *Any) -> List[NumericData]
+    # type: (Union[NumericData, List[NumericData]], Callable, *Any) -> List[NumericData]
     """Run computation on node performing `op_fun`.
 
     `op_fun` has to accept a node as an argument.

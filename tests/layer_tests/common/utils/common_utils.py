@@ -31,7 +31,7 @@ def generate_ir(coverage=False, **kwargs):
             continue
         elif (isinstance(value, tuple) and value) or (isinstance(value, str)):
             params.extend(("--{}".format(key), str('"{}"'.format(value))))
-        elif (key == "mean_values" and (' ' in value or '(' in value)):
+        elif key == "mean_values" and (' ' in value or '(' in value):
             params.extend(("--{}".format(key), str('"{}"'.format(value))))
         else:
             params.extend(("--{}".format(key), str(value)))
