@@ -197,6 +197,10 @@ namespace
         }
         auto data_shape = data->get_shape();
         auto data_rank = data_shape.size();
+        if (data_rank < 2)
+        {
+            return false;
+        }
 
         size_t block_values_size = shape_size(inputs[1]->get_shape());
         size_t crops_begin_size = shape_size(inputs[2]->get_shape());
@@ -342,7 +346,6 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
 bool ngraph::op::v1::BatchToSpace::has_evaluate() const
 {
     NGRAPH_OP_SCOPE(v1_BatchToSpace_has_evaluate);
-    return !get_input_partial_shape(0).is_dynamic() &&
-           (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5) &&
+    return !get_input_partial_shape(0).is_dynamic() && get_input_shape(0).size() >= 2 &&
            get_input_shape(0).size() <= shape_size(get_input_shape(1));
 }
