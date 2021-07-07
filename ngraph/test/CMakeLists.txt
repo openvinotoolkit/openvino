@@ -639,12 +639,13 @@ install(TARGETS unit-test
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
+target_link_libraries(unit-test PRIVATE cnpy)
 
 add_subdirectory(frontend)
 ### END FRONTEND ###
 
 #PaddlePaddle - test models generator
-if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
+if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
     file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
