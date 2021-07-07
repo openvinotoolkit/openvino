@@ -115,3 +115,15 @@ const ngraph::OpSet& ngraph::get_opset7()
     });
     return opset;
 }
+
+const ngraph::OpSet& ngraph::get_opset8()
+{
+    static OpSet opset;
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#include "ngraph/opsets/opset8_tbl.hpp"
+#undef NGRAPH_OP
+    });
+    return opset;
+}
