@@ -211,7 +211,7 @@ jobs:
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       python3 -m pip install -r $(MO_ROOT)/requirements_tf.txt
       env
-      python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Add.py --junitxml=TEST-tf_Add.xml
+      python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Add.py --ir_version=10 --junitxml=TEST-tf_Add.xml
     displayName: 'Layer Tests'
     continueOnError: false
 
