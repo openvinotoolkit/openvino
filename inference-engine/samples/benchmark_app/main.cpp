@@ -56,8 +56,6 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
         showUsage();
         throw std::logic_error("The percentile value is incorrect. The applicable values range is [1, 100].");
     }
-
-
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }

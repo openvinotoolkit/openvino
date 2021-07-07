@@ -32,7 +32,7 @@ def run(args):
                 logger.warning(" -nstreams default value is determined automatically for a device. "
                                "Although the automatic selection usually provides a reasonable performance, "
                                "but it still may be non-optimal for some cases, for more information look at README. ")
-        if args.latency_percentile > 100 or args.latency_percentile < 1
+        if args.latency_percentile > 100 or args.latency_percentile < 1:
             logger.error("The percentile value is incorrect. The applicable values range is [1, 100].")
 
         command_line_arguments = get_command_line_arguments(sys.argv)
