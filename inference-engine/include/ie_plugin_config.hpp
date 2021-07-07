@@ -396,6 +396,11 @@ DECLARE_CONFIG_KEY(CACHE_DIR);
  */
 DECLARE_AUTO_CONFIG_KEY(DEVICE_LIST);
 
+/**
+ *
+ */
+DECLARE_AUTO_CONFIG_KEY(STREAM_MODE);
+
 }  // namespace InferenceEngine
 
 #include "hetero/hetero_plugin_config.hpp"
