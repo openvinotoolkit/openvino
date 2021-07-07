@@ -96,9 +96,8 @@ The following components are installed by default:
 - Microsoft Windows\* 10 64-bit
 
 **Software**
-- [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)
-- [CMake **3.10 or higher** 64-bit](https://cmake.org/download/)
-   > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
+- [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/). Make sure that C++ CMake tools for Windows is [enabled](https://docs.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-160#:~:text=The%20Visual%20C%2B%2B%20Tools%20for,Visual%20Studio%20generators%20are%20supported).
+- [CMake **3.10 or higher** 64-bit](https://cmake.org/download/). If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
 - [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
 
 ## Installation Steps

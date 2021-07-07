@@ -15,8 +15,6 @@
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance.
 
-The Intel® Distribution of OpenVINO™ toolkit for macOS* includes the Inference Engine, OpenCV* libraries, Sample Applications, Demos, Model Optimizer and other additional tools to deploy applications for accelerated inference on Intel® CPUs and Intel® Neural Compute Stick 2.  
-
 The Intel® Distribution of OpenVINO™ toolkit for macOS*:
 
 - Enables CNN-based deep learning inference on the edge  
