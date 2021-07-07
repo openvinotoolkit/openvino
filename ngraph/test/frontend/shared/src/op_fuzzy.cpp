@@ -7,9 +7,8 @@
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
-
-#include "../include/op_fuzzy.hpp"
-#include "../include/utils.hpp"
+#include "op_fuzzy.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -69,7 +68,7 @@ static bool ends_with(std::string const& value, std::string const& ending)
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-static std::string getModelFolder(std::string& modelFile)
+static std::string getModelFolder(const std::string& modelFile)
 {
     if (!ends_with(modelFile, ".pdmodel"))
         return modelFile;
@@ -77,8 +76,8 @@ static std::string getModelFolder(std::string& modelFile)
     return modelFile.substr(0, found);
 };
 
-void FrontEndFuzzyOpTest::runConvertedModel(std::shared_ptr<ngraph::Function> function,
-                                            std::string& modelFile)
+void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Function> function,
+                                            const std::string& modelFile)
 {
     auto modelFolder = getModelFolder(modelFile);
 

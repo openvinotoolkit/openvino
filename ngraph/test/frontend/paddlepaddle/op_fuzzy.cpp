@@ -6,15 +6,12 @@
 
 #include "util/engine/test_engines.hpp"
 #include "util/test_control.hpp"
-
+#include <cnpy.h>
+#include "op_fuzzy.hpp"
 #include "ngraph/ngraph.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
-
-#include <cnpy.h>
-#include "../shared/include/op_fuzzy.hpp"
-
 using namespace ngraph;
 using namespace ngraph::frontend;
 using TestEngine = test::IE_CPU_Engine;

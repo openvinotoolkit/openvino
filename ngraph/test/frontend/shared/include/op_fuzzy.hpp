@@ -31,5 +31,5 @@ protected:
 
     void doLoadFromFile();
 
-    void runConvertedModel(std::shared_ptr<ngraph::Function> function, std::string& model_file);
+    void runConvertedModel(const std::shared_ptr<ngraph::Function> function, const std::string& model_file);
 };

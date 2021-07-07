@@ -14,7 +14,6 @@ namespace ngraph
             namespace op
             {
                 NamedOutputs batch_norm(const NodeContext& node);
-
             }
         } // namespace pdpd
     }     // namespace frontend

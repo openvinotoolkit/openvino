@@ -14,7 +14,6 @@ namespace ngraph
             namespace op
             {
                 NamedOutputs clip(const NodeContext& node);
-
             }
         } // namespace pdpd
     }     // namespace frontend
