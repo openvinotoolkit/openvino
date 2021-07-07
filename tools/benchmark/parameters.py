@@ -85,7 +85,7 @@ def parse_args():
                            'estimations the number of streams should be set to 1. '
                            'See samples README for more details.')
     args.add_argument('--latency_percentile', type=int, required=False, default=50,
-                      help='Optional. The percentile which will be reported in latency metric. The applicable values range is [1, 100]. The default value is 50.')
+                      help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
     args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True, choices=[True, False],
                       help='Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. '
                            '\'true\'  - enable  bfloat16 regardless of platform support. '
