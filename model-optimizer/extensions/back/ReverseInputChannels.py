@@ -94,11 +94,11 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
         'Shape': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
         'ShapeOf': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
-        'Pad': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_pad(node, rc),
+        'Pad': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through(node, rc),
     }
 
     @staticmethod
-    def pass_rc_through_pad(node: Node, reverse_channels: Node):
+    def pass_rc_through(node: Node, reverse_channels: Node):
         # detaching reverse_channels node from the graph
         reverse_channels.out_port(0).get_connection().set_source(
             reverse_channels.in_port(0).get_connection().get_source())
