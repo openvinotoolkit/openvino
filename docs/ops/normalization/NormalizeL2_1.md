@@ -56,6 +56,8 @@ Particular cases:
 
 **Examples**
 
+*Example: Normalization over channel dimension for `NCHW` layout*
+
 ```xml
 <layer id="1" type="NormalizeL2" ...>
     <data eps="1e-8" eps_mode="add"/>
@@ -80,6 +82,8 @@ Particular cases:
     </output>
 </layer>
 ```
+
+*Example: Normalization over channel and spatial dimensions for `NCHW` layout*
 
 ```xml
 <layer id="1" type="NormalizeL2" ...>
