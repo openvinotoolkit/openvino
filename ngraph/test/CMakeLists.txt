@@ -96,6 +96,7 @@ set(SRC
     type_prop/adaptive_max_pool.cpp
     type_prop/asin.cpp
     type_prop/assign.cpp
+    type_prop/atan.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
@@ -171,6 +172,7 @@ set(SRC
     type_prop/parameter.cpp
     type_prop/power.cpp
     type_prop/prelu.cpp
+    type_prop/prior_box.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
     type_prop/range.cpp
@@ -227,6 +229,7 @@ set(SRC
     visitors/value_map.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
+    visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
@@ -446,6 +449,7 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/prelu.in.cpp
+    backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
