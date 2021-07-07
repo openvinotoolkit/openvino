@@ -127,8 +127,6 @@ public:
 
 
 TEST_P(PreprocessingPrecisionConvertTest, InternalPluginPrecisionConvert) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
 }
 }  // namespace BehaviorTestsDefinitions

@@ -52,6 +52,29 @@ namespace {
     }
 } // namespace
 
+// executable_network
+// Load correct network to Plugin to get executable network
+//TEST_P(InferRequestTests, canLoadCorrectNetworkToGetExecutable) {
+//    // Skip test according to plugin specific disabledTestPatterns() (if any)
+//    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+//    // Create CNNNetwork from ngrpah::Function
+//    InferenceEngine::CNNNetwork cnnNet(function);
+//    InferenceEngine::ExecutableNetwork execNet;
+//    ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
+//}
+//// executable network
+//TEST_P(InferRequestTests,  CanCreateTwoExeNetworks) {
+//    // Skip test according to plugin specific disabledTestPatterns() (if any)
+//    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+//    // Create CNNNetwork from ngrpah::Function
+//    InferenceEngine::CNNNetwork cnnNet(function);
+//    InferenceEngine::ExecutableNetwork execNet;
+//    for (auto i = 0; i < 2; i++) {
+//        ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
+//        ASSERT_NE(nullptr, cnnNet.getFunction());
+//    }
+//}
+
 TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

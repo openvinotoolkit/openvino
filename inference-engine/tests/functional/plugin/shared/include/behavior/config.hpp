@@ -30,7 +30,30 @@ namespace BehaviorTestsDefinitions {
 
     using EmptyConfigTests = BehaviorTestsUtils::BehaviorTestsEmptyConfig;
 
-    // Setting empty config doesn't throw
+
+//// config.cpp + correct config? + incorrect config
+//// Setting empty config to LoadNetwork doesn't throw
+//TEST_P(InferRequestTests, SetEmptyConfig) {
+//    // Skip test according to plugin specific disabledTestPatterns() (if any)
+//    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+//    // Create CNNNetwork from ngrpah::Function
+//    InferenceEngine::CNNNetwork cnnNet(function);
+//    // Load CNNNetwork to target plugins
+//    InferenceEngine::ExecutableNetwork execNet;
+//    std::map<std::string, std::string> config {};
+//    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+//        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+//        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
+//        ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
+//        ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, config));
+//    } else {
+//        ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
+//        ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
+//    }
+//}
+
+
+// Setting empty config doesn't throw
     TEST_P(EmptyConfigTests, SetEmptyConfig) {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()

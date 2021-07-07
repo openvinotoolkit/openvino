@@ -157,4 +157,38 @@ TEST_P(CallbackTests, LegacyCastAndSetuserDataGetUserData) {
     ASSERT_EQ(42, userData);
 }
 
+////callback
+//TEST_P(InferRequestTests, ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout) {
+//    // Skip test according to plugin specific disabledTestPatterns() (if any)
+//    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+//    // Create CNNNetwork from ngraph::Function
+//    // return ngrpah::Function
+//    // GetNetwork(3000, 380) make inference around 20ms on GNA SW
+//    // so increases chances for getting RESULT_NOT_READY
+//    function = SubgraphTestsDefinitions::Basic_LSTM_S::GetNetwork(300, 38);
+//    cnnNet = InferenceEngine::CNNNetwork(function);
+//    // Load CNNNetwork to target plugins
+//    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+//    // Create InferRequest
+//    InferenceEngine::InferRequest req;
+//    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+//    InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
+//    std::promise<std::chrono::system_clock::time_point> callbackTimeStamp;
+//    auto callbackTimeStampFuture = callbackTimeStamp.get_future();
+//    // add a callback to the request and capture the timestamp
+//    req.SetCompletionCallback([&]() {
+//        callbackTimeStamp.set_value(std::chrono::system_clock::now());
+//    });
+//    req.StartAsync();
+//    ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY));
+//    // get timestamp taken AFTER return from the Wait(STATUS_ONLY)
+//    const auto afterWaitTimeStamp = std::chrono::system_clock::now();
+//    // IF the callback timestamp is larger than the afterWaitTimeStamp
+//    // then we should observe RESULT_NOT_READY
+//    if (afterWaitTimeStamp < callbackTimeStampFuture.get()) {
+//        ASSERT_TRUE(sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
+//    }
+//    ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
+//}
+
 }  // namespace BehaviorTestsDefinitions

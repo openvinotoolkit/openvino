@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/preprocessing.hpp"
+#include "behavior2/preprocessing/preprocessing.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
