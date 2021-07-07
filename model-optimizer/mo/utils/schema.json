@@ -9,6 +9,10 @@
 		"$id": "#root/items", 
 		"title": "Items", 
 		"type": "object",
+		"required": [
+			"id",
+			"match_kind"
+		],
 		"properties": {
 			"custom_attributes": {
 				"$id": "#root/items/custom_attributes", 
@@ -16,14 +20,13 @@
 				"type": "object",
 				"properties": {
 				}
-			}
-,
+			},
 			"id": {
 				"$id": "#root/items/id", 
 				"title": "Id", 
 				"type": "string",
-				"default": "",
-				"pattern": "^.*$"
+				"pattern": "^.*$",
+				"minLength": 1
 			},
 			"inputs": {
 				"$id": "#root/items/inputs", 
@@ -62,7 +65,6 @@
 				"$id": "#root/items/instances", 
 				"title": "Instances", 
 				"type": ["array", "object"],
-				"default": [],
 				"items":{
 					"$id": "#root/items/instances/items", 
 					"title": "Items", 
@@ -73,9 +75,10 @@
 			},
 			"match_kind": {
 				"$id": "#root/items/match_kind", 
-				"title": "Match_kind", 
+				"title": "Match_kind",
 				"type": "string",
-				"default": "",
+				"enum": ["points", "scope", "general"],
+				"default": "points",
 				"pattern": "^.*$"
 			},
 			"outputs": {
